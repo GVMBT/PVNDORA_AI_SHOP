@@ -145,6 +145,68 @@ TOOLS = [
             },
             "required": ["question"]
         }
+    },
+    {
+        "name": "add_to_wishlist",
+        "description": "Add a product to user's wishlist for later purchase. Use when user says 'save for later', 'add to favorites', 'bookmark'.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "product_id": {
+                    "type": "string",
+                    "description": "ID of the product to add to wishlist"
+                }
+            },
+            "required": ["product_id"]
+        }
+    },
+    {
+        "name": "apply_promo_code",
+        "description": "Check and apply a promo code for discount. Use when user mentions a promo code or asks about discounts.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "The promo code to apply"
+                }
+            },
+            "required": ["code"]
+        }
+    },
+    {
+        "name": "get_referral_info",
+        "description": "Get user's referral link and statistics. Use when user asks about referral program, earning money, or inviting friends.",
+        "parameters": {
+            "type": "object",
+            "properties": {}
+        }
+    },
+    {
+        "name": "get_wishlist",
+        "description": "Get user's wishlist with saved products. Use when user asks to see their saved/favorite items.",
+        "parameters": {
+            "type": "object",
+            "properties": {}
+        }
+    },
+    {
+        "name": "request_refund",
+        "description": "Request a refund for a problematic order. Use when user explicitly asks for money back or refund.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "order_id": {
+                    "type": "string",
+                    "description": "The order ID to refund"
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Reason for refund request"
+                }
+            },
+            "required": ["order_id", "reason"]
+        }
     }
 ]
 
@@ -329,6 +391,123 @@ async def execute_tool(
                 }
         
         return {"found": False}
+    
+    elif tool_name == "add_to_wishlist":
+        product_id = arguments.get("product_id")
+        product = await db.get_product_by_id(product_id)
+        
+        if not product:
+            return {"success": False, "reason": "Product not found"}
+        
+        # Check if already in wishlist
+        existing = db.client.table("wishlist").select("id").eq(
+            "user_id", user_id
+        ).eq("product_id", product_id).execute()
+        
+        if existing.data:
+            return {"success": False, "reason": "Already in wishlist"}
+        
+        db.client.table("wishlist").insert({
+            "user_id": user_id,
+            "product_id": product_id
+        }).execute()
+        
+        return {
+            "success": True,
+            "product_name": product.name
+        }
+    
+    elif tool_name == "apply_promo_code":
+        code = arguments.get("code", "").strip().upper()
+        promo = await db.validate_promo_code(code)
+        
+        if promo:
+            return {
+                "valid": True,
+                "code": code,
+                "discount_percent": promo["discount_percent"],
+                "message": f"Promo code applied! {promo['discount_percent']}% discount"
+            }
+        return {
+            "valid": False,
+            "message": "Invalid or expired promo code"
+        }
+    
+    elif tool_name == "get_referral_info":
+        # Get user's telegram_id for referral link
+        user_result = db.client.table("users").select(
+            "telegram_id,balance,personal_ref_percent"
+        ).eq("id", user_id).execute()
+        
+        if not user_result.data:
+            return {"success": False}
+        
+        user = user_result.data[0]
+        
+        # Count referrals
+        referrals = db.client.table("users").select("id", count="exact").eq(
+            "referrer_id", user_id
+        ).execute()
+        
+        return {
+            "success": True,
+            "referral_link": f"https://t.me/pvndora_bot?start=ref_{user['telegram_id']}",
+            "referral_percent": user["personal_ref_percent"],
+            "total_referrals": referrals.count if referrals.count else 0,
+            "balance": user["balance"]
+        }
+    
+    elif tool_name == "get_wishlist":
+        wishlist_items = db.client.table("wishlist").select(
+            "id,product_id,products(name,price,stock_count:stock_items(count))"
+        ).eq("user_id", user_id).execute()
+        
+        return {
+            "count": len(wishlist_items.data),
+            "items": [
+                {
+                    "id": item["product_id"],
+                    "name": item.get("products", {}).get("name", "Unknown"),
+                    "price": item.get("products", {}).get("price", 0),
+                    "in_stock": (item.get("products", {}).get("stock_count") or [{}])[0].get("count", 0) > 0
+                }
+                for item in wishlist_items.data
+            ]
+        }
+    
+    elif tool_name == "request_refund":
+        order_id = arguments.get("order_id")
+        reason = arguments.get("reason", "")
+        
+        # Get order
+        order = await db.get_order_by_id(order_id)
+        if not order:
+            return {"success": False, "reason": "Order not found"}
+        
+        if order.user_id != user_id:
+            return {"success": False, "reason": "Not your order"}
+        
+        if order.refund_requested:
+            return {"success": False, "reason": "Refund already requested"}
+        
+        # Mark refund as requested
+        db.client.table("orders").update({
+            "refund_requested": True
+        }).eq("id", order_id).execute()
+        
+        # Create support ticket for admin review
+        db.client.table("tickets").insert({
+            "user_id": user_id,
+            "order_id": order_id,
+            "issue_type": "refund",
+            "description": reason,
+            "status": "open"
+        }).execute()
+        
+        return {
+            "success": True,
+            "message": "Refund request submitted for review"
+        }
     
     return {"error": f"Unknown tool: {tool_name}"}
 
