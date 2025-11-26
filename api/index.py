@@ -116,35 +116,82 @@ async def health_check():
     return {"status": "ok", "service": "pvndora"}
 
 
+@app.get("/api/webhook/test")
+async def test_webhook():
+    """Test webhook endpoint - verify bot is configured"""
+    bot_instance = get_bot()
+    dispatcher = get_dispatcher()
+    
+    return {
+        "bot_configured": bot_instance is not None,
+        "dispatcher_configured": dispatcher is not None,
+        "telegram_token_set": bool(TELEGRAM_TOKEN),
+        "webhook_url": f"{WEBAPP_URL}/webhook/telegram"
+    }
+
+
 # ==================== TELEGRAM WEBHOOK ====================
 
 @app.post("/webhook/telegram")
 async def telegram_webhook(request: Request):
     """Handle Telegram webhook updates"""
+    import traceback
+    
     try:
+        # Get bot and dispatcher
         bot_instance = get_bot()
         dispatcher = get_dispatcher()
         
         if not bot_instance:
+            print("ERROR: Bot instance is None - TELEGRAM_TOKEN may be missing")
             return JSONResponse(
                 status_code=500,
                 content={"error": "Bot not configured"}
             )
         
         # Parse update
-        data = await request.json()
-        update = Update.model_validate(data, context={"bot": bot_instance})
+        try:
+            data = await request.json()
+            print(f"DEBUG: Received update: {data.get('update_id', 'unknown')}")
+        except Exception as e:
+            print(f"ERROR: Failed to parse JSON: {e}")
+            return JSONResponse(
+                status_code=400,
+                content={"error": f"Invalid JSON: {str(e)}"}
+            )
         
-        # Process update
-        await dispatcher.feed_update(bot_instance, update)
+        # Validate update
+        try:
+            update = Update.model_validate(data, context={"bot": bot_instance})
+            print(f"DEBUG: Update validated, type: {update.event_type if hasattr(update, 'event_type') else 'unknown'}")
+        except Exception as e:
+            print(f"ERROR: Failed to validate update: {e}")
+            print(f"ERROR: Traceback: {traceback.format_exc()}")
+            return JSONResponse(
+                status_code=400,
+                content={"error": f"Invalid update: {str(e)}"}
+            )
+        
+        # Process update - use process_update for better error handling
+        try:
+            await dispatcher.feed_update(bot_instance, update)
+            print(f"DEBUG: Update processed successfully")
+        except Exception as e:
+            print(f"ERROR: Failed to process update: {e}")
+            print(f"ERROR: Traceback: {traceback.format_exc()}")
+            # Still return 200 to Telegram to avoid retries
+            return JSONResponse(content={"ok": True, "error": str(e)})
         
         return JSONResponse(content={"ok": True})
     
     except Exception as e:
-        print(f"Webhook error: {e}")
+        error_msg = str(e)
+        error_trace = traceback.format_exc()
+        print(f"ERROR: Webhook exception: {error_msg}")
+        print(f"ERROR: Traceback: {error_trace}")
         return JSONResponse(
             status_code=500,
-            content={"error": str(e)}
+            content={"error": error_msg}
         )
 
 
@@ -1202,3 +1249,8 @@ async def cron_daily_tasks(authorization: str = Header(None)):
         print(f"Re-engagement error: {e}")
     
     return results
+
+
+# ==================== VERCEL EXPORT ====================
+# Vercel automatically detects FastAPI app, but we can also export explicitly
+handler = app
