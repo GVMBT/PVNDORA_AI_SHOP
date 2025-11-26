@@ -1104,3 +1104,101 @@ async def cron_re_engagement(authorization: str = Header(None)):
             pass  # User may have blocked the bot
     
     return {"sent": sent_count}
+
+
+@app.get("/api/cron/daily-tasks")
+async def cron_daily_tasks(authorization: str = Header(None)):
+    """
+    Combined daily cron job for Hobby plan (max 2 crons).
+    Runs: expiration reminders, wishlist reminders, re-engagement.
+    """
+    cron_secret = os.environ.get("CRON_SECRET", "")
+    if authorization != f"Bearer {cron_secret}":
+        raise HTTPException(status_code=401, detail="Invalid cron secret")
+    
+    results = {
+        "expiration_reminders": 0,
+        "wishlist_reminders": 0,
+        "re_engagement": 0
+    }
+    
+    from src.services.notifications import NotificationService
+    notification_service = NotificationService()
+    db = get_database()
+    bot = notification_service._get_bot()
+    
+    if not bot:
+        return {"error": "Bot not configured", "results": results}
+    
+    # 1. Expiration reminders (subscriptions expiring in 3 days)
+    try:
+        orders = await db.get_expiring_orders(days_before=3)
+        for order in orders:
+            user_result = db.client.table("users").select(
+                "telegram_id,language_code"
+            ).eq("id", order.user_id).execute()
+            product = await db.get_product_by_id(order.product_id)
+            
+            if user_result.data and product:
+                user = user_result.data[0]
+                days_left = (order.expires_at - datetime.utcnow()).days if order.expires_at else 0
+                await notification_service.send_expiration_reminder(
+                    telegram_id=user["telegram_id"],
+                    product_name=product.name,
+                    days_left=days_left,
+                    language=user.get("language_code", "en")
+                )
+                results["expiration_reminders"] += 1
+    except Exception as e:
+        print(f"Expiration reminders error: {e}")
+    
+    # 2. Wishlist reminders (items saved 3+ days ago)
+    try:
+        from src.i18n import get_text
+        cutoff = datetime.utcnow() - timedelta(days=3)
+        items = db.client.table("wishlist").select(
+            "id,user_id,products(name)"
+        ).eq("reminded", False).lt("created_at", cutoff.isoformat()).limit(20).execute()
+        
+        for item in items.data:
+            user_result = db.client.table("users").select(
+                "telegram_id,language_code,do_not_disturb"
+            ).eq("id", item["user_id"]).execute()
+            
+            if user_result.data and not user_result.data[0].get("do_not_disturb"):
+                user = user_result.data[0]
+                try:
+                    msg = get_text("wishlist_reminder", user.get("language_code", "en"), 
+                                  product=item.get("products", {}).get("name", "Product"))
+                    await bot.send_message(chat_id=user["telegram_id"], text=msg)
+                    db.client.table("wishlist").update({"reminded": True}).eq("id", item["id"]).execute()
+                    results["wishlist_reminders"] += 1
+                except:
+                    pass
+    except Exception as e:
+        print(f"Wishlist reminders error: {e}")
+    
+    # 3. Re-engagement (users inactive 7+ days)
+    try:
+        cutoff = datetime.utcnow() - timedelta(days=7)
+        users = db.client.table("users").select(
+            "telegram_id,language_code"
+        ).eq("is_banned", False).eq("do_not_disturb", False).lt(
+            "last_activity_at", cutoff.isoformat()
+        ).limit(30).execute()
+        
+        for user in users.data:
+            lang = user.get("language_code", "en")
+            msg = {
+                "ru": "👋 Давно не виделись! У нас появились новые предложения.",
+                "en": "👋 Long time no see! We have new offers."
+            }.get(lang, "👋 Long time no see! We have new offers.")
+            try:
+                await bot.send_message(chat_id=user["telegram_id"], text=msg)
+                results["re_engagement"] += 1
+            except:
+                pass
+    except Exception as e:
+        print(f"Re-engagement error: {e}")
+    
+    return results

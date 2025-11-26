@@ -223,6 +223,7 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
     Handle regular text messages - route to AI consultant.
     This is the main entry point for AI conversation.
     """
+    import asyncio
     from src.ai.consultant import AIConsultant
     
     db = get_database()
@@ -230,16 +231,26 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
     # Save user message
     await db.save_chat_message(db_user.id, "user", message.text)
     
-    # Show typing indicator
-    await bot.send_chat_action(message.chat.id, "typing")
+    # Typing indicator task - keeps sending "typing" every 4 seconds
+    typing_active = True
+    async def keep_typing():
+        while typing_active:
+            await bot.send_chat_action(message.chat.id, "typing")
+            await asyncio.sleep(4)
     
-    # Get AI response
-    consultant = AIConsultant()
-    response = await consultant.get_response(
-        user_id=db_user.id,
-        user_message=message.text,
-        language=db_user.language_code
-    )
+    typing_task = asyncio.create_task(keep_typing())
+    
+    try:
+        # Get AI response
+        consultant = AIConsultant()
+        response = await consultant.get_response(
+            user_id=db_user.id,
+            user_message=message.text,
+            language=db_user.language_code
+        )
+    finally:
+        typing_active = False
+        typing_task.cancel()
     
     # Save assistant response
     await db.save_chat_message(db_user.id, "assistant", response.text)
@@ -272,25 +283,36 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
     """
     Handle voice messages - transcribe with Gemini and process.
     """
+    import asyncio
     from src.ai.consultant import AIConsultant
     
     db = get_database()
     
-    # Show typing indicator
-    await bot.send_chat_action(message.chat.id, "typing")
+    # Typing indicator task - keeps sending "typing" every 4 seconds
+    typing_active = True
+    async def keep_typing():
+        while typing_active:
+            await bot.send_chat_action(message.chat.id, "typing")
+            await asyncio.sleep(4)
     
-    # Download voice file
-    voice = message.voice
-    file = await bot.get_file(voice.file_id)
-    voice_data = await bot.download_file(file.file_path)
+    typing_task = asyncio.create_task(keep_typing())
     
-    # Get AI response with voice
-    consultant = AIConsultant()
-    response = await consultant.get_response_from_voice(
-        user_id=db_user.id,
-        voice_data=voice_data.read(),
-        language=db_user.language_code
-    )
+    try:
+        # Download voice file
+        voice = message.voice
+        file = await bot.get_file(voice.file_id)
+        voice_data = await bot.download_file(file.file_path)
+        
+        # Get AI response with voice
+        consultant = AIConsultant()
+        response = await consultant.get_response_from_voice(
+            user_id=db_user.id,
+            voice_data=voice_data.read(),
+            language=db_user.language_code
+        )
+    finally:
+        typing_active = False
+        typing_task.cancel()
     
     # Save transcription and response
     if response.transcription:
