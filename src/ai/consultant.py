@@ -29,7 +29,7 @@ class AIConsultant:
             raise ValueError("GEMINI_API_KEY environment variable not set")
         
         self.client = genai.Client(api_key=api_key)
-        self.model = "gemini-2.5-flash-preview-05-20"
+        self.model = "gemini-2.5-flash"
     
     async def get_response(
         self,
