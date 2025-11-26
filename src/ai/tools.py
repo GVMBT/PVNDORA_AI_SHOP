@@ -351,7 +351,9 @@ async def execute_tool(
         if order_id:
             ticket_data["order_id"] = order_id
         
-        db.client.table("tickets").insert(ticket_data).execute()
+        await asyncio.to_thread(
+            lambda: db.client.table("tickets").insert(ticket_data).execute()
+        )
         
         return {
             "success": True,
@@ -400,51 +402,18 @@ async def execute_tool(
         if not product:
             return {"success": False, "reason": "Product not found"}
         
-        # #region agent log
-        import json
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:395", "message": "add_to_wishlist entry", "data": {"user_id": user_id, "product_id": product_id}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-        # #endregion
-        
-        # Check if item already exists BEFORE upsert (to distinguish insert vs update)
-        # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:402", "message": "Before checking existing wishlist item", "data": {}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-        # #endregion
-        
-        # Check if item already exists BEFORE upsert (to distinguish insert vs update)
-        # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:408", "message": "Before checking existing wishlist item", "data": {}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-        # #endregion
-        
-        # Run synchronous Supabase call in thread pool to avoid blocking event loop
+        # Check if already exists BEFORE upsert to distinguish insert vs update
         existing_check = await asyncio.to_thread(
-            lambda: db.client.table("wishlist").select("id").eq("user_id", user_id).eq("product_id", product_id).execute()
+            lambda: db.client.table("wishlist").select("id").eq(
+                "user_id", user_id
+            ).eq("product_id", product_id).execute()
         )
-        item_existed_before = bool(existing_check.data)
         
-        # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:415", "message": "After checking existing", "data": {"item_existed_before": item_existed_before, "existing_data": existing_check.data}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-        # #endregion
-        
-        # If already exists, return early
-        if item_existed_before:
-            # #region agent log
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:420", "message": "Item already exists, returning early", "data": {}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-            # #endregion
+        if existing_check.data:
             return {"success": False, "reason": "Already in wishlist"}
         
         # Use upsert to handle race conditions atomically (only if not exists)
         try:
-            # #region agent log
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:427", "message": "Before upsert execute (async)", "data": {}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-            # #endregion
-            
-            # Run upsert in thread pool to avoid blocking
             result = await asyncio.to_thread(
                 lambda: db.client.table("wishlist").upsert({
                     "user_id": user_id,
@@ -453,34 +422,17 @@ async def execute_tool(
                 }, on_conflict="user_id,product_id").execute()
             )
             
-            # #region agent log
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:437", "message": "After upsert execute", "data": {"result_has_data": bool(result.data), "result_data_count": len(result.data) if result.data else 0}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-            # #endregion
-            
             # Since we checked existence before, if we get here it's a new insert
             if result.data:
-                # #region agent log
-                with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                    f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:442", "message": "Returning success (new item)", "data": {"product_name": product.name}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-                # #endregion
                 return {
                     "success": True,
                     "product_name": product.name,
                     "message": "Added to wishlist"
                 }
             else:
-                # #region agent log
-                with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                    f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:450", "message": "Unexpected: no data after upsert", "data": {}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-                # #endregion
                 return {"success": False, "reason": "Failed to add to wishlist"}
         except Exception as e:
-            # #region agent log
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:437", "message": "Exception in add_to_wishlist", "data": {"error": str(e), "error_type": type(e).__name__}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-            # #endregion
-            # If unique constraint violation, item already exists
+            # If unique constraint violation, item already exists (race condition)
             if "duplicate" in str(e).lower() or "unique" in str(e).lower():
                 return {"success": False, "reason": "Already in wishlist"}
             return {"success": False, "reason": f"Database error: {str(e)}"}
@@ -503,9 +455,11 @@ async def execute_tool(
     
     elif tool_name == "get_referral_info":
         # Get user's telegram_id for referral link
-        user_result = db.client.table("users").select(
-            "telegram_id,balance,personal_ref_percent"
-        ).eq("id", user_id).execute()
+        user_result = await asyncio.to_thread(
+            lambda: db.client.table("users").select(
+                "telegram_id,balance,personal_ref_percent"
+            ).eq("id", user_id).execute()
+        )
         
         if not user_result.data:
             return {"success": False}
@@ -513,9 +467,11 @@ async def execute_tool(
         user = user_result.data[0]
         
         # Count referrals
-        referrals = db.client.table("users").select("id", count="exact").eq(
-            "referrer_id", user_id
-        ).execute()
+        referrals = await asyncio.to_thread(
+            lambda: db.client.table("users").select("id", count="exact").eq(
+                "referrer_id", user_id
+            ).execute()
+        )
         
         return {
             "success": True,
@@ -526,9 +482,11 @@ async def execute_tool(
         }
     
     elif tool_name == "get_wishlist":
-        wishlist_items = db.client.table("wishlist").select(
-            "id,product_id,products(name,price,stock_count:stock_items(count))"
-        ).eq("user_id", user_id).execute()
+        wishlist_items = await asyncio.to_thread(
+            lambda: db.client.table("wishlist").select(
+                "id,product_id,products(name,price,stock_count:stock_items(count))"
+            ).eq("user_id", user_id).execute()
+        )
         
         return {
             "count": len(wishlist_items.data),
@@ -560,20 +518,7 @@ async def execute_tool(
         
         # Atomic transaction: update order and create ticket together
         try:
-            # #region agent log
-            import json, time
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "tools.py:499", "message": "request_refund entry", "data": {"user_id": user_id, "order_id": order_id}, "timestamp": int(time.time() * 1000)}) + "\n")
-            # #endregion
-            
             # First create ticket (if this fails, we don't update order)
-            # #region agent log
-            exec_start = time.time()
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "tools.py:504", "message": "Before ticket insert execute (async)", "data": {}, "timestamp": int(time.time() * 1000)}) + "\n")
-            # #endregion
-            
-            # Run synchronous Supabase call in thread pool to avoid blocking event loop
             ticket_result = await asyncio.to_thread(
                 lambda: db.client.table("tickets").insert({
                     "user_id": user_id,
@@ -584,34 +529,15 @@ async def execute_tool(
                 }).execute()
             )
             
-            # #region agent log
-            exec_duration = (time.time() - exec_start) * 1000
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "tools.py:515", "message": "After ticket insert execute", "data": {"exec_duration_ms": exec_duration, "has_data": bool(ticket_result.data)}, "timestamp": int(time.time() * 1000)}) + "\n")
-            # #endregion
-            
             if not ticket_result.data:
                 return {"success": False, "reason": "Failed to create support ticket"}
             
             # Then update order (if this fails, ticket exists but order not marked - acceptable)
-            # #region agent log
-            exec_start2 = time.time()
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "tools.py:523", "message": "Before order update execute (async)", "data": {}, "timestamp": int(time.time() * 1000)}) + "\n")
-            # #endregion
-            
-            # Run synchronous Supabase call in thread pool to avoid blocking event loop
             await asyncio.to_thread(
                 lambda: db.client.table("orders").update({
                     "refund_requested": True
                 }).eq("id", order_id).execute()
             )
-            
-            # #region agent log
-            exec_duration2 = (time.time() - exec_start2) * 1000
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "tools.py:532", "message": "After order update execute", "data": {"exec_duration_ms": exec_duration2}, "timestamp": int(time.time() * 1000)}) + "\n")
-            # #endregion
             
             return {
                 "success": True,

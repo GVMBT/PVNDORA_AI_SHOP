@@ -29,7 +29,7 @@ class AIConsultant:
             raise ValueError("GEMINI_API_KEY environment variable not set")
         
         self.client = genai.Client(api_key=api_key)
-        self.model = "gemini-2.5-flash"
+        self.model = "gemini-2.5-flash-preview-05-20"
     
     async def get_response(
         self,
@@ -65,13 +65,13 @@ class AIConsultant:
             role = "user" if msg["role"] == "user" else "model"
             messages.append(types.Content(
                 role=role,
-                parts=[types.Part.from_text(text=msg["content"])]
+                parts=[types.Part.from_text(msg["content"])]
             ))
         
         # Add current message
         messages.append(types.Content(
             role="user",
-            parts=[types.Part.from_text(text=user_message)]
+            parts=[types.Part.from_text(user_message)]
         ))
         
         # Get system prompt
@@ -140,7 +140,7 @@ class AIConsultant:
                         mime_type="audio/ogg"
                     ),
                     types.Part.from_text(
-                        text="Please first transcribe this voice message, then respond to it as a sales consultant."
+                        "Please first transcribe this voice message, then respond to it as a sales consultant."
                     )
                 ]
             )
