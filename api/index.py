@@ -1252,5 +1252,5 @@ async def cron_daily_tasks(authorization: str = Header(None)):
 
 
 # ==================== VERCEL EXPORT ====================
-# Vercel automatically detects FastAPI app, but we can also export explicitly
-handler = app
+# Vercel automatically detects FastAPI app when 'app' variable is present
+# No need to export handler - FastAPI is auto-detected
