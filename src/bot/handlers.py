@@ -40,10 +40,23 @@ async def cmd_start(message: Message, db_user: User, bot: Bot):
                     # Get referrer user
                     referrer = await db.get_user_by_telegram_id(referral_id)
                     if referrer and referrer.id != db_user.id:
+                        # #region agent log
+                        import json, time
+                        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "C", "location": "handlers.py:43", "message": "Before referral update execute", "data": {"user_id": db_user.id, "referrer_id": referrer.id}, "timestamp": int(time.time() * 1000)}) + "\n")
+                        # #endregion
+                        
                         # Link referral
+                        exec_start = time.time()
                         db.client.table("users").update({
                             "referrer_id": referrer.id
                         }).eq("id", db_user.id).execute()
+                        
+                        # #region agent log
+                        exec_duration = (time.time() - exec_start) * 1000
+                        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "C", "location": "handlers.py:50", "message": "After referral update execute", "data": {"exec_duration_ms": exec_duration}, "timestamp": int(time.time() * 1000)}) + "\n")
+                        # #endregion
                 except:
                     pass
     

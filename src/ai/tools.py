@@ -399,24 +399,69 @@ async def execute_tool(
         if not product:
             return {"success": False, "reason": "Product not found"}
         
+        # #region agent log
+        import json
+        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:395", "message": "add_to_wishlist entry", "data": {"user_id": user_id, "product_id": product_id}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
+        # #endregion
+        
+        # Check if item already exists BEFORE upsert (to distinguish insert vs update)
+        # #region agent log
+        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:402", "message": "Before checking existing wishlist item", "data": {}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
+        # #endregion
+        
+        existing_check = db.client.table("wishlist").select("id").eq("user_id", user_id).eq("product_id", product_id).execute()
+        item_existed_before = bool(existing_check.data)
+        
+        # #region agent log
+        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:406", "message": "After checking existing", "data": {"item_existed_before": item_existed_before, "existing_data": existing_check.data}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
+        # #endregion
+        
         # Use upsert to handle race conditions atomically
         try:
+            # #region agent log
+            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:410", "message": "Before upsert execute", "data": {}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
+            # #endregion
+            
             result = db.client.table("wishlist").upsert({
                 "user_id": user_id,
                 "product_id": product_id,
                 "reminded": False
             }, on_conflict="user_id,product_id").execute()
             
-            # Check if it was a new insert or update
+            # #region agent log
+            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:418", "message": "After upsert execute", "data": {"result_has_data": bool(result.data), "item_existed_before": item_existed_before, "result_data_count": len(result.data) if result.data else 0}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
+            # #endregion
+            
+            # Check if it was a new insert or update using our pre-check
+            if item_existed_before:
+                return {"success": False, "reason": "Already in wishlist"}
+            
             if result.data:
+                # #region agent log
+                with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                    f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:425", "message": "Returning success (new item)", "data": {"product_name": product.name}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
+                # #endregion
                 return {
                     "success": True,
                     "product_name": product.name,
                     "message": "Added to wishlist"
                 }
             else:
+                # #region agent log
+                with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                    f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:433", "message": "Returning already exists (no data)", "data": {}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
+                # #endregion
                 return {"success": False, "reason": "Already in wishlist"}
         except Exception as e:
+            # #region agent log
+            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:437", "message": "Exception in add_to_wishlist", "data": {"error": str(e), "error_type": type(e).__name__}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
+            # #endregion
             # If unique constraint violation, item already exists
             if "duplicate" in str(e).lower() or "unique" in str(e).lower():
                 return {"success": False, "reason": "Already in wishlist"}
@@ -497,7 +542,19 @@ async def execute_tool(
         
         # Atomic transaction: update order and create ticket together
         try:
+            # #region agent log
+            import json, time
+            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "tools.py:499", "message": "request_refund entry", "data": {"user_id": user_id, "order_id": order_id}, "timestamp": int(time.time() * 1000)}) + "\n")
+            # #endregion
+            
             # First create ticket (if this fails, we don't update order)
+            # #region agent log
+            exec_start = time.time()
+            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "tools.py:504", "message": "Before ticket insert execute", "data": {}, "timestamp": int(time.time() * 1000)}) + "\n")
+            # #endregion
+            
             ticket_result = db.client.table("tickets").insert({
                 "user_id": user_id,
                 "order_id": order_id,
@@ -506,13 +563,31 @@ async def execute_tool(
                 "status": "open"
             }).execute()
             
+            # #region agent log
+            exec_duration = (time.time() - exec_start) * 1000
+            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "tools.py:513", "message": "After ticket insert execute", "data": {"exec_duration_ms": exec_duration, "has_data": bool(ticket_result.data)}, "timestamp": int(time.time() * 1000)}) + "\n")
+            # #endregion
+            
             if not ticket_result.data:
                 return {"success": False, "reason": "Failed to create support ticket"}
             
             # Then update order (if this fails, ticket exists but order not marked - acceptable)
+            # #region agent log
+            exec_start2 = time.time()
+            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "tools.py:520", "message": "Before order update execute", "data": {}, "timestamp": int(time.time() * 1000)}) + "\n")
+            # #endregion
+            
             db.client.table("orders").update({
                 "refund_requested": True
             }).eq("id", order_id).execute()
+            
+            # #region agent log
+            exec_duration2 = (time.time() - exec_start2) * 1000
+            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "tools.py:527", "message": "After order update execute", "data": {"exec_duration_ms": exec_duration2}, "timestamp": int(time.time() * 1000)}) + "\n")
+            # #endregion
             
             return {
                 "success": True,
