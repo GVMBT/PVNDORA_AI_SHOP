@@ -1,0 +1,6 @@
+{
+  "runtime": "python3.12",
+  "handler": "index.py",
+  "maxDuration": 30
+}
+
