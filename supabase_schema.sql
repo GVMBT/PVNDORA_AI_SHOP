@@ -19,8 +19,9 @@ create table products (
   fulfillment_type text default 'auto' check (fulfillment_type in ('auto', 'manual')),
   instructions text, -- AI Context
   supplier_id uuid references suppliers(id),
-  warranty_hours int default 24,
+  warranty_days int default 1, -- Гарантия в днях (триалы: 1 день, годовые: 14 дней). Настраивается админом при создании товара
   terms text,
+  duration_days int, -- Срок действия в днях (если срок считается от момента покупки)
   status text default 'active' check (status in ('active', 'out_of_stock', 'discontinued', 'coming_soon')),
   status_reason text, -- e.g. "Waiting for Vol 2"
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
@@ -31,6 +32,7 @@ create table stock_items (
   id uuid default uuid_generate_v4() primary key,
   product_id uuid references products(id) not null,
   content text not null,
+  expires_at timestamp with time zone,
   is_sold boolean default false,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -58,6 +60,8 @@ create table orders (
   product_id uuid references products(id) not null,
   stock_item_id uuid references stock_items(id),
   amount numeric not null,
+  original_price numeric, -- Исходная цена товара
+  discount_percent numeric default 0, -- Примененная скидка (рассчитывается динамически на основе простоя)
   status text default 'pending', -- pending, paid, refunded, replaced
   payment_method text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,

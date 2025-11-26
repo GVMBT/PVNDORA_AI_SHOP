@@ -1,0 +1,57 @@
+{
+  "welcome": "🎉 PVNDORA'ya Hoş Geldiniz!\n\nPremium abonelikler için kişisel AI danışmanınızım.\n\n💬 Neye ihtiyacınız olduğunu söyleyin:\n• \"ChatGPT Plus\"\n• \"Midjourney\"\n• \"Claude Pro\"\n\n🎁 Avantajlar:\n• %20 tavsiye programı\n• Garanti ve değişim\n• 7/24 destek\n• Anında teslimat\n\nSize nasıl yardımcı olabilirim?",
+  "welcome_back": "Tekrar hoş geldiniz! Bugün nasıl yardımcı olabilirim?",
+  "help": "📚 Mevcut komutlar:\n\n/start - Botu başlat\n/my_orders - Satın alma geçmişi\n/wishlist - Kaydedilen ürünler\n/help - Bu mesaj",
+  "banned": "🚫 Erişim kısıtlandı. İletişim: @admin",
+  "error_generic": "❌ Bir şeyler yanlış gitti. Lütfen tekrar deneyin.",
+  "error_no_stock": "😔 Bu ürün stokta yok. Bekleme listesine katılmak ister misiniz?",
+  "error_payment": "❌ Ödeme başarısız. Bakiyenize yüklendi.",
+  
+  "product_card": "📦 {name}\n💰 Fiyat: {price}₺\n⭐ Puan: {rating}/5 ({reviews} yorum)\n{stock_status}\n\n{description}",
+  "stock_available": "✅ Stokta var",
+  "stock_empty": "❌ Stok yok",
+  "discount_notice": "🏷️ {days} gün stokta kaldığı için %{percent} indirim!",
+  
+  "order_created": "📝 Sipariş #{order_id} oluşturuldu!\n\n💰 Tutar: {amount}₺\n\nÖdemek için aşağıya tıklayın.",
+  "order_success": "✅ Ödeme başarılı!\n\nGiriş bilgileriniz:\n\n{credentials}\n\n📋 Talimatlar: {instructions}\n\n⏰ Geçerlilik: {expires}",
+  "order_failed": "❌ Sipariş başarısız. Tekrar deneyin.",
+  "order_history": "📋 Siparişleriniz:\n\n{orders}\n\nToplam: {count} sipariş",
+  "order_item": "#{id} - {product} - {amount}₺ - {status}",
+  "no_orders": "Henüz satın alma yapmadınız.",
+  
+  "waitlist_added": "✅ {product} için bekleme listesine eklendiniz.",
+  "waitlist_notify": "🔔 İyi haber! {product} tekrar stokta!",
+  
+  "wishlist_added": "❤️ {product} favorilere eklendi!",
+  "wishlist_removed": "💔 {product} favorilerden çıkarıldı.",
+  "wishlist_empty": "İstek listeniz boş.",
+  
+  "review_request": "⭐ Alışverişiniz nasıldı? Yorum yapın ve %5 cashback kazanın!",
+  "review_thanks": "🙏 Yorumunuz için teşekkürler! {cashback} bakiyenize eklendi.",
+  
+  "referral_link": "🔗 Referans linkiniz:\n{link}\n\nArkadaşlarınızın her alışverişinden %{percent} kazanın!",
+  "referral_bonus": "💰 Referans alışverişinden {amount}₺ kazandınız!",
+  
+  "support_ticket": "📩 Destek talebi oluşturuldu. En kısa sürede yanıtlayacağız.",
+  "support_resolved": "✅ Talebiniz çözüldü.",
+  
+  "subscription_expiring": "⏰ {product} aboneliğiniz {days} gün içinde sona eriyor. %10 indirimle yenileyin!",
+  "subscription_expired": "⌛ {product} aboneliğiniz sona erdi. Yenilemek ister misiniz?",
+  
+  "btn_shop": "🛒 Mağaza",
+  "btn_buy": "💳 Satın Al",
+  "btn_pay": "💳 {amount}₺ Öde",
+  "btn_waitlist": "🔔 Bildir",
+  "btn_add_wishlist": "❤️ Favorilere Ekle",
+  "btn_remove_wishlist": "💔 Kaldır",
+  "btn_support": "🆘 Destek",
+  "btn_leave_review": "⭐ Yorum Yap",
+  "btn_cancel": "❌ İptal",
+  "btn_confirm": "✅ Onayla",
+  "btn_back": "⬅️ Geri",
+  
+  "ai_thinking": "🤔 Kontrol ediyorum...",
+  "ai_no_product": "Eşleşen ürün bulamadım. Daha detaylı anlatır mısınız?",
+  "ai_suggest": "İhtiyaçlarınıza göre önerilerim:\n\n{products}\n\nDaha fazla bilgi ister misiniz?"
+}
+

@@ -2,19 +2,87 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  body {
-    @apply bg-background text-white antialiased;
-  }
+/* Telegram WebApp Theme Variables */
+:root {
+    --tg-theme-bg-color: #1a1a2e;
+    --tg-theme-text-color: #ffffff;
+    --tg-theme-hint-color: #8b8b9a;
+    --tg-theme-link-color: #5eaaff;
+    --tg-theme-button-color: #5eaaff;
+    --tg-theme-button-text-color: #ffffff;
+    --tg-theme-secondary-bg-color: #252540;
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
+/* Base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
-::-webkit-scrollbar-track {
-  @apply bg-surface;
+
+html, body, #root {
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
-::-webkit-scrollbar-thumb {
-  @apply bg-surface rounded hover:bg-slate-600;
+
+body {
+    background-color: var(--tg-theme-bg-color);
+    color: var(--tg-theme-text-color);
+}
+
+/* Hide scrollbar but keep functionality */
+body::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
+/* Input focus styles */
+input:focus {
+    outline: 2px solid var(--tg-theme-button-color);
+    outline-offset: -2px;
+}
+
+/* Button styles */
+.btn-primary {
+    background-color: var(--tg-theme-button-color);
+    color: var(--tg-theme-button-text-color);
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-weight: 600;
+    transition: opacity 0.2s;
+}
+
+.btn-primary:hover {
+    opacity: 0.9;
+}
+
+.btn-primary:active {
+    opacity: 0.8;
+}
+
+/* Card styles */
+.card {
+    background-color: var(--tg-theme-secondary-bg-color);
+    border-radius: 16px;
+    padding: 16px;
+}
+
+/* Animation classes */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Safe area padding for iOS */
+@supports (padding-top: env(safe-area-inset-top)) {
+    body {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+    }
 }

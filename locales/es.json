@@ -1,0 +1,57 @@
+{
+  "welcome": "🎉 ¡Bienvenido a PVNDORA!\n\nSoy tu consultor de IA personal para suscripciones premium.\n\n💬 Dime qué necesitas:\n• \"ChatGPT Plus\"\n• \"Midjourney\"\n• \"Claude Pro\"\n\n🎁 Beneficios:\n• Programa de referidos 20%\n• Garantía y reemplazo\n• Soporte 24/7\n• Entrega instantánea\n\n¿Cómo puedo ayudarte?",
+  "welcome_back": "¡Bienvenido de nuevo! ¿Cómo puedo ayudarte hoy?",
+  "help": "📚 Comandos disponibles:\n\n/start - Iniciar el bot\n/my_orders - Historial de compras\n/wishlist - Productos guardados\n/help - Este mensaje",
+  "banned": "🚫 Acceso restringido. Contactar: @admin",
+  "error_generic": "❌ Algo salió mal. Inténtalo más tarde.",
+  "error_no_stock": "😔 Este producto está agotado. ¿Quieres unirte a la lista de espera?",
+  "error_payment": "❌ Pago fallido. Los fondos se han acreditado a tu saldo.",
+  
+  "product_card": "📦 {name}\n💰 Precio: {price}€\n⭐ Calificación: {rating}/5 ({reviews} reseñas)\n{stock_status}\n\n{description}",
+  "stock_available": "✅ En stock",
+  "stock_empty": "❌ Agotado",
+  "discount_notice": "🏷️ ¡{percent}% de descuento por {days} días en stock!",
+  
+  "order_created": "📝 ¡Pedido #{order_id} creado!\n\n💰 Monto: {amount}€\n\nHaz clic abajo para pagar.",
+  "order_success": "✅ ¡Pago exitoso!\n\nAquí están tus credenciales:\n\n{credentials}\n\n📋 Instrucciones: {instructions}\n\n⏰ Válido hasta: {expires}",
+  "order_failed": "❌ Pedido fallido. Inténtalo de nuevo.",
+  "order_history": "📋 Tus pedidos:\n\n{orders}\n\nTotal: {count} pedidos",
+  "order_item": "#{id} - {product} - {amount}€ - {status}",
+  "no_orders": "Aún no has realizado compras.",
+  
+  "waitlist_added": "✅ Te has añadido a la lista de espera para {product}.",
+  "waitlist_notify": "🔔 ¡Buenas noticias! {product} está disponible.",
+  
+  "wishlist_added": "❤️ ¡{product} añadido a favoritos!",
+  "wishlist_removed": "💔 {product} eliminado de favoritos.",
+  "wishlist_empty": "Tu lista de deseos está vacía.",
+  
+  "review_request": "⭐ ¿Qué tal tu compra? ¡Deja una reseña y obtén 5% de cashback!",
+  "review_thanks": "🙏 ¡Gracias por tu reseña! {cashback} añadido a tu saldo.",
+  
+  "referral_link": "🔗 Tu enlace de referido:\n{link}\n\n¡Gana {percent}% de cada compra de tus amigos!",
+  "referral_bonus": "💰 ¡Ganaste {amount}€ por una compra referida!",
+  
+  "support_ticket": "📩 Ticket creado. Responderemos pronto.",
+  "support_resolved": "✅ Tu ticket ha sido resuelto.",
+  
+  "subscription_expiring": "⏰ Tu suscripción a {product} expira en {days} días. ¡Renueva con 10% de descuento!",
+  "subscription_expired": "⌛ Tu suscripción a {product} ha expirado. ¿Quieres renovar?",
+  
+  "btn_shop": "🛒 Tienda",
+  "btn_buy": "💳 Comprar",
+  "btn_pay": "💳 Pagar {amount}€",
+  "btn_waitlist": "🔔 Notificarme",
+  "btn_add_wishlist": "❤️ Favoritos",
+  "btn_remove_wishlist": "💔 Eliminar",
+  "btn_support": "🆘 Soporte",
+  "btn_leave_review": "⭐ Reseña",
+  "btn_cancel": "❌ Cancelar",
+  "btn_confirm": "✅ Confirmar",
+  "btn_back": "⬅️ Atrás",
+  
+  "ai_thinking": "🤔 Déjame verificar...",
+  "ai_no_product": "No encontré un producto que coincida. ¿Puedes describir más?",
+  "ai_suggest": "Según tus necesidades, recomiendo:\n\n{products}\n\n¿Quieres saber más?"
+}
+

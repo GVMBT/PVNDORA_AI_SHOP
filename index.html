@@ -1,13 +1,23 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Shop Platform</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#1a1a2e" />
+    <title>PVNDORA | AI Marketplace</title>
+    
+    <!-- Telegram WebApp Script - MUST be loaded before app -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <style>
+      /* Prevent FOUC */
+      html {
+        background-color: #1a1a2e;
+      }
+    </style>
   </head>
-  <body class="bg-background text-white">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

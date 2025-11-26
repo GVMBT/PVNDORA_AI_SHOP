@@ -1,0 +1,58 @@
+{
+  "welcome": "🎉 Willkommen bei PVNDORA!\n\nIch bin Ihr persönlicher KI-Berater für Premium-Abonnements.\n\n💬 Sagen Sie mir einfach, was Sie brauchen:\n• \"ChatGPT Plus\"\n• \"Midjourney\"\n• \"Claude Pro\"\n\n🎁 Vorteile:\n• 20% Empfehlungsprogramm\n• Garantie & Ersatz\n• 24/7 Support\n• Sofortige Lieferung\n\nWie kann ich Ihnen helfen?",
+  "welcome_back": "Willkommen zurück! Wie kann ich Ihnen heute helfen?",
+  "help": "📚 Verfügbare Befehle:\n\n/start - Bot starten\n/my_orders - Ihre Bestellhistorie\n/wishlist - Gespeicherte Produkte\n/help - Diese Nachricht\n\nOder schreiben Sie einfach, was Sie brauchen, ich helfe Ihnen das perfekte Abonnement zu finden!",
+  "banned": "🚫 Zugang eingeschränkt. Support kontaktieren: @admin",
+  "error_generic": "❌ Etwas ist schiefgelaufen. Bitte versuchen Sie es später erneut.",
+  "error_no_stock": "😔 Dieses Produkt ist derzeit nicht verfügbar. Möchten Sie auf die Warteliste?",
+  "error_payment": "❌ Zahlung fehlgeschlagen. Ihr Guthaben wurde Ihrem Konto gutgeschrieben.",
+  
+  "product_card": "📦 {name}\n💰 Preis: {price}€\n⭐ Bewertung: {rating}/5 ({reviews} Bewertungen)\n{stock_status}\n\n{description}",
+  "stock_available": "✅ Auf Lager",
+  "stock_empty": "❌ Nicht auf Lager",
+  "discount_notice": "🏷️ {percent}% Rabatt für {days} Tage Lagerzeit!",
+  
+  "order_created": "📝 Bestellung #{order_id} erstellt!\n\n💰 Betrag: {amount}€\n\nKlicken Sie auf die Schaltfläche unten, um zu bezahlen.",
+  "order_success": "✅ Zahlung erfolgreich!\n\nHier sind Ihre Zugangsdaten:\n\n{credentials}\n\n📋 Anleitung: {instructions}\n\n⏰ Gültig bis: {expires}\n\n💬 Bei Problemen klicken Sie auf Support.",
+  "order_failed": "❌ Bestellung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+  "order_history": "📋 Ihre Bestellungen:\n\n{orders}\n\nGesamt: {count} Bestellungen",
+  "order_item": "#{id} - {product} - {amount}€ - {status}",
+  "no_orders": "Sie haben noch keine Einkäufe getätigt.",
+  
+  "waitlist_added": "✅ Sie wurden zur Warteliste für {product} hinzugefügt. Wir benachrichtigen Sie!",
+  "waitlist_notify": "🔔 Gute Nachrichten! {product} ist wieder verfügbar! Schnell zugreifen.",
+  
+  "wishlist_added": "❤️ {product} zur Wunschliste hinzugefügt!",
+  "wishlist_removed": "💔 {product} von Wunschliste entfernt.",
+  "wishlist_empty": "Ihre Wunschliste ist leer. Durchsuchen Sie unsere Produkte!",
+  "wishlist_reminder": "💭 Erinnern Sie sich an {product}? Es ist noch verfügbar!",
+  
+  "review_request": "⭐ Wie war Ihr Einkauf? Hinterlassen Sie eine Bewertung und erhalten Sie 5% Cashback!",
+  "review_thanks": "🙏 Danke für Ihre Bewertung! {cashback} wurde Ihrem Guthaben gutgeschrieben.",
+  
+  "referral_link": "🔗 Ihr Empfehlungslink:\n{link}\n\nVerdienen Sie {percent}% von jedem Einkauf Ihrer Freunde!",
+  "referral_bonus": "💰 Sie haben {amount}€ durch eine Empfehlung verdient!",
+  
+  "support_ticket": "📩 Support-Ticket erstellt. Wir antworten so schnell wie möglich.",
+  "support_resolved": "✅ Ihr Ticket wurde gelöst.",
+  
+  "subscription_expiring": "⏰ Ihr {product}-Abonnement läuft in {days} Tagen ab. Jetzt mit 10% Rabatt verlängern!",
+  "subscription_expired": "⌛ Ihr {product}-Abonnement ist abgelaufen. Möchten Sie verlängern?",
+  
+  "btn_shop": "🛒 Shop",
+  "btn_buy": "💳 Jetzt kaufen",
+  "btn_pay": "💳 {amount}€ bezahlen",
+  "btn_waitlist": "🔔 Benachrichtigen",
+  "btn_add_wishlist": "❤️ Zur Wunschliste",
+  "btn_remove_wishlist": "💔 Entfernen",
+  "btn_support": "🆘 Support",
+  "btn_leave_review": "⭐ Bewertung",
+  "btn_cancel": "❌ Abbrechen",
+  "btn_confirm": "✅ Bestätigen",
+  "btn_back": "⬅️ Zurück",
+  
+  "ai_thinking": "🤔 Moment, ich prüfe...",
+  "ai_no_product": "Ich konnte kein passendes Produkt finden. Können Sie genauer beschreiben, was Sie brauchen?",
+  "ai_suggest": "Basierend auf Ihren Anforderungen empfehle ich:\n\n{products}\n\nMöchten Sie mehr über eines dieser Produkte erfahren?"
+}
+
