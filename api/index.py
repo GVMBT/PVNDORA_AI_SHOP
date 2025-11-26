@@ -622,7 +622,7 @@ async def admin_add_warning(telegram_id: int, admin = Depends(verify_admin)):
 
 @app.post("/api/admin/stock")
 async def admin_add_stock(request: AddStockRequest, admin = Depends(verify_admin)):
-    """Add stock item for a product"""
+    """Add single stock item for a product"""
     db = get_database()
     
     # Verify product exists
@@ -644,7 +644,89 @@ async def admin_add_stock(request: AddStockRequest, admin = Depends(verify_admin
     
     result = db.client.table("stock_items").insert(data).execute()
     
+    # Notify waitlist users
+    await _notify_waitlist_for_product(product.name)
+    
     return {"success": True, "stock_item": result.data[0]}
+
+
+class BulkStockRequest(BaseModel):
+    product_id: str
+    items: List[str]  # List of credentials (login:pass or invite links)
+    expires_at: Optional[str] = None
+    supplier_id: Optional[str] = None
+
+
+@app.post("/api/admin/stock/bulk")
+async def admin_add_stock_bulk(request: BulkStockRequest, admin = Depends(verify_admin)):
+    """Bulk add stock items for a product (for supplier uploads)"""
+    db = get_database()
+    
+    # Verify product exists
+    product = await db.get_product_by_id(request.product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    # Create stock items
+    items_data = []
+    for content in request.items:
+        content = content.strip()
+        if not content:
+            continue
+            
+        item = {
+            "product_id": request.product_id,
+            "content": content,
+            "is_sold": False
+        }
+        if request.expires_at:
+            item["expires_at"] = request.expires_at
+        if request.supplier_id:
+            item["supplier_id"] = request.supplier_id
+        
+        items_data.append(item)
+    
+    if not items_data:
+        raise HTTPException(status_code=400, detail="No valid items provided")
+    
+    result = db.client.table("stock_items").insert(items_data).execute()
+    
+    # Notify waitlist users
+    await _notify_waitlist_for_product(product.name)
+    
+    return {
+        "success": True,
+        "added_count": len(result.data),
+        "product_name": product.name
+    }
+
+
+async def _notify_waitlist_for_product(product_name: str):
+    """Notify users on waitlist when product becomes available"""
+    db = get_database()
+    
+    # Get waitlist users for this product
+    waitlist = db.client.table("waitlist").select(
+        "id,user_id,users(telegram_id,language_code)"
+    ).ilike("product_name", f"%{product_name}%").execute()
+    
+    if not waitlist.data:
+        return
+    
+    from src.services.notifications import NotificationService
+    notification_service = NotificationService()
+    
+    for item in waitlist.data:
+        user = item.get("users")
+        if user:
+            await notification_service.send_waitlist_notification(
+                telegram_id=user["telegram_id"],
+                product_name=product_name,
+                language=user.get("language_code", "en")
+            )
+            
+            # Remove from waitlist
+            db.client.table("waitlist").delete().eq("id", item["id"]).execute()
 
 
 @app.get("/api/admin/stock")
@@ -768,3 +850,257 @@ async def admin_resolve_ticket(
             pass
     
     return {"success": True, "status": status}
+
+
+# ==================== REVIEWS API ====================
+
+class SubmitReviewRequest(BaseModel):
+    order_id: str
+    rating: int  # 1-5
+    text: Optional[str] = None
+
+
+@app.post("/api/reviews")
+async def submit_review(
+    request: SubmitReviewRequest,
+    user = Depends(verify_telegram_auth)
+):
+    """Submit product review with 5% cashback"""
+    db = get_database()
+    
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get order
+    order = await db.get_order_by_id(request.order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    if order.user_id != db_user.id:
+        raise HTTPException(status_code=403, detail="Not your order")
+    
+    if order.status != "completed":
+        raise HTTPException(status_code=400, detail="Order not completed")
+    
+    # Check if review already exists
+    existing = db.client.table("reviews").select("id").eq("order_id", request.order_id).execute()
+    if existing.data:
+        raise HTTPException(status_code=400, detail="Review already submitted")
+    
+    # Create review
+    await db.create_review(
+        user_id=db_user.id,
+        order_id=request.order_id,
+        product_id=order.product_id,
+        rating=request.rating,
+        text=request.text
+    )
+    
+    # Calculate 5% cashback
+    cashback = order.amount * 0.05
+    await db.update_user_balance(db_user.id, cashback)
+    
+    # Mark cashback as given
+    db.client.table("reviews").update({
+        "cashback_given": True
+    }).eq("order_id", request.order_id).execute()
+    
+    return {
+        "success": True,
+        "cashback": cashback,
+        "new_balance": db_user.balance + cashback
+    }
+
+
+# ==================== CRON JOBS (Vercel Cron) ====================
+
+@app.get("/api/cron/review-requests")
+async def cron_review_requests(authorization: str = Header(None)):
+    """
+    Send review requests for orders completed 1 hour ago.
+    Called by Vercel Cron every 15 minutes.
+    """
+    # Verify cron secret
+    cron_secret = os.environ.get("CRON_SECRET", "")
+    if authorization != f"Bearer {cron_secret}":
+        raise HTTPException(status_code=401, detail="Invalid cron secret")
+    
+    db = get_database()
+    
+    # Get orders completed ~1 hour ago (between 45-75 minutes)
+    now = datetime.utcnow()
+    start_time = now - timedelta(minutes=75)
+    end_time = now - timedelta(minutes=45)
+    
+    orders = db.client.table("orders").select("id").eq(
+        "status", "completed"
+    ).gte("delivered_at", start_time.isoformat()).lte(
+        "delivered_at", end_time.isoformat()
+    ).execute()
+    
+    from src.services.notifications import NotificationService
+    notification_service = NotificationService()
+    
+    sent_count = 0
+    for order in orders.data:
+        # Check if review already exists
+        existing = db.client.table("reviews").select("id").eq("order_id", order["id"]).execute()
+        if not existing.data:
+            await notification_service.send_review_request(order["id"])
+            sent_count += 1
+    
+    return {"sent": sent_count}
+
+
+@app.get("/api/cron/expiration-reminders")
+async def cron_expiration_reminders(authorization: str = Header(None)):
+    """
+    Send reminders for subscriptions expiring in 3 days.
+    Called by Vercel Cron daily.
+    """
+    cron_secret = os.environ.get("CRON_SECRET", "")
+    if authorization != f"Bearer {cron_secret}":
+        raise HTTPException(status_code=401, detail="Invalid cron secret")
+    
+    db = get_database()
+    
+    # Get orders expiring in 3 days
+    orders = await db.get_expiring_orders(days_before=3)
+    
+    from src.services.notifications import NotificationService
+    notification_service = NotificationService()
+    
+    sent_count = 0
+    for order in orders:
+        # Get user and product info
+        user_result = db.client.table("users").select(
+            "telegram_id,language_code"
+        ).eq("id", order.user_id).execute()
+        
+        product = await db.get_product_by_id(order.product_id)
+        
+        if user_result.data and product:
+            user = user_result.data[0]
+            days_left = (order.expires_at - datetime.utcnow()).days if order.expires_at else 0
+            
+            await notification_service.send_expiration_reminder(
+                telegram_id=user["telegram_id"],
+                product_name=product.name,
+                days_left=days_left,
+                language=user.get("language_code", "en")
+            )
+            sent_count += 1
+    
+    return {"sent": sent_count}
+
+
+@app.get("/api/cron/wishlist-reminders")
+async def cron_wishlist_reminders(authorization: str = Header(None)):
+    """
+    Send reminders for items in wishlist for 3+ days.
+    Called by Vercel Cron daily.
+    """
+    cron_secret = os.environ.get("CRON_SECRET", "")
+    if authorization != f"Bearer {cron_secret}":
+        raise HTTPException(status_code=401, detail="Invalid cron secret")
+    
+    db = get_database()
+    
+    # Get wishlist items older than 3 days that haven't been reminded
+    cutoff = datetime.utcnow() - timedelta(days=3)
+    
+    items = db.client.table("wishlist").select(
+        "id,user_id,product_id,products(name,stock_count:stock_items(count))"
+    ).eq("reminded", False).lt("created_at", cutoff.isoformat()).execute()
+    
+    from src.services.notifications import NotificationService
+    notification_service = NotificationService()
+    
+    sent_count = 0
+    for item in items.data:
+        # Get user
+        user_result = db.client.table("users").select(
+            "telegram_id,language_code,do_not_disturb"
+        ).eq("id", item["user_id"]).execute()
+        
+        if not user_result.data:
+            continue
+        
+        user = user_result.data[0]
+        if user.get("do_not_disturb"):
+            continue
+        
+        product_name = item.get("products", {}).get("name", "Product")
+        
+        from src.i18n import get_text
+        message = get_text(
+            "wishlist_reminder",
+            user.get("language_code", "en"),
+            product=product_name
+        )
+        
+        bot = notification_service._get_bot()
+        if bot:
+            try:
+                await bot.send_message(chat_id=user["telegram_id"], text=message)
+                
+                # Mark as reminded
+                db.client.table("wishlist").update({
+                    "reminded": True
+                }).eq("id", item["id"]).execute()
+                
+                sent_count += 1
+            except Exception as e:
+                print(f"Failed to send wishlist reminder: {e}")
+    
+    return {"sent": sent_count}
+
+
+@app.get("/api/cron/re-engagement")
+async def cron_re_engagement(authorization: str = Header(None)):
+    """
+    Send re-engagement messages to inactive users (7+ days).
+    Called by Vercel Cron daily.
+    """
+    cron_secret = os.environ.get("CRON_SECRET", "")
+    if authorization != f"Bearer {cron_secret}":
+        raise HTTPException(status_code=401, detail="Invalid cron secret")
+    
+    db = get_database()
+    
+    # Get users inactive for 7+ days
+    cutoff = datetime.utcnow() - timedelta(days=7)
+    
+    users = db.client.table("users").select(
+        "telegram_id,language_code"
+    ).eq("is_banned", False).eq("do_not_disturb", False).lt(
+        "last_activity_at", cutoff.isoformat()
+    ).limit(50).execute()
+    
+    from src.services.notifications import NotificationService
+    notification_service = NotificationService()
+    bot = notification_service._get_bot()
+    
+    if not bot:
+        return {"sent": 0}
+    
+    from src.i18n import get_text
+    
+    sent_count = 0
+    for user in users.data:
+        lang = user.get("language_code", "en")
+        
+        # Personalized re-engagement message
+        message = {
+            "ru": "👋 Давно не виделись! У нас появились новые предложения. Может, поможем найти что-то интересное?",
+            "en": "👋 Long time no see! We have new offers. Can we help you find something interesting?",
+        }.get(lang, "👋 Long time no see! We have new offers. Can we help you find something interesting?")
+        
+        try:
+            await bot.send_message(chat_id=user["telegram_id"], text=message)
+            sent_count += 1
+        except Exception:
+            pass  # User may have blocked the bot
+    
+    return {"sent": sent_count}

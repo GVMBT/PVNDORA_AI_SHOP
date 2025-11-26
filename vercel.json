@@ -1,11 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python"
-    }
-  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/webhook/(.*)", "destination": "/api/index.py" },
@@ -15,5 +9,23 @@
     "api/index.py": {
       "maxDuration": 30
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/review-requests",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/expiration-reminders",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/wishlist-reminders",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/re-engagement",
+      "schedule": "0 14 * * *"
+    }
+  ]
 }
