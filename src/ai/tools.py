@@ -100,6 +100,51 @@ TOOLS = [
             },
             "required": ["product_names"]
         }
+    },
+    {
+        "name": "create_support_ticket",
+        "description": "Create a support ticket when user reports an issue with their purchase. Use when user says product doesn't work, wants replacement, or needs help.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "issue_description": {
+                    "type": "string",
+                    "description": "Description of the user's issue"
+                },
+                "order_id": {
+                    "type": "string",
+                    "description": "Order ID if known (optional)"
+                }
+            },
+            "required": ["issue_description"]
+        }
+    },
+    {
+        "name": "get_user_orders",
+        "description": "Get user's recent orders. Use when user asks about their purchases or order history.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of orders to return"
+                }
+            }
+        }
+    },
+    {
+        "name": "get_faq_answer",
+        "description": "Get answer from FAQ for common questions about payments, warranty, delivery, referral program, etc.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "question": {
+                    "type": "string",
+                    "description": "User's question to find in FAQ"
+                }
+            },
+            "required": ["question"]
+        }
     }
 ]
 
@@ -229,6 +274,61 @@ async def execute_tool(
                     "rating": rating["average"]
                 })
         return {"products": results}
+    
+    elif tool_name == "create_support_ticket":
+        # Create support ticket in database
+        issue = arguments.get("issue_description", "")
+        order_id = arguments.get("order_id")
+        
+        ticket_data = {
+            "user_id": user_id,
+            "message": issue,
+            "status": "open"
+        }
+        if order_id:
+            ticket_data["order_id"] = order_id
+        
+        db.client.table("tickets").insert(ticket_data).execute()
+        
+        return {
+            "success": True,
+            "message": "Support ticket created"
+        }
+    
+    elif tool_name == "get_user_orders":
+        limit = arguments.get("limit", 5)
+        orders = await db.get_user_orders(user_id, limit=limit)
+        
+        return {
+            "count": len(orders),
+            "orders": [
+                {
+                    "id": o.id[:8],
+                    "product_id": o.product_id,
+                    "amount": o.amount,
+                    "status": o.status,
+                    "created_at": o.created_at.isoformat() if o.created_at else None,
+                    "expires_at": o.expires_at.isoformat() if o.expires_at else None
+                }
+                for o in orders
+            ]
+        }
+    
+    elif tool_name == "get_faq_answer":
+        question = arguments.get("question", "")
+        faq_entries = await db.get_faq("en")  # Will use user's language in actual implementation
+        
+        # Simple keyword matching for FAQ
+        question_lower = question.lower()
+        for entry in faq_entries:
+            if any(word in question_lower for word in entry.get("question", "").lower().split()):
+                return {
+                    "found": True,
+                    "question": entry["question"],
+                    "answer": entry["answer"]
+                }
+        
+        return {"found": False}
     
     return {"error": f"Unknown tool: {tool_name}"}
 

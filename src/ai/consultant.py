@@ -185,7 +185,7 @@ class AIConsultant:
                 types.FunctionDeclaration(
                     name=tool["name"],
                     description=tool["description"],
-                    parameters=tool.get("parameters")
+                    parameters_json_schema=tool.get("parameters")
                 )
             )
         
