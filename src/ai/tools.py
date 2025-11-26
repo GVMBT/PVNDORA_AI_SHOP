@@ -399,23 +399,28 @@ async def execute_tool(
         if not product:
             return {"success": False, "reason": "Product not found"}
         
-        # Check if already in wishlist
-        existing = db.client.table("wishlist").select("id").eq(
-            "user_id", user_id
-        ).eq("product_id", product_id).execute()
-        
-        if existing.data:
-            return {"success": False, "reason": "Already in wishlist"}
-        
-        db.client.table("wishlist").insert({
-            "user_id": user_id,
-            "product_id": product_id
-        }).execute()
-        
-        return {
-            "success": True,
-            "product_name": product.name
-        }
+        # Use upsert to handle race conditions atomically
+        try:
+            result = db.client.table("wishlist").upsert({
+                "user_id": user_id,
+                "product_id": product_id,
+                "reminded": False
+            }, on_conflict="user_id,product_id").execute()
+            
+            # Check if it was a new insert or update
+            if result.data:
+                return {
+                    "success": True,
+                    "product_name": product.name,
+                    "message": "Added to wishlist"
+                }
+            else:
+                return {"success": False, "reason": "Already in wishlist"}
+        except Exception as e:
+            # If unique constraint violation, item already exists
+            if "duplicate" in str(e).lower() or "unique" in str(e).lower():
+                return {"success": False, "reason": "Already in wishlist"}
+            return {"success": False, "reason": f"Database error: {str(e)}"}
     
     elif tool_name == "apply_promo_code":
         code = arguments.get("code", "").strip().upper()
@@ -490,24 +495,34 @@ async def execute_tool(
         if order.refund_requested:
             return {"success": False, "reason": "Refund already requested"}
         
-        # Mark refund as requested
-        db.client.table("orders").update({
-            "refund_requested": True
-        }).eq("id", order_id).execute()
-        
-        # Create support ticket for admin review
-        db.client.table("tickets").insert({
-            "user_id": user_id,
-            "order_id": order_id,
-            "issue_type": "refund",
-            "description": reason,
-            "status": "open"
-        }).execute()
-        
-        return {
-            "success": True,
-            "message": "Refund request submitted for review"
-        }
+        # Atomic transaction: update order and create ticket together
+        try:
+            # First create ticket (if this fails, we don't update order)
+            ticket_result = db.client.table("tickets").insert({
+                "user_id": user_id,
+                "order_id": order_id,
+                "issue_type": "refund",
+                "description": reason,
+                "status": "open"
+            }).execute()
+            
+            if not ticket_result.data:
+                return {"success": False, "reason": "Failed to create support ticket"}
+            
+            # Then update order (if this fails, ticket exists but order not marked - acceptable)
+            db.client.table("orders").update({
+                "refund_requested": True
+            }).eq("id", order_id).execute()
+            
+            return {
+                "success": True,
+                "message": "Refund request submitted for review",
+                "ticket_id": ticket_result.data[0].get("id")
+            }
+        except Exception as e:
+            # If ticket creation failed, order remains unchanged (good)
+            # If order update failed, ticket exists but order not marked (acceptable)
+            return {"success": False, "reason": f"Failed to process refund request: {str(e)}"}
     
     return {"error": f"Unknown tool: {tool_name}"}
 

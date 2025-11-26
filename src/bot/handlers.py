@@ -22,23 +22,49 @@ WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://pvndora-ai-shop.vercel.app")
 
 @router.message(CommandStart())
 async def cmd_start(message: Message, db_user: User, bot: Bot):
-    """Handle /start command with optional referral"""
-    # Check if this is a returning user
+    """Handle /start command with optional referral and onboarding"""
     db = get_database()
     
-    # Get user's chat history to check if returning
+    # Check if this is a returning user
     history = await db.get_chat_history(db_user.id, limit=1)
+    is_new_user = not history
     
-    if history:
-        text = get_text("welcome_back", db_user.language_code)
+    # Parse referral from start parameter
+    referral_id = None
+    if message.text and "start" in message.text.lower():
+        parts = message.text.split()
+        for part in parts:
+            if part.startswith("ref_"):
+                try:
+                    referral_id = int(part.replace("ref_", ""))
+                    # Get referrer user
+                    referrer = await db.get_user_by_telegram_id(referral_id)
+                    if referrer and referrer.id != db_user.id:
+                        # Link referral
+                        db.client.table("users").update({
+                            "referrer_id": referrer.id
+                        }).eq("id", db_user.id).execute()
+                except:
+                    pass
+    
+    if is_new_user:
+        # Enhanced onboarding for new users
+        onboarding_text = get_text("welcome", db_user.language_code)
+        
+        # Add quick examples based on language
+        examples = {
+            "ru": "\n\n💡 Попробуйте:\n• \"Нужен ChatGPT для работы\"\n• \"Покажи что есть\"\n• \"Хочу Midjourney\"",
+            "en": "\n\n💡 Try:\n• \"I need ChatGPT for work\"\n• \"Show me what you have\"\n• \"I want Midjourney\"",
+        }
+        onboarding_text += examples.get(db_user.language_code, examples["en"])
     else:
-        text = get_text("welcome", db_user.language_code)
+        onboarding_text = get_text("welcome_back", db_user.language_code)
     
     # Save bot's welcome message
-    await db.save_chat_message(db_user.id, "assistant", text)
+    await db.save_chat_message(db_user.id, "assistant", onboarding_text)
     
     await message.answer(
-        text,
+        onboarding_text,
         reply_markup=get_shop_keyboard(db_user.language_code, WEBAPP_URL),
         parse_mode=ParseMode.HTML
     )
