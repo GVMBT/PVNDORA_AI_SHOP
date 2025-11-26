@@ -1,81 +1,110 @@
 """Tests for payment processing"""
 import pytest
+import os
 from unittest.mock import Mock, AsyncMock, patch
 from src.services.payments import PaymentService
 
 
 @pytest.fixture
-def mock_payment_service():
-    """Mock payment service"""
-    service = PaymentService()
-    service.aaio_client = Mock()
-    service.stripe_client = Mock()
-    return service
+def payment_service():
+    """Payment service with test credentials"""
+    with patch.dict(os.environ, {
+        "AAIO_MERCHANT_ID": "test_merchant",
+        "AAIO_SECRET_KEY": "test_secret",
+        "STRIPE_SECRET_KEY": "sk_test_123",
+        "STRIPE_WEBHOOK_SECRET": "whsec_test",
+        "WEBAPP_URL": "https://test.vercel.app"
+    }):
+        service = PaymentService()
+        return service
 
 
 @pytest.mark.asyncio
-async def test_create_aaio_payment(mock_payment_service):
+async def test_create_aaio_payment(payment_service):
     """Test creating AAIO payment"""
-    mock_order = Mock()
-    mock_order.id = "order-123"
-    mock_order.amount = 300.0
-    mock_order.user_id = "user-123"
-    
-    mock_payment_service.aaio_client.create_payment = Mock(return_value="https://aaio.ru/pay/123")
-    
-    payment_url = await mock_payment_service.create_aaio_payment(mock_order)
+    payment_url = await payment_service._create_aaio_payment(
+        order_id="order-123",
+        amount=300.0,
+        product_name="ChatGPT Plus",
+        currency="RUB"
+    )
     
     assert payment_url is not None
-    assert "aaio.ru" in payment_url
+    assert "aaio.so" in payment_url
+    assert "order-123" in payment_url
+    assert "300" in payment_url
 
 
 @pytest.mark.asyncio
-async def test_verify_aaio_callback(mock_payment_service):
-    """Test verifying AAIO callback signature"""
+async def test_verify_aaio_callback_valid(payment_service):
+    """Test verifying valid AAIO callback signature"""
+    import hashlib
+    
+    # Generate valid signature
+    sign_string = f"{payment_service.aaio_merchant_id}:300.00:RUB:{payment_service.aaio_secret_key}:order-123"
+    valid_sign = hashlib.sha256(sign_string.encode()).hexdigest()
+    
     callback_data = {
+        "merchant_id": payment_service.aaio_merchant_id,
         "order_id": "order-123",
-        "status": "paid",
         "amount": "300.00",
-        "sign": "valid_signature"
+        "currency": "RUB",
+        "sign": valid_sign
     }
     
-    mock_payment_service.aaio_client.verify_signature = Mock(return_value=True)
+    result = await payment_service.verify_aaio_callback(callback_data)
     
-    is_valid = await mock_payment_service.verify_aaio_callback(callback_data)
-    
-    assert is_valid is True
+    assert result["success"] is True
+    assert result["order_id"] == "order-123"
 
 
 @pytest.mark.asyncio
-async def test_create_stripe_checkout(mock_payment_service):
-    """Test creating Stripe checkout session"""
-    mock_order = Mock()
-    mock_order.id = "order-123"
-    mock_order.amount = 30.0  # USD
+async def test_verify_aaio_callback_invalid_signature(payment_service):
+    """Test verifying invalid AAIO callback signature"""
+    callback_data = {
+        "merchant_id": payment_service.aaio_merchant_id,
+        "order_id": "order-123",
+        "amount": "300.00",
+        "currency": "RUB",
+        "sign": "invalid_signature"
+    }
     
-    mock_session = Mock()
-    mock_session.url = "https://checkout.stripe.com/session/123"
-    mock_payment_service.stripe_client.checkout.Session.create = Mock(return_value=mock_session)
+    result = await payment_service.verify_aaio_callback(callback_data)
     
-    checkout_url = await mock_payment_service.create_stripe_checkout(mock_order)
-    
-    assert checkout_url is not None
-    assert "stripe.com" in checkout_url
+    assert result["success"] is False
+    assert "signature" in result["error"].lower()
 
 
 @pytest.mark.asyncio
-async def test_verify_stripe_webhook(mock_payment_service):
-    """Test verifying Stripe webhook signature"""
-    payload = b'{"type": "checkout.session.completed"}'
-    signature = "valid_signature"
+async def test_create_payment_aaio_method(payment_service):
+    """Test creating payment with AAIO method"""
+    payment_url = await payment_service.create_payment(
+        order_id="order-123",
+        amount=300.0,
+        product_name="ChatGPT Plus",
+        method="aaio"
+    )
     
-    mock_payment_service.stripe_client.Webhook.construct_event = Mock(return_value={
-        "type": "checkout.session.completed",
-        "data": {"object": {"id": "session-123"}}
-    })
-    
-    event = await mock_payment_service.verify_stripe_webhook(payload, signature)
-    
-    assert event is not None
-    assert event["type"] == "checkout.session.completed"
+    assert payment_url is not None
+    assert "aaio.so" in payment_url
+
+
+@pytest.mark.asyncio
+async def test_create_payment_stripe_method(payment_service):
+    """Test creating payment with Stripe method"""
+    with patch('stripe.checkout.Session.create') as mock_stripe:
+        mock_session = Mock()
+        mock_session.url = "https://checkout.stripe.com/session/123"
+        mock_stripe.return_value = mock_session
+        
+        payment_url = await payment_service.create_payment(
+            order_id="order-123",
+            amount=30.0,
+            product_name="ChatGPT Plus",
+            method="stripe",
+            currency="USD"
+        )
+        
+        assert payment_url is not None
+        assert "stripe.com" in payment_url
 

@@ -1,6 +1,6 @@
 """Tests for i18n translations"""
 import pytest
-from src.i18n import get_text, SUPPORTED_LANGUAGES
+from src.i18n.translations import get_text, SUPPORTED_LANGUAGES
 
 
 def test_get_text_existing_key():
