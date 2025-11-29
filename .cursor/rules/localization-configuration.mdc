@@ -1,0 +1,35 @@
+---
+alwaysApply: true
+---
+
+# Localization & Configuration Rules
+
+## Strict Separation of Concerns
+
+NEVER call bot.set_my_commands, bot.set_my_description, or bot.set_my_name inside the Vercel request handler (api/index.py).
+
+THESE METHODS MUST be placed in a separate local script: scripts/setup_bot.py.
+
+Native Telegram Localization (Zero-State):
+
+Use aiogram.methods.SetMyDescription and SetMyName with the language_code parameter.
+
+Define translations in bot_setup/bot_info.json containing translations for all 9 languages (en, ru, de, es, etc.) for:
+
+name: (appears in chat list)
+
+short_description: (appears in shared link preview)
+
+description: (appears before user clicks Start)
+
+The scripts/setup_bot.py must iterate through this dictionary and apply settings to Telegram API asynchronously.
+
+Runtime Localization (Dynamic):
+
+Inside api/index.py:
+
+Extract user_language = update.message.from_user.language_code.
+
+Pass this code to the Gemini System Prompt context.
+
+DO NOT use older gettext or .po files. Rely on LLM's native ability to generate multilingual text based on the system prompt instruction: "You are speaking with a user in {user_language}."

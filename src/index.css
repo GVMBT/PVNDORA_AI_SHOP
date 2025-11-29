@@ -1,88 +1,213 @@
+/* Custom font import - distinctive, modern */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Telegram WebApp Theme Variables */
 :root {
-    --tg-theme-bg-color: #1a1a2e;
-    --tg-theme-text-color: #ffffff;
-    --tg-theme-hint-color: #8b8b9a;
-    --tg-theme-link-color: #5eaaff;
-    --tg-theme-button-color: #5eaaff;
-    --tg-theme-button-text-color: #ffffff;
-    --tg-theme-secondary-bg-color: #252540;
+  /* PVNDORA Brand Colors - Cyberpunk/Neon aesthetic */
+  --color-primary: #00f5d4;
+  --color-primary-dark: #00c4a7;
+  --color-accent: #ff6b6b;
+  --color-accent-glow: rgba(255, 107, 107, 0.3);
+  --color-bg-dark: #0a0a0f;
+  --color-bg-card: #12121a;
+  --color-bg-elevated: #1a1a25;
+  --color-text: #f0f0f5;
+  --color-text-muted: #8888a0;
+  --color-border: #2a2a3a;
+  --color-success: #00f5d4;
+  --color-warning: #ffd93d;
+  --color-error: #ff6b6b;
+  
+  /* Telegram theme vars */
+  --tg-theme-bg-color: var(--color-bg-dark);
+  --tg-theme-text-color: var(--color-text);
+  --tg-theme-hint-color: var(--color-text-muted);
+  --tg-theme-link-color: var(--color-primary);
+  --tg-theme-button-color: var(--color-primary);
+  --tg-theme-button-text-color: #0a0a0f;
+  --tg-theme-secondary-bg-color: var(--color-bg-card);
 }
 
-/* Base styles */
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-html, body, #root {
-    min-height: 100vh;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 body {
-    background-color: var(--tg-theme-bg-color);
-    color: var(--tg-theme-text-color);
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--color-bg-dark);
+  color: var(--color-text);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Hide scrollbar but keep functionality */
-body::-webkit-scrollbar {
-    width: 0;
-    height: 0;
+/* Code/Mono text */
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
 }
 
-/* Input focus styles */
-input:focus {
-    outline: 2px solid var(--tg-theme-button-color);
-    outline-offset: -2px;
+/* Glow effects */
+.glow-primary {
+  box-shadow: 0 0 20px rgba(0, 245, 212, 0.3), 0 0 40px rgba(0, 245, 212, 0.1);
 }
 
-/* Button styles */
-.btn-primary {
-    background-color: var(--tg-theme-button-color);
-    color: var(--tg-theme-button-text-color);
-    padding: 12px 24px;
-    border-radius: 12px;
-    font-weight: 600;
-    transition: opacity 0.2s;
+.glow-accent {
+  box-shadow: 0 0 20px var(--color-accent-glow), 0 0 40px rgba(255, 107, 107, 0.1);
 }
 
-.btn-primary:hover {
-    opacity: 0.9;
+/* Animated gradient background */
+.bg-gradient-animated {
+  background: linear-gradient(
+    135deg,
+    var(--color-bg-dark) 0%,
+    #0f1019 25%,
+    #151520 50%,
+    #0f1019 75%,
+    var(--color-bg-dark) 100%
+  );
+  background-size: 400% 400%;
+  animation: gradient-shift 15s ease infinite;
 }
 
-.btn-primary:active {
-    opacity: 0.8;
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
 /* Card styles */
 .card {
-    background-color: var(--tg-theme-secondary-bg-color);
-    border-radius: 16px;
-    padding: 16px;
+  @apply bg-[var(--color-bg-card)] rounded-2xl border border-[var(--color-border)] p-4;
+  transition: all 0.3s ease;
 }
 
-/* Animation classes */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+.card:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
 }
 
-.animate-fade-in {
-    animation: fadeIn 0.3s ease-out;
+/* Button styles */
+.btn {
+  @apply px-6 py-3 rounded-xl font-semibold text-center transition-all duration-300;
+}
+
+.btn-primary {
+  @apply bg-[var(--color-primary)] text-[var(--color-bg-dark)];
+}
+
+.btn-primary:hover {
+  @apply glow-primary;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  @apply bg-[var(--color-bg-elevated)] text-[var(--color-text)] border border-[var(--color-border)];
+}
+
+.btn-secondary:hover {
+  border-color: var(--color-primary);
+}
+
+/* Rating stars */
+.star-filled {
+  color: var(--color-warning);
+}
+
+.star-empty {
+  color: var(--color-text-muted);
+}
+
+/* Loading skeleton */
+.skeleton {
+  @apply bg-[var(--color-bg-elevated)] rounded animate-pulse;
+}
+
+/* RTL Support */
+[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
 }
 
 /* Safe area padding for iOS */
-@supports (padding-top: env(safe-area-inset-top)) {
-    body {
-        padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
-    }
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+/* Staggered entrance animation */
+.stagger-enter {
+  animation: fadeSlideIn 0.5s ease forwards;
+  opacity: 0;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-enter:nth-child(1) { animation-delay: 0.1s; }
+.stagger-enter:nth-child(2) { animation-delay: 0.2s; }
+.stagger-enter:nth-child(3) { animation-delay: 0.3s; }
+.stagger-enter:nth-child(4) { animation-delay: 0.4s; }
+.stagger-enter:nth-child(5) { animation-delay: 0.5s; }
+
+/* Badge styles */
+.badge {
+  @apply px-2 py-0.5 rounded-full text-xs font-medium;
+}
+
+.badge-success {
+  background-color: rgba(0, 245, 212, 0.2);
+  color: var(--color-success);
+}
+
+.badge-warning {
+  background-color: rgba(255, 217, 61, 0.2);
+  color: var(--color-warning);
+}
+
+.badge-error {
+  background-color: rgba(255, 107, 107, 0.2);
+  color: var(--color-error);
+}
+
+/* Price styling */
+.price-original {
+  @apply text-[var(--color-text-muted)] line-through text-sm;
+}
+
+.price-final {
+  @apply text-2xl font-bold text-[var(--color-primary)];
+}
+
+.price-savings {
+  @apply text-[var(--color-success)] text-sm font-medium;
 }

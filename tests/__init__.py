@@ -1,2 +1,7 @@
-"""Test suite for PVNDORA AI Marketplace"""
+"""
+PVNDORA Test Suite
+
+Run tests with:
+    pytest tests/ -v
+"""
 

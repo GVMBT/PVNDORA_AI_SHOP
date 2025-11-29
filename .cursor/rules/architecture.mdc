@@ -1,0 +1,189 @@
+---
+alwaysApply: true
+---
+# Project Architecture & Implementation Rules
+
+You are an expert Senior Python Backend Developer specializing in Telegram Bots, Vercel Serverless, and Google Gemini 2.5.
+
+## 1. Technology Stack & Constraints
+
+- **Runtime:** Python 3.12 (Vercel Serverless)
+- **Framework:** FastAPI 0.115+ (mounted as a single Serverless Function)
+- **AI Core:** google-genai SDK v1.0+ (Model: gemini-2.5-flash)
+- **Database:** Supabase (PostgreSQL) via supabase-py. **NO ORM** (SQLAlchemy/Django are forbidden)
+- **Async Messaging:** Upstash QStash (REQUIRED for all long-running tasks)
+- **State/Cache:** Upstash Redis (via HTTP REST API)
+
+## 2. Critical Architectural Patterns
+
+### A. Monolithic Entry Point (Vercel Optimization)
+
+**Constraint:** Vercel has a limit of 12 functions per deployment on Hobby plans. Splitting files in `api/` creates separate functions.
+
+**Rule:** ALL API routes must be routed through a single entry point.
+
+**File:** `api/index.py`
+
+**Implementation:** Initialize one FastAPI app instance here. Include routers from `core/routers/` if necessary, but the entry point must remain singular.
+
+### B. Asynchronous Reliability (The "Fire-and-Forget" Gap)
+
+**Conflict:** Vercel freezes functions immediately after response. `FastAPI.BackgroundTasks` are risky for critical operations (payments, delivery).
+
+**Rule:** Use **Upstash QStash** for all critical async operations.
+
+**Pattern:**
+
+1. Webhook receives Update → Validate → Push to QStash → Return 200 OK immediately
+2. QStash calls `POST /api/worker/process-update` → Worker executes AI/DB logic
+
+**Forbidden:** DO NOT use Supabase Triggers (pg_net) for business logic (delivery, notifications). Use QStash instead.
+
+**Best-Effort Operations:** Use `BackgroundTasks` only for non-critical operations (AI responses, logging).
+
+### C. Payment Flow ("Middleman Pattern")
+
+**Constraint:** Native Telegram Stars have high fees/restrictions.
+
+**Rule:** Use a WebApp "Gasket" for external payments.
+
+**Flow:**
+
+1. AI Agent: Detects purchase intent → Generates order UUID in DB (status: pending)
+2. Bot: Sends button [💳 Pay 300₽] → Opens WebApp `.../app?startapp=order_{uuid}`
+3. WebApp: Redirects user to AAIO/CryptoPay/Yookassa
+4. Webhook: Payment provider hits `POST /api/webhooks/payment` → Backend updates DB → Sends goods via Bot
+
+### D. Localization & Configuration
+
+**Rule:** Static bot configuration is separated from runtime logic.
+
+**Source:** `bot_setup/bot_info.json` (Contains names, descriptions for EN/RU/etc)
+
+**Application:** Run `python scripts/setup_bot.py` locally to apply these settings to Telegram. **DO NOT** call `setMyDescription` inside the runtime bot code.
+
+**Runtime Localization:** Extract `user_language = update.message.from_user.language_code` and pass to Gemini System Prompt. AI generates responses in user's language.
+
+## 3. Folder Structure
+
+```text
+/
+├── api/
+│   └── index.py           # SINGLE ENTRY POINT: FastAPI app + Webhook Handlers
+├── core/
+│   ├── ai.py             # Gemini 2.5 wrapper (System Prompts, Structured Output)
+│   ├── db.py             # Supabase & Redis clients (Singleton)
+│   ├── queue.py          # QStash client wrapper
+│   ├── payments.py       # Payment provider signature verification
+│   └── utils.py          # Helpers
+├── bot_setup/
+│   └── bot_info.json     # Multilingual descriptions & commands
+├── scripts/
+│   └── setup_bot.py      # Local script to sync bot_info.json with Telegram API
+├── utils/
+│   └── inventory.py      # Hardcoded product list (ID, Price, Prompt_Data)
+├── requirements.txt
+└── vercel.json
+```
+
+## 4. Implementation Guidelines
+
+### Gemini 2.5 Integration
+
+- **Library:** Use `google-genai` (Modern SDK), NOT `google-generativeai`
+- **Output:** ALWAYS enforce `response_schema` with Pydantic models
+- **Inventory:** Inject `utils.inventory.py` data into the System Prompt. Do not query DB for static product details
+- **Function Calling:** Use only `check_product_availability` function. Reserve/create operations handled by backend
+- **Structured Outputs:** All AI responses must use Pydantic Schema-Constrained Decoding
+
+### Real-time Validation
+
+**Rule:** Before any purchase action, validate availability through direct query to `available_stock_with_discounts` View or AI Function Calling.
+
+**Pattern:**
+
+```python
+if ai_response.action == "offer_payment":
+    validation = supabase.table('available_stock_with_discounts').select('*').eq('product_id', ai_response.product_id).limit(1).execute()
+    if not validation.data:
+        # Product unavailable - suggest alternative
+```
+
+### Transactional Integrity
+
+**Rule:** All transactional operations (reservation, purchase) must use PostgreSQL RPC functions for atomicity.
+
+**Pattern:**
+
+```python
+result = supabase.rpc('reserve_product_for_purchase', {
+    'p_product_id': product_id,
+    'p_user_telegram_id': user_telegram_id
+}).execute()
+```
+
+### QStash Workers
+
+**Rule:** All critical operations must be processed via QStash Workers.
+
+**Endpoints:**
+
+- `POST /api/workers/deliver-goods` - Deliver product after payment
+- `POST /api/workers/update-leaderboard` - Update gamification leaderboard
+- `POST /api/workers/notify-supplier` - Notify supplier of sale
+- `POST /api/workers/update-referral-bonus` - Calculate referral bonuses
+
+**Security:** All QStash endpoints must verify request signature.
+
+### Environment Variables (Required)
+
+Ensure these are present in Vercel Project Settings:
+
+- `TELEGRAM_TOKEN` - Telegram bot token
+- `TELEGRAM_WEBHOOK_URL` - Webhook URL for Telegram
+- `SUPABASE_URL` - Supabase project URL
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key
+- `GEMINI_API_KEY` - API key for Google Gemini 2.5 Flash
+- `QSTASH_URL` - Upstash QStash URL (usually `https://qstash.upstash.io/v2`)
+- `QSTASH_TOKEN` - Upstash QStash token
+- `UPSTASH_REDIS_URL` - Upstash Redis URL for FSM storage
+- `UPSTASH_REDIS_TOKEN` - Upstash Redis token
+- `AAIO_MERCHANT_ID` - AAIO payment provider (optional)
+- `AAIO_SECRET_KEY` - AAIO secret key (optional)
+- `YUKASSA_SHOP_ID` - YooKassa shop ID (optional)
+- `YUKASSA_SECRET_KEY` - YooKassa secret key (optional)
+
+## 5. Code Style
+
+- **Type Hints:** Strict typing required
+- **Async:** Use `async/await` everywhere. `supabase-py` methods must be awaited
+- **Validation:** Use `pydantic` for all data ingress (Telegram Updates, Webhook Payloads)
+- **Error Handling:** Use `tenacity` for retry logic on Pydantic validation errors
+
+## 6. Key Principles
+
+1. **Always return fast** - Use BackgroundTasks for UX operations, QStash for critical operations
+2. **Guaranteed delivery** - Use QStash for all transactional operations
+3. **Real-time validation** - Always validate inventory before critical actions
+4. **Optimize with SQL** - Calculate discounts, aggregations in database (SQL Views)
+5. **RAG for search** - Use vector search (vecs) for product discovery
+6. **Structured outputs** - All AI actions must return typed objects (Pydantic)
+7. **Single entry point** - All routes in `api/index.py` to respect Vercel limits
+8. **Context caching** - Optimize AI costs with cached System Prompts
+9. **Atomic transactions** - Use PostgreSQL RPC for all transactional operations
+10. **No ORM** - Direct SQL queries via supabase-py only
+
+## 7. Documentation Reference
+
+For detailed specifications and complete context, see documentation in `docs/`:
+
+- **Business Requirements:** `docs/Brief.md` - Functional requirements and business logic
+- **AI Strategy:** `docs/ai-strategy.md` - RAG, Function Calling, Structured Outputs, Pydantic models
+- **Database Schema:** `docs/database-schema.md` - ERD, SQL Views, RPC functions, migrations
+- **API Specification:** `docs/api-specification.md` - Endpoints, contracts, authentication
+- **Async Architecture:** `docs/async-architecture.md` - QStash patterns, BackgroundTasks, hybrid model
+- **On-Demand Orders:** `docs/ON_DEMAND_ORDERS.md` - Instant + prepaid order model
+- **Sequence Diagrams:** `docs/sequence-diagrams.md` - Process flows and interactions
+- **QStash Explained:** `docs/QSTASH_EXPLAINED.md` - Why QStash and how to use it
+
+**Rule:** When implementing features, read relevant documentation first for complete context. Rules provide quick patterns, documentation provides detailed specifications.

@@ -1,0 +1,93 @@
+---
+alwaysApply: true
+description: How to use project documentation and when to reference it
+---
+
+# Documentation Reference Guide
+
+## When to Use Documentation
+
+**Always consult documentation in `docs/` when:**
+
+- Implementing new features (read relevant docs first)
+- Understanding business logic (see `docs/Brief.md`)
+- Working with database schema (see `docs/database-schema.md`)
+- Implementing AI features (see `docs/ai-strategy.md`)
+- Setting up async operations (see `docs/async-architecture.md`)
+- Understanding API contracts (see `docs/api-specification.md`)
+- Working with on-demand orders (see `docs/ON_DEMAND_ORDERS.md`)
+
+## Documentation Structure
+
+### Core Documents
+
+- **`docs/Brief.md`** - Business requirements and functional specifications
+- **`docs/ARCHITECTURE.md`** - Architecture rules and quick reference
+- **`docs/README.md`** - Documentation index and navigation
+
+### Technical Specifications
+
+- **`docs/ai-strategy.md`** - AI implementation: RAG, Function Calling, Structured Outputs
+- **`docs/database-schema.md`** - Database structure, ERD, SQL Views, RPC functions
+- **`docs/api-specification.md`** - API endpoints, contracts, authentication
+- **`docs/async-architecture.md`** - QStash patterns, BackgroundTasks, hybrid model
+- **`docs/sequence-diagrams.md`** - Process flows and sequence diagrams
+
+### Feature-Specific
+
+- **`docs/ON_DEMAND_ORDERS.md`** - On-demand order model (instant + prepaid)
+- **`docs/CURRENCY_LOCALIZATION.md`** - Currency conversion and localization
+- **`docs/ux-deep-linking.md`** - UX patterns, deep linking, Mini App integration
+- **`docs/cicd-pipeline.md`** - CI/CD pipeline and deployment strategy
+- **`docs/QSTASH_EXPLAINED.md`** - QStash explanation and usage patterns
+
+## Rules vs Documentation
+
+**`.cursor/rules/`** - Quick implementation rules (always applied by IDE)
+
+- Focus: "What to do" and "How to implement"
+- Format: Concise, actionable patterns
+- Usage: Automatic context for AI assistant
+
+**`docs/`** - Detailed specifications (read when needed)
+
+- Focus: "Why" and "Complete context"
+- Format: Detailed explanations with examples
+- Usage: Reference when implementing features
+
+**Pattern:** Rules provide quick guidance, Documentation provides complete context.
+
+## Quick Reference by Task
+
+### Implementing AI Features
+
+1. Read `docs/ai-strategy.md` for RAG, Function Calling, Structured Outputs
+2. Check `.cursor/rules/architecture.mdc` for implementation patterns
+3. Reference `docs/sequence-diagrams.md` for AI consultation flow
+
+### Working with Database
+
+1. Check `docs/database-schema.md` for table structure
+2. Use SQL Views: `available_stock_with_discounts`
+3. Use RPC functions: `reserve_product_for_purchase`, `complete_purchase`
+4. See `.cursor/rules/architecture.mdc` for transactional patterns
+
+### Implementing API Endpoints
+
+1. Check `docs/api-specification.md` for endpoint contracts
+2. Follow patterns in `docs/async-architecture.md` for async operations
+3. Use QStash for critical operations (see `docs/QSTASH_EXPLAINED.md`)
+
+### Understanding Business Logic
+
+1. Start with `docs/Brief.md` for requirements
+2. Check `docs/ON_DEMAND_ORDERS.md` for order model
+3. Reference `docs/CURRENCY_LOCALIZATION.md` for pricing
+
+## Best Practices
+
+1. **Read documentation first** when starting a new feature
+2. **Follow rules** for implementation patterns
+3. **Reference docs** when you need detailed context
+4. **Keep rules concise** - detailed explanations belong in docs
+5. **Update both** when architecture changes

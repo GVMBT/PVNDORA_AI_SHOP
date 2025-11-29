@@ -1,165 +1,139 @@
+import { useState, useEffect, useCallback } from 'react'
+
 /**
- * Telegram WebApp Hook
- * 
- * Provides access to Telegram Mini App SDK features
+ * Hook for Telegram WebApp SDK integration
  */
-import { useEffect, useState, useCallback } from 'react';
-
-// Get WebApp from global Telegram object
-const tg = window.Telegram?.WebApp;
-
 export function useTelegram() {
-    const [isReady, setIsReady] = useState(false);
-    const [user, setUser] = useState(null);
-    const [initData, setInitData] = useState('');
-    const [colorScheme, setColorScheme] = useState('dark');
-    const [startParam, setStartParam] = useState(null);
-
-    useEffect(() => {
-        if (tg) {
-            // Signal that app is ready
-            tg.ready();
-            tg.expand();
-            
-            setIsReady(true);
-            setInitData(tg.initData || '');
-            setColorScheme(tg.colorScheme || 'dark');
-            
-            // Parse user data
-            if (tg.initDataUnsafe?.user) {
-                setUser(tg.initDataUnsafe.user);
-            }
-            
-            // Parse start parameter (e.g., product ID)
-            if (tg.initDataUnsafe?.start_param) {
-                setStartParam(tg.initDataUnsafe.start_param);
-            }
-            
-            // Listen for theme changes
-            tg.onEvent('themeChanged', () => {
-                setColorScheme(tg.colorScheme);
-            });
-        }
-    }, []);
-
-    // Show/hide main button
-    const showMainButton = useCallback((text, onClick) => {
-        if (tg?.MainButton) {
-            tg.MainButton.setText(text);
-            tg.MainButton.show();
-            tg.MainButton.onClick(onClick);
-        }
-    }, []);
-
-    const hideMainButton = useCallback(() => {
-        if (tg?.MainButton) {
-            tg.MainButton.hide();
-        }
-    }, []);
-
-    // Show/hide back button
-    const showBackButton = useCallback((onClick) => {
-        if (tg?.BackButton) {
-            tg.BackButton.show();
-            tg.BackButton.onClick(onClick);
-        }
-    }, []);
-
-    const hideBackButton = useCallback(() => {
-        if (tg?.BackButton) {
-            tg.BackButton.hide();
-        }
-    }, []);
-
-    // Close the Mini App
-    const close = useCallback(() => {
-        if (tg) {
-            tg.close();
-        }
-    }, []);
-
-    // Send data back to bot
-    const sendData = useCallback((data) => {
-        if (tg) {
-            tg.sendData(JSON.stringify(data));
-        }
-    }, []);
-
-    // Show popup
-    const showPopup = useCallback((params) => {
-        return new Promise((resolve) => {
-            if (tg?.showPopup) {
-                tg.showPopup(params, (buttonId) => {
-                    resolve(buttonId);
-                });
-            } else {
-                resolve(null);
-            }
-        });
-    }, []);
-
-    // Show alert
-    const showAlert = useCallback((message) => {
-        return new Promise((resolve) => {
-            if (tg?.showAlert) {
-                tg.showAlert(message, resolve);
-            } else {
-                alert(message);
-                resolve();
-            }
-        });
-    }, []);
-
-    // Haptic feedback
-    const hapticFeedback = useCallback((type = 'light') => {
-        if (tg?.HapticFeedback) {
-            if (type === 'success') {
-                tg.HapticFeedback.notificationOccurred('success');
-            } else if (type === 'error') {
-                tg.HapticFeedback.notificationOccurred('error');
-            } else if (type === 'warning') {
-                tg.HapticFeedback.notificationOccurred('warning');
-            } else {
-                tg.HapticFeedback.impactOccurred(type);
-            }
-        }
-    }, []);
-
-    // Open link in browser
-    const openLink = useCallback((url) => {
-        if (tg?.openLink) {
-            tg.openLink(url);
-        } else {
-            window.open(url, '_blank');
-        }
-    }, []);
-
-    // Get auth header for API calls
-    const getAuthHeader = useCallback(() => {
-        return initData ? `tma ${initData}` : '';
-    }, [initData]);
-
-    return {
-        isReady,
-        user,
-        initData,
-        colorScheme,
-        startParam,
-        showMainButton,
-        hideMainButton,
-        showBackButton,
-        hideBackButton,
-        close,
-        sendData,
-        showPopup,
-        showAlert,
-        hapticFeedback,
-        openLink,
-        getAuthHeader,
-        // Raw access to WebApp
-        webApp: tg
-    };
+  const [isReady, setIsReady] = useState(false)
+  const [initData, setInitData] = useState('')
+  const [user, setUser] = useState(null)
+  const [colorScheme, setColorScheme] = useState('dark')
+  
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp
+    
+    if (tg) {
+      // Mark as ready
+      tg.ready()
+      tg.expand()
+      
+      // Get init data
+      setInitData(tg.initData)
+      setUser(tg.initDataUnsafe?.user || null)
+      setColorScheme(tg.colorScheme || 'dark')
+      
+      // Theme changed listener
+      tg.onEvent('themeChanged', () => {
+        setColorScheme(tg.colorScheme)
+      })
+      
+      setIsReady(true)
+    } else {
+      // Development mode without Telegram
+      setInitData('')
+      setUser({
+        id: 123456789,
+        first_name: 'Test',
+        last_name: 'User',
+        username: 'testuser',
+        language_code: 'en'
+      })
+      setIsReady(true)
+    }
+  }, [])
+  
+  const showConfirm = useCallback((message) => {
+    const tg = window.Telegram?.WebApp
+    if (tg?.showConfirm) {
+      return new Promise((resolve) => {
+        tg.showConfirm(message, resolve)
+      })
+    }
+    return Promise.resolve(window.confirm(message))
+  }, [])
+  
+  const showAlert = useCallback((message) => {
+    const tg = window.Telegram?.WebApp
+    if (tg?.showAlert) {
+      return new Promise((resolve) => {
+        tg.showAlert(message, resolve)
+      })
+    }
+    window.alert(message)
+    return Promise.resolve()
+  }, [])
+  
+  const hapticFeedback = useCallback((type = 'impact', style = 'medium') => {
+    const tg = window.Telegram?.WebApp?.HapticFeedback
+    if (tg) {
+      if (type === 'impact') {
+        tg.impactOccurred(style)
+      } else if (type === 'notification') {
+        tg.notificationOccurred(style)
+      } else if (type === 'selection') {
+        tg.selectionChanged()
+      }
+    }
+  }, [])
+  
+  const close = useCallback(() => {
+    window.Telegram?.WebApp?.close()
+  }, [])
+  
+  const openLink = useCallback((url) => {
+    window.Telegram?.WebApp?.openLink(url)
+  }, [])
+  
+  const openTelegramLink = useCallback((url) => {
+    window.Telegram?.WebApp?.openTelegramLink(url)
+  }, [])
+  
+  const sendData = useCallback((data) => {
+    window.Telegram?.WebApp?.sendData(JSON.stringify(data))
+  }, [])
+  
+  const setMainButton = useCallback((config) => {
+    const btn = window.Telegram?.WebApp?.MainButton
+    if (btn) {
+      if (config.text) btn.setText(config.text)
+      if (config.color) btn.setParams({ color: config.color })
+      if (config.textColor) btn.setParams({ text_color: config.textColor })
+      if (config.onClick) btn.onClick(config.onClick)
+      if (config.isVisible !== undefined) {
+        config.isVisible ? btn.show() : btn.hide()
+      }
+      if (config.isLoading !== undefined) {
+        config.isLoading ? btn.showProgress() : btn.hideProgress()
+      }
+    }
+  }, [])
+  
+  const setBackButton = useCallback((config) => {
+    const btn = window.Telegram?.WebApp?.BackButton
+    if (btn) {
+      if (config.onClick) btn.onClick(config.onClick)
+      if (config.isVisible !== undefined) {
+        config.isVisible ? btn.show() : btn.hide()
+      }
+    }
+  }, [])
+  
+  return {
+    isReady,
+    initData,
+    user,
+    colorScheme,
+    showConfirm,
+    showAlert,
+    hapticFeedback,
+    close,
+    openLink,
+    openTelegramLink,
+    sendData,
+    setMainButton,
+    setBackButton
+  }
 }
 
-export default useTelegram;
+export default useTelegram
 
