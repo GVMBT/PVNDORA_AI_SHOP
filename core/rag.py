@@ -44,32 +44,43 @@ def get_vecs_client():
         raise ImportError("vecs library not installed. Install with: pip install vecs")
     
     if _vecs_client is None:
-        # Extract connection string from Supabase URL
-        # Format: postgresql://postgres.[project_ref]:[password]@[host]:[port]/postgres
         if not SUPABASE_URL:
             raise ValueError("SUPABASE_URL must be set for vector search")
         
-        # Convert Supabase URL to PostgreSQL connection string
-        # SUPABASE_URL is typically https://xxx.supabase.co
-        # Extract project_ref from URL (e.g., "cxthsmadbvgrzjgnuzke" from "https://cxthsmadbvgrzjgnuzke.supabase.co")
+        # Extract project_ref from SUPABASE_URL
+        # Example: "https://cxthsmadbvgrzjgnuzke.supabase.co" -> "cxthsmadbvgrzjgnuzke"
         db_host = SUPABASE_URL.replace("https://", "").replace("http://", "")
-        project_ref = db_host.split('.')[0]  # Extract project reference
-        db_password = SUPABASE_SERVICE_ROLE_KEY
+        project_ref = db_host.split('.')[0]
         
         # Check for direct DB connection string in env (preferred)
         db_url = os.environ.get("SUPABASE_DB_URL")
+        
         if db_url:
+            # Validate/fix connection string format for Supabase pooler
+            # Supabase pooler requires: postgres.PROJECT_REF as username
+            # If user provided postgresql://postgres:pass@... we need to fix it
+            if "pooler.supabase.com" in db_url and f"postgres.{project_ref}" not in db_url:
+                # Fix incorrect format: postgres:pass -> postgres.project_ref:pass
+                import re
+                db_url = re.sub(
+                    r'postgresql://postgres:',
+                    f'postgresql://postgres.{project_ref}:',
+                    db_url
+                )
+                print(f"INFO: Auto-corrected SUPABASE_DB_URL to use postgres.{project_ref} username")
             connection_string = db_url
         else:
-            # Construct connection string using pooler (port 6543)
-            # Format: postgresql://postgres.[project_ref]:[password]@aws-0-us-east-1.pooler.supabase.com:6543/postgres
+            # Construct connection string using pooler
+            # Format: postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-us-east-1.pooler.supabase.com:6543/postgres
+            db_password = SUPABASE_SERVICE_ROLE_KEY
             connection_string = f"postgresql://postgres.{project_ref}:{db_password}@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
         
         try:
             _vecs_client = vecs.create_client(connection_string)
         except Exception as e:
             print(f"WARNING: Failed to create vecs client: {e}")
-            print("Connection string format: postgresql://postgres.[project_ref]:[password]@[host]:[port]/postgres")
+            print(f"Expected format: postgresql://postgres.{project_ref}:PASSWORD@aws-0-us-east-1.pooler.supabase.com:6543/postgres")
+            print("Make sure SUPABASE_DB_URL uses 'postgres.PROJECT_REF' as username (not just 'postgres')")
             raise
     
     return _vecs_client

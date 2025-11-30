@@ -740,7 +740,7 @@ async def get_user_orders(user = Depends(verify_telegram_auth)):
 async def aaio_webhook(request: Request):
     """Handle AAIO payment callback"""
     from src.services.payments import PaymentService
-    from src.services.notifications import NotificationService
+    from core.queue import publish_to_worker, WorkerEndpoints
     
     try:
         data = await request.form()
@@ -751,9 +751,21 @@ async def aaio_webhook(request: Request):
         if result["success"]:
             order_id = result["order_id"]
             
-            # Process fulfillment
-            notification_service = NotificationService()
-            await notification_service.fulfill_order(order_id)
+            # Guaranteed delivery via QStash
+            await publish_to_worker(
+                endpoint=WorkerEndpoints.DELIVER_GOODS,
+                body={"order_id": order_id},
+                retries=5,
+                deduplication_id=f"deliver-{order_id}"
+            )
+            
+            # Calculate referral bonus
+            await publish_to_worker(
+                endpoint=WorkerEndpoints.CALCULATE_REFERRAL,
+                body={"order_id": order_id},
+                retries=3,
+                deduplication_id=f"referral-{order_id}"
+            )
         
         return JSONResponse(content={"status": "ok"})
     
@@ -769,7 +781,7 @@ async def aaio_webhook(request: Request):
 async def stripe_webhook(request: Request):
     """Handle Stripe payment webhook"""
     from src.services.payments import PaymentService
-    from src.services.notifications import NotificationService
+    from core.queue import publish_to_worker, WorkerEndpoints
     
     try:
         payload = await request.body()
@@ -781,9 +793,21 @@ async def stripe_webhook(request: Request):
         if result["success"]:
             order_id = result["order_id"]
             
-            # Process fulfillment
-            notification_service = NotificationService()
-            await notification_service.fulfill_order(order_id)
+            # Guaranteed delivery via QStash
+            await publish_to_worker(
+                endpoint=WorkerEndpoints.DELIVER_GOODS,
+                body={"order_id": order_id},
+                retries=5,
+                deduplication_id=f"deliver-{order_id}"
+            )
+            
+            # Calculate referral bonus
+            await publish_to_worker(
+                endpoint=WorkerEndpoints.CALCULATE_REFERRAL,
+                body={"order_id": order_id},
+                retries=3,
+                deduplication_id=f"referral-{order_id}"
+            )
         
         return JSONResponse(content={"received": True})
     
@@ -1506,14 +1530,19 @@ async def cron_re_engagement(authorization: str = Header(None)):
 @app.get("/api/cron/daily-tasks")
 async def cron_daily_tasks(authorization: str = Header(None)):
     """
-    Combined daily cron job for Hobby plan (max 2 crons).
-    Runs: expiration reminders, wishlist reminders, re-engagement.
+    Combined daily cron job for Hobby plan (max 2 crons, once per day).
+    Runs ALL scheduled tasks:
+    - Review requests (orders completed yesterday)
+    - Expiration reminders (subscriptions expiring in 3 days)
+    - Wishlist reminders (items saved 3+ days ago)
+    - Re-engagement (users inactive 7+ days)
     """
     cron_secret = os.environ.get("CRON_SECRET", "")
     if authorization != f"Bearer {cron_secret}":
         raise HTTPException(status_code=401, detail="Invalid cron secret")
     
     results = {
+        "review_requests": 0,
         "expiration_reminders": 0,
         "wishlist_reminders": 0,
         "re_engagement": 0
@@ -1526,6 +1555,28 @@ async def cron_daily_tasks(authorization: str = Header(None)):
     
     if not bot:
         return {"error": "Bot not configured", "results": results}
+    
+    # 0. Review requests (orders completed yesterday)
+    try:
+        yesterday_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
+        yesterday_end = yesterday_start + timedelta(days=1)
+        
+        orders = db.client.table("orders").select("id").eq(
+            "status", "completed"
+        ).gte("delivered_at", yesterday_start.isoformat()).lt(
+            "delivered_at", yesterday_end.isoformat()
+        ).is_("review_requested_at", "null").execute()
+        
+        for order in orders.data:
+            existing_review = db.client.table("reviews").select("id").eq("order_id", order["id"]).execute()
+            if not existing_review.data:
+                await notification_service.send_review_request(order["id"])
+                db.client.table("orders").update(
+                    {"review_requested_at": datetime.utcnow().isoformat()}
+                ).eq("id", order["id"]).execute()
+                results["review_requests"] += 1
+    except Exception as e:
+        print(f"Review requests error: {e}")
     
     # 1. Expiration reminders (subscriptions expiring in 3 days)
     try:
@@ -1599,6 +1650,220 @@ async def cron_daily_tasks(authorization: str = Header(None)):
         print(f"Re-engagement error: {e}")
     
     return results
+
+
+# ==================== QSTASH WORKERS ====================
+
+@app.post("/api/workers/deliver-goods")
+async def worker_deliver_goods(request: Request):
+    """
+    QStash Worker: Deliver digital goods after payment.
+    Called by QStash with guaranteed delivery.
+    """
+    from core.queue import verify_qstash_request
+    from src.services.notifications import NotificationService
+    
+    data = await verify_qstash_request(request)
+    order_id = data.get("order_id")
+    
+    if not order_id:
+        return {"error": "order_id required"}
+    
+    db = get_database()
+    notification_service = NotificationService()
+    
+    # Complete purchase via RPC
+    result = db.client.rpc("complete_purchase", {"p_order_id": order_id}).execute()
+    
+    if result.data and result.data[0].get("success"):
+        content = result.data[0].get("content")
+        
+        # Get order details
+        order = db.client.table("orders").select(
+            "user_telegram_id, products(name)"
+        ).eq("id", order_id).single().execute()
+        
+        if order.data:
+            await notification_service.send_delivery(
+                telegram_id=order.data["user_telegram_id"],
+                product_name=order.data.get("products", {}).get("name", "Product"),
+                content=content
+            )
+        
+        return {"success": True, "order_id": order_id}
+    
+    return {"error": "Failed to complete purchase", "order_id": order_id}
+
+
+@app.post("/api/workers/calculate-referral")
+async def worker_calculate_referral(request: Request):
+    """
+    QStash Worker: Calculate and apply referral bonuses.
+    """
+    from core.queue import verify_qstash_request
+    
+    data = await verify_qstash_request(request)
+    order_id = data.get("order_id")
+    
+    if not order_id:
+        return {"error": "order_id required"}
+    
+    db = get_database()
+    
+    # Get order with user referral info
+    order = db.client.table("orders").select(
+        "amount, user_id, users(referrer_id)"
+    ).eq("id", order_id).single().execute()
+    
+    if not order.data:
+        return {"error": "Order not found"}
+    
+    referrer_id = order.data.get("users", {}).get("referrer_id")
+    if not referrer_id:
+        return {"skipped": True, "reason": "No referrer"}
+    
+    # Calculate 5% bonus
+    bonus = float(order.data["amount"]) * 0.05
+    
+    # Add to referrer balance
+    db.client.rpc("add_to_user_balance", {
+        "p_user_id": referrer_id,
+        "p_amount": bonus,
+        "p_reason": f"Referral bonus from order {order_id}"
+    }).execute()
+    
+    return {"success": True, "referrer_id": referrer_id, "bonus": bonus}
+
+
+@app.post("/api/workers/notify-supplier")
+async def worker_notify_supplier(request: Request):
+    """
+    QStash Worker: Notify supplier about low stock.
+    """
+    from core.queue import verify_qstash_request
+    
+    data = await verify_qstash_request(request)
+    product_id = data.get("product_id")
+    threshold = data.get("threshold", 3)
+    
+    if not product_id:
+        return {"error": "product_id required"}
+    
+    db = get_database()
+    
+    # Check current stock
+    stock = db.client.table("stock_items").select("id").eq(
+        "product_id", product_id
+    ).eq("status", "available").execute()
+    
+    if len(stock.data) <= threshold:
+        # Log low stock alert (in production, send to admin)
+        print(f"LOW STOCK ALERT: Product {product_id} has only {len(stock.data)} items")
+        return {"alerted": True, "stock_count": len(stock.data)}
+    
+    return {"skipped": True, "stock_count": len(stock.data)}
+
+
+@app.post("/api/workers/process-refund")
+async def worker_process_refund(request: Request):
+    """
+    QStash Worker: Process refund for prepaid orders.
+    """
+    from core.queue import verify_qstash_request
+    from src.services.notifications import NotificationService
+    
+    data = await verify_qstash_request(request)
+    order_id = data.get("order_id")
+    reason = data.get("reason", "Fulfillment deadline exceeded")
+    
+    if not order_id:
+        return {"error": "order_id required"}
+    
+    db = get_database()
+    notification_service = NotificationService()
+    
+    # Get order
+    order = db.client.table("orders").select(
+        "id, amount, user_id, user_telegram_id, status, products(name)"
+    ).eq("id", order_id).single().execute()
+    
+    if not order.data:
+        return {"error": "Order not found"}
+    
+    if order.data["status"] != "prepaid":
+        return {"skipped": True, "reason": f"Order status is {order.data['status']}"}
+    
+    # Refund to balance
+    db.client.rpc("add_to_user_balance", {
+        "p_user_id": order.data["user_id"],
+        "p_amount": float(order.data["amount"]),
+        "p_reason": f"Refund for order {order_id}: {reason}"
+    }).execute()
+    
+    # Update order
+    db.client.table("orders").update({
+        "status": "refunded",
+        "refund_reason": reason,
+        "refund_processed_at": datetime.utcnow().isoformat()
+    }).eq("id", order_id).execute()
+    
+    # Notify user
+    await notification_service.send_refund_notification(
+        telegram_id=order.data["user_telegram_id"],
+        product_name=order.data.get("products", {}).get("name", "Product"),
+        amount=order.data["amount"],
+        reason=reason
+    )
+    
+    return {"success": True, "refunded_amount": order.data["amount"]}
+
+
+@app.post("/api/workers/process-review-cashback")
+async def worker_process_review_cashback(request: Request):
+    """
+    QStash Worker: Process 5% cashback for review.
+    """
+    from core.queue import verify_qstash_request
+    
+    data = await verify_qstash_request(request)
+    review_id = data.get("review_id")
+    
+    if not review_id:
+        return {"error": "review_id required"}
+    
+    db = get_database()
+    
+    # Get review with order info
+    review = db.client.table("reviews").select(
+        "id, order_id, cashback_processed, orders(amount, user_id)"
+    ).eq("id", review_id).single().execute()
+    
+    if not review.data:
+        return {"error": "Review not found"}
+    
+    if review.data.get("cashback_processed"):
+        return {"skipped": True, "reason": "Cashback already processed"}
+    
+    order = review.data.get("orders", {})
+    if not order:
+        return {"error": "Order not found"}
+    
+    # Calculate 5% cashback
+    cashback = float(order["amount"]) * 0.05
+    
+    # Add to user balance
+    db.client.rpc("add_to_user_balance", {
+        "p_user_id": order["user_id"],
+        "p_amount": cashback,
+        "p_reason": "Review cashback for order"
+    }).execute()
+    
+    # Mark as processed
+    db.client.table("reviews").update({
+        "cashback_processed": True
+    }).eq("id", review_id).execute()
+    
+    return {"success": True, "cashback": cashback}
 
 
 # ==================== VERCEL EXPORT ====================

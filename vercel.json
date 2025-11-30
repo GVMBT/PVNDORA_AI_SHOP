@@ -13,24 +13,8 @@
   },
   "crons": [
     {
-      "path": "/api/cron/review-requests",
-      "schedule": "30 * * * *"
-    },
-    {
-      "path": "/api/cron/expiration-reminders",
-      "schedule": "0 10 * * *"
-    },
-    {
-      "path": "/api/cron/wishlist-reminders",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/re-engagement",
-      "schedule": "0 */6 * * *"
-    },
-    {
       "path": "/api/cron/daily-tasks",
-      "schedule": "0 12 * * *"
+      "schedule": "0 10 * * *"
     }
   ]
 }
