@@ -145,13 +145,15 @@ async def cmd_wishlist(message: Message, db_user: User):
             description=product.description or ""
         )
         
+        bot_info = await message.bot.get_me()
         await message.answer(
             text,
             reply_markup=get_product_keyboard(
                 db_user.language_code,
                 product.id,
                 WEBAPP_URL,
-                in_stock=product.stock_count > 0
+                in_stock=product.stock_count > 0,
+                bot_username=bot_info.username
             ),
             parse_mode=ParseMode.HTML
         )
@@ -285,6 +287,7 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
         
         # Send response to user based on structured action
         reply_markup = None
+        bot_info = await message.bot.get_me()
         
         # Handle actions from structured response
         from core.models import ActionType
@@ -297,7 +300,8 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
                     db_user.language_code,
                     response.product_id,
                     WEBAPP_URL,
-                    in_stock=product.stock_count > 0
+                    in_stock=product.stock_count > 0,
+                    bot_username=bot_info.username
                 )
         elif response.product_id:
             # Fallback: if product_id set but no specific action
@@ -307,7 +311,8 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
                     db_user.language_code,
                     response.product_id,
                     WEBAPP_URL,
-                    in_stock=product.stock_count > 0
+                    in_stock=product.stock_count > 0,
+                    bot_username=bot_info.username
                 )
         
         await message.answer(
@@ -378,6 +383,7 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
     # Send response based on structured action
     from core.models import ActionType
     keyboard = None
+    bot_info = await message.bot.get_me()
     
     if response.action == ActionType.SHOW_CATALOG:
         keyboard = get_shop_keyboard(db_user.language_code, WEBAPP_URL)
@@ -388,7 +394,8 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
                 db_user.language_code,
                 response.product_id,
                 WEBAPP_URL,
-                in_stock=product.stock_count > 0
+                in_stock=product.stock_count > 0,
+                bot_username=bot_info.username
             )
     elif response.product_id:
         # Fallback: if product_id set but no specific action
@@ -398,7 +405,8 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
                 db_user.language_code,
                 response.product_id,
                 WEBAPP_URL,
-                in_stock=product.stock_count > 0
+                in_stock=product.stock_count > 0,
+                bot_username=bot_info.username
             )
     
     await message.answer(

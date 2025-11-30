@@ -17,20 +17,28 @@ def get_product_keyboard(
     lang: str, 
     product_id: str, 
     webapp_url: str,
-    in_stock: bool = True
+    in_stock: bool = True,
+    bot_username: str = None
 ) -> InlineKeyboardMarkup:
     """Product action buttons"""
     buttons = []
     
     if in_stock:
+        # Use Mini App deep link for checkout
+        if bot_username:
+            checkout_url = f"https://t.me/{bot_username}/app?startapp=pay_{product_id}"
+        else:
+            checkout_url = f"{webapp_url}?startapp=pay_{product_id}"
+        
         buttons.append([InlineKeyboardButton(
             text=get_text("btn_buy", lang),
-            web_app=WebAppInfo(url=f"{webapp_url}?product={product_id}")
+            web_app=WebAppInfo(url=checkout_url)
         )])
     else:
+        # Out of stock - offer preorder
         buttons.append([InlineKeyboardButton(
-            text=get_text("btn_waitlist", lang),
-            callback_data=f"waitlist:{product_id}"
+            text=get_text("btn_preorder", lang) if get_text("btn_preorder", lang) != "btn_preorder" else "📦 Pre-order",
+            callback_data=f"preorder:{product_id}"
         )])
     
     buttons.append([InlineKeyboardButton(

@@ -37,65 +37,68 @@ _products_collection: Optional[Collection] = None
 
 
 def get_vecs_client():
-    """Get vecs client (singleton)."""
+    """
+    Get vecs client (singleton).
+    Returns None if RAG is not configured.
+    """
     global _vecs_client
     
     if not VECS_AVAILABLE:
-        raise ImportError("vecs library not installed. Install with: pip install vecs")
+        print("INFO: RAG disabled - vecs library not installed")
+        return None
     
     if _vecs_client is None:
         if not SUPABASE_URL:
-            raise ValueError("SUPABASE_URL must be set for vector search")
+            print("INFO: RAG disabled - SUPABASE_URL not set")
+            return None
+        
+        # Check if SUPABASE_DB_URL is configured
+        db_url = os.environ.get("SUPABASE_DB_URL")
+        if not db_url:
+            print("INFO: RAG disabled - SUPABASE_DB_URL not set")
+            return None
         
         # Extract project_ref from SUPABASE_URL
-        # Example: "https://cxthsmadbvgrzjgnuzke.supabase.co" -> "cxthsmadbvgrzjgnuzke"
         db_host = SUPABASE_URL.replace("https://", "").replace("http://", "")
         project_ref = db_host.split('.')[0]
         
-        # Check for direct DB connection string in env (preferred)
-        db_url = os.environ.get("SUPABASE_DB_URL")
-        
-        if db_url:
-            # Validate/fix connection string format for Supabase pooler
-            # Supabase pooler requires: postgres.PROJECT_REF as username
-            # If user provided postgresql://postgres:pass@... we need to fix it
-            if "pooler.supabase.com" in db_url and f"postgres.{project_ref}" not in db_url:
-                # Fix incorrect format: postgres:pass -> postgres.project_ref:pass
-                import re
-                db_url = re.sub(
-                    r'postgresql://postgres:',
-                    f'postgresql://postgres.{project_ref}:',
-                    db_url
-                )
-                print(f"INFO: Auto-corrected SUPABASE_DB_URL to use postgres.{project_ref} username")
-            connection_string = db_url
-        else:
-            # Construct connection string using pooler
-            # Format: postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-us-east-1.pooler.supabase.com:6543/postgres
-            db_password = SUPABASE_SERVICE_ROLE_KEY
-            connection_string = f"postgresql://postgres.{project_ref}:{db_password}@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
+        # Validate/fix connection string format for Supabase pooler
+        if "pooler.supabase.com" in db_url and f"postgres.{project_ref}" not in db_url:
+            import re
+            db_url = re.sub(
+                r'postgresql://postgres:',
+                f'postgresql://postgres.{project_ref}:',
+                db_url
+            )
+            print(f"INFO: Auto-corrected SUPABASE_DB_URL username to postgres.{project_ref}")
         
         try:
-            _vecs_client = vecs.create_client(connection_string)
+            _vecs_client = vecs.create_client(db_url)
+            print("INFO: RAG initialized successfully")
         except Exception as e:
-            print(f"WARNING: Failed to create vecs client: {e}")
-            print(f"Expected format: postgresql://postgres.{project_ref}:PASSWORD@aws-0-us-east-1.pooler.supabase.com:6543/postgres")
-            print("Make sure SUPABASE_DB_URL uses 'postgres.PROJECT_REF' as username (not just 'postgres')")
-            raise
+            print(f"ERROR: RAG initialization failed: {e}")
+            return None
     
     return _vecs_client
 
 
-def get_products_collection() -> Collection:
-    """Get or create products vector collection."""
+def get_products_collection() -> Optional[Collection]:
+    """Get or create products vector collection. Returns None if RAG unavailable."""
     global _products_collection
     
     if _products_collection is None:
         client = get_vecs_client()
-        _products_collection = client.get_or_create_collection(
-            name=PRODUCTS_COLLECTION,
-            dimension=EMBEDDING_DIMENSION
-        )
+        if client is None:
+            return None
+        try:
+            _products_collection = client.get_or_create_collection(
+                name=PRODUCTS_COLLECTION,
+                dimension=EMBEDDING_DIMENSION
+            )
+            print(f"INFO: Products collection ready (dimension={EMBEDDING_DIMENSION})")
+        except Exception as e:
+            print(f"ERROR: Failed to get products collection: {e}")
+            return None
     
     return _products_collection
 
@@ -108,11 +111,19 @@ class ProductSearch:
     - Natural language queries ("I need to make presentations")
     - Metadata filtering (type, status, price range)
     - Similarity scoring
+    
+    Note: If RAG is not configured, search methods return empty results
+    and the bot falls back to SQL-based search.
     """
     
     def __init__(self):
-        self.collection = get_products_collection()
+        self.collection = get_products_collection()  # May be None
         self.ai = get_ai_consultant()
+    
+    @property
+    def is_available(self) -> bool:
+        """Check if RAG search is available."""
+        return self.collection is not None
     
     async def index_product(
         self,
@@ -135,8 +146,11 @@ class ProductSearch:
             status: Product status
         
         Returns:
-            True if indexed successfully
+            True if indexed successfully, False if RAG unavailable
         """
+        if not self.is_available:
+            return False  # RAG not configured
+        
         # Build text for embedding
         text_parts = [name]
         if description:
@@ -181,8 +195,11 @@ class ProductSearch:
             filters: Metadata filters (e.g., {"status": {"$eq": "active"}})
         
         Returns:
-            List of matching products with scores
+            List of matching products with scores (empty if RAG unavailable)
         """
+        if not self.is_available:
+            return []  # RAG not configured, return empty results
+        
         # Generate query embedding
         query_embedding = await self.ai.generate_embedding(query)
         
