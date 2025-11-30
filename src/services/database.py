@@ -230,6 +230,14 @@ class Database:
             return StockItem(**result.data[0])
         return None
     
+    async def get_available_stock_count(self, product_id: str) -> int:
+        """Get count of available stock items for product"""
+        result = self.client.table("stock_items").select(
+            "id", count="exact"
+        ).eq("product_id", product_id).eq("is_sold", False).execute()
+        
+        return result.count or 0
+    
     async def reserve_stock_item(self, stock_item_id: str) -> bool:
         """Mark stock item as sold (atomic operation)"""
         # Use RPC for atomic update with check

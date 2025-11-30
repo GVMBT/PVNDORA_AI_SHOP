@@ -94,7 +94,19 @@ export function useOrders() {
     post('/orders', { product_id: productId, quantity, promo_code: promoCode }), 
     [post])
   
-  return { getOrders, createOrder, loading, error }
+  const createOrderFromCart = useCallback((promoCode = null) => 
+    post('/orders', { use_cart: true, promo_code: promoCode }), 
+    [post])
+  
+  return { getOrders, createOrder, createOrderFromCart, loading, error }
+}
+
+export function useCart() {
+  const { get, loading, error } = useApi()
+  
+  const getCart = useCallback(() => get('/cart'), [get])
+  
+  return { getCart, loading, error }
 }
 
 export function useLeaderboard() {

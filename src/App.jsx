@@ -61,9 +61,9 @@ export default function App() {
       } else if (startapp === 'faq') {
         setCurrentPage('faq')
       } else if (startapp === 'checkout') {
-        // Checkout without productId - redirect to catalog
-        // (Cart-based checkout not implemented yet)
-        setCurrentPage('catalog')
+        // Cart-based checkout
+        setCurrentPage('checkout')
+        setProductId(null)
       } else if (startapp === 'catalog') {
         setCurrentPage('catalog')
       } else if (startapp === 'admin') {

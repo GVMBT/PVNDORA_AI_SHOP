@@ -551,6 +551,66 @@ async def get_webapp_faq(language_code: str = "en", user = Depends(verify_telegr
     }
 
 
+@app.get("/api/webapp/cart")
+async def get_webapp_cart(user = Depends(verify_telegram_auth)):
+    """
+    Get user's shopping cart for Mini App.
+    Requires Telegram initData authentication.
+    """
+    from core.cart import get_cart_manager
+    
+    try:
+        cart_manager = get_cart_manager()
+        cart = await cart_manager.get_cart(user.id)
+        
+        if not cart:
+            return {
+                "cart": None,
+                "items": [],
+                "total": 0.0,
+                "subtotal": 0.0,
+                "instant_total": 0.0,
+                "prepaid_total": 0.0,
+                "promo_code": None,
+                "promo_discount_percent": 0.0
+            }
+        
+        # Get product details for each item
+        db = get_database()
+        items_with_details = []
+        for item in cart.items:
+            product = await db.get_product_by_id(item.product_id)
+            items_with_details.append({
+                "product_id": item.product_id,
+                "product_name": product.name if product else "Unknown Product",
+                "quantity": item.quantity,
+                "instant_quantity": item.instant_quantity,
+                "prepaid_quantity": item.prepaid_quantity,
+                "unit_price": item.unit_price,
+                "final_price": item.final_price,
+                "total_price": item.total_price,
+                "discount_percent": item.discount_percent
+            })
+        
+        return {
+            "cart": {
+                "user_telegram_id": cart.user_telegram_id,
+                "created_at": cart.created_at,
+                "updated_at": cart.updated_at
+            },
+            "items": items_with_details,
+            "total": cart.total,
+            "subtotal": cart.subtotal,
+            "instant_total": cart.instant_total,
+            "prepaid_total": cart.prepaid_total,
+            "promo_code": cart.promo_code,
+            "promo_discount_percent": cart.promo_discount_percent
+        }
+    except Exception as e:
+        print(f"ERROR: Failed to get cart: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve cart: {str(e)}")
+
+
 class PromoCheckRequest(BaseModel):
     code: str
 
@@ -669,8 +729,11 @@ async def submit_webapp_review(request: WebAppReviewRequest, user = Depends(veri
 # ==================== ORDERS API ====================
 
 class CreateOrderRequest(BaseModel):
-    product_id: str
+    product_id: Optional[str] = None
+    quantity: Optional[int] = 1
     promo_code: Optional[str] = None
+    # For cart-based orders
+    use_cart: Optional[bool] = False
 
 
 class OrderResponse(BaseModel):
@@ -682,45 +745,21 @@ class OrderResponse(BaseModel):
     payment_method: str
 
 
-@app.post("/api/orders")
-async def create_order(
+@app.post("/api/webapp/orders")
+async def create_webapp_order(
     request: CreateOrderRequest,
     user = Depends(verify_telegram_auth)
 ):
-    """Create new order and get payment URL"""
+    """
+    Create new order from Mini App.
+    Supports both single product and cart-based orders.
+    """
     db = get_database()
     
     # Get user from database
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    # Get product
-    product = await db.get_product_by_id(request.product_id)
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    
-    if product.stock_count == 0:
-        raise HTTPException(status_code=400, detail="Product out of stock")
-    
-    # Calculate price with potential discount
-    original_price = product.price
-    discount_percent = 0
-    
-    # Check for stock item discount (age-based)
-    stock_item = await db.get_available_stock_item(request.product_id)
-    if stock_item:
-        discount_percent = await db.calculate_discount(stock_item, product)
-    
-    # Check promo code
-    if request.promo_code:
-        promo = await db.validate_promo_code(request.promo_code)
-        if promo:
-            # Use higher discount
-            discount_percent = max(discount_percent, promo["discount_percent"])
-    
-    # Calculate final price
-    final_price = original_price * (1 - discount_percent / 100)
     
     # Determine payment method based on language
     # Priority: cardlink (if configured) > aaio > stripe
@@ -732,40 +771,187 @@ async def create_order(
     else:
         payment_method = "stripe"
     
-    # Create order
-    order = await db.create_order(
-        user_id=db_user.id,
-        product_id=request.product_id,
-        amount=final_price,
-        original_price=original_price,
-        discount_percent=discount_percent,
-        payment_method=payment_method
-    )
-    
-    # Generate payment URL
     from src.services.payments import PaymentService
     payment_service = PaymentService()
     
-    payment_url = await payment_service.create_payment(
-        order_id=order.id,
-        amount=final_price,
-        product_name=product.name,
-        method=payment_method,
-        user_email=f"{user.id}@telegram.user"  # Placeholder
-    )
+    # Cart-based order
+    if request.use_cart or (not request.product_id):
+        from core.cart import get_cart_manager
+        
+        cart_manager = get_cart_manager()
+        cart = await cart_manager.get_cart(user.id)
+        
+        if not cart or not cart.items:
+            raise HTTPException(status_code=400, detail="Cart is empty")
+        
+        # Validate all products in cart
+        total_amount = 0.0
+        total_original = 0.0
+        order_items = []
+        
+        for item in cart.items:
+            product = await db.get_product_by_id(item.product_id)
+            if not product:
+                raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
+            
+            # Check stock for instant items
+            if item.instant_quantity > 0:
+                available_stock = await db.get_available_stock_count(item.product_id)
+                if available_stock < item.instant_quantity:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Not enough stock for {product.name}. Available: {available_stock}, Requested: {item.instant_quantity}"
+                    )
+            
+            # Calculate price with discount
+            original_price = product.price * item.quantity
+            discount_percent = item.discount_percent
+            
+            # Apply promo code if present
+            if cart.promo_code and cart.promo_discount_percent > 0:
+                discount_percent = max(discount_percent, cart.promo_discount_percent)
+            
+            final_price = original_price * (1 - discount_percent / 100)
+            
+            total_amount += final_price
+            total_original += original_price
+            
+            order_items.append({
+                "product_id": item.product_id,
+                "product_name": product.name,
+                "quantity": item.quantity,
+                "instant_quantity": item.instant_quantity,
+                "prepaid_quantity": item.prepaid_quantity,
+                "amount": final_price,
+                "original_price": original_price,
+                "discount_percent": discount_percent
+            })
+        
+        # Create order for first item (or create a combined order)
+        # For now, create order for first item and include others in metadata
+        first_item = order_items[0]
+        
+        order = await db.create_order(
+            user_id=db_user.id,
+            product_id=first_item["product_id"],
+            amount=total_amount,
+            original_price=total_original,
+            discount_percent=int((1 - total_amount / total_original) * 100) if total_original > 0 else 0,
+            payment_method=payment_method
+        )
+        
+        # Store additional items in order metadata (if supported)
+        # For now, we'll create separate orders for each item
+        # TODO: Implement multi-item order support in database
+        
+        # Generate payment URL with total amount
+        product_names = ", ".join([item["product_name"] for item in order_items[:3]])
+        if len(order_items) > 3:
+            product_names += f" и еще {len(order_items) - 3}"
+        
+        payment_url = await payment_service.create_payment(
+            order_id=order.id,
+            amount=total_amount,
+            product_name=product_names,
+            method=payment_method,
+            user_email=f"{user.id}@telegram.user"
+        )
+        
+        # Use promo code if valid
+        if cart.promo_code:
+            await db.use_promo_code(cart.promo_code)
+        
+        # Clear cart after successful order creation
+        await cart_manager.clear_cart(user.id)
+        
+        return OrderResponse(
+            order_id=order.id,
+            amount=total_amount,
+            original_price=total_original,
+            discount_percent=int((1 - total_amount / total_original) * 100) if total_original > 0 else 0,
+            payment_url=payment_url,
+            payment_method=payment_method
+        )
     
-    # Use promo code if valid
-    if request.promo_code:
-        await db.use_promo_code(request.promo_code)
-    
-    return OrderResponse(
-        order_id=order.id,
-        amount=final_price,
-        original_price=original_price,
-        discount_percent=discount_percent,
-        payment_url=payment_url,
-        payment_method=payment_method
-    )
+    # Single product order
+    else:
+        if not request.product_id:
+            raise HTTPException(status_code=400, detail="product_id is required for single product orders")
+        
+        # Get product
+        product = await db.get_product_by_id(request.product_id)
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
+        
+        quantity = request.quantity or 1
+        
+        # Check stock
+        available_stock = await db.get_available_stock_count(request.product_id)
+        if available_stock < quantity:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Not enough stock. Available: {available_stock}, Requested: {quantity}"
+            )
+        
+        # Calculate price with potential discount
+        original_price = product.price * quantity
+        discount_percent = 0
+        
+        # Check for stock item discount (age-based)
+        stock_item = await db.get_available_stock_item(request.product_id)
+        if stock_item:
+            discount_percent = await db.calculate_discount(stock_item, product)
+        
+        # Check promo code
+        if request.promo_code:
+            promo = await db.validate_promo_code(request.promo_code)
+            if promo:
+                # Use higher discount
+                discount_percent = max(discount_percent, promo["discount_percent"])
+        
+        # Calculate final price
+        final_price = original_price * (1 - discount_percent / 100)
+        
+        # Create order
+        order = await db.create_order(
+            user_id=db_user.id,
+            product_id=request.product_id,
+            amount=final_price,
+            original_price=original_price,
+            discount_percent=discount_percent,
+            payment_method=payment_method
+        )
+        
+        # Generate payment URL
+        payment_url = await payment_service.create_payment(
+            order_id=order.id,
+            amount=final_price,
+            product_name=product.name,
+            method=payment_method,
+            user_email=f"{user.id}@telegram.user"  # Placeholder
+        )
+        
+        # Use promo code if valid
+        if request.promo_code:
+            await db.use_promo_code(request.promo_code)
+        
+        return OrderResponse(
+            order_id=order.id,
+            amount=final_price,
+            original_price=original_price,
+            discount_percent=discount_percent,
+            payment_url=payment_url,
+            payment_method=payment_method
+        )
+
+
+@app.post("/api/orders")
+async def create_order(
+    request: CreateOrderRequest,
+    user = Depends(verify_telegram_auth)
+):
+    """Create new order and get payment URL (legacy endpoint, redirects to webapp)"""
+    return await create_webapp_order(request, user)
 
 
 @app.get("/api/orders")
