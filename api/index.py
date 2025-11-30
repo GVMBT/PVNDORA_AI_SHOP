@@ -138,7 +138,9 @@ async def test_webhook():
         "bot_configured": bot_instance is not None,
         "dispatcher_configured": dispatcher is not None,
         "telegram_token_set": bool(TELEGRAM_TOKEN),
-        "webhook_url": f"{WEBAPP_URL}/webhook/telegram"
+        # Use www subdomain to avoid 307 redirect from root domain
+        webhook_url = WEBAPP_URL.replace("pvndora.app", "www.pvndora.app") if "pvndora.app" in WEBAPP_URL and "www" not in WEBAPP_URL else WEBAPP_URL
+        "webhook_url": f"{webhook_url}/webhook/telegram"
     }
 
 
