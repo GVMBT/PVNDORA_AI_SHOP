@@ -308,11 +308,38 @@ class AIConsultant:
         language: str
     ) -> AIResponse:
         """Continue conversation with tool result"""
+        import traceback
         
-        # Build follow-up messages
-        messages = [
-            original_response.candidates[0].content,
-            types.Content(
+        try:
+            # Get conversation history to maintain context
+            history = await db.get_chat_history(user_id, limit=10)
+            
+            # Build messages with full conversation context
+            messages = []
+            
+            # Add conversation history (excluding the last assistant message which had the function call)
+            for msg in history[:-1]:  # Exclude last message as it's the one that triggered function call
+                role = "user" if msg["role"] == "user" else "model"
+                messages.append(types.Content(
+                    role=role,
+                    parts=[types.Part.from_text(text=msg["content"])]
+                ))
+            
+            # Add the last user message (the one that triggered the function call)
+            if history:
+                last_user_msg = history[-1] if history[-1]["role"] == "user" else None
+                if last_user_msg:
+                    messages.append(types.Content(
+                        role="user",
+                        parts=[types.Part.from_text(text=last_user_msg["content"])]
+                    ))
+            
+            # Add the model's response with function call
+            if original_response.candidates and original_response.candidates[0].content:
+                messages.append(original_response.candidates[0].content)
+            
+            # Add function response
+            messages.append(types.Content(
                 role="function",
                 parts=[
                     types.Part.from_function_response(
@@ -320,21 +347,23 @@ class AIConsultant:
                         response=tool_result
                     )
                 ]
-            )
-        ]
-        
-        # Get products for context
-        products = await db.get_products(status="active")
-        product_catalog = format_product_catalog(products)
-        system_prompt = get_system_prompt(language, product_catalog)
-        
-        try:
+            ))
+            
+            # Get products for context
+            products = await db.get_products(status="active")
+            product_catalog = format_product_catalog(products)
+            system_prompt = get_system_prompt(language, product_catalog)
+            
+            # Convert tools to Gemini format (include tools for potential follow-up calls)
+            gemini_tools = self._convert_tools_to_gemini_format()
+            
             # Generate follow-up response
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=messages,
                 config=types.GenerateContentConfig(
                     system_instruction=system_prompt,
+                    tools=gemini_tools,
                     temperature=0.7,
                     max_output_tokens=1024
                 )
@@ -352,7 +381,7 @@ class AIConsultant:
             return AIResponse(text=text, product_id=product_id)
             
         except Exception as e:
-            print(f"Gemini follow-up error: {e}")
+            print(f"Gemini follow-up error: {e}\n{traceback.format_exc()}")
             from src.i18n import get_text
             return AIResponse(text=get_text("error_generic", language))
     
