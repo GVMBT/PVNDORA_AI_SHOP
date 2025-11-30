@@ -1,10 +1,12 @@
 """Telegram Bot Handlers"""
 import os
 import asyncio
+import traceback
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command, CommandStart
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 
 from src.services.database import User, get_database
 from src.i18n import get_text
@@ -17,6 +19,30 @@ router = Router()
 
 # Get webapp URL from environment
 WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://pvndora.app")
+
+
+async def safe_answer(message: Message, text: str, **kwargs):
+    """
+    Safely send message, handling Telegram API errors gracefully.
+    Returns True if sent successfully, False otherwise.
+    """
+    try:
+        await message.answer(text, **kwargs)
+        return True
+    except (TelegramBadRequest, TelegramForbiddenError) as e:
+        error_msg = str(e).lower()
+        if "chat not found" in error_msg or "chat_id" in error_msg:
+            print(f"WARNING: Cannot send message to chat {message.chat.id}: chat not found")
+        elif "bot was blocked" in error_msg or "forbidden" in error_msg:
+            print(f"WARNING: Bot blocked by user {message.chat.id}")
+        else:
+            print(f"ERROR: Telegram API error: {e}")
+            print(f"Traceback: {traceback.format_exc()}")
+        return False
+    except Exception as e:
+        print(f"ERROR: Unexpected error sending message: {e}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return False
 
 
 @router.message(CommandStart())
@@ -56,7 +82,8 @@ async def cmd_start(message: Message, db_user: User, bot: Bot):
     # Save bot's welcome message
     await db.save_chat_message(db_user.id, "assistant", onboarding_text)
     
-    await message.answer(
+    await safe_answer(
+        message,
         onboarding_text,
         reply_markup=get_shop_keyboard(db_user.language_code, WEBAPP_URL),
         parse_mode=ParseMode.HTML
@@ -346,7 +373,8 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
                     in_stock=product.stock_count > 0,
                 )
         
-        await message.answer(
+        await safe_answer(
+            message,
             response.reply_text,
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
