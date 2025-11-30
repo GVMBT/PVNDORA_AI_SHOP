@@ -352,12 +352,28 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
         # Save assistant response (use reply_text from structured response)
         await db.save_chat_message(db_user.id, "assistant", response.reply_text)
         
+        # Auto-detect payment intent if AI mentions order/payment but didn't set action
+        from core.models import ActionType
+        if response.action == ActionType.NONE:
+            reply_text_lower = response.reply_text.lower() if response.reply_text else ""
+            # Check if response mentions payment/order keywords
+            payment_keywords = [
+                "как будем оплачивать", "готов оплатить", "готов(а) оплатить",
+                "общая сумма", "итого", "к оплате", "оплатить",
+                "предзаказ", "под заказ", "заказ"
+            ]
+            # Check if response contains order summary (mentions products and price)
+            has_order_summary = any(keyword in reply_text_lower for keyword in payment_keywords)
+            has_price = "₽" in response.reply_text or "руб" in reply_text_lower or "рубл" in reply_text_lower
+            
+            if has_order_summary and has_price:
+                print(f"DEBUG: Auto-detected payment intent from reply text, setting action=OFFER_PAYMENT")
+                response.action = ActionType.OFFER_PAYMENT
+        
         # Send response to user based on structured action
         reply_markup = None
         
         # Handle actions from structured response
-        from core.models import ActionType
-        
         if response.action == ActionType.SHOW_CATALOG:
             reply_markup = get_shop_keyboard(db_user.language_code, WEBAPP_URL)
         elif response.action == ActionType.OFFER_PAYMENT:
