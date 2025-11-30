@@ -208,6 +208,57 @@ TOOLS = [
             },
             "required": ["order_id", "reason"]
         }
+    },
+    {
+        "name": "get_user_cart",
+        "description": "Get user's shopping cart with all items. Use when user asks about their cart, wants to see what's in cart, or before checkout.",
+        "parameters": {
+            "type": "object",
+            "properties": {}
+        }
+    },
+    {
+        "name": "add_to_cart",
+        "description": "Add a product to user's shopping cart. Automatically splits items into instant (in stock) and prepaid (on-demand) quantities. Use when user wants to add a product to cart.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "product_id": {
+                    "type": "string",
+                    "description": "ID of the product to add"
+                },
+                "quantity": {
+                    "type": "integer",
+                    "description": "Quantity to add (default: 1)",
+                    "default": 1,
+                    "minimum": 1
+                }
+            },
+            "required": ["product_id"]
+        }
+    },
+    {
+        "name": "update_cart",
+        "description": "Update shopping cart: change quantity, remove item, or clear cart. Use when user wants to modify their cart.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "description": "Operation to perform",
+                    "enum": ["update_quantity", "remove_item", "clear"]
+                },
+                "product_id": {
+                    "type": "string",
+                    "description": "Product ID (required for update_quantity and remove_item)"
+                },
+                "quantity": {
+                    "type": "integer",
+                    "description": "New quantity (required for update_quantity, minimum: 1)"
+                }
+            },
+            "required": ["operation"]
+        }
     }
 ]
 
@@ -284,21 +335,84 @@ async def execute_tool(
     
     elif tool_name == "search_products":
         query = arguments.get("query", "")
-        products = await db.search_products(query)
+        category = arguments.get("category", "all")
         
-        return {
-            "count": len(products),
-            "products": [
-                {
-                    "id": p.id,
-                    "name": p.name,
-                    "price": p.price,
-                    "in_stock": p.stock_count > 0,
-                    "stock_count": p.stock_count
+        # Use RAG for semantic search
+        try:
+            from core.rag import ProductSearch
+            product_search = ProductSearch()
+            
+            # Build filters based on category
+            filters = {"status": {"$eq": "active"}}
+            if category != "all":
+                # Map category to product type
+                category_map = {
+                    "chatgpt": "shared",
+                    "claude": "shared",
+                    "midjourney": "shared",
+                    "image": "shared",
+                    "code": "key",
+                    "writing": "shared"
                 }
-                for p in products[:5]  # Limit to 5 results
-            ]
-        }
+                if category in category_map:
+                    filters["type"] = {"$eq": category_map[category]}
+            
+            # Semantic search via RAG
+            rag_results = await product_search.search(query, limit=5, filters=filters)
+            
+            # Get full product details from DB
+            products = []
+            
+            for result in rag_results:
+                product = await db.get_product_by_id(result["product_id"])
+                if product:
+                    products.append({
+                        "id": product.id,
+                        "name": product.name,
+                        "price": product.price,
+                        "in_stock": product.stock_count > 0,
+                        "stock_count": product.stock_count,
+                        "similarity_score": result.get("score", 0.0)
+                    })
+            
+            # If RAG didn't find enough results, fallback to text search
+            if len(products) < 3:
+                text_products = await db.search_products(query)
+                existing_ids = {p["id"] for p in products}
+                for p in text_products:
+                    if p.id not in existing_ids and len(products) < 5:
+                        products.append({
+                            "id": p.id,
+                            "name": p.name,
+                            "price": p.price,
+                            "in_stock": p.stock_count > 0,
+                            "stock_count": p.stock_count,
+                            "similarity_score": 0.0
+                        })
+            
+            return {
+                "count": len(products),
+                "products": products[:5]  # Limit to 5 results
+            }
+        except Exception as e:
+            print(f"ERROR: RAG search failed, falling back to text search: {e}")
+            import traceback
+            traceback.print_exc()
+            # Fallback to text search
+            products = await db.search_products(query)
+            return {
+                "count": len(products),
+                "products": [
+                    {
+                        "id": p.id,
+                        "name": p.name,
+                        "price": p.price,
+                        "in_stock": p.stock_count > 0,
+                        "stock_count": p.stock_count
+                    }
+                    for p in products[:5]
+                ]
+            }
     
     elif tool_name == "create_purchase_intent":
         product = await db.get_product_by_id(arguments["product_id"])
@@ -634,6 +748,210 @@ async def execute_tool(
             import traceback
             traceback.print_exc()
             return {"count": 0, "items": [], "error": str(e)}
+    
+    elif tool_name == "get_user_cart":
+        try:
+            from core.cart import CartManager
+            # Get user's telegram_id
+            user_result = await asyncio.to_thread(
+                lambda: db.client.table("users").select("telegram_id").eq("id", user_id).execute()
+            )
+            
+            if not user_result.data:
+                return {"success": False, "reason": "User not found"}
+            
+            telegram_id = user_result.data[0]["telegram_id"]
+            cart_manager = CartManager()
+            cart = await cart_manager.get_cart(telegram_id)
+            
+            if not cart:
+                return {
+                    "success": True,
+                    "empty": True,
+                    "items": [],
+                    "total": 0.0
+                }
+            
+            return {
+                "success": True,
+                "empty": False,
+                "items": [
+                    {
+                        "product_id": item.product_id,
+                        "product_name": item.product_name,
+                        "quantity": item.quantity,
+                        "instant_quantity": item.instant_quantity,
+                        "prepaid_quantity": item.prepaid_quantity,
+                        "unit_price": item.unit_price,
+                        "discount_percent": item.discount_percent,
+                        "total_price": item.total_price
+                    }
+                    for item in cart.items
+                ],
+                "instant_total": cart.instant_total,
+                "prepaid_total": cart.prepaid_total,
+                "subtotal": cart.subtotal,
+                "total": cart.total,
+                "promo_code": cart.promo_code,
+                "promo_discount_percent": cart.promo_discount_percent
+            }
+        except Exception as e:
+            print(f"ERROR: get_user_cart failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"success": False, "reason": str(e)}
+    
+    elif tool_name == "add_to_cart":
+        try:
+            from core.cart import CartManager
+            product_id = arguments.get("product_id")
+            quantity = arguments.get("quantity", 1)
+            
+            if quantity < 1:
+                return {"success": False, "reason": "Quantity must be at least 1"}
+            
+            # Get product and check availability
+            product = await db.get_product_by_id(product_id)
+            if not product:
+                return {"success": False, "reason": "Product not found"}
+            
+            # Get available stock with discounts
+            stock_result = await asyncio.to_thread(
+                lambda: db.client.table("available_stock_with_discounts").select(
+                    "*"
+                ).eq("product_id", product_id).limit(1).execute()
+            )
+            
+            available_stock = len(stock_result.data) if stock_result.data else 0
+            discount_percent = stock_result.data[0].get("discount_percent", 0) if stock_result.data else 0
+            
+            # Get user's telegram_id
+            user_result = await asyncio.to_thread(
+                lambda: db.client.table("users").select("telegram_id").eq("id", user_id).execute()
+            )
+            
+            if not user_result.data:
+                return {"success": False, "reason": "User not found"}
+            
+            telegram_id = user_result.data[0]["telegram_id"]
+            cart_manager = CartManager()
+            
+            # Add to cart (auto-splits instant/prepaid)
+            cart = await cart_manager.add_item(
+                user_telegram_id=telegram_id,
+                product_id=product_id,
+                product_name=product.name,
+                quantity=quantity,
+                available_stock=available_stock,
+                unit_price=product.price,
+                discount_percent=discount_percent
+            )
+            
+            # Find the added item
+            added_item = next(
+                (item for item in cart.items if item.product_id == product_id),
+                None
+            )
+            
+            return {
+                "success": True,
+                "product_id": product_id,
+                "product_name": product.name,
+                "quantity": quantity,
+                "instant_quantity": added_item.instant_quantity if added_item else 0,
+                "prepaid_quantity": added_item.prepaid_quantity if added_item else 0,
+                "unit_price": product.price,
+                "discount_percent": discount_percent,
+                "cart_total": cart.total,
+                "message": f"Added {product.name} to cart"
+            }
+        except Exception as e:
+            print(f"ERROR: add_to_cart failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"success": False, "reason": str(e)}
+    
+    elif tool_name == "update_cart":
+        try:
+            from core.cart import CartManager
+            operation = arguments.get("operation")
+            product_id = arguments.get("product_id")
+            quantity = arguments.get("quantity")
+            
+            # Get user's telegram_id
+            user_result = await asyncio.to_thread(
+                lambda: db.client.table("users").select("telegram_id").eq("id", user_id).execute()
+            )
+            
+            if not user_result.data:
+                return {"success": False, "reason": "User not found"}
+            
+            telegram_id = user_result.data[0]["telegram_id"]
+            cart_manager = CartManager()
+            
+            if operation == "clear":
+                await cart_manager.clear_cart(telegram_id)
+                return {
+                    "success": True,
+                    "message": "Cart cleared",
+                    "cart_total": 0.0
+                }
+            
+            elif operation == "remove_item":
+                if not product_id:
+                    return {"success": False, "reason": "product_id required for remove_item"}
+                
+                cart = await cart_manager.remove_item(telegram_id, product_id)
+                if cart:
+                    return {
+                        "success": True,
+                        "message": "Item removed from cart",
+                        "cart_total": cart.total
+                    }
+                return {"success": False, "reason": "Item not found in cart"}
+            
+            elif operation == "update_quantity":
+                if not product_id or quantity is None:
+                    return {"success": False, "reason": "product_id and quantity required for update_quantity"}
+                
+                if quantity < 0:
+                    return {"success": False, "reason": "Quantity cannot be negative"}
+                
+                # Get product for available stock
+                product = await db.get_product_by_id(product_id)
+                if not product:
+                    return {"success": False, "reason": "Product not found"}
+                
+                stock_result = await asyncio.to_thread(
+                    lambda: db.client.table("available_stock_with_discounts").select(
+                        "*"
+                    ).eq("product_id", product_id).limit(1).execute()
+                )
+                available_stock = len(stock_result.data) if stock_result.data else 0
+                
+                if quantity == 0:
+                    cart = await cart_manager.remove_item(telegram_id, product_id)
+                else:
+                    cart = await cart_manager.update_item_quantity(
+                        telegram_id, product_id, quantity, available_stock
+                    )
+                
+                if cart:
+                    return {
+                        "success": True,
+                        "message": "Cart updated",
+                        "cart_total": cart.total
+                    }
+                return {"success": False, "reason": "Cart not found or item not in cart"}
+            
+            else:
+                return {"success": False, "reason": f"Unknown operation: {operation}"}
+                
+        except Exception as e:
+            print(f"ERROR: update_cart failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"success": False, "reason": str(e)}
     
     elif tool_name == "request_refund":
         order_id = arguments.get("order_id")

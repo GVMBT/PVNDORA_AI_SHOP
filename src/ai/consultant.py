@@ -10,6 +10,7 @@ from src.services.database import get_database
 from src.ai.prompts import get_system_prompt, format_product_catalog
 from src.ai.tools import TOOLS, execute_tool
 from core.models import AIResponse as StructuredAIResponse, ActionType
+from core.rag import ProductSearch
 
 
 class AIConsultant:
@@ -22,6 +23,8 @@ class AIConsultant:
         
         self.client = genai.Client(api_key=api_key)
         self.model = "gemini-2.5-flash"
+        self.product_search = ProductSearch()  # RAG for semantic product search
+        self._cached_contents = {}  # Cache for system prompts by language
     
     @retry(
         stop=stop_after_attempt(3),
@@ -70,25 +73,42 @@ class AIConsultant:
             parts=[types.Part.from_text(text=user_message)]
         ))
         
-        # Get system prompt
-        system_prompt = get_system_prompt(language, product_catalog)
+        # Get system prompt (base prompt without catalog - catalog added to messages)
+        base_system_prompt = get_system_prompt(language, "")  # Empty catalog, will add to messages
+        
+        # Get or create cached content for this language
+        cached_content_name = await self._get_or_create_cache(language, base_system_prompt)
+        
+        # Add product catalog as first message (after system instruction)
+        if product_catalog:
+            catalog_message = types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=f"Current product catalog:\n{product_catalog}")]
+            )
+            # Insert catalog at the beginning of messages
+            messages.insert(0, catalog_message)
         
         # Convert tools to Gemini format
         gemini_tools = self._convert_tools_to_gemini_format()
         
         try:
-            # Generate response with Structured Outputs + Function Calling
+            # Generate response with Structured Outputs + Function Calling + Context Caching
+            config = types.GenerateContentConfig(
+                tools=gemini_tools,
+                temperature=0.7,
+                max_output_tokens=2048,
+                response_mime_type="application/json",
+                response_schema=StructuredAIResponse.model_json_schema()
+            )
+            
+            # Use cached content if available
+            if cached_content_name:
+                config.cached_content = cached_content_name
+            
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=messages,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    tools=gemini_tools,
-                    temperature=0.7,
-                    max_output_tokens=2048,
-                    response_mime_type="application/json",
-                    response_schema=StructuredAIResponse.model_json_schema()
-                )
+                config=config
             )
             
             # Process response (pass messages for function call continuation)
@@ -345,6 +365,47 @@ class AIConsultant:
         from src.i18n import get_text
         return get_text("error_generic", language)
     
+    async def _get_or_create_cache(self, language: str, system_prompt: str) -> Optional[str]:
+        """
+        Get or create cached content for system prompt.
+        
+        Args:
+            language: Language code
+            system_prompt: System prompt text
+            
+        Returns:
+            Cached content name or None if caching fails
+        """
+        cache_key = f"system_prompt_{language}"
+        
+        # Check if we already have a cache for this language
+        if cache_key in self._cached_contents:
+            return self._cached_contents[cache_key]
+        
+        try:
+            # Create cached content with system instruction
+            # TTL: 24 hours (system prompt doesn't change often)
+            import datetime
+            ttl = datetime.timedelta(hours=24)
+            
+            cache = self.client.caches.create(
+                model=f"models/{self.model}",
+                config=types.CreateCachedContentConfig(
+                    display_name=f"system_prompt_{language}",
+                    system_instruction=system_prompt,
+                    ttl=ttl
+                )
+            )
+            
+            # Store cache name
+            self._cached_contents[cache_key] = cache.name
+            return cache.name
+            
+        except Exception as e:
+            print(f"WARNING: Failed to create context cache for {language}: {e}")
+            # Continue without caching - not critical
+            return None
+    
     async def _continue_with_tool_result(
         self,
         original_messages: List[types.Content],
@@ -385,18 +446,27 @@ class AIConsultant:
             # Convert tools to Gemini format
             gemini_tools = self._convert_tools_to_gemini_format()
             
-            # Generate follow-up response with Structured Outputs
+            # Get cached content for this language
+            base_system_prompt = get_system_prompt(language, "")
+            cached_content_name = await self._get_or_create_cache(language, base_system_prompt)
+            
+            # Generate follow-up response with Structured Outputs + Context Caching
+            config = types.GenerateContentConfig(
+                tools=gemini_tools,
+                temperature=0.7,
+                max_output_tokens=2048,
+                response_mime_type="application/json",
+                response_schema=StructuredAIResponse.model_json_schema()
+            )
+            
+            # Use cached content if available
+            if cached_content_name:
+                config.cached_content = cached_content_name
+            
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=messages,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    tools=gemini_tools,
-                    temperature=0.7,
-                    max_output_tokens=2048,
-                    response_mime_type="application/json",
-                    response_schema=StructuredAIResponse.model_json_schema()
-                )
+                config=config
             )
             
             # Parse structured response
