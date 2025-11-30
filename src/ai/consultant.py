@@ -3,6 +3,7 @@ import os
 import base64
 import asyncio
 from typing import Optional, List, Dict, Any
+from datetime import datetime, timedelta
 from google import genai
 from google.genai import types
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -42,6 +43,7 @@ class AIConsultant:
         else:
             self.product_search = None
         self._cached_contents = {}  # Cache for system prompts by language
+        self._cache_retry_timestamps = {}  # Track last retry attempt for failed caches
     
     @retry(
         stop=stop_after_attempt(3),
@@ -467,19 +469,36 @@ class AIConsultant:
         """
         Get or create cached content for system prompt.
         
+        Implements retry logic: if cache was disabled due to 429 error,
+        periodically (once per hour) attempts to recreate it.
+        
         Args:
             language: Language code
             system_prompt: System prompt text
             
         Returns:
-            Cached content name or None if caching fails
+            Cached content name or None if caching fails/unavailable
         """
         cache_key = f"system_prompt_{language}"
+        RETRY_INTERVAL_HOURS = 1  # Retry after 1 hour
         
-        # Check if we already have a cache for this language
+        # Check if we already have a valid cache for this language
         if cache_key in self._cached_contents:
-            return self._cached_contents[cache_key]
+            cached_value = self._cached_contents[cache_key]
+            # If cache exists and is not None, return it
+            if cached_value is not None:
+                return cached_value
+            
+            # If cache is None (was disabled), check if we should retry
+            last_retry = self._cache_retry_timestamps.get(cache_key)
+            if last_retry:
+                time_since_retry = datetime.now() - last_retry
+                # If less than RETRY_INTERVAL_HOURS passed, don't retry yet
+                if time_since_retry < timedelta(hours=RETRY_INTERVAL_HOURS):
+                    return None  # Work without cache for now
+            # If no timestamp or enough time passed, try to recreate
         
+        # Try to create cache (either first time or retry after failure)
         try:
             # Create cached content with system instruction
             # TTL: 24 hours (86400 seconds) - must be string format "86400s"
@@ -496,20 +515,27 @@ class AIConsultant:
                 )
             )
             
-            # Store cache name
+            # Store cache name and clear retry timestamp (success!)
             self._cached_contents[cache_key] = cache.name
+            if cache_key in self._cache_retry_timestamps:
+                del self._cache_retry_timestamps[cache_key]
+            print(f"INFO: Context cache created successfully for {language}")
             return cache.name
             
         except Exception as e:
             error_str = str(e)
-            # Check if it's a 429 (rate limit) - disable caching for this session
+            # Check if it's a 429 (rate limit) - mark as disabled but allow retry later
             if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
-                print(f"WARNING: Context cache limit exceeded for {language}. Disabling caching for this session.")
-                # Mark as disabled to avoid retrying
+                print(f"WARNING: Context cache limit exceeded for {language}. Will retry in {RETRY_INTERVAL_HOURS} hour(s).")
+                # Mark as disabled and record retry timestamp
                 self._cached_contents[cache_key] = None
+                self._cache_retry_timestamps[cache_key] = datetime.now()
             else:
                 print(f"WARNING: Failed to create context cache for {language}: {e}")
-            # Continue without caching - not critical
+                # For non-429 errors, also mark as None but allow retry
+                self._cached_contents[cache_key] = None
+                self._cache_retry_timestamps[cache_key] = datetime.now()
+            # Continue without caching - not critical, will use system_instruction instead
             return None
     
     async def _generate_structured_response(
