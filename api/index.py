@@ -1921,11 +1921,22 @@ async def admin_index_products(authorization: str = Header(None)):
                 "gemini_key_set": gemini_key_set
             }
         
+        # Get products directly to check
+        from src.services.database import get_database
+        db = get_database()
+        products_result = db.client.table("products").select(
+            "id, name, description, type, instructions"
+        ).eq("status", "active").execute()
+        
+        products_count = len(products_result.data) if products_result.data else 0
+        
         indexed = await search.index_all_products()
         return {
             "success": True, 
             "indexed_products": indexed,
-            "gemini_key_set": gemini_key_set
+            "gemini_key_set": gemini_key_set,
+            "products_found": products_count,
+            "product_names": [p["name"] for p in (products_result.data or [])]
         }
         
     except Exception as e:
