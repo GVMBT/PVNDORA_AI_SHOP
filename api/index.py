@@ -18,7 +18,6 @@ import json
 import logging
 from datetime import datetime, timedelta
 from typing import Optional
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,26 +42,18 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================
-# Lifespan
-# ============================================================
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan events."""
-    logger.info("PVNDORA API starting up...")
-    yield
-    logger.info("PVNDORA API shutting down...")
-
-
-# ============================================================
 # FastAPI App
 # ============================================================
 
 app = FastAPI(
     title="PVNDORA AI Marketplace",
-    version="1.0.0",
-    lifespan=lifespan
+    version="1.0.0"
 )
+
+@app.on_event("startup")
+async def startup_event():
+    """Application startup."""
+    logger.info("PVNDORA API starting up...")
 
 # CORS for Mini App
 app.add_middleware(
