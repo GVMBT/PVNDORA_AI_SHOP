@@ -93,8 +93,8 @@ class AIConsultant:
                 )
             )
             
-            # Process response
-            return await self._process_response(response, user_id, db, language)
+            # Process response (pass messages for function call continuation)
+            return await self._process_response(response, user_id, db, language, messages)
             
         except Exception as e:
             print(f"Gemini API error: {e}")
@@ -196,7 +196,8 @@ class AIConsultant:
         response,
         user_id: str,
         db,
-        language: str
+        language: str,
+        original_messages: List[types.Content] = None
     ) -> AIResponse:
         """Process Gemini response, handling function calls if present"""
         import traceback
@@ -280,7 +281,19 @@ class AIConsultant:
                         )
                     
                     # For other tools, make another call with the result
+                    if not original_messages:
+                        # Fallback: get messages from history if not provided
+                        history = await db.get_chat_history(user_id, limit=10)
+                        original_messages = []
+                        for msg in history:
+                            role = "user" if msg["role"] == "user" else "model"
+                            original_messages.append(types.Content(
+                                role=role,
+                                parts=[types.Part.from_text(text=msg["content"])]
+                            ))
+                    
                     return await self._continue_with_tool_result(
+                        original_messages,
                         response,
                         tool_name,
                         tool_result,
