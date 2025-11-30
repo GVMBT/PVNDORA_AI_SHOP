@@ -366,11 +366,24 @@ class Database:
     async def add_to_waitlist(self, user_id: str, product_name: str) -> None:
         """Add user to waitlist for a product"""
         import asyncio
+        
+        # Check if already in waitlist first (since there's no unique constraint)
+        existing = await asyncio.to_thread(
+            lambda: self.client.table("waitlist").select("id").eq(
+                "user_id", user_id
+            ).ilike("product_name", f"%{product_name}%").execute()
+        )
+        
+        if existing.data:
+            # Already in waitlist - this is not an error, just return
+            return
+        
+        # Insert new entry
         await asyncio.to_thread(
-            lambda: self.client.table("waitlist").upsert({
+            lambda: self.client.table("waitlist").insert({
                 "user_id": user_id,
                 "product_name": product_name
-            }, on_conflict="user_id,product_name").execute()
+            }).execute()
         )
     
     async def add_to_wishlist(self, user_id: str, product_id: str) -> None:

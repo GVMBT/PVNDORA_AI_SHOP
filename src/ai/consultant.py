@@ -116,9 +116,12 @@ class AIConsultant:
                 max_output_tokens=2048
             )
             
-            # Use cached content if available
+            # Use cached content if available (skip if None - means caching disabled)
             if cached_content_name:
                 config_with_tools.cached_content = cached_content_name
+            else:
+                # Fallback: use system_instruction if caching failed
+                config_with_tools.system_instruction = base_system_prompt
             
             response = self.client.models.generate_content(
                 model=self.model,
@@ -332,7 +335,15 @@ class AIConsultant:
         
         try:
             # Get text response (should be JSON)
-            text = response.text if hasattr(response, 'text') else str(response)
+            text = response.text if hasattr(response, 'text') and response.text else None
+            
+            if not text:
+                print("ERROR: Response text is None or empty")
+                return StructuredAIResponse(
+                    thought="Empty response from AI",
+                    reply_text=self._get_error_message(language),
+                    action=ActionType.NONE
+                )
             
             # Parse JSON
             data = json.loads(text)
@@ -379,6 +390,55 @@ class AIConsultant:
         from src.i18n import get_text
         return get_text("error_generic", language)
     
+    def _filter_technical_details(self, error_message: str) -> str:
+        """
+        Filter out technical details from error messages.
+        
+        Removes:
+        - Module names (upstash_redis, psycopg2, etc.)
+        - Error codes (42P10, etc.)
+        - Internal paths and stack traces
+        - Technical error types
+        """
+        if not error_message:
+            return "A temporary error occurred"
+        
+        # Remove common technical patterns
+        import re
+        
+        # Remove module names
+        error_message = re.sub(r"No module named ['\"]([\w_]+)['\"]", "A required component is missing", error_message)
+        error_message = re.sub(r"ModuleNotFoundError:", "", error_message)
+        
+        # Remove error codes
+        error_message = re.sub(r"code ['\"]\d+[A-Z]\d+['\"]", "", error_message)
+        error_message = re.sub(r"code: ['\"]\d+[A-Z]\d+['\"]", "", error_message)
+        
+        # Remove file paths
+        error_message = re.sub(r"/var/task/[\w/\.]+", "", error_message)
+        error_message = re.sub(r"File [\"'][^\"']+[\"']", "", error_message)
+        
+        # Remove technical error types but keep the message
+        error_message = re.sub(r"^\w+Error:\s*", "", error_message)
+        error_message = re.sub(r"^\w+Exception:\s*", "", error_message)
+        
+        # Remove connection strings and credentials
+        error_message = re.sub(r"postgresql://[^\s]+", "", error_message)
+        error_message = re.sub(r"connection to server[^\n]+", "", error_message)
+        
+        # Clean up multiple spaces
+        error_message = re.sub(r"\s+", " ", error_message).strip()
+        
+        # If message is too technical or empty, return generic
+        technical_keywords = ["module", "import", "traceback", "stack", "FATAL", "psycopg2", "upstash"]
+        if any(keyword.lower() in error_message.lower() for keyword in technical_keywords):
+            return "A temporary service error occurred"
+        
+        if not error_message or len(error_message) < 5:
+            return "A temporary error occurred"
+        
+        return error_message
+    
     async def _get_or_create_cache(self, language: str, system_prompt: str) -> Optional[str]:
         """
         Get or create cached content for system prompt.
@@ -417,7 +477,14 @@ class AIConsultant:
             return cache.name
             
         except Exception as e:
-            print(f"WARNING: Failed to create context cache for {language}: {e}")
+            error_str = str(e)
+            # Check if it's a 429 (rate limit) - disable caching for this session
+            if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+                print(f"WARNING: Context cache limit exceeded for {language}. Disabling caching for this session.")
+                # Mark as disabled to avoid retrying
+                self._cached_contents[cache_key] = None
+            else:
+                print(f"WARNING: Failed to create context cache for {language}: {e}")
             # Continue without caching - not critical
             return None
     
@@ -444,14 +511,15 @@ class AIConsultant:
             
             # Check if tool execution failed
             if isinstance(tool_result, dict) and tool_result.get("success") is False:
-                # Tool failed - add instruction for AI to explain error to user
-                error_reason = tool_result.get("reason", "Unknown error")
+                # Tool failed - add instruction for AI (technical details already filtered in tool execution)
                 error_message = types.Content(
                     role="user",
                     parts=[types.Part.from_text(
-                        text=f"Function {tool_name} failed with error: {error_reason}. "
-                             f"Please explain this error to the user in a friendly way in {language} language. "
-                             f"Suggest what they can do to fix the issue or try again."
+                        text=f"Function {tool_name} failed. "
+                             f"Please explain to the user in {language} language that something went wrong, "
+                             f"but DO NOT mention technical details like module names, error codes, or internal system components. "
+                             f"Just say that there was a temporary issue and suggest they try again later. "
+                             f"Be friendly and apologetic."
                     )]
                 )
                 messages.append(error_message)
@@ -485,9 +553,12 @@ class AIConsultant:
                 response_schema=StructuredAIResponse.model_json_schema()
             )
             
-            # Use cached content if available
+            # Use cached content if available (skip if None - means caching disabled)
             if cached_content_name:
                 config_final.cached_content = cached_content_name
+            else:
+                # Fallback: use system_instruction if caching failed
+                config_final.system_instruction = base_system_prompt
             
             response = self.client.models.generate_content(
                 model=self.model,

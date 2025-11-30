@@ -463,25 +463,37 @@ async def execute_tool(
     
     elif tool_name == "add_to_waitlist":
         try:
-            product_name = arguments.get("product_name", "")
+            product_name = arguments.get("product_name", "").strip()
             if not product_name:
                 return {
                     "success": False,
                     "reason": "Product name is required"
                 }
             
+            # Add to waitlist (function handles duplicates gracefully)
             await db.add_to_waitlist(user_id, product_name)
             return {
                 "success": True,
-                "product_name": product_name
+                "product_name": product_name,
+                "message": f"Added to waitlist for {product_name}"
             }
         except Exception as e:
-            print(f"ERROR: add_to_waitlist failed: {e}")
+            error_str = str(e)
+            print(f"ERROR: add_to_waitlist failed: {error_str}")
             import traceback
             traceback.print_exc()
+            
+            # Check if it's a duplicate (already in waitlist) - this is not an error
+            if "already" in error_str.lower() or "duplicate" in error_str.lower() or "unique" in error_str.lower():
+                return {
+                    "success": True,  # Not an error - user is already in waitlist
+                    "product_name": product_name,
+                    "message": f"You are already on the waitlist for {product_name}"
+                }
+            
             return {
                 "success": False,
-                "reason": f"Failed to add to waitlist: {str(e)}"
+                "reason": "Failed to add to waitlist. Please try again later."
             }
     
     elif tool_name == "get_catalog":
@@ -546,7 +558,7 @@ async def execute_tool(
             traceback.print_exc()
             return {
                 "success": False,
-                "reason": f"Failed to create support ticket: {str(e)}"
+                "reason": "Failed to create support ticket. Please try again later."
             }
     
     elif tool_name == "get_user_orders":
@@ -674,7 +686,11 @@ async def execute_tool(
             # If unique constraint violation, item already exists
             if "duplicate" in str(e).lower() or "unique" in str(e).lower():
                 return {"success": False, "reason": "Already in wishlist"}
-            return {"success": False, "reason": f"Database error: {str(e)}"}
+            error_str = str(e)
+            # Filter technical details
+            if "module" in error_str.lower() or "import" in error_str.lower() or "No module named" in error_str:
+                return {"success": False, "reason": "Service temporarily unavailable. Please try again later."}
+            return {"success": False, "reason": "Database error. Please try again later."}
     
     elif tool_name == "apply_promo_code":
         code = arguments.get("code", "").strip().upper()
@@ -721,10 +737,16 @@ async def execute_tool(
                 "balance": user["balance"]
             }
         except Exception as e:
-            print(f"ERROR: get_referral_info failed: {e}")
+            error_str = str(e)
+            print(f"ERROR: get_referral_info failed: {error_str}")
             import traceback
             traceback.print_exc()
-            return {"success": False, "reason": str(e)}
+            
+            # Filter technical details
+            if "module" in error_str.lower() or "import" in error_str.lower() or "No module named" in error_str:
+                return {"success": False, "reason": "Service temporarily unavailable. Please try again later."}
+            
+            return {"success": False, "reason": "Failed to retrieve referral information. Please try again later."}
     
     elif tool_name == "get_wishlist":
         try:
@@ -799,10 +821,16 @@ async def execute_tool(
                 "promo_discount_percent": cart.promo_discount_percent
             }
         except Exception as e:
-            print(f"ERROR: get_user_cart failed: {e}")
+            error_str = str(e)
+            print(f"ERROR: get_user_cart failed: {error_str}")
             import traceback
             traceback.print_exc()
-            return {"success": False, "reason": str(e)}
+            
+            # Filter technical details
+            if "module" in error_str.lower() or "import" in error_str.lower() or "No module named" in error_str:
+                return {"success": False, "reason": "Cart service temporarily unavailable. Please try again later."}
+            
+            return {"success": False, "reason": "Failed to retrieve cart. Please try again later."}
     
     elif tool_name == "add_to_cart":
         try:
@@ -869,10 +897,16 @@ async def execute_tool(
                 "message": f"Added {product.name} to cart"
             }
         except Exception as e:
-            print(f"ERROR: add_to_cart failed: {e}")
+            error_str = str(e)
+            print(f"ERROR: add_to_cart failed: {error_str}")
             import traceback
             traceback.print_exc()
-            return {"success": False, "reason": str(e)}
+            
+            # Filter technical details
+            if "module" in error_str.lower() or "import" in error_str.lower() or "No module named" in error_str:
+                return {"success": False, "reason": "Cart service temporarily unavailable. Please try again later."}
+            
+            return {"success": False, "reason": "Failed to add item to cart. Please try again later."}
     
     elif tool_name == "update_cart":
         try:
@@ -951,10 +985,16 @@ async def execute_tool(
                 return {"success": False, "reason": f"Unknown operation: {operation}"}
                 
         except Exception as e:
-            print(f"ERROR: update_cart failed: {e}")
+            error_str = str(e)
+            print(f"ERROR: update_cart failed: {error_str}")
             import traceback
             traceback.print_exc()
-            return {"success": False, "reason": str(e)}
+            
+            # Filter technical details
+            if "module" in error_str.lower() or "import" in error_str.lower() or "No module named" in error_str:
+                return {"success": False, "reason": "Cart service temporarily unavailable. Please try again later."}
+            
+            return {"success": False, "reason": "Failed to update cart. Please try again later."}
     
     elif tool_name == "request_refund":
         order_id = arguments.get("order_id")
@@ -1035,7 +1075,11 @@ async def execute_tool(
         except Exception as e:
             # If ticket creation failed, order remains unchanged (good)
             # If order update failed, ticket exists but order not marked (acceptable)
-            return {"success": False, "reason": f"Failed to process refund request: {str(e)}"}
+            error_str = str(e)
+            # Filter technical details
+            if "module" in error_str.lower() or "import" in error_str.lower() or "No module named" in error_str:
+                return {"success": False, "reason": "Service temporarily unavailable. Please try again later."}
+            return {"success": False, "reason": "Failed to process refund request. Please try again later."}
     
     return {"error": f"Unknown tool: {tool_name}"}
 
