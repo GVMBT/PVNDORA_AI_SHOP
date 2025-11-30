@@ -13,28 +13,12 @@
   },
   "crons": [
     {
-      "path": "/api/crons/check-expired-subs",
+      "path": "/api/crons/daily-maintenance",
       "schedule": "0 10 * * *"
     },
     {
-      "path": "/api/crons/check-inactive-users",
-      "schedule": "0 */6 * * *"
-    },
-    {
-      "path": "/api/crons/check-fulfillment-timeout",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/crons/check-wishlist-reminders",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/crons/request-reviews",
-      "schedule": "30 * * * *"
-    },
-    {
-      "path": "/api/crons/send-personalized-offers",
-      "schedule": "0 12 * * *"
+      "path": "/api/crons/fulfillment-check",
+      "schedule": "0 22 * * *"
     }
   ]
 }
