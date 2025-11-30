@@ -24,15 +24,12 @@ from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from aiogram import Bot, Dispatcher, types
-from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
+from aiogram import types
 
-# Core imports (use correct google-genai via core/ai.py)
+# Core imports - use centralized bot/dispatcher from core/bot.py
 from core.db import get_supabase, get_redis, RedisKeys
-from core.ai import get_ai_consultant, AIConsultant
+from core.bot import get_bot, get_dispatcher
 from core.queue import publish_to_worker, verify_qstash_request, WorkerEndpoints
-from core.cart import CartManager
 from core.models import (
     HealthCheck,
     ReviewCreate,
@@ -43,38 +40,6 @@ from core.models import (
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Environment variables
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
-TELEGRAM_WEBHOOK_URL = os.environ.get("TELEGRAM_WEBHOOK_URL", "")
-
-# Bot and Dispatcher (initialized lazily)
-bot: Optional[Bot] = None
-dp: Optional[Dispatcher] = None
-
-
-def get_bot() -> Bot:
-    """Get or create Bot instance."""
-    global bot
-    if bot is None and TELEGRAM_TOKEN:
-        bot = Bot(
-            token=TELEGRAM_TOKEN,
-            default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-        )
-    return bot
-
-
-def get_dispatcher() -> Dispatcher:
-    """Get or create Dispatcher instance."""
-    global dp
-    if dp is None:
-        dp = Dispatcher()
-        # Import and register handlers
-        from core.handlers import messages, callbacks, inline
-        dp.include_router(messages.router)
-        dp.include_router(callbacks.router)
-        dp.include_router(inline.router)
-    return dp
 
 
 # ============================================================
@@ -166,11 +131,11 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
         data = await request.json()
         logger.info(f"Webhook received update_id: {data.get('update_id')}")
         
-        current_bot = get_bot()
-        current_dp = get_dispatcher()
-        
-        if not current_bot or not current_dp:
-            logger.error("Bot or Dispatcher not initialized")
+        try:
+            current_bot = get_bot()
+            current_dp = get_dispatcher()
+        except ValueError as e:
+            logger.error(f"Bot or Dispatcher not initialized: {e}")
             return {"ok": False, "error": "Bot not configured"}
         
         # Parse and feed update
