@@ -25,7 +25,7 @@ async def check_webhook():
         print("❌ Error: TELEGRAM_TOKEN not set")
         return False
     
-    webhook_url = os.environ.get("TELEGRAM_WEBHOOK_URL", "https://pvndora.app/api/webhook/telegram")
+    webhook_url = os.environ.get("TELEGRAM_WEBHOOK_URL", "https://pvndora.app/webhook/telegram")
     base_url = f"https://api.telegram.org/bot{token}"
     
     print("🔍 Проверка вебхука Telegram...\n")
