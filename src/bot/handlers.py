@@ -6,13 +6,11 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command, CommandStart
 from aiogram.enums import ParseMode
 
-from src.services.database import Database, User, get_database
+from src.services.database import User, get_database
 from src.i18n import get_text
 from src.bot.keyboards import (
     get_shop_keyboard,
-    get_product_keyboard,
-    get_order_keyboard,
-    get_cancel_keyboard
+    get_product_keyboard
 )
 
 router = Router()
@@ -42,7 +40,8 @@ async def cmd_start(message: Message, db_user: User, bot: Bot):
                     referrer = await db.get_user_by_telegram_id(referral_id)
                     if referrer and referrer.id != db_user.id:
                         # #region agent log
-                        import json, time
+                        import json
+                        import time
                         with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
                             f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "C", "location": "handlers.py:43", "message": "Before referral update execute (async)", "data": {"user_id": db_user.id, "referrer_id": referrer.id}, "timestamp": int(time.time() * 1000)}) + "\n")
                         # #endregion
@@ -60,7 +59,7 @@ async def cmd_start(message: Message, db_user: User, bot: Bot):
                         with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
                             f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "C", "location": "handlers.py:52", "message": "After referral update execute", "data": {"exec_duration_ms": exec_duration}, "timestamp": int(time.time() * 1000)}) + "\n")
                         # #endregion
-                except:
+                except Exception:
                     pass
     
     if is_new_user:
@@ -229,7 +228,7 @@ async def callback_wishlist(callback: CallbackQuery, db_user: User):
 @router.callback_query(F.data.startswith("support:"))
 async def callback_support(callback: CallbackQuery, db_user: User):
     """Handle support button click"""
-    order_id = callback.data.split(":")[1]
+    callback.data.split(":")[1]  # Extract order_id (not used yet)
     
     # TODO: Create support ticket
     await callback.answer(
@@ -241,7 +240,7 @@ async def callback_support(callback: CallbackQuery, db_user: User):
 @router.callback_query(F.data.startswith("review:"))
 async def callback_review(callback: CallbackQuery, db_user: User):
     """Handle review button click"""
-    order_id = callback.data.split(":")[1]
+    callback.data.split(":")[1]  # Extract order_id (not used yet)
     
     await callback.message.answer(
         get_text("review_request", db_user.language_code)
@@ -281,7 +280,7 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
             try:
                 await bot.send_chat_action(message.chat.id, "typing")
                 await asyncio.sleep(4)
-            except:
+            except Exception:
                 break
     
     typing_task = asyncio.create_task(keep_typing())

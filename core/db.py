@@ -9,7 +9,6 @@ Provides singleton instances of:
 
 import os
 from typing import Optional
-from functools import lru_cache
 
 from supabase import create_client, Client
 from supabase._async.client import AsyncClient, create_client as acreate_client

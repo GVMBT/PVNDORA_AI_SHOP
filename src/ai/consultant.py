@@ -1,6 +1,7 @@
 """AI Consultant - Gemini Integration"""
 import os
 import base64
+import asyncio
 from typing import Optional, List, Dict, Any
 from google import genai
 from google.genai import types
@@ -107,26 +108,25 @@ class AIConsultant:
         gemini_tools = self._convert_tools_to_gemini_format()
         
         try:
-            # Generate response with Structured Outputs + Function Calling + Context Caching
-            config = types.GenerateContentConfig(
+            # Step 1: Generate response with Function Calling (NO structured outputs here!)
+            # Gemini doesn't support tools + response_schema simultaneously
+            config_with_tools = types.GenerateContentConfig(
                 tools=gemini_tools,
                 temperature=0.7,
-                max_output_tokens=2048,
-                response_mime_type="application/json",
-                response_schema=StructuredAIResponse.model_json_schema()
+                max_output_tokens=2048
             )
             
             # Use cached content if available
             if cached_content_name:
-                config.cached_content = cached_content_name
+                config_with_tools.cached_content = cached_content_name
             
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=messages,
-                config=config
+                config=config_with_tools
             )
             
-            # Process response (pass messages for function call continuation)
+            # Process response (handles function calls, then final structured output)
             return await self._process_response(response, user_id, db, language, messages)
             
         except Exception as e:
@@ -166,8 +166,8 @@ class AIConsultant:
         # Get system prompt
         system_prompt = get_system_prompt(language, product_catalog)
         
-        # Encode audio as base64
-        audio_base64 = base64.b64encode(voice_data).decode("utf-8")
+        # Encode audio as base64 (stored in message parts, not used directly)
+        base64.b64encode(voice_data).decode("utf-8")
         
         # Build message with audio
         messages = [
@@ -245,7 +245,6 @@ class AIConsultant:
         Handles function calls if present, otherwise parses structured JSON response.
         """
         import traceback
-        import json
         
         try:
             # Check for function calls first
@@ -399,16 +398,17 @@ class AIConsultant:
         
         try:
             # Create cached content with system instruction
-            # TTL: 24 hours (system prompt doesn't change often)
-            import datetime
-            ttl = datetime.timedelta(hours=24)
+            # TTL: 24 hours (86400 seconds) - must be string format "86400s"
+            ttl = "86400s"  # 24 hours in seconds as string
             
-            cache = self.client.caches.create(
-                model=f"models/{self.model}",
-                config=types.CreateCachedContentConfig(
-                    display_name=f"system_prompt_{language}",
-                    system_instruction=system_prompt,
-                    ttl=ttl
+            cache = await asyncio.to_thread(
+                lambda: self.client.caches.create(
+                    model=f"models/{self.model}",
+                    config=types.CreateCachedContentConfig(
+                        display_name=f"system_prompt_{language}",
+                        system_instruction=system_prompt,
+                        ttl=ttl
+                    )
                 )
             )
             
@@ -453,21 +453,18 @@ class AIConsultant:
                 ]
             ))
             
-            # Get products for context
+            # Get products for context (not used in final response, but kept for potential future use)
             products = await db.get_products(status="active")
             product_catalog = format_product_catalog(products)
-            system_prompt = get_system_prompt(language, product_catalog)
-            
-            # Convert tools to Gemini format
-            gemini_tools = self._convert_tools_to_gemini_format()
+            get_system_prompt(language, product_catalog)  # System prompt cached, not used here
             
             # Get cached content for this language
             base_system_prompt = get_system_prompt(language, "")
             cached_content_name = await self._get_or_create_cache(language, base_system_prompt)
             
-            # Generate follow-up response with Structured Outputs + Context Caching
-            config = types.GenerateContentConfig(
-                tools=gemini_tools,
+            # Step 2: Generate final response with Structured Outputs (NO tools here!)
+            # After function calls, we generate structured JSON response
+            config_final = types.GenerateContentConfig(
                 temperature=0.7,
                 max_output_tokens=2048,
                 response_mime_type="application/json",
@@ -476,12 +473,12 @@ class AIConsultant:
             
             # Use cached content if available
             if cached_content_name:
-                config.cached_content = cached_content_name
+                config_final.cached_content = cached_content_name
             
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=messages,
-                config=config
+                config=config_final
             )
             
             # Parse structured response

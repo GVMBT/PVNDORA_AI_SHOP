@@ -9,7 +9,6 @@ Provides semantic search for products using pgvector/vecs:
 
 import os
 from typing import Optional, List
-from functools import lru_cache
 
 # Safe import - RAG is optional
 try:
@@ -46,25 +45,32 @@ def get_vecs_client():
     
     if _vecs_client is None:
         # Extract connection string from Supabase URL
-        # Format: postgresql://postgres:[password]@[host]:5432/postgres
+        # Format: postgresql://postgres.[project_ref]:[password]@[host]:[port]/postgres
         if not SUPABASE_URL:
             raise ValueError("SUPABASE_URL must be set for vector search")
         
         # Convert Supabase URL to PostgreSQL connection string
         # SUPABASE_URL is typically https://xxx.supabase.co
-        # We need to construct the DB connection string
+        # Extract project_ref from URL (e.g., "cxthsmadbvgrzjgnuzke" from "https://cxthsmadbvgrzjgnuzke.supabase.co")
         db_host = SUPABASE_URL.replace("https://", "").replace("http://", "")
+        project_ref = db_host.split('.')[0]  # Extract project reference
         db_password = SUPABASE_SERVICE_ROLE_KEY
         
-        # Supabase DB connection format
-        connection_string = f"postgresql://postgres.{db_host.split('.')[0]}:{db_password}@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
-        
-        # Alternative: use direct connection string from env
+        # Check for direct DB connection string in env (preferred)
         db_url = os.environ.get("SUPABASE_DB_URL")
         if db_url:
             connection_string = db_url
+        else:
+            # Construct connection string using pooler (port 6543)
+            # Format: postgresql://postgres.[project_ref]:[password]@aws-0-us-east-1.pooler.supabase.com:6543/postgres
+            connection_string = f"postgresql://postgres.{project_ref}:{db_password}@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
         
-        _vecs_client = vecs.create_client(connection_string)
+        try:
+            _vecs_client = vecs.create_client(connection_string)
+        except Exception as e:
+            print(f"WARNING: Failed to create vecs client: {e}")
+            print("Connection string format: postgresql://postgres.[project_ref]:[password]@[host]:[port]/postgres")
+            raise
     
     return _vecs_client
 

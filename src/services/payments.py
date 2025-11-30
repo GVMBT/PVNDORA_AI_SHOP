@@ -2,7 +2,7 @@
 import os
 import hashlib
 import hmac
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from urllib.parse import urlencode
 
 import httpx

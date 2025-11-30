@@ -11,11 +11,10 @@ Provides:
 import os
 import json
 from typing import Optional, List, Callable, Any
-from functools import lru_cache
 
 from google import genai
 from google.genai import types
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -25,10 +24,7 @@ from tenacity import (
 
 from core.models import (
     AIResponse,
-    ActionType,
-    CheckAvailabilityResult,
-    PromoCodeCheck,
-    FAQItem
+    ActionType
 )
 
 

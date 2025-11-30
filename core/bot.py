@@ -18,7 +18,7 @@ from aiogram.types import TelegramObject, Message, CallbackQuery
 from aiogram.fsm.storage.base import BaseStorage, StorageKey
 from aiogram.fsm.state import State
 
-from core.db import get_redis, RedisKeys
+from core.db import get_redis
 
 
 # Environment

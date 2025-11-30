@@ -1,6 +1,6 @@
 """AI Function Calling Tools"""
 import asyncio
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 # Tool definitions for Gemini function calling
 TOOLS = [
@@ -974,7 +974,8 @@ async def execute_tool(
         # Atomic transaction: update order and create ticket together
         try:
             # #region agent log
-            import json, time
+            import json
+            import time
             with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
                 f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "tools.py:499", "message": "request_refund entry", "data": {"user_id": user_id, "order_id": order_id}, "timestamp": int(time.time() * 1000)}) + "\n")
             # #endregion

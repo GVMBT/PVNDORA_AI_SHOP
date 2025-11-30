@@ -10,7 +10,7 @@ Handles inline queries for:
 import hashlib
 from typing import Optional
 
-from aiogram import Router, F
+from aiogram import Router
 from aiogram.types import (
     InlineQuery,
     InlineQueryResultArticle,
@@ -54,13 +54,13 @@ async def handle_inline_query(
                 description="Invite friends and earn bonuses!",
                 input_message_content=InputTextMessageContent(
                     message_text=(
-                        f"🎁 <b>Check out PVNDORA!</b>\n\n"
-                        f"Premium AI subscriptions at great prices:\n"
-                        f"• ChatGPT Plus\n"
-                        f"• Claude Pro\n"
-                        f"• Midjourney\n"
-                        f"• And more!\n\n"
-                        f"👇 Start here:"
+                        "🎁 <b>Check out PVNDORA!</b>\n\n"
+                        "Premium AI subscriptions at great prices:\n"
+                        "• ChatGPT Plus\n"
+                        "• Claude Pro\n"
+                        "• Midjourney\n"
+                        "• And more!\n\n"
+                        "👇 Start here:"
                     ),
                     parse_mode="HTML"
                 ),
@@ -80,12 +80,12 @@ async def handle_inline_query(
                 description="Share the catalog with friends",
                 input_message_content=InputTextMessageContent(
                     message_text=(
-                        f"🛍 <b>PVNDORA Catalog</b>\n\n"
-                        f"Premium AI subscriptions:\n"
-                        f"✅ Best prices\n"
-                        f"✅ Instant delivery\n"
-                        f"✅ Warranty included\n\n"
-                        f"Check it out! 👇"
+                        "🛍 <b>PVNDORA Catalog</b>\n\n"
+                        "Premium AI subscriptions:\n"
+                        "✅ Best prices\n"
+                        "✅ Instant delivery\n"
+                        "✅ Warranty included\n\n"
+                        "Check it out! 👇"
                     ),
                     parse_mode="HTML"
                 ),
@@ -147,7 +147,7 @@ async def handle_inline_query(
                     )
                 )
         
-        except Exception as e:
+        except Exception:
             # If DB not available, show generic result
             results.append(
                 InlineQueryResultArticle(

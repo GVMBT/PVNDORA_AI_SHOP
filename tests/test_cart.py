@@ -2,9 +2,7 @@
 Tests for Cart Manager
 """
 
-import pytest
-from datetime import datetime
-from core.cart import CartItem, Cart, CartManager
+from core.cart import CartItem, Cart
 
 
 class TestCartItem:

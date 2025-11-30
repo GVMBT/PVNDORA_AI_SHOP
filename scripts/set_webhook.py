@@ -3,7 +3,6 @@ Simple script to set Telegram webhook
 Usage: python scripts/set_webhook.py
 """
 import os
-import sys
 import asyncio
 import httpx
 
@@ -46,7 +45,7 @@ async def set_webhook():
             info = info_response.json()
             if info.get("ok"):
                 webhook_info = info["result"]
-                print(f"\n📋 Информация о вебхуке:")
+                print("\n📋 Информация о вебхуке:")
                 print(f"   URL: {webhook_info.get('url', 'N/A')}")
                 print(f"   Ожидает обновлений: {webhook_info.get('pending_update_count', 0)}")
                 if webhook_info.get('last_error_date'):

@@ -8,15 +8,13 @@ Handles:
 """
 
 import re
-from typing import Optional
 
 from aiogram import Router, F
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command, CommandStart
-from aiogram.enums import ParseMode
 
-from core.models import AIResponse, ActionType
-from core.ai import AIConsultant, register_ai_functions
+from core.models import ActionType
+from core.ai import AIConsultant
 from core.cart import CartManager
 
 
@@ -386,7 +384,7 @@ async def handle_message(
         
         available = len(stock.data) if stock.data else 0
         
-        cart = await cart_manager.add_item(
+        await cart_manager.add_item(
             user_telegram_id=user_telegram_id,
             product_id=product_id,
             product_name=product.data["name"],

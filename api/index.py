@@ -15,7 +15,6 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
-import json
 
 # Add src to path for imports
 # Try multiple paths for Vercel compatibility
@@ -187,7 +186,7 @@ async def telegram_webhook(request: Request):
         # Process update - use process_update for better error handling
         try:
             await dispatcher.feed_update(bot_instance, update)
-            print(f"DEBUG: Update processed successfully")
+            print("DEBUG: Update processed successfully")
         except Exception as e:
             print(f"ERROR: Failed to process update: {e}")
             print(f"ERROR: Traceback: {traceback.format_exc()}")
@@ -1158,8 +1157,6 @@ async def cron_re_engagement(authorization: str = Header(None)):
     if not bot:
         return {"sent": 0}
     
-    from src.i18n import get_text
-    
     sent_count = 0
     for user in users.data:
         lang = user.get("language_code", "en")
@@ -1246,7 +1243,7 @@ async def cron_daily_tasks(authorization: str = Header(None)):
                     await bot.send_message(chat_id=user["telegram_id"], text=msg)
                     db.client.table("wishlist").update({"reminded": True}).eq("id", item["id"]).execute()
                     results["wishlist_reminders"] += 1
-                except:
+                except Exception:
                     pass
     except Exception as e:
         print(f"Wishlist reminders error: {e}")
@@ -1269,7 +1266,7 @@ async def cron_daily_tasks(authorization: str = Header(None)):
             try:
                 await bot.send_message(chat_id=user["telegram_id"], text=msg)
                 results["re_engagement"] += 1
-            except:
+            except Exception:
                 pass
     except Exception as e:
         print(f"Re-engagement error: {e}")

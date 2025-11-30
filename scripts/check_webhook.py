@@ -3,7 +3,6 @@ Script to check Telegram webhook status and diagnose issues
 Usage: python scripts/check_webhook.py
 """
 import os
-import sys
 import asyncio
 import httpx
 import json
@@ -54,7 +53,7 @@ async def check_webhook():
                 if info.get('url') != webhook_url:
                     print(f"   ⚠️  URL не совпадает! Ожидается: {webhook_url}")
                 else:
-                    print(f"   ✅ URL совпадает")
+                    print("   ✅ URL совпадает")
             else:
                 print(f"   ❌ Ошибка: {result.get('description')}")
         except Exception as e:
@@ -71,14 +70,14 @@ async def check_webhook():
                 try:
                     data = response.json()
                     print(f"   Данные: {json.dumps(data, indent=2, ensure_ascii=False)}")
-                except:
+                except Exception:
                     print(f"   Ответ: {response.text[:200]}")
             else:
                 print(f"   ⚠️  Эндпоинт вернул статус: {response.status_code}")
                 print(f"   Ответ: {response.text[:200]}")
         except httpx.TimeoutException:
             print(f"   ❌ Таймаут при подключении к {webhook_url}")
-            print(f"   Возможно, приложение не задеплоено или недоступно")
+            print("   Возможно, приложение не задеплоено или недоступно")
         except Exception as e:
             print(f"   ❌ Ошибка: {e}")
         
@@ -88,7 +87,7 @@ async def check_webhook():
             health_url = webhook_url.replace("/webhook/telegram", "/api/health")
             response = await client.get(health_url, timeout=10.0)
             if response.status_code == 200:
-                print(f"   ✅ Health check OK")
+                print("   ✅ Health check OK")
                 print(f"   Ответ: {response.text}")
             else:
                 print(f"   ⚠️  Health check вернул: {response.status_code}")

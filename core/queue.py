@@ -12,7 +12,7 @@ Used for critical operations that must be guaranteed to execute:
 import os
 import hmac
 import hashlib
-from typing import Optional, Any
+from typing import Optional
 from functools import wraps
 
 from fastapi import Request, HTTPException

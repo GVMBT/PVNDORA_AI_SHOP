@@ -1,6 +1,5 @@
 """Telegram Bot Middlewares"""
 from typing import Callable, Dict, Any, Awaitable
-from datetime import datetime
 from aiogram import BaseMiddleware
 from aiogram.types import Message, CallbackQuery, TelegramObject
 
