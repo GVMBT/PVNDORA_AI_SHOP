@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect } from 'react'
-import { useApi } from './useApi'
 
 const ADMIN_API_BASE = '/api/admin'
 
 export function useAdmin() {
-  const { get, post, put, loading, error, request } = useApi()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [checking, setChecking] = useState(true)
 
@@ -12,6 +12,44 @@ export function useAdmin() {
   useEffect(() => {
     checkAdminStatus()
   }, [])
+
+  const getHeaders = useCallback(() => {
+    const initData = window.Telegram?.WebApp?.initData || ''
+    return {
+      'Content-Type': 'application/json',
+      'X-Init-Data': initData
+    }
+  }, [])
+
+  const adminRequest = useCallback(async (endpoint, options = {}) => {
+    setLoading(true)
+    setError(null)
+    
+    try {
+      const url = endpoint.startsWith('http') ? endpoint : `${ADMIN_API_BASE}${endpoint}`
+      
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          ...getHeaders(),
+          ...options.headers
+        }
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || errorData.error || `HTTP ${response.status}`)
+      }
+      
+      const data = await response.json()
+      setLoading(false)
+      return data
+    } catch (err) {
+      setError(err.message)
+      setLoading(false)
+      throw err
+    }
+  }, [getHeaders])
 
   const checkAdminStatus = useCallback(async () => {
     try {
@@ -42,40 +80,58 @@ export function useAdmin() {
   }, [])
 
   // Products
-  const getProducts = useCallback(() => get(`${ADMIN_API_BASE}/products`), [get])
-  const createProduct = useCallback((data) => post(`${ADMIN_API_BASE}/products`, data), [post])
-  const updateProduct = useCallback((id, data) => put(`${ADMIN_API_BASE}/products/${id}`, data), [put])
+  const getProducts = useCallback(() => adminRequest('/products'), [adminRequest])
+  const createProduct = useCallback((data) => adminRequest('/products', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }), [adminRequest])
+  const updateProduct = useCallback((id, data) => adminRequest(`/products/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }), [adminRequest])
 
   // Stock
   const getStock = useCallback((productId) => {
     const params = productId ? `?product_id=${productId}` : ''
-    return get(`${ADMIN_API_BASE}/stock${params}`)
-  }, [get])
-  const addStock = useCallback((data) => post(`${ADMIN_API_BASE}/stock`, data), [post])
-  const addStockBulk = useCallback((data) => post(`${ADMIN_API_BASE}/stock/bulk`, data), [post])
+    return adminRequest(`/stock${params}`)
+  }, [adminRequest])
+  const addStock = useCallback((data) => adminRequest('/stock', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }), [adminRequest])
+  const addStockBulk = useCallback((data) => adminRequest('/stock/bulk', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }), [adminRequest])
 
   // Orders
   const getOrders = useCallback((status) => {
     const params = status ? `?status=${status}` : ''
-    return get(`${ADMIN_API_BASE}/orders${params}`)
-  }, [get])
+    return adminRequest(`/orders${params}`)
+  }, [adminRequest])
 
   // Tickets
-  const getTickets = useCallback((status = 'open') => get(`${ADMIN_API_BASE}/tickets?status=${status}`), [get])
+  const getTickets = useCallback((status = 'open') => adminRequest(`/tickets?status=${status}`), [adminRequest])
   const resolveTicket = useCallback((ticketId, approve = true) => 
-    post(`${ADMIN_API_BASE}/tickets/${ticketId}/resolve?approve=${approve}`), [post])
+    adminRequest(`/tickets/${ticketId}/resolve?approve=${approve}`, { method: 'POST' }), [adminRequest])
 
   // Analytics
-  const getAnalytics = useCallback((days = 7) => get(`${ADMIN_API_BASE}/analytics?days=${days}`), [get])
+  const getAnalytics = useCallback((days = 7) => adminRequest(`/analytics?days=${days}`), [adminRequest])
 
   // FAQ
-  const getFAQ = useCallback(() => get(`${ADMIN_API_BASE}/faq`), [get])
-  const createFAQ = useCallback((data) => post(`${ADMIN_API_BASE}/faq`, data), [post])
+  const getFAQ = useCallback(() => adminRequest('/faq'), [adminRequest])
+  const createFAQ = useCallback((data) => adminRequest('/faq', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }), [adminRequest])
 
   // Users
-  const getUsers = useCallback(() => get(`${ADMIN_API_BASE}/users`), [get])
+  const getUsers = useCallback(() => adminRequest('/users'), [adminRequest])
   const banUser = useCallback((telegramId, ban = true) => 
-    post(`${ADMIN_API_BASE}/users/ban`, { telegram_id: telegramId, ban }), [post])
+    adminRequest('/users/ban', {
+      method: 'POST',
+      body: JSON.stringify({ telegram_id: telegramId, ban })
+    }), [adminRequest])
 
   return {
     isAdmin,
