@@ -12,7 +12,8 @@ from src.services.database import User, get_database
 from src.i18n import get_text
 from src.bot.keyboards import (
     get_shop_keyboard,
-    get_product_keyboard
+    get_product_keyboard,
+    get_checkout_keyboard
 )
 
 router = Router()
@@ -366,12 +367,10 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
                 product = await db.get_product_by_id(first_item.product_id)
                 if product:
                     # Use checkout with cart parameter
-                    from src.bot.keyboards import get_checkout_keyboard
                     reply_markup = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
             else:
                 # Multiple products or no specific product - show checkout button instead of shop
                 # This handles cases where AI offers payment for multiple items
-                from src.bot.keyboards import get_checkout_keyboard
                 reply_markup = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
         elif response.product_id:
             # Fallback: if product_id set but no specific action
@@ -392,16 +391,26 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
         )
         
     except Exception as e:
-        # Log error for debugging
-        error_msg = f"AI error: {str(e)}\n{traceback.format_exc()}"
-        print(error_msg)
+        # Log error for debugging with full traceback
+        error_msg = f"AI error in handle_text_message: {str(e)}\n{traceback.format_exc()}"
+        print(f"ERROR: {error_msg}")
+        import sys
+        print(f"ERROR: Exception type: {type(e).__name__}", file=sys.stderr)
+        print(f"ERROR: Full traceback:", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         
         # Send user-friendly error message
         error_text = get_text("error_generic", db_user.language_code)
-        await message.answer(error_text)
+        try:
+            await safe_answer(message, error_text)
+        except Exception as send_error:
+            print(f"ERROR: Failed to send error message: {send_error}")
         
-        # Save error as assistant message for context
-        await db.save_chat_message(db_user.id, "assistant", error_text)
+        # Save error as assistant message for context (don't fail if this fails)
+        try:
+            await db.save_chat_message(db_user.id, "assistant", error_text)
+        except Exception as save_error:
+            print(f"ERROR: Failed to save error message: {save_error}")
         
     finally:
         typing_active = False
