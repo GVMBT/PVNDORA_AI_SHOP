@@ -78,3 +78,14 @@ def get_cancel_keyboard(lang: str) -> InlineKeyboardMarkup:
         )]
     ])
 
+
+def get_checkout_keyboard(lang: str, webapp_url: str) -> InlineKeyboardMarkup:
+    """Checkout button - opens Mini App for payment"""
+    checkout_url = f"{webapp_url}?startapp=checkout"
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="💳 Оплатить заказ" if lang == "ru" else "💳 Pay for Order",
+            web_app=WebAppInfo(url=checkout_url)
+        )]
+    ])
+

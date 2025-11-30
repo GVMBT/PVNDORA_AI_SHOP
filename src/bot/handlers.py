@@ -325,17 +325,24 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
         
         # Handle actions from structured response
         from core.models import ActionType
+        from src.bot.keyboards import get_checkout_keyboard
+        
         if response.action == ActionType.SHOW_CATALOG:
             reply_markup = get_shop_keyboard(db_user.language_code, WEBAPP_URL)
-        elif response.action == ActionType.OFFER_PAYMENT and response.product_id:
-            product = await db.get_product_by_id(response.product_id)
-            if product:
-                reply_markup = get_product_keyboard(
-                    db_user.language_code,
-                    response.product_id,
-                    WEBAPP_URL,
-                    in_stock=product.stock_count > 0,
-                )
+        elif response.action == ActionType.OFFER_PAYMENT:
+            if response.product_id:
+                # Single product - show product keyboard
+                product = await db.get_product_by_id(response.product_id)
+                if product:
+                    reply_markup = get_product_keyboard(
+                        db_user.language_code,
+                        response.product_id,
+                        WEBAPP_URL,
+                        in_stock=product.stock_count > 0,
+                    )
+            else:
+                # Multiple products or no specific product - show checkout button
+                reply_markup = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
         elif response.product_id:
             # Fallback: if product_id set but no specific action
             product = await db.get_product_by_id(response.product_id)
@@ -414,19 +421,24 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
     
     # Send response based on structured action
     from core.models import ActionType
+    from src.bot.keyboards import get_checkout_keyboard
     keyboard = None
     
     if response.action == ActionType.SHOW_CATALOG:
         keyboard = get_shop_keyboard(db_user.language_code, WEBAPP_URL)
-    elif response.action == ActionType.OFFER_PAYMENT and response.product_id:
-        product = await db.get_product_by_id(response.product_id)
-        if product:
-            keyboard = get_product_keyboard(
-                db_user.language_code,
-                response.product_id,
-                WEBAPP_URL,
-                in_stock=product.stock_count > 0,
-            )
+    elif response.action == ActionType.OFFER_PAYMENT:
+        if response.product_id:
+            product = await db.get_product_by_id(response.product_id)
+            if product:
+                keyboard = get_product_keyboard(
+                    db_user.language_code,
+                    response.product_id,
+                    WEBAPP_URL,
+                    in_stock=product.stock_count > 0,
+                )
+        else:
+            # Multiple products - show checkout button
+            keyboard = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
     elif response.product_id:
         # Fallback: if product_id set but no specific action
         product = await db.get_product_by_id(response.product_id)
