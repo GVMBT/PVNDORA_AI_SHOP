@@ -28,10 +28,10 @@ def get_product_keyboard(
     checkout_url = f"{webapp_url}?startapp=pay_{product_id}_qty_{quantity}"
     
     if in_stock:
-        btn_text = get_text("btn_buy", lang)
+        btn_text = get_text("btn_pay", lang)  # "💳 Оплатить" instead of "💳 Купить"
     else:
         # Pre-order - same flow, just different button text
-        btn_text = "📦 Оформить под заказ" if lang == "ru" else "📦 Pre-order"
+        btn_text = "💳 Оплатить под заказ" if lang == "ru" else "💳 Pay for Pre-order"
     
     buttons.append([InlineKeyboardButton(
         text=btn_text,

@@ -101,10 +101,26 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
       
       hapticFeedback('notification', 'success')
       
-      // Redirect to payment
-      // In production, this would open a payment page
-      await showAlert(t('checkout.orderCreated'))
-      onSuccess()
+      // Redirect to payment URL (CardLink/AAIO/Stripe)
+      if (result.payment_url) {
+        // Open payment URL in Telegram WebApp
+        if (window.Telegram?.WebApp?.openLink) {
+          window.Telegram.WebApp.openLink(result.payment_url)
+        } else {
+          // Fallback: open in new window
+          window.open(result.payment_url, '_blank')
+        }
+        // Close Mini App after opening payment
+        setTimeout(() => {
+          if (window.Telegram?.WebApp?.close) {
+            window.Telegram.WebApp.close()
+          }
+        }, 500)
+      } else {
+        // No payment URL - show success message
+        await showAlert(t('checkout.orderCreated'))
+        onSuccess()
+      }
       
     } catch (err) {
       hapticFeedback('notification', 'error')
