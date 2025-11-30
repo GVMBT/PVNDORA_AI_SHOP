@@ -136,7 +136,9 @@
   "order_item": "#{id} - {product} - ${amount} - {status}",
   "no_orders": "You haven't made any purchases yet.",
 
-  "waitlist_added": "✅ You've been added to the waitlist for {product}. We'll notify you when it's available!",
+  "waitlist_added": "✅ You've been added to the waitlist for {product}. We'll notify you when it becomes available again!",
+  "waitlist_notify_in_stock": "🎉 The product {product} you were waiting for is back in stock! You can order it right now.",
+  "waitlist_notify_prepaid": "🎉 The product {product} you were waiting for is available again! You can order prepaid (on-demand) or get it instantly if in stock.",
   "waitlist_notify": "🔔 Good news! {product} is now available! Get it before it runs out.",
 
   "wishlist_added": "❤️ {product} added to your wishlist!",

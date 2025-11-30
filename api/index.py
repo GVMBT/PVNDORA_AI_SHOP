@@ -760,8 +760,13 @@ async def admin_add_stock_bulk(request: BulkStockRequest, admin = Depends(verify
     }
 
 
-async def _notify_waitlist_for_product(product_name: str):
-    """Notify users on waitlist when product becomes available"""
+async def _notify_waitlist_for_product(product_name: str, product_id: Optional[str] = None):
+    """
+    Notify users on waitlist when product becomes available again.
+    
+    When a discontinued product becomes 'active' again, notify waitlist users
+    that they can order prepaid or get instantly if in stock.
+    """
     db = get_database()
     
     # Get waitlist users for this product
@@ -772,6 +777,13 @@ async def _notify_waitlist_for_product(product_name: str):
     if not waitlist.data:
         return
     
+    # Check if product is in stock
+    in_stock = False
+    if product_id:
+        product = await db.get_product_by_id(product_id)
+        if product:
+            in_stock = product.stock_count > 0
+    
     from src.services.notifications import NotificationService
     notification_service = NotificationService()
     
@@ -781,7 +793,9 @@ async def _notify_waitlist_for_product(product_name: str):
             await notification_service.send_waitlist_notification(
                 telegram_id=user["telegram_id"],
                 product_name=product_name,
-                language=user.get("language_code", "en")
+                language=user.get("language_code", "en"),
+                product_id=product_id,
+                in_stock=in_stock
             )
             
             # Remove from waitlist

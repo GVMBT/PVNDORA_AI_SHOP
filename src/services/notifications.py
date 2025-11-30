@@ -315,18 +315,39 @@ class NotificationService:
         self,
         telegram_id: int,
         product_name: str,
-        language: str
+        language: str,
+        product_id: Optional[str] = None,
+        in_stock: bool = False
     ) -> None:
-        """Notify user that waitlisted product is available"""
+        """
+        Notify user that waitlisted product is available again.
+        
+        Args:
+            telegram_id: User's Telegram ID
+            product_name: Name of the product
+            language: User's language code
+            product_id: Product ID (optional, for creating order link)
+            in_stock: Whether product is currently in stock
+        """
         bot = self._get_bot()
         if not bot:
             return
         
-        message = get_text(
-            "waitlist_notify",
-            language,
-            product=product_name
-        )
+        # Build message based on stock status
+        if in_stock:
+            # Product is available immediately
+            message = get_text(
+                "waitlist_notify_in_stock",
+                language,
+                product=product_name
+            )
+        else:
+            # Product is active but out of stock - can order prepaid
+            message = get_text(
+                "waitlist_notify_prepaid",
+                language,
+                product=product_name
+            )
         
         try:
             await bot.send_message(chat_id=telegram_id, text=message)
