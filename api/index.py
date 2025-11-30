@@ -111,8 +111,26 @@ class StockAddRequest(BaseModel):
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint."""
-    return {"status": "ok", "service": "pvndora", "version": "1.0.0"}
+    """Health check endpoint with diagnostics."""
+    import sys
+    
+    diagnostics = {
+        "status": "ok",
+        "service": "pvndora",
+        "version": "1.0.0",
+        "python_version": sys.version,
+        "env_vars_set": {
+            "TELEGRAM_TOKEN": bool(os.environ.get("TELEGRAM_TOKEN")),
+            "SUPABASE_URL": bool(os.environ.get("SUPABASE_URL")),
+            "SUPABASE_SERVICE_ROLE_KEY": bool(os.environ.get("SUPABASE_SERVICE_ROLE_KEY")),
+            "GEMINI_API_KEY": bool(os.environ.get("GEMINI_API_KEY")),
+            "UPSTASH_REDIS_REST_URL": bool(os.environ.get("UPSTASH_REDIS_REST_URL")),
+            "UPSTASH_REDIS_REST_TOKEN": bool(os.environ.get("UPSTASH_REDIS_REST_TOKEN")),
+            "QSTASH_TOKEN": bool(os.environ.get("QSTASH_TOKEN")),
+        }
+    }
+    
+    return diagnostics
 
 
 # ============================================================
