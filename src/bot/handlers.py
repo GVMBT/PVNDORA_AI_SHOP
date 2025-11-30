@@ -478,11 +478,9 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
                 )
         elif response.cart_items and len(response.cart_items) > 0:
             # Multiple products in cart - use checkout
-            from src.bot.keyboards import get_checkout_keyboard
             keyboard = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
         else:
             # Multiple products or no specific product - show checkout button instead of shop
-            from src.bot.keyboards import get_checkout_keyboard
             keyboard = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
     elif response.product_id:
         # Fallback: if product_id set but no specific action
