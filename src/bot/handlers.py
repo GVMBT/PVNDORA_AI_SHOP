@@ -363,10 +363,34 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
             elif response.cart_items and len(response.cart_items) > 0:
                 # Multiple products in cart - create checkout URL with cart data
                 # For now, use first product as primary (cart checkout page will handle multiple items)
-                first_item = response.cart_items[0]
-                product = await db.get_product_by_id(first_item.product_id)
-                if product:
-                    # Use checkout with cart parameter
+                try:
+                    first_item = response.cart_items[0]
+                    # Check if first_item is a dict or object with product_id
+                    if isinstance(first_item, dict):
+                        product_id = first_item.get('product_id')
+                    elif hasattr(first_item, 'product_id'):
+                        product_id = first_item.product_id
+                    else:
+                        print(f"WARNING: cart_items[0] has no product_id attribute: {first_item}")
+                        product_id = None
+                    
+                    if product_id:
+                        product = await db.get_product_by_id(product_id)
+                        if product:
+                            # Use checkout with cart parameter
+                            reply_markup = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
+                        else:
+                            # Product not found, use generic checkout
+                            reply_markup = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
+                    else:
+                        # No product_id, use generic checkout
+                        reply_markup = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
+                except (IndexError, AttributeError, TypeError, KeyError) as e:
+                    print(f"ERROR: Failed to process cart_items: {e}")
+                    print(f"ERROR: cart_items type: {type(response.cart_items)}, value: {response.cart_items}")
+                    import traceback
+                    traceback.print_exc()
+                    # Fallback to generic checkout
                     reply_markup = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
             else:
                 # Multiple products or no specific product - show checkout button instead of shop
@@ -383,12 +407,23 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
                     in_stock=product.stock_count > 0,
                 )
         
-        await safe_answer(
+        # Debug logging before sending
+        print(f"DEBUG: Sending message to user {db_user.id} (telegram_id: {db_user.telegram_id})")
+        print(f"DEBUG: Action: {response.action}, Product ID: {response.product_id}")
+        print(f"DEBUG: Cart items: {response.cart_items}")
+        print(f"DEBUG: Reply markup: {reply_markup}")
+        print(f"DEBUG: Reply text length: {len(response.reply_text) if response.reply_text else 0}")
+        
+        # Send message
+        success = await safe_answer(
             message,
             response.reply_text,
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
+        
+        if not success:
+            print(f"ERROR: Failed to send message to user {db_user.id}")
         
     except Exception as e:
         # Log error for debugging with full traceback
