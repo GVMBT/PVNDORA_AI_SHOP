@@ -5,6 +5,18 @@ Usage: python scripts/set_webhook.py
 import os
 import asyncio
 import httpx
+from pathlib import Path
+
+# Load .env file if exists
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent.parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"📄 Loaded .env from {env_path}")
+except ImportError:
+    # python-dotenv not installed, skip
+    pass
 
 async def set_webhook():
     """Set Telegram webhook"""

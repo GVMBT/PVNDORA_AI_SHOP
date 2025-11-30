@@ -6,6 +6,17 @@ import os
 import asyncio
 import httpx
 import json
+from pathlib import Path
+
+# Load .env file if exists
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent.parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+except ImportError:
+    # python-dotenv not installed, skip
+    pass
 
 async def check_webhook():
     """Check webhook status and diagnose issues"""
