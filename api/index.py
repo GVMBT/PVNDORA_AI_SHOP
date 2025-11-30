@@ -973,6 +973,112 @@ class BanUserRequest(BaseModel):
     reason: Optional[str] = None
 
 
+class CreateProductRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    price: float
+    type: str = "shared"  # student, trial, shared, key
+    fulfillment_time_hours: int = 48
+    warranty_hours: int = 24
+    instructions: Optional[str] = None
+    msrp: Optional[float] = None
+    duration_days: Optional[int] = None
+
+
+class CreateFAQRequest(BaseModel):
+    question: str
+    answer: str
+    language_code: str = "ru"
+    category: str = "general"
+
+
+@app.post("/api/admin/products")
+async def admin_create_product(request: CreateProductRequest, admin = Depends(verify_admin)):
+    """Create a new product"""
+    db = get_database()
+    
+    result = await asyncio.to_thread(
+        lambda: db.client.table("products").insert({
+            "name": request.name,
+            "description": request.description,
+            "price": request.price,
+            "type": request.type,
+            "fulfillment_time_hours": request.fulfillment_time_hours,
+            "warranty_hours": request.warranty_hours,
+            "instructions": request.instructions,
+            "msrp": request.msrp,
+            "duration_days": request.duration_days,
+            "status": "active"
+        }).execute()
+    )
+    
+    if result.data:
+        return {"success": True, "product": result.data[0]}
+    raise HTTPException(status_code=500, detail="Failed to create product")
+
+
+@app.get("/api/admin/products")
+async def admin_get_products(admin = Depends(verify_admin)):
+    """Get all products for admin"""
+    db = get_database()
+    products = await db.get_products(include_inactive=True)
+    return {"products": [p.__dict__ for p in products]}
+
+
+@app.put("/api/admin/products/{product_id}")
+async def admin_update_product(product_id: str, request: CreateProductRequest, admin = Depends(verify_admin)):
+    """Update a product"""
+    db = get_database()
+    
+    result = await asyncio.to_thread(
+        lambda: db.client.table("products").update({
+            "name": request.name,
+            "description": request.description,
+            "price": request.price,
+            "type": request.type,
+            "fulfillment_time_hours": request.fulfillment_time_hours,
+            "warranty_hours": request.warranty_hours,
+            "instructions": request.instructions,
+            "msrp": request.msrp,
+            "duration_days": request.duration_days
+        }).eq("id", product_id).execute()
+    )
+    
+    return {"success": True, "updated": len(result.data) > 0}
+
+
+@app.post("/api/admin/faq")
+async def admin_create_faq(request: CreateFAQRequest, admin = Depends(verify_admin)):
+    """Create a FAQ entry"""
+    db = get_database()
+    
+    result = await asyncio.to_thread(
+        lambda: db.client.table("faq").insert({
+            "question": request.question,
+            "answer": request.answer,
+            "language_code": request.language_code,
+            "category": request.category,
+            "is_active": True
+        }).execute()
+    )
+    
+    if result.data:
+        return {"success": True, "faq": result.data[0]}
+    raise HTTPException(status_code=500, detail="Failed to create FAQ")
+
+
+@app.get("/api/admin/faq")
+async def admin_get_faq(admin = Depends(verify_admin)):
+    """Get all FAQ entries for admin"""
+    db = get_database()
+    
+    result = await asyncio.to_thread(
+        lambda: db.client.table("faq").select("*").order("language_code").order("category").execute()
+    )
+    
+    return {"faq": result.data}
+
+
 @app.get("/api/admin/orders")
 async def admin_get_orders(
     status: Optional[str] = None,
