@@ -55,11 +55,18 @@ export function useApi() {
       body: JSON.stringify(body)
     }), [request])
   
+  const put = useCallback((endpoint, body) =>
+    request(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(body)
+    }), [request])
+  
   return {
     loading,
     error,
     get,
     post,
+    put,
     request
   }
 }

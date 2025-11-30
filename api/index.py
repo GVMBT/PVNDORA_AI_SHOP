@@ -858,7 +858,8 @@ async def get_user_profile(user = Depends(verify_telegram_auth)):
         "first_name": db_user.first_name,
         "balance": db_user.balance,
         "language_code": db_user.language_code,
-        "referral_percent": db_user.personal_ref_percent
+        "referral_percent": db_user.personal_ref_percent,
+        "is_admin": db_user.is_admin or False
     }
 
 
@@ -1019,10 +1020,25 @@ async def admin_create_product(request: CreateProductRequest, admin = Depends(ve
 
 @app.get("/api/admin/products")
 async def admin_get_products(admin = Depends(verify_admin)):
-    """Get all products for admin"""
+    """Get all products for admin (including inactive)"""
     db = get_database()
-    products = await db.get_products(include_inactive=True)
-    return {"products": [p.__dict__ for p in products]}
+    
+    # Get all products without status filter
+    result = await asyncio.to_thread(
+        lambda: db.client.table("products").select("*").order("created_at", desc=True).execute()
+    )
+    
+    products = []
+    for p in result.data:
+        # Count available stock
+        stock = await asyncio.to_thread(
+            lambda: db.client.table("stock_items").select("id", count="exact")
+                .eq("product_id", p["id"]).eq("is_sold", False).execute()
+        )
+        p["stock_count"] = stock.count or 0
+        products.append(p)
+    
+    return {"products": products}
 
 
 @app.put("/api/admin/products/{product_id}")

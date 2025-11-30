@@ -10,14 +10,23 @@ import OrdersPage from './pages/OrdersPage'
 import LeaderboardPage from './pages/LeaderboardPage'
 import FAQPage from './pages/FAQPage'
 import CheckoutPage from './pages/CheckoutPage'
+import AdminPage from './pages/AdminPage'
+import AdminProductsPage from './pages/AdminProductsPage'
+import AdminStockPage from './pages/AdminStockPage'
+import AdminOrdersPage from './pages/AdminOrdersPage'
+import AdminTicketsPage from './pages/AdminTicketsPage'
+import AdminAnalyticsPage from './pages/AdminAnalyticsPage'
+import AdminFAQPage from './pages/AdminFAQPage'
 
 // Components
 import Navigation from './components/Navigation'
 import LoadingScreen from './components/LoadingScreen'
+import { useAdmin } from './hooks/useAdmin'
 
 export default function App() {
   const { initData, user, isReady } = useTelegram()
   const { t, locale, isRTL } = useLocale()
+  const { isAdmin, checking } = useAdmin()
   const params = useSearchParams()
   
   const [currentPage, setCurrentPage] = useState('catalog')
@@ -57,12 +66,16 @@ export default function App() {
         setCurrentPage('catalog')
       } else if (startapp === 'catalog') {
         setCurrentPage('catalog')
+      } else if (startapp === 'admin') {
+        setCurrentPage('admin')
+      } else if (startapp.startsWith('admin_')) {
+        setCurrentPage(startapp)
       }
     }
   }, [params])
   
-  // Show loading while Telegram SDK initializes
-  if (!isReady) {
+  // Show loading while Telegram SDK initializes or checking admin status
+  if (!isReady || checking) {
     return <LoadingScreen />
   }
   
@@ -73,6 +86,30 @@ export default function App() {
   }
   
   const renderPage = () => {
+    // Admin pages
+    if (currentPage === 'admin') {
+      return <AdminPage onNavigate={navigateTo} />
+    }
+    if (currentPage === 'admin_products') {
+      return <AdminProductsPage onBack={() => navigateTo('admin')} />
+    }
+    if (currentPage === 'admin_stock') {
+      return <AdminStockPage onBack={() => navigateTo('admin')} />
+    }
+    if (currentPage === 'admin_orders') {
+      return <AdminOrdersPage onBack={() => navigateTo('admin')} />
+    }
+    if (currentPage === 'admin_tickets') {
+      return <AdminTicketsPage onBack={() => navigateTo('admin')} />
+    }
+    if (currentPage === 'admin_analytics') {
+      return <AdminAnalyticsPage onBack={() => navigateTo('admin')} />
+    }
+    if (currentPage === 'admin_faq') {
+      return <AdminFAQPage onBack={() => navigateTo('admin')} />
+    }
+
+    // User pages
     switch (currentPage) {
       case 'product':
         return (
@@ -118,6 +155,7 @@ export default function App() {
       <Navigation 
         currentPage={currentPage}
         onNavigate={navigateTo}
+        isAdmin={isAdmin}
       />
     </div>
   )
