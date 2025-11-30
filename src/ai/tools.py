@@ -53,13 +53,13 @@ TOOLS = [
     },
     {
         "name": "create_purchase_intent",
-        "description": "Create a purchase intent when user wants to buy a product. Use when user shows clear buying intent (e.g., 'I want to buy', 'давай', 'беру').",
+        "description": "Create a purchase intent when user wants to buy a product. Use when user shows clear buying intent (e.g., 'I want to buy', 'давай', 'беру'). IMPORTANT: product_id can be either a UUID or a product name. If you don't have the UUID, use the product name from check_product_availability or get_catalog results.",
         "parameters": {
             "type": "object",
             "properties": {
                 "product_id": {
                     "type": "string",
-                    "description": "ID of the product to purchase"
+                    "description": "Product UUID or product name (e.g., 'ChatGPT Plus', 'Gemini PRO'). The function will search by name if UUID is not provided."
                 }
             },
             "required": ["product_id"]
@@ -418,12 +418,30 @@ async def execute_tool(
             }
     
     elif tool_name == "create_purchase_intent":
-        product = await db.get_product_by_id(arguments["product_id"])
+        product_id_or_name = arguments.get("product_id", "").strip()
+        
+        # Try to find product - could be UUID or name
+        product = None
+        
+        # First, try as UUID
+        if len(product_id_or_name) == 36 and product_id_or_name.count('-') == 4:
+            # Looks like UUID
+            try:
+                product = await db.get_product_by_id(product_id_or_name)
+            except Exception:
+                pass
+        
+        # If not found or not UUID, search by name
         if not product:
-            return {
-                "success": False,
-                "reason": "Product not found"
-            }
+            products = await db.search_products(product_id_or_name)
+            if products:
+                # Take first match
+                product = products[0]
+            else:
+                return {
+                    "success": False,
+                    "reason": f"Product '{product_id_or_name}' not found. Please check the product name or use check_product_availability first."
+                }
         
         product_status = getattr(product, 'status', 'active')
         is_discontinued = product_status == 'discontinued'
