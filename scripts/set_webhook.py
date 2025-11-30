@@ -18,7 +18,7 @@ async def set_webhook():
     webhook_url = os.environ.get("TELEGRAM_WEBHOOK_URL")
     if not webhook_url:
         # Default URL based on your project
-        webhook_url = "https://pvndora-ai-shop.vercel.app/webhook/telegram"
+        webhook_url = "https://pvndora.app/api/webhook/telegram"
         print(f"⚠️  TELEGRAM_WEBHOOK_URL not set, using default: {webhook_url}")
     else:
         print(f"📡 Setting webhook to: {webhook_url}")

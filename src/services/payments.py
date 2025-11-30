@@ -26,7 +26,7 @@ class PaymentService:
         self.cardlink_shop_id = os.environ.get("CARDLINK_SHOP_ID", "")
         
         # Webhook URLs
-        self.base_url = os.environ.get("WEBAPP_URL", "https://pvndora-ai-shop.vercel.app")
+        self.base_url = os.environ.get("WEBAPP_URL", "https://pvndora.app")
     
     async def create_payment(
         self,

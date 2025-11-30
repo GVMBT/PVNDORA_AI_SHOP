@@ -16,7 +16,7 @@ from src.bot.keyboards import (
 router = Router()
 
 # Get webapp URL from environment
-WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://pvndora-ai-shop.vercel.app")
+WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://pvndora.app")
 
 
 @router.message(CommandStart())

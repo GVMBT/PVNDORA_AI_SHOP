@@ -52,7 +52,7 @@ except ImportError as e:
 # ==================== BOT INITIALIZATION ====================
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
-WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://pvndora-ai-shop.vercel.app")
+WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://pvndora.app")
 
 bot: Optional[Bot] = None
 dp: Optional[Dispatcher] = None

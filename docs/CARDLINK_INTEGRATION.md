@@ -21,38 +21,38 @@ Canva Pro и другие. Формат выдачи: Login:Pass или инва
 
 **URL магазина:** 
 ```
-https://pvndora-ai-shop.vercel.app
+https://pvndora.app
 ```
 
 ### URL для обработки платежей
 
 **Success URL (URL успешной оплаты):**
 ```
-https://pvndora-ai-shop.vercel.app/payment/success?order_id={order_id}
+https://pvndora.app/payment/success?order_id={order_id}
 ```
 *URL адрес, на который будет перенаправлен пользователь в случае успешного прохождения платежа*
 
 **Fail URL (URL неуспешной оплаты):**
 ```
-https://pvndora-ai-shop.vercel.app/payment/fail?order_id={order_id}
+https://pvndora.app/payment/fail?order_id={order_id}
 ```
 *URL адрес, на который будет перенаправлен пользователь в случае неуспешного прохождения платежа*
 
 **Result URL (Webhook для обработки ответа):**
 ```
-https://pvndora-ai-shop.vercel.app/api/webhook/cardlink
+https://pvndora.app/api/webhook/cardlink
 ```
 *URL адрес, по которому будет приходить обработка ответа о статусе платежа*
 
 **Refund URL (Webhook для возвратов):**
 ```
-https://pvndora-ai-shop.vercel.app/api/webhook/cardlink/refund
+https://pvndora.app/api/webhook/cardlink/refund
 ```
 *URL адрес, по которому будет приходить обработка возврата*
 
 **Chargeback URL (Webhook для чарджбэков):**
 ```
-https://pvndora-ai-shop.vercel.app/api/webhook/cardlink/chargeback
+https://pvndora.app/api/webhook/cardlink/chargeback
 ```
 *URL адрес, по которому будет приходить обработка чарджбэка*
 
@@ -112,8 +112,8 @@ Body:
   "currency": "RUB",
   "order_id": "unique_order_id",
   "description": "Оплата товара",
-  "success_url": "https://pvndora-ai-shop.vercel.app/payment/success?order_id={order_id}",
-  "fail_url": "https://pvndora-ai-shop.vercel.app/payment/fail?order_id={order_id}"
+  "success_url": "https://pvndora.app/payment/success?order_id={order_id}",
+  "fail_url": "https://pvndora.app/payment/fail?order_id={order_id}"
 }
 ```
 
