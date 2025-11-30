@@ -25,16 +25,37 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from aiogram import types
 
-# Core imports - use centralized bot/dispatcher from core/bot.py
-from core.db import get_supabase, get_redis, RedisKeys
-from core.bot import get_bot, get_dispatcher
-from core.queue import publish_to_worker, verify_qstash_request, WorkerEndpoints
-from core.models import (
-    HealthCheck,
-    ReviewCreate,
-    PromoCodeCheck,
-    BroadcastRequest,
-)
+# Core imports - lazy loaded to avoid import errors on Vercel
+# These are imported inside functions that use them
+def get_core_imports():
+    """Lazy import core modules."""
+    from core.db import get_supabase, get_redis, RedisKeys
+    from core.bot import get_bot, get_dispatcher
+    from core.queue import publish_to_worker, verify_qstash_request, WorkerEndpoints
+    from core.models import HealthCheck, ReviewCreate, PromoCodeCheck, BroadcastRequest
+    return {
+        'get_supabase': get_supabase,
+        'get_redis': get_redis,
+        'RedisKeys': RedisKeys,
+        'get_bot': get_bot,
+        'get_dispatcher': get_dispatcher,
+        'publish_to_worker': publish_to_worker,
+        'verify_qstash_request': verify_qstash_request,
+        'WorkerEndpoints': WorkerEndpoints,
+        'HealthCheck': HealthCheck,
+        'ReviewCreate': ReviewCreate,
+        'PromoCodeCheck': PromoCodeCheck,
+        'BroadcastRequest': BroadcastRequest,
+    }
+
+_core = None
+
+def core():
+    """Get core imports (cached)."""
+    global _core
+    if _core is None:
+        _core = get_core_imports()
+    return _core
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -120,6 +141,13 @@ async def health_check():
             "QSTASH_TOKEN": bool(os.environ.get("QSTASH_TOKEN")),
         }
     }
+    
+    # Try to import core modules to check for errors
+    try:
+        _ = core()
+        diagnostics["core_modules"] = "loaded"
+    except Exception as e:
+        diagnostics["core_modules"] = f"error: {str(e)}"
     
     return diagnostics
 
