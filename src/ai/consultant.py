@@ -261,7 +261,8 @@ class AIConsultant:
                 # Try to parse as structured JSON (Structured Outputs)
                 return self._parse_structured_response(response, language)
             
-            # Check each part for function calls
+            # Collect ALL function calls from the response
+            function_calls = []
             for part in parts:
                 func_call = getattr(part, 'function_call', None)
                 if func_call:
@@ -281,40 +282,44 @@ class AIConsultant:
                     else:
                         arguments = {}
                     
-                    print(f"DEBUG: Function call detected: {tool_name} with args: {arguments}")
-                    
-                    # Execute the tool
+                    function_calls.append((tool_name, arguments))
+            
+            # If we have function calls, execute ALL of them
+            if function_calls:
+                print(f"DEBUG: Found {len(function_calls)} function calls: {[fc[0] for fc in function_calls]}")
+                
+                # Execute all tools and collect results
+                tool_results = {}
+                for tool_name, arguments in function_calls:
+                    print(f"DEBUG: Executing {tool_name} with args: {arguments}")
                     try:
-                        tool_result = await execute_tool(
-                            tool_name,
-                            arguments,
-                            user_id,
-                            db
-                        )
+                        result = await execute_tool(tool_name, arguments, user_id, db)
+                        tool_results[tool_name] = result
                     except Exception as e:
-                        print(f"ERROR: Tool execution failed: {e}\n{traceback.format_exc()}")
-                        return self._create_error_response(language, f"Tool execution failed: {str(e)}")
-                    
-                    # Continue conversation with tool result
-                    if not original_messages:
-                        history = await db.get_chat_history(user_id, limit=10)
-                        original_messages = []
-                        for msg in history:
-                            role = "user" if msg["role"] == "user" else "model"
-                            original_messages.append(types.Content(
-                                role=role,
-                                parts=[types.Part.from_text(text=msg["content"])]
-                            ))
-                    
-                    return await self._continue_with_tool_result(
-                        original_messages,
-                        response,
-                        tool_name,
-                        tool_result,
-                        user_id,
-                        db,
-                        language
-                    )
+                        print(f"ERROR: Tool {tool_name} failed: {e}")
+                        tool_results[tool_name] = {"success": False, "error": str(e)}
+                
+                # Build chat history if not provided
+                if not original_messages:
+                    history = await db.get_chat_history(user_id, limit=10)
+                    original_messages = []
+                    for msg in history:
+                        role = "user" if msg["role"] == "user" else "model"
+                        original_messages.append(types.Content(
+                            role=role,
+                            parts=[types.Part.from_text(text=msg["content"])]
+                        ))
+                
+                # Continue with ALL tool results combined
+                return await self._continue_with_all_tool_results(
+                    original_messages,
+                    response,
+                    function_calls,
+                    tool_results,
+                    user_id,
+                    db,
+                    language
+                )
             
             # No function call - need to make SECOND request with structured output
             # Because Gemini doesn't support tools + response_schema simultaneously
@@ -643,6 +648,74 @@ class AIConsultant:
             
         except Exception as e:
             print(f"Gemini follow-up error: {e}\n{traceback.format_exc()}")
+            return self._create_error_response(language, str(e))
+    
+    async def _continue_with_all_tool_results(
+        self,
+        original_messages: List[types.Content],
+        original_response,
+        function_calls: List[tuple],  # List of (tool_name, arguments)
+        tool_results: Dict[str, Any],  # {tool_name: result}
+        user_id: str,
+        db,
+        language: str
+    ) -> StructuredAIResponse:
+        """Continue conversation with ALL tool results - handles parallel tool execution"""
+        import traceback
+        
+        try:
+            # Build messages with full conversation context
+            messages = list(original_messages)
+            
+            # Add the model's response with function calls
+            if original_response.candidates and original_response.candidates[0].content:
+                messages.append(original_response.candidates[0].content)
+            
+            # Add ALL function responses
+            function_response_parts = []
+            for tool_name, _ in function_calls:
+                result = tool_results.get(tool_name, {"success": False, "error": "Unknown error"})
+                function_response_parts.append(
+                    types.Part.from_function_response(
+                        name=tool_name,
+                        response=result
+                    )
+                )
+            
+            # Add all function responses as a single Content
+            if function_response_parts:
+                messages.append(types.Content(
+                    role="function",
+                    parts=function_response_parts
+                ))
+            
+            # Get cached content for this language
+            base_system_prompt = get_system_prompt(language, "")
+            cached_content_name = await self._get_or_create_cache(language, base_system_prompt)
+            
+            # Generate final response with Structured Outputs
+            config_final = types.GenerateContentConfig(
+                temperature=0.7,
+                max_output_tokens=2048,
+                response_mime_type="application/json",
+                response_schema=StructuredAIResponse.model_json_schema()
+            )
+            
+            if cached_content_name:
+                config_final.cached_content = cached_content_name
+            else:
+                config_final.system_instruction = base_system_prompt
+            
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=messages,
+                config=config_final
+            )
+            
+            return self._parse_structured_response(response, language)
+            
+        except Exception as e:
+            print(f"Gemini multi-tool follow-up error: {e}\n{traceback.format_exc()}")
             return self._create_error_response(language, str(e))
     
     # Note: _format_purchase_message and _format_catalog_message removed
