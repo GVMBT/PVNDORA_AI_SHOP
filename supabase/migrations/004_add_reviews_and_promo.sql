@@ -139,3 +139,4 @@ CREATE POLICY "FAQ is viewable by all" ON faq
 CREATE POLICY "Recommendations are viewable by all" ON product_recommendations
     FOR SELECT USING (true);
 
+

@@ -257,3 +257,4 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
   )
 }
 
+

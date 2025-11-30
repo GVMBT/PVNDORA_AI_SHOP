@@ -412,3 +412,4 @@ class GetFAQAnswerParams(BaseModel):
     """Parameters for get_faq_answer function."""
     question: str = Field(description="User question to search FAQ")
 
+

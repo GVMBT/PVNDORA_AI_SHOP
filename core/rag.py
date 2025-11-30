@@ -1,129 +1,84 @@
 """
-RAG Module - Vector Search Pipeline
+RAG Module - Semantic Product Search via Supabase REST API
 
-Provides semantic search for products using pgvector/vecs:
-- Product embedding generation
-- Similarity search
-- Context retrieval for AI
+Uses pgvector through Supabase PostgREST - no direct DB connection needed.
+Works with Supabase Connection Pooler (Transaction mode).
 """
 
 import os
 from typing import Optional, List
 
-# Safe import - RAG is optional
-try:
-    import vecs
-    from vecs import Collection
-    VECS_AVAILABLE = True
-except ImportError:
-    VECS_AVAILABLE = False
-    vecs = None
-    Collection = None
-
-from core.ai import get_ai_consultant
+from core.db import get_database
 
 
 # Environment
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
-# Collection settings
-PRODUCTS_COLLECTION = "products"
+# Embedding settings
 EMBEDDING_DIMENSION = 768  # Gemini text-embedding-004
+EMBEDDING_MODEL = "text-embedding-004"
 
-# Singleton
-_vecs_client = None
-_products_collection: Optional[Collection] = None
+# Singletons
+_embedding_client = None
 
 
-def get_vecs_client():
+async def get_embedding(text: str) -> List[float]:
     """
-    Get vecs client (singleton).
-    Returns None if RAG is not configured.
+    Generate embedding for text using Gemini.
+    
+    Returns 768-dimensional vector.
     """
-    global _vecs_client
+    global _embedding_client
     
-    if not VECS_AVAILABLE:
-        print("INFO: RAG disabled - vecs library not installed")
-        return None
+    if not GEMINI_API_KEY:
+        return []
     
-    if _vecs_client is None:
-        if not SUPABASE_URL:
-            print("INFO: RAG disabled - SUPABASE_URL not set")
-            return None
+    try:
+        from google import genai
         
-        # Check if SUPABASE_DB_URL is configured
-        db_url = os.environ.get("SUPABASE_DB_URL")
-        if not db_url:
-            print("INFO: RAG disabled - SUPABASE_DB_URL not set")
-            return None
+        if _embedding_client is None:
+            _embedding_client = genai.Client(api_key=GEMINI_API_KEY)
         
-        # Extract project_ref from SUPABASE_URL
-        db_host = SUPABASE_URL.replace("https://", "").replace("http://", "")
-        project_ref = db_host.split('.')[0]
+        result = _embedding_client.models.embed_content(
+            model=f"models/{EMBEDDING_MODEL}",
+            content=text
+        )
         
-        # Validate/fix connection string format for Supabase pooler
-        if "pooler.supabase.com" in db_url and f"postgres.{project_ref}" not in db_url:
-            import re
-            db_url = re.sub(
-                r'postgresql://postgres:',
-                f'postgresql://postgres.{project_ref}:',
-                db_url
-            )
-            print(f"INFO: Auto-corrected SUPABASE_DB_URL username to postgres.{project_ref}")
+        return result.embedding.values
         
-        try:
-            _vecs_client = vecs.create_client(db_url)
-            print("INFO: RAG initialized successfully")
-        except Exception as e:
-            print(f"ERROR: RAG initialization failed: {e}")
-            return None
-    
-    return _vecs_client
-
-
-def get_products_collection() -> Optional[Collection]:
-    """Get or create products vector collection. Returns None if RAG unavailable."""
-    global _products_collection
-    
-    if _products_collection is None:
-        client = get_vecs_client()
-        if client is None:
-            return None
-        try:
-            _products_collection = client.get_or_create_collection(
-                name=PRODUCTS_COLLECTION,
-                dimension=EMBEDDING_DIMENSION
-            )
-            print(f"INFO: Products collection ready (dimension={EMBEDDING_DIMENSION})")
-        except Exception as e:
-            print(f"ERROR: Failed to get products collection: {e}")
-            return None
-    
-    return _products_collection
+    except Exception as e:
+        print(f"ERROR: Embedding generation failed: {e}")
+        return []
 
 
 class ProductSearch:
     """
-    Semantic product search using vector embeddings.
+    Semantic product search using pgvector via Supabase REST API.
     
     Features:
     - Natural language queries ("I need to make presentations")
-    - Metadata filtering (type, status, price range)
+    - Automatic embedding generation
     - Similarity scoring
     
-    Note: If RAG is not configured, search methods return empty results
-    and the bot falls back to SQL-based search.
+    Uses Supabase RPC function search_products_semantic() for vector search.
     """
     
     def __init__(self):
-        self.collection = get_products_collection()  # May be None
-        self.ai = get_ai_consultant()
+        self._db = None
+        self._initialized = False
+    
+    @property
+    def db(self):
+        """Lazy database initialization."""
+        if self._db is None:
+            self._db = get_database()
+        return self._db
     
     @property
     def is_available(self) -> bool:
         """Check if RAG search is available."""
-        return self.collection is not None
+        return bool(GEMINI_API_KEY)
     
     async def index_product(
         self,
@@ -131,25 +86,15 @@ class ProductSearch:
         name: str,
         description: str,
         product_type: str,
-        instructions: Optional[str] = None,
-        status: str = "active"
+        instructions: Optional[str] = None
     ) -> bool:
         """
         Index a product for semantic search.
         
-        Args:
-            product_id: Product UUID
-            name: Product name
-            description: Product description
-            product_type: Type (student, trial, shared, key)
-            instructions: Usage instructions
-            status: Product status
-        
-        Returns:
-            True if indexed successfully, False if RAG unavailable
+        Creates/updates embedding in product_embeddings table.
         """
         if not self.is_available:
-            return False  # RAG not configured
+            return False
         
         # Build text for embedding
         text_parts = [name]
@@ -158,33 +103,36 @@ class ProductSearch:
         if instructions:
             text_parts.append(instructions)
         
-        text = " | ".join(text_parts)
+        content = " | ".join(text_parts)
         
         # Generate embedding
-        embedding = await self.ai.generate_embedding(text)
+        embedding = await get_embedding(content)
         
-        # Metadata for filtering
-        metadata = {
-            "product_id": product_id,
-            "name": name,
-            "type": product_type,
-            "status": status
-        }
+        if not embedding:
+            return False
         
-        # Upsert to collection
-        self.collection.upsert(
-            records=[
-                (product_id, embedding, metadata)
-            ]
-        )
-        
-        return True
+        try:
+            # Format embedding as PostgreSQL vector string
+            embedding_str = f"[{','.join(map(str, embedding))}]"
+            
+            # Upsert embedding
+            await self.db.client.table("product_embeddings").upsert({
+                "product_id": product_id,
+                "content": content,
+                "embedding": embedding_str
+            }, on_conflict="product_id").execute()
+            
+            return True
+            
+        except Exception as e:
+            print(f"ERROR: Failed to index product {product_id}: {e}")
+            return False
     
     async def search(
         self,
         query: str,
         limit: int = 5,
-        filters: Optional[dict] = None
+        similarity_threshold: float = 0.3
     ) -> List[dict]:
         """
         Search products by semantic similarity.
@@ -192,104 +140,95 @@ class ProductSearch:
         Args:
             query: Natural language search query
             limit: Maximum results
-            filters: Metadata filters (e.g., {"status": {"$eq": "active"}})
+            similarity_threshold: Minimum similarity score (0-1)
         
         Returns:
-            List of matching products with scores (empty if RAG unavailable)
+            List of matching products with similarity scores
         """
         if not self.is_available:
-            return []  # RAG not configured, return empty results
-        
-        # Generate query embedding
-        query_embedding = await self.ai.generate_embedding(query)
-        
-        # Default filter: only active products
-        if filters is None:
-            filters = {"status": {"$eq": "active"}}
-        
-        # Search
-        results = self.collection.query(
-            data=query_embedding,
-            limit=limit,
-            filters=filters,
-            include_metadata=True,
-            include_value=True
-        )
-        
-        # Format results
-        products = []
-        for result in results:
-            product_id, score, metadata = result
-            products.append({
-                "product_id": product_id,
-                "name": metadata.get("name", ""),
-                "type": metadata.get("type", ""),
-                "score": float(score) if score else 0.0
-            })
-        
-        return products
-    
-    async def find_similar(
-        self,
-        product_id: str,
-        limit: int = 3
-    ) -> List[dict]:
-        """
-        Find products similar to a given product.
-        
-        Args:
-            product_id: Reference product UUID
-            limit: Maximum results
-        
-        Returns:
-            List of similar products
-        """
-        # Get the product's embedding
-        results = self.collection.fetch([product_id])
-        
-        if not results:
             return []
         
-        # Use the embedding to find similar
-        embedding = results[0][1]  # (id, embedding, metadata)
+        # Generate query embedding
+        query_embedding = await get_embedding(query)
         
-        # Search excluding the original
-        similar = self.collection.query(
-            data=embedding,
-            limit=limit + 1,  # +1 to exclude self
-            filters={"status": {"$eq": "active"}},
-            include_metadata=True
-        )
+        if not query_embedding:
+            return []
         
-        # Filter out the original product
-        products = []
-        for result in similar:
-            pid, score, metadata = result
-            if pid != product_id:
+        try:
+            # Format as PostgreSQL vector
+            embedding_str = f"[{','.join(map(str, query_embedding))}]"
+            
+            # Call RPC function for vector search
+            result = await self.db.client.rpc(
+                "search_products_semantic",
+                {
+                    "query_embedding": embedding_str,
+                    "match_count": limit,
+                    "similarity_threshold": similarity_threshold
+                }
+            ).execute()
+            
+            if not result.data:
+                return []
+            
+            # Format results
+            products = []
+            for row in result.data:
                 products.append({
-                    "product_id": pid,
-                    "name": metadata.get("name", ""),
-                    "type": metadata.get("type", ""),
-                    "score": float(score) if score else 0.0
+                    "product_id": row["product_id"],
+                    "name": row["product_name"],
+                    "price": row["product_price"],
+                    "type": row["product_type"],
+                    "score": row["similarity"]
                 })
+            
+            return products
+            
+        except Exception as e:
+            print(f"ERROR: Semantic search failed: {e}")
+            return []
+    
+    async def index_all_products(self) -> int:
+        """
+        Index all active products.
         
-        return products[:limit]
+        Returns number of products indexed.
+        """
+        try:
+            result = await self.db.client.table("products").select(
+                "id, name, description, type, instructions"
+            ).eq("status", "active").execute()
+            
+            if not result.data:
+                return 0
+            
+            indexed = 0
+            for product in result.data:
+                success = await self.index_product(
+                    product_id=product["id"],
+                    name=product["name"],
+                    description=product.get("description", ""),
+                    product_type=product["type"],
+                    instructions=product.get("instructions", "")
+                )
+                if success:
+                    indexed += 1
+            
+            return indexed
+            
+        except Exception as e:
+            print(f"ERROR: Failed to index products: {e}")
+            return 0
     
     async def delete_product(self, product_id: str) -> bool:
         """Remove product from search index."""
-        self.collection.delete([product_id])
-        return True
-    
-    def create_index(self):
-        """
-        Create HNSW index for fast similarity search.
-        
-        Call once after initial data load.
-        """
-        self.collection.create_index(
-            method=vecs.IndexMethod.hnsw,
-            measure=vecs.IndexMeasure.cosine_distance
-        )
+        try:
+            await self.db.client.table("product_embeddings").delete().eq(
+                "product_id", product_id
+            ).execute()
+            return True
+        except Exception:
+            return False
 
 
 # Singleton
@@ -318,7 +257,7 @@ async def search_products_for_ai(query: str, limit: int = 5) -> str:
     
     lines = ["Found products:"]
     for p in results:
-        lines.append(f"- {p['name']} (ID: {p['product_id']}, Type: {p['type']})")
+        score_pct = int(p['score'] * 100)
+        lines.append(f"- {p['name']} (ID: {p['product_id']}, {p['price']}₽, {score_pct}% match)")
     
     return "\n".join(lines)
-

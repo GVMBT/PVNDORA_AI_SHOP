@@ -145,15 +145,13 @@ async def cmd_wishlist(message: Message, db_user: User):
             description=product.description or ""
         )
         
-        bot_info = await message.bot.get_me()
         await message.answer(
             text,
             reply_markup=get_product_keyboard(
                 db_user.language_code,
                 product.id,
                 WEBAPP_URL,
-                in_stock=product.stock_count > 0,
-                bot_username=bot_info.username
+                in_stock=product.stock_count > 0
             ),
             parse_mode=ParseMode.HTML
         )
@@ -248,9 +246,8 @@ async def callback_preorder(callback: CallbackQuery, db_user: User, bot: Bot):
         await callback.answer("Product not found", show_alert=True)
         return
     
-    # Get bot username for Mini App link
-    bot_info = await bot.get_me()
-    checkout_url = f"https://t.me/{bot_info.username}/app?startapp=pay_{product_id}"
+    # WebApp URL must be direct HTTPS URL, not t.me deep link
+    checkout_url = f"{WEBAPP_URL}?startapp=pay_{product_id}"
     
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
     
@@ -264,11 +261,10 @@ async def callback_preorder(callback: CallbackQuery, db_user: User, bot: Bot):
     fulfillment_hours = getattr(product, 'fulfillment_time_hours', 48)
     
     await callback.message.answer(
-        get_text("preorder_confirm", db_user.language_code, 
-                product=product.name,
-                price=product.price,
-                hours=fulfillment_hours) if get_text("preorder_confirm", db_user.language_code, product=product.name, price=product.price, hours=fulfillment_hours) != "preorder_confirm" 
-        else f"📦 Pre-order: **{product.name}**\n💰 Price: {product.price}₽\n⏱ Fulfillment: {fulfillment_hours} hours\n\nClick below to proceed with payment:",
+        f"📦 Предзаказ: **{product.name}**\n"
+        f"💰 Цена: {product.price}₽\n"
+        f"⏱ Изготовление: {fulfillment_hours} часов\n\n"
+        f"Нажмите кнопку ниже для оплаты:",
         reply_markup=keyboard,
         parse_mode=ParseMode.MARKDOWN
     )
@@ -326,7 +322,6 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
         
         # Send response to user based on structured action
         reply_markup = None
-        bot_info = await message.bot.get_me()
         
         # Handle actions from structured response
         from core.models import ActionType
@@ -340,7 +335,6 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
                     response.product_id,
                     WEBAPP_URL,
                     in_stock=product.stock_count > 0,
-                    bot_username=bot_info.username
                 )
         elif response.product_id:
             # Fallback: if product_id set but no specific action
@@ -351,7 +345,6 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
                     response.product_id,
                     WEBAPP_URL,
                     in_stock=product.stock_count > 0,
-                    bot_username=bot_info.username
                 )
         
         await message.answer(
@@ -422,7 +415,6 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
     # Send response based on structured action
     from core.models import ActionType
     keyboard = None
-    bot_info = await message.bot.get_me()
     
     if response.action == ActionType.SHOW_CATALOG:
         keyboard = get_shop_keyboard(db_user.language_code, WEBAPP_URL)
@@ -434,7 +426,6 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
                 response.product_id,
                 WEBAPP_URL,
                 in_stock=product.stock_count > 0,
-                bot_username=bot_info.username
             )
     elif response.product_id:
         # Fallback: if product_id set but no specific action
@@ -445,7 +436,6 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
                 response.product_id,
                 WEBAPP_URL,
                 in_stock=product.stock_count > 0,
-                bot_username=bot_info.username
             )
     
     await message.answer(

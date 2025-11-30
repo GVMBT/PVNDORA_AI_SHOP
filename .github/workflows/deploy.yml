@@ -202,3 +202,4 @@ jobs:
           supabase db push
         continue-on-error: true  # Don't fail if no new migrations
 
+

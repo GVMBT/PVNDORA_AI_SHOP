@@ -35,9 +35,10 @@ class AIConsultant:
         if RAG_AVAILABLE and ProductSearch:
             try:
                 self.product_search = ProductSearch()
-            except (ImportError, Exception) as e:
-                print(f"WARNING: Failed to initialize RAG: {e}")
-                self.product_search = None
+                if not self.product_search.is_available:
+                    self.product_search = None
+            except (ImportError, Exception):
+                self.product_search = None  # RAG optional
         else:
             self.product_search = None
         self._cached_contents = {}  # Cache for system prompts by language
@@ -315,8 +316,11 @@ class AIConsultant:
                         language
                     )
             
-            # No function call - parse structured JSON response
-            return self._parse_structured_response(response, language)
+            # No function call - need to make SECOND request with structured output
+            # Because Gemini doesn't support tools + response_schema simultaneously
+            return await self._generate_structured_response(
+                original_messages, response, user_id, db, language
+            )
             
         except Exception as e:
             print(f"ERROR: _process_response failed: {e}\n{traceback.format_exc()}")
@@ -484,6 +488,77 @@ class AIConsultant:
                 print(f"WARNING: Failed to create context cache for {language}: {e}")
             # Continue without caching - not critical
             return None
+    
+    async def _generate_structured_response(
+        self,
+        messages: List[types.Content],
+        text_response,
+        user_id: str,
+        db,
+        language: str
+    ) -> StructuredAIResponse:
+        """
+        Generate structured JSON response from unstructured text response.
+        Called when AI didn't use function calling but we need structured output.
+        """
+        import traceback
+        
+        try:
+            # Get text from initial response
+            initial_text = text_response.text if hasattr(text_response, 'text') else ""
+            
+            # Make a follow-up request to get structured output
+            structured_messages = list(messages)
+            
+            # Add model's text response
+            if initial_text:
+                structured_messages.append(types.Content(
+                    role="model",
+                    parts=[types.Part.from_text(text=initial_text)]
+                ))
+            
+            # Add instruction to format as JSON
+            structured_messages.append(types.Content(
+                role="user",
+                parts=[types.Part.from_text(
+                    text="Now format your response as a valid JSON following the exact schema I provided. Include your previous response in reply_text field."
+                )]
+            ))
+            
+            # Get system prompt
+            base_system_prompt = get_system_prompt(language, "")
+            cached_content_name = await self._get_or_create_cache(language, base_system_prompt)
+            
+            # Generate with structured output
+            config_structured = types.GenerateContentConfig(
+                temperature=0.3,  # Lower temp for more consistent JSON
+                max_output_tokens=2048,
+                response_mime_type="application/json",
+                response_schema=StructuredAIResponse.model_json_schema()
+            )
+            
+            if cached_content_name:
+                config_structured.cached_content = cached_content_name
+            else:
+                config_structured.system_instruction = base_system_prompt
+            
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=structured_messages,
+                config=config_structured
+            )
+            
+            return self._parse_structured_response(response, language)
+            
+        except Exception as e:
+            print(f"ERROR: _generate_structured_response failed: {e}\n{traceback.format_exc()}")
+            # Fallback: create response from original text
+            initial_text = text_response.text if hasattr(text_response, 'text') else ""
+            return StructuredAIResponse(
+                thought="Structured generation failed, using text response",
+                reply_text=initial_text if initial_text else self._get_error_message(language),
+                action=ActionType.NONE
+            )
     
     async def _continue_with_tool_result(
         self,

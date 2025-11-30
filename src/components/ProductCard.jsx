@@ -101,3 +101,4 @@ export default function ProductCard({ product, socialProof, onClick }) {
   )
 }
 
+

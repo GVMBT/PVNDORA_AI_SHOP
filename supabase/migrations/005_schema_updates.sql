@@ -117,3 +117,4 @@ $$ LANGUAGE plpgsql;
 --     AFTER INSERT ON chat_history
 --     FOR EACH ROW EXECUTE FUNCTION update_last_activity();
 
+

@@ -1563,13 +1563,24 @@ async def cron_daily_tasks(authorization: str = Header(None)):
         "review_requests": 0,
         "expiration_reminders": 0,
         "wishlist_reminders": 0,
-        "re_engagement": 0
+        "re_engagement": 0,
+        "rag_indexed": 0
     }
     
     from src.services.notifications import NotificationService
     notification_service = NotificationService()
     db = get_database()
     bot = notification_service._get_bot()
+    
+    # -1. Index products for RAG (semantic search)
+    try:
+        from core.rag import get_product_search
+        search = get_product_search()
+        if search.is_available:
+            indexed = await search.index_all_products()
+            results["rag_indexed"] = indexed
+    except Exception as e:
+        print(f"RAG indexing error: {e}")
     
     if not bot:
         return {"error": "Bot not configured", "results": results}
@@ -1882,6 +1893,32 @@ async def worker_process_review_cashback(request: Request):
     }).eq("id", review_id).execute()
     
     return {"success": True, "cashback": cashback}
+
+
+# ==================== ADMIN ENDPOINTS ====================
+
+@app.post("/api/admin/index-products")
+async def admin_index_products(authorization: str = Header(None)):
+    """
+    Admin endpoint: Index all products for RAG (semantic search).
+    Requires CRON_SECRET for authentication.
+    """
+    cron_secret = os.environ.get("CRON_SECRET", "")
+    if authorization != f"Bearer {cron_secret}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    try:
+        from core.rag import get_product_search
+        search = get_product_search()
+        
+        if not search.is_available:
+            return {"success": False, "error": "RAG not available (GEMINI_API_KEY missing?)"}
+        
+        indexed = await search.index_all_products()
+        return {"success": True, "indexed_products": indexed}
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 # ==================== VERCEL EXPORT ====================
