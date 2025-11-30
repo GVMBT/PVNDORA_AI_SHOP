@@ -18,7 +18,7 @@ export default function Navigation({ currentPage, onNavigate, isAdmin = false })
   
   // Add admin button if user is admin
   const items = isAdmin 
-    ? [...navItems, { id: 'admin', icon: '🔧', labelKey: 'Админ' }]
+    ? [...navItems, { id: 'admin', icon: '🔧', label: 'Админ' }]
     : navItems
   
   return (
@@ -26,6 +26,7 @@ export default function Navigation({ currentPage, onNavigate, isAdmin = false })
       <div className="flex justify-around items-center h-16">
         {items.map((item) => {
           const isActive = currentPage === item.id
+          const label = item.label || (item.labelKey ? t(item.labelKey) : '')
           
           return (
             <button
@@ -38,7 +39,7 @@ export default function Navigation({ currentPage, onNavigate, isAdmin = false })
               }`}
             >
               <span className="text-xl mb-0.5">{item.icon}</span>
-              <span className="text-xs font-medium">{item.labelKey || t(item.labelKey)}</span>
+              <span className="text-xs font-medium">{label}</span>
               {isActive && (
                 <div className="absolute bottom-0 w-12 h-0.5 bg-[var(--color-primary)] rounded-full" />
               )}

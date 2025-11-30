@@ -15,8 +15,23 @@ export function useAdmin() {
 
   const checkAdminStatus = useCallback(async () => {
     try {
-      // Use /api/webapp endpoint which doesn't require admin
-      const profile = await request('/api/user/profile')
+      // Use full path to bypass /api/webapp prefix
+      const initData = window.Telegram?.WebApp?.initData || ''
+      const response = await fetch('/api/user/profile', {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Init-Data': initData
+        }
+      })
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Admin check failed:', response.status, errorText)
+        throw new Error(`HTTP ${response.status}`)
+      }
+      
+      const profile = await response.json()
+      console.log('Admin profile check:', profile)
       setIsAdmin(profile.is_admin === true)
     } catch (err) {
       console.error('Failed to check admin status:', err)
@@ -24,7 +39,7 @@ export function useAdmin() {
     } finally {
       setChecking(false)
     }
-  }, [request])
+  }, [])
 
   // Products
   const getProducts = useCallback(() => get(`${ADMIN_API_BASE}/products`), [get])

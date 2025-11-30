@@ -118,3 +118,4 @@ $$ LANGUAGE plpgsql;
 --     FOR EACH ROW EXECUTE FUNCTION update_last_activity();
 
 
+
