@@ -1016,20 +1016,7 @@ async def execute_tool(
         
         # Atomic transaction: update order and create ticket together
         try:
-            # #region agent log
-            import json
-            import time
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "tools.py:499", "message": "request_refund entry", "data": {"user_id": user_id, "order_id": order_id}, "timestamp": int(time.time() * 1000)}) + "\n")
-            # #endregion
-            
             # First create ticket (if this fails, we don't update order)
-            # #region agent log
-            exec_start = time.time()
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "tools.py:504", "message": "Before ticket insert execute (async)", "data": {}, "timestamp": int(time.time() * 1000)}) + "\n")
-            # #endregion
-            
             # Run synchronous Supabase call in thread pool to avoid blocking event loop
             ticket_result = await asyncio.to_thread(
                 lambda: db.client.table("tickets").insert({
@@ -1041,34 +1028,16 @@ async def execute_tool(
                 }).execute()
             )
             
-            # #region agent log
-            exec_duration = (time.time() - exec_start) * 1000
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "tools.py:515", "message": "After ticket insert execute", "data": {"exec_duration_ms": exec_duration, "has_data": bool(ticket_result.data)}, "timestamp": int(time.time() * 1000)}) + "\n")
-            # #endregion
-            
             if not ticket_result.data:
                 return {"success": False, "reason": "Failed to create support ticket"}
             
             # Then update order (if this fails, ticket exists but order not marked - acceptable)
-            # #region agent log
-            exec_start2 = time.time()
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "tools.py:523", "message": "Before order update execute (async)", "data": {}, "timestamp": int(time.time() * 1000)}) + "\n")
-            # #endregion
-            
             # Run synchronous Supabase call in thread pool to avoid blocking event loop
             await asyncio.to_thread(
                 lambda: db.client.table("orders").update({
                     "refund_requested": True
                 }).eq("id", order_id).execute()
             )
-            
-            # #region agent log
-            exec_duration2 = (time.time() - exec_start2) * 1000
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "B", "location": "tools.py:532", "message": "After order update execute", "data": {"exec_duration_ms": exec_duration2}, "timestamp": int(time.time() * 1000)}) + "\n")
-            # #endregion
             
             return {
                 "success": True,
