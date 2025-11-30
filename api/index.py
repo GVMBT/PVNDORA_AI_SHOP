@@ -375,10 +375,10 @@ async def get_webapp_product(product_id: str, user = Depends(verify_telegram_aut
 
 
 @app.get("/api/webapp/products")
-async def get_webapp_products(user = Depends(verify_telegram_auth)):
+async def get_webapp_products():
     """
     Get all products for Mini App catalog.
-    Requires Telegram initData authentication.
+    Public endpoint - products are not sensitive data.
     """
     db = get_database()
     products = await db.get_products(status="active")
