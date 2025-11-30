@@ -22,6 +22,7 @@ export default function App() {
   
   const [currentPage, setCurrentPage] = useState('catalog')
   const [productId, setProductId] = useState(null)
+  const [initialQuantity, setInitialQuantity] = useState(1)
   
   // Parse startapp parameter for deep linking
   useEffect(() => {
@@ -33,8 +34,16 @@ export default function App() {
         setProductId(id)
         setCurrentPage('product')
       } else if (startapp.startsWith('pay_')) {
-        const id = startapp.replace('pay_', '')
-        setProductId(id)
+        // Format: pay_{product_id}_qty_{quantity}
+        const parts = startapp.replace('pay_', '')
+        if (parts.includes('_qty_')) {
+          const [id, qty] = parts.split('_qty_')
+          setProductId(id)
+          setInitialQuantity(parseInt(qty) || 1)
+        } else {
+          setProductId(parts)
+          setInitialQuantity(1)
+        }
         setCurrentPage('checkout')
       } else if (startapp === 'orders') {
         setCurrentPage('orders')
@@ -83,6 +92,7 @@ export default function App() {
         return (
           <CheckoutPage 
             productId={productId}
+            initialQuantity={initialQuantity}
             onBack={() => productId ? navigateTo('product', productId) : navigateTo('catalog')}
             onSuccess={() => navigateTo('orders')}
           />

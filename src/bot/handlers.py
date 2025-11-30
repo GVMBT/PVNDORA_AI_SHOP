@@ -322,7 +322,7 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
             reply_markup = get_shop_keyboard(db_user.language_code, WEBAPP_URL)
         elif response.action == ActionType.OFFER_PAYMENT:
             if response.product_id:
-                # Single product - show product keyboard
+                # Single product - show product keyboard with quantity
                 product = await db.get_product_by_id(response.product_id)
                 if product:
                     reply_markup = get_product_keyboard(
@@ -330,6 +330,7 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
                         response.product_id,
                         WEBAPP_URL,
                         in_stock=product.stock_count > 0,
+                        quantity=response.quantity or 1
                     )
             else:
                 # Multiple products - show shop button (cart checkout not implemented)
@@ -425,6 +426,7 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
                     response.product_id,
                     WEBAPP_URL,
                     in_stock=product.stock_count > 0,
+                    quantity=response.quantity or 1
                 )
         else:
             # Multiple products - show shop button (cart checkout not implemented)

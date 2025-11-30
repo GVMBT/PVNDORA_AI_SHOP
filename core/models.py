@@ -111,6 +111,10 @@ class AIResponse(BaseModel):
         default=None,
         description="Product UUID if action involves specific product"
     )
+    quantity: int = Field(
+        default=1,
+        description="Quantity of product to purchase (1-99)"
+    )
     product_ids: Optional[List[str]] = Field(
         default=None,
         description="Multiple product UUIDs for comparison/catalog"

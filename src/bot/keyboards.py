@@ -17,13 +17,15 @@ def get_product_keyboard(
     lang: str, 
     product_id: str, 
     webapp_url: str,
-    in_stock: bool = True
+    in_stock: bool = True,
+    quantity: int = 1
 ) -> InlineKeyboardMarkup:
     """Product action buttons - always opens Mini App for payment (no extra clicks!)"""
     buttons = []
     
-    # WebApp URL - direct to checkout (works for both in-stock and pre-order)
-    checkout_url = f"{webapp_url}?startapp=pay_{product_id}"
+    # WebApp URL - direct to checkout with quantity
+    # Format: pay_{product_id}_qty_{quantity}
+    checkout_url = f"{webapp_url}?startapp=pay_{product_id}_qty_{quantity}"
     
     if in_stock:
         btn_text = get_text("btn_buy", lang)

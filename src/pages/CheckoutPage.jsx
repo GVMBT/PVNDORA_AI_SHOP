@@ -3,7 +3,7 @@ import { useProducts, useOrders, usePromo } from '../hooks/useApi'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
 
-export default function CheckoutPage({ productId, onBack, onSuccess }) {
+export default function CheckoutPage({ productId, initialQuantity = 1, onBack, onSuccess }) {
   const { getProduct, loading: productLoading } = useProducts()
   const { createOrder, loading: orderLoading } = useOrders()
   const { checkPromo, loading: promoLoading } = usePromo()
@@ -13,7 +13,7 @@ export default function CheckoutPage({ productId, onBack, onSuccess }) {
   const [product, setProduct] = useState(null)
   const [promoCode, setPromoCode] = useState('')
   const [promoResult, setPromoResult] = useState(null)
-  const [quantity, setQuantity] = useState(1)
+  const [quantity, setQuantity] = useState(initialQuantity)
   const [error, setError] = useState(null)
   
   useEffect(() => {
