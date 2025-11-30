@@ -270,15 +270,20 @@ class AIConsultant:
                             show_shop=True
                         )
                     
-                    if tool_name == "add_to_waitlist" and tool_result.get("success"):
-                        from src.i18n import get_text
-                        return AIResponse(
-                            text=get_text(
-                                "waitlist_added", 
-                                language,
-                                product=tool_result["product_name"]
+                    if tool_name == "add_to_waitlist":
+                        if tool_result.get("success"):
+                            from src.i18n import get_text
+                            return AIResponse(
+                                text=get_text(
+                                    "waitlist_added", 
+                                    language,
+                                    product=tool_result.get("product_name", "product")
+                                )
                             )
-                        )
+                        else:
+                            # If waitlist add failed, continue with error message
+                            # This will let AI explain the error to user
+                            pass  # Fall through to _continue_with_tool_result
                     
                     # For other tools, make another call with the result
                     if not original_messages:

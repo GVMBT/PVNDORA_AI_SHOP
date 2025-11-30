@@ -362,10 +362,13 @@ class Database:
     
     async def add_to_waitlist(self, user_id: str, product_name: str) -> None:
         """Add user to waitlist for a product"""
-        self.client.table("waitlist").upsert({
-            "user_id": user_id,
-            "product_name": product_name
-        }, on_conflict="user_id,product_name").execute()
+        import asyncio
+        await asyncio.to_thread(
+            lambda: self.client.table("waitlist").upsert({
+                "user_id": user_id,
+                "product_name": product_name
+            }, on_conflict="user_id,product_name").execute()
+        )
     
     async def add_to_wishlist(self, user_id: str, product_id: str) -> None:
         """Add product to user's wishlist"""

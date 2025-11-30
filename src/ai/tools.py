@@ -299,11 +299,27 @@ async def execute_tool(
         }
     
     elif tool_name == "add_to_waitlist":
-        await db.add_to_waitlist(user_id, arguments["product_name"])
-        return {
-            "success": True,
-            "product_name": arguments["product_name"]
-        }
+        try:
+            product_name = arguments.get("product_name", "")
+            if not product_name:
+                return {
+                    "success": False,
+                    "reason": "Product name is required"
+                }
+            
+            await db.add_to_waitlist(user_id, product_name)
+            return {
+                "success": True,
+                "product_name": product_name
+            }
+        except Exception as e:
+            print(f"ERROR: add_to_waitlist failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "success": False,
+                "reason": f"Failed to add to waitlist: {str(e)}"
+            }
     
     elif tool_name == "get_catalog":
         products = await db.get_products(status="active")
