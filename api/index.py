@@ -209,17 +209,35 @@ async def telegram_webhook(request: Request):
 
 # ==================== AUTHENTICATION ====================
 
-async def verify_telegram_auth(authorization: str = Header(None)):
-    """Verify Telegram Mini App authentication"""
-    if not authorization:
+async def verify_telegram_auth(
+    authorization: str = Header(None, alias="Authorization"),
+    x_init_data: str = Header(None, alias="X-Init-Data")
+):
+    """
+    Verify Telegram Mini App authentication.
+    Accepts either:
+    - Authorization: tma <initData>
+    - X-Init-Data: <initData>
+    """
+    init_data = None
+    
+    # Try X-Init-Data header first (frontend sends this)
+    if x_init_data:
+        init_data = x_init_data
+    # Fallback to Authorization header
+    elif authorization:
+        parts = authorization.split(" ")
+        if len(parts) == 2 and parts[0].lower() == "tma":
+            init_data = parts[1]
+        else:
+            init_data = authorization  # Try raw value
+    
+    if not init_data:
         raise HTTPException(status_code=401, detail="No authorization header")
     
-    # Parse "tma <initData>"
-    parts = authorization.split(" ")
-    if len(parts) != 2 or parts[0].lower() != "tma":
-        raise HTTPException(status_code=401, detail="Invalid authorization format")
-    
-    init_data = parts[1]
+    # For development/testing - allow bypass with special token
+    if init_data == "dev_bypass" and os.environ.get("DEBUG") == "true":
+        return {"id": 339469894, "first_name": "Test", "language_code": "ru"}
     
     if not validate_telegram_init_data(init_data, TELEGRAM_TOKEN):
         raise HTTPException(status_code=401, detail="Invalid initData signature")
