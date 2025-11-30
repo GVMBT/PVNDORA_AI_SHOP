@@ -37,6 +37,9 @@ class Product(BaseModel):
     terms: Optional[str] = None
     supplier_id: Optional[str] = None
     stock_count: int = 0  # Computed field
+    fulfillment_time_hours: int = 48  # Time to fulfill on-demand order
+    requires_prepayment: bool = False  # Whether prepayment is required
+    prepayment_percent: int = 100  # Prepayment percentage (0-100)
 
 
 class StockItem(BaseModel):
