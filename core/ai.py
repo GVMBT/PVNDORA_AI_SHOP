@@ -430,13 +430,13 @@ class AIConsultant:
             parts=[types.Part(text=user_message)]
         ))
         
-        # Configure generation
+        # Configure generation with Pydantic schema as dict
         generation_config = types.GenerateContentConfig(
             temperature=0.7,
             top_p=0.9,
             max_output_tokens=2048,
             response_mime_type="application/json",
-            response_schema=AIResponse,
+            response_schema=AIResponse.model_json_schema(),
             system_instruction=system_prompt
         )
         

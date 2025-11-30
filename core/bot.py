@@ -34,10 +34,18 @@ class UpstashRedisStorage(BaseStorage):
     FSM Storage using Upstash HTTP Redis.
     
     Compatible with aiogram 3.x FSM system.
+    Uses lazy initialization to avoid errors during import.
     """
     
     def __init__(self):
-        self.redis = get_redis()
+        self._redis = None  # Lazy init
+    
+    @property
+    def redis(self):
+        """Get Redis client with lazy initialization."""
+        if self._redis is None:
+            self._redis = get_redis()
+        return self._redis
     
     def _make_key(self, key: StorageKey, suffix: str) -> str:
         """Generate Redis key for FSM data."""
@@ -169,6 +177,7 @@ class DependencyInjectionMiddleware(BaseMiddleware):
     Dependency injection middleware.
     
     Injects database clients and AI into handler data.
+    Uses lazy initialization with error handling.
     """
     
     async def __call__(
@@ -177,15 +186,32 @@ class DependencyInjectionMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict
     ) -> Any:
-        from core.db import get_supabase, get_redis
-        from core.ai import get_ai_consultant
-        from core.cart import get_cart_manager
+        import logging
+        logger = logging.getLogger(__name__)
         
-        # Inject dependencies
-        data["supabase"] = await get_supabase()
-        data["redis"] = get_redis()
-        data["ai_consultant"] = get_ai_consultant()
-        data["cart_manager"] = get_cart_manager()
+        try:
+            from core.db import get_supabase, get_redis
+            from core.ai import get_ai_consultant
+            from core.cart import get_cart_manager
+            
+            # Inject dependencies (lazy init - may raise ValueError if env vars missing)
+            data["supabase"] = await get_supabase()
+            data["redis"] = get_redis()
+            data["ai_consultant"] = get_ai_consultant()
+            data["cart_manager"] = get_cart_manager()
+        except ValueError as e:
+            logger.error(f"Dependency injection failed: {e}")
+            # Set to None - handlers should check
+            data["supabase"] = None
+            data["redis"] = None
+            data["ai_consultant"] = None
+            data["cart_manager"] = None
+        except Exception as e:
+            logger.exception(f"Unexpected error in DI middleware: {e}")
+            data["supabase"] = None
+            data["redis"] = None
+            data["ai_consultant"] = None
+            data["cart_manager"] = None
         
         return await handler(event, data)
 

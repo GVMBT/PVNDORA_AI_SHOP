@@ -17,11 +17,13 @@ from upstash_redis import Redis
 from upstash_redis.asyncio import Redis as AsyncRedis
 
 
-# Environment variables
+# Environment variables (Upstash uses REST_URL and REST_TOKEN)
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-UPSTASH_REDIS_URL = os.environ.get("UPSTASH_REDIS_URL", "")
-UPSTASH_REDIS_TOKEN = os.environ.get("UPSTASH_REDIS_TOKEN", "")
+
+# Upstash Redis - standard env var names per docs
+UPSTASH_REDIS_REST_URL = os.environ.get("UPSTASH_REDIS_REST_URL", "")
+UPSTASH_REDIS_REST_TOKEN = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
 
 
 # Singleton instances
@@ -65,6 +67,10 @@ def get_redis() -> AsyncRedis:
     """
     Get async Upstash Redis client (singleton).
     
+    Uses standard Upstash env var names:
+    - UPSTASH_REDIS_REST_URL
+    - UPSTASH_REDIS_REST_TOKEN
+    
     Used for:
     - FSM storage (aiogram)
     - Cart management
@@ -75,9 +81,9 @@ def get_redis() -> AsyncRedis:
     global _redis_client
     
     if _redis_client is None:
-        if not UPSTASH_REDIS_URL or not UPSTASH_REDIS_TOKEN:
-            raise ValueError("UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN must be set")
-        _redis_client = AsyncRedis(url=UPSTASH_REDIS_URL, token=UPSTASH_REDIS_TOKEN)
+        if not UPSTASH_REDIS_REST_URL or not UPSTASH_REDIS_REST_TOKEN:
+            raise ValueError("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set")
+        _redis_client = AsyncRedis(url=UPSTASH_REDIS_REST_URL, token=UPSTASH_REDIS_REST_TOKEN)
     
     return _redis_client
 
@@ -90,9 +96,9 @@ def get_redis_sync() -> Redis:
     global _sync_redis_client
     
     if _sync_redis_client is None:
-        if not UPSTASH_REDIS_URL or not UPSTASH_REDIS_TOKEN:
-            raise ValueError("UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN must be set")
-        _sync_redis_client = Redis(url=UPSTASH_REDIS_URL, token=UPSTASH_REDIS_TOKEN)
+        if not UPSTASH_REDIS_REST_URL or not UPSTASH_REDIS_REST_TOKEN:
+            raise ValueError("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set")
+        _sync_redis_client = Redis(url=UPSTASH_REDIS_REST_URL, token=UPSTASH_REDIS_REST_TOKEN)
     
     return _sync_redis_client
 
@@ -137,4 +143,3 @@ class TTL:
     CURRENCY_CACHE = 3600  # 1 hour
     TEMP_DATA = 900  # 15 minutes
     RATE_LIMIT_REENGAGEMENT = 259200  # 72 hours
-
