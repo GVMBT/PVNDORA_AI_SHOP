@@ -239,6 +239,13 @@ async def execute_tool(
             product_details = await db.get_product_by_id(product.id)
             fulfillment_hours = getattr(product_details, 'fulfillment_time_hours', 48) if product_details else 48
             requires_prepayment = getattr(product_details, 'requires_prepayment', False) if product_details else False
+            product_status = getattr(product_details, 'status', 'active') if product_details else 'active'
+            
+            # Determine if product is discontinued
+            is_discontinued = product_status == 'discontinued'
+            
+            # Can fulfill on-demand only if product is active (not discontinued)
+            can_fulfill_on_demand = product_status == 'active' and not is_discontinued
             
             return {
                 "found": True,
@@ -247,8 +254,10 @@ async def execute_tool(
                 "price": product.price,
                 "in_stock": product.stock_count > 0,
                 "stock_count": product.stock_count,
-                "can_fulfill_on_demand": True,  # All products can be fulfilled on-demand
-                "fulfillment_time_hours": fulfillment_hours,
+                "status": product_status,
+                "is_discontinued": is_discontinued,
+                "can_fulfill_on_demand": can_fulfill_on_demand,
+                "fulfillment_time_hours": fulfillment_hours if can_fulfill_on_demand else None,
                 "requires_prepayment": requires_prepayment
             }
         return {"found": False}
@@ -299,6 +308,16 @@ async def execute_tool(
                 "reason": "Product not found"
             }
         
+        product_status = getattr(product, 'status', 'active')
+        is_discontinued = product_status == 'discontinued'
+        
+        # If product is discontinued, cannot create purchase intent
+        if is_discontinued:
+            return {
+                "success": False,
+                "reason": "Product is discontinued. Please use waitlist to be notified when it becomes available again."
+            }
+        
         if product.stock_count > 0:
             # Product in stock - instant order
             return {
@@ -310,7 +329,7 @@ async def execute_tool(
                 "action": "show_payment_button"
             }
         else:
-            # Product out of stock - prepaid order (on-demand)
+            # Product out of stock but active - prepaid order (on-demand)
             fulfillment_hours = getattr(product, 'fulfillment_time_hours', 48)
             fulfillment_days = fulfillment_hours // 24
             return {
