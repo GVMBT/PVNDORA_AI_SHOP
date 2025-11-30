@@ -94,6 +94,7 @@ class ProductSearch:
         Creates/updates embedding in product_embeddings table.
         """
         if not self.is_available:
+            print(f"RAG not available: GEMINI_API_KEY={bool(GEMINI_API_KEY)}")
             return False
         
         # Build text for embedding
@@ -109,23 +110,27 @@ class ProductSearch:
         embedding = await get_embedding(content)
         
         if not embedding:
+            print(f"ERROR: Failed to generate embedding for {name}")
             return False
         
         try:
             # Format embedding as PostgreSQL vector string
             embedding_str = f"[{','.join(map(str, embedding))}]"
             
-            # Upsert embedding
-            await self.db.client.table("product_embeddings").upsert({
+            # Upsert embedding (sync client, no await)
+            self.db.client.table("product_embeddings").upsert({
                 "product_id": product_id,
                 "content": content,
                 "embedding": embedding_str
             }, on_conflict="product_id").execute()
             
+            print(f"Indexed: {name}")
             return True
             
         except Exception as e:
             print(f"ERROR: Failed to index product {product_id}: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     async def search(
@@ -158,8 +163,8 @@ class ProductSearch:
             # Format as PostgreSQL vector
             embedding_str = f"[{','.join(map(str, query_embedding))}]"
             
-            # Call RPC function for vector search
-            result = await self.db.client.rpc(
+            # Call RPC function for vector search (sync client)
+            result = self.db.client.rpc(
                 "search_products_semantic",
                 {
                     "query_embedding": embedding_str,
@@ -195,12 +200,16 @@ class ProductSearch:
         Returns number of products indexed.
         """
         try:
-            result = await self.db.client.table("products").select(
+            # Sync client, no await
+            result = self.db.client.table("products").select(
                 "id, name, description, type, instructions"
             ).eq("status", "active").execute()
             
             if not result.data:
+                print("No active products found")
                 return 0
+            
+            print(f"Found {len(result.data)} products to index")
             
             indexed = 0
             for product in result.data:
@@ -218,12 +227,15 @@ class ProductSearch:
             
         except Exception as e:
             print(f"ERROR: Failed to index products: {e}")
+            import traceback
+            traceback.print_exc()
             return 0
     
     async def delete_product(self, product_id: str) -> bool:
         """Remove product from search index."""
         try:
-            await self.db.client.table("product_embeddings").delete().eq(
+            # Sync client
+            self.db.client.table("product_embeddings").delete().eq(
                 "product_id", product_id
             ).execute()
             return True
