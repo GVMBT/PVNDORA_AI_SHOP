@@ -11,8 +11,15 @@ import os
 from typing import Optional, List
 from functools import lru_cache
 
-import vecs
-from vecs import Collection
+# Safe import - RAG is optional
+try:
+    import vecs
+    from vecs import Collection
+    VECS_AVAILABLE = True
+except ImportError:
+    VECS_AVAILABLE = False
+    vecs = None
+    Collection = None
 
 from core.ai import get_ai_consultant
 
@@ -33,6 +40,9 @@ _products_collection: Optional[Collection] = None
 def get_vecs_client():
     """Get vecs client (singleton)."""
     global _vecs_client
+    
+    if not VECS_AVAILABLE:
+        raise ImportError("vecs library not installed. Install with: pip install vecs")
     
     if _vecs_client is None:
         # Extract connection string from Supabase URL

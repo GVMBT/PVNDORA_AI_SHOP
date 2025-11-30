@@ -10,7 +10,14 @@ from src.services.database import get_database
 from src.ai.prompts import get_system_prompt, format_product_catalog
 from src.ai.tools import TOOLS, execute_tool
 from core.models import AIResponse as StructuredAIResponse, ActionType
-from core.rag import ProductSearch
+
+# Lazy import for RAG - optional feature
+try:
+    from core.rag import ProductSearch
+    RAG_AVAILABLE = True
+except ImportError:
+    RAG_AVAILABLE = False
+    ProductSearch = None
 
 
 class AIConsultant:
@@ -23,7 +30,15 @@ class AIConsultant:
         
         self.client = genai.Client(api_key=api_key)
         self.model = "gemini-2.5-flash"
-        self.product_search = ProductSearch()  # RAG for semantic product search
+        # Initialize RAG only if available
+        if RAG_AVAILABLE and ProductSearch:
+            try:
+                self.product_search = ProductSearch()
+            except (ImportError, Exception) as e:
+                print(f"WARNING: Failed to initialize RAG: {e}")
+                self.product_search = None
+        else:
+            self.product_search = None
         self._cached_contents = {}  # Cache for system prompts by language
     
     @retry(

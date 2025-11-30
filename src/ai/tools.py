@@ -337,9 +337,12 @@ async def execute_tool(
         query = arguments.get("query", "")
         category = arguments.get("category", "all")
         
-        # Use RAG for semantic search
+        # Use RAG for semantic search (if available)
         try:
-            from core.rag import ProductSearch
+            from core.rag import ProductSearch, VECS_AVAILABLE
+            if not VECS_AVAILABLE or ProductSearch is None:
+                raise ImportError("RAG not available - vecs not installed")
+            
             product_search = ProductSearch()
             
             # Build filters based on category
