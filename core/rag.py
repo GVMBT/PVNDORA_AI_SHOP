@@ -8,7 +8,7 @@ Works with Supabase Connection Pooler (Transaction mode).
 import os
 from typing import Optional, List
 
-from core.db import get_database
+from src.services.database import get_database
 
 
 # Environment
