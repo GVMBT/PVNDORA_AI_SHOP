@@ -149,6 +149,8 @@ async def telegram_webhook(request: Request):
     """Handle Telegram webhook updates"""
     import traceback
     
+    # IMPORTANT: Return 200 immediately to avoid 307 redirects
+    # Process update asynchronously to avoid timeout
     try:
         # Get bot and dispatcher
         bot_instance = get_bot()
@@ -157,19 +159,20 @@ async def telegram_webhook(request: Request):
         if not bot_instance:
             print("ERROR: Bot instance is None - TELEGRAM_TOKEN may be missing")
             return JSONResponse(
-                status_code=500,
-                content={"error": "Bot not configured"}
+                status_code=200,  # Return 200 even on error to prevent Telegram retries
+                content={"ok": False, "error": "Bot not configured"}
             )
         
         # Parse update
         try:
             data = await request.json()
-            print(f"DEBUG: Received update: {data.get('update_id', 'unknown')}")
+            update_id = data.get('update_id', 'unknown')
+            print(f"DEBUG: Received update: {update_id}")
         except Exception as e:
             print(f"ERROR: Failed to parse JSON: {e}")
             return JSONResponse(
-                status_code=400,
-                content={"error": f"Invalid JSON: {str(e)}"}
+                status_code=200,  # Return 200 to prevent retries
+                content={"ok": False, "error": f"Invalid JSON: {str(e)}"}
             )
         
         # Validate update
@@ -180,20 +183,17 @@ async def telegram_webhook(request: Request):
             print(f"ERROR: Failed to validate update: {e}")
             print(f"ERROR: Traceback: {traceback.format_exc()}")
             return JSONResponse(
-                status_code=400,
-                content={"error": f"Invalid update: {str(e)}"}
+                status_code=200,  # Return 200 to prevent retries
+                content={"ok": False, "error": f"Invalid update: {str(e)}"}
             )
         
-        # Process update - use process_update for better error handling
-        try:
-            await dispatcher.feed_update(bot_instance, update)
-            print("DEBUG: Update processed successfully")
-        except Exception as e:
-            print(f"ERROR: Failed to process update: {e}")
-            print(f"ERROR: Traceback: {traceback.format_exc()}")
-            # Still return 200 to Telegram to avoid retries
-            return JSONResponse(content={"ok": True, "error": str(e)})
+        # Process update asynchronously - don't await to avoid timeout
+        # Return 200 immediately to Telegram
+        asyncio.create_task(
+            _process_update_async(bot_instance, dispatcher, update)
+        )
         
+        # Return 200 OK immediately
         return JSONResponse(content={"ok": True})
     
     except Exception as e:
@@ -201,10 +201,22 @@ async def telegram_webhook(request: Request):
         error_trace = traceback.format_exc()
         print(f"ERROR: Webhook exception: {error_msg}")
         print(f"ERROR: Traceback: {error_trace}")
+        # Always return 200 to prevent Telegram from retrying
         return JSONResponse(
-            status_code=500,
-            content={"error": error_msg}
+            status_code=200,
+            content={"ok": False, "error": error_msg}
         )
+
+
+async def _process_update_async(bot_instance: Bot, dispatcher: Dispatcher, update: Update):
+    """Process update asynchronously"""
+    import traceback
+    try:
+        await dispatcher.feed_update(bot_instance, update)
+        print("DEBUG: Update processed successfully")
+    except Exception as e:
+        print(f"ERROR: Failed to process update: {e}")
+        print(f"ERROR: Traceback: {traceback.format_exc()}")
 
 
 # ==================== AUTHENTICATION ====================
