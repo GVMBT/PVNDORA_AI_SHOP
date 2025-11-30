@@ -28,15 +28,24 @@ https://pvndora.app
 
 **Success URL (URL успешной оплаты):**
 ```
-https://pvndora.app/payment/success?order_id={order_id}
+https://pvndora.app/payment/success
 ```
 *URL адрес, на который будет перенаправлен пользователь в случае успешного прохождения платежа*
 
+**⚠️ ВАЖНО:** 
+- **НЕ указывайте переменные** типа `{order_id}` в URL при настройке проекта
+- CardLink автоматически добавит параметры к URL при редиректе (например, `?order_id=xxx` или `?payment_id=xxx`)
+- `order_id` также будет передаваться через **Result URL (webhook)**, что является основным способом обработки платежа
+
 **Fail URL (URL неуспешной оплаты):**
 ```
-https://pvndora.app/payment/fail?order_id={order_id}
+https://pvndora.app/payment/fail
 ```
 *URL адрес, на который будет перенаправлен пользователь в случае неуспешного прохождения платежа*
+
+**⚠️ ВАЖНО:**
+- **НЕ указывайте переменные** типа `{order_id}` в URL при настройке проекта
+- CardLink автоматически добавит параметры к URL при редиректе
 
 **Result URL (Webhook для обработки ответа):**
 ```
@@ -112,10 +121,12 @@ Body:
   "currency": "RUB",
   "order_id": "unique_order_id",
   "description": "Оплата товара",
-  "success_url": "https://pvndora.app/payment/success?order_id={order_id}",
-  "fail_url": "https://pvndora.app/payment/fail?order_id={order_id}"
+  "success_url": "https://pvndora.app/payment/success",
+  "fail_url": "https://pvndora.app/payment/fail"
 }
 ```
+
+**Примечание:** При создании платежа через API можно передавать `order_id` в параметрах URL, но при настройке проекта в форме CardLink используйте только статичные URL без переменных.
 
 ### Webhook формат
 
