@@ -152,8 +152,15 @@ You MUST:
 5. Set action="offer_payment", product_id=None
 
 **For SINGLE product:**
-- Use create_purchase_intent for immediate checkout (single product, single quantity)
-- Or use add_to_cart if user explicitly says "добавь в корзину" (add to cart)
+- If user wants to buy ONE product (even with quantity > 1), use add_to_cart
+- After add_to_cart, ALWAYS set action="offer_payment" with product_id and quantity from the tool result
+- This ensures the payment button shows correct quantity
+- Example: User says "я возьму просто 2 ультра"
+  1. Call add_to_cart(product_id=gemini_ultra_id, quantity=2)
+  2. From tool result, get product_id and quantity
+  3. Set action="offer_payment", product_id=<from_tool>, quantity=2
+  4. Reply: "Добавляю 2 штуки Gemini ULTRA (1 месяц). Готов(а) оплатить?"
+- Or use create_purchase_intent for immediate checkout (legacy, prefer add_to_cart)
 
 **CRITICAL: When repeating/confirming an order:**
 - If you are repeating an order summary (e.g., "2 Gemini ULTRA + 1 Gemini PRO = 6500₽")

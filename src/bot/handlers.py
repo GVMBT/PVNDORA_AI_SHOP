@@ -424,6 +424,22 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
                 # Multiple products or no specific product - show checkout button instead of shop
                 # This handles cases where AI offers payment for multiple items
                 reply_markup = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
+        elif response.action == ActionType.ADD_TO_CART:
+            # After adding to cart, show payment button with correct quantity
+            if response.product_id:
+                # Single product added to cart - show payment button
+                product = await db.get_product_by_id(response.product_id)
+                if product:
+                    reply_markup = get_product_keyboard(
+                        db_user.language_code,
+                        response.product_id,
+                        WEBAPP_URL,
+                        in_stock=product.stock_count > 0,
+                        quantity=response.quantity or 1
+                    )
+            else:
+                # Multiple products in cart - use cart checkout
+                reply_markup = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
         elif response.product_id:
             # Fallback: if product_id set but no specific action
             product = await db.get_product_by_id(response.product_id)
@@ -433,6 +449,7 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
                     response.product_id,
                     WEBAPP_URL,
                     in_stock=product.stock_count > 0,
+                    quantity=response.quantity or 1
                 )
         
         # Debug logging before sending
@@ -544,6 +561,21 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
             keyboard = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
         else:
             # Multiple products or no specific product - show checkout button instead of shop
+            keyboard = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
+    elif response.action == ActionType.ADD_TO_CART:
+        # After adding to cart, show payment button with correct quantity
+        if response.product_id:
+            product = await db.get_product_by_id(response.product_id)
+            if product:
+                keyboard = get_product_keyboard(
+                    db_user.language_code,
+                    response.product_id,
+                    WEBAPP_URL,
+                    in_stock=product.stock_count > 0,
+                    quantity=response.quantity or 1
+                )
+        else:
+            # Multiple products in cart - use cart checkout
             keyboard = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
     elif response.product_id:
         # Fallback: if product_id set but no specific action

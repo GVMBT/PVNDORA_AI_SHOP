@@ -208,7 +208,7 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
   }
   
   return (
-    <div className="p-4 pb-24">
+    <div className="p-4 pb-20">
       {/* Back button */}
       <button
         onClick={onBack}
@@ -385,16 +385,8 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
         </p>
       </div>
       
-      {/* Checkout button - handled by Telegram MainButton */}
-      <div className="fixed bottom-20 left-0 right-0 p-4 bg-gradient-to-t from-[var(--color-bg-dark)] to-transparent">
-        <button
-          onClick={handleCheckout}
-          disabled={orderLoading}
-          className="btn btn-primary w-full glow-primary"
-        >
-          {orderLoading ? t('checkout.processing') : `${t('checkout.pay')} ${formatPrice(total)}`}
-        </button>
-      </div>
+      {/* Checkout button is handled by Telegram MainButton via setMainButton */}
+      {/* No need for duplicate HTML button */}
     </div>
   )
 }
