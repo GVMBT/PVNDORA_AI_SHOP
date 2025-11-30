@@ -7,7 +7,6 @@ Optimized for Vercel Hobby plan (max 12 serverless functions).
 import os
 import sys
 from pathlib import Path
-from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, Request, HTTPException, Depends, Header
@@ -20,36 +19,40 @@ import json
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from aiogram import Bot, Dispatcher
-from aiogram.types import Update
-from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
-
-# Import bot components
-from src.bot.handlers import router as bot_router
-from src.bot.middlewares import (
-    AuthMiddleware,
-    LanguageMiddleware, 
-    ActivityMiddleware,
-    AnalyticsMiddleware
-)
-from src.services.database import get_database
-from src.utils.validators import validate_telegram_init_data, extract_user_from_init_data
-
-
-# ==================== BOT INITIALIZATION ====================
+# Lazy imports to avoid import errors
+bot = None
+dp = None
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://pvndora-ai-shop.vercel.app")
 
-bot: Optional[Bot] = None
-dp: Optional[Dispatcher] = None
+
+# Lazy import helpers
+def get_database():
+    """Lazy import database module"""
+    from src.services.database import get_database as _get_database
+    return _get_database()
 
 
-def get_bot() -> Bot:
-    """Get or create bot instance"""
+def validate_telegram_init_data(init_data: str, bot_token: str) -> bool:
+    """Lazy import validator"""
+    from src.utils.validators import validate_telegram_init_data as _validate
+    return _validate(init_data, bot_token)
+
+
+def extract_user_from_init_data(init_data: str):
+    """Lazy import user extractor"""
+    from src.utils.validators import extract_user_from_init_data as _extract
+    return _extract(init_data)
+
+
+def get_bot():
+    """Get or create bot instance (lazy loaded)"""
     global bot
     if bot is None and TELEGRAM_TOKEN:
+        from aiogram import Bot
+        from aiogram.client.default import DefaultBotProperties
+        from aiogram.enums import ParseMode
         bot = Bot(
             token=TELEGRAM_TOKEN,
             default=DefaultBotProperties(parse_mode=ParseMode.HTML)
@@ -57,10 +60,19 @@ def get_bot() -> Bot:
     return bot
 
 
-def get_dispatcher() -> Dispatcher:
-    """Get or create dispatcher instance"""
+def get_dispatcher():
+    """Get or create dispatcher instance (lazy loaded)"""
     global dp
     if dp is None:
+        from aiogram import Dispatcher
+        from src.bot.handlers import router as bot_router
+        from src.bot.middlewares import (
+            AuthMiddleware,
+            LanguageMiddleware, 
+            ActivityMiddleware,
+            AnalyticsMiddleware
+        )
+        
         dp = Dispatcher()
         
         # Register middlewares (order matters!)
@@ -81,21 +93,10 @@ def get_dispatcher() -> Dispatcher:
 
 # ==================== FASTAPI APP ====================
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan handler"""
-    # Startup
-    yield
-    # Shutdown
-    if bot:
-        await bot.session.close()
-
-
 app = FastAPI(
     title="PVNDORA AI Marketplace",
     description="AI-powered digital goods marketplace API",
-    version="1.0.0",
-    lifespan=lifespan
+    version="1.0.0"
 )
 
 # CORS for Mini App
@@ -136,6 +137,7 @@ async def test_webhook():
 async def telegram_webhook(request: Request):
     """Handle Telegram webhook updates"""
     import traceback
+    from aiogram.types import Update
     
     try:
         # Get bot and dispatcher
