@@ -333,26 +333,6 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
     finally:
         typing_active = False
         typing_task.cancel()
-    
-    # Send response with appropriate keyboard if action suggested
-    keyboard = None
-    if response.product_id:
-        product = await db.get_product_by_id(response.product_id)
-        if product:
-            keyboard = get_product_keyboard(
-                db_user.language_code,
-                response.product_id,
-                WEBAPP_URL,
-                in_stock=product.stock_count > 0
-            )
-    elif response.show_shop:
-        keyboard = get_shop_keyboard(db_user.language_code, WEBAPP_URL)
-    
-    await message.answer(
-        response.text,
-        reply_markup=keyboard,
-        parse_mode=ParseMode.HTML
-    )
 
 
 # ==================== VOICE MESSAGE HANDLER ====================
