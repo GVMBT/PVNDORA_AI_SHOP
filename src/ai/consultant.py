@@ -199,25 +199,62 @@ class AIConsultant:
         language: str
     ) -> AIResponse:
         """Process Gemini response, handling function calls if present"""
+        import traceback
         
-        # Check for function calls
-        if response.candidates and response.candidates[0].content.parts:
-            parts = response.candidates[0].content.parts
+        try:
+            # Check for function calls
+            if not response.candidates:
+                # No candidates, return error
+                from src.i18n import get_text
+                return AIResponse(text=get_text("error_generic", language))
             
+            candidate = response.candidates[0]
+            if not hasattr(candidate, 'content') or not candidate.content:
+                # No content, return error
+                from src.i18n import get_text
+                return AIResponse(text=get_text("error_generic", language))
+            
+            parts = getattr(candidate.content, 'parts', None)
+            if not parts:
+                # No parts, try to get text directly
+                text = response.text if hasattr(response, 'text') else str(response)
+                return AIResponse(text=text)
+            
+            # Check each part for function calls
             for part in parts:
                 # Check if this part is a function call
-                if hasattr(part, 'function_call') and part.function_call:
-                    func_call = part.function_call
-                    tool_name = func_call.name
-                    arguments = dict(func_call.args) if func_call.args else {}
+                func_call = getattr(part, 'function_call', None)
+                if func_call:
+                    tool_name = getattr(func_call, 'name', None)
+                    if not tool_name:
+                        continue
+                    
+                    # Get arguments
+                    args = getattr(func_call, 'args', None)
+                    if args:
+                        if hasattr(args, '__dict__'):
+                            arguments = dict(args.__dict__)
+                        elif isinstance(args, dict):
+                            arguments = args
+                        else:
+                            arguments = dict(args) if args else {}
+                    else:
+                        arguments = {}
+                    
+                    print(f"DEBUG: Function call detected: {tool_name} with args: {arguments}")
                     
                     # Execute the tool
-                    tool_result = await execute_tool(
-                        tool_name,
-                        arguments,
-                        user_id,
-                        db
-                    )
+                    try:
+                        tool_result = await execute_tool(
+                            tool_name,
+                            arguments,
+                            user_id,
+                            db
+                        )
+                    except Exception as e:
+                        print(f"ERROR: Tool execution failed: {e}\n{traceback.format_exc()}")
+                        from src.i18n import get_text
+                        return AIResponse(text=get_text("error_generic", language))
                     
                     # Handle specific tool results
                     if tool_name == "create_purchase_intent" and tool_result.get("success"):
@@ -251,10 +288,15 @@ class AIConsultant:
                         db,
                         language
                     )
-        
-        # No function call, just return the text
-        text = response.text if hasattr(response, 'text') else str(response)
-        return AIResponse(text=text)
+            
+            # No function call, just return the text
+            text = response.text if hasattr(response, 'text') else str(response)
+            return AIResponse(text=text)
+            
+        except Exception as e:
+            print(f"ERROR: _process_response failed: {e}\n{traceback.format_exc()}")
+            from src.i18n import get_text
+            return AIResponse(text=get_text("error_generic", language))
     
     async def _continue_with_tool_result(
         self,

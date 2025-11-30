@@ -266,6 +266,7 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
     This is the main entry point for AI conversation.
     """
     import asyncio
+    import traceback
     from src.ai.consultant import AIConsultant
     
     db = get_database()
@@ -277,8 +278,11 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
     typing_active = True
     async def keep_typing():
         while typing_active:
-            await bot.send_chat_action(message.chat.id, "typing")
-            await asyncio.sleep(4)
+            try:
+                await bot.send_chat_action(message.chat.id, "typing")
+                await asyncio.sleep(4)
+            except:
+                break
     
     typing_task = asyncio.create_task(keep_typing())
     
@@ -290,12 +294,45 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
             user_message=message.text,
             language=db_user.language_code
         )
+        
+        # Save assistant response
+        await db.save_chat_message(db_user.id, "assistant", response.text)
+        
+        # Send response to user
+        reply_markup = None
+        if response.show_shop:
+            reply_markup = get_shop_keyboard(db_user.language_code, WEBAPP_URL)
+        elif response.product_id:
+            product = await db.get_product_by_id(response.product_id)
+            if product:
+                reply_markup = get_product_keyboard(
+                    db_user.language_code,
+                    response.product_id,
+                    WEBAPP_URL,
+                    in_stock=product.stock_count > 0
+                )
+        
+        await message.answer(
+            response.text,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML
+        )
+        
+    except Exception as e:
+        # Log error for debugging
+        error_msg = f"AI error: {str(e)}\n{traceback.format_exc()}"
+        print(error_msg)
+        
+        # Send user-friendly error message
+        error_text = get_text("error_generic", db_user.language_code)
+        await message.answer(error_text)
+        
+        # Save error as assistant message for context
+        await db.save_chat_message(db_user.id, "assistant", error_text)
+        
     finally:
         typing_active = False
         typing_task.cancel()
-    
-    # Save assistant response
-    await db.save_chat_message(db_user.id, "assistant", response.text)
     
     # Send response with appropriate keyboard if action suggested
     keyboard = None
