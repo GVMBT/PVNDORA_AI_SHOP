@@ -1930,13 +1930,20 @@ async def admin_index_products(authorization: str = Header(None)):
         
         products_count = len(products_result.data) if products_result.data else 0
         
+        # Test embedding generation
+        from core.rag import get_embedding
+        test_text = "ChatGPT Plus subscription"
+        test_embedding = await get_embedding(test_text)
+        embedding_len = len(test_embedding) if test_embedding else 0
+        
         indexed = await search.index_all_products()
         return {
             "success": True, 
             "indexed_products": indexed,
             "gemini_key_set": gemini_key_set,
             "products_found": products_count,
-            "product_names": [p["name"] for p in (products_result.data or [])]
+            "product_names": [p["name"] for p in (products_result.data or [])],
+            "test_embedding_len": embedding_len
         }
         
     except Exception as e:
