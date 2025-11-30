@@ -300,6 +300,7 @@ class AIConsultant:
     
     async def _continue_with_tool_result(
         self,
+        original_messages: List[types.Content],
         original_response,
         tool_name: str,
         tool_result: Dict[str, Any],
@@ -311,34 +312,15 @@ class AIConsultant:
         import traceback
         
         try:
-            # Get conversation history to maintain context
-            history = await db.get_chat_history(user_id, limit=10)
-            
             # Build messages with full conversation context
-            messages = []
-            
-            # Add conversation history (excluding the last assistant message which had the function call)
-            for msg in history[:-1]:  # Exclude last message as it's the one that triggered function call
-                role = "user" if msg["role"] == "user" else "model"
-                messages.append(types.Content(
-                    role=role,
-                    parts=[types.Part.from_text(text=msg["content"])]
-                ))
-            
-            # Add the last user message (the one that triggered the function call)
-            if history:
-                last_user_msg = history[-1] if history[-1]["role"] == "user" else None
-                if last_user_msg:
-                    messages.append(types.Content(
-                        role="user",
-                        parts=[types.Part.from_text(text=last_user_msg["content"])]
-                    ))
+            # Start with original conversation (user messages + previous model responses)
+            messages = list(original_messages)
             
             # Add the model's response with function call
             if original_response.candidates and original_response.candidates[0].content:
                 messages.append(original_response.candidates[0].content)
             
-            # Add function response
+            # Add function response (must come immediately after function call)
             messages.append(types.Content(
                 role="function",
                 parts=[
