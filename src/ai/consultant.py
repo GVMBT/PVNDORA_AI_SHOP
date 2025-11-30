@@ -348,10 +348,10 @@ class AIConsultant:
                 # Try to get text from candidates if available
                 if hasattr(response, 'candidates') and response.candidates:
                     for candidate in response.candidates:
-                        if hasattr(candidate, 'content') and candidate.content:
-                            if hasattr(candidate.content, 'parts'):
+                        if candidate and hasattr(candidate, 'content') and candidate.content:
+                            if hasattr(candidate.content, 'parts') and candidate.content.parts:
                                 for part in candidate.content.parts:
-                                    if hasattr(part, 'text') and part.text:
+                                    if part and hasattr(part, 'text') and part.text:
                                         text = part.text
                                         print(f"DEBUG: Extracted text from candidate: {text[:100]}")
                                         break
@@ -360,6 +360,9 @@ class AIConsultant:
                 
                 if not text:
                     print("ERROR: Could not extract text from response")
+                    # Log response structure for debugging
+                    if hasattr(response, 'candidates'):
+                        print(f"DEBUG: Response has {len(response.candidates) if response.candidates else 0} candidates")
                     return StructuredAIResponse(
                         thought="Empty response from AI",
                         reply_text=self._get_error_message(language),
@@ -525,17 +528,38 @@ class AIConsultant:
         
         try:
             # Get text from initial response
-            initial_text = text_response.text if hasattr(text_response, 'text') else ""
+            initial_text = text_response.text if hasattr(text_response, 'text') and text_response.text else ""
+            
+            # If initial text is empty, try to extract from candidates
+            if not initial_text and hasattr(text_response, 'candidates') and text_response.candidates:
+                for candidate in text_response.candidates:
+                    if candidate and hasattr(candidate, 'content') and candidate.content:
+                        if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                            for part in candidate.content.parts:
+                                if part and hasattr(part, 'text') and part.text:
+                                    initial_text = part.text
+                                    print(f"DEBUG: Extracted initial text from candidate: {initial_text[:100]}")
+                                    break
+                            if initial_text:
+                                break
+            
+            # If still no text, we can't generate structured response
+            if not initial_text:
+                print("ERROR: No text available for structured response generation")
+                return StructuredAIResponse(
+                    thought="No text response available",
+                    reply_text=self._get_error_message(language),
+                    action=ActionType.NONE
+                )
             
             # Make a follow-up request to get structured output
             structured_messages = list(messages)
             
             # Add model's text response
-            if initial_text:
-                structured_messages.append(types.Content(
-                    role="model",
-                    parts=[types.Part.from_text(text=initial_text)]
-                ))
+            structured_messages.append(types.Content(
+                role="model",
+                parts=[types.Part.from_text(text=initial_text)]
+            ))
             
             # Add instruction to format as JSON
             structured_messages.append(types.Content(
@@ -574,10 +598,10 @@ class AIConsultant:
                 text_from_candidates = None
                 if hasattr(response, 'candidates') and response.candidates:
                     for candidate in response.candidates:
-                        if hasattr(candidate, 'content') and candidate.content:
-                            if hasattr(candidate.content, 'parts'):
+                        if candidate and hasattr(candidate, 'content') and candidate.content:
+                            if hasattr(candidate.content, 'parts') and candidate.content.parts:
                                 for part in candidate.content.parts:
-                                    if hasattr(part, 'text') and part.text:
+                                    if part and hasattr(part, 'text') and part.text:
                                         text_from_candidates = part.text
                                         break
                                 if text_from_candidates:
