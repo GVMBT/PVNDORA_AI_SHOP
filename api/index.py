@@ -1904,23 +1904,36 @@ async def admin_index_products(authorization: str = Header(None)):
     Admin endpoint: Index all products for RAG (semantic search).
     Temporarily public for initial setup.
     """
-    # TODO: Re-enable auth after initial indexing
-    # cron_secret = os.environ.get("CRON_SECRET", "")
-    # if authorization != f"Bearer {cron_secret}":
-    #     raise HTTPException(status_code=401, detail="Unauthorized")
+    import traceback
     
     try:
-        from core.rag import get_product_search
+        from core.rag import get_product_search, GEMINI_API_KEY
+        
+        # Diagnostics
+        gemini_key_set = bool(GEMINI_API_KEY)
+        
         search = get_product_search()
         
         if not search.is_available:
-            return {"success": False, "error": "RAG not available (GEMINI_API_KEY missing?)"}
+            return {
+                "success": False, 
+                "error": "RAG not available",
+                "gemini_key_set": gemini_key_set
+            }
         
         indexed = await search.index_all_products()
-        return {"success": True, "indexed_products": indexed}
+        return {
+            "success": True, 
+            "indexed_products": indexed,
+            "gemini_key_set": gemini_key_set
+        }
         
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {
+            "success": False, 
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
 
 
 # ==================== VERCEL EXPORT ====================
