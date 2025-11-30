@@ -11,7 +11,7 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 
-from fastapi import FastAPI, Request, HTTPException, Depends, Header
+from fastapi import FastAPI, Request, HTTPException, Depends, Header, BackgroundTasks
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -145,12 +145,12 @@ async def test_webhook():
 # ==================== TELEGRAM WEBHOOK ====================
 
 @app.post("/webhook/telegram")
-async def telegram_webhook(request: Request):
+async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
     """Handle Telegram webhook updates"""
     import traceback
     
     # IMPORTANT: Return 200 immediately to avoid 307 redirects
-    # Process update asynchronously to avoid timeout
+    # Process update in background to avoid timeout
     try:
         # Get bot and dispatcher
         bot_instance = get_bot()
@@ -187,11 +187,16 @@ async def telegram_webhook(request: Request):
                 content={"ok": False, "error": f"Invalid update: {str(e)}"}
             )
         
-        # Process update asynchronously - don't await to avoid timeout
+        # Process update in background - FastAPI BackgroundTasks are guaranteed to run
         # Return 200 immediately to Telegram
-        asyncio.create_task(
-            _process_update_async(bot_instance, dispatcher, update)
+        background_tasks.add_task(
+            _process_update_async,
+            bot_instance,
+            dispatcher,
+            update
         )
+        
+        print(f"DEBUG: Update {update_id} queued for background processing")
         
         # Return 200 OK immediately
         return JSONResponse(content={"ok": True})
@@ -211,11 +216,13 @@ async def telegram_webhook(request: Request):
 async def _process_update_async(bot_instance: Bot, dispatcher: Dispatcher, update: Update):
     """Process update asynchronously"""
     import traceback
+    update_id = update.update_id if hasattr(update, 'update_id') else 'unknown'
+    print(f"DEBUG: Starting background processing of update {update_id}")
     try:
         await dispatcher.feed_update(bot_instance, update)
-        print("DEBUG: Update processed successfully")
+        print(f"DEBUG: Update {update_id} processed successfully")
     except Exception as e:
-        print(f"ERROR: Failed to process update: {e}")
+        print(f"ERROR: Failed to process update {update_id}: {e}")
         print(f"ERROR: Traceback: {traceback.format_exc()}")
 
 
