@@ -1,6 +1,45 @@
 """AI Function Calling Tools"""
 import asyncio
-from typing import Dict, Any
+import re
+from typing import Dict, Any, Optional, Tuple
+
+# UUID regex pattern for validation
+UUID_PATTERN = re.compile(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+    re.IGNORECASE
+)
+
+
+def is_valid_uuid(value: str) -> bool:
+    """Check if string is a valid UUID."""
+    return bool(UUID_PATTERN.match(value))
+
+
+async def resolve_product_id(product_id_or_name: str, db) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Resolve product ID from UUID or search by name.
+    
+    Args:
+        product_id_or_name: Either a UUID or product name
+        db: Database instance
+        
+    Returns:
+        Tuple of (product_id, error_message)
+    """
+    if not product_id_or_name:
+        return None, "Product ID or name is required"
+    
+    # If it's a valid UUID, use it directly
+    if is_valid_uuid(product_id_or_name):
+        return product_id_or_name, None
+    
+    # Otherwise, search by name
+    products = await db.search_products(product_id_or_name)
+    if products:
+        return products[0].id, None
+    
+    return None, f"Product not found: {product_id_or_name}"
+
 
 # Tool definitions for Gemini function calling
 TOOLS = [
@@ -53,13 +92,13 @@ TOOLS = [
     },
     {
         "name": "create_purchase_intent",
-        "description": "Create a purchase intent when user wants to buy a product. Use when user shows clear buying intent (e.g., 'I want to buy', 'давай', 'беру'). IMPORTANT: product_id can be either a UUID or a product name. If you don't have the UUID, use the product name from check_product_availability or get_catalog results.",
+        "description": "Create a purchase intent when user wants to buy a product. Use when user shows clear buying intent (e.g., 'I want to buy', 'давай', 'беру').",
         "parameters": {
             "type": "object",
             "properties": {
                 "product_id": {
                     "type": "string",
-                    "description": "Product UUID or product name (e.g., 'ChatGPT Plus', 'Gemini PRO'). The function will search by name if UUID is not provided."
+                    "description": "ID of the product to purchase"
                 }
             },
             "required": ["product_id"]
@@ -418,30 +457,21 @@ async def execute_tool(
             }
     
     elif tool_name == "create_purchase_intent":
-        product_id_or_name = arguments.get("product_id", "").strip()
+        # Resolve product ID (supports both UUID and name search)
+        product_id_or_name = arguments.get("product_id", "")
+        resolved_id, error = await resolve_product_id(product_id_or_name, db)
+        if error:
+            return {
+                "success": False,
+                "reason": error
+            }
         
-        # Try to find product - could be UUID or name
-        product = None
-        
-        # First, try as UUID
-        if len(product_id_or_name) == 36 and product_id_or_name.count('-') == 4:
-            # Looks like UUID
-            try:
-                product = await db.get_product_by_id(product_id_or_name)
-            except Exception:
-                pass
-        
-        # If not found or not UUID, search by name
+        product = await db.get_product_by_id(resolved_id)
         if not product:
-            products = await db.search_products(product_id_or_name)
-            if products:
-                # Take first match
-                product = products[0]
-            else:
-                return {
-                    "success": False,
-                    "reason": f"Product '{product_id_or_name}' not found. Please check the product name or use check_product_availability first."
-                }
+            return {
+                "success": False,
+                "reason": "Product not found"
+            }
         
         product_status = getattr(product, 'status', 'active')
         is_discontinued = product_status == 'discontinued'
@@ -615,98 +645,46 @@ async def execute_tool(
         return {"found": False}
     
     elif tool_name == "add_to_wishlist":
-        product_id = arguments.get("product_id")
-        product = await db.get_product_by_id(product_id)
+        # Resolve product ID (supports both UUID and name search)
+        product_id_or_name = arguments.get("product_id", "")
+        resolved_id, error = await resolve_product_id(product_id_or_name, db)
+        if error:
+            return {"success": False, "reason": error}
         
+        product = await db.get_product_by_id(resolved_id)
         if not product:
             return {"success": False, "reason": "Product not found"}
         
-        # #region agent log
-        import json
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:395", "message": "add_to_wishlist entry", "data": {"user_id": user_id, "product_id": product_id}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-        # #endregion
-        
-        # Check if item already exists BEFORE upsert (to distinguish insert vs update)
-        # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:402", "message": "Before checking existing wishlist item", "data": {}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-        # #endregion
-        
-        # Check if item already exists BEFORE upsert (to distinguish insert vs update)
-        # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:408", "message": "Before checking existing wishlist item", "data": {}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-        # #endregion
-        
-        # Run synchronous Supabase call in thread pool to avoid blocking event loop
+        # Check if item already exists
         existing_check = await asyncio.to_thread(
-            lambda: db.client.table("wishlist").select("id").eq("user_id", user_id).eq("product_id", product_id).execute()
+            lambda: db.client.table("wishlist").select("id").eq("user_id", user_id).eq("product_id", resolved_id).execute()
         )
-        item_existed_before = bool(existing_check.data)
         
-        # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:415", "message": "After checking existing", "data": {"item_existed_before": item_existed_before, "existing_data": existing_check.data}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-        # #endregion
-        
-        # If already exists, return early
-        if item_existed_before:
-            # #region agent log
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:420", "message": "Item already exists, returning early", "data": {}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-            # #endregion
+        if existing_check.data:
             return {"success": False, "reason": "Already in wishlist"}
         
-        # Use upsert to handle race conditions atomically (only if not exists)
+        # Add to wishlist
         try:
-            # #region agent log
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:427", "message": "Before upsert execute (async)", "data": {}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-            # #endregion
-            
-            # Run upsert in thread pool to avoid blocking
             result = await asyncio.to_thread(
-                lambda: db.client.table("wishlist").upsert({
+                lambda: db.client.table("wishlist").insert({
                     "user_id": user_id,
-                    "product_id": product_id,
+                    "product_id": resolved_id,
                     "reminded": False
-                }, on_conflict="user_id,product_id").execute()
+                }).execute()
             )
             
-            # #region agent log
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:437", "message": "After upsert execute", "data": {"result_has_data": bool(result.data), "result_data_count": len(result.data) if result.data else 0}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-            # #endregion
-            
-            # Since we checked existence before, if we get here it's a new insert
             if result.data:
-                # #region agent log
-                with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                    f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:442", "message": "Returning success (new item)", "data": {"product_name": product.name}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-                # #endregion
                 return {
                     "success": True,
                     "product_name": product.name,
                     "message": "Added to wishlist"
                 }
-            else:
-                # #region agent log
-                with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                    f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:450", "message": "Unexpected: no data after upsert", "data": {}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-                # #endregion
-                return {"success": False, "reason": "Failed to add to wishlist"}
+            return {"success": False, "reason": "Failed to add to wishlist"}
         except Exception as e:
-            # #region agent log
-            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-                f.write(json.dumps({"sessionId": "debug-session", "runId": "run1", "hypothesisId": "A", "location": "tools.py:437", "message": "Exception in add_to_wishlist", "data": {"error": str(e), "error_type": type(e).__name__}, "timestamp": int(__import__("time").time() * 1000)}) + "\n")
-            # #endregion
-            # If unique constraint violation, item already exists
             if "duplicate" in str(e).lower() or "unique" in str(e).lower():
                 return {"success": False, "reason": "Already in wishlist"}
             error_str = str(e)
-            # Filter technical details
-            if "module" in error_str.lower() or "import" in error_str.lower() or "No module named" in error_str:
+            if "module" in error_str.lower() or "import" in error_str.lower():
                 return {"success": False, "reason": "Service temporarily unavailable. Please try again later."}
             return {"success": False, "reason": "Database error. Please try again later."}
     
@@ -853,11 +831,18 @@ async def execute_tool(
     elif tool_name == "add_to_cart":
         try:
             from core.cart import get_cart_manager
-            product_id = arguments.get("product_id")
+            product_id_or_name = arguments.get("product_id", "")
             quantity = arguments.get("quantity", 1)
             
             if quantity < 1:
                 return {"success": False, "reason": "Quantity must be at least 1"}
+            
+            # Resolve product ID (supports both UUID and name search)
+            resolved_id, error = await resolve_product_id(product_id_or_name, db)
+            if error:
+                return {"success": False, "reason": error}
+            
+            product_id = resolved_id
             
             # Get product and check availability
             product = await db.get_product_by_id(product_id)

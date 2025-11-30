@@ -332,6 +332,10 @@ async def get_webapp_product(product_id: str, user = Depends(verify_telegram_aut
     original_price = float(product.price)
     final_price = original_price * (1 - discount_percent / 100)
     
+    # Get fulfillment info for on-demand products
+    fulfillment_time_hours = getattr(product, 'fulfillment_time_hours', 48)
+    can_fulfill_on_demand = product.status == 'active'
+    
     return {
         "id": product.id,
         "name": product.name,
@@ -339,11 +343,286 @@ async def get_webapp_product(product_id: str, user = Depends(verify_telegram_aut
         "original_price": original_price,
         "discount_percent": discount_percent,
         "final_price": round(final_price, 2),
-        "warranty_days": product.warranty_days if hasattr(product, 'warranty_days') else 1,
-        "duration_days": product.duration_days if hasattr(product, 'duration_days') else None,
+        "warranty_days": product.warranty_hours // 24 if hasattr(product, 'warranty_hours') else 1,
+        "duration_days": getattr(product, 'duration_days', None),
+        "available_count": product.stock_count,
         "available": product.stock_count > 0,
+        "can_fulfill_on_demand": can_fulfill_on_demand,
+        "fulfillment_time_hours": fulfillment_time_hours if can_fulfill_on_demand else None,
+        "type": product.type,
+        "instructions": product.instructions,
         "rating": rating_info["average"],
         "reviews_count": rating_info["count"]
+    }
+
+
+@app.get("/api/webapp/products")
+async def get_webapp_products(user = Depends(verify_telegram_auth)):
+    """
+    Get all products for Mini App catalog.
+    Requires Telegram initData authentication.
+    """
+    db = get_database()
+    products = await db.get_products(status="active")
+    
+    result = []
+    for p in products:
+        rating_info = await db.get_product_rating(p.id)
+        
+        # Get fulfillment info
+        fulfillment_time_hours = getattr(p, 'fulfillment_time_hours', 48)
+        
+        result.append({
+            "id": p.id,
+            "name": p.name,
+            "description": p.description,
+            "price": p.price,
+            "type": p.type,
+            "status": p.status,
+            "stock_count": p.stock_count,
+            "available": p.stock_count > 0,
+            "can_fulfill_on_demand": p.status == 'active',
+            "fulfillment_time_hours": fulfillment_time_hours,
+            "warranty_days": p.warranty_hours // 24 if hasattr(p, 'warranty_hours') and p.warranty_hours else 1,
+            "duration_days": getattr(p, 'duration_days', None),
+            "rating": rating_info["average"],
+            "reviews_count": rating_info["count"]
+        })
+    
+    return {"products": result, "count": len(result)}
+
+
+@app.get("/api/webapp/orders")
+async def get_webapp_orders(user = Depends(verify_telegram_auth)):
+    """
+    Get user's order history for Mini App.
+    Requires Telegram initData authentication.
+    """
+    db = get_database()
+    
+    # Get user from database
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    orders = await db.get_user_orders(db_user.id, limit=50)
+    
+    result = []
+    for o in orders:
+        product = await db.get_product_by_id(o.product_id)
+        product_name = product.name if product else "Unknown Product"
+        
+        result.append({
+            "id": o.id,
+            "product_id": o.product_id,
+            "product_name": product_name,
+            "amount": o.amount,
+            "original_price": o.original_price,
+            "discount_percent": o.discount_percent,
+            "status": o.status,
+            "order_type": getattr(o, 'order_type', 'instant'),
+            "created_at": o.created_at.isoformat() if o.created_at else None,
+            "delivered_at": o.delivered_at.isoformat() if hasattr(o, 'delivered_at') and o.delivered_at else None,
+            "expires_at": o.expires_at.isoformat() if o.expires_at else None,
+            "warranty_until": o.warranty_until.isoformat() if hasattr(o, 'warranty_until') and o.warranty_until else None
+        })
+    
+    return {"orders": result, "count": len(result)}
+
+
+@app.get("/api/webapp/leaderboard")
+async def get_webapp_leaderboard(user = Depends(verify_telegram_auth)):
+    """
+    Get savings leaderboard for Mini App.
+    Shows top users by total_saved amount.
+    """
+    db = get_database()
+    
+    # Get top 50 users by total_saved
+    result = await asyncio.to_thread(
+        lambda: db.client.table("users").select(
+            "telegram_id,username,first_name,total_saved"
+        ).gt("total_saved", 0).order(
+            "total_saved", desc=True
+        ).limit(50).execute()
+    )
+    
+    # Get current user's stats
+    db_user = await db.get_user_by_telegram_id(user.id)
+    user_rank = None
+    user_saved = 0
+    
+    if db_user:
+        user_saved = float(db_user.total_saved) if hasattr(db_user, 'total_saved') and db_user.total_saved else 0
+        
+        # Calculate user's rank
+        if user_saved > 0:
+            rank_result = await asyncio.to_thread(
+                lambda: db.client.table("users").select(
+                    "id", count="exact"
+                ).gt("total_saved", user_saved).execute()
+            )
+            user_rank = (rank_result.count or 0) + 1
+    
+    leaderboard = []
+    for i, entry in enumerate(result.data):
+        display_name = entry.get("username") or entry.get("first_name") or f"User{entry['telegram_id']}"
+        # Mask name for privacy (show first 3 chars + ***)
+        if len(display_name) > 3:
+            display_name = display_name[:3] + "***"
+        
+        leaderboard.append({
+            "rank": i + 1,
+            "name": display_name,
+            "total_saved": float(entry.get("total_saved", 0)),
+            "is_current_user": entry["telegram_id"] == user.id
+        })
+    
+    return {
+        "leaderboard": leaderboard,
+        "user_rank": user_rank,
+        "user_saved": user_saved
+    }
+
+
+@app.get("/api/webapp/faq")
+async def get_webapp_faq(language_code: str = "en", user = Depends(verify_telegram_auth)):
+    """
+    Get FAQ entries for Mini App.
+    Requires Telegram initData authentication.
+    """
+    db = get_database()
+    faq_entries = await db.get_faq(language_code)
+    
+    # Group by category
+    categories = {}
+    for entry in faq_entries:
+        category = entry.get("category", "general")
+        if category not in categories:
+            categories[category] = []
+        categories[category].append({
+            "question": entry["question"],
+            "answer": entry["answer"]
+        })
+    
+    return {
+        "categories": categories,
+        "total": len(faq_entries)
+    }
+
+
+class PromoCheckRequest(BaseModel):
+    code: str
+
+
+@app.post("/api/webapp/promo/check")
+async def check_webapp_promo(request: PromoCheckRequest, user = Depends(verify_telegram_auth)):
+    """
+    Check if promo code is valid for Mini App.
+    Requires Telegram initData authentication.
+    """
+    db = get_database()
+    
+    code = request.code.strip().upper()
+    promo = await db.validate_promo_code(code)
+    
+    if promo:
+        return {
+            "valid": True,
+            "code": code,
+            "discount_percent": promo["discount_percent"],
+            "expires_at": promo.get("expires_at"),
+            "usage_remaining": (promo.get("usage_limit") or 999) - (promo.get("usage_count") or 0)
+        }
+    
+    return {
+        "valid": False,
+        "code": code,
+        "message": "Invalid or expired promo code"
+    }
+
+
+class WebAppReviewRequest(BaseModel):
+    order_id: str
+    rating: int
+    text: Optional[str] = None
+
+
+@app.post("/api/webapp/reviews")
+async def submit_webapp_review(request: WebAppReviewRequest, user = Depends(verify_telegram_auth)):
+    """
+    Submit a product review from Mini App.
+    Awards 5% cashback for first review on an order.
+    """
+    db = get_database()
+    
+    # Validate rating
+    if not 1 <= request.rating <= 5:
+        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
+    
+    # Get user
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get order and verify ownership
+    order = await db.get_order_by_id(request.order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Check if order belongs to user
+    if order.user_id != db_user.id:
+        raise HTTPException(status_code=403, detail="Order does not belong to user")
+    
+    # Check if order is completed
+    if order.status not in ["completed", "delivered"]:
+        raise HTTPException(status_code=400, detail="Can only review completed orders")
+    
+    # Check if already reviewed
+    existing_review = await asyncio.to_thread(
+        lambda: db.client.table("reviews").select("id").eq(
+            "order_id", request.order_id
+        ).execute()
+    )
+    
+    if existing_review.data:
+        raise HTTPException(status_code=400, detail="Order already reviewed")
+    
+    # Create review
+    review_data = {
+        "user_id": db_user.id,
+        "order_id": request.order_id,
+        "product_id": order.product_id,
+        "rating": request.rating,
+        "text": request.text,
+        "cashback_given": False
+    }
+    
+    result = await asyncio.to_thread(
+        lambda: db.client.table("reviews").insert(review_data).execute()
+    )
+    
+    # Calculate and award 5% cashback
+    cashback_amount = float(order.amount) * 0.05
+    
+    await asyncio.to_thread(
+        lambda: db.client.table("users").update({
+            "balance": db_user.balance + cashback_amount
+        }).eq("id", db_user.id).execute()
+    )
+    
+    # Mark cashback as given
+    await asyncio.to_thread(
+        lambda: db.client.table("reviews").update({
+            "cashback_given": True
+        }).eq("id", result.data[0]["id"]).execute()
+    )
+    
+    return {
+        "success": True,
+        "review_id": result.data[0]["id"],
+        "cashback_awarded": round(cashback_amount, 2),
+        "new_balance": round(float(db_user.balance) + cashback_amount, 2)
     }
 
 

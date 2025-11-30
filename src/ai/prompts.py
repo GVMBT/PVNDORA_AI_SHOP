@@ -223,16 +223,24 @@ def format_product_catalog(products: list) -> str:
         products: List of Product objects
         
     Returns:
-        Formatted catalog string
+        Formatted catalog string with UUIDs for AI to use in function calls
     """
     if not products:
         return "No products available at the moment."
     
-    lines = []
+    lines = [
+        "**IMPORTANT**: When calling functions that require product_id, use the exact UUID shown below.\n"
+    ]
     for p in products:
-        stock_status = f"✅ In stock ({p.stock_count})" if p.stock_count > 0 else "❌ Out of stock"
+        stock_status = f"✅ In stock ({p.stock_count})" if p.stock_count > 0 else "⏳ Available for prepaid order"
+        # Include fulfillment info for out-of-stock items
+        fulfillment_info = ""
+        if p.stock_count == 0:
+            fulfillment_hours = getattr(p, 'fulfillment_time_hours', 48)
+            fulfillment_info = f" | Fulfillment: {fulfillment_hours}h"
+        
         lines.append(
-            f"- {p.name}: {p.price}₽ | {p.type} | {stock_status}\n"
+            f"- **{p.name}** (ID: `{p.id}`): {p.price}₽ | {p.type} | {stock_status}{fulfillment_info}\n"
             f"  Description: {p.description or 'No description'}"
         )
     
