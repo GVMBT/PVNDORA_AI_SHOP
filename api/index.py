@@ -18,23 +18,35 @@ from typing import Optional, List
 import json
 
 # Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Try multiple paths for Vercel compatibility
+_base_path = Path(__file__).parent.parent
+sys.path.insert(0, str(_base_path))
+# Also try absolute path
+if str(_base_path) not in sys.path:
+    sys.path.insert(0, str(_base_path.resolve()))
 
-from aiogram import Bot, Dispatcher
-from aiogram.types import Update
-from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
+try:
+    from aiogram import Bot, Dispatcher
+    from aiogram.types import Update
+    from aiogram.client.default import DefaultBotProperties
+    from aiogram.enums import ParseMode
 
-# Import bot components
-from src.bot.handlers import router as bot_router
-from src.bot.middlewares import (
-    AuthMiddleware,
-    LanguageMiddleware, 
-    ActivityMiddleware,
-    AnalyticsMiddleware
-)
-from src.services.database import get_database
-from src.utils.validators import validate_telegram_init_data, extract_user_from_init_data
+    # Import bot components
+    from src.bot.handlers import router as bot_router
+    from src.bot.middlewares import (
+        AuthMiddleware,
+        LanguageMiddleware, 
+        ActivityMiddleware,
+        AnalyticsMiddleware
+    )
+    from src.services.database import get_database
+    from src.utils.validators import validate_telegram_init_data, extract_user_from_init_data
+except ImportError as e:
+    import traceback
+    print(f"ERROR: Failed to import modules: {e}")
+    print(f"ERROR: sys.path = {sys.path}")
+    print(f"ERROR: Traceback: {traceback.format_exc()}")
+    raise
 
 
 # ==================== BOT INITIALIZATION ====================
