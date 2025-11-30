@@ -321,10 +321,10 @@ async def get_product(product_id: str):
 # ==================== WEBAPP API (Mini App) ====================
 
 @app.get("/api/webapp/products/{product_id}")
-async def get_webapp_product(product_id: str, user = Depends(verify_telegram_auth)):
+async def get_webapp_product(product_id: str):
     """
     Get product with discount and social proof for Mini App.
-    Requires Telegram initData authentication.
+    Public endpoint - product info is not sensitive.
     """
     db = get_database()
     product = await db.get_product_by_id(product_id)
@@ -355,22 +355,25 @@ async def get_webapp_product(product_id: str, user = Depends(verify_telegram_aut
     can_fulfill_on_demand = product.status == 'active'
     
     return {
-        "id": product.id,
-        "name": product.name,
-        "description": product.description,
-        "original_price": original_price,
-        "discount_percent": discount_percent,
-        "final_price": round(final_price, 2),
-        "warranty_days": product.warranty_hours // 24 if hasattr(product, 'warranty_hours') else 1,
-        "duration_days": getattr(product, 'duration_days', None),
-        "available_count": product.stock_count,
-        "available": product.stock_count > 0,
-        "can_fulfill_on_demand": can_fulfill_on_demand,
-        "fulfillment_time_hours": fulfillment_time_hours if can_fulfill_on_demand else None,
-        "type": product.type,
-        "instructions": product.instructions,
-        "rating": rating_info["average"],
-        "reviews_count": rating_info["count"]
+        "product": {
+            "id": product.id,
+            "name": product.name,
+            "description": product.description,
+            "original_price": original_price,
+            "price": original_price,  # For backward compatibility
+            "discount_percent": discount_percent,
+            "final_price": round(final_price, 2),
+            "warranty_days": product.warranty_hours // 24 if hasattr(product, 'warranty_hours') else 1,
+            "duration_days": getattr(product, 'duration_days', None),
+            "available_count": product.stock_count,
+            "available": product.stock_count > 0,
+            "can_fulfill_on_demand": can_fulfill_on_demand,
+            "fulfillment_time_hours": fulfillment_time_hours if can_fulfill_on_demand else None,
+            "type": product.type,
+            "instructions": product.instructions,
+            "rating": rating_info["average"],
+            "reviews_count": rating_info["count"]
+        }
     }
 
 
