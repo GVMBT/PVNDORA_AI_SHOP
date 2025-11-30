@@ -40,15 +40,22 @@ async def get_embedding(text: str) -> List[float]:
         if _embedding_client is None:
             _embedding_client = genai.Client(api_key=GEMINI_API_KEY)
         
-        result = _embedding_client.models.embed_content(
-            model=f"models/{EMBEDDING_MODEL}",
-            content=text
+        # Note: model name without "models/" prefix
+        response = _embedding_client.models.embed_content(
+            model=EMBEDDING_MODEL,
+            contents=text  # 'contents' not 'content'
         )
         
-        return result.embedding.values
+        # Response structure: response.embeddings[0].values
+        if response.embeddings and len(response.embeddings) > 0:
+            return list(response.embeddings[0].values)
+        
+        return []
         
     except Exception as e:
         print(f"ERROR: Embedding generation failed: {e}")
+        import traceback
+        traceback.print_exc()
         return []
 
 
