@@ -345,11 +345,26 @@ class AIConsultant:
             
             if not text:
                 print("ERROR: Response text is None or empty")
-                return StructuredAIResponse(
-                    thought="Empty response from AI",
-                    reply_text=self._get_error_message(language),
-                    action=ActionType.NONE
-                )
+                # Try to get text from candidates if available
+                if hasattr(response, 'candidates') and response.candidates:
+                    for candidate in response.candidates:
+                        if hasattr(candidate, 'content') and candidate.content:
+                            if hasattr(candidate.content, 'parts'):
+                                for part in candidate.content.parts:
+                                    if hasattr(part, 'text') and part.text:
+                                        text = part.text
+                                        print(f"DEBUG: Extracted text from candidate: {text[:100]}")
+                                        break
+                                if text:
+                                    break
+                
+                if not text:
+                    print("ERROR: Could not extract text from response")
+                    return StructuredAIResponse(
+                        thought="Empty response from AI",
+                        reply_text=self._get_error_message(language),
+                        action=ActionType.NONE
+                    )
             
             # Parse JSON
             data = json.loads(text)
@@ -553,12 +568,45 @@ class AIConsultant:
                 config=config_structured
             )
             
+            # Check if response is empty
+            if not hasattr(response, 'text') or not response.text:
+                # Try to extract from candidates
+                text_from_candidates = None
+                if hasattr(response, 'candidates') and response.candidates:
+                    for candidate in response.candidates:
+                        if hasattr(candidate, 'content') and candidate.content:
+                            if hasattr(candidate.content, 'parts'):
+                                for part in candidate.content.parts:
+                                    if hasattr(part, 'text') and part.text:
+                                        text_from_candidates = part.text
+                                        break
+                                if text_from_candidates:
+                                    break
+                
+                if not text_from_candidates:
+                    print("WARNING: Empty response from structured generation, using original text")
+                    # Fallback: use original text response
+                    initial_text = text_response.text if hasattr(text_response, 'text') and text_response.text else ""
+                    if initial_text:
+                        # Try to create structured response from text
+                        return StructuredAIResponse(
+                            thought="Using text response as fallback",
+                            reply_text=initial_text,
+                            action=ActionType.NONE
+                        )
+                    else:
+                        return StructuredAIResponse(
+                            thought="Both structured and text responses are empty",
+                            reply_text=self._get_error_message(language),
+                            action=ActionType.NONE
+                        )
+            
             return self._parse_structured_response(response, language)
             
         except Exception as e:
             print(f"ERROR: _generate_structured_response failed: {e}\n{traceback.format_exc()}")
             # Fallback: create response from original text
-            initial_text = text_response.text if hasattr(text_response, 'text') else ""
+            initial_text = text_response.text if hasattr(text_response, 'text') and text_response.text else ""
             return StructuredAIResponse(
                 thought="Structured generation failed, using text response",
                 reply_text=initial_text if initial_text else self._get_error_message(language),
