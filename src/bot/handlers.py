@@ -295,14 +295,27 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
             language=db_user.language_code
         )
         
-        # Save assistant response
-        await db.save_chat_message(db_user.id, "assistant", response.text)
+        # Save assistant response (use reply_text from structured response)
+        await db.save_chat_message(db_user.id, "assistant", response.reply_text)
         
-        # Send response to user
+        # Send response to user based on structured action
         reply_markup = None
-        if response.show_shop:
+        
+        # Handle actions from structured response
+        from core.models import ActionType
+        if response.action == ActionType.SHOW_CATALOG:
             reply_markup = get_shop_keyboard(db_user.language_code, WEBAPP_URL)
+        elif response.action == ActionType.OFFER_PAYMENT and response.product_id:
+            product = await db.get_product_by_id(response.product_id)
+            if product:
+                reply_markup = get_product_keyboard(
+                    db_user.language_code,
+                    response.product_id,
+                    WEBAPP_URL,
+                    in_stock=product.stock_count > 0
+                )
         elif response.product_id:
+            # Fallback: if product_id set but no specific action
             product = await db.get_product_by_id(response.product_id)
             if product:
                 reply_markup = get_product_keyboard(
@@ -313,7 +326,7 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
                 )
         
         await message.answer(
-            response.text,
+            response.reply_text,
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
@@ -374,13 +387,16 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
         typing_task.cancel()
     
     # Save transcription and response
-    if response.transcription:
-        await db.save_chat_message(db_user.id, "user", f"🎤 {response.transcription}")
-    await db.save_chat_message(db_user.id, "assistant", response.text)
+    # Note: transcription is now in reply_text if AI includes it
+    await db.save_chat_message(db_user.id, "assistant", response.reply_text)
     
-    # Send response
+    # Send response based on structured action
+    from core.models import ActionType
     keyboard = None
-    if response.product_id:
+    
+    if response.action == ActionType.SHOW_CATALOG:
+        keyboard = get_shop_keyboard(db_user.language_code, WEBAPP_URL)
+    elif response.action == ActionType.OFFER_PAYMENT and response.product_id:
         product = await db.get_product_by_id(response.product_id)
         if product:
             keyboard = get_product_keyboard(
@@ -389,11 +405,19 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
                 WEBAPP_URL,
                 in_stock=product.stock_count > 0
             )
-    elif response.show_shop:
-        keyboard = get_shop_keyboard(db_user.language_code, WEBAPP_URL)
+    elif response.product_id:
+        # Fallback: if product_id set but no specific action
+        product = await db.get_product_by_id(response.product_id)
+        if product:
+            keyboard = get_product_keyboard(
+                db_user.language_code,
+                response.product_id,
+                WEBAPP_URL,
+                in_stock=product.stock_count > 0
+            )
     
     await message.answer(
-        response.text,
+        response.reply_text,
         reply_markup=keyboard,
         parse_mode=ParseMode.HTML
     )

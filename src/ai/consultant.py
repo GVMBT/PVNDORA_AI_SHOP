@@ -2,22 +2,14 @@
 import os
 import base64
 from typing import Optional, List, Dict, Any
-from dataclasses import dataclass
 from google import genai
 from google.genai import types
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.services.database import get_database
 from src.ai.prompts import get_system_prompt, format_product_catalog
 from src.ai.tools import TOOLS, execute_tool
-
-
-@dataclass
-class AIResponse:
-    """AI consultant response"""
-    text: str
-    product_id: Optional[str] = None
-    show_shop: bool = False
-    transcription: Optional[str] = None  # For voice messages
+from core.models import AIResponse as StructuredAIResponse, ActionType
 
 
 class AIConsultant:
@@ -31,14 +23,18 @@ class AIConsultant:
         self.client = genai.Client(api_key=api_key)
         self.model = "gemini-2.5-flash"
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10)
+    )
     async def get_response(
         self,
         user_id: str,
         user_message: str,
         language: str = "en"
-    ) -> AIResponse:
+    ) -> StructuredAIResponse:
         """
-        Get AI response for a text message.
+        Get AI response for a text message using Structured Outputs.
         
         Args:
             user_id: User's database ID
@@ -46,7 +42,7 @@ class AIConsultant:
             language: User's language code
             
         Returns:
-            AIResponse with text and optional actions
+            StructuredAIResponse with structured fields
         """
         db = get_database()
         
@@ -81,7 +77,7 @@ class AIConsultant:
         gemini_tools = self._convert_tools_to_gemini_format()
         
         try:
-            # Generate response with function calling
+            # Generate response with Structured Outputs + Function Calling
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=messages,
@@ -89,7 +85,9 @@ class AIConsultant:
                     system_instruction=system_prompt,
                     tools=gemini_tools,
                     temperature=0.7,
-                    max_output_tokens=1024
+                    max_output_tokens=2048,
+                    response_mime_type="application/json",
+                    response_schema=StructuredAIResponse.model_json_schema()
                 )
             )
             
@@ -98,15 +96,21 @@ class AIConsultant:
             
         except Exception as e:
             print(f"Gemini API error: {e}")
-            from src.i18n import get_text
-            return AIResponse(text=get_text("error_generic", language))
+            import traceback
+            traceback.print_exc()
+            # Return structured error response
+            return StructuredAIResponse(
+                thought=f"Error occurred: {str(e)}",
+                reply_text=self._get_error_message(language),
+                action=ActionType.NONE
+            )
     
     async def get_response_from_voice(
         self,
         user_id: str,
         voice_data: bytes,
         language: str = "en"
-    ) -> AIResponse:
+    ) -> StructuredAIResponse:
         """
         Get AI response for a voice message.
         
@@ -150,7 +154,7 @@ class AIConsultant:
         gemini_tools = self._convert_tools_to_gemini_format()
         
         try:
-            # Generate response
+            # Generate response with Structured Outputs
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=messages,
@@ -158,23 +162,25 @@ class AIConsultant:
                     system_instruction=system_prompt,
                     tools=gemini_tools,
                     temperature=0.7,
-                    max_output_tokens=1024
+                    max_output_tokens=2048,
+                    response_mime_type="application/json",
+                    response_schema=StructuredAIResponse.model_json_schema()
                 )
             )
             
-            # Process response
-            result = await self._process_response(response, user_id, db, language)
+            # Process response with Structured Outputs
+            result = await self._process_response(response, user_id, db, language, messages)
             
-            # Try to extract transcription from response
-            # Gemini typically includes it in the response text
-            result.transcription = self._extract_transcription(result.text)
+            # Note: Transcription is now handled by AI in reply_text
+            # No need to extract separately
             
             return result
             
         except Exception as e:
             print(f"Gemini voice API error: {e}")
-            from src.i18n import get_text
-            return AIResponse(text=get_text("error_generic", language))
+            import traceback
+            traceback.print_exc()
+            return self._create_error_response(language, str(e))
     
     def _convert_tools_to_gemini_format(self) -> List[types.Tool]:
         """Convert our tool definitions to Gemini format"""
@@ -198,32 +204,30 @@ class AIConsultant:
         db,
         language: str,
         original_messages: List[types.Content] = None
-    ) -> AIResponse:
-        """Process Gemini response, handling function calls if present"""
+    ) -> StructuredAIResponse:
+        """
+        Process Gemini response with Structured Outputs.
+        Handles function calls if present, otherwise parses structured JSON response.
+        """
         import traceback
+        import json
         
         try:
-            # Check for function calls
+            # Check for function calls first
             if not response.candidates:
-                # No candidates, return error
-                from src.i18n import get_text
-                return AIResponse(text=get_text("error_generic", language))
+                return self._create_error_response(language, "No response candidates")
             
             candidate = response.candidates[0]
             if not hasattr(candidate, 'content') or not candidate.content:
-                # No content, return error
-                from src.i18n import get_text
-                return AIResponse(text=get_text("error_generic", language))
+                return self._create_error_response(language, "No content in response")
             
             parts = getattr(candidate.content, 'parts', None)
             if not parts:
-                # No parts, try to get text directly
-                text = response.text if hasattr(response, 'text') else str(response)
-                return AIResponse(text=text)
+                # Try to parse as structured JSON (Structured Outputs)
+                return self._parse_structured_response(response, language)
             
             # Check each part for function calls
             for part in parts:
-                # Check if this part is a function call
                 func_call = getattr(part, 'function_call', None)
                 if func_call:
                     tool_name = getattr(func_call, 'name', None)
@@ -254,42 +258,10 @@ class AIConsultant:
                         )
                     except Exception as e:
                         print(f"ERROR: Tool execution failed: {e}\n{traceback.format_exc()}")
-                        from src.i18n import get_text
-                        return AIResponse(text=get_text("error_generic", language))
+                        return self._create_error_response(language, f"Tool execution failed: {str(e)}")
                     
-                    # Handle specific tool results
-                    if tool_name == "create_purchase_intent" and tool_result.get("success"):
-                        return AIResponse(
-                            text=self._format_purchase_message(tool_result, language),
-                            product_id=tool_result["product_id"]
-                        )
-                    
-                    if tool_name == "get_catalog":
-                        return AIResponse(
-                            text=self._format_catalog_message(tool_result, language),
-                            show_shop=True
-                        )
-                    
-                    if tool_name == "add_to_waitlist":
-                        if tool_result.get("success"):
-                            from src.i18n import get_text
-                            # Success - return confirmation message
-                            return AIResponse(
-                                text=get_text(
-                                    "waitlist_added", 
-                                    language,
-                                    product=tool_result.get("product_name", "product")
-                                )
-                            )
-                        else:
-                            # If waitlist add failed, continue with error message
-                            # This will let AI explain the error to user and offer alternatives
-                            # Don't return early - let _continue_with_tool_result handle it
-                            pass  # Fall through to _continue_with_tool_result
-                    
-                    # For other tools, make another call with the result
+                    # Continue conversation with tool result
                     if not original_messages:
-                        # Fallback: get messages from history if not provided
                         history = await db.get_chat_history(user_id, limit=10)
                         original_messages = []
                         for msg in history:
@@ -309,14 +281,69 @@ class AIConsultant:
                         language
                     )
             
-            # No function call, just return the text
-            text = response.text if hasattr(response, 'text') else str(response)
-            return AIResponse(text=text)
+            # No function call - parse structured JSON response
+            return self._parse_structured_response(response, language)
             
         except Exception as e:
             print(f"ERROR: _process_response failed: {e}\n{traceback.format_exc()}")
-            from src.i18n import get_text
-            return AIResponse(text=get_text("error_generic", language))
+            return self._create_error_response(language, str(e))
+    
+    def _parse_structured_response(
+        self,
+        response,
+        language: str
+    ) -> StructuredAIResponse:
+        """Parse structured JSON response from Gemini"""
+        import json
+        
+        try:
+            # Get text response (should be JSON)
+            text = response.text if hasattr(response, 'text') else str(response)
+            
+            # Parse JSON
+            data = json.loads(text)
+            
+            # Convert action string to ActionType enum
+            if "action" in data and isinstance(data["action"], str):
+                try:
+                    data["action"] = ActionType(data["action"])
+                except ValueError:
+                    data["action"] = ActionType.NONE
+            
+            # Validate and create StructuredAIResponse
+            return StructuredAIResponse(**data)
+            
+        except json.JSONDecodeError as e:
+            print(f"ERROR: Failed to parse JSON response: {e}")
+            print(f"Response text: {text[:500]}")
+            # Fallback: create response from text
+            return StructuredAIResponse(
+                thought="Failed to parse structured response",
+                reply_text=text if text else self._get_error_message(language),
+                action=ActionType.NONE
+            )
+        except Exception as e:
+            print(f"ERROR: Failed to create structured response: {e}")
+            import traceback
+            traceback.print_exc()
+            return self._create_error_response(language, str(e))
+    
+    def _create_error_response(
+        self,
+        language: str,
+        error_msg: str = None
+    ) -> StructuredAIResponse:
+        """Create error response"""
+        return StructuredAIResponse(
+            thought=f"Error: {error_msg or 'Unknown error'}",
+            reply_text=self._get_error_message(language),
+            action=ActionType.NONE
+        )
+    
+    def _get_error_message(self, language: str) -> str:
+        """Get localized error message"""
+        from src.i18n import get_text
+        return get_text("error_generic", language)
     
     async def _continue_with_tool_result(
         self,
@@ -327,13 +354,12 @@ class AIConsultant:
         user_id: str,
         db,
         language: str
-    ) -> AIResponse:
-        """Continue conversation with tool result"""
+    ) -> StructuredAIResponse:
+        """Continue conversation with tool result using Structured Outputs"""
         import traceback
         
         try:
             # Build messages with full conversation context
-            # Start with original conversation (user messages + previous model responses)
             messages = list(original_messages)
             
             # Add the model's response with function call
@@ -356,10 +382,10 @@ class AIConsultant:
             product_catalog = format_product_catalog(products)
             system_prompt = get_system_prompt(language, product_catalog)
             
-            # Convert tools to Gemini format (include tools for potential follow-up calls)
+            # Convert tools to Gemini format
             gemini_tools = self._convert_tools_to_gemini_format()
             
-            # Generate follow-up response
+            # Generate follow-up response with Structured Outputs
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=messages,
@@ -367,110 +393,20 @@ class AIConsultant:
                     system_instruction=system_prompt,
                     tools=gemini_tools,
                     temperature=0.7,
-                    max_output_tokens=1024
+                    max_output_tokens=2048,
+                    response_mime_type="application/json",
+                    response_schema=StructuredAIResponse.model_json_schema()
                 )
             )
             
-            text = response.text if hasattr(response, 'text') else str(response)
-            
-            # Check if response suggests a purchase
-            product_id = None
-            if tool_result.get("products") and len(tool_result["products"]) == 1:
-                product_id = tool_result["products"][0].get("id")
-            elif tool_result.get("product_id"):
-                product_id = tool_result["product_id"]
-            
-            return AIResponse(text=text, product_id=product_id)
+            # Parse structured response
+            return self._parse_structured_response(response, language)
             
         except Exception as e:
             print(f"Gemini follow-up error: {e}\n{traceback.format_exc()}")
-            from src.i18n import get_text
-            return AIResponse(text=get_text("error_generic", language))
+            return self._create_error_response(language, str(e))
     
-    def _format_purchase_message(
-        self,
-        tool_result: Dict[str, Any],
-        language: str
-    ) -> str:
-        """Format purchase intent message"""
-        from src.i18n import get_text
-        
-        return get_text(
-            "order_created",
-            language,
-            order_id="...",  # Will be created when user clicks pay
-            amount=tool_result["price"]
-        )
-    
-    def _format_catalog_message(
-        self,
-        tool_result: Dict[str, Any],
-        language: str
-    ) -> str:
-        """Format catalog display message"""
-        from src.i18n import get_text
-        
-        products = tool_result.get("products", [])
-        count = tool_result.get("count", 0)
-        
-        if not products or count == 0:
-            if language == "ru":
-                return "К сожалению, сейчас нет доступных товаров. Попробуйте позже!"
-            return "Unfortunately, there are no available products at the moment. Please try again later!"
-        
-        # Group products by stock status
-        in_stock = [p for p in products if p.get("in_stock", False)]
-        out_of_stock = [p for p in products if not p.get("in_stock", False)]
-        
-        lines = []
-        
-        if language == "ru":
-            lines.append(f"📦 У нас есть {count} товар(ов):\n")
-            
-            if in_stock:
-                lines.append("✅ В наличии:")
-                for p in in_stock:
-                    lines.append(f"  • {p['name']} — {p['price']}₽")
-            
-            if out_of_stock:
-                lines.append("\n❌ Нет в наличии (можно заказать под заказ):")
-                for p in out_of_stock:
-                    lines.append(f"  • {p['name']} — {p['price']}₽")
-            
-            lines.append("\n💡 Хотите узнать подробнее о каком-то товаре или оформить заказ?")
-        else:
-            lines.append(f"📦 We have {count} product(s):\n")
-            
-            if in_stock:
-                lines.append("✅ In stock:")
-                for p in in_stock:
-                    lines.append(f"  • {p['name']} — {p['price']}₽")
-            
-            if out_of_stock:
-                lines.append("\n❌ Out of stock (can order on-demand):")
-                for p in out_of_stock:
-                    lines.append(f"  • {p['name']} — {p['price']}₽")
-            
-            lines.append("\n💡 Would you like to know more about any product or place an order?")
-        
-        return "\n".join(lines)
-    
-    def _extract_transcription(self, text: str) -> Optional[str]:
-        """Try to extract voice transcription from AI response"""
-        # Gemini often includes transcription in quotes or after certain phrases
-        # This is a simple heuristic
-        
-        import re
-        
-        # Look for quoted text at the beginning
-        match = re.search(r'^["\'](.+?)["\']', text)
-        if match:
-            return match.group(1)
-        
-        # Look for "User said:" pattern
-        match = re.search(r'(?:said|сказал|wrote|написал)[:\s]+["\']?(.+?)["\']?(?:\.|$)', text, re.I)
-        if match:
-            return match.group(1)
-        
-        return None
+    # Note: _format_purchase_message and _format_catalog_message removed
+    # AI now handles formatting through Structured Outputs (reply_text field)
+    # This gives AI more flexibility in how to present information
 
