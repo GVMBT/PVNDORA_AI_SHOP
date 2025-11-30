@@ -411,19 +411,49 @@ class AIConsultant:
         from src.i18n import get_text
         
         products = tool_result.get("products", [])
-        if not products:
-            return get_text("ai_no_product", language)
+        count = tool_result.get("count", 0)
+        
+        if not products or count == 0:
+            if language == "ru":
+                return "К сожалению, сейчас нет доступных товаров. Попробуйте позже!"
+            return "Unfortunately, there are no available products at the moment. Please try again later!"
+        
+        # Group products by stock status
+        in_stock = [p for p in products if p.get("in_stock", False)]
+        out_of_stock = [p for p in products if not p.get("in_stock", False)]
         
         lines = []
-        for p in products:
-            status = "✅" if p["in_stock"] else "❌"
-            lines.append(f"{status} {p['name']} — {p['price']}₽")
         
-        return get_text(
-            "ai_suggest",
-            language,
-            products="\n".join(lines)
-        )
+        if language == "ru":
+            lines.append(f"📦 У нас есть {count} товар(ов):\n")
+            
+            if in_stock:
+                lines.append("✅ В наличии:")
+                for p in in_stock:
+                    lines.append(f"  • {p['name']} — {p['price']}₽")
+            
+            if out_of_stock:
+                lines.append("\n❌ Нет в наличии (можно заказать под заказ):")
+                for p in out_of_stock:
+                    lines.append(f"  • {p['name']} — {p['price']}₽")
+            
+            lines.append("\n💡 Хотите узнать подробнее о каком-то товаре или оформить заказ?")
+        else:
+            lines.append(f"📦 We have {count} product(s):\n")
+            
+            if in_stock:
+                lines.append("✅ In stock:")
+                for p in in_stock:
+                    lines.append(f"  • {p['name']} — {p['price']}₽")
+            
+            if out_of_stock:
+                lines.append("\n❌ Out of stock (can order on-demand):")
+                for p in out_of_stock:
+                    lines.append(f"  • {p['name']} — {p['price']}₽")
+            
+            lines.append("\n💡 Would you like to know more about any product or place an order?")
+        
+        return "\n".join(lines)
     
     def _extract_transcription(self, text: str) -> Optional[str]:
         """Try to extract voice transcription from AI response"""

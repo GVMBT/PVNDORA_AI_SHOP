@@ -81,7 +81,7 @@ TOOLS = [
     },
     {
         "name": "get_catalog",
-        "description": "Get the full product catalog. Use when user asks to see all available products.",
+        "description": "Get the full product catalog with ALL available products. Use when user asks to see all products, what's available, catalog, or asks 'что есть', 'что есть в наличии', 'покажи все', 'каталог', 'what do you have', 'show me everything'. ALWAYS use this when user explicitly asks about availability or wants to see all products.",
         "parameters": {
             "type": "object",
             "properties": {}
