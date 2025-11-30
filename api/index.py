@@ -1898,60 +1898,27 @@ async def worker_process_review_cashback(request: Request):
 # ==================== ADMIN ENDPOINTS ====================
 
 @app.post("/api/admin/index-products")
-@app.get("/api/admin/index-products")  # GET for easy browser access
 async def admin_index_products(authorization: str = Header(None)):
     """
     Admin endpoint: Index all products for RAG (semantic search).
-    Temporarily public for initial setup.
+    Requires CRON_SECRET for authentication.
     """
-    import traceback
+    cron_secret = os.environ.get("CRON_SECRET", "")
+    if authorization != f"Bearer {cron_secret}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
     
     try:
-        from core.rag import get_product_search, GEMINI_API_KEY
-        
-        # Diagnostics
-        gemini_key_set = bool(GEMINI_API_KEY)
-        
+        from core.rag import get_product_search
         search = get_product_search()
         
         if not search.is_available:
-            return {
-                "success": False, 
-                "error": "RAG not available",
-                "gemini_key_set": gemini_key_set
-            }
-        
-        # Get products directly to check
-        from src.services.database import get_database
-        db = get_database()
-        products_result = db.client.table("products").select(
-            "id, name, description, type, instructions"
-        ).eq("status", "active").execute()
-        
-        products_count = len(products_result.data) if products_result.data else 0
-        
-        # Test embedding generation
-        from core.rag import get_embedding
-        test_text = "ChatGPT Plus subscription"
-        test_embedding = await get_embedding(test_text)
-        embedding_len = len(test_embedding) if test_embedding else 0
+            return {"success": False, "error": "RAG not available"}
         
         indexed = await search.index_all_products()
-        return {
-            "success": True, 
-            "indexed_products": indexed,
-            "gemini_key_set": gemini_key_set,
-            "products_found": products_count,
-            "product_names": [p["name"] for p in (products_result.data or [])],
-            "test_embedding_len": embedding_len
-        }
+        return {"success": True, "indexed_products": indexed}
         
     except Exception as e:
-        return {
-            "success": False, 
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }
+        return {"success": False, "error": str(e)}
 
 
 # ==================== VERCEL EXPORT ====================
