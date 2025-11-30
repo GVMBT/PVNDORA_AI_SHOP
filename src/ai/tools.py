@@ -355,24 +355,36 @@ async def execute_tool(
         return {"products": results}
     
     elif tool_name == "create_support_ticket":
-        # Create support ticket in database
-        issue = arguments.get("issue_description", "")
-        order_id = arguments.get("order_id")
-        
-        ticket_data = {
-            "user_id": user_id,
-            "message": issue,
-            "status": "open"
-        }
-        if order_id:
-            ticket_data["order_id"] = order_id
-        
-        db.client.table("tickets").insert(ticket_data).execute()
-        
-        return {
-            "success": True,
-            "message": "Support ticket created"
-        }
+        try:
+            # Create support ticket in database
+            issue = arguments.get("issue_description", "")
+            order_id = arguments.get("order_id")
+            
+            ticket_data = {
+                "user_id": user_id,
+                "message": issue,
+                "status": "open"
+            }
+            if order_id:
+                ticket_data["order_id"] = order_id
+            
+            # Run synchronous Supabase call in thread pool
+            await asyncio.to_thread(
+                lambda: db.client.table("tickets").insert(ticket_data).execute()
+            )
+            
+            return {
+                "success": True,
+                "message": "Support ticket created"
+            }
+        except Exception as e:
+            print(f"ERROR: create_support_ticket failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "success": False,
+                "reason": f"Failed to create support ticket: {str(e)}"
+            }
     
     elif tool_name == "get_user_orders":
         limit = arguments.get("limit", 5)
@@ -518,46 +530,64 @@ async def execute_tool(
         }
     
     elif tool_name == "get_referral_info":
-        # Get user's telegram_id for referral link
-        user_result = db.client.table("users").select(
-            "telegram_id,balance,personal_ref_percent"
-        ).eq("id", user_id).execute()
-        
-        if not user_result.data:
-            return {"success": False}
-        
-        user = user_result.data[0]
-        
-        # Count referrals
-        referrals = db.client.table("users").select("id", count="exact").eq(
-            "referrer_id", user_id
-        ).execute()
-        
-        return {
-            "success": True,
-            "referral_link": f"https://t.me/pvndora_bot?start=ref_{user['telegram_id']}",
-            "referral_percent": user["personal_ref_percent"],
-            "total_referrals": referrals.count if referrals.count else 0,
-            "balance": user["balance"]
-        }
+        try:
+            # Get user's telegram_id for referral link
+            user_result = await asyncio.to_thread(
+                lambda: db.client.table("users").select(
+                    "telegram_id,balance,personal_ref_percent"
+                ).eq("id", user_id).execute()
+            )
+            
+            if not user_result.data:
+                return {"success": False}
+            
+            user = user_result.data[0]
+            
+            # Count referrals
+            referrals = await asyncio.to_thread(
+                lambda: db.client.table("users").select("id", count="exact").eq(
+                    "referrer_id", user_id
+                ).execute()
+            )
+            
+            return {
+                "success": True,
+                "referral_link": f"https://t.me/pvndora_bot?start=ref_{user['telegram_id']}",
+                "referral_percent": user["personal_ref_percent"],
+                "total_referrals": referrals.count if referrals.count else 0,
+                "balance": user["balance"]
+            }
+        except Exception as e:
+            print(f"ERROR: get_referral_info failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"success": False, "reason": str(e)}
     
     elif tool_name == "get_wishlist":
-        wishlist_items = db.client.table("wishlist").select(
-            "id,product_id,products(name,price,stock_count:stock_items(count))"
-        ).eq("user_id", user_id).execute()
-        
-        return {
-            "count": len(wishlist_items.data),
-            "items": [
-                {
-                    "id": item["product_id"],
-                    "name": item.get("products", {}).get("name", "Unknown"),
-                    "price": item.get("products", {}).get("price", 0),
-                    "in_stock": (item.get("products", {}).get("stock_count") or [{}])[0].get("count", 0) > 0
-                }
-                for item in wishlist_items.data
-            ]
-        }
+        try:
+            wishlist_items = await asyncio.to_thread(
+                lambda: db.client.table("wishlist").select(
+                    "id,product_id,products(name,price,stock_count:stock_items(count))"
+                ).eq("user_id", user_id).execute()
+            )
+            
+            return {
+                "count": len(wishlist_items.data),
+                "items": [
+                    {
+                        "id": item["product_id"],
+                        "name": item.get("products", {}).get("name", "Unknown"),
+                        "price": item.get("products", {}).get("price", 0),
+                        "in_stock": (item.get("products", {}).get("stock_count") or [{}])[0].get("count", 0) > 0
+                    }
+                    for item in wishlist_items.data
+                ]
+            }
+        except Exception as e:
+            print(f"ERROR: get_wishlist failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"count": 0, "items": [], "error": str(e)}
     
     elif tool_name == "request_refund":
         order_id = arguments.get("order_id")
