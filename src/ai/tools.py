@@ -754,7 +754,7 @@ async def execute_tool(
     
     elif tool_name == "get_user_cart":
         try:
-            from core.cart import CartManager
+            from core.cart import get_cart_manager
             # Get user's telegram_id
             user_result = await asyncio.to_thread(
                 lambda: db.client.table("users").select("telegram_id").eq("id", user_id).execute()
@@ -764,7 +764,7 @@ async def execute_tool(
                 return {"success": False, "reason": "User not found"}
             
             telegram_id = user_result.data[0]["telegram_id"]
-            cart_manager = CartManager()
+            cart_manager = get_cart_manager()  # Use singleton
             cart = await cart_manager.get_cart(telegram_id)
             
             if not cart:
@@ -806,7 +806,7 @@ async def execute_tool(
     
     elif tool_name == "add_to_cart":
         try:
-            from core.cart import CartManager
+            from core.cart import get_cart_manager
             product_id = arguments.get("product_id")
             quantity = arguments.get("quantity", 1)
             
@@ -837,7 +837,7 @@ async def execute_tool(
                 return {"success": False, "reason": "User not found"}
             
             telegram_id = user_result.data[0]["telegram_id"]
-            cart_manager = CartManager()
+            cart_manager = get_cart_manager()  # Use singleton
             
             # Add to cart (auto-splits instant/prepaid)
             cart = await cart_manager.add_item(
@@ -876,7 +876,7 @@ async def execute_tool(
     
     elif tool_name == "update_cart":
         try:
-            from core.cart import CartManager
+            from core.cart import get_cart_manager
             operation = arguments.get("operation")
             product_id = arguments.get("product_id")
             quantity = arguments.get("quantity")
@@ -890,7 +890,7 @@ async def execute_tool(
                 return {"success": False, "reason": "User not found"}
             
             telegram_id = user_result.data[0]["telegram_id"]
-            cart_manager = CartManager()
+            cart_manager = get_cart_manager()  # Use singleton
             
             if operation == "clear":
                 await cart_manager.clear_cart(telegram_id)

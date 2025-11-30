@@ -442,16 +442,30 @@ class AIConsultant:
             if original_response.candidates and original_response.candidates[0].content:
                 messages.append(original_response.candidates[0].content)
             
-            # Add function response (must come immediately after function call)
-            messages.append(types.Content(
-                role="function",
-                parts=[
-                    types.Part.from_function_response(
-                        name=tool_name,
-                        response=tool_result
-                    )
-                ]
-            ))
+            # Check if tool execution failed
+            if isinstance(tool_result, dict) and tool_result.get("success") is False:
+                # Tool failed - add instruction for AI to explain error to user
+                error_reason = tool_result.get("reason", "Unknown error")
+                error_message = types.Content(
+                    role="user",
+                    parts=[types.Part.from_text(
+                        text=f"Function {tool_name} failed with error: {error_reason}. "
+                             f"Please explain this error to the user in a friendly way in {language} language. "
+                             f"Suggest what they can do to fix the issue or try again."
+                    )]
+                )
+                messages.append(error_message)
+            else:
+                # Tool succeeded - add function response normally
+                messages.append(types.Content(
+                    role="function",
+                    parts=[
+                        types.Part.from_function_response(
+                            name=tool_name,
+                            response=tool_result
+                        )
+                    ]
+                ))
             
             # Get products for context (not used in final response, but kept for potential future use)
             products = await db.get_products(status="active")
