@@ -1,976 +1,1256 @@
 """
 PVNDORA AI Marketplace - Main FastAPI Application
 
-Single entry point for all webhooks, APIs, and workers.
+Single entry point for all webhooks and API routes.
 Optimized for Vercel Hobby plan (max 12 serverless functions).
-
-Routes:
-- /api/webhook - Telegram webhook
-- /api/webapp/* - Mini App API
-- /api/webhook/payment/* - Payment provider webhooks
-- /api/admin/* - Admin endpoints
-- /api/workers/* - QStash workers
-- /api/crons/* - Scheduled jobs
 """
-
 import os
-import json
-import logging
+import sys
+from pathlib import Path
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from typing import Optional
 
-from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request, HTTPException, Depends, Header
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
-from aiogram import types
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Optional, List
+import json
 
-# Core imports - lazy loaded to avoid import errors on Vercel
-# These are imported inside functions that use them
-def get_core_imports():
-    """Lazy import core modules."""
-    from core.db import get_supabase, get_redis, RedisKeys
-    from core.bot import get_bot, get_dispatcher
-    from core.queue import publish_to_worker, verify_qstash_request, WorkerEndpoints
-    from core.models import HealthCheck, ReviewCreate, PromoCodeCheck, BroadcastRequest
-    return {
-        'get_supabase': get_supabase,
-        'get_redis': get_redis,
-        'RedisKeys': RedisKeys,
-        'get_bot': get_bot,
-        'get_dispatcher': get_dispatcher,
-        'publish_to_worker': publish_to_worker,
-        'verify_qstash_request': verify_qstash_request,
-        'WorkerEndpoints': WorkerEndpoints,
-        'HealthCheck': HealthCheck,
-        'ReviewCreate': ReviewCreate,
-        'PromoCodeCheck': PromoCodeCheck,
-        'BroadcastRequest': BroadcastRequest,
-    }
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-_core = None
+from aiogram import Bot, Dispatcher
+from aiogram.types import Update
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 
-def core():
-    """Get core imports (cached)."""
-    global _core
-    if _core is None:
-        _core = get_core_imports()
-    return _core
-
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Import bot components
+from src.bot.handlers import router as bot_router
+from src.bot.middlewares import (
+    AuthMiddleware,
+    LanguageMiddleware, 
+    ActivityMiddleware,
+    AnalyticsMiddleware
+)
+from src.services.database import get_database
+from src.utils.validators import validate_telegram_init_data, extract_user_from_init_data
 
 
-# ============================================================
-# FastAPI App
-# ============================================================
+# ==================== BOT INITIALIZATION ====================
+
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
+WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://pvndora-ai-shop.vercel.app")
+
+bot: Optional[Bot] = None
+dp: Optional[Dispatcher] = None
+
+
+def get_bot() -> Bot:
+    """Get or create bot instance"""
+    global bot
+    if bot is None and TELEGRAM_TOKEN:
+        bot = Bot(
+            token=TELEGRAM_TOKEN,
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+        )
+    return bot
+
+
+def get_dispatcher() -> Dispatcher:
+    """Get or create dispatcher instance"""
+    global dp
+    if dp is None:
+        dp = Dispatcher()
+        
+        # Register middlewares (order matters!)
+        dp.message.middleware(AuthMiddleware())
+        dp.message.middleware(LanguageMiddleware())
+        dp.message.middleware(ActivityMiddleware())
+        dp.message.middleware(AnalyticsMiddleware())
+        
+        dp.callback_query.middleware(AuthMiddleware())
+        dp.callback_query.middleware(LanguageMiddleware())
+        dp.callback_query.middleware(ActivityMiddleware())
+        
+        # Register router
+        dp.include_router(bot_router)
+    
+    return dp
+
+
+# ==================== FASTAPI APP ====================
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan handler"""
+    # Startup
+    yield
+    # Shutdown
+    if bot:
+        await bot.session.close()
+
 
 app = FastAPI(
     title="PVNDORA AI Marketplace",
-    version="1.0.0"
+    description="AI-powered digital goods marketplace API",
+    version="1.0.0",
+    lifespan=lifespan
 )
-
-@app.on_event("startup")
-async def startup_event():
-    """Application startup."""
-    logger.info("PVNDORA API starting up...")
 
 # CORS for Mini App
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Telegram Mini Apps require this
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# ============================================================
-# Request Models
-# ============================================================
-
-class OrderCreateRequest(BaseModel):
-    product_id: str
-    quantity: int = 1
-    promo_code: Optional[str] = None
-
-
-class ReviewCreateRequest(BaseModel):
-    order_id: str
-    rating: int = Field(ge=1, le=5)
-    text: Optional[str] = None
-
-
-class PromoCheckRequest(BaseModel):
-    code: str
-
-
-class BanUserRequest(BaseModel):
-    user_telegram_id: int
-    reason: Optional[str] = None
-
-
-class StockAddRequest(BaseModel):
-    product_id: str
-    content: str
-    expires_at: Optional[str] = None
-
-
-# ============================================================
-# Health Check
-# ============================================================
+# ==================== HEALTH CHECK ====================
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint with diagnostics."""
-    import sys
+    """Health check endpoint"""
+    return {"status": "ok", "service": "pvndora"}
+
+
+@app.get("/api/webhook/test")
+async def test_webhook():
+    """Test webhook endpoint - verify bot is configured"""
+    bot_instance = get_bot()
+    dispatcher = get_dispatcher()
     
-    diagnostics = {
-        "status": "ok",
-        "service": "pvndora",
-        "version": "1.0.0",
-        "python_version": sys.version,
-        "env_vars_set": {
-            "TELEGRAM_TOKEN": bool(os.environ.get("TELEGRAM_TOKEN")),
-            "SUPABASE_URL": bool(os.environ.get("SUPABASE_URL")),
-            "SUPABASE_SERVICE_ROLE_KEY": bool(os.environ.get("SUPABASE_SERVICE_ROLE_KEY")),
-            "GEMINI_API_KEY": bool(os.environ.get("GEMINI_API_KEY")),
-            "UPSTASH_REDIS_REST_URL": bool(os.environ.get("UPSTASH_REDIS_REST_URL")),
-            "UPSTASH_REDIS_REST_TOKEN": bool(os.environ.get("UPSTASH_REDIS_REST_TOKEN")),
-            "QSTASH_TOKEN": bool(os.environ.get("QSTASH_TOKEN")),
-        }
+    return {
+        "bot_configured": bot_instance is not None,
+        "dispatcher_configured": dispatcher is not None,
+        "telegram_token_set": bool(TELEGRAM_TOKEN),
+        "webhook_url": f"{WEBAPP_URL}/webhook/telegram"
     }
+
+
+# ==================== TELEGRAM WEBHOOK ====================
+
+@app.post("/webhook/telegram")
+async def telegram_webhook(request: Request):
+    """Handle Telegram webhook updates"""
+    import traceback
     
-    # Try to import core modules to check for errors
     try:
-        _ = core()
-        diagnostics["core_modules"] = "loaded"
-    except Exception as e:
-        diagnostics["core_modules"] = f"error: {str(e)}"
-    
-    return diagnostics
-
-
-# ============================================================
-# Telegram Webhook
-# ============================================================
-
-@app.post("/api/webhook")
-async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
-    """
-    Telegram webhook handler.
-    
-    Validates update and processes via aiogram dispatcher.
-    Uses BackgroundTasks for non-blocking response.
-    """
-    try:
-        data = await request.json()
-        logger.info(f"Webhook received update_id: {data.get('update_id')}")
+        # Get bot and dispatcher
+        bot_instance = get_bot()
+        dispatcher = get_dispatcher()
         
+        if not bot_instance:
+            print("ERROR: Bot instance is None - TELEGRAM_TOKEN may be missing")
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Bot not configured"}
+            )
+        
+        # Parse update
         try:
-            current_bot = get_bot()
-            current_dp = get_dispatcher()
-        except ValueError as e:
-            logger.error(f"Bot or Dispatcher not initialized: {e}")
-            return {"ok": False, "error": "Bot not configured"}
+            data = await request.json()
+            print(f"DEBUG: Received update: {data.get('update_id', 'unknown')}")
+        except Exception as e:
+            print(f"ERROR: Failed to parse JSON: {e}")
+            return JSONResponse(
+                status_code=400,
+                content={"error": f"Invalid JSON: {str(e)}"}
+            )
         
-        # Parse and feed update
-        update = types.Update.model_validate(data, context={"bot": current_bot})
+        # Validate update
+        try:
+            update = Update.model_validate(data, context={"bot": bot_instance})
+            print(f"DEBUG: Update validated, type: {update.event_type if hasattr(update, 'event_type') else 'unknown'}")
+        except Exception as e:
+            print(f"ERROR: Failed to validate update: {e}")
+            print(f"ERROR: Traceback: {traceback.format_exc()}")
+            return JSONResponse(
+                status_code=400,
+                content={"error": f"Invalid update: {str(e)}"}
+            )
         
-        # Process in background for faster response
-        background_tasks.add_task(current_dp.feed_update, current_bot, update)
+        # Process update - use process_update for better error handling
+        try:
+            await dispatcher.feed_update(bot_instance, update)
+            print(f"DEBUG: Update processed successfully")
+        except Exception as e:
+            print(f"ERROR: Failed to process update: {e}")
+            print(f"ERROR: Traceback: {traceback.format_exc()}")
+            # Still return 200 to Telegram to avoid retries
+            return JSONResponse(content={"ok": True, "error": str(e)})
         
-        return {"ok": True}
-        
+        return JSONResponse(content={"ok": True})
+    
     except Exception as e:
-        logger.error(f"Webhook error: {e}", exc_info=True)
-        return {"ok": False, "error": str(e)}
+        error_msg = str(e)
+        error_trace = traceback.format_exc()
+        print(f"ERROR: Webhook exception: {error_msg}")
+        print(f"ERROR: Traceback: {error_trace}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": error_msg}
+        )
 
 
-# ============================================================
-# Mini App API
-# ============================================================
+# ==================== AUTHENTICATION ====================
 
-@app.get("/api/webapp/products")
-async def get_products(
-    category: Optional[str] = None,
-    limit: int = 20,
-    offset: int = 0
-):
-    """Get product catalog with availability and discounts."""
-    supabase = await get_supabase()
+async def verify_telegram_auth(authorization: str = Header(None)):
+    """Verify Telegram Mini App authentication"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="No authorization header")
     
-    query = supabase.table("products").select(
-        "*, available_stock_with_discounts(*)"
-    ).eq("status", "active")
+    # Parse "tma <initData>"
+    parts = authorization.split(" ")
+    if len(parts) != 2 or parts[0].lower() != "tma":
+        raise HTTPException(status_code=401, detail="Invalid authorization format")
     
-    if category:
-        query = query.eq("type", category)
+    init_data = parts[1]
     
-    result = await query.range(offset, offset + limit - 1).execute()
-    return {"products": result.data or []}
+    if not validate_telegram_init_data(init_data, TELEGRAM_TOKEN):
+        raise HTTPException(status_code=401, detail="Invalid initData signature")
+    
+    user = extract_user_from_init_data(init_data)
+    if not user:
+        raise HTTPException(status_code=401, detail="Could not extract user")
+    
+    return user
 
 
-@app.get("/api/webapp/products/{product_id}")
-async def get_product_detail(product_id: str):
-    """Get single product with social proof."""
-    supabase = await get_supabase()
+# ==================== PRODUCTS API ====================
+
+class ProductResponse(BaseModel):
+    id: str
+    name: str
+    description: Optional[str]
+    price: float
+    type: str
+    status: str
+    stock_count: int
+    warranty_hours: int
+    rating: float = 0
+    reviews_count: int = 0
+
+
+@app.get("/api/products")
+async def get_products():
+    """Get all available products"""
+    db = get_database()
+    products = await db.get_products(status="active")
     
-    # Get product with stock info
-    result = await supabase.table("products").select(
-        "*, available_stock_with_discounts(*)"
-    ).eq("id", product_id).single().execute()
+    result = []
+    for p in products:
+        rating_info = await db.get_product_rating(p.id)
+        result.append(ProductResponse(
+            id=p.id,
+            name=p.name,
+            description=p.description,
+            price=p.price,
+            type=p.type,
+            status=p.status,
+            stock_count=p.stock_count,
+            warranty_hours=p.warranty_hours,
+            rating=rating_info["average"],
+            reviews_count=rating_info["count"]
+        ))
     
-    if not result.data:
+    return result
+
+
+@app.get("/api/products/{product_id}")
+async def get_product(product_id: str):
+    """Get product by ID"""
+    db = get_database()
+    product = await db.get_product_by_id(product_id)
+    
+    if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     
-    # Get social proof (reviews, sales count)
-    reviews_result = await supabase.table("reviews").select(
-        "rating, text, created_at, users(first_name)"
-    ).eq("product_id", product_id).order("created_at", desc=True).limit(5).execute()
+    rating_info = await db.get_product_rating(product_id)
+    reviews = await db.get_product_reviews(product_id, limit=5)
     
-    product = result.data
-    product["reviews"] = reviews_result.data or []
-    
-    return product
+    return {
+        "id": product.id,
+        "name": product.name,
+        "description": product.description,
+        "price": product.price,
+        "type": product.type,
+        "status": product.status,
+        "stock_count": product.stock_count,
+        "warranty_hours": product.warranty_hours,
+        "instructions": product.instructions,
+        "terms": product.terms,
+        "rating": rating_info["average"],
+        "reviews_count": rating_info["count"],
+        "reviews": reviews
+    }
 
 
-@app.get("/api/webapp/orders")
-async def get_user_orders(user_telegram_id: int):
-    """Get user's order history."""
-    supabase = await get_supabase()
-    
-    # Get user ID first
-    user_result = await supabase.table("users").select("id").eq(
-        "telegram_id", user_telegram_id
-    ).single().execute()
-    
-    if not user_result.data:
-        return {"orders": []}
-    
-    orders_result = await supabase.table("orders").select(
-        "*, products(name, type)"
-    ).eq("user_id", user_result.data["id"]).order(
-        "created_at", desc=True
-    ).limit(20).execute()
-    
-    return {"orders": orders_result.data or []}
+# ==================== ORDERS API ====================
+
+class CreateOrderRequest(BaseModel):
+    product_id: str
+    promo_code: Optional[str] = None
 
 
-@app.post("/api/webapp/orders")
+class OrderResponse(BaseModel):
+    order_id: str
+    amount: float
+    original_price: float
+    discount_percent: int
+    payment_url: str
+    payment_method: str
+
+
+@app.post("/api/orders")
 async def create_order(
-    order_data: OrderCreateRequest,
-    user_telegram_id: int,
-    background_tasks: BackgroundTasks
+    request: CreateOrderRequest,
+    user = Depends(verify_telegram_auth)
 ):
-    """Create a new order with availability check."""
-    supabase = await get_supabase()
+    """Create new order and get payment URL"""
+    db = get_database()
     
-    # Call RPC for atomic order creation
-    result = await supabase.rpc("create_order_with_availability_check", {
-        "p_product_id": order_data.product_id,
-        "p_user_telegram_id": user_telegram_id,
-        "p_quantity": order_data.quantity,
-        "p_promo_code": order_data.promo_code
-    }).execute()
-    
-    if not result.data or not result.data[0].get("order_id"):
-        raise HTTPException(status_code=400, detail="Failed to create order")
-    
-    order_result = result.data[0]
-    
-    return {
-        "order_id": order_result["order_id"],
-        "amount": order_result["amount"],
-        "order_type": order_result["order_type"]
-    }
-
-
-@app.get("/api/webapp/leaderboard")
-async def get_leaderboard(user_telegram_id: Optional[int] = None):
-    """Get Money Saved leaderboard from Redis."""
-    redis = get_redis()
-    
-    # Get top 10 from sorted set
-    leaderboard_raw = await redis.zrevrange(
-        RedisKeys.LEADERBOARD_SAVINGS, 0, 9, withscores=True
-    )
-    
-    # Format leaderboard
-    supabase = await get_supabase()
-    leaderboard = []
-    
-    for rank, (user_id, score) in enumerate(leaderboard_raw, 1):
-        # Get user info
-        user_result = await supabase.table("users").select(
-            "first_name, username"
-        ).eq("telegram_id", int(user_id)).single().execute()
-        
-        if user_result.data:
-            leaderboard.append({
-                "rank": rank,
-                "user_id": int(user_id),
-                "first_name": user_result.data.get("first_name", "Anonymous"),
-                "username": user_result.data.get("username"),
-                "total_saved": float(score)
-            })
-    
-    # Get user's rank if provided
-    user_rank = None
-    user_saved = 0.0
-    if user_telegram_id:
-        user_rank = await redis.zrevrank(
-            RedisKeys.LEADERBOARD_SAVINGS, str(user_telegram_id)
-        )
-        if user_rank is not None:
-            user_rank += 1  # 0-indexed to 1-indexed
-            user_saved = await redis.zscore(
-                RedisKeys.LEADERBOARD_SAVINGS, str(user_telegram_id)
-            ) or 0.0
-    
-    return {
-        "leaderboard": leaderboard,
-        "user_rank": user_rank,
-        "user_saved": user_saved
-    }
-
-
-@app.get("/api/webapp/faq")
-async def get_faq(language_code: str = "en"):
-    """Get FAQ entries."""
-    supabase = await get_supabase()
-    
-    result = await supabase.table("faq").select("*").eq(
-        "language_code", language_code
-    ).eq("is_active", True).order("order_index").execute()
-    
-    return {"faq": result.data or []}
-
-
-@app.post("/api/webapp/reviews")
-async def submit_review(
-    review: ReviewCreateRequest,
-    user_telegram_id: int,
-    background_tasks: BackgroundTasks
-):
-    """Submit a product review and trigger cashback."""
-    supabase = await get_supabase()
-    
-    # Get user and order info
-    user_result = await supabase.table("users").select("id").eq(
-        "telegram_id", user_telegram_id
-    ).single().execute()
-    
-    if not user_result.data:
+    # Get user from database
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    order_result = await supabase.table("orders").select(
-        "id, product_id, amount"
-    ).eq("id", review.order_id).single().execute()
+    # Get product
+    product = await db.get_product_by_id(request.product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
     
-    if not order_result.data:
-        raise HTTPException(status_code=404, detail="Order not found")
+    if product.stock_count == 0:
+        raise HTTPException(status_code=400, detail="Product out of stock")
     
-    # Create review
-    review_data = {
-        "user_id": user_result.data["id"],
-        "order_id": review.order_id,
-        "product_id": order_result.data["product_id"],
-        "rating": review.rating,
-        "text": review.text
-    }
+    # Calculate price with potential discount
+    original_price = product.price
+    discount_percent = 0
     
-    result = await supabase.table("reviews").insert(review_data).execute()
+    # Check for stock item discount (age-based)
+    stock_item = await db.get_available_stock_item(request.product_id)
+    if stock_item:
+        discount_percent = await db.calculate_discount(stock_item, product)
     
-    if not result.data:
-        raise HTTPException(status_code=400, detail="Failed to submit review")
+    # Check promo code
+    if request.promo_code:
+        promo = await db.validate_promo_code(request.promo_code)
+        if promo:
+            # Use higher discount
+            discount_percent = max(discount_percent, promo["discount_percent"])
     
-    # Trigger cashback via QStash
-    background_tasks.add_task(
-        publish_to_worker,
-        WorkerEndpoints.PROCESS_REVIEW_CASHBACK,
-        {
-            "review_id": result.data[0]["id"],
-            "order_id": review.order_id,
-            "user_telegram_id": user_telegram_id,
-            "amount": order_result.data["amount"]
-        }
+    # Calculate final price
+    final_price = original_price * (1 - discount_percent / 100)
+    
+    # Determine payment method based on language
+    payment_method = "aaio" if db_user.language_code in ["ru", "uk", "be", "kk"] else "stripe"
+    
+    # Create order
+    order = await db.create_order(
+        user_id=db_user.id,
+        product_id=request.product_id,
+        amount=final_price,
+        original_price=original_price,
+        discount_percent=discount_percent,
+        payment_method=payment_method
     )
     
-    return {"ok": True, "review_id": result.data[0]["id"]}
+    # Generate payment URL
+    from src.services.payments import PaymentService
+    payment_service = PaymentService()
+    
+    payment_url = await payment_service.create_payment(
+        order_id=order.id,
+        amount=final_price,
+        product_name=product.name,
+        method=payment_method,
+        user_email=f"{user.id}@telegram.user"  # Placeholder
+    )
+    
+    # Use promo code if valid
+    if request.promo_code:
+        await db.use_promo_code(request.promo_code)
+    
+    return OrderResponse(
+        order_id=order.id,
+        amount=final_price,
+        original_price=original_price,
+        discount_percent=discount_percent,
+        payment_url=payment_url,
+        payment_method=payment_method
+    )
 
 
-@app.post("/api/webapp/promo/check")
-async def check_promo_code(promo: PromoCheckRequest):
-    """Validate a promo code."""
-    supabase = await get_supabase()
+@app.get("/api/orders")
+async def get_user_orders(user = Depends(verify_telegram_auth)):
+    """Get user's orders"""
+    db = get_database()
     
-    result = await supabase.rpc("check_promo_code", {
-        "p_code": promo.code
-    }).execute()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
     
-    if result.data and result.data[0]:
-        return result.data[0]
+    orders = await db.get_user_orders(db_user.id)
+    return orders
+
+
+# ==================== PAYMENT WEBHOOKS ====================
+
+@app.post("/webhook/aaio")
+async def aaio_webhook(request: Request):
+    """Handle AAIO payment callback"""
+    from src.services.payments import PaymentService
+    from src.services.notifications import NotificationService
+    
+    try:
+        data = await request.form()
+        
+        payment_service = PaymentService()
+        result = await payment_service.verify_aaio_callback(dict(data))
+        
+        if result["success"]:
+            order_id = result["order_id"]
+            
+            # Process fulfillment
+            notification_service = NotificationService()
+            await notification_service.fulfill_order(order_id)
+        
+        return JSONResponse(content={"status": "ok"})
+    
+    except Exception as e:
+        print(f"AAIO webhook error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+
+@app.post("/webhook/stripe")
+async def stripe_webhook(request: Request):
+    """Handle Stripe payment webhook"""
+    from src.services.payments import PaymentService
+    from src.services.notifications import NotificationService
+    
+    try:
+        payload = await request.body()
+        sig_header = request.headers.get("stripe-signature")
+        
+        payment_service = PaymentService()
+        result = await payment_service.verify_stripe_webhook(payload, sig_header)
+        
+        if result["success"]:
+            order_id = result["order_id"]
+            
+            # Process fulfillment
+            notification_service = NotificationService()
+            await notification_service.fulfill_order(order_id)
+        
+        return JSONResponse(content={"received": True})
+    
+    except Exception as e:
+        print(f"Stripe webhook error: {e}")
+        return JSONResponse(
+            status_code=400,
+            content={"error": str(e)}
+        )
+
+
+# ==================== USER API ====================
+
+@app.get("/api/user/profile")
+async def get_user_profile(user = Depends(verify_telegram_auth)):
+    """Get user profile"""
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
     
     return {
-        "is_valid": False,
-        "discount_percent": 0,
-        "error_message": "Invalid or expired promo code"
+        "id": db_user.id,
+        "telegram_id": db_user.telegram_id,
+        "username": db_user.username,
+        "first_name": db_user.first_name,
+        "balance": db_user.balance,
+        "language_code": db_user.language_code,
+        "referral_percent": db_user.personal_ref_percent
     }
 
 
-# ============================================================
-# Payment Webhooks
-# ============================================================
-
-@app.post("/api/webhook/payment/aaio")
-async def aaio_payment_webhook(
-    request: Request,
-    background_tasks: BackgroundTasks
-):
-    """AAIO payment webhook handler."""
-    from core.payments import verify_aaio_signature
+@app.get("/api/user/referral")
+async def get_referral_info(user = Depends(verify_telegram_auth)):
+    """Get referral link and stats"""
+    bot_instance = get_bot()
     
-    data = await request.form()
+    if not bot_instance:
+        raise HTTPException(status_code=500, detail="Bot not configured")
     
-    if not verify_aaio_signature(dict(data)):
-        raise HTTPException(status_code=400, detail="Invalid signature")
+    bot_info = await bot_instance.get_me()
+    referral_link = f"https://t.me/{bot_info.username}?start=ref_{user.id}"
     
-    order_id = data.get("order_id")
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
     
-    # Trigger goods delivery via QStash
-    background_tasks.add_task(
-        publish_to_worker,
-        WorkerEndpoints.DELIVER_GOODS,
-        {"order_id": order_id, "provider": "aaio"}
-    )
-    
-    return {"ok": True}
+    return {
+        "link": referral_link,
+        "percent": db_user.personal_ref_percent if db_user else 20,
+        "balance": db_user.balance if db_user else 0
+    }
 
 
-@app.post("/api/webhook/payment/yukassa")
-async def yukassa_payment_webhook(
-    request: Request,
-    background_tasks: BackgroundTasks
-):
-    """YooKassa payment webhook handler."""
-    from core.payments import verify_yukassa_signature
-    
-    data = await request.json()
-    
-    # YooKassa sends notification object
-    if data.get("event") == "payment.succeeded":
-        payment = data.get("object", {})
-        order_id = payment.get("metadata", {}).get("order_id")
-        
-        if order_id:
-            background_tasks.add_task(
-                publish_to_worker,
-                WorkerEndpoints.DELIVER_GOODS,
-                {"order_id": order_id, "provider": "yukassa"}
-            )
-    
-    return {"ok": True}
+# ==================== FAQ API ====================
+
+@app.get("/api/faq")
+async def get_faq(lang: str = "en"):
+    """Get FAQ entries"""
+    db = get_database()
+    faq = await db.get_faq(lang)
+    return faq
 
 
-# ============================================================
-# Admin API
-# ============================================================
+# ==================== WISHLIST API ====================
 
-@app.post("/api/admin/broadcast")
-async def admin_broadcast(
-    broadcast: BroadcastRequest,
-    background_tasks: BackgroundTasks
-):
-    """Send broadcast message to all users."""
-    # TODO: Add admin authentication
+@app.get("/api/wishlist")
+async def get_wishlist(user = Depends(verify_telegram_auth)):
+    """Get user's wishlist"""
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
     
-    background_tasks.add_task(
-        publish_to_worker,
-        WorkerEndpoints.SEND_BROADCAST,
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    products = await db.get_wishlist(db_user.id)
+    return [
         {
-            "message": broadcast.message,
-            "parse_mode": broadcast.parse_mode
+            "id": p.id,
+            "name": p.name,
+            "price": p.price,
+            "stock_count": p.stock_count
         }
-    )
-    
-    return {"ok": True, "status": "queued"}
+        for p in products
+    ]
 
 
-@app.post("/api/admin/ban")
-async def admin_ban_user(ban_request: BanUserRequest):
-    """Ban a user."""
-    # TODO: Add admin authentication
+@app.post("/api/wishlist/{product_id}")
+async def add_to_wishlist(product_id: str, user = Depends(verify_telegram_auth)):
+    """Add product to wishlist"""
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
     
-    supabase = await get_supabase()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
     
-    result = await supabase.table("users").update({
-        "is_banned": True
-    }).eq("telegram_id", ban_request.user_telegram_id).execute()
+    await db.add_to_wishlist(db_user.id, product_id)
+    return {"success": True}
+
+
+@app.delete("/api/wishlist/{product_id}")
+async def remove_from_wishlist(product_id: str, user = Depends(verify_telegram_auth)):
+    """Remove product from wishlist"""
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
     
-    if result.data:
-        # Notify user
-        current_bot = get_bot()
-        if current_bot:
-            try:
-                await current_bot.send_message(
-                    ban_request.user_telegram_id,
-                    "⛔ Your access has been restricted. Contact @admin to appeal."
-                )
-            except Exception:
-                pass
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
     
-    return {"ok": True}
+    await db.remove_from_wishlist(db_user.id, product_id)
+    return {"success": True}
+
+
+# ==================== ADMIN API ====================
+
+async def verify_admin(user = Depends(verify_telegram_auth)):
+    """Verify that user is an admin"""
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    
+    if not db_user or not db_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    return db_user
+
+
+class AddStockRequest(BaseModel):
+    product_id: str
+    content: str  # Login:Pass or invite link
+    expires_at: Optional[str] = None  # ISO datetime
+    supplier_id: Optional[str] = None
+
+
+class BroadcastRequest(BaseModel):
+    message: str
+    exclude_dnd: bool = True
+
+
+class BanUserRequest(BaseModel):
+    telegram_id: int
+    ban: bool = True
+    reason: Optional[str] = None
+
+
+@app.get("/api/admin/orders")
+async def admin_get_orders(
+    status: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    admin = Depends(verify_admin)
+):
+    """Get all orders with optional filtering"""
+    db = get_database()
+    
+    query = db.client.table("orders").select(
+        "*, users(telegram_id, username, first_name), products(name)"
+    ).order("created_at", desc=True).range(offset, offset + limit - 1)
+    
+    if status:
+        query = query.eq("status", status)
+    
+    result = query.execute()
+    return result.data
+
+
+@app.get("/api/admin/users")
+async def admin_get_users(
+    limit: int = 50,
+    offset: int = 0,
+    admin = Depends(verify_admin)
+):
+    """Get all users"""
+    db = get_database()
+    
+    result = db.client.table("users").select("*").order(
+        "created_at", desc=True
+    ).range(offset, offset + limit - 1).execute()
+    
+    return result.data
+
+
+@app.get("/api/admin/users/{telegram_id}")
+async def admin_get_user(telegram_id: int, admin = Depends(verify_admin)):
+    """Get specific user details"""
+    db = get_database()
+    user = await db.get_user_by_telegram_id(telegram_id)
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get user's orders
+    orders = await db.get_user_orders(user.id, limit=20)
+    
+    return {
+        "user": user,
+        "orders": orders
+    }
+
+
+@app.post("/api/admin/users/ban")
+async def admin_ban_user(request: BanUserRequest, admin = Depends(verify_admin)):
+    """Ban or unban a user"""
+    db = get_database()
+    await db.ban_user(request.telegram_id, request.ban)
+    
+    return {"success": True, "banned": request.ban}
+
+
+@app.post("/api/admin/users/{telegram_id}/warning")
+async def admin_add_warning(telegram_id: int, admin = Depends(verify_admin)):
+    """Add warning to user (auto-ban after 3)"""
+    db = get_database()
+    new_count = await db.add_warning(telegram_id)
+    
+    return {
+        "success": True,
+        "warnings_count": new_count,
+        "auto_banned": new_count >= 3
+    }
 
 
 @app.post("/api/admin/stock")
-async def admin_add_stock(
-    stock: StockAddRequest,
-    background_tasks: BackgroundTasks
-):
-    """Add stock item and notify waitlist."""
-    # TODO: Add admin authentication
+async def admin_add_stock(request: AddStockRequest, admin = Depends(verify_admin)):
+    """Add single stock item for a product"""
+    db = get_database()
     
-    supabase = await get_supabase()
+    # Verify product exists
+    product = await db.get_product_by_id(request.product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
     
-    stock_data = {
-        "product_id": stock.product_id,
-        "content": stock.content
+    # Create stock item
+    data = {
+        "product_id": request.product_id,
+        "content": request.content,
+        "is_sold": False
     }
-    if stock.expires_at:
-        stock_data["expires_at"] = stock.expires_at
     
-    result = await supabase.table("stock_items").insert(stock_data).execute()
+    if request.expires_at:
+        data["expires_at"] = request.expires_at
+    if request.supplier_id:
+        data["supplier_id"] = request.supplier_id
     
-    if result.data:
-        # Notify waitlist
-        background_tasks.add_task(
-            publish_to_worker,
-            WorkerEndpoints.NOTIFY_WAITLIST,
-            {"product_id": stock.product_id}
-        )
+    result = db.client.table("stock_items").insert(data).execute()
     
-    return {"ok": True, "stock_item_id": result.data[0]["id"] if result.data else None}
+    # Notify waitlist users
+    await _notify_waitlist_for_product(product.name)
+    
+    return {"success": True, "stock_item": result.data[0]}
 
 
-# ============================================================
-# QStash Workers
-# ============================================================
+class BulkStockRequest(BaseModel):
+    product_id: str
+    items: List[str]  # List of credentials (login:pass or invite links)
+    expires_at: Optional[str] = None
+    supplier_id: Optional[str] = None
 
-@app.post("/api/workers/deliver-goods")
-async def worker_deliver_goods(request: Request):
-    """Deliver goods after payment confirmation."""
-    data = await verify_qstash_request(request)
+
+@app.post("/api/admin/stock/bulk")
+async def admin_add_stock_bulk(request: BulkStockRequest, admin = Depends(verify_admin)):
+    """Bulk add stock items for a product (for supplier uploads)"""
+    db = get_database()
     
-    order_id = data.get("order_id")
-    supabase = await get_supabase()
+    # Verify product exists
+    product = await db.get_product_by_id(request.product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
     
-    # Get order with stock item
-    order_result = await supabase.table("orders").select(
-        "*, stock_items(content), products(instructions), users(telegram_id)"
-    ).eq("id", order_id).single().execute()
-    
-    if not order_result.data:
-        return {"ok": False, "error": "Order not found"}
-    
-    order = order_result.data
-    stock_item = order.get("stock_items", {})
-    product = order.get("products", {})
-    user = order.get("users", {})
-    
-    # Send credentials to user
-    current_bot = get_bot()
-    if current_bot and user.get("telegram_id"):
-        message = f"""✅ <b>Order Delivered!</b>
-
-📦 Order: #{order_id[:8]}
-
-🔐 <b>Your credentials:</b>
-<code>{stock_item.get('content', 'N/A')}</code>
-
-📋 <b>Instructions:</b>
-{product.get('instructions', 'Follow the standard setup process.')}
-
-⏰ <b>Expires:</b> {order.get('expires_at', 'N/A')}
-
-Questions? Just ask me here!"""
+    # Create stock items
+    items_data = []
+    for content in request.items:
+        content = content.strip()
+        if not content:
+            continue
+            
+        item = {
+            "product_id": request.product_id,
+            "content": content,
+            "is_sold": False
+        }
+        if request.expires_at:
+            item["expires_at"] = request.expires_at
+        if request.supplier_id:
+            item["supplier_id"] = request.supplier_id
         
-        await current_bot.send_message(user["telegram_id"], message)
+        items_data.append(item)
     
-    # Update order status
-    await supabase.table("orders").update({
-        "status": "delivered",
-        "delivered_at": datetime.utcnow().isoformat()
-    }).eq("id", order_id).execute()
+    if not items_data:
+        raise HTTPException(status_code=400, detail="No valid items provided")
     
-    # Trigger referral calculation
-    await publish_to_worker(
-        WorkerEndpoints.CALCULATE_REFERRAL,
-        {"order_id": order_id}
+    result = db.client.table("stock_items").insert(items_data).execute()
+    
+    # Notify waitlist users
+    await _notify_waitlist_for_product(product.name)
+    
+    return {
+        "success": True,
+        "added_count": len(result.data),
+        "product_name": product.name
+    }
+
+
+async def _notify_waitlist_for_product(product_name: str):
+    """Notify users on waitlist when product becomes available"""
+    db = get_database()
+    
+    # Get waitlist users for this product
+    waitlist = db.client.table("waitlist").select(
+        "id,user_id,users(telegram_id,language_code)"
+    ).ilike("product_name", f"%{product_name}%").execute()
+    
+    if not waitlist.data:
+        return
+    
+    from src.services.notifications import NotificationService
+    notification_service = NotificationService()
+    
+    for item in waitlist.data:
+        user = item.get("users")
+        if user:
+            await notification_service.send_waitlist_notification(
+                telegram_id=user["telegram_id"],
+                product_name=product_name,
+                language=user.get("language_code", "en")
+            )
+            
+            # Remove from waitlist
+            db.client.table("waitlist").delete().eq("id", item["id"]).execute()
+
+
+@app.get("/api/admin/stock")
+async def admin_get_stock(
+    product_id: Optional[str] = None,
+    available_only: bool = True,
+    admin = Depends(verify_admin)
+):
+    """Get stock items"""
+    db = get_database()
+    
+    query = db.client.table("stock_items").select(
+        "*, products(name)"
+    ).order("created_at", desc=True)
+    
+    if product_id:
+        query = query.eq("product_id", product_id)
+    if available_only:
+        query = query.eq("is_sold", False)
+    
+    result = query.execute()
+    return result.data
+
+
+@app.post("/api/admin/broadcast")
+async def admin_broadcast(request: BroadcastRequest, admin = Depends(verify_admin)):
+    """Send broadcast message to all users"""
+    from src.services.notifications import NotificationService
+    
+    notification_service = NotificationService()
+    sent_count = await notification_service.send_broadcast(
+        message=request.message,
+        exclude_dnd=request.exclude_dnd
     )
     
-    return {"ok": True}
+    return {"success": True, "sent_count": sent_count}
 
 
-@app.post("/api/workers/calculate-referral")
-async def worker_calculate_referral(request: Request):
-    """Calculate and credit referral bonus."""
-    data = await verify_qstash_request(request)
+@app.get("/api/admin/analytics")
+async def admin_get_analytics(
+    days: int = 7,
+    admin = Depends(verify_admin)
+):
+    """Get sales analytics"""
+    from datetime import datetime, timedelta
     
-    order_id = data.get("order_id")
-    supabase = await get_supabase()
+    db = get_database()
     
-    # Get order and user with referrer
-    order_result = await supabase.table("orders").select(
-        "amount, users(referrer_id, personal_ref_percent)"
-    ).eq("id", order_id).single().execute()
+    # Get date range
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=days)
     
-    if not order_result.data:
-        return {"ok": False}
+    # Get orders in period
+    orders_result = db.client.table("orders").select(
+        "amount, status, created_at"
+    ).gte("created_at", start_date.isoformat()).execute()
     
-    order = order_result.data
-    user = order.get("users", {})
-    referrer_id = user.get("referrer_id")
+    # Calculate metrics
+    total_orders = len(orders_result.data)
+    completed_orders = [o for o in orders_result.data if o["status"] == "completed"]
+    total_revenue = sum(o["amount"] for o in completed_orders)
     
-    if not referrer_id:
-        return {"ok": True, "message": "No referrer"}
+    # Get event counts
+    events_result = db.client.table("analytics_events").select(
+        "event_type", count="exact"
+    ).gte("timestamp", start_date.isoformat()).execute()
     
-    # Calculate bonus
-    ref_percent = user.get("personal_ref_percent", 20)
-    bonus = order["amount"] * (ref_percent / 100)
+    # Get new users
+    users_result = db.client.table("users").select(
+        "id", count="exact"
+    ).gte("created_at", start_date.isoformat()).execute()
     
-    # Credit referrer balance
-    await supabase.rpc("add_to_user_balance", {
-        "p_user_id": referrer_id,
-        "p_amount": bonus
-    }).execute()
-    
-    # Notify referrer
-    referrer_result = await supabase.table("users").select(
-        "telegram_id"
-    ).eq("id", referrer_id).single().execute()
-    
-    if referrer_result.data:
-        current_bot = get_bot()
-        if current_bot:
-            await current_bot.send_message(
-                referrer_result.data["telegram_id"],
-                f"💰 Referral bonus credited: +{bonus:.0f}₽"
-            )
-    
-    return {"ok": True, "bonus": bonus}
+    return {
+        "period_days": days,
+        "total_orders": total_orders,
+        "completed_orders": len(completed_orders),
+        "total_revenue": total_revenue,
+        "conversion_rate": len(completed_orders) / total_orders * 100 if total_orders > 0 else 0,
+        "new_users": users_result.count or 0,
+        "events": events_result.count or 0
+    }
 
 
-@app.post("/api/workers/process-review-cashback")
-async def worker_process_review_cashback(request: Request):
-    """Process 5% cashback for review."""
-    data = await verify_qstash_request(request)
+@app.get("/api/admin/tickets")
+async def admin_get_tickets(
+    status: str = "open",
+    admin = Depends(verify_admin)
+):
+    """Get support tickets"""
+    db = get_database()
     
-    review_id = data.get("review_id")
-    user_telegram_id = data.get("user_telegram_id")
-    amount = data.get("amount", 0)
+    result = db.client.table("tickets").select(
+        "*, users(telegram_id, username), orders(id, product_id)"
+    ).eq("status", status).order("created_at", desc=True).execute()
     
-    cashback = amount * 0.05  # 5% cashback
-    
-    supabase = await get_supabase()
-    
-    # Get user ID
-    user_result = await supabase.table("users").select("id").eq(
-        "telegram_id", user_telegram_id
-    ).single().execute()
-    
-    if user_result.data:
-        # Credit cashback
-        await supabase.rpc("add_to_user_balance", {
-            "p_user_id": user_result.data["id"],
-            "p_amount": cashback
-        }).execute()
-        
-        # Mark review as cashback given
-        await supabase.table("reviews").update({
-            "cashback_given": True
-        }).eq("id", review_id).execute()
-        
-        # Notify user
-        current_bot = get_bot()
-        if current_bot:
-            await current_bot.send_message(
-                user_telegram_id,
-                f"🎁 Thanks for your review! +{cashback:.0f}₽ cashback credited!"
-            )
-    
-    return {"ok": True, "cashback": cashback}
+    return result.data
 
 
-@app.post("/api/workers/notify-waitlist")
-async def worker_notify_waitlist(request: Request):
-    """Notify waitlist users about product availability."""
-    data = await verify_qstash_request(request)
+@app.post("/api/admin/tickets/{ticket_id}/resolve")
+async def admin_resolve_ticket(
+    ticket_id: str,
+    approve: bool = True,
+    admin = Depends(verify_admin)
+):
+    """Resolve a support ticket"""
+    db = get_database()
     
-    product_id = data.get("product_id")
-    supabase = await get_supabase()
+    # Update ticket status
+    status = "approved" if approve else "rejected"
+    db.client.table("tickets").update({
+        "status": status,
+        "resolved_at": datetime.utcnow().isoformat()
+    }).eq("id", ticket_id).execute()
     
-    # Get product info
-    product_result = await supabase.table("products").select("name").eq(
-        "id", product_id
-    ).single().execute()
+    # If approved replacement, handle it
+    if approve:
+        # Get ticket details
+        ticket = db.client.table("tickets").select("*").eq("id", ticket_id).execute()
+        if ticket.data:
+            # TODO: Implement replacement logic
+            pass
     
-    product_name = product_result.data.get("name", "Product") if product_result.data else "Product"
-    
-    # Get waitlist entries
-    waitlist_result = await supabase.table("waitlist").select(
-        "users(telegram_id)"
-    ).eq("product_name", product_name).execute()
-    
-    current_bot = get_bot()
-    notified = 0
-    
-    if waitlist_result.data and current_bot:
-        for entry in waitlist_result.data:
-            user = entry.get("users", {})
-            if user.get("telegram_id"):
-                try:
-                    await current_bot.send_message(
-                        user["telegram_id"],
-                        f"🔔 <b>{product_name}</b> is back in stock!\n\nHurry up and grab it!"
-                    )
-                    notified += 1
-                except Exception:
-                    pass
-    
-    # Clear waitlist for this product
-    await supabase.table("waitlist").delete().eq("product_name", product_name).execute()
-    
-    return {"ok": True, "notified": notified}
+    return {"success": True, "status": status}
 
 
-@app.post("/api/workers/send-broadcast")
-async def worker_send_broadcast(request: Request):
-    """Send broadcast message to all users."""
-    data = await verify_qstash_request(request)
-    
-    message = data.get("message")
-    parse_mode = data.get("parse_mode", "HTML")
-    
-    supabase = await get_supabase()
-    current_bot = get_bot()
-    
-    if not current_bot:
-        return {"ok": False, "error": "Bot not available"}
-    
-    # Get all active users (excluding do_not_disturb)
-    users_result = await supabase.table("users").select("telegram_id").eq(
-        "do_not_disturb", False
-    ).eq("is_banned", False).execute()
-    
-    sent = 0
-    failed = 0
-    
-    for user in users_result.data or []:
-        try:
-            await current_bot.send_message(
-                user["telegram_id"],
-                message,
-                parse_mode=parse_mode
-            )
-            sent += 1
-        except Exception:
-            failed += 1
-    
-    return {"ok": True, "sent": sent, "failed": failed}
+# ==================== REVIEWS API ====================
+
+class SubmitReviewRequest(BaseModel):
+    order_id: str
+    rating: int  # 1-5
+    text: Optional[str] = None
 
 
-# ============================================================
-# Cron Jobs (Vercel Hobby: 2 per day max)
-# ============================================================
-
-@app.get("/api/crons/daily-maintenance")
-async def cron_daily_maintenance():
-    """
-    Combined daily maintenance job.
+@app.post("/api/reviews")
+async def submit_review(
+    request: SubmitReviewRequest,
+    user = Depends(verify_telegram_auth)
+):
+    """Submit product review with 5% cashback"""
+    db = get_database()
     
-    Handles:
-    - Subscription expiry reminders
-    - Wishlist reminders
-    - Review requests
-    """
-    supabase = await get_supabase()
-    current_bot = get_bot()
-    
-    if not current_bot:
-        return {"ok": False, "error": "Bot not available"}
-    
-    results = {"subscriptions": 0, "wishlist": 0, "reviews": 0}
-    
-    # 1. Subscription expiry reminders (3 days before)
-    expiry_date = (datetime.utcnow() + timedelta(days=3)).date().isoformat()
-    
-    expiring_result = await supabase.table("orders").select(
-        "users(telegram_id), products(name)"
-    ).eq("status", "delivered").lt("expires_at", expiry_date).execute()
-    
-    for order in expiring_result.data or []:
-        user = order.get("users", {})
-        product = order.get("products", {})
-        if user.get("telegram_id"):
-            try:
-                await current_bot.send_message(
-                    user["telegram_id"],
-                    f"⏰ Your <b>{product.get('name', 'subscription')}</b> expires in 3 days!\n\nRenew now with 10% discount?"
-                )
-                results["subscriptions"] += 1
-            except Exception:
-                pass
-    
-    # 2. Wishlist reminders (items added 3+ days ago, not reminded yet)
-    wishlist_result = await supabase.table("wishlist").select(
-        "id, product_name, users(telegram_id)"
-    ).eq("reminded", False).lt(
-        "created_at", (datetime.utcnow() - timedelta(days=3)).isoformat()
-    ).limit(50).execute()
-    
-    for item in wishlist_result.data or []:
-        user = item.get("users", {})
-        if user.get("telegram_id"):
-            try:
-                await current_bot.send_message(
-                    user["telegram_id"],
-                    f"❤️ Still thinking about <b>{item.get('product_name')}</b>?\n\nIt's waiting for you!"
-                )
-                # Mark as reminded
-                await supabase.table("wishlist").update({"reminded": True}).eq("id", item["id"]).execute()
-                results["wishlist"] += 1
-            except Exception:
-                pass
-    
-    # 3. Review requests (1+ hour after delivery)
-    review_cutoff = (datetime.utcnow() - timedelta(hours=1)).isoformat()
-    
-    orders_result = await supabase.table("orders").select(
-        "id, users(telegram_id)"
-    ).eq("status", "delivered").is_("review_requested_at", "null").lt(
-        "delivered_at", review_cutoff
-    ).limit(50).execute()
-    
-    for order in orders_result.data or []:
-        user = order.get("users", {})
-        if user.get("telegram_id"):
-            try:
-                await current_bot.send_message(
-                    user["telegram_id"],
-                    "⭐ How was your purchase?\n\nLeave a review and get 5% cashback!"
-                )
-                # Mark review requested
-                await supabase.table("orders").update({
-                    "review_requested_at": datetime.utcnow().isoformat()
-                }).eq("id", order["id"]).execute()
-                results["reviews"] += 1
-            except Exception:
-                pass
-    
-    return {"ok": True, "results": results}
-
-
-@app.get("/api/crons/fulfillment-check")
-async def cron_fulfillment_check():
-    """
-    Check for fulfillment timeouts and trigger refunds.
-    
-    Also handles re-engagement for inactive users.
-    """
-    supabase = await get_supabase()
-    current_bot = get_bot()
-    
-    results = {"refunds": 0, "reengagement": 0}
-    
-    # 1. Fulfillment timeouts (prepaid orders past deadline)
-    timeout_result = await supabase.table("orders").select(
-        "id, users(telegram_id), amount"
-    ).eq("status", "prepaid").lt(
-        "fulfillment_deadline", datetime.utcnow().isoformat()
-    ).execute()
-    
-    for order in timeout_result.data or []:
-        # Trigger refund
-        await publish_to_worker(
-            WorkerEndpoints.PROCESS_REFUND,
-            {"order_id": order["id"], "reason": "Fulfillment timeout"}
-        )
-        results["refunds"] += 1
-    
-    # 2. Re-engagement (inactive 24h, max 1x per 72h)
-    inactive_cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
-    reengagement_cutoff = (datetime.utcnow() - timedelta(hours=72)).isoformat()
-    
-    inactive_result = await supabase.table("users").select(
-        "telegram_id"
-    ).lt("last_activity_at", inactive_cutoff).or_(
-        f"last_reengagement_at.is.null,last_reengagement_at.lt.{reengagement_cutoff}"
-    ).eq("do_not_disturb", False).eq("is_banned", False).limit(20).execute()
-    
-    if current_bot:
-        for user in inactive_result.data or []:
-            try:
-                await current_bot.send_message(
-                    user["telegram_id"],
-                    "👋 Haven't heard from you in a while!\n\nCheck out our latest deals?"
-                )
-                # Update last reengagement
-                await supabase.table("users").update({
-                    "last_reengagement_at": datetime.utcnow().isoformat()
-                }).eq("telegram_id", user["telegram_id"]).execute()
-                results["reengagement"] += 1
-            except Exception:
-                pass
-    
-    return {"ok": True, "results": results}
-
-
-@app.post("/api/workers/process-refund")
-async def worker_process_refund(request: Request):
-    """Process order refund."""
-    data = await verify_qstash_request(request)
-    
-    order_id = data.get("order_id")
-    reason = data.get("reason", "Requested by user")
-    
-    supabase = await get_supabase()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
     
     # Get order
-    order_result = await supabase.table("orders").select(
-        "amount, user_id, users(telegram_id)"
-    ).eq("id", order_id).single().execute()
+    order = await db.get_order_by_id(request.order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
     
-    if not order_result.data:
-        return {"ok": False, "error": "Order not found"}
+    if order.user_id != db_user.id:
+        raise HTTPException(status_code=403, detail="Not your order")
     
-    order = order_result.data
+    if order.status != "completed":
+        raise HTTPException(status_code=400, detail="Order not completed")
     
-    # Credit refund to balance
-    await supabase.rpc("add_to_user_balance", {
-        "p_user_id": order["user_id"],
-        "p_amount": order["amount"]
-    }).execute()
+    # Check if review already exists
+    existing = db.client.table("reviews").select("id").eq("order_id", request.order_id).execute()
+    if existing.data:
+        raise HTTPException(status_code=400, detail="Review already submitted")
     
-    # Update order status
-    await supabase.table("orders").update({
-        "status": "refunded"
-    }).eq("id", order_id).execute()
+    # Create review
+    await db.create_review(
+        user_id=db_user.id,
+        order_id=request.order_id,
+        product_id=order.product_id,
+        rating=request.rating,
+        text=request.text
+    )
     
-    # Notify user
-    user = order.get("users", {})
-    current_bot = get_bot()
-    if current_bot and user.get("telegram_id"):
-        await current_bot.send_message(
-            user["telegram_id"],
-            f"↩️ Refund processed: +{order['amount']:.0f}₽ to your balance.\n\nReason: {reason}"
+    # Calculate 5% cashback
+    cashback = order.amount * 0.05
+    await db.update_user_balance(db_user.id, cashback)
+    
+    # Mark cashback as given
+    db.client.table("reviews").update({
+        "cashback_given": True
+    }).eq("order_id", request.order_id).execute()
+    
+    return {
+        "success": True,
+        "cashback": cashback,
+        "new_balance": db_user.balance + cashback
+    }
+
+
+# ==================== CRON JOBS (Vercel Cron) ====================
+
+@app.get("/api/cron/review-requests")
+async def cron_review_requests(authorization: str = Header(None)):
+    """
+    Send review requests for orders completed 1 hour ago.
+    Called by Vercel Cron every 15 minutes.
+    """
+    # Verify cron secret
+    cron_secret = os.environ.get("CRON_SECRET", "")
+    if authorization != f"Bearer {cron_secret}":
+        raise HTTPException(status_code=401, detail="Invalid cron secret")
+    
+    db = get_database()
+    
+    # Get orders completed ~1 hour ago (between 45-75 minutes)
+    now = datetime.utcnow()
+    start_time = now - timedelta(minutes=75)
+    end_time = now - timedelta(minutes=45)
+    
+    orders = db.client.table("orders").select("id").eq(
+        "status", "completed"
+    ).gte("delivered_at", start_time.isoformat()).lte(
+        "delivered_at", end_time.isoformat()
+    ).execute()
+    
+    from src.services.notifications import NotificationService
+    notification_service = NotificationService()
+    
+    sent_count = 0
+    for order in orders.data:
+        # Check if review already exists
+        existing = db.client.table("reviews").select("id").eq("order_id", order["id"]).execute()
+        if not existing.data:
+            await notification_service.send_review_request(order["id"])
+            sent_count += 1
+    
+    return {"sent": sent_count}
+
+
+@app.get("/api/cron/expiration-reminders")
+async def cron_expiration_reminders(authorization: str = Header(None)):
+    """
+    Send reminders for subscriptions expiring in 3 days.
+    Called by Vercel Cron daily.
+    """
+    cron_secret = os.environ.get("CRON_SECRET", "")
+    if authorization != f"Bearer {cron_secret}":
+        raise HTTPException(status_code=401, detail="Invalid cron secret")
+    
+    db = get_database()
+    
+    # Get orders expiring in 3 days
+    orders = await db.get_expiring_orders(days_before=3)
+    
+    from src.services.notifications import NotificationService
+    notification_service = NotificationService()
+    
+    sent_count = 0
+    for order in orders:
+        # Get user and product info
+        user_result = db.client.table("users").select(
+            "telegram_id,language_code"
+        ).eq("id", order.user_id).execute()
+        
+        product = await db.get_product_by_id(order.product_id)
+        
+        if user_result.data and product:
+            user = user_result.data[0]
+            days_left = (order.expires_at - datetime.utcnow()).days if order.expires_at else 0
+            
+            await notification_service.send_expiration_reminder(
+                telegram_id=user["telegram_id"],
+                product_name=product.name,
+                days_left=days_left,
+                language=user.get("language_code", "en")
+            )
+            sent_count += 1
+    
+    return {"sent": sent_count}
+
+
+@app.get("/api/cron/wishlist-reminders")
+async def cron_wishlist_reminders(authorization: str = Header(None)):
+    """
+    Send reminders for items in wishlist for 3+ days.
+    Called by Vercel Cron daily.
+    """
+    cron_secret = os.environ.get("CRON_SECRET", "")
+    if authorization != f"Bearer {cron_secret}":
+        raise HTTPException(status_code=401, detail="Invalid cron secret")
+    
+    db = get_database()
+    
+    # Get wishlist items older than 3 days that haven't been reminded
+    cutoff = datetime.utcnow() - timedelta(days=3)
+    
+    items = db.client.table("wishlist").select(
+        "id,user_id,product_id,products(name,stock_count:stock_items(count))"
+    ).eq("reminded", False).lt("created_at", cutoff.isoformat()).execute()
+    
+    from src.services.notifications import NotificationService
+    notification_service = NotificationService()
+    
+    sent_count = 0
+    for item in items.data:
+        # Get user
+        user_result = db.client.table("users").select(
+            "telegram_id,language_code,do_not_disturb"
+        ).eq("id", item["user_id"]).execute()
+        
+        if not user_result.data:
+            continue
+        
+        user = user_result.data[0]
+        if user.get("do_not_disturb"):
+            continue
+        
+        product_name = item.get("products", {}).get("name", "Product")
+        
+        from src.i18n import get_text
+        message = get_text(
+            "wishlist_reminder",
+            user.get("language_code", "en"),
+            product=product_name
         )
+        
+        bot = notification_service._get_bot()
+        if bot:
+            try:
+                await bot.send_message(chat_id=user["telegram_id"], text=message)
+                
+                # Mark as reminded
+                db.client.table("wishlist").update({
+                    "reminded": True
+                }).eq("id", item["id"]).execute()
+                
+                sent_count += 1
+            except Exception as e:
+                print(f"Failed to send wishlist reminder: {e}")
     
-    return {"ok": True, "amount": order["amount"]}
+    return {"sent": sent_count}
 
 
-# ============================================================
-# Export for Vercel
-# ============================================================
-# Vercel auto-detects FastAPI app named 'app'
+@app.get("/api/cron/re-engagement")
+async def cron_re_engagement(authorization: str = Header(None)):
+    """
+    Send re-engagement messages to inactive users (7+ days).
+    Called by Vercel Cron daily.
+    """
+    cron_secret = os.environ.get("CRON_SECRET", "")
+    if authorization != f"Bearer {cron_secret}":
+        raise HTTPException(status_code=401, detail="Invalid cron secret")
+    
+    db = get_database()
+    
+    # Get users inactive for 7+ days
+    cutoff = datetime.utcnow() - timedelta(days=7)
+    
+    users = db.client.table("users").select(
+        "telegram_id,language_code"
+    ).eq("is_banned", False).eq("do_not_disturb", False).lt(
+        "last_activity_at", cutoff.isoformat()
+    ).limit(50).execute()
+    
+    from src.services.notifications import NotificationService
+    notification_service = NotificationService()
+    bot = notification_service._get_bot()
+    
+    if not bot:
+        return {"sent": 0}
+    
+    from src.i18n import get_text
+    
+    sent_count = 0
+    for user in users.data:
+        lang = user.get("language_code", "en")
+        
+        # Personalized re-engagement message
+        message = {
+            "ru": "👋 Давно не виделись! У нас появились новые предложения. Может, поможем найти что-то интересное?",
+            "en": "👋 Long time no see! We have new offers. Can we help you find something interesting?",
+        }.get(lang, "👋 Long time no see! We have new offers. Can we help you find something interesting?")
+        
+        try:
+            await bot.send_message(chat_id=user["telegram_id"], text=message)
+            sent_count += 1
+        except Exception:
+            pass  # User may have blocked the bot
+    
+    return {"sent": sent_count}
+
+
+@app.get("/api/cron/daily-tasks")
+async def cron_daily_tasks(authorization: str = Header(None)):
+    """
+    Combined daily cron job for Hobby plan (max 2 crons).
+    Runs: expiration reminders, wishlist reminders, re-engagement.
+    """
+    cron_secret = os.environ.get("CRON_SECRET", "")
+    if authorization != f"Bearer {cron_secret}":
+        raise HTTPException(status_code=401, detail="Invalid cron secret")
+    
+    results = {
+        "expiration_reminders": 0,
+        "wishlist_reminders": 0,
+        "re_engagement": 0
+    }
+    
+    from src.services.notifications import NotificationService
+    notification_service = NotificationService()
+    db = get_database()
+    bot = notification_service._get_bot()
+    
+    if not bot:
+        return {"error": "Bot not configured", "results": results}
+    
+    # 1. Expiration reminders (subscriptions expiring in 3 days)
+    try:
+        orders = await db.get_expiring_orders(days_before=3)
+        for order in orders:
+            user_result = db.client.table("users").select(
+                "telegram_id,language_code"
+            ).eq("id", order.user_id).execute()
+            product = await db.get_product_by_id(order.product_id)
+            
+            if user_result.data and product:
+                user = user_result.data[0]
+                days_left = (order.expires_at - datetime.utcnow()).days if order.expires_at else 0
+                await notification_service.send_expiration_reminder(
+                    telegram_id=user["telegram_id"],
+                    product_name=product.name,
+                    days_left=days_left,
+                    language=user.get("language_code", "en")
+                )
+                results["expiration_reminders"] += 1
+    except Exception as e:
+        print(f"Expiration reminders error: {e}")
+    
+    # 2. Wishlist reminders (items saved 3+ days ago)
+    try:
+        from src.i18n import get_text
+        cutoff = datetime.utcnow() - timedelta(days=3)
+        items = db.client.table("wishlist").select(
+            "id,user_id,products(name)"
+        ).eq("reminded", False).lt("created_at", cutoff.isoformat()).limit(20).execute()
+        
+        for item in items.data:
+            user_result = db.client.table("users").select(
+                "telegram_id,language_code,do_not_disturb"
+            ).eq("id", item["user_id"]).execute()
+            
+            if user_result.data and not user_result.data[0].get("do_not_disturb"):
+                user = user_result.data[0]
+                try:
+                    msg = get_text("wishlist_reminder", user.get("language_code", "en"), 
+                                  product=item.get("products", {}).get("name", "Product"))
+                    await bot.send_message(chat_id=user["telegram_id"], text=msg)
+                    db.client.table("wishlist").update({"reminded": True}).eq("id", item["id"]).execute()
+                    results["wishlist_reminders"] += 1
+                except:
+                    pass
+    except Exception as e:
+        print(f"Wishlist reminders error: {e}")
+    
+    # 3. Re-engagement (users inactive 7+ days)
+    try:
+        cutoff = datetime.utcnow() - timedelta(days=7)
+        users = db.client.table("users").select(
+            "telegram_id,language_code"
+        ).eq("is_banned", False).eq("do_not_disturb", False).lt(
+            "last_activity_at", cutoff.isoformat()
+        ).limit(30).execute()
+        
+        for user in users.data:
+            lang = user.get("language_code", "en")
+            msg = {
+                "ru": "👋 Давно не виделись! У нас появились новые предложения.",
+                "en": "👋 Long time no see! We have new offers."
+            }.get(lang, "👋 Long time no see! We have new offers.")
+            try:
+                await bot.send_message(chat_id=user["telegram_id"], text=msg)
+                results["re_engagement"] += 1
+            except:
+                pass
+    except Exception as e:
+        print(f"Re-engagement error: {e}")
+    
+    return results
+
+
+# ==================== VERCEL EXPORT ====================
+# Vercel automatically detects FastAPI app when 'app' variable is present
+# No need to export handler - FastAPI is auto-detected

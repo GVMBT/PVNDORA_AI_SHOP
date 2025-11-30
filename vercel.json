@@ -1,7 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/api/test", "destination": "/api/test.py" },
     { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/webhook/(.*)", "destination": "/api/index.py" },
     { "source": "/(.*)", "destination": "/index.html" }
@@ -14,12 +13,12 @@
   },
   "crons": [
     {
-      "path": "/api/crons/daily-maintenance",
+      "path": "/api/cron/daily-tasks",
       "schedule": "0 10 * * *"
     },
     {
-      "path": "/api/crons/fulfillment-check",
-      "schedule": "0 22 * * *"
+      "path": "/api/cron/review-requests",
+      "schedule": "0 12 * * *"
     }
   ]
 }
