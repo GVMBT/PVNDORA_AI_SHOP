@@ -1031,11 +1031,11 @@ async def admin_get_products(admin = Depends(verify_admin)):
     products = []
     for p in result.data:
         # Count available stock
-        stock = await asyncio.to_thread(
-            lambda: db.client.table("stock_items").select("id", count="exact")
-                .eq("product_id", p["id"]).eq("is_sold", False).execute()
+        stock_result = await asyncio.to_thread(
+            lambda pid=p["id"]: db.client.table("stock_items").select("id", count="exact")
+                .eq("product_id", pid).eq("is_sold", False).execute()
         )
-        p["stock_count"] = stock.count or 0
+        p["stock_count"] = stock_result.count if hasattr(stock_result, 'count') else 0
         products.append(p)
     
     return {"products": products}
@@ -1112,8 +1112,8 @@ async def admin_get_orders(
     if status:
         query = query.eq("status", status)
     
-    result = query.execute()
-    return result.data
+    result = await asyncio.to_thread(lambda: query.execute())
+    return {"orders": result.data if result.data else []}
 
 
 @app.get("/api/admin/users")
@@ -1313,8 +1313,8 @@ async def admin_get_stock(
     if available_only:
         query = query.eq("is_sold", False)
     
-    result = query.execute()
-    return result.data
+    result = await asyncio.to_thread(lambda: query.execute())
+    return {"stock": result.data if result.data else []}
 
 
 @app.post("/api/admin/broadcast")
@@ -1346,33 +1346,35 @@ async def admin_get_analytics(
     start_date = end_date - timedelta(days=days)
     
     # Get orders in period
-    orders_result = db.client.table("orders").select(
-        "amount, status, created_at"
-    ).gte("created_at", start_date.isoformat()).execute()
+    orders_result = await asyncio.to_thread(
+        lambda: db.client.table("orders").select(
+            "amount, status, created_at, products(name)"
+        ).gte("created_at", start_date.isoformat()).execute()
+    )
     
     # Calculate metrics
-    total_orders = len(orders_result.data)
-    completed_orders = [o for o in orders_result.data if o["status"] == "completed"]
-    total_revenue = sum(o["amount"] for o in completed_orders)
+    total_orders = len(orders_result.data) if orders_result.data else 0
+    completed_orders = [o for o in (orders_result.data or []) if o.get("status") in ["delivered", "completed"]]
+    total_revenue = sum(o.get("amount", 0) for o in completed_orders)
+    avg_order_value = total_revenue / len(completed_orders) if completed_orders else 0
     
-    # Get event counts
-    events_result = db.client.table("analytics_events").select(
-        "event_type", count="exact"
-    ).gte("timestamp", start_date.isoformat()).execute()
+    # Get top products
+    product_counts = {}
+    for o in (orders_result.data or []):
+        if o.get("products") and isinstance(o["products"], dict):
+            product_name = o["products"].get("name", "Unknown")
+            product_counts[product_name] = product_counts.get(product_name, 0) + 1
     
-    # Get new users
-    users_result = db.client.table("users").select(
-        "id", count="exact"
-    ).gte("created_at", start_date.isoformat()).execute()
+    top_products = sorted(product_counts.items(), key=lambda x: x[1], reverse=True)[:5]
     
     return {
         "period_days": days,
         "total_orders": total_orders,
         "completed_orders": len(completed_orders),
         "total_revenue": total_revenue,
+        "avg_order_value": avg_order_value,
         "conversion_rate": len(completed_orders) / total_orders * 100 if total_orders > 0 else 0,
-        "new_users": users_result.count or 0,
-        "events": events_result.count or 0
+        "top_products": [{"name": name, "count": count} for name, count in top_products]
     }
 
 
@@ -1384,11 +1386,13 @@ async def admin_get_tickets(
     """Get support tickets"""
     db = get_database()
     
-    result = db.client.table("tickets").select(
-        "*, users(telegram_id, username), orders(id, product_id)"
-    ).eq("status", status).order("created_at", desc=True).execute()
+    result = await asyncio.to_thread(
+        lambda: db.client.table("tickets").select(
+            "*, users(telegram_id, username), orders(id, product_id)"
+        ).eq("status", status).order("created_at", desc=True).execute()
+    )
     
-    return result.data
+    return {"tickets": result.data if result.data else []}
 
 
 @app.post("/api/admin/tickets/{ticket_id}/resolve")
