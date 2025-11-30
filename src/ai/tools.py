@@ -235,13 +235,21 @@ async def execute_tool(
         products = await db.search_products(arguments["product_name"])
         if products:
             product = products[0]
+            # Get product details including fulfillment info
+            product_details = await db.get_product_by_id(product.id)
+            fulfillment_hours = getattr(product_details, 'fulfillment_time_hours', 48) if product_details else 48
+            requires_prepayment = getattr(product_details, 'requires_prepayment', False) if product_details else False
+            
             return {
                 "found": True,
                 "product_id": product.id,
                 "name": product.name,
                 "price": product.price,
                 "in_stock": product.stock_count > 0,
-                "stock_count": product.stock_count
+                "stock_count": product.stock_count,
+                "can_fulfill_on_demand": True,  # All products can be fulfilled on-demand
+                "fulfillment_time_hours": fulfillment_hours,
+                "requires_prepayment": requires_prepayment
             }
         return {"found": False}
     
@@ -285,18 +293,37 @@ async def execute_tool(
     
     elif tool_name == "create_purchase_intent":
         product = await db.get_product_by_id(arguments["product_id"])
-        if product and product.stock_count > 0:
+        if not product:
+            return {
+                "success": False,
+                "reason": "Product not found"
+            }
+        
+        if product.stock_count > 0:
+            # Product in stock - instant order
             return {
                 "success": True,
                 "product_id": product.id,
                 "product_name": product.name,
                 "price": product.price,
+                "order_type": "instant",
                 "action": "show_payment_button"
             }
-        return {
-            "success": False,
-            "reason": "Product not available"
-        }
+        else:
+            # Product out of stock - prepaid order (on-demand)
+            fulfillment_hours = getattr(product, 'fulfillment_time_hours', 48)
+            fulfillment_days = fulfillment_hours // 24
+            return {
+                "success": True,
+                "product_id": product.id,
+                "product_name": product.name,
+                "price": product.price,
+                "order_type": "prepaid",
+                "fulfillment_time_hours": fulfillment_hours,
+                "fulfillment_days": fulfillment_days,
+                "action": "show_payment_button",
+                "message": f"Товар будет изготовлен под заказ за {fulfillment_days}-{fulfillment_days + 1} дня. Предоплата 100%."
+            }
     
     elif tool_name == "add_to_waitlist":
         try:
