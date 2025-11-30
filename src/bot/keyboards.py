@@ -76,7 +76,7 @@ def get_cancel_keyboard(lang: str) -> InlineKeyboardMarkup:
 
 
 def get_checkout_keyboard(lang: str, webapp_url: str) -> InlineKeyboardMarkup:
-    """Checkout button - opens Mini App for payment"""
+    """Checkout button - opens Mini App for cart checkout"""
     checkout_url = f"{webapp_url}?startapp=checkout"
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(

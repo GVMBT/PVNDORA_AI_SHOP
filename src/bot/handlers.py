@@ -359,9 +359,20 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
                         in_stock=product.stock_count > 0,
                         quantity=response.quantity or 1
                     )
+            elif response.cart_items and len(response.cart_items) > 0:
+                # Multiple products in cart - create checkout URL with cart data
+                # For now, use first product as primary (cart checkout page will handle multiple items)
+                first_item = response.cart_items[0]
+                product = await db.get_product_by_id(first_item.product_id)
+                if product:
+                    # Use checkout with cart parameter
+                    from src.bot.keyboards import get_checkout_keyboard
+                    reply_markup = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
             else:
-                # Multiple products - show shop button (cart checkout not implemented)
-                reply_markup = get_shop_keyboard(db_user.language_code, WEBAPP_URL)
+                # Multiple products or no specific product - show checkout button instead of shop
+                # This handles cases where AI offers payment for multiple items
+                from src.bot.keyboards import get_checkout_keyboard
+                reply_markup = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
         elif response.product_id:
             # Fallback: if product_id set but no specific action
             product = await db.get_product_by_id(response.product_id)
@@ -456,9 +467,14 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
                     in_stock=product.stock_count > 0,
                     quantity=response.quantity or 1
                 )
+        elif response.cart_items and len(response.cart_items) > 0:
+            # Multiple products in cart - use checkout
+            from src.bot.keyboards import get_checkout_keyboard
+            keyboard = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
         else:
-            # Multiple products - show shop button (cart checkout not implemented)
-            keyboard = get_shop_keyboard(db_user.language_code, WEBAPP_URL)
+            # Multiple products or no specific product - show checkout button instead of shop
+            from src.bot.keyboards import get_checkout_keyboard
+            keyboard = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
     elif response.product_id:
         # Fallback: if product_id set but no specific action
         product = await db.get_product_by_id(response.product_id)
