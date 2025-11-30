@@ -1028,14 +1028,18 @@ async def admin_get_products(admin = Depends(verify_admin)):
         lambda: db.client.table("products").select("*").order("created_at", desc=True).execute()
     )
     
+    if not result.data:
+        return {"products": []}
+    
     products = []
     for p in result.data:
-        # Count available stock
+        product_id = p["id"]
+        # Count available stock - create query inside lambda
         stock_result = await asyncio.to_thread(
-            lambda pid=p["id"]: db.client.table("stock_items").select("id", count="exact")
+            lambda pid=product_id: db.client.table("stock_items").select("id", count="exact")
                 .eq("product_id", pid).eq("is_sold", False).execute()
         )
-        p["stock_count"] = stock_result.count if hasattr(stock_result, 'count') else 0
+        p["stock_count"] = getattr(stock_result, 'count', 0) or 0
         products.append(p)
     
     return {"products": products}
@@ -1105,14 +1109,18 @@ async def admin_get_orders(
     """Get all orders with optional filtering"""
     db = get_database()
     
-    query = db.client.table("orders").select(
-        "*, users(telegram_id, username, first_name), products(name)"
-    ).order("created_at", desc=True).range(offset, offset + limit - 1)
+    # Create query inside lambda to avoid context issues
+    def execute_query():
+        query = db.client.table("orders").select(
+            "*, users(telegram_id, username, first_name), products(name)"
+        ).order("created_at", desc=True).range(offset, offset + limit - 1)
+        
+        if status:
+            query = query.eq("status", status)
+        
+        return query.execute()
     
-    if status:
-        query = query.eq("status", status)
-    
-    result = await asyncio.to_thread(lambda: query.execute())
+    result = await asyncio.to_thread(execute_query)
     return {"orders": result.data if result.data else []}
 
 
@@ -1304,16 +1312,20 @@ async def admin_get_stock(
     """Get stock items"""
     db = get_database()
     
-    query = db.client.table("stock_items").select(
-        "*, products(name)"
-    ).order("created_at", desc=True)
+    # Create query inside lambda to avoid context issues
+    def execute_query():
+        query = db.client.table("stock_items").select(
+            "*, products(name)"
+        ).order("created_at", desc=True)
+        
+        if product_id:
+            query = query.eq("product_id", product_id)
+        if available_only:
+            query = query.eq("is_sold", False)
+        
+        return query.execute()
     
-    if product_id:
-        query = query.eq("product_id", product_id)
-    if available_only:
-        query = query.eq("is_sold", False)
-    
-    result = await asyncio.to_thread(lambda: query.execute())
+    result = await asyncio.to_thread(execute_query)
     return {"stock": result.data if result.data else []}
 
 
@@ -1344,23 +1356,26 @@ async def admin_get_analytics(
     # Get date range
     end_date = datetime.utcnow()
     start_date = end_date - timedelta(days=days)
+    start_iso = start_date.isoformat()
     
-    # Get orders in period
-    orders_result = await asyncio.to_thread(
-        lambda: db.client.table("orders").select(
+    # Get orders in period - create query inside lambda
+    def get_orders():
+        return db.client.table("orders").select(
             "amount, status, created_at, products(name)"
-        ).gte("created_at", start_date.isoformat()).execute()
-    )
+        ).gte("created_at", start_iso).execute()
+    
+    orders_result = await asyncio.to_thread(get_orders)
     
     # Calculate metrics
-    total_orders = len(orders_result.data) if orders_result.data else 0
-    completed_orders = [o for o in (orders_result.data or []) if o.get("status") in ["delivered", "completed"]]
+    orders_data = orders_result.data if orders_result.data else []
+    total_orders = len(orders_data)
+    completed_orders = [o for o in orders_data if o.get("status") in ["delivered", "completed"]]
     total_revenue = sum(o.get("amount", 0) for o in completed_orders)
     avg_order_value = total_revenue / len(completed_orders) if completed_orders else 0
     
     # Get top products
     product_counts = {}
-    for o in (orders_result.data or []):
+    for o in orders_data:
         if o.get("products") and isinstance(o["products"], dict):
             product_name = o["products"].get("name", "Unknown")
             product_counts[product_name] = product_counts.get(product_name, 0) + 1
@@ -1386,12 +1401,12 @@ async def admin_get_tickets(
     """Get support tickets"""
     db = get_database()
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("tickets").select(
+    def execute_query():
+        return db.client.table("tickets").select(
             "*, users(telegram_id, username), orders(id, product_id)"
         ).eq("status", status).order("created_at", desc=True).execute()
-    )
     
+    result = await asyncio.to_thread(execute_query)
     return {"tickets": result.data if result.data else []}
 
 
