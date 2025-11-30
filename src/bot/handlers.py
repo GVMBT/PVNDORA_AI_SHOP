@@ -236,6 +236,45 @@ async def callback_review(callback: CallbackQuery, db_user: User):
     await callback.answer()
 
 
+@router.callback_query(F.data.startswith("preorder:"))
+async def callback_preorder(callback: CallbackQuery, db_user: User, bot: Bot):
+    """Handle pre-order button click - open checkout in Mini App"""
+    product_id = callback.data.split(":")[1]
+    
+    db = get_database()
+    product = await db.get_product_by_id(product_id)
+    
+    if not product:
+        await callback.answer("Product not found", show_alert=True)
+        return
+    
+    # Get bot username for Mini App link
+    bot_info = await bot.get_me()
+    checkout_url = f"https://t.me/{bot_info.username}/app?startapp=pay_{product_id}"
+    
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text=f"💳 {get_text('btn_pay', db_user.language_code)} {product.price}₽",
+            web_app=WebAppInfo(url=checkout_url)
+        )]
+    ])
+    
+    fulfillment_hours = getattr(product, 'fulfillment_time_hours', 48)
+    
+    await callback.message.answer(
+        get_text("preorder_confirm", db_user.language_code, 
+                product=product.name,
+                price=product.price,
+                hours=fulfillment_hours) if get_text("preorder_confirm", db_user.language_code, product=product.name, price=product.price, hours=fulfillment_hours) != "preorder_confirm" 
+        else f"📦 Pre-order: **{product.name}**\n💰 Price: {product.price}₽\n⏱ Fulfillment: {fulfillment_hours} hours\n\nClick below to proceed with payment:",
+        reply_markup=keyboard,
+        parse_mode=ParseMode.MARKDOWN
+    )
+    await callback.answer()
+
+
 @router.callback_query(F.data == "cancel")
 async def callback_cancel(callback: CallbackQuery, db_user: User):
     """Handle cancel button click"""

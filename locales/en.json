@@ -160,8 +160,10 @@
 
   "btn_shop": "🛒 Shop",
   "btn_buy": "💳 Buy Now",
-  "btn_pay": "💳 Pay ${amount}",
+  "btn_pay": "💳 Pay",
+  "btn_preorder": "📦 Pre-order",
   "btn_waitlist": "🔔 Notify Me",
+  "preorder_confirm": "📦 **{product}**\n💰 Price: {price}₽\n⏱ Fulfillment: {hours} hours\n\nClick below to proceed with payment:",
   "btn_add_wishlist": "❤️ Add to Wishlist",
   "btn_remove_wishlist": "💔 Remove",
   "btn_support": "🆘 Get Support",

@@ -192,25 +192,22 @@ class AIConsultant:
         gemini_tools = self._convert_tools_to_gemini_format()
         
         try:
-            # Generate response with Structured Outputs
+            # Step 1: Generate with tools (NO structured output here - Gemini limitation)
+            config_with_tools = types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                tools=gemini_tools,
+                temperature=0.7,
+                max_output_tokens=2048
+            )
+            
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=messages,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    tools=gemini_tools,
-                    temperature=0.7,
-                    max_output_tokens=2048,
-                    response_mime_type="application/json",
-                    response_schema=StructuredAIResponse.model_json_schema()
-                )
+                config=config_with_tools
             )
             
-            # Process response with Structured Outputs
+            # Process response (handles function calls and structured output)
             result = await self._process_response(response, user_id, db, language, messages)
-            
-            # Note: Transcription is now handled by AI in reply_text
-            # No need to extract separately
             
             return result
             
