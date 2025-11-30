@@ -28,21 +28,33 @@ async def safe_answer(message: Message, text: str, **kwargs):
     Returns True if sent successfully, False otherwise.
     """
     try:
+        # Validate text before sending
+        if not text or not text.strip():
+            print(f"ERROR: Attempted to send empty message to chat {message.chat.id}")
+            return False
+        
+        # Log before sending (for debugging)
+        print(f"DEBUG: safe_answer - chat_id: {message.chat.id}, text_length: {len(text)}, has_markup: {kwargs.get('reply_markup') is not None}")
+        
         await message.answer(text, **kwargs)
+        print(f"DEBUG: Message sent successfully to chat {message.chat.id}")
         return True
     except (TelegramBadRequest, TelegramForbiddenError) as e:
         error_msg = str(e).lower()
+        print(f"ERROR: Telegram API error in safe_answer: {e}")
+        print(f"ERROR: Error message (lower): {error_msg}")
         if "chat not found" in error_msg or "chat_id" in error_msg:
             print(f"WARNING: Cannot send message to chat {message.chat.id}: chat not found")
         elif "bot was blocked" in error_msg or "forbidden" in error_msg:
             print(f"WARNING: Bot blocked by user {message.chat.id}")
         else:
-            print(f"ERROR: Telegram API error: {e}")
-            print(f"Traceback: {traceback.format_exc()}")
+            print(f"ERROR: Telegram API error details: {e}")
+            print(f"ERROR: Traceback: {traceback.format_exc()}")
         return False
     except Exception as e:
-        print(f"ERROR: Unexpected error sending message: {e}")
-        print(f"Traceback: {traceback.format_exc()}")
+        print(f"ERROR: Unexpected error in safe_answer: {type(e).__name__}: {e}")
+        print(f"ERROR: Full traceback:")
+        traceback.print_exc()
         return False
 
 
