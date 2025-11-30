@@ -273,6 +273,7 @@ class AIConsultant:
                     if tool_name == "add_to_waitlist":
                         if tool_result.get("success"):
                             from src.i18n import get_text
+                            # Success - return confirmation message
                             return AIResponse(
                                 text=get_text(
                                     "waitlist_added", 
@@ -282,7 +283,8 @@ class AIConsultant:
                             )
                         else:
                             # If waitlist add failed, continue with error message
-                            # This will let AI explain the error to user
+                            # This will let AI explain the error to user and offer alternatives
+                            # Don't return early - let _continue_with_tool_result handle it
                             pass  # Fall through to _continue_with_tool_result
                     
                     # For other tools, make another call with the result
