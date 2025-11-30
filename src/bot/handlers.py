@@ -49,15 +49,7 @@ async def cmd_start(message: Message, db_user: User, bot: Bot):
                     pass
     
     if is_new_user:
-        # Enhanced onboarding for new users
         onboarding_text = get_text("welcome", db_user.language_code)
-        
-        # Add quick examples based on language
-        examples = {
-            "ru": "\n\n💡 Попробуйте:\n• \"Нужен ChatGPT для работы\"\n• \"Покажи что есть\"\n• \"Хочу Midjourney\"",
-            "en": "\n\n💡 Try:\n• \"I need ChatGPT for work\"\n• \"Show me what you have\"\n• \"I want Midjourney\"",
-        }
-        onboarding_text += examples.get(db_user.language_code, examples["en"])
     else:
         onboarding_text = get_text("welcome_back", db_user.language_code)
     
@@ -325,7 +317,6 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
         
         # Handle actions from structured response
         from core.models import ActionType
-        from src.bot.keyboards import get_checkout_keyboard
         
         if response.action == ActionType.SHOW_CATALOG:
             reply_markup = get_shop_keyboard(db_user.language_code, WEBAPP_URL)
@@ -341,8 +332,8 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
                         in_stock=product.stock_count > 0,
                     )
             else:
-                # Multiple products or no specific product - show checkout button
-                reply_markup = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
+                # Multiple products - show shop button (cart checkout not implemented)
+                reply_markup = get_shop_keyboard(db_user.language_code, WEBAPP_URL)
         elif response.product_id:
             # Fallback: if product_id set but no specific action
             product = await db.get_product_by_id(response.product_id)
@@ -421,7 +412,6 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
     
     # Send response based on structured action
     from core.models import ActionType
-    from src.bot.keyboards import get_checkout_keyboard
     keyboard = None
     
     if response.action == ActionType.SHOW_CATALOG:
@@ -437,8 +427,8 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
                     in_stock=product.stock_count > 0,
                 )
         else:
-            # Multiple products - show checkout button
-            keyboard = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
+            # Multiple products - show shop button (cart checkout not implemented)
+            keyboard = get_shop_keyboard(db_user.language_code, WEBAPP_URL)
     elif response.product_id:
         # Fallback: if product_id set but no specific action
         product = await db.get_product_by_id(response.product_id)

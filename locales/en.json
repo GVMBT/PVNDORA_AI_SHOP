@@ -1,5 +1,5 @@
 {
-  "welcome": "🎉 Welcome to PVNDORA!\n\nI'm your personal AI consultant for premium subscriptions.\n\n💬 Just tell me what you need:\n• \"ChatGPT Plus\"\n• \"Midjourney\"\n• \"Claude Pro\"\n\n🎁 Benefits:\n• 20% referral program\n• Warranty & replacement\n• 24/7 support\n• Instant delivery\n\nHow can I help you?",
+  "welcome": "👋 Hi!\n\nAI subscription marketplace: ChatGPT, Claude, Midjourney and more.\n\nWhat are you looking for?",
   "welcome_back": "Welcome back! How can I help you today?",
   "help": "📚 Available commands:\n\n/start - Start the bot\n/my_orders - Your purchase history\n/wishlist - Saved products\n/help - This message\n\nOr just write what you need, I'll help you find the perfect subscription!",
   "banned": "🚫 Access restricted. Contact support: @admin",
