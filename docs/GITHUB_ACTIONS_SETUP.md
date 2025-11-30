@@ -61,16 +61,20 @@ vercel link
 
 После добавления секретов:
 
-1. Сделайте новый commit и push в `main`:
+1. **Сделайте новый commit и push в `main`:**
    ```bash
-   git commit --allow-empty -m "trigger: test deployment"
+   git commit --allow-empty -m "test: trigger deployment"
    git push
    ```
 
-2. Проверьте статус в GitHub Actions:
+2. **Проверьте статус в GitHub Actions:**
    - Перейдите в репозиторий → Actions
    - Должен запуститься workflow "CI/CD Pipeline"
    - Job "Deploy to Vercel" должен пройти успешно
+
+3. **Проверьте деплой в Vercel:**
+   - Откройте Vercel Dashboard → Deployments
+   - Должен появиться новый deployment с комментарием из commit
 
 ## Альтернатива: Отключить автоматический деплой
 
@@ -98,3 +102,19 @@ Vercel Git Integration настраивается в:
 - Проверьте `VERCEL_PROJECT_ID` и `VERCEL_ORG_ID`
 - Убедитесь, что токен имеет доступ к проекту
 
+### Ошибка: "Workflow не запускается"
+- Убедитесь, что вы пушите в ветку `main`
+- Проверьте, что workflow файл находится в `.github/workflows/deploy.yml`
+- Проверьте, что в Actions включены workflows (Settings → Actions → General → Allow all actions)
+
+## Проверка секретов
+
+Чтобы убедиться, что секреты добавлены:
+
+1. Перейдите в репозиторий → Settings → Secrets and variables → Actions
+2. Должны быть видны секреты (значения скрыты):
+   - ✅ `VERCEL_TOKEN`
+   - ✅ `VERCEL_ORG_ID`
+   - ✅ `VERCEL_PROJECT_ID`
+
+Если секретов нет или они не видны, добавьте их заново.
