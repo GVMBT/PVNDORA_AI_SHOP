@@ -6,6 +6,7 @@ Optimized for Vercel Hobby plan (max 12 serverless functions).
 """
 import os
 import sys
+import asyncio
 from pathlib import Path
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
@@ -296,6 +297,53 @@ async def get_product(product_id: str):
         "rating": rating_info["average"],
         "reviews_count": rating_info["count"],
         "reviews": reviews
+    }
+
+
+# ==================== WEBAPP API (Mini App) ====================
+
+@app.get("/api/webapp/products/{product_id}")
+async def get_webapp_product(product_id: str, user = Depends(verify_telegram_auth)):
+    """
+    Get product with discount and social proof for Mini App.
+    Requires Telegram initData authentication.
+    """
+    db = get_database()
+    product = await db.get_product_by_id(product_id)
+    
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    # Get available stock with discounts
+    stock_result = await asyncio.to_thread(
+        lambda: db.client.table("available_stock_with_discounts").select(
+            "*"
+        ).eq("product_id", product_id).limit(1).execute()
+    )
+    
+    discount_percent = 0
+    if stock_result.data:
+        discount_percent = stock_result.data[0].get("discount_percent", 0)
+    
+    # Get social proof
+    rating_info = await db.get_product_rating(product_id)
+    
+    # Calculate final price
+    original_price = float(product.price)
+    final_price = original_price * (1 - discount_percent / 100)
+    
+    return {
+        "id": product.id,
+        "name": product.name,
+        "description": product.description,
+        "original_price": original_price,
+        "discount_percent": discount_percent,
+        "final_price": round(final_price, 2),
+        "warranty_days": product.warranty_days if hasattr(product, 'warranty_days') else 1,
+        "duration_days": product.duration_days if hasattr(product, 'duration_days') else None,
+        "available": product.stock_count > 0,
+        "rating": rating_info["average"],
+        "reviews_count": rating_info["count"]
     }
 
 

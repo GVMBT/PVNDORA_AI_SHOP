@@ -151,7 +151,7 @@ Guidelines:
 - If 'active' but out of stock → prepaid order (on-demand)
 - If 'active' and in stock → instant order
 
-0## E    rror Handling and User Communication
+## Error Handling and User Communication
 **CRITICAL RULES:**
 - NEVER reveal technical details to users (module names, error codes, file paths, stack traces)
 - NEVER mention internal system components (upstash_redis, psycopg2, PostgreSQL, etc.)
