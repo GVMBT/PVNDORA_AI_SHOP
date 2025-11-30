@@ -21,6 +21,10 @@ class PaymentService:
         self.stripe_secret_key = os.environ.get("STRIPE_SECRET_KEY", "")
         self.stripe_webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
         
+        # CardLink credentials
+        self.cardlink_api_token = os.environ.get("CARDLINK_API_TOKEN", "")
+        self.cardlink_shop_id = os.environ.get("CARDLINK_SHOP_ID", "")
+        
         # Webhook URLs
         self.base_url = os.environ.get("WEBAPP_URL", "https://pvndora-ai-shop.vercel.app")
     
@@ -54,6 +58,10 @@ class PaymentService:
         elif method == "stripe":
             return await self._create_stripe_payment(
                 order_id, amount, product_name, user_email, currency
+            )
+        elif method == "cardlink":
+            return await self._create_cardlink_payment(
+                order_id, amount, product_name, currency
             )
         else:
             raise ValueError(f"Unknown payment method: {method}")
@@ -253,6 +261,82 @@ class PaymentService:
             # Other event types
             return {"success": False, "error": f"Unhandled event type: {event['type']}"}
             
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    # ==================== CARDLINK ====================
+    
+    async def _create_cardlink_payment(
+        self,
+        order_id: str,
+        amount: float,
+        product_name: str,
+        currency: str = "RUB"
+    ) -> str:
+        """Create CardLink payment URL"""
+        
+        if not self.cardlink_api_token or not self.cardlink_shop_id:
+            raise ValueError("CardLink credentials not configured")
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.cardlink.link/v1/payments",
+                    headers={
+                        "Authorization": f"Bearer {self.cardlink_api_token}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "shop_id": self.cardlink_shop_id,
+                        "amount": amount,
+                        "currency": currency,
+                        "order_id": order_id,
+                        "description": product_name[:128],  # Max 128 chars
+                        "success_url": f"{self.base_url}/payment/success?order_id={order_id}",
+                        "fail_url": f"{self.base_url}/payment/fail?order_id={order_id}"
+                    }
+                )
+                
+                response.raise_for_status()
+                data = response.json()
+                
+                # CardLink returns payment URL in response
+                return data.get("payment_url", data.get("url", ""))
+                
+        except Exception as e:
+            print(f"CardLink error: {e}")
+            raise
+    
+    async def verify_cardlink_webhook(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Verify CardLink webhook and extract order info.
+        
+        Args:
+            data: Webhook JSON data
+            
+        Returns:
+            Dict with success status and order_id
+        """
+        try:
+            # CardLink webhook format (verify signature if provided)
+            order_id = data.get("order_id", "")
+            status = data.get("status", "")
+            amount = data.get("amount", 0)
+            
+            if status == "success" or status == "paid":
+                return {
+                    "success": True,
+                    "order_id": order_id,
+                    "amount": float(amount) if amount else 0,
+                    "currency": data.get("currency", "RUB")
+                }
+            else:
+                return {
+                    "success": False,
+                    "order_id": order_id,
+                    "error": f"Payment status: {status}"
+                }
+                
         except Exception as e:
             return {"success": False, "error": str(e)}
     

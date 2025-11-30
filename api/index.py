@@ -704,7 +704,14 @@ async def create_order(
     final_price = original_price * (1 - discount_percent / 100)
     
     # Determine payment method based on language
-    payment_method = "aaio" if db_user.language_code in ["ru", "uk", "be", "kk"] else "stripe"
+    # Priority: cardlink (if configured) > aaio > stripe
+    cardlink_configured = bool(os.environ.get("CARDLINK_API_TOKEN") and os.environ.get("CARDLINK_SHOP_ID"))
+    if cardlink_configured and db_user.language_code in ["ru", "uk", "be", "kk"]:
+        payment_method = "cardlink"
+    elif db_user.language_code in ["ru", "uk", "be", "kk"]:
+        payment_method = "aaio"
+    else:
+        payment_method = "stripe"
     
     # Create order
     order = await db.create_order(
@@ -787,6 +794,80 @@ async def aaio_webhook(request: Request):
                 retries=3,
                 deduplication_id=f"referral-{order_id}"
             )
+            
+            return JSONResponse({"ok": True})
+        
+        return JSONResponse({"ok": False, "error": result.get("error")}, status_code=400)
+        
+    except Exception as e:
+        print(f"AAIO webhook error: {e}")
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/webhook/cardlink")
+async def cardlink_webhook(request: Request):
+    """Handle CardLink payment webhook"""
+    from src.services.payments import PaymentService
+    from core.queue import publish_to_worker, WorkerEndpoints
+    
+    try:
+        data = await request.json()
+        
+        payment_service = PaymentService()
+        result = await payment_service.verify_cardlink_webhook(data)
+        
+        if result["success"]:
+            order_id = result["order_id"]
+            
+            # Guaranteed delivery via QStash
+            await publish_to_worker(
+                endpoint=WorkerEndpoints.DELIVER_GOODS,
+                body={"order_id": order_id},
+                retries=5,
+                deduplication_id=f"deliver-{order_id}"
+            )
+            
+            # Calculate referral bonus
+            await publish_to_worker(
+                endpoint=WorkerEndpoints.CALCULATE_REFERRAL,
+                body={"order_id": order_id},
+                retries=3,
+                deduplication_id=f"referral-{order_id}"
+            )
+            
+            return JSONResponse({"ok": True})
+        
+        return JSONResponse({"ok": False, "error": result.get("error")}, status_code=400)
+        
+    except Exception as e:
+        print(f"CardLink webhook error: {e}")
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/webhook/cardlink/refund")
+async def cardlink_refund_webhook(request: Request):
+    """Handle CardLink refund webhook"""
+    try:
+        data = await request.json()
+        # Process refund notification
+        print(f"CardLink refund webhook: {data}")
+        return JSONResponse({"ok": True})
+    except Exception as e:
+        print(f"CardLink refund webhook error: {e}")
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/webhook/cardlink/chargeback")
+async def cardlink_chargeback_webhook(request: Request):
+    """Handle CardLink chargeback webhook"""
+    try:
+        data = await request.json()
+        # Process chargeback notification
+        print(f"CardLink chargeback webhook: {data}")
+        return JSONResponse({"ok": True})
+    except Exception as e:
+        print(f"CardLink chargeback webhook error: {e}")
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
         
         return JSONResponse(content={"status": "ok"})
     
