@@ -2,8 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { useFAQ } from '../hooks/useApi'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
+import { ArrowLeft, HelpCircle, MessageCircle, ChevronDown } from 'lucide-react'
+import { Button } from '../components/ui/button'
+import { Card, CardContent } from '../components/ui/card'
+import { Skeleton } from '../components/ui/skeleton'
+import { cn } from '../lib/utils'
 
-export default function FAQPage({ onBack }) {
+export default function FAQPage({ onBack, onNavigate }) {
   const { getFAQ, loading, error } = useFAQ()
   const { t, locale } = useLocale()
   const { setBackButton } = useTelegram()
@@ -33,11 +38,6 @@ export default function FAQPage({ onBack }) {
     }
   }
   
-  const toggleExpanded = (id) => {
-    setExpandedId(expandedId === id ? null : id)
-  }
-  
-  // Group by category
   const groupedFAQ = faqItems.reduce((acc, item) => {
     const category = item.category || 'general'
     if (!acc[category]) acc[category] = []
@@ -46,105 +46,117 @@ export default function FAQPage({ onBack }) {
   }, {})
   
   return (
-    <div className="p-4">
+    <div className="pb-20">
       {/* Header */}
-      <header className="mb-6 stagger-enter">
-        <h1 className="text-2xl font-bold text-[var(--color-text)]">
-          ❓ {t('faq.title')}
-        </h1>
-        <p className="text-[var(--color-text-muted)]">
-          {t('faq.subtitle')}
-        </p>
-      </header>
+      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50 p-4 flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8 rounded-full">
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <span className="font-semibold">{t('faq.title')}</span>
+      </div>
       
-      {/* FAQ list */}
-      {loading ? (
-        <div className="space-y-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="card h-20 skeleton" />
-          ))}
-        </div>
-      ) : error ? (
-        <div className="card text-center py-8">
-          <p className="text-[var(--color-error)] mb-4">{error}</p>
-          <button onClick={loadFAQ} className="btn btn-secondary">
-            {t('common.retry')}
-          </button>
-        </div>
-      ) : faqItems.length === 0 ? (
-        <div className="card text-center py-12 stagger-enter">
-          <span className="text-5xl mb-4 block">📚</span>
-          <h3 className="text-lg font-semibold text-[var(--color-text)] mb-2">
-            {t('faq.empty')}
-          </h3>
-          <p className="text-[var(--color-text-muted)]">
-            {t('faq.emptyHint')}
+      <div className="p-4 space-y-6">
+        {/* Hero */}
+        <div className="text-center py-6 stagger-enter">
+          <h1 className="text-2xl font-bold mb-2">{t('faq.subtitle')}</h1>
+          <p className="text-muted-foreground text-sm">
+            Find answers to common questions below
           </p>
         </div>
-      ) : (
-        <div className="space-y-6">
-          {Object.entries(groupedFAQ).map(([category, items]) => (
-            <div key={category} className="stagger-enter">
-              {/* Category header */}
-              <h2 className="text-lg font-semibold text-[var(--color-primary)] mb-3 capitalize">
-                {t(`faq.category.${category}`) || category}
-              </h2>
-              
-              {/* FAQ items */}
-              <div className="space-y-3">
-                {items.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className="card cursor-pointer"
-                    onClick={() => toggleExpanded(item.id)}
-                  >
-                    {/* Question */}
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="font-medium text-[var(--color-text)] flex-1">
-                        {item.question}
-                      </h3>
-                      <span className={`text-[var(--color-text-muted)] transition-transform ${
-                        expandedId === item.id ? 'rotate-180' : ''
-                      }`}>
-                        ▼
-                      </span>
-                    </div>
-                    
-                    {/* Answer */}
-                    {expandedId === item.id && (
-                      <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
-                        <p className="text-[var(--color-text-muted)] whitespace-pre-wrap">
-                          {item.answer}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))}
+        
+        {/* FAQ List */}
+        {loading ? (
+          <div className="space-y-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-16 w-full rounded-xl" />
+            ))}
+          </div>
+        ) : error ? (
+          <div className="text-center py-8 text-destructive">
+            <p>{error}</p>
+            <Button onClick={loadFAQ} variant="outline" className="mt-4">
+              {t('common.retry')}
+            </Button>
+          </div>
+        ) : faqItems.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <HelpCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>{t('faq.empty')}</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {Object.entries(groupedFAQ).map(([category, items], catIndex) => (
+              <div key={category} className="stagger-enter" style={{ animationDelay: `${catIndex * 0.1}s` }}>
+                <h2 className="text-sm font-semibold text-primary uppercase tracking-wider mb-3 pl-1">
+                  {t(`faq.category.${category}`) || category}
+                </h2>
+                <div className="space-y-3">
+                  {items.map((item) => (
+                    <Card 
+                      key={item.id}
+                      className={cn(
+                        "cursor-pointer transition-all duration-200 hover:border-primary/50",
+                        expandedId === item.id && "border-primary shadow-lg shadow-primary/5"
+                      )}
+                      onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start gap-3">
+                          <h3 className="font-medium text-sm leading-snug">
+                            {item.question}
+                          </h3>
+                          <ChevronDown 
+                            className={cn(
+                              "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
+                              expandedId === item.id && "rotate-180 text-primary"
+                            )} 
+                          />
+                        </div>
+                        {expandedId === item.id && (
+                          <div className="mt-3 pt-3 border-t border-border/50 text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap animate-in slide-in-from-top-2 fade-in duration-200">
+                            {item.answer}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
+            ))}
+          </div>
+        )}
+        
+        {/* Support CTA */}
+        <Card className="bg-primary/5 border-primary/20 stagger-enter">
+          <CardContent className="p-6 text-center space-y-4">
+            <div className="p-3 rounded-full bg-primary/10 text-primary w-fit mx-auto">
+              <MessageCircle className="h-6 w-6" />
             </div>
-          ))}
-        </div>
-      )}
-      
-      {/* Contact support */}
-      <div className="card mt-6 text-center stagger-enter">
-        <span className="text-3xl mb-2 block">💬</span>
-        <h3 className="font-semibold text-[var(--color-text)] mb-2">
-          {t('faq.stillNeedHelp')}
-        </h3>
-        <p className="text-[var(--color-text-muted)] text-sm mb-4">
-          {t('faq.contactHint')}
-        </p>
-        <button 
-          onClick={() => window.Telegram?.WebApp?.close()}
-          className="btn btn-primary"
-        >
-          {t('faq.askBot')}
-        </button>
+            <div>
+              <h3 className="font-semibold mb-1">{t('faq.stillNeedHelp')}</h3>
+              <p className="text-sm text-muted-foreground">{t('faq.contactHint')}</p>
+            </div>
+            <Button onClick={() => window.Telegram?.WebApp?.close()}>
+              {t('faq.askBot')}
+            </Button>
+          </CardContent>
+        </Card>
+        
+        {/* Legal Links */}
+        {onNavigate && (
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground pt-4">
+            {['contacts', 'refund', 'payment', 'terms', 'privacy'].map((link) => (
+              <button
+                key={link}
+                onClick={() => onNavigate(link)}
+                className="hover:text-primary hover:underline transition-colors"
+              >
+                {t(`legal.${link}`)}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
 }
-
-
-

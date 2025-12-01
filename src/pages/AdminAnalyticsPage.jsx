@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react'
 import { useAdmin } from '../hooks/useAdmin'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
+import { ArrowLeft, BarChart2, DollarSign, ShoppingBag, TrendingUp } from 'lucide-react'
+import { Button } from '../components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
+import { Badge } from '../components/ui/badge'
+import { Skeleton } from '../components/ui/skeleton'
 
 export default function AdminAnalyticsPage({ onBack }) {
   const { getAnalytics, loading } = useAdmin()
@@ -20,80 +25,109 @@ export default function AdminAnalyticsPage({ onBack }) {
       const data = await getAnalytics(days)
       setAnalytics(data)
     } catch (err) {
-      await showAlert(`Ошибка: ${err.message}`)
+      await showAlert(`Error: ${err.message}`)
     }
   }
 
+  const StatCard = ({ title, value, icon: Icon, trend }) => (
+    <Card>
+      <CardContent className="p-4 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
+          <h3 className="text-2xl font-bold">{value}</h3>
+        </div>
+        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+          <Icon className="h-6 w-6" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+
   return (
-    <div className="p-4">
-      <div className="flex items-center justify-between mb-6">
-        <button onClick={onBack} className="text-[var(--color-primary)]">← Назад</button>
-        <h1 className="text-xl font-bold">Аналитика</h1>
+    <div className="p-4 pb-20 space-y-6">
+      <div className="flex items-center gap-4 sticky top-0 bg-background/80 backdrop-blur-md py-2 z-10 border-b border-border/50">
+        <Button variant="ghost" size="icon" onClick={onBack}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <h1 className="text-xl font-bold">Analytics</h1>
       </div>
 
-      <div className="flex gap-2 mb-4">
+      <div className="flex p-1 bg-secondary/50 rounded-lg">
         {[7, 30, 90].map((d) => (
           <button
             key={d}
             onClick={() => setDays(d)}
-            className={`px-4 py-2 rounded-full text-sm ${
+            className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${
               days === d
-                ? 'bg-[var(--color-primary)] text-white'
-                : 'bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)]'
+                ? 'bg-background shadow-sm text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            {d} дней
+            {d} Days
           </button>
         ))}
       </div>
 
       {loading ? (
-        <div className="text-center py-8">Загрузка...</div>
+        <div className="space-y-4">
+          <Skeleton className="h-24 w-full rounded-xl" />
+          <Skeleton className="h-24 w-full rounded-xl" />
+          <Skeleton className="h-48 w-full rounded-xl" />
+        </div>
       ) : analytics ? (
         <div className="space-y-4">
-          <div className="card">
-            <h3 className="font-semibold mb-3">Продажи</h3>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">Всего заказов:</span>
-                <span className="font-semibold">{analytics.total_orders || 0}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">Выручка:</span>
-                <span className="font-semibold text-[var(--color-primary)]">
-                  {formatPrice(analytics.total_revenue || 0)}₽
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">Средний чек:</span>
-                <span className="font-semibold">
-                  {formatPrice(analytics.avg_order_value || 0)}₽
-                </span>
-              </div>
-            </div>
+          <div className="grid gap-4">
+            <StatCard 
+              title="Total Revenue" 
+              value={formatPrice(analytics.total_revenue || 0)} 
+              icon={DollarSign}
+            />
+            <StatCard 
+              title="Total Orders" 
+              value={analytics.total_orders || 0} 
+              icon={ShoppingBag}
+            />
+            <StatCard 
+              title="Avg. Order Value" 
+              value={formatPrice(analytics.avg_order_value || 0)} 
+              icon={TrendingUp}
+            />
           </div>
 
           {analytics.top_products && analytics.top_products.length > 0 && (
-            <div className="card">
-              <h3 className="font-semibold mb-3">Топ товары</h3>
-              <div className="space-y-2">
-                {analytics.top_products.map((product, idx) => (
-                  <div key={idx} className="flex justify-between">
-                    <span className="text-[var(--color-text-muted)]">{product.name}:</span>
-                    <span className="font-semibold">{product.count} продаж</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <BarChart2 className="h-5 w-5 text-primary" />
+                  Top Products
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {analytics.top_products.map((product, idx) => (
+                    <div key={idx} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-xs font-medium text-muted-foreground">
+                          {idx + 1}
+                        </span>
+                        <span className="font-medium text-sm">{product.name}</span>
+                      </div>
+                      <Badge variant="secondary">{product.count} sold</Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
       ) : (
-        <div className="card text-center py-8">
-          <p className="text-[var(--color-text-muted)]">Нет данных</p>
+        <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+          <div className="p-4 rounded-full bg-secondary text-muted-foreground">
+            <BarChart2 className="h-12 w-12" />
+          </div>
+          <p className="text-muted-foreground">No analytics data available</p>
         </div>
       )}
     </div>
   )
 }
-
-

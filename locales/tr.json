@@ -1,43 +1,34 @@
 {
-  "welcome": "🎉 PVNDORA'ya Hoş Geldiniz!\n\nPremium abonelikler için kişisel AI danışmanınızım.\n\n💬 Neye ihtiyacınız olduğunu söyleyin:\n• \"ChatGPT Plus\"\n• \"Midjourney\"\n• \"Claude Pro\"\n\n🎁 Avantajlar:\n• %20 tavsiye programı\n• Garanti ve değişim\n• 7/24 destek\n• Anında teslimat\n\nSize nasıl yardımcı olabilirim?",
-  "welcome_back": "Tekrar hoş geldiniz! Bugün nasıl yardımcı olabilirim?",
-  "help": "📚 Mevcut komutlar:\n\n/start - Botu başlat\n/my_orders - Satın alma geçmişi\n/wishlist - Kaydedilen ürünler\n/help - Bu mesaj",
+  "welcome": "👋 Merhaba! AI aboneliği bulmana yardımcı olacağım.\n\nSadece yaz veya sesli mesaj gönder — her iki formatı da anlıyorum. Neye ihtiyacın olduğunu anlat, ben de senin için uygun aracı bulacağım.",
+  "welcome_back": "Tekrar hoş geldin! Nasıl yardımcı olabilirim? Yaz veya sesli mesaj gönder.",
+  "help": "📚 Botu nasıl kullanılır:\n\nSadece yaz veya sesli mesajlar gönder — her iki formatı da anlıyorum.\n\nMevcut komutlar:\n/start - Botu başlat\n/my_orders - Satın alma geçmişin\n/wishlist - Kaydedilmiş ürünler\n/help - Bu mesaj\n\nVeya sadece neye ihtiyacın olduğunu anlat, ben de mükemmel aboneliği bulmana yardımcı olacağım!",
   "banned": "🚫 Erişim kısıtlandı. İletişim: @admin",
   "error_generic": "❌ Bir şeyler yanlış gitti. Lütfen tekrar deneyin.",
   "error_no_stock": "😔 Bu ürün stokta yok. Bekleme listesine katılmak ister misiniz?",
   "error_payment": "❌ Ödeme başarısız. Bakiyenize yüklendi.",
-  
   "product_card": "📦 {name}\n💰 Fiyat: {price}₺\n⭐ Puan: {rating}/5 ({reviews} yorum)\n{stock_status}\n\n{description}",
   "stock_available": "✅ Stokta var",
   "stock_empty": "❌ Stok yok",
   "discount_notice": "🏷️ {days} gün stokta kaldığı için %{percent} indirim!",
-  
   "order_created": "📝 Sipariş #{order_id} oluşturuldu!\n\n💰 Tutar: {amount}₺\n\nÖdemek için aşağıya tıklayın.",
   "order_success": "✅ Ödeme başarılı!\n\nGiriş bilgileriniz:\n\n{credentials}\n\n📋 Talimatlar: {instructions}\n\n⏰ Geçerlilik: {expires}",
   "order_failed": "❌ Sipariş başarısız. Tekrar deneyin.",
   "order_history": "📋 Siparişleriniz:\n\n{orders}\n\nToplam: {count} sipariş",
   "order_item": "#{id} - {product} - {amount}₺ - {status}",
   "no_orders": "Henüz satın alma yapmadınız.",
-  
   "waitlist_added": "✅ {product} için bekleme listesine eklendiniz.",
   "waitlist_notify": "🔔 İyi haber! {product} tekrar stokta!",
-  
   "wishlist_added": "❤️ {product} favorilere eklendi!",
   "wishlist_removed": "💔 {product} favorilerden çıkarıldı.",
   "wishlist_empty": "İstek listeniz boş.",
-  
   "review_request": "⭐ Alışverişiniz nasıldı? Yorum yapın ve %5 cashback kazanın!",
   "review_thanks": "🙏 Yorumunuz için teşekkürler! {cashback} bakiyenize eklendi.",
-  
   "referral_link": "🔗 Referans linkiniz:\n{link}\n\nArkadaşlarınızın her alışverişinden %{percent} kazanın!",
   "referral_bonus": "💰 Referans alışverişinden {amount}₺ kazandınız!",
-  
   "support_ticket": "📩 Destek talebi oluşturuldu. En kısa sürede yanıtlayacağız.",
   "support_resolved": "✅ Talebiniz çözüldü.",
-  
   "subscription_expiring": "⏰ {product} aboneliğiniz {days} gün içinde sona eriyor. %10 indirimle yenileyin!",
   "subscription_expired": "⌛ {product} aboneliğiniz sona erdi. Yenilemek ister misiniz?",
-  
   "btn_shop": "🛒 Mağaza",
   "btn_buy": "💳 Satın Al",
   "btn_pay": "💳 {amount}₺ Öde",
@@ -49,9 +40,79 @@
   "btn_cancel": "❌ İptal",
   "btn_confirm": "✅ Onayla",
   "btn_back": "⬅️ Geri",
-  
   "ai_thinking": "🤔 Kontrol ediyorum...",
   "ai_no_product": "Eşleşen ürün bulamadım. Daha detaylı anlatır mısınız?",
-  "ai_suggest": "İhtiyaçlarınıza göre önerilerim:\n\n{products}\n\nDaha fazla bilgi ister misiniz?"
+  "ai_suggest": "İhtiyaçlarınıza göre önerilerim:\n\n{products}\n\nDaha fazla bilgi ister misiniz?",
+  "contacts": {
+    "title": "İletişim",
+    "subtitle": "Bize ulaşın",
+    "support": "Destek",
+    "supportDescription": "Telegram botundaki AI asistanımıza yazın — tüm sorularınızı yanıtlayacak",
+    "contactBot": "Bot ile iletişime geç",
+    "email": "Email",
+    "emailAddress": "support@pvndora.app",
+    "workingHours": "Çalışma saatleri",
+    "workingHoursText": "24/7, her zaman"
+  },
+  "refund": {
+    "title": "İade politikası",
+    "subtitle": "Para iade garantisi",
+    "conditions": "İade koşulları",
+    "conditionsText": "İadeler aşağıdaki durumlarda mümkündür:\n\n• Ürün ödemeden sonra 48 saat içinde teslim edilmedi\n• Ürün açıklamaya uymuyor\n• 72 saat içinde çözemediğimiz teknik sorunlar\n• Teslimattan önce sipariş iptali",
+    "procedure": "İade prosedürü",
+    "procedureText": "İade talep etmek için:\n\n1. Bot veya email üzerinden desteğe ulaşın\n2. Sipariş numarası ve neden belirtin\n3. Talebinizi 24 saat içinde inceleyeceğiz\n4. Onaylandığında, fonlar 3-5 iş günü içinde iade edilecek",
+    "timing": "İade süreleri",
+    "timingText": "• Talep incelemesi: 24 saate kadar\n• İade: 3-5 iş günü\n• Kripto ödemeler için: 7 iş gününe kadar",
+    "contact": "Yardıma mı ihtiyacınız var?",
+    "contactText": "İadeler hakkında sorularınız varsa, desteğimizle iletişime geçin",
+    "contactSupport": "Destek ile iletişime geç"
+  },
+  "paymentInfo": {
+    "title": "Ödeme bilgileri",
+    "subtitle": "Ödeme yöntemleri ve süreç",
+    "methods": "Ödeme yöntemleri",
+    "methodsText": "Aşağıdaki ödeme yöntemlerini kabul ediyoruz:\n\n• Banka kartları (Visa, Mastercard, MIR)\n• Hızlı ödeme sistemi (FPS)\n• Kripto paralar (Bitcoin, USDT, Ethereum)\n\nTüm ödemeler güvenli CardLink ödeme ağ geçidi üzerinden işlenir.",
+    "process": "Ödeme süreci",
+    "processText": "1. Bir ürün seçin ve \"Öde\"ye tıklayın\n2. Ödeme sayfasına yönlendirileceksiniz\n3. Kart bilgilerini girin veya başka bir yöntem seçin\n4. Başarılı ödemeden sonra ürün otomatik olarak teslim edilecek\n5. Telegram'da kimlik bilgileriyle bildirim alacaksınız",
+    "security": "Güvenlik",
+    "securityText": "Tüm ödemeler korunur:\n\n• PCI DSS standardına göre veri şifreleme\n• İki faktörlü kimlik doğrulama\n• Dolandırıcılık koruması\n• Kart verilerinizi saklamıyoruz",
+    "questions": "Sorularınız mı var?",
+    "questionsText": "Ödeme sorunlarınız varsa, desteğe ulaşın",
+    "contactSupport": "Destek ile iletişime geç"
+  },
+  "terms": {
+    "title": "Hizmet şartları",
+    "subtitle": "Hizmet kullanım koşulları",
+    "acceptance": "Koşulları kabul etme",
+    "acceptanceText": "Hizmetimizi kullanarak bu koşulları kabul edersiniz. Kabul etmiyorsanız, lütfen hizmeti kullanmayın.",
+    "services": "Sağlanan hizmetler",
+    "servicesText": "Dijital abonelikler ve AI hizmetlerine erişim sağlıyoruz:\n\n• Dijital ürün satışı (abonelikler, API anahtarları)\n• Ürünlerin elektronik teslimatı\n• Telegram bot üzerinden müşteri desteği\n• Referans programı",
+    "obligations": "Tarafların yükümlülükleri",
+    "obligationsText": "Taahhüt ediyoruz:\n\n• Kaliteli hizmetler sağlamak\n• Ödeme güvenliğini sağlamak\n• Kişisel verileri korumak\n• Müşteri desteği sağlamak\n\nTaahhüt ediyorsunuz:\n\n• Hizmetleri amaçlarına uygun kullanmak\n• Erişimi üçüncü taraflara devretmemek\n• Kullanım koşullarına uymak",
+    "changes": "Koşullarda değişiklikler",
+    "changesText": "Kullanım koşullarını değiştirme hakkını saklı tutuyoruz. Değişiklikler yayınlandığında yürürlüğe girer. Hizmeti kullanmaya devam ederek yeni koşulları kabul edersiniz."
+  },
+  "privacy": {
+    "title": "Gizlilik politikası",
+    "subtitle": "Kişisel veri işleme",
+    "collection": "Topladığımız veriler",
+    "collectionText": "Aşağıdaki verileri topluyoruz:\n\n• Telegram ID ve kullanıcı adı\n• Sipariş ve satın alma geçmişi\n• İletişim bilgileri (sağlanırsa)\n• Teknik veriler (IP adresi, cihaz türü)\n\nToplamıyoruz:\n• Banka kartı verileri\n• Şifreler\n• Gizli bilgiler",
+    "usage": "Verileri nasıl kullanıyoruz",
+    "usageText": "Verileriniz şunlar için kullanılır:\n\n• Siparişleri işlemek ve ürünleri teslim etmek\n• Siparişler hakkında sizinle iletişime geçmek\n• Hizmet kalitesini artırmak\n• Destek sağlamak\n• Hizmet kullanımını analiz etmek (anonim)",
+    "protection": "Veri koruma",
+    "protectionText": "Aşağıdaki güvenlik önlemlerini uyguluyoruz:\n\n• İletim sırasında veri şifreleme\n• Korumalı veritabanlarında güvenli depolama\n• Kişisel verilere sınırlı erişim\n• Düzenli güvenlik denetimleri",
+    "rights": "Haklarınız",
+    "rightsText": "Hakkınız var:\n\n• Verilerinizin bir kopyasını talep etmek\n• Veri silme talep etmek\n• İşleme onayını geri çekmek\n• Yanlış verileri düzeltmek\n• Denetim otoritesine şikayette bulunmak",
+    "contact": "İletişim",
+    "contactText": "Kişisel veri işleme hakkında sorular için iletişime geçin:",
+    "emailAddress": "privacy@pvndora.app",
+    "contactEmail": "Email gönder"
+  },
+  "legal": {
+    "contacts": "İletişim",
+    "refund": "İade",
+    "payment": "Ödeme",
+    "terms": "Şartlar",
+    "privacy": "Gizlilik"
+  }
 }
-

@@ -141,3 +141,4 @@ CREATE TRIGGER product_text_changed
 
 
 
+

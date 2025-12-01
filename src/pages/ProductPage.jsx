@@ -3,6 +3,12 @@ import { useProducts } from '../hooks/useApi'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
 import StarRating from '../components/StarRating'
+import { ArrowLeft, Star, Clock, Package, ShieldCheck, FileText } from 'lucide-react'
+import { Button } from '../components/ui/button'
+import { Badge } from '../components/ui/badge'
+import { Skeleton } from '../components/ui/skeleton'
+import { Card, CardContent } from '../components/ui/card'
+import { Separator } from '../components/ui/separator'
 
 export default function ProductPage({ productId, onBack, onCheckout }) {
   const { getProduct, loading, error } = useProducts()
@@ -43,25 +49,33 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
   
   if (loading) {
     return (
-      <div className="p-4">
-        <div className="card h-64 skeleton mb-4" />
-        <div className="card h-32 skeleton mb-4" />
-        <div className="card h-48 skeleton" />
+      <div className="p-4 space-y-4">
+        <div className="flex gap-2">
+          <Skeleton className="h-8 w-8 rounded-full" />
+          <Skeleton className="h-8 w-24 rounded-full" />
+        </div>
+        <Skeleton className="h-10 w-3/4 rounded-xl" />
+        <Skeleton className="h-32 w-full rounded-xl" />
+        <div className="grid grid-cols-2 gap-4">
+          <Skeleton className="h-20 w-full rounded-xl" />
+          <Skeleton className="h-20 w-full rounded-xl" />
+        </div>
       </div>
     )
   }
   
   if (error || !product) {
     return (
-      <div className="p-4">
-        <div className="card text-center py-8">
-          <p className="text-[var(--color-error)] mb-4">
-            {error || t('product.notFound')}
-          </p>
-          <button onClick={onBack} className="btn btn-secondary">
-            {t('common.back')}
-          </button>
+      <div className="flex flex-col items-center justify-center h-[60vh] p-6 text-center space-y-4">
+        <div className="p-4 rounded-full bg-destructive/10 text-destructive">
+          <Package className="h-8 w-8" />
         </div>
+        <h3 className="text-xl font-semibold">
+          {error || t('product.notFound')}
+        </h3>
+        <Button onClick={onBack} variant="outline">
+          {t('common.back')}
+        </Button>
       </div>
     )
   }
@@ -87,175 +101,172 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
   const savings = msrp && final_price ? msrp - final_price : 0
   
   return (
-    <div className="p-4 pb-24">
-      {/* Back button */}
-      <button
-        onClick={onBack}
-        className="flex items-center gap-2 text-[var(--color-text-muted)] mb-4 hover:text-[var(--color-text)]"
-      >
-        <span>←</span>
-        <span>{t('common.back')}</span>
-      </button>
-      
-      {/* Product header */}
-      <div className="card mb-4 stagger-enter">
-        <div className="flex items-start justify-between mb-3">
-          <span className="badge bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)]">
+    <div className="pb-24">
+      {/* Navigation Header */}
+      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50 p-4 flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8 rounded-full">
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <span className="font-semibold truncate">{name}</span>
+      </div>
+
+      <div className="p-4 space-y-6">
+        {/* Badges */}
+        <div className="flex gap-2 flex-wrap">
+          <Badge variant="secondary" className="text-xs uppercase tracking-wider">
             {type}
-          </span>
+          </Badge>
           {hasDiscount && (
-            <span className="badge badge-success">
-              -{discount_percent}%
-            </span>
+            <Badge variant="success" className="bg-primary/10 text-primary">
+              -{discount_percent}% OFF
+            </Badge>
+          )}
+          {isInStock ? (
+            <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5">
+              {t('product.inStock')}
+            </Badge>
+          ) : can_fulfill_on_demand ? (
+            <Badge variant="warning" className="bg-yellow-500/10 text-yellow-500">
+              {t('product.onDemand')}
+            </Badge>
+          ) : (
+            <Badge variant="destructive" className="bg-destructive/10 text-destructive">
+              {t('product.outOfStock')}
+            </Badge>
           )}
         </div>
-        
-        <h1 className="text-2xl font-bold text-[var(--color-text)] mb-2">
-          {name}
-        </h1>
-        
+
+        {/* Title & Price */}
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold leading-tight">{name}</h1>
+          
+          <div className="flex items-end gap-3">
+            <span className="text-3xl font-bold text-primary">
+              {formatPrice(final_price || price)}
+            </span>
+            {hasDiscount && msrp && (
+              <span className="text-lg text-muted-foreground line-through mb-1">
+                {formatPrice(msrp)}
+              </span>
+            )}
+          </div>
+          
+          {savings > 0 && (
+            <p className="text-sm text-green-500 font-medium">
+              {t('product.save')} {formatPrice(savings)}
+            </p>
+          )}
+        </div>
+
+        {/* Description */}
         {description && (
-          <p className="text-[var(--color-text-muted)] mb-4">
+          <p className="text-muted-foreground leading-relaxed">
             {description}
           </p>
         )}
-        
-        {/* Social proof */}
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {warranty_days > 0 && (
+            <Card className="bg-card/50 border-none">
+              <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                <ShieldCheck className="h-6 w-6 text-primary" />
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('product.warranty')}</p>
+                  <p className="font-semibold">{warranty_days} {t('common.days')}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {duration_days > 0 && (
+            <Card className="bg-card/50 border-none">
+              <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                <Clock className="h-6 w-6 text-primary" />
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('product.duration')}</p>
+                  <p className="font-semibold">{duration_days} {t('common.days')}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Social Proof */}
         {socialProof && (
-          <div className="flex items-center gap-4 mb-4">
-            {socialProof.rating > 0 && (
+          <Card className="bg-card/30">
+            <CardContent className="p-4 flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <StarRating rating={socialProof.rating} showValue />
-                <span className="text-[var(--color-text-muted)] text-sm">
+                <div className="flex items-center gap-1 text-yellow-500">
+                  <Star className="h-5 w-5 fill-current" />
+                  <span className="font-bold text-lg">{socialProof.rating}</span>
+                </div>
+                <span className="text-sm text-muted-foreground">
                   ({socialProof.review_count} {t('product.reviews')})
                 </span>
               </div>
-            )}
-            {socialProof.sales_count > 0 && (
-              <span className="text-[var(--color-text-muted)] text-sm">
-                {socialProof.sales_count}+ {t('product.sold')}
-              </span>
-            )}
+              
+              {socialProof.sales_count > 0 && (
+                <div className="flex items-center gap-1.5 text-sm font-medium">
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                  <span>{socialProof.sales_count}+ {t('product.sold')}</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Instructions */}
+        {instructions && (
+          <div className="space-y-3">
+            <h3 className="font-semibold flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" />
+              {t('product.instructions')}
+            </h3>
+            <div className="bg-secondary/30 rounded-xl p-4 text-sm text-muted-foreground whitespace-pre-wrap border border-border/50">
+              {instructions}
+            </div>
           </div>
         )}
-        
-        {/* Price */}
-        <div className="flex items-end gap-3 mb-4">
-          <span className="price-final">
-            {formatPrice(final_price || price)}
-          </span>
-          {hasDiscount && msrp && (
-            <span className="price-original">
-              {formatPrice(msrp)}
-            </span>
-          )}
-        </div>
-        
-        {savings > 0 && (
-          <div className="bg-[var(--color-success)]/10 rounded-lg p-3 mb-4">
-            <span className="text-[var(--color-success)] font-semibold">
-              💰 {t('product.save')} {formatPrice(savings)}
-            </span>
+
+        {/* Reviews List */}
+        {socialProof?.recent_reviews?.length > 0 && (
+          <div className="space-y-4 pt-4">
+            <h3 className="font-semibold text-lg">{t('product.recentReviews')}</h3>
+            <div className="space-y-4">
+              {socialProof.recent_reviews.map((review, index) => (
+                <div key={index} className="space-y-2">
+                  <div className="flex justify-between items-start">
+                    <span className="font-medium">{review.author}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDate(review.date)}
+                    </span>
+                  </div>
+                  <StarRating rating={review.rating} size="sm" />
+                  {review.text && (
+                    <p className="text-sm text-muted-foreground">{review.text}</p>
+                  )}
+                  {index < socialProof.recent_reviews.length - 1 && (
+                    <Separator className="mt-4" />
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
-        
-        {/* Stock status */}
-        <div className="flex items-center gap-2 mb-4">
-          {isInStock ? (
-            <>
-              <span className="w-2 h-2 bg-[var(--color-success)] rounded-full animate-pulse" />
-              <span className="text-[var(--color-success)]">
-                {t('product.inStock')} ({available_count} {t('product.available')})
-              </span>
-            </>
-          ) : can_fulfill_on_demand ? (
-            <>
-              <span className="w-2 h-2 bg-[var(--color-warning)] rounded-full" />
-              <span className="text-[var(--color-warning)]">
-                {t('product.onDemand')} (~{fulfillment_time_hours}h)
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="w-2 h-2 bg-[var(--color-error)] rounded-full" />
-              <span className="text-[var(--color-error)]">
-                {t('product.outOfStock')}
-              </span>
-            </>
-          )}
-        </div>
-        
-        {/* Details */}
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          {warranty_days > 0 && (
-            <div className="bg-[var(--color-bg-elevated)] rounded-lg p-3">
-              <span className="text-[var(--color-text-muted)]">{t('product.warranty')}</span>
-              <div className="font-semibold">{warranty_days} {t('common.days')}</div>
-            </div>
-          )}
-          {duration_days > 0 && (
-            <div className="bg-[var(--color-bg-elevated)] rounded-lg p-3">
-              <span className="text-[var(--color-text-muted)]">{t('product.duration')}</span>
-              <div className="font-semibold">{duration_days} {t('common.days')}</div>
-            </div>
-          )}
-        </div>
       </div>
       
-      {/* Instructions */}
-      {instructions && (
-        <div className="card mb-4 stagger-enter">
-          <h2 className="font-semibold text-[var(--color-text)] mb-2">
-            {t('product.instructions')}
-          </h2>
-          <p className="text-[var(--color-text-muted)] text-sm whitespace-pre-wrap">
-            {instructions}
-          </p>
-        </div>
-      )}
-      
-      {/* Reviews */}
-      {socialProof?.recent_reviews?.length > 0 && (
-        <div className="card mb-4 stagger-enter">
-          <h2 className="font-semibold text-[var(--color-text)] mb-4">
-            {t('product.recentReviews')}
-          </h2>
-          <div className="space-y-4">
-            {socialProof.recent_reviews.map((review, index) => (
-              <div key={index} className="border-b border-[var(--color-border)] last:border-0 pb-3 last:pb-0">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-medium text-[var(--color-text)]">
-                    {review.author}
-                  </span>
-                  <StarRating rating={review.rating} size="sm" />
-                </div>
-                {review.text && (
-                  <p className="text-[var(--color-text-muted)] text-sm">
-                    {review.text}
-                  </p>
-                )}
-                <span className="text-[var(--color-text-muted)] text-xs">
-                  {formatDate(review.date)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      
-      {/* Buy button - fixed at bottom */}
-      <div className="fixed bottom-20 left-0 right-0 p-4 bg-gradient-to-t from-[var(--color-bg-dark)] to-transparent">
-        <button
+      {/* Floating Action Button */}
+      <div className="fixed bottom-4 left-4 right-4 z-20">
+        <Button
           onClick={handleBuy}
           disabled={!isInStock && !can_fulfill_on_demand}
-          className="btn btn-primary w-full glow-primary disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full h-14 text-lg shadow-xl shadow-primary/20"
+          size="lg"
         >
           {isInStock ? t('product.buyNow') : can_fulfill_on_demand ? t('product.preorder') : t('product.notifyMe')}
-        </button>
+        </Button>
       </div>
     </div>
   )
 }
-
-
-

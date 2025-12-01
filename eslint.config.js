@@ -25,7 +25,15 @@ export default [
         'warn',
         { allowConstantExport: true },
       ],
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      'no-unused-vars': [
+        'warn', 
+        { 
+          argsIgnorePattern: '^_',
+          // Ignore variables that start with uppercase (React components)
+          varsIgnorePattern: '^[A-Z]',
+          ignoreRestSiblings: true
+        }
+      ],
     },
   },
 ]

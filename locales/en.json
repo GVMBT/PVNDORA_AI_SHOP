@@ -1,7 +1,7 @@
 {
-  "welcome": "👋 Hi!\n\nAI subscription marketplace: ChatGPT, Claude, Midjourney and more.\n\nWhat are you looking for?",
-  "welcome_back": "Welcome back! How can I help you today?",
-  "help": "📚 Available commands:\n\n/start - Start the bot\n/my_orders - Your purchase history\n/wishlist - Saved products\n/help - This message\n\nOr just write what you need, I'll help you find the perfect subscription!",
+  "welcome": "👋 Hi! I'll help you find an AI subscription.\n\nJust write or send a voice message — I understand both formats. Describe what you need and I'll find the right tool for you.",
+  "welcome_back": "Welcome back! How can I help? Write or send a voice message.",
+  "help": "📚 How to use the bot:\n\nJust write or send voice messages — I understand both formats.\n\nAvailable commands:\n/start - Start the bot\n/my_orders - Your purchase history\n/wishlist - Saved products\n/help - This message\n\nOr just describe what you need, and I'll help you find the perfect subscription!",
   "banned": "🚫 Access restricted. Contact support: @admin",
   "error_generic": "❌ Something went wrong. Please try again later.",
   "error_no_stock": "😔 This product is currently out of stock. Would you like to join the waitlist?",
@@ -85,7 +85,10 @@
     "empty": "Leaderboard is empty",
     "emptyHint": "Make purchases to appear on the leaderboard",
     "howItWorks": "How it works",
-    "explanation": "Every purchase saves you money compared to retail prices. The more you save, the higher you rank!"
+    "explanation": "Every purchase saves you money compared to retail prices. The more you save, the higher you rank!",
+    "inviteFriend": "Invite Friend",
+    "copyLink": "Copy Link",
+    "linkCopied": "Link copied!"
   },
 
   "faq": {
@@ -174,5 +177,83 @@
 
   "ai_thinking": "🤔 Let me check...",
   "ai_no_product": "I couldn't find a matching product. Could you describe what you need in more detail?",
-  "ai_suggest": "Based on your needs, I recommend:\n\n{products}\n\nWould you like to know more about any of these?"
+  "ai_suggest": "Based on your needs, I recommend:\n\n{products}\n\nWould you like to know more about any of these?",
+
+  "contacts": {
+    "title": "Contacts",
+    "subtitle": "Get in touch with us",
+    "support": "Support",
+    "supportDescription": "Write to our AI assistant in the Telegram bot — it will answer all your questions",
+    "contactBot": "Contact Bot",
+    "email": "Email",
+    "emailAddress": "support@pvndora.app",
+    "workingHours": "Working Hours",
+    "workingHoursText": "24/7, around the clock"
+  },
+
+  "refund": {
+    "title": "Refund Policy",
+    "subtitle": "Money-back guarantee",
+    "conditions": "Refund Conditions",
+    "conditionsText": "Refunds are available in the following cases:\n\n• Product was not delivered within 48 hours after payment\n• Product does not match the description\n• Technical issues that we could not resolve within 72 hours\n• Order cancellation before product delivery",
+    "procedure": "Refund Procedure",
+    "procedureText": "To request a refund:\n\n1. Contact support via bot or email\n2. Provide order number and reason for refund\n3. We will review your request within 24 hours\n4. Upon approval, funds will be returned to the same payment method within 3-5 business days",
+    "timing": "Refund Timing",
+    "timingText": "• Request review: up to 24 hours\n• Refund processing: 3-5 business days\n• For cryptocurrency payments: up to 7 business days",
+    "contact": "Need help?",
+    "contactText": "If you have questions about refunds, contact our support",
+    "contactSupport": "Contact Support"
+  },
+
+  "paymentInfo": {
+    "title": "Payment Information",
+    "subtitle": "Payment methods and process",
+    "methods": "Payment Methods",
+    "methodsText": "We accept the following payment methods:\n\n• Bank cards (Visa, Mastercard, MIR)\n• Fast Payment System (FPS)\n• Cryptocurrencies (Bitcoin, USDT, Ethereum)\n\nAll payments are processed through the secure CardLink payment gateway.",
+    "process": "Payment Process",
+    "processText": "1. Select a product and click \"Pay\"\n2. You will be redirected to the payment page\n3. Enter card details or choose another method\n4. After successful payment, the product will be delivered automatically\n5. You will receive a notification in Telegram with access credentials",
+    "security": "Security",
+    "securityText": "All payments are protected:\n\n• Data encryption according to PCI DSS standard\n• Two-factor authentication\n• Fraud protection\n• We do not store your card data",
+    "questions": "Questions?",
+    "questionsText": "If you have payment issues, contact support",
+    "contactSupport": "Contact Support"
+  },
+
+  "terms": {
+    "title": "Terms of Service",
+    "subtitle": "Service usage conditions",
+    "acceptance": "Acceptance of Terms",
+    "acceptanceText": "By using our service, you agree to these terms. If you do not agree with any of the terms, please do not use the service.",
+    "services": "Services Provided",
+    "servicesText": "We provide access to digital subscriptions and AI services:\n\n• Sale of digital goods (subscriptions, API keys)\n• Electronic delivery of goods\n• Customer support via Telegram bot\n• Referral program",
+    "obligations": "Obligations of Parties",
+    "obligationsText": "We commit to:\n\n• Provide quality services\n• Ensure payment security\n• Protect personal data\n• Provide customer support\n\nYou commit to:\n\n• Use services in accordance with their purpose\n• Not transfer access to third parties\n• Comply with terms of use",
+    "changes": "Changes to Terms",
+    "changesText": "We reserve the right to change the terms of use. Changes take effect upon publication. By continuing to use the service, you agree to the new terms."
+  },
+
+  "privacy": {
+    "title": "Privacy Policy",
+    "subtitle": "Personal data processing",
+    "collection": "Data We Collect",
+    "collectionText": "We collect the following data:\n\n• Telegram ID and username\n• Order and purchase history\n• Contact information (if provided)\n• Technical data (IP address, device type)\n\nWe DO NOT collect:\n• Bank card data\n• Passwords\n• Confidential information",
+    "usage": "How We Use Data",
+    "usageText": "Your data is used for:\n\n• Processing orders and delivering goods\n• Contacting you regarding orders\n• Improving service quality\n• Providing support\n• Analyzing service usage (anonymously)",
+    "protection": "Data Protection",
+    "protectionText": "We apply the following security measures:\n\n• Data encryption during transmission\n• Secure storage in protected databases\n• Limited access to personal data\n• Regular security audits",
+    "rights": "Your Rights",
+    "rightsText": "You have the right to:\n\n• Request a copy of your data\n• Request data deletion\n• Withdraw consent for processing\n• Correct inaccurate data\n• File a complaint with a supervisory authority",
+    "contact": "Contacts",
+    "contactText": "For questions about personal data processing, contact:",
+    "emailAddress": "privacy@pvndora.app",
+    "contactEmail": "Send Email"
+  },
+
+  "legal": {
+    "contacts": "Contacts",
+    "refund": "Refund",
+    "payment": "Payment",
+    "terms": "Terms",
+    "privacy": "Privacy"
+  }
 }

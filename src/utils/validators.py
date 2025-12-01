@@ -15,6 +15,7 @@ class TelegramUser(BaseModel):
     username: Optional[str] = None
     language_code: Optional[str] = "en"
     is_premium: Optional[bool] = False
+    photo_url: Optional[str] = None
 
 
 def validate_telegram_init_data(init_data: str, bot_token: str) -> bool:

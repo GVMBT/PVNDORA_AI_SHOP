@@ -3,7 +3,7 @@ import os
 import asyncio
 import traceback
 from aiogram import Router, F, Bot
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineQuery, InlineQueryResultArticle, InputTextMessageContent, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command, CommandStart
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
@@ -98,7 +98,6 @@ async def cmd_start(message: Message, db_user: User, bot: Bot):
     await safe_answer(
         message,
         onboarding_text,
-        reply_markup=get_shop_keyboard(db_user.language_code, WEBAPP_URL),
         parse_mode=ParseMode.HTML
     )
 
@@ -308,6 +307,41 @@ async def callback_cancel(callback: CallbackQuery, db_user: User):
     """Handle cancel button click"""
     await callback.message.delete()
     await callback.answer()
+
+
+# ==================== INLINE QUERY HANDLER ====================
+
+@router.inline_query(F.query.startswith("invite"))
+async def handle_inline_invite(query: InlineQuery, db_user: User, bot: Bot):
+    """Handle inline query for invites (fallback for shareMessage)"""
+    bot_info = await bot.get_me()
+    referral_link = f"https://t.me/{bot_info.username}?start=ref_{db_user.id}"
+    
+    # Calculate savings
+    total_saved = float(db_user.total_saved) if hasattr(db_user, 'total_saved') and db_user.total_saved else 0
+    
+    results = [
+        InlineQueryResultArticle(
+            id=f"invite_{db_user.id}",
+            title="🎁 Пригласить друга (скидка 20%)",
+            description=f"Я сэкономил {int(total_saved)}₽. Поделись ссылкой!",
+            thumbnail_url=f"{WEBAPP_URL}/assets/share-preview.png",
+            input_message_content=InputTextMessageContent(
+                message_text=(
+                    f"🚀 <b>Я уже сэкономил {int(total_saved)}₽ на AI-подписках с PVNDORA!</b>\n\n"
+                    f"Залетай и получи скидку 20% на первый заказ 👇"
+                ),
+                parse_mode=ParseMode.HTML
+            ),
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[
+                    InlineKeyboardButton(text="🛍 Перейти в магазин", url=referral_link)
+                ]]
+            )
+        )
+    ]
+    
+    await query.answer(results, cache_time=0, is_personal=True)
 
 
 # ==================== TEXT MESSAGE HANDLER ====================

@@ -1,74 +1,86 @@
-/* Custom font import - distinctive, modern */
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /* PVNDORA Brand Colors - Cyberpunk/Neon aesthetic */
-  --color-primary: #00f5d4;
-  --color-primary-dark: #00c4a7;
-  --color-accent: #ff6b6b;
-  --color-accent-glow: rgba(255, 107, 107, 0.3);
-  --color-bg-dark: #0a0a0f;
-  --color-bg-card: #12121a;
-  --color-bg-elevated: #1a1a25;
-  --color-text: #f0f0f5;
-  --color-text-muted: #8888a0;
-  --color-border: #2a2a3a;
-  --color-success: #00f5d4;
-  --color-warning: #ffd93d;
-  --color-error: #ff6b6b;
-  
-  /* Telegram theme vars */
-  --tg-theme-bg-color: var(--color-bg-dark);
-  --tg-theme-text-color: var(--color-text);
-  --tg-theme-hint-color: var(--color-text-muted);
-  --tg-theme-link-color: var(--color-primary);
-  --tg-theme-button-color: var(--color-primary);
-  --tg-theme-button-text-color: #0a0a0f;
-  --tg-theme-secondary-bg-color: var(--color-bg-card);
+@layer base {
+  :root {
+    /* Shadcn-compatible variables mapped to PVNDORA Cyberpunk/Neon theme */
+    --background: 240 10% 3.9%; /* #0a0a0f */
+    --foreground: 0 0% 98%; /* #f0f0f5 */
+    
+    --card: 240 10% 5.5%; /* #12121a (slightly lighter than bg) */
+    --card-foreground: 0 0% 98%;
+    
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    
+    --primary: 171 100% 48%; /* #00f5d4 */
+    --primary-foreground: 240 5.9% 10%;
+    
+    --secondary: 240 3.7% 15.9%; /* #1a1a25 */
+    --secondary-foreground: 0 0% 98%;
+    
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%; /* #8888a0 */
+    
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 240 3.7% 15.9%; /* #2a2a3a */
+    --input: 240 3.7% 15.9%;
+    --ring: 171 100% 48%;
+    
+    --radius: 0.75rem;
+
+    /* Custom Brand Colors kept for legacy or specific use */
+    --color-primary: #00f5d4;
+    --color-primary-dark: #00c4a7;
+    --color-accent: #ff6b6b;
+    --color-accent-glow: rgba(255, 107, 107, 0.3);
+    --color-bg-dark: #0a0a0f;
+    --color-bg-card: #12121a;
+    --color-bg-elevated: #1a1a25;
+    --color-text: #f0f0f5;
+    --color-text-muted: #8888a0;
+    --color-border: #2a2a3a;
+    --color-success: #00f5d4;
+    --color-warning: #ffd93d;
+    --color-error: #ff6b6b;
+  }
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Outfit', system-ui, sans-serif;
+  }
 }
 
-body {
-  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: var(--color-bg-dark);
-  color: var(--color-text);
-  min-height: 100vh;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* Code/Mono text */
+/* Custom Utilities */
 .font-mono {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* Glow effects */
 .glow-primary {
   box-shadow: 0 0 20px rgba(0, 245, 212, 0.3), 0 0 40px rgba(0, 245, 212, 0.1);
 }
 
-.glow-accent {
-  box-shadow: 0 0 20px var(--color-accent-glow), 0 0 40px rgba(255, 107, 107, 0.1);
-}
-
-/* Animated gradient background */
 .bg-gradient-animated {
   background: linear-gradient(
     135deg,
-    var(--color-bg-dark) 0%,
-    #0f1019 25%,
-    #151520 50%,
-    #0f1019 75%,
-    var(--color-bg-dark) 100%
+    hsl(var(--background)) 0%,
+    hsl(240 10% 6%) 25%,
+    hsl(240 10% 8%) 50%,
+    hsl(240 10% 6%) 75%,
+    hsl(var(--background)) 100%
   );
   background-size: 400% 400%;
   animation: gradient-shift 15s ease infinite;
@@ -79,84 +91,7 @@ body {
   50% { background-position: 100% 50%; }
 }
 
-/* Card styles */
-.card {
-  @apply bg-[var(--color-bg-card)] rounded-2xl border border-[var(--color-border)] p-4;
-  transition: all 0.3s ease;
-}
-
-.card:hover {
-  border-color: var(--color-primary);
-  transform: translateY(-2px);
-}
-
-/* Button styles */
-.btn {
-  @apply px-6 py-3 rounded-xl font-semibold text-center transition-all duration-300;
-}
-
-.btn-primary {
-  @apply bg-[var(--color-primary)] text-[var(--color-bg-dark)];
-}
-
-.btn-primary:hover {
-  @apply glow-primary;
-  transform: translateY(-1px);
-}
-
-.btn-secondary {
-  @apply bg-[var(--color-bg-elevated)] text-[var(--color-text)] border border-[var(--color-border)];
-}
-
-.btn-secondary:hover {
-  border-color: var(--color-primary);
-}
-
-/* Rating stars */
-.star-filled {
-  color: var(--color-warning);
-}
-
-.star-empty {
-  color: var(--color-text-muted);
-}
-
-/* Loading skeleton */
-.skeleton {
-  @apply bg-[var(--color-bg-elevated)] rounded animate-pulse;
-}
-
-/* RTL Support */
-[dir="rtl"] {
-  direction: rtl;
-  text-align: right;
-}
-
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--color-bg-dark);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary);
-}
-
-/* Safe area padding for iOS */
-.safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 20px);
-}
-
-/* Staggered entrance animation */
+/* Animation Utilities */
 .stagger-enter {
   animation: fadeSlideIn 0.5s ease forwards;
   opacity: 0;
@@ -179,35 +114,23 @@ body {
 .stagger-enter:nth-child(4) { animation-delay: 0.4s; }
 .stagger-enter:nth-child(5) { animation-delay: 0.5s; }
 
-/* Badge styles */
-.badge {
-  @apply px-2 py-0.5 rounded-full text-xs font-medium;
+/* Safe area padding */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 20px);
 }
 
-.badge-success {
-  background-color: rgba(0, 245, 212, 0.2);
-  color: var(--color-success);
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
-
-.badge-warning {
-  background-color: rgba(255, 217, 61, 0.2);
-  color: var(--color-warning);
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
 }
-
-.badge-error {
-  background-color: rgba(255, 107, 107, 0.2);
-  color: var(--color-error);
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 3px;
 }
-
-/* Price styling */
-.price-original {
-  @apply text-[var(--color-text-muted)] line-through text-sm;
-}
-
-.price-final {
-  @apply text-2xl font-bold text-[var(--color-primary)];
-}
-
-.price-savings {
-  @apply text-[var(--color-success)] text-sm font-medium;
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
 }

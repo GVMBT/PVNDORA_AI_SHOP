@@ -2,112 +2,193 @@ import React, { useState, useEffect } from 'react'
 import { useAdmin } from '../hooks/useAdmin'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
+import { ArrowLeft, Search, Filter, Clock, CheckCircle, XCircle, AlertTriangle, RefreshCw } from 'lucide-react'
+import { Button } from '../components/ui/button'
+import { Card, CardContent } from '../components/ui/card'
+import { Input } from '../components/ui/input'
+import { Badge } from '../components/ui/badge'
+import { Skeleton } from '../components/ui/skeleton'
+
+const statusConfig = {
+  pending: { icon: Clock, color: 'warning', label: 'Pending' },
+  prepaid: { icon: Clock, color: 'primary', label: 'Prepaid' },
+  fulfilling: { icon: RefreshCw, color: 'primary', label: 'Fulfilling' },
+  ready: { icon: CheckCircle, color: 'success', label: 'Ready' },
+  delivered: { icon: CheckCircle, color: 'success', label: 'Delivered' },
+  refunded: { icon: RefreshCw, color: 'secondary', label: 'Refunded' },
+  cancelled: { icon: XCircle, color: 'destructive', label: 'Cancelled' },
+  failed: { icon: AlertTriangle, color: 'destructive', label: 'Failed' }
+}
 
 export default function AdminOrdersPage({ onBack }) {
-  const { getOrders, loading } = useAdmin()
-  const { formatPrice } = useLocale()
-  const { showAlert } = useTelegram()
+  const { getOrders, updateOrderStatus, loading } = useAdmin()
+  const { formatPrice, formatDate } = useLocale()
+  const { showAlert, hapticFeedback } = useTelegram()
   
   const [orders, setOrders] = useState([])
-  const [statusFilter, setStatusFilter] = useState(null)
+  const [filteredOrders, setFilteredOrders] = useState([])
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
 
   useEffect(() => {
     loadOrders()
-  }, [statusFilter])
+  }, [])
+
+  useEffect(() => {
+    filterOrders()
+  }, [orders, search, statusFilter])
 
   const loadOrders = async () => {
     try {
-      const data = await getOrders(statusFilter)
+      const data = await getOrders()
       setOrders(data.orders || [])
     } catch (err) {
-      await showAlert(`Ошибка: ${err.message}`)
+      await showAlert(`Error: ${err.message}`)
+    }
+  }
+
+  const filterOrders = () => {
+    let result = [...orders]
+
+    if (search) {
+      const lowerSearch = search.toLowerCase()
+      result = result.filter(o => 
+        o.id.toLowerCase().includes(lowerSearch) ||
+        (o.user?.username || '').toLowerCase().includes(lowerSearch) ||
+        (o.products?.name || '').toLowerCase().includes(lowerSearch)
+      )
+    }
+
+    if (statusFilter !== 'all') {
+      result = result.filter(o => o.status === statusFilter)
+    }
+
+    setFilteredOrders(result)
+  }
+
+  const handleStatusChange = async (orderId, newStatus) => {
+    hapticFeedback('impact', 'medium')
+    try {
+      await updateOrderStatus(orderId, newStatus)
+      await showAlert(`Order status updated to ${newStatus}`)
+      loadOrders()
+    } catch (err) {
+      await showAlert(`Error: ${err.message}`)
     }
   }
 
   return (
-    <div className="p-4">
-      <div className="flex items-center justify-between mb-6">
-        <button onClick={onBack} className="text-[var(--color-primary)]">← Назад</button>
-        <h1 className="text-xl font-bold">Заказы</h1>
+    <div className="p-4 pb-20 space-y-6">
+      <div className="flex items-center gap-4 sticky top-0 bg-background/80 backdrop-blur-md py-2 z-10 border-b border-border/50">
+        <Button variant="ghost" size="icon" onClick={onBack}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <h1 className="text-xl font-bold">Orders</h1>
       </div>
 
-      <div className="flex gap-2 mb-4 overflow-x-auto">
-        <button
-          onClick={() => setStatusFilter(null)}
-          className={`px-4 py-2 rounded-full text-sm whitespace-nowrap ${
-            statusFilter === null
-              ? 'bg-[var(--color-primary)] text-white'
-              : 'bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)]'
-          }`}
-        >
-          Все
-        </button>
-        {['pending', 'prepaid', 'fulfilling', 'ready', 'delivered', 'refunded'].map((status) => (
-          <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
-            className={`px-4 py-2 rounded-full text-sm whitespace-nowrap ${
-              statusFilter === status
-                ? 'bg-[var(--color-primary)] text-white'
-                : 'bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)]'
-            }`}
+      <div className="space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="Search orders..." 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+          <Badge 
+            variant={statusFilter === 'all' ? 'default' : 'outline'}
+            className="cursor-pointer whitespace-nowrap"
+            onClick={() => setStatusFilter('all')}
           >
-            {status}
-          </button>
-        ))}
+            All
+          </Badge>
+          {Object.keys(statusConfig).map(status => (
+            <Badge
+              key={status}
+              variant={statusFilter === status ? 'default' : 'outline'}
+              className="cursor-pointer whitespace-nowrap capitalize"
+              onClick={() => setStatusFilter(status)}
+            >
+              {status}
+            </Badge>
+          ))}
+        </div>
       </div>
 
       {loading && !orders.length ? (
-        <div className="text-center py-8">Загрузка...</div>
-      ) : orders.length === 0 ? (
-        <div className="card text-center py-8">
-          <p className="text-[var(--color-text-muted)]">Нет заказов</p>
+        <div className="space-y-4">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}
+        </div>
+      ) : filteredOrders.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          No orders found
         </div>
       ) : (
-        <div className="space-y-3">
-          {orders.map((order) => (
-            <div key={order.id} className="card">
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`badge ${
-                      order.status === 'delivered' ? 'badge-success' :
-                      order.status === 'pending' ? 'badge-warning' :
-                      order.status === 'refunded' ? 'badge-error' : ''
-                    }`}>
-                      {order.status}
+        <div className="space-y-4">
+          {filteredOrders.map((order) => {
+            const status = statusConfig[order.status] || statusConfig.pending
+            const StatusIcon = status.icon
+            
+            return (
+              <Card key={order.id} className="overflow-hidden">
+                <CardContent className="p-4 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold">{order.products?.name || 'Unknown Product'}</h3>
+                        <span className="text-xs text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+                          x{order.quantity || 1}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        User: {order.user?.username || order.user_id}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(order.created_at)}
+                      </p>
+                    </div>
+                    <Badge variant={status.color}>
+                      <StatusIcon className="h-3 w-3 mr-1" />
+                      {status.label}
+                    </Badge>
+                  </div>
+
+                  <div className="flex justify-between items-center p-2 bg-secondary/20 rounded-lg">
+                    <span className="text-sm font-medium text-primary">
+                      {formatPrice(order.amount)}
                     </span>
-                    <span className="text-sm text-[var(--color-text-muted)]">
-                      #{order.id.slice(0, 8)}
+                    <span className="text-xs font-mono text-muted-foreground">
+                      {order.id.slice(0, 8)}
                     </span>
                   </div>
-                  <p className="font-semibold text-[var(--color-text)] mb-1">
-                    {order.products?.name || 'Неизвестный товар'}
-                  </p>
-                  <p className="text-sm text-[var(--color-text-muted)]">
-                    {order.users?.first_name} (@{order.users?.username || 'нет'})
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-[var(--color-primary)]">
-                    {formatPrice(order.amount)}₽
-                  </p>
-                  {order.discount_percent > 0 && (
-                    <p className="text-xs text-[var(--color-success)]">
-                      -{order.discount_percent}%
-                    </p>
-                  )}
-                </div>
-              </div>
-              <p className="text-xs text-[var(--color-text-muted)]">
-                {new Date(order.created_at).toLocaleString()}
-              </p>
-            </div>
-          ))}
+
+                  {/* Admin Actions */}
+                  <div className="flex gap-2 overflow-x-auto pt-2 border-t border-border/50">
+                    {order.status === 'pending' && (
+                      <>
+                        <Button size="sm" variant="outline" onClick={() => handleStatusChange(order.id, 'delivered')}>
+                          Mark Delivered
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleStatusChange(order.id, 'cancelled')}>
+                          Cancel
+                        </Button>
+                      </>
+                    )}
+                    {order.status === 'delivered' && (
+                      <Button size="sm" variant="outline" onClick={() => handleStatusChange(order.id, 'refunded')}>
+                        Refund
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       )}
     </div>
   )
 }
-
-

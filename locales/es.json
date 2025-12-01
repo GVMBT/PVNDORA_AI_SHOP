@@ -1,43 +1,34 @@
 {
-  "welcome": "🎉 ¡Bienvenido a PVNDORA!\n\nSoy tu consultor de IA personal para suscripciones premium.\n\n💬 Dime qué necesitas:\n• \"ChatGPT Plus\"\n• \"Midjourney\"\n• \"Claude Pro\"\n\n🎁 Beneficios:\n• Programa de referidos 20%\n• Garantía y reemplazo\n• Soporte 24/7\n• Entrega instantánea\n\n¿Cómo puedo ayudarte?",
-  "welcome_back": "¡Bienvenido de nuevo! ¿Cómo puedo ayudarte hoy?",
-  "help": "📚 Comandos disponibles:\n\n/start - Iniciar el bot\n/my_orders - Historial de compras\n/wishlist - Productos guardados\n/help - Este mensaje",
+  "welcome": "👋 ¡Hola! Te ayudo a encontrar una suscripción de IA.\n\nSimplemente escribe o envía un mensaje de voz — entiendo ambos formatos. Describe lo que necesitas y encontraré la herramienta adecuada para ti.",
+  "welcome_back": "¡Bienvenido de nuevo! ¿Cómo puedo ayudarte? Escribe o envía un mensaje de voz.",
+  "help": "📚 Cómo usar el bot:\n\nSimplemente escribe o envía mensajes de voz — entiendo ambos formatos.\n\nComandos disponibles:\n/start - Iniciar el bot\n/my_orders - Historial de compras\n/wishlist - Productos guardados\n/help - Este mensaje\n\n¡O simplemente describe lo que necesitas y te ayudaré a encontrar la suscripción perfecta!",
   "banned": "🚫 Acceso restringido. Contactar: @admin",
   "error_generic": "❌ Algo salió mal. Inténtalo más tarde.",
   "error_no_stock": "😔 Este producto está agotado. ¿Quieres unirte a la lista de espera?",
   "error_payment": "❌ Pago fallido. Los fondos se han acreditado a tu saldo.",
-  
   "product_card": "📦 {name}\n💰 Precio: {price}€\n⭐ Calificación: {rating}/5 ({reviews} reseñas)\n{stock_status}\n\n{description}",
   "stock_available": "✅ En stock",
   "stock_empty": "❌ Agotado",
   "discount_notice": "🏷️ ¡{percent}% de descuento por {days} días en stock!",
-  
   "order_created": "📝 ¡Pedido #{order_id} creado!\n\n💰 Monto: {amount}€\n\nHaz clic abajo para pagar.",
   "order_success": "✅ ¡Pago exitoso!\n\nAquí están tus credenciales:\n\n{credentials}\n\n📋 Instrucciones: {instructions}\n\n⏰ Válido hasta: {expires}",
   "order_failed": "❌ Pedido fallido. Inténtalo de nuevo.",
   "order_history": "📋 Tus pedidos:\n\n{orders}\n\nTotal: {count} pedidos",
   "order_item": "#{id} - {product} - {amount}€ - {status}",
   "no_orders": "Aún no has realizado compras.",
-  
   "waitlist_added": "✅ Te has añadido a la lista de espera para {product}.",
   "waitlist_notify": "🔔 ¡Buenas noticias! {product} está disponible.",
-  
   "wishlist_added": "❤️ ¡{product} añadido a favoritos!",
   "wishlist_removed": "💔 {product} eliminado de favoritos.",
   "wishlist_empty": "Tu lista de deseos está vacía.",
-  
   "review_request": "⭐ ¿Qué tal tu compra? ¡Deja una reseña y obtén 5% de cashback!",
   "review_thanks": "🙏 ¡Gracias por tu reseña! {cashback} añadido a tu saldo.",
-  
   "referral_link": "🔗 Tu enlace de referido:\n{link}\n\n¡Gana {percent}% de cada compra de tus amigos!",
   "referral_bonus": "💰 ¡Ganaste {amount}€ por una compra referida!",
-  
   "support_ticket": "📩 Ticket creado. Responderemos pronto.",
   "support_resolved": "✅ Tu ticket ha sido resuelto.",
-  
   "subscription_expiring": "⏰ Tu suscripción a {product} expira en {days} días. ¡Renueva con 10% de descuento!",
   "subscription_expired": "⌛ Tu suscripción a {product} ha expirado. ¿Quieres renovar?",
-  
   "btn_shop": "🛒 Tienda",
   "btn_buy": "💳 Comprar",
   "btn_pay": "💳 Pagar {amount}€",
@@ -49,9 +40,79 @@
   "btn_cancel": "❌ Cancelar",
   "btn_confirm": "✅ Confirmar",
   "btn_back": "⬅️ Atrás",
-  
   "ai_thinking": "🤔 Déjame verificar...",
   "ai_no_product": "No encontré un producto que coincida. ¿Puedes describir más?",
-  "ai_suggest": "Según tus necesidades, recomiendo:\n\n{products}\n\n¿Quieres saber más?"
+  "ai_suggest": "Según tus necesidades, recomiendo:\n\n{products}\n\n¿Quieres saber más?",
+  "contacts": {
+    "title": "Contactos",
+    "subtitle": "Contáctenos",
+    "support": "Soporte",
+    "supportDescription": "Escriba a nuestro asistente IA en el bot de Telegram — responderá todas sus preguntas",
+    "contactBot": "Contactar bot",
+    "email": "Email",
+    "emailAddress": "support@pvndora.app",
+    "workingHours": "Horario de trabajo",
+    "workingHoursText": "24/7, todo el día"
+  },
+  "refund": {
+    "title": "Política de reembolso",
+    "subtitle": "Garantía de devolución",
+    "conditions": "Condiciones de reembolso",
+    "conditionsText": "Los reembolsos son posibles en los siguientes casos:\n\n• El producto no fue entregado dentro de las 48 horas posteriores al pago\n• El producto no coincide con la descripción\n• Problemas técnicos que no pudimos resolver en 72 horas\n• Cancelación de pedido antes de la entrega",
+    "procedure": "Procedimiento de reembolso",
+    "procedureText": "Para solicitar un reembolso:\n\n1. Contacte al soporte vía bot o email\n2. Proporcione número de pedido y razón\n3. Revisaremos su solicitud en 24 horas\n4. Al aprobar, los fondos se devolverán en 3-5 días hábiles",
+    "timing": "Plazos de reembolso",
+    "timingText": "• Revisión de solicitud: hasta 24 horas\n• Reembolso: 3-5 días hábiles\n• Para pagos en cripto: hasta 7 días hábiles",
+    "contact": "¿Necesita ayuda?",
+    "contactText": "Si tiene preguntas sobre reembolsos, contacte a nuestro soporte",
+    "contactSupport": "Contactar soporte"
+  },
+  "paymentInfo": {
+    "title": "Información de pago",
+    "subtitle": "Métodos y proceso de pago",
+    "methods": "Métodos de pago",
+    "methodsText": "Aceptamos los siguientes métodos de pago:\n\n• Tarjetas bancarias (Visa, Mastercard, MIR)\n• Sistema de pago rápido (FPS)\n• Criptomonedas (Bitcoin, USDT, Ethereum)\n\nTodos los pagos se procesan a través de la pasarela de pago segura CardLink.",
+    "process": "Proceso de pago",
+    "processText": "1. Seleccione un producto y haga clic en \"Pagar\"\n2. Será redirigido a la página de pago\n3. Ingrese datos de tarjeta o elija otro método\n4. Después del pago exitoso, el producto se entregará automáticamente\n5. Recibirá una notificación en Telegram con credenciales",
+    "security": "Seguridad",
+    "securityText": "Todos los pagos están protegidos:\n\n• Cifrado de datos según estándar PCI DSS\n• Autenticación de dos factores\n• Protección contra fraude\n• No almacenamos datos de su tarjeta",
+    "questions": "¿Preguntas?",
+    "questionsText": "Si tiene problemas de pago, contacte al soporte",
+    "contactSupport": "Contactar soporte"
+  },
+  "terms": {
+    "title": "Términos de servicio",
+    "subtitle": "Condiciones de uso del servicio",
+    "acceptance": "Aceptación de términos",
+    "acceptanceText": "Al usar nuestro servicio, acepta estos términos. Si no está de acuerdo, no use el servicio.",
+    "services": "Servicios proporcionados",
+    "servicesText": "Proporcionamos acceso a suscripciones digitales y servicios IA:\n\n• Venta de bienes digitales (suscripciones, claves API)\n• Entrega electrónica de bienes\n• Soporte al cliente vía bot Telegram\n• Programa de referidos",
+    "obligations": "Obligaciones de las partes",
+    "obligationsText": "Nos comprometemos a:\n\n• Proporcionar servicios de calidad\n• Asegurar la seguridad de pagos\n• Proteger datos personales\n• Proporcionar soporte al cliente\n\nUsted se compromete a:\n\n• Usar servicios según su propósito\n• No transferir acceso a terceros\n• Cumplir condiciones de uso",
+    "changes": "Cambios en términos",
+    "changesText": "Nos reservamos el derecho de cambiar los términos de uso. Los cambios entran en vigor al publicarse. Al continuar usando el servicio, acepta los nuevos términos."
+  },
+  "privacy": {
+    "title": "Política de privacidad",
+    "subtitle": "Procesamiento de datos personales",
+    "collection": "Datos que recopilamos",
+    "collectionText": "Recopilamos los siguientes datos:\n\n• ID de Telegram y nombre de usuario\n• Historial de pedidos y compras\n• Información de contacto (si se proporciona)\n• Datos técnicos (dirección IP, tipo de dispositivo)\n\nNO recopilamos:\n• Datos de tarjeta bancaria\n• Contraseñas\n• Información confidencial",
+    "usage": "Cómo usamos los datos",
+    "usageText": "Sus datos se usan para:\n\n• Procesar pedidos y entregar bienes\n• Contactarlo sobre pedidos\n• Mejorar la calidad del servicio\n• Proporcionar soporte\n• Analizar el uso del servicio (anónimamente)",
+    "protection": "Protección de datos",
+    "protectionText": "Aplicamos las siguientes medidas de seguridad:\n\n• Cifrado de datos durante la transmisión\n• Almacenamiento seguro en bases de datos protegidas\n• Acceso limitado a datos personales\n• Auditorías de seguridad regulares",
+    "rights": "Sus derechos",
+    "rightsText": "Tiene derecho a:\n\n• Solicitar una copia de sus datos\n• Solicitar eliminación de datos\n• Retirar consentimiento para procesamiento\n• Corregir datos inexactos\n• Presentar queja ante autoridad supervisora",
+    "contact": "Contactos",
+    "contactText": "Para preguntas sobre procesamiento de datos personales, contacte:",
+    "emailAddress": "privacy@pvndora.app",
+    "contactEmail": "Enviar email"
+  },
+  "legal": {
+    "contacts": "Contactos",
+    "refund": "Reembolso",
+    "payment": "Pago",
+    "terms": "Términos",
+    "privacy": "Privacidad"
+  }
 }
-

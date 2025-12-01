@@ -278,7 +278,7 @@ TOOLS = [
     },
     {
         "name": "update_cart",
-        "description": "Update shopping cart: change quantity, remove item, or clear cart. Use when user wants to modify their cart.",
+        "description": "Update shopping cart: change quantity or remove item. Use when user explicitly wants to modify their cart. NEVER use 'clear' operation before payment - cart must remain filled until payment is completed!",
         "parameters": {
             "type": "object",
             "properties": {

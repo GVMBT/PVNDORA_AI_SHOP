@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { useAdmin } from '../hooks/useAdmin'
 import { useTelegram } from '../hooks/useTelegram'
+import { ArrowLeft, Plus, HelpCircle } from 'lucide-react'
+import { Button } from '../components/ui/button'
+import { Card, CardContent } from '../components/ui/card'
+import { Input } from '../components/ui/input'
+import { Badge } from '../components/ui/badge'
+import { Skeleton } from '../components/ui/skeleton'
 
 export default function AdminFAQPage({ onBack }) {
   const { getFAQ, createFAQ, loading } = useAdmin()
@@ -24,7 +30,7 @@ export default function AdminFAQPage({ onBack }) {
       const data = await getFAQ()
       setFaq(data.faq || [])
     } catch (err) {
-      await showAlert(`Ошибка: ${err.message}`)
+      await showAlert(`Error: ${err.message}`)
     }
   }
 
@@ -34,12 +40,12 @@ export default function AdminFAQPage({ onBack }) {
 
     try {
       await createFAQ(formData)
-      await showAlert('FAQ создан!')
+      await showAlert('FAQ created!')
       setShowForm(false)
       resetForm()
       loadFAQ()
     } catch (err) {
-      await showAlert(`Ошибка: ${err.message}`)
+      await showAlert(`Error: ${err.message}`)
     }
   }
 
@@ -54,114 +60,128 @@ export default function AdminFAQPage({ onBack }) {
 
   if (showForm) {
     return (
-      <div className="p-4">
-        <button onClick={() => { setShowForm(false); resetForm() }} className="mb-4 text-[var(--color-primary)]">
-          ← Назад
-        </button>
-        <h2 className="text-xl font-bold mb-4">Создать FAQ</h2>
+      <div className="p-4 pb-20 space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => { setShowForm(false); resetForm() }}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-bold">Create FAQ</h1>
+        </div>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm mb-1">Вопрос *</label>
-            <input
-              type="text"
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Question *</label>
+            <Input
               value={formData.question}
               onChange={(e) => setFormData({...formData, question: e.target.value})}
               required
-              className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-lg px-4 py-2"
+              placeholder="How do I pay?"
             />
           </div>
 
-          <div>
-            <label className="block text-sm mb-1">Ответ *</label>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Answer *</label>
             <textarea
               value={formData.answer}
               onChange={(e) => setFormData({...formData, answer: e.target.value})}
               required
-              className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-lg px-4 py-2"
-              rows="5"
+              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[120px]"
+              placeholder="You can pay via..."
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm mb-1">Язык *</label>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Language *</label>
               <select
                 value={formData.language_code}
                 onChange={(e) => setFormData({...formData, language_code: e.target.value})}
-                className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-lg px-4 py-2"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="ru">Русский</option>
                 <option value="en">English</option>
                 <option value="uk">Українська</option>
+                <option value="de">Deutsch</option>
+                <option value="es">Español</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm mb-1">Категория</label>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Category</label>
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({...formData, category: e.target.value})}
-                className="w-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] rounded-lg px-4 py-2"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <option value="general">Общие</option>
-                <option value="payment">Оплата</option>
-                <option value="delivery">Доставка</option>
-                <option value="warranty">Гарантия</option>
+                <option value="general">General</option>
+                <option value="payment">Payment</option>
+                <option value="delivery">Delivery</option>
+                <option value="warranty">Warranty</option>
               </select>
             </div>
           </div>
 
-          <button type="submit" className="btn btn-primary w-full" disabled={loading}>
-            {loading ? 'Создание...' : 'Создать'}
-          </button>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? 'Creating...' : 'Create FAQ'}
+          </Button>
         </form>
       </div>
     )
   }
 
   return (
-    <div className="p-4">
-      <div className="flex items-center justify-between mb-6">
-        <button onClick={onBack} className="text-[var(--color-primary)]">← Назад</button>
-        <h1 className="text-xl font-bold">FAQ</h1>
-        <button onClick={() => setShowForm(true)} className="btn btn-primary text-sm px-4 py-2">
-          + Создать
-        </button>
+    <div className="p-4 pb-20 space-y-6">
+      <div className="flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-md py-2 z-10 border-b border-border/50">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={onBack}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-bold">FAQ</h1>
+        </div>
+        <Button onClick={() => setShowForm(true)} size="sm" className="gap-2">
+          <Plus className="h-4 w-4" /> Add
+        </Button>
       </div>
 
       {loading && !faq.length ? (
-        <div className="text-center py-8">Загрузка...</div>
+        <div className="space-y-4">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
+        </div>
       ) : faq.length === 0 ? (
-        <div className="card text-center py-8">
-          <p className="text-[var(--color-text-muted)] mb-4">Нет FAQ</p>
-          <button onClick={() => setShowForm(true)} className="btn btn-primary">
-            Создать первый
-          </button>
+        <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+          <div className="p-4 rounded-full bg-secondary text-muted-foreground">
+            <HelpCircle className="h-12 w-12" />
+          </div>
+          <p className="text-muted-foreground">No FAQ items found</p>
+          <Button onClick={() => setShowForm(true)}>
+            Create First Item
+          </Button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {faq.map((item) => (
-            <div key={item.id} className="card">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="badge">{item.language_code}</span>
-                    <span className="badge bg-[var(--color-bg-elevated)]">{item.category}</span>
-                  </div>
-                  <h3 className="font-semibold text-[var(--color-text)] mb-1">
-                    {item.question}
-                  </h3>
-                  <p className="text-sm text-[var(--color-text-muted)]">
-                    {item.answer}
-                  </p>
+            <Card key={item.id} className="overflow-hidden">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge variant="outline" className="uppercase">
+                    {item.language_code}
+                  </Badge>
+                  <Badge variant="secondary" className="capitalize">
+                    {item.category}
+                  </Badge>
                 </div>
-              </div>
-            </div>
+                
+                <h3 className="font-semibold text-base">
+                  {item.question}
+                </h3>
+                
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {item.answer}
+                </p>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
     </div>
   )
 }
-
-

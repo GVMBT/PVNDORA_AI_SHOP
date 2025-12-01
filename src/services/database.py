@@ -1,6 +1,6 @@
 """Supabase Database Service"""
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 from supabase import create_client, Client
 from pydantic import BaseModel
@@ -115,7 +115,7 @@ class Database:
             "first_name": first_name,
             "language_code": language_code,
             "referrer_id": referrer_id,
-            "last_activity_at": datetime.utcnow().isoformat()
+            "last_activity_at": datetime.now(timezone.utc).isoformat()
         }
         
         result = self.client.table("users").insert(data).execute()
@@ -130,7 +130,7 @@ class Database:
     async def update_user_activity(self, telegram_id: int) -> None:
         """Update user's last activity timestamp"""
         self.client.table("users").update({
-            "last_activity_at": datetime.utcnow().isoformat()
+            "last_activity_at": datetime.now(timezone.utc).isoformat()
         }).eq("telegram_id", telegram_id).execute()
     
     async def update_user_balance(self, user_id: str, amount: float) -> None:
@@ -253,7 +253,17 @@ class Database:
             return 0
         
         # Calculate days in stock
-        days_in_stock = (datetime.utcnow() - stock_item.created_at).days
+        # Ensure both datetimes are timezone-aware
+        now = datetime.now(timezone.utc)
+        created_at = stock_item.created_at
+        # If created_at is naive, make it aware (assume UTC)
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        # If created_at is aware but different timezone, convert to UTC
+        elif created_at.tzinfo != timezone.utc:
+            created_at = created_at.astimezone(timezone.utc)
+        
+        days_in_stock = (now - created_at).days
         
         # Minimum 14 days for discount to apply
         if days_in_stock < 14:
@@ -261,7 +271,13 @@ class Database:
         
         # Get total duration (from expires_at or product warranty)
         if stock_item.expires_at:
-            total_days = (stock_item.expires_at - stock_item.created_at).days
+            expires_at = stock_item.expires_at
+            # Ensure expires_at is timezone-aware
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            elif expires_at.tzinfo != timezone.utc:
+                expires_at = expires_at.astimezone(timezone.utc)
+            total_days = (expires_at - created_at).days
         else:
             total_days = product.warranty_hours // 24 * 365  # Assume yearly if no expiry
         
@@ -321,7 +337,7 @@ class Database:
         if expires_at:
             data["expires_at"] = expires_at.isoformat()
         if status == "completed":
-            data["delivered_at"] = datetime.utcnow().isoformat()
+            data["delivered_at"] = datetime.now(timezone.utc).isoformat()
         
         self.client.table("orders").update(data).eq("id", order_id).execute()
     
@@ -335,12 +351,12 @@ class Database:
     
     async def get_expiring_orders(self, days_before: int = 3) -> List[Order]:
         """Get orders expiring in N days"""
-        target_date = datetime.utcnow() + timedelta(days=days_before)
+        target_date = datetime.now(timezone.utc) + timedelta(days=days_before)
         
         result = self.client.table("orders").select("*").eq(
             "status", "completed"
         ).lt("expires_at", target_date.isoformat()).gt(
-            "expires_at", datetime.utcnow().isoformat()
+            "expires_at", datetime.now(timezone.utc).isoformat()
         ).execute()
         
         return [Order(**o) for o in result.data]
@@ -481,7 +497,7 @@ class Database:
         
         # Check expiration
         if promo.get("expires_at"):
-            if datetime.fromisoformat(promo["expires_at"].replace("Z", "+00:00")) < datetime.utcnow():
+            if datetime.fromisoformat(promo["expires_at"].replace("Z", "+00:00")) < datetime.now(timezone.utc):
                 return None
         
         # Check usage limit

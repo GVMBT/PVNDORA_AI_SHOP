@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
+    { "source": "/og/:path*", "destination": "/api/og/:path*" },
     { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/webhook/(.*)", "destination": "/api/index.py" },
     { "source": "/(.*)", "destination": "/index.html" }
