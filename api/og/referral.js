@@ -31,19 +31,25 @@ function pickLocale(lang) {
 }
 
 // Font sources - prioritize CDNs that work in Russia
-const FONT_SOURCES = [
-  // jsDelivr (works in Russia)
+// Latin and Cyrillic subsets for proper Russian support
+const FONT_SOURCES_LATIN = [
   'https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.8/files/inter-latin-600-normal.woff',
-  // unpkg fallback
   'https://unpkg.com/@fontsource/inter@5.0.8/files/inter-latin-600-normal.woff',
-  // GitHub raw (usually works)
-  'https://raw.githubusercontent.com/rsms/inter/v4.0/docs/font-files/Inter-SemiBold.woff',
 ];
 
-async function loadFont() {
-  let lastError = null;
-  
-  for (const url of FONT_SOURCES) {
+const FONT_SOURCES_CYRILLIC = [
+  'https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.8/files/inter-cyrillic-600-normal.woff',
+  'https://unpkg.com/@fontsource/inter@5.0.8/files/inter-cyrillic-600-normal.woff',
+];
+
+// Fallback: Full Inter font with all glyphs from GitHub
+const FONT_SOURCES_FULL = [
+  'https://raw.githubusercontent.com/rsms/inter/v4.0/docs/font-files/Inter-SemiBold.woff',
+  'https://cdn.jsdelivr.net/gh/nicolo/inter-font@master/Inter%20(TTF%20hinted)/Inter-SemiBold.ttf',
+];
+
+async function loadFontFromSources(sources) {
+  for (const url of sources) {
     try {
       const response = await fetch(url, {
         headers: { 'User-Agent': 'Mozilla/5.0' },
@@ -59,21 +65,44 @@ async function loadFont() {
         return data;
       }
     } catch (error) {
-      lastError = error;
       console.warn(`Failed to load font from ${url}:`, error.message);
     }
   }
-  
-  throw new Error(`All font sources failed. Last error: ${lastError?.message}`);
+  return null;
 }
 
-// Cache font at module level
-let fontCache = null;
-async function getFont() {
-  if (!fontCache) {
-    fontCache = await loadFont();
+// Cache fonts at module level
+let fontCacheLatin = null;
+let fontCacheCyrillic = null;
+let fontCacheFull = null;
+
+async function getFonts() {
+  // Try to load subset fonts first (smaller, faster)
+  if (!fontCacheLatin) {
+    fontCacheLatin = await loadFontFromSources(FONT_SOURCES_LATIN);
   }
-  return fontCache;
+  if (!fontCacheCyrillic) {
+    fontCacheCyrillic = await loadFontFromSources(FONT_SOURCES_CYRILLIC);
+  }
+  
+  // If both subsets loaded, use them
+  if (fontCacheLatin && fontCacheCyrillic) {
+    return [
+      { name: 'Inter', data: fontCacheLatin, weight: 600, style: 'normal' },
+      { name: 'Inter', data: fontCacheCyrillic, weight: 600, style: 'normal' },
+    ];
+  }
+  
+  // Fallback to full font
+  if (!fontCacheFull) {
+    fontCacheFull = await loadFontFromSources(FONT_SOURCES_FULL);
+  }
+  
+  if (fontCacheFull) {
+    return [{ name: 'Inter', data: fontCacheFull, weight: 600, style: 'normal' }];
+  }
+  
+  throw new Error('Failed to load any font sources');
 }
 
 export default async function handler(req, res) {
@@ -86,13 +115,17 @@ export default async function handler(req, res) {
       status: 'ok', 
       runtime: 'nodejs', 
       lib: 'satori+resvg',
-      fontSources: FONT_SOURCES,
+      fontSources: {
+        latin: FONT_SOURCES_LATIN,
+        cyrillic: FONT_SOURCES_CYRILLIC,
+        full: FONT_SOURCES_FULL,
+      },
     });
   }
 
   try {
-    // Load font with fallbacks
-    const fontData = await getFont();
+    // Load fonts with Latin + Cyrillic support
+    const fonts = await getFonts();
 
     const lang = pickLocale(searchParams.get('lang') || 'ru');
     const copy = translations[lang];
@@ -332,14 +365,7 @@ export default async function handler(req, res) {
     const svg = await satori(element, {
       width: 1200,
       height: 630,
-      fonts: [
-        {
-          name: 'Inter',
-          data: fontData,
-          weight: 600,
-          style: 'normal',
-        },
-      ],
+      fonts: fonts,
     });
 
     // Convert SVG to PNG using resvg-js
