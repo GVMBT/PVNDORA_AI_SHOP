@@ -176,7 +176,7 @@ class AIConsultant:
         base64.b64encode(voice_data).decode("utf-8")
         
         # Build message with audio
-        # Gemini 2.5 Flash supports native audio processing - no need for explicit transcription instruction
+        # Include explicit instruction to process as sales consultant query
         messages = [
             types.Content(
                 role="user",
@@ -184,6 +184,9 @@ class AIConsultant:
                     types.Part.from_bytes(
                         data=voice_data,
                         mime_type="audio/ogg"
+                    ),
+                    types.Part.from_text(
+                        "Прослушай это голосовое сообщение и ответь как AI-консультант магазина, следуя системному промпту."
                     )
                 ]
             )

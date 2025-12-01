@@ -314,6 +314,11 @@ async def callback_cancel(callback: CallbackQuery, db_user: User):
 @router.inline_query(F.query.startswith("invite"))
 async def handle_inline_invite(query: InlineQuery, db_user: User, bot: Bot):
     """Handle inline query for invites (fallback for shareMessage)"""
+    # Validate db_user exists before accessing attributes
+    if db_user is None:
+        await query.answer([], cache_time=0)
+        return
+    
     bot_info = await bot.get_me()
     referral_link = f"https://t.me/{bot_info.username}?start=ref_{db_user.id}"
     

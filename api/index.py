@@ -1208,7 +1208,8 @@ async def create_referral_share_link(user = Depends(verify_telegram_auth)):
     
     # Dynamic Image URL powered by Vercel OG
     import urllib.parse
-    timestamp = int(datetime.utcnow().timestamp())
+    from datetime import timezone
+    timestamp = int(datetime.now(timezone.utc).timestamp())
     avatar_url = getattr(user, "photo_url", None)
     if not avatar_url:
         initials_seed = urllib.parse.quote(display_name)
