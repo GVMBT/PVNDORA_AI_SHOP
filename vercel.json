@@ -2,13 +2,17 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     { "source": "/og/:path*", "destination": "/api/og/:path*" },
-    { "source": "/api/(.*)", "destination": "/api/index.py" },
+    { "source": "/api/og/:path*", "destination": "/api/og/:path*" },
+    { "source": "/api/((?!og/).*)", "destination": "/api/index.py" },
     { "source": "/webhook/(.*)", "destination": "/api/index.py" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "functions": {
     "api/index.py": {
       "maxDuration": 300
+    },
+    "api/og/referral.js": {
+      "maxDuration": 30
     }
   },
   "crons": [

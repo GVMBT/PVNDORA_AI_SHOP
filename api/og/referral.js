@@ -1,23 +1,24 @@
 // OG Image generation using Satori + resvg-js (Node.js compatible)
+// Uses jsDelivr CDN for fonts (works in Russia without VPN)
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
 
 const translations = {
   ru: {
     locale: 'ru-RU',
-    badge: 'Экономлю вместе с PVNDORA',
+    badge: 'ЭКОНОМЛЮ ВМЕСТЕ С PVNDORA',
     savedPrefix: 'Я сэкономил',
     savedSuffix: 'на тарифах нейросетей',
     rankLabel: 'Место в рейтинге',
-    cta: 'Подключай тарифы нейросетей за 20% от их стоимости',
+    cta: 'Оплачиваю тарифы нейросетей за 20% от их стоимости',
     handlePrefix: 'через',
   },
   en: {
     locale: 'en-US',
-    badge: 'Saving with PVNDORA',
+    badge: 'SAVING WITH PVNDORA',
     savedPrefix: 'I saved',
     savedSuffix: 'on AI subscriptions',
-    rankLabel: 'Leaderboard position',
+    rankLabel: 'Leaderboard rank',
     cta: 'Get AI subscriptions for 20% of their cost',
     handlePrefix: 'via',
   },
@@ -29,24 +30,50 @@ function pickLocale(lang) {
   return 'en';
 }
 
-// Helper to get font from Google Fonts CSS API
-async function getGoogleFont() {
-  const cssUrl = 'https://fonts.googleapis.com/css2?family=Inter:wght@600';
-  const cssResponse = await fetch(cssUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    }
-  });
-  const css = await cssResponse.text();
+// Font sources - prioritize CDNs that work in Russia
+const FONT_SOURCES = [
+  // jsDelivr (works in Russia)
+  'https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.8/files/inter-latin-600-normal.woff',
+  // unpkg fallback
+  'https://unpkg.com/@fontsource/inter@5.0.8/files/inter-latin-600-normal.woff',
+  // GitHub raw (usually works)
+  'https://raw.githubusercontent.com/rsms/inter/v4.0/docs/font-files/Inter-SemiBold.woff',
+];
+
+async function loadFont() {
+  let lastError = null;
   
-  // Extract woff2 URL from CSS
-  const match = css.match(/src:\s*url\(([^)]+\.woff2)\)/);
-  if (!match) {
-    throw new Error('Could not extract font URL from Google Fonts CSS');
+  for (const url of FONT_SOURCES) {
+    try {
+      const response = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const data = await response.arrayBuffer();
+      if (data.byteLength > 1000) {
+        console.log(`Font loaded successfully from: ${url}`);
+        return data;
+      }
+    } catch (error) {
+      lastError = error;
+      console.warn(`Failed to load font from ${url}:`, error.message);
+    }
   }
   
-  const fontResponse = await fetch(match[1]);
-  return await fontResponse.arrayBuffer();
+  throw new Error(`All font sources failed. Last error: ${lastError?.message}`);
+}
+
+// Cache font at module level
+let fontCache = null;
+async function getFont() {
+  if (!fontCache) {
+    fontCache = await loadFont();
+  }
+  return fontCache;
 }
 
 export default async function handler(req, res) {
@@ -55,31 +82,39 @@ export default async function handler(req, res) {
   
   // Debug endpoint
   if (searchParams.get('debug') === '1') {
-    return res.json({ status: 'ok', runtime: 'nodejs', lib: 'satori+resvg' });
+    return res.json({ 
+      status: 'ok', 
+      runtime: 'nodejs', 
+      lib: 'satori+resvg',
+      fontSources: FONT_SOURCES,
+    });
   }
 
   try {
-    // Load font
-    const fontData = await getGoogleFont();
+    // Load font with fallbacks
+    const fontData = await getFont();
 
     const lang = pickLocale(searchParams.get('lang') || 'ru');
     const copy = translations[lang];
 
-    const name =
-      searchParams.get('name')?.slice(0, 40) || (lang === 'ru' ? 'Пользователь' : 'PVNDORA User');
+    const name = searchParams.get('name')?.slice(0, 40) || 
+      (lang === 'ru' ? 'Пользователь' : 'User');
     const saved = Number(searchParams.get('saved') || '0');
     const rank = searchParams.get('rank') || '';
-    const avatar =
-      searchParams.get('avatar') ||
-      `https://api.dicebear.com/7.x/initials/png?seed=${encodeURIComponent(name)}`;
+    
+    // Use DiceBear for avatar (works globally)
+    const avatar = searchParams.get('avatar') ||
+      `https://api.dicebear.com/7.x/initials/png?seed=${encodeURIComponent(name)}&backgroundColor=6366f1`;
+    
     const handle = searchParams.get('handle') || '@pvndora_ai_bot';
 
     const formatter = new Intl.NumberFormat(copy.locale, {
       maximumFractionDigits: 0,
     });
     const formattedSaved = formatter.format(Number.isFinite(saved) ? saved : 0);
+    const currencySymbol = lang === 'ru' ? '₽' : '$';
 
-    // Satori element (JSX-like object notation)
+    // Build Satori element structure
     const element = {
       type: 'div',
       props: {
@@ -88,13 +123,12 @@ export default async function handler(req, res) {
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'center',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          background: 'linear-gradient(135deg, #0f172a 0%, #4c1d95 100%)',
+          background: 'linear-gradient(145deg, #0c0a1d 0%, #1e1145 50%, #3b1d72 100%)',
           fontFamily: 'Inter',
           color: 'white',
-          padding: '60px',
-          position: 'relative',
+          padding: '50px 60px',
         },
         children: [
           // Top badge
@@ -102,16 +136,21 @@ export default async function handler(req, res) {
             type: 'div',
             props: {
               style: {
-                fontSize: '28px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.1em',
-                opacity: 0.8,
-                marginBottom: '30px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'rgba(139, 92, 246, 0.3)',
+                borderRadius: '30px',
+                padding: '12px 30px',
+                fontSize: '22px',
+                letterSpacing: '0.15em',
+                marginTop: '10px',
               },
               children: copy.badge,
             },
           },
-          // Main content
+          
+          // Main content area
           {
             type: 'div',
             props: {
@@ -119,22 +158,37 @@ export default async function handler(req, res) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '50px',
+                marginTop: '20px',
               },
               children: [
-                // Avatar
+                // Avatar with glow effect
                 {
-                  type: 'img',
+                  type: 'div',
                   props: {
-                    src: avatar,
-                    width: 180,
-                    height: 180,
                     style: {
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       borderRadius: '50%',
-                      border: '4px solid rgba(255,255,255,0.3)',
+                      padding: '6px',
+                      background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
+                    },
+                    children: {
+                      type: 'img',
+                      props: {
+                        src: avatar,
+                        width: 160,
+                        height: 160,
+                        style: {
+                          borderRadius: '50%',
+                          border: '4px solid #1e1145',
+                        },
+                      },
                     },
                   },
                 },
-                // Stats
+                
+                // Stats block
                 {
                   type: 'div',
                   props: {
@@ -143,49 +197,59 @@ export default async function handler(req, res) {
                       flexDirection: 'column',
                     },
                     children: [
+                      // Saved amount - big number
                       {
                         type: 'div',
                         props: {
                           style: {
-                            fontSize: '64px',
-                            fontWeight: 700,
-                            marginBottom: '10px',
+                            fontSize: '72px',
+                            fontWeight: 600,
+                            lineHeight: 1.1,
+                            background: 'linear-gradient(90deg, #fff 0%, #c4b5fd 100%)',
+                            backgroundClip: 'text',
+                            color: 'transparent',
                           },
-                          children: `${copy.savedPrefix} ${formattedSaved}₽`,
+                          children: `${formattedSaved}${currencySymbol}`,
                         },
                       },
+                      // Saved text
                       {
                         type: 'div',
                         props: {
                           style: {
-                            fontSize: '36px',
-                            opacity: 0.9,
-                            marginBottom: '20px',
+                            fontSize: '28px',
+                            opacity: 0.85,
+                            marginTop: '8px',
                           },
-                          children: copy.savedSuffix,
+                          children: `${copy.savedPrefix} ${copy.savedSuffix}`,
                         },
                       },
+                      // Rank if available
                       rank ? {
                         type: 'div',
                         props: {
                           style: {
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '14px',
-                            color: '#facc15',
+                            gap: '12px',
+                            marginTop: '20px',
+                            color: '#fbbf24',
                           },
                           children: [
                             {
                               type: 'span',
                               props: {
-                                style: { fontSize: '26px' },
-                                children: copy.rankLabel,
+                                style: { fontSize: '24px' },
+                                children: `🏆 ${copy.rankLabel}:`,
                               },
                             },
                             {
                               type: 'span',
                               props: {
-                                style: { fontSize: '48px', fontWeight: 700 },
+                                style: { 
+                                  fontSize: '42px', 
+                                  fontWeight: 600,
+                                },
                                 children: `#${rank}`,
                               },
                             },
@@ -198,31 +262,63 @@ export default async function handler(req, res) {
               ],
             },
           },
-          // Footer
+          
+          // Bottom CTA and branding
           {
             type: 'div',
             props: {
               style: {
-                position: 'absolute',
-                bottom: '40px',
-                left: '60px',
-                right: '60px',
                 display: 'flex',
-                justifyContent: 'space-between',
-                fontSize: '22px',
-                opacity: 0.7,
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '16px',
+                marginBottom: '10px',
               },
               children: [
+                // CTA text
                 {
-                  type: 'span',
+                  type: 'div',
                   props: {
-                    children: `${copy.handlePrefix} ${handle}`,
+                    style: {
+                      fontSize: '26px',
+                      color: '#c4b5fd',
+                      textAlign: 'center',
+                    },
+                    children: copy.cta,
                   },
                 },
+                // Bot handle
                 {
-                  type: 'span',
+                  type: 'div',
                   props: {
-                    children: 'PVNDORA • AI Marketplace',
+                    style: {
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '22px',
+                      opacity: 0.7,
+                    },
+                    children: [
+                      {
+                        type: 'span',
+                        props: {
+                          children: `${copy.handlePrefix} ${handle}`,
+                        },
+                      },
+                      {
+                        type: 'span',
+                        props: {
+                          style: { margin: '0 12px' },
+                          children: '•',
+                        },
+                      },
+                      {
+                        type: 'span',
+                        props: {
+                          children: 'PVNDORA',
+                        },
+                      },
+                    ],
                   },
                 },
               ],
@@ -256,14 +352,18 @@ export default async function handler(req, res) {
     const pngData = resvg.render();
     const pngBuffer = pngData.asPng();
 
+    // Set headers for caching
     res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Cache-Control', 'public, immutable, no-transform, max-age=31536000');
+    res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+    res.setHeader('CDN-Cache-Control', 'public, max-age=604800');
     res.send(Buffer.from(pngBuffer));
+    
   } catch (error) {
     console.error('OG Image generation error:', error);
     res.status(500).json({
-      error: error.message,
-      stack: error.stack,
+      error: 'Failed to generate image',
+      message: error.message,
+      hint: 'Check font loading and dependencies',
     });
   }
 }
