@@ -1,128 +1,5 @@
 {
   "welcome": "👋 Hallo! Ich helfe dir, ein AI-Abonnement zu finden.\n\nSchreibe einfach oder sende eine Sprachnachricht — ich verstehe beide Formate. Beschreibe, was du brauchst, und ich finde das passende Tool für dich.",
-
-  "common": {
-    "back": "Zurück",
-    "retry": "Wiederholen",
-    "days": "Tage",
-    "loading": "Laden...",
-    "save": "Speichern",
-    "cancel": "Abbrechen",
-    "confirm": "Bestätigen"
-  },
-
-  "nav": {
-    "catalog": "Katalog",
-    "orders": "Bestellungen",
-    "leaderboard": "Rangliste",
-    "faq": "FAQ"
-  },
-
-  "catalog": {
-    "all": "Alle",
-    "subscription": "Abonnements",
-    "student": "Studenten",
-    "trial": "Testversion",
-    "shared": "Geteilt",
-    "key": "API-Schlüssel",
-    "subtitle": "Premium-AI-Abonnements",
-    "search": "AI-Tools suchen...",
-    "empty": "Keine Produkte verfügbar"
-  },
-
-  "product": {
-    "inStock": "Auf Lager",
-    "outOfStock": "Nicht auf Lager",
-    "onDemand": "Auf Anfrage",
-    "sold": "verkauft",
-    "save": "Sparen",
-    "available": "verfügbar",
-    "reviews": "Bewertungen",
-    "warranty": "Garantie",
-    "duration": "Dauer",
-    "instructions": "Anleitung",
-    "recentReviews": "Neueste Bewertungen",
-    "buyNow": "Jetzt kaufen",
-    "preorder": "Vorbestellen",
-    "notifyMe": "Benachrichtigen",
-    "notFound": "Produkt nicht gefunden"
-  },
-
-  "orders": {
-    "title": "Ihre Bestellungen",
-    "subtitle": "Bestellhistorie und Status",
-    "empty": "Noch keine Bestellungen",
-    "emptyHint": "Machen Sie Ihren ersten Einkauf",
-    "amount": "Betrag",
-    "prepaid": "Vorausbezahlt",
-    "expiresOn": "Läuft ab am",
-    "buyAgain": "Erneut kaufen",
-    "leaveReview": "Bewertung",
-    "unknownProduct": "Unbekanntes Produkt",
-    "status": {
-      "pending": "Ausstehend",
-      "prepaid": "Bezahlt",
-      "fulfilling": "In Bearbeitung",
-      "ready": "Bereit",
-      "delivered": "Geliefert",
-      "refunded": "Erstattet",
-      "cancelled": "Storniert",
-      "failed": "Fehlgeschlagen"
-    }
-  },
-
-  "leaderboard": {
-    "title": "Ersparnis",
-    "subtitle": "Top-Sparer dieses Monats",
-    "yourRank": "Ihr Rang",
-    "yourSavings": "Ihre Ersparnis",
-    "saved": "gespart",
-    "you": "Sie",
-    "empty": "Rangliste ist leer",
-    "emptyHint": "Kaufen Sie ein, um auf der Rangliste zu erscheinen",
-    "howItWorks": "So funktioniert es",
-    "explanation": "Jeder Kauf spart Ihnen Geld im Vergleich zu Einzelhandelspreisen. Je mehr Sie sparen, desto höher Ihr Rang!",
-    "inviteFriend": "Freund einladen",
-    "copyLink": "Link kopieren",
-    "linkCopied": "Link kopiert!"
-  },
-
-  "faq": {
-    "title": "FAQ",
-    "subtitle": "Häufig gestellte Fragen",
-    "description": "Finden Sie Antworten auf häufige Fragen",
-    "empty": "Keine FAQ verfügbar",
-    "emptyHint": "Schauen Sie später noch einmal vorbei",
-    "stillNeedHelp": "Noch Fragen?",
-    "contactHint": "Unser AI-Assistent hilft Ihnen gerne",
-    "askBot": "Bot fragen",
-    "category": {
-      "general": "Allgemein",
-      "payment": "Zahlung",
-      "delivery": "Lieferung",
-      "warranty": "Garantie"
-    }
-  },
-
-  "checkout": {
-    "title": "Kasse",
-    "quantity": "Menge",
-    "unitPrice": "Stückpreis",
-    "promoCode": "Promo-Code",
-    "promoPlaceholder": "Code eingeben",
-    "apply": "Anwenden",
-    "promoApplied": "Promo angewendet!",
-    "promoInvalid": "Ungültiger Promo-Code",
-    "summary": "Zusammenfassung",
-    "subtotal": "Zwischensumme",
-    "discount": "Rabatt",
-    "total": "Gesamt",
-    "paymentMethods": "Zahlungsmethoden",
-    "paymentInfo": "Karte, Überweisung und Krypto akzeptiert",
-    "pay": "Bezahlen",
-    "processing": "Verarbeitung...",
-    "orderCreated": "Bestellung erstellt! Weiterleitung zur Zahlung..."
-  },
   "welcome_back": "Willkommen zurück! Wie kann ich helfen? Schreibe oder sende eine Sprachnachricht.",
   "help": "📚 So verwendest du den Bot:\n\nSchreibe einfach oder sende Sprachnachrichten — ich verstehe beide Formate.\n\nVerfügbare Befehle:\n/start - Bot starten\n/my_orders - Deine Bestellhistorie\n/wishlist - Gespeicherte Produkte\n/help - Diese Nachricht\n\nOder beschreibe einfach, was du brauchst, und ich helfe dir das perfekte Abonnement zu finden!",
   "banned": "🚫 Zugang eingeschränkt. Support kontaktieren: @admin",
@@ -184,9 +61,8 @@
     "support": "Support",
     "supportDescription": "Schreiben Sie unserem KI-Assistenten im Telegram-Bot — er beantwortet alle Ihre Fragen",
     "contactBot": "Bot kontaktieren",
-    "contactHint": "Chatten Sie direkt mit unserem AI-Assistenten",
     "email": "E-Mail",
-    "emailAddress": "heevec@gmail.com",
+    "emailAddress": "support@pvndora.app",
     "workingHours": "Arbeitszeiten",
     "workingHoursText": "24/7, rund um die Uhr"
   },

@@ -24,12 +24,12 @@ except ImportError:
 
 class AIConsultant:
     """AI Sales Consultant powered by Gemini 2.5 Flash"""
-
+    
     def __init__(self):
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
             raise ValueError("GEMINI_API_KEY environment variable not set")
-
+        
         self.client = genai.Client(api_key=api_key)
         self.model = "gemini-2.5-flash"
         # Initialize RAG only if available
@@ -44,7 +44,7 @@ class AIConsultant:
             self.product_search = None
         self._cached_contents = {}  # Cache for system prompts by language
         self._cache_retry_timestamps = {}  # Track last retry attempt for failed caches
-
+    
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=10)
@@ -67,17 +67,17 @@ class AIConsultant:
             StructuredAIResponse with structured fields
         """
         db = get_database()
-
+        
         # Get products for context
         products = await db.get_products(status="active")
         product_catalog = format_product_catalog(products)
-
+        
         # Build conversation history
         history = await db.get_chat_history(user_id, limit=10)
-
+        
         # Build messages
         messages = []
-
+        
         # Add conversation history
         for msg in history:
             role = "user" if msg["role"] == "user" else "model"
@@ -85,19 +85,19 @@ class AIConsultant:
                 role=role,
                 parts=[types.Part.from_text(text=msg["content"])]
             ))
-
+        
         # Add current message
         messages.append(types.Content(
             role="user",
             parts=[types.Part.from_text(text=user_message)]
         ))
-
+        
         # Get system prompt (base prompt without catalog - catalog added to messages)
         base_system_prompt = get_system_prompt(language, "")  # Empty catalog, will add to messages
-
+        
         # Get or create cached content for this language
         cached_content_name = await self._get_or_create_cache(language, base_system_prompt)
-
+        
         # Add product catalog as first message (after system instruction)
         if product_catalog:
             catalog_message = types.Content(
@@ -106,10 +106,10 @@ class AIConsultant:
             )
             # Insert catalog at the beginning of messages
             messages.insert(0, catalog_message)
-
+        
         # Convert tools to Gemini format
         gemini_tools = self._convert_tools_to_gemini_format()
-
+        
         try:
             # Step 1: Generate response with Function Calling (NO structured outputs here!)
             # Gemini doesn't support tools + response_schema simultaneously
@@ -118,23 +118,23 @@ class AIConsultant:
                 temperature=0.7,
                 max_output_tokens=2048
             )
-
+            
             # Use cached content if available (skip if None - means caching disabled)
             if cached_content_name:
                 config_with_tools.cached_content = cached_content_name
             else:
                 # Fallback: use system_instruction if caching failed
                 config_with_tools.system_instruction = base_system_prompt
-
+            
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=messages,
                 config=config_with_tools
             )
-
+            
             # Process response (handles function calls, then final structured output)
             return await self._process_response(response, user_id, db, language, messages)
-
+            
         except Exception as e:
             print(f"Gemini API error: {e}")
             import traceback
@@ -145,7 +145,7 @@ class AIConsultant:
                 reply_text=self._get_error_message(language),
                 action=ActionType.NONE
             )
-
+    
     async def get_response_from_voice(
         self,
         user_id: str,
@@ -164,17 +164,17 @@ class AIConsultant:
             AIResponse with text, transcription, and optional actions
         """
         db = get_database()
-
+        
         # Get products for context
         products = await db.get_products(status="active")
         product_catalog = format_product_catalog(products)
-
+        
         # Get system prompt
         system_prompt = get_system_prompt(language, product_catalog)
-
+        
         # Encode audio as base64 (stored in message parts, not used directly)
         base64.b64encode(voice_data).decode("utf-8")
-
+        
         # Build message with audio
         # Include explicit instruction to process as sales consultant query
         messages = [
@@ -191,10 +191,10 @@ class AIConsultant:
                 ]
             )
         ]
-
+        
         # Convert tools to Gemini format
         gemini_tools = self._convert_tools_to_gemini_format()
-
+        
         try:
             # Step 1: Generate with tools (NO structured output here - Gemini limitation)
             config_with_tools = types.GenerateContentConfig(
@@ -203,28 +203,28 @@ class AIConsultant:
                 temperature=0.7,
                 max_output_tokens=2048
             )
-
+            
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=messages,
                 config=config_with_tools
             )
-
+            
             # Process response (handles function calls and structured output)
             result = await self._process_response(response, user_id, db, language, messages)
-
+            
             return result
-
+            
         except Exception as e:
             print(f"Gemini voice API error: {e}")
             import traceback
             traceback.print_exc()
             return self._create_error_response(language, str(e))
-
+    
     def _convert_tools_to_gemini_format(self) -> List[types.Tool]:
         """Convert our tool definitions to Gemini format"""
         function_declarations = []
-
+        
         for tool in TOOLS:
             function_declarations.append(
                 types.FunctionDeclaration(
@@ -233,9 +233,9 @@ class AIConsultant:
                     parameters_json_schema=tool.get("parameters")
                 )
             )
-
+        
         return [types.Tool(function_declarations=function_declarations)]
-
+    
     async def _process_response(
         self,
         response,
@@ -249,21 +249,21 @@ class AIConsultant:
         Handles function calls if present, otherwise parses structured JSON response.
         """
         import traceback
-
+        
         try:
             # Check for function calls first
             if not response.candidates:
                 return self._create_error_response(language, "No response candidates")
-
+            
             candidate = response.candidates[0]
             if not hasattr(candidate, 'content') or not candidate.content:
                 return self._create_error_response(language, "No content in response")
-
+            
             parts = getattr(candidate.content, 'parts', None)
             if not parts:
                 # Try to parse as structured JSON (Structured Outputs)
                 return self._parse_structured_response(response, language)
-
+            
             # Collect ALL function calls from the response
             function_calls = []
             for part in parts:
@@ -272,7 +272,7 @@ class AIConsultant:
                     tool_name = getattr(func_call, 'name', None)
                     if not tool_name:
                         continue
-
+                    
                     # Get arguments
                     args = getattr(func_call, 'args', None)
                     if args:
@@ -284,13 +284,13 @@ class AIConsultant:
                             arguments = dict(args) if args else {}
                     else:
                         arguments = {}
-
+                    
                     function_calls.append((tool_name, arguments))
-
+            
             # If we have function calls, execute ALL of them
             if function_calls:
                 print(f"DEBUG: Found {len(function_calls)} function calls: {[fc[0] for fc in function_calls]}")
-
+                
                 # Execute all tools and collect results
                 tool_results = {}
                 for tool_name, arguments in function_calls:
@@ -301,7 +301,7 @@ class AIConsultant:
                     except Exception as e:
                         print(f"ERROR: Tool {tool_name} failed: {e}")
                         tool_results[tool_name] = {"success": False, "error": str(e)}
-
+                
                 # Build chat history if not provided
                 if not original_messages:
                     history = await db.get_chat_history(user_id, limit=10)
@@ -312,7 +312,7 @@ class AIConsultant:
                             role=role,
                             parts=[types.Part.from_text(text=msg["content"])]
                         ))
-
+                
                 # Continue with ALL tool results combined
                 return await self._continue_with_all_tool_results(
                     original_messages,
@@ -323,17 +323,17 @@ class AIConsultant:
                     db,
                     language
                 )
-
+            
             # No function call - need to make SECOND request with structured output
             # Because Gemini doesn't support tools + response_schema simultaneously
             return await self._generate_structured_response(
                 original_messages, response, user_id, db, language
             )
-
+            
         except Exception as e:
             print(f"ERROR: _process_response failed: {e}\n{traceback.format_exc()}")
             return self._create_error_response(language, str(e))
-
+    
     def _parse_structured_response(
         self,
         response,
@@ -341,11 +341,11 @@ class AIConsultant:
     ) -> StructuredAIResponse:
         """Parse structured JSON response from Gemini"""
         import json
-
+        
         try:
             # Get text response (should be JSON)
             text = response.text if hasattr(response, 'text') and response.text else None
-
+            
             if not text:
                 print("ERROR: Response text is None or empty")
                 # Try to get text from candidates if available
@@ -360,7 +360,7 @@ class AIConsultant:
                                         break
                                 if text:
                                     break
-
+                
                 if not text:
                     print("ERROR: Could not extract text from response")
                     # Log response structure for debugging
@@ -371,20 +371,20 @@ class AIConsultant:
                         reply_text=self._get_error_message(language),
                         action=ActionType.NONE
                     )
-
+            
             # Parse JSON
             data = json.loads(text)
-
+            
             # Convert action string to ActionType enum
             if "action" in data and isinstance(data["action"], str):
                 try:
                     data["action"] = ActionType(data["action"])
                 except ValueError:
                     data["action"] = ActionType.NONE
-
+            
             # Validate and create StructuredAIResponse
             return StructuredAIResponse(**data)
-
+            
         except json.JSONDecodeError as e:
             print(f"ERROR: Failed to parse JSON response: {e}")
             print(f"Response text: {text[:500]}")
@@ -399,7 +399,7 @@ class AIConsultant:
             import traceback
             traceback.print_exc()
             return self._create_error_response(language, str(e))
-
+    
     def _create_error_response(
         self,
         language: str,
@@ -411,12 +411,12 @@ class AIConsultant:
             reply_text=self._get_error_message(language),
             action=ActionType.NONE
         )
-
+    
     def _get_error_message(self, language: str) -> str:
         """Get localized error message"""
         from src.i18n import get_text
         return get_text("error_generic", language)
-
+    
     def _filter_technical_details(self, error_message: str) -> str:
         """
         Filter out technical details from error messages.
@@ -429,43 +429,43 @@ class AIConsultant:
         """
         if not error_message:
             return "A temporary error occurred"
-
+        
         # Remove common technical patterns
         import re
-
+        
         # Remove module names
         error_message = re.sub(r"No module named ['\"]([\w_]+)['\"]", "A required component is missing", error_message)
         error_message = re.sub(r"ModuleNotFoundError:", "", error_message)
-
+        
         # Remove error codes
         error_message = re.sub(r"code ['\"]\d+[A-Z]\d+['\"]", "", error_message)
         error_message = re.sub(r"code: ['\"]\d+[A-Z]\d+['\"]", "", error_message)
-
+        
         # Remove file paths
         error_message = re.sub(r"/var/task/[\w/\.]+", "", error_message)
         error_message = re.sub(r"File [\"'][^\"']+[\"']", "", error_message)
-
+        
         # Remove technical error types but keep the message
         error_message = re.sub(r"^\w+Error:\s*", "", error_message)
         error_message = re.sub(r"^\w+Exception:\s*", "", error_message)
-
+        
         # Remove connection strings and credentials
         error_message = re.sub(r"postgresql://[^\s]+", "", error_message)
         error_message = re.sub(r"connection to server[^\n]+", "", error_message)
-
+        
         # Clean up multiple spaces
         error_message = re.sub(r"\s+", " ", error_message).strip()
-
+        
         # If message is too technical or empty, return generic
         technical_keywords = ["module", "import", "traceback", "stack", "FATAL", "psycopg2", "upstash"]
         if any(keyword.lower() in error_message.lower() for keyword in technical_keywords):
             return "A temporary service error occurred"
-
+        
         if not error_message or len(error_message) < 5:
             return "A temporary error occurred"
-
+        
         return error_message
-
+    
     async def _get_or_create_cache(self, language: str, system_prompt: str) -> Optional[str]:
         """
         Get or create cached content for system prompt.
@@ -482,14 +482,14 @@ class AIConsultant:
         """
         cache_key = f"system_prompt_{language}"
         RETRY_INTERVAL_HOURS = 1  # Retry after 1 hour
-
+        
         # Check if we already have a valid cache for this language
         if cache_key in self._cached_contents:
             cached_value = self._cached_contents[cache_key]
             # If cache exists and is not None, return it
             if cached_value is not None:
                 return cached_value
-
+            
             # If cache is None (was disabled), check if we should retry
             last_retry = self._cache_retry_timestamps.get(cache_key)
             if last_retry:
@@ -498,13 +498,13 @@ class AIConsultant:
                 if time_since_retry < timedelta(hours=RETRY_INTERVAL_HOURS):
                     return None  # Work without cache for now
             # If no timestamp or enough time passed, try to recreate
-
+        
         # Try to create cache (either first time or retry after failure)
         try:
             # Create cached content with system instruction
             # TTL: 24 hours (86400 seconds) - must be string format "86400s"
             ttl = "86400s"  # 24 hours in seconds as string
-
+            
             cache = await asyncio.to_thread(
                 lambda: self.client.caches.create(
                     model=f"models/{self.model}",
@@ -515,14 +515,14 @@ class AIConsultant:
                     )
                 )
             )
-
+            
             # Store cache name and clear retry timestamp (success!)
             self._cached_contents[cache_key] = cache.name
             if cache_key in self._cache_retry_timestamps:
                 del self._cache_retry_timestamps[cache_key]
             print(f"INFO: Context cache created successfully for {language}")
             return cache.name
-
+            
         except Exception as e:
             error_str = str(e)
             # Check if it's a 429 (rate limit) - mark as disabled but allow retry later
@@ -538,7 +538,7 @@ class AIConsultant:
                 self._cache_retry_timestamps[cache_key] = datetime.now()
             # Continue without caching - not critical, will use system_instruction instead
             return None
-
+    
     async def _generate_structured_response(
         self,
         messages: List[types.Content],
@@ -552,11 +552,11 @@ class AIConsultant:
         Called when AI didn't use function calling but we need structured output.
         """
         import traceback
-
+        
         try:
             # Get text from initial response
             initial_text = text_response.text if hasattr(text_response, 'text') and text_response.text else ""
-
+            
             # If initial text is empty, try to extract from candidates
             if not initial_text and hasattr(text_response, 'candidates') and text_response.candidates:
                 for candidate in text_response.candidates:
@@ -569,7 +569,7 @@ class AIConsultant:
                                     break
                             if initial_text:
                                 break
-
+            
             # If still no text, we can't generate structured response
             if not initial_text:
                 print("ERROR: No text available for structured response generation")
@@ -578,16 +578,16 @@ class AIConsultant:
                     reply_text=self._get_error_message(language),
                     action=ActionType.NONE
                 )
-
+            
             # Make a follow-up request to get structured output
             structured_messages = list(messages)
-
+            
             # Add model's text response
             structured_messages.append(types.Content(
                 role="model",
                 parts=[types.Part.from_text(text=initial_text)]
             ))
-
+            
             # Add instruction to format as JSON
             structured_messages.append(types.Content(
                 role="user",
@@ -595,11 +595,11 @@ class AIConsultant:
                     text="Now format your response as a valid JSON following the exact schema I provided. Include your previous response in reply_text field."
                 )]
             ))
-
+            
             # Get system prompt
             base_system_prompt = get_system_prompt(language, "")
             cached_content_name = await self._get_or_create_cache(language, base_system_prompt)
-
+            
             # Generate with structured output
             config_structured = types.GenerateContentConfig(
                 temperature=0.3,  # Lower temp for more consistent JSON
@@ -607,18 +607,18 @@ class AIConsultant:
                 response_mime_type="application/json",
                 response_schema=StructuredAIResponse.model_json_schema()
             )
-
+            
             if cached_content_name:
                 config_structured.cached_content = cached_content_name
             else:
                 config_structured.system_instruction = base_system_prompt
-
+            
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=structured_messages,
                 config=config_structured
             )
-
+            
             # Check if response is empty
             if not hasattr(response, 'text') or not response.text:
                 # Try to extract from candidates
@@ -633,7 +633,7 @@ class AIConsultant:
                                         break
                                 if text_from_candidates:
                                     break
-
+                
                 if not text_from_candidates:
                     print("WARNING: Empty response from structured generation, using original text")
                     # Fallback: use original text response
@@ -651,9 +651,9 @@ class AIConsultant:
                             reply_text=self._get_error_message(language),
                             action=ActionType.NONE
                         )
-
+            
             return self._parse_structured_response(response, language)
-
+            
         except Exception as e:
             print(f"ERROR: _generate_structured_response failed: {e}\n{traceback.format_exc()}")
             # Fallback: create response from original text
@@ -663,7 +663,7 @@ class AIConsultant:
                 reply_text=initial_text if initial_text else self._get_error_message(language),
                 action=ActionType.NONE
             )
-
+    
     async def _continue_with_tool_result(
         self,
         original_messages: List[types.Content],
@@ -676,15 +676,15 @@ class AIConsultant:
     ) -> StructuredAIResponse:
         """Continue conversation with tool result using Structured Outputs"""
         import traceback
-
+        
         try:
             # Build messages with full conversation context
             messages = list(original_messages)
-
+            
             # Add the model's response with function call
             if original_response.candidates and original_response.candidates[0].content:
                 messages.append(original_response.candidates[0].content)
-
+            
             # Check if tool execution failed
             if isinstance(tool_result, dict) and tool_result.get("success") is False:
                 # Tool failed - add instruction for AI (technical details already filtered in tool execution)
@@ -710,16 +710,16 @@ class AIConsultant:
                         )
                     ]
                 ))
-
+            
             # Get products for context (not used in final response, but kept for potential future use)
             products = await db.get_products(status="active")
             product_catalog = format_product_catalog(products)
             get_system_prompt(language, product_catalog)  # System prompt cached, not used here
-
+            
             # Get cached content for this language
             base_system_prompt = get_system_prompt(language, "")
             cached_content_name = await self._get_or_create_cache(language, base_system_prompt)
-
+            
             # Step 2: Generate final response with Structured Outputs (NO tools here!)
             # After function calls, we generate structured JSON response
             config_final = types.GenerateContentConfig(
@@ -728,27 +728,27 @@ class AIConsultant:
                 response_mime_type="application/json",
                 response_schema=StructuredAIResponse.model_json_schema()
             )
-
+            
             # Use cached content if available (skip if None - means caching disabled)
             if cached_content_name:
                 config_final.cached_content = cached_content_name
             else:
                 # Fallback: use system_instruction if caching failed
                 config_final.system_instruction = base_system_prompt
-
+            
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=messages,
                 config=config_final
             )
-
+            
             # Parse structured response
             return self._parse_structured_response(response, language)
-
+            
         except Exception as e:
             print(f"Gemini follow-up error: {e}\n{traceback.format_exc()}")
             return self._create_error_response(language, str(e))
-
+    
     async def _continue_with_all_tool_results(
         self,
         original_messages: List[types.Content],
@@ -761,15 +761,15 @@ class AIConsultant:
     ) -> StructuredAIResponse:
         """Continue conversation with ALL tool results - handles parallel tool execution"""
         import traceback
-
+        
         try:
             # Build messages with full conversation context
             messages = list(original_messages)
-
+            
             # Add the model's response with function calls
             if original_response.candidates and original_response.candidates[0].content:
                 messages.append(original_response.candidates[0].content)
-
+            
             # Add ALL function responses
             function_response_parts = []
             for tool_name, _ in function_calls:
@@ -780,18 +780,18 @@ class AIConsultant:
                         response=result
                     )
                 )
-
+            
             # Add all function responses as a single Content
             if function_response_parts:
                 messages.append(types.Content(
                     role="function",
                     parts=function_response_parts
                 ))
-
+            
             # Get cached content for this language
             base_system_prompt = get_system_prompt(language, "")
             cached_content_name = await self._get_or_create_cache(language, base_system_prompt)
-
+            
             # Generate final response with Structured Outputs
             config_final = types.GenerateContentConfig(
                 temperature=0.7,
@@ -799,24 +799,24 @@ class AIConsultant:
                 response_mime_type="application/json",
                 response_schema=StructuredAIResponse.model_json_schema()
             )
-
+            
             if cached_content_name:
                 config_final.cached_content = cached_content_name
             else:
                 config_final.system_instruction = base_system_prompt
-
+            
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=messages,
                 config=config_final
             )
-
+            
             return self._parse_structured_response(response, language)
-
+            
         except Exception as e:
             print(f"Gemini multi-tool follow-up error: {e}\n{traceback.format_exc()}")
             return self._create_error_response(language, str(e))
-
+    
     # Note: _format_purchase_message and _format_catalog_message removed
     # AI now handles formatting through Structured Outputs (reply_text field)
     # This gives AI more flexibility in how to present information

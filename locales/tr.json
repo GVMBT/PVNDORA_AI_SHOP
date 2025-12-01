@@ -6,130 +6,6 @@
   "error_generic": "❌ Bir şeyler yanlış gitti. Lütfen tekrar deneyin.",
   "error_no_stock": "😔 Bu ürün stokta yok. Bekleme listesine katılmak ister misiniz?",
   "error_payment": "❌ Ödeme başarısız. Bakiyenize yüklendi.",
-
-  "common": {
-    "back": "Geri",
-    "retry": "Tekrar dene",
-    "days": "gün",
-    "loading": "Yükleniyor...",
-    "save": "Kaydet",
-    "cancel": "İptal",
-    "confirm": "Onayla"
-  },
-
-  "nav": {
-    "catalog": "Katalog",
-    "orders": "Siparişler",
-    "leaderboard": "Sıralama",
-    "faq": "SSS"
-  },
-
-  "catalog": {
-    "all": "Tümü",
-    "subscription": "Abonelikler",
-    "student": "Öğrenci",
-    "trial": "Deneme",
-    "shared": "Paylaşımlı",
-    "key": "API Anahtarları",
-    "subtitle": "Premium AI Abonelikleri",
-    "search": "AI araçları ara...",
-    "empty": "Ürün bulunamadı"
-  },
-
-  "product": {
-    "inStock": "Stokta",
-    "outOfStock": "Stok yok",
-    "onDemand": "Sipariş üzerine",
-    "sold": "satıldı",
-    "save": "Tasarruf",
-    "available": "mevcut",
-    "reviews": "yorum",
-    "warranty": "Garanti",
-    "duration": "Süre",
-    "instructions": "Talimatlar",
-    "recentReviews": "Son yorumlar",
-    "buyNow": "Satın Al",
-    "preorder": "Ön sipariş",
-    "notifyMe": "Bildir",
-    "notFound": "Ürün bulunamadı"
-  },
-
-  "orders": {
-    "title": "Siparişleriniz",
-    "subtitle": "Satın alma geçmişi ve durumu",
-    "empty": "Sipariş yok",
-    "emptyHint": "İlk satın almanızı yapın",
-    "amount": "Tutar",
-    "prepaid": "Ön ödemeli",
-    "expiresOn": "Bitiş tarihi",
-    "buyAgain": "Tekrar al",
-    "leaveReview": "Yorum",
-    "unknownProduct": "Bilinmeyen ürün",
-    "status": {
-      "pending": "Beklemede",
-      "prepaid": "Ödendi",
-      "fulfilling": "Hazırlanıyor",
-      "ready": "Hazır",
-      "delivered": "Teslim edildi",
-      "refunded": "İade edildi",
-      "cancelled": "İptal edildi",
-      "failed": "Başarısız"
-    }
-  },
-
-  "leaderboard": {
-    "title": "Tasarruflar",
-    "subtitle": "Bu ayın en çok tasarruf edenleri",
-    "yourRank": "Sıralamanız",
-    "yourSavings": "Tasarrufunuz",
-    "saved": "tasarruf",
-    "you": "siz",
-    "empty": "Sıralama boş",
-    "emptyHint": "Sıralamada yer almak için alışveriş yapın",
-    "howItWorks": "Nasıl çalışır",
-    "explanation": "Her alışveriş perakende fiyatlarına göre tasarruf sağlar. Ne kadar çok tasarruf ederseniz, o kadar yüksek sıralama!",
-    "inviteFriend": "Arkadaş davet et",
-    "copyLink": "Bağlantıyı kopyala",
-    "linkCopied": "Bağlantı kopyalandı!"
-  },
-
-  "faq": {
-    "title": "SSS",
-    "subtitle": "Sık Sorulan Sorular",
-    "description": "Sık sorulan sorulara cevaplar bulun",
-    "empty": "SSS mevcut değil",
-    "emptyHint": "Daha sonra tekrar gelin",
-    "stillNeedHelp": "Daha fazla soru mu var?",
-    "contactHint": "AI asistanımız size yardımcı olmaya hazır",
-    "askBot": "Bota sor",
-    "category": {
-      "general": "Genel",
-      "payment": "Ödeme",
-      "delivery": "Teslimat",
-      "warranty": "Garanti"
-    }
-  },
-
-  "checkout": {
-    "title": "Ödeme",
-    "quantity": "Miktar",
-    "unitPrice": "Birim fiyat",
-    "promoCode": "Promosyon kodu",
-    "promoPlaceholder": "Kodu girin",
-    "apply": "Uygula",
-    "promoApplied": "Promo uygulandı!",
-    "promoInvalid": "Geçersiz kod",
-    "summary": "Özet",
-    "subtotal": "Ara toplam",
-    "discount": "İndirim",
-    "total": "Toplam",
-    "paymentMethods": "Ödeme yöntemleri",
-    "paymentInfo": "Kart, havale ve kripto kabul edilir",
-    "pay": "Öde",
-    "processing": "İşleniyor...",
-    "orderCreated": "Sipariş oluşturuldu! Ödemeye yönlendiriliyor..."
-  },
-
   "product_card": "📦 {name}\n💰 Fiyat: {price}₺\n⭐ Puan: {rating}/5 ({reviews} yorum)\n{stock_status}\n\n{description}",
   "stock_available": "✅ Stokta var",
   "stock_empty": "❌ Stok yok",
@@ -173,9 +49,8 @@
     "support": "Destek",
     "supportDescription": "Telegram botundaki AI asistanımıza yazın — tüm sorularınızı yanıtlayacak",
     "contactBot": "Bot ile iletişime geç",
-    "contactHint": "AI asistanımızla doğrudan sohbet edin",
     "email": "Email",
-    "emailAddress": "heevec@gmail.com",
+    "emailAddress": "support@pvndora.app",
     "workingHours": "Çalışma saatleri",
     "workingHoursText": "24/7, her zaman"
   },

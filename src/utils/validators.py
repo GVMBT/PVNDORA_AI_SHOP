@@ -31,34 +31,34 @@ def validate_telegram_init_data(init_data: str, bot_token: str) -> bool:
     """
     try:
         parsed = parse_qs(init_data)
-
+        
         # Extract hash
         received_hash = parsed.pop('hash', [None])[0]
         if not received_hash:
             return False
-
+        
         # Build data check string (sorted alphabetically)
         data_check_parts = []
         for key in sorted(parsed.keys()):
             value = parsed[key][0]
             data_check_parts.append(f"{key}={value}")
-
+        
         data_check_string = '\n'.join(data_check_parts)
-
+        
         # Calculate secret key: HMAC-SHA256(bot_token, "WebAppData")
         secret_key = hmac.new(
             b"WebAppData",
             bot_token.encode(),
             hashlib.sha256
         ).digest()
-
+        
         # Calculate hash
         calculated_hash = hmac.new(
             secret_key,
             data_check_string.encode(),
             hashlib.sha256
         ).hexdigest()
-
+        
         return hmac.compare_digest(calculated_hash, received_hash)
     except Exception:
         return False
@@ -77,10 +77,10 @@ def extract_user_from_init_data(init_data: str) -> Optional[TelegramUser]:
     try:
         parsed = parse_qs(init_data)
         user_json = parsed.get('user', [None])[0]
-
+        
         if not user_json:
             return None
-
+        
         user_data = json.loads(unquote(user_json))
         return TelegramUser(**user_data)
     except Exception:

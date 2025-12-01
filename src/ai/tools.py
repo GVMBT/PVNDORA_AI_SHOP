@@ -28,16 +28,16 @@ async def resolve_product_id(product_id_or_name: str, db) -> Tuple[Optional[str]
     """
     if not product_id_or_name:
         return None, "Product ID or name is required"
-
+    
     # If it's a valid UUID, use it directly
     if is_valid_uuid(product_id_or_name):
         return product_id_or_name, None
-
+    
     # Otherwise, search by name
     products = await db.search_products(product_id_or_name)
     if products:
         return products[0].id, None
-
+    
     return None, f"Product not found: {product_id_or_name}"
 
 
@@ -320,7 +320,7 @@ async def execute_tool(
     Returns:
         Tool execution result
     """
-
+    
     if tool_name == "check_product_availability":
         products = await db.search_products(arguments["product_name"])
         if products:
@@ -330,13 +330,13 @@ async def execute_tool(
             fulfillment_hours = getattr(product_details, 'fulfillment_time_hours', 48) if product_details else 48
             requires_prepayment = getattr(product_details, 'requires_prepayment', False) if product_details else False
             product_status = getattr(product_details, 'status', 'active') if product_details else 'active'
-
+            
             # Determine if product is discontinued
             is_discontinued = product_status == 'discontinued'
-
+            
             # Can fulfill on-demand only if product is active (not discontinued)
             can_fulfill_on_demand = product_status == 'active' and not is_discontinued
-
+            
             return {
                 "found": True,
                 "product_id": product.id,
@@ -351,7 +351,7 @@ async def execute_tool(
                 "requires_prepayment": requires_prepayment
             }
         return {"found": False}
-
+    
     elif tool_name == "get_product_details":
         product = await db.get_product_by_id(arguments["product_id"])
         if product:
@@ -371,19 +371,19 @@ async def execute_tool(
                 "reviews_count": rating["count"]
             }
         return {"found": False}
-
+    
     elif tool_name == "search_products":
         query = arguments.get("query", "")
         category = arguments.get("category", "all")
-
+        
         # Use RAG for semantic search (if available)
         try:
             from core.rag import ProductSearch, VECS_AVAILABLE
             if not VECS_AVAILABLE or ProductSearch is None:
                 raise ImportError("RAG not available - vecs not installed")
-
+            
             product_search = ProductSearch()
-
+            
             # Build filters based on category
             filters = {"status": {"$eq": "active"}}
             if category != "all":
@@ -398,13 +398,13 @@ async def execute_tool(
                 }
                 if category in category_map:
                     filters["type"] = {"$eq": category_map[category]}
-
+            
             # Semantic search via RAG
             rag_results = await product_search.search(query, limit=5, filters=filters)
-
+            
             # Get full product details from DB
             products = []
-
+            
             for result in rag_results:
                 product = await db.get_product_by_id(result["product_id"])
                 if product:
@@ -416,7 +416,7 @@ async def execute_tool(
                         "stock_count": product.stock_count,
                         "similarity_score": result.get("score", 0.0)
                     })
-
+            
             # If RAG didn't find enough results, fallback to text search
             if len(products) < 3:
                 text_products = await db.search_products(query)
@@ -431,7 +431,7 @@ async def execute_tool(
                             "stock_count": p.stock_count,
                             "similarity_score": 0.0
                         })
-
+            
             return {
                 "count": len(products),
                 "products": products[:5]  # Limit to 5 results
@@ -455,7 +455,7 @@ async def execute_tool(
                     for p in products[:5]
                 ]
             }
-
+    
     elif tool_name == "create_purchase_intent":
         # Resolve product ID (supports both UUID and name search)
         product_id_or_name = arguments.get("product_id", "")
@@ -465,24 +465,24 @@ async def execute_tool(
                 "success": False,
                 "reason": error
             }
-
+        
         product = await db.get_product_by_id(resolved_id)
         if not product:
             return {
                 "success": False,
                 "reason": "Product not found"
             }
-
+        
         product_status = getattr(product, 'status', 'active')
         is_discontinued = product_status == 'discontinued'
-
+        
         # If product is discontinued, cannot create purchase intent
         if is_discontinued:
             return {
                 "success": False,
                 "reason": "Product is discontinued. Please use waitlist to be notified when it becomes available again."
             }
-
+        
         if product.stock_count > 0:
             # Product in stock - instant order
             return {
@@ -508,7 +508,7 @@ async def execute_tool(
                 "action": "show_payment_button",
                 "message": f"Товар будет изготовлен под заказ за {fulfillment_days}-{fulfillment_days + 1} дня. Предоплата 100%."
             }
-
+    
     elif tool_name == "add_to_waitlist":
         try:
             product_name = arguments.get("product_name", "").strip()
@@ -517,7 +517,7 @@ async def execute_tool(
                     "success": False,
                     "reason": "Product name is required"
                 }
-
+            
             # Add to waitlist (function handles duplicates gracefully)
             await db.add_to_waitlist(user_id, product_name)
             return {
@@ -530,7 +530,7 @@ async def execute_tool(
             print(f"ERROR: add_to_waitlist failed: {error_str}")
             import traceback
             traceback.print_exc()
-
+            
             # Check if it's a duplicate (already in waitlist) - this is not an error
             if "already" in error_str.lower() or "duplicate" in error_str.lower() or "unique" in error_str.lower():
                 return {
@@ -538,12 +538,12 @@ async def execute_tool(
                     "product_name": product_name,
                     "message": f"You are already on the waitlist for {product_name}"
                 }
-
+            
             return {
                 "success": False,
                 "reason": "Failed to add to waitlist. Please try again later."
             }
-
+    
     elif tool_name == "get_catalog":
         products = await db.get_products(status="active")
         return {
@@ -559,7 +559,7 @@ async def execute_tool(
                 for p in products
             ]
         }
-
+    
     elif tool_name == "compare_products":
         results = []
         for name in arguments.get("product_names", []):
@@ -576,13 +576,13 @@ async def execute_tool(
                     "rating": rating["average"]
                 })
         return {"products": results}
-
+    
     elif tool_name == "create_support_ticket":
         try:
             # Create support ticket in database
             issue = arguments.get("issue_description", "")
             order_id = arguments.get("order_id")
-
+            
             ticket_data = {
                 "user_id": user_id,
                 "message": issue,
@@ -590,12 +590,12 @@ async def execute_tool(
             }
             if order_id:
                 ticket_data["order_id"] = order_id
-
+            
             # Run synchronous Supabase call in thread pool
             await asyncio.to_thread(
                 lambda: db.client.table("tickets").insert(ticket_data).execute()
             )
-
+            
             return {
                 "success": True,
                 "message": "Support ticket created"
@@ -608,11 +608,11 @@ async def execute_tool(
                 "success": False,
                 "reason": "Failed to create support ticket. Please try again later."
             }
-
+    
     elif tool_name == "get_user_orders":
         limit = arguments.get("limit", 5)
         orders = await db.get_user_orders(user_id, limit=limit)
-
+        
         return {
             "count": len(orders),
             "orders": [
@@ -627,11 +627,11 @@ async def execute_tool(
                 for o in orders
             ]
         }
-
+    
     elif tool_name == "get_faq_answer":
         question = arguments.get("question", "")
         faq_entries = await db.get_faq("en")  # Will use user's language in actual implementation
-
+        
         # Simple keyword matching for FAQ
         question_lower = question.lower()
         for entry in faq_entries:
@@ -641,28 +641,28 @@ async def execute_tool(
                     "question": entry["question"],
                     "answer": entry["answer"]
                 }
-
+        
         return {"found": False}
-
+    
     elif tool_name == "add_to_wishlist":
         # Resolve product ID (supports both UUID and name search)
         product_id_or_name = arguments.get("product_id", "")
         resolved_id, error = await resolve_product_id(product_id_or_name, db)
         if error:
             return {"success": False, "reason": error}
-
+        
         product = await db.get_product_by_id(resolved_id)
         if not product:
             return {"success": False, "reason": "Product not found"}
-
+        
         # Check if item already exists
         existing_check = await asyncio.to_thread(
             lambda: db.client.table("wishlist").select("id").eq("user_id", user_id).eq("product_id", resolved_id).execute()
         )
-
+        
         if existing_check.data:
             return {"success": False, "reason": "Already in wishlist"}
-
+        
         # Add to wishlist
         try:
             result = await asyncio.to_thread(
@@ -672,7 +672,7 @@ async def execute_tool(
                     "reminded": False
                 }).execute()
             )
-
+            
             if result.data:
                 return {
                     "success": True,
@@ -687,11 +687,11 @@ async def execute_tool(
             if "module" in error_str.lower() or "import" in error_str.lower():
                 return {"success": False, "reason": "Service temporarily unavailable. Please try again later."}
             return {"success": False, "reason": "Database error. Please try again later."}
-
+    
     elif tool_name == "apply_promo_code":
         code = arguments.get("code", "").strip().upper()
         promo = await db.validate_promo_code(code)
-
+        
         if promo:
             return {
                 "valid": True,
@@ -703,7 +703,7 @@ async def execute_tool(
             "valid": False,
             "message": "Invalid or expired promo code"
         }
-
+    
     elif tool_name == "get_referral_info":
         try:
             # Get user's telegram_id for referral link
@@ -712,19 +712,19 @@ async def execute_tool(
                     "telegram_id,balance,personal_ref_percent"
                 ).eq("id", user_id).execute()
             )
-
+            
             if not user_result.data:
                 return {"success": False}
-
+            
             user = user_result.data[0]
-
+            
             # Count referrals
             referrals = await asyncio.to_thread(
                 lambda: db.client.table("users").select("id", count="exact").eq(
                     "referrer_id", user_id
                 ).execute()
             )
-
+            
             return {
                 "success": True,
                 "referral_link": f"https://t.me/pvndora_bot?start=ref_{user['telegram_id']}",
@@ -737,13 +737,13 @@ async def execute_tool(
             print(f"ERROR: get_referral_info failed: {error_str}")
             import traceback
             traceback.print_exc()
-
+            
             # Filter technical details
             if "module" in error_str.lower() or "import" in error_str.lower() or "No module named" in error_str:
                 return {"success": False, "reason": "Service temporarily unavailable. Please try again later."}
-
+            
             return {"success": False, "reason": "Failed to retrieve referral information. Please try again later."}
-
+    
     elif tool_name == "get_wishlist":
         try:
             wishlist_items = await asyncio.to_thread(
@@ -751,7 +751,7 @@ async def execute_tool(
                     "id,product_id,products(name,price,stock_count:stock_items(count))"
                 ).eq("user_id", user_id).execute()
             )
-
+            
             return {
                 "count": len(wishlist_items.data),
                 "items": [
@@ -769,7 +769,7 @@ async def execute_tool(
             import traceback
             traceback.print_exc()
             return {"count": 0, "items": [], "error": str(e)}
-
+    
     elif tool_name == "get_user_cart":
         try:
             from core.cart import get_cart_manager
@@ -777,14 +777,14 @@ async def execute_tool(
             user_result = await asyncio.to_thread(
                 lambda: db.client.table("users").select("telegram_id").eq("id", user_id).execute()
             )
-
+            
             if not user_result.data:
                 return {"success": False, "reason": "User not found"}
-
+            
             telegram_id = user_result.data[0]["telegram_id"]
             cart_manager = get_cart_manager()  # Use singleton
             cart = await cart_manager.get_cart(telegram_id)
-
+            
             if not cart:
                 return {
                     "success": True,
@@ -792,7 +792,7 @@ async def execute_tool(
                     "items": [],
                     "total": 0.0
                 }
-
+            
             return {
                 "success": True,
                 "empty": False,
@@ -821,55 +821,55 @@ async def execute_tool(
             print(f"ERROR: get_user_cart failed: {error_str}")
             import traceback
             traceback.print_exc()
-
+            
             # Filter technical details
             if "module" in error_str.lower() or "import" in error_str.lower() or "No module named" in error_str:
                 return {"success": False, "reason": "Cart service temporarily unavailable. Please try again later."}
-
+            
             return {"success": False, "reason": "Failed to retrieve cart. Please try again later."}
-
+    
     elif tool_name == "add_to_cart":
         try:
             from core.cart import get_cart_manager
             product_id_or_name = arguments.get("product_id", "")
             quantity = arguments.get("quantity", 1)
-
+            
             if quantity < 1:
                 return {"success": False, "reason": "Quantity must be at least 1"}
-
+            
             # Resolve product ID (supports both UUID and name search)
             resolved_id, error = await resolve_product_id(product_id_or_name, db)
             if error:
                 return {"success": False, "reason": error}
-
+            
             product_id = resolved_id
-
+            
             # Get product and check availability
             product = await db.get_product_by_id(product_id)
             if not product:
                 return {"success": False, "reason": "Product not found"}
-
+            
             # Get available stock with discounts
             stock_result = await asyncio.to_thread(
                 lambda: db.client.table("available_stock_with_discounts").select(
                     "*"
                 ).eq("product_id", product_id).limit(1).execute()
             )
-
+            
             available_stock = len(stock_result.data) if stock_result.data else 0
             discount_percent = stock_result.data[0].get("discount_percent", 0) if stock_result.data else 0
-
+            
             # Get user's telegram_id
             user_result = await asyncio.to_thread(
                 lambda: db.client.table("users").select("telegram_id").eq("id", user_id).execute()
             )
-
+            
             if not user_result.data:
                 return {"success": False, "reason": "User not found"}
-
+            
             telegram_id = user_result.data[0]["telegram_id"]
             cart_manager = get_cart_manager()  # Use singleton
-
+            
             # Add to cart (auto-splits instant/prepaid)
             cart = await cart_manager.add_item(
                 user_telegram_id=telegram_id,
@@ -880,13 +880,13 @@ async def execute_tool(
                 unit_price=product.price,
                 discount_percent=discount_percent
             )
-
+            
             # Find the added item
             added_item = next(
                 (item for item in cart.items if item.product_id == product_id),
                 None
             )
-
+            
             return {
                 "success": True,
                 "product_id": product_id,
@@ -904,31 +904,31 @@ async def execute_tool(
             print(f"ERROR: add_to_cart failed: {error_str}")
             import traceback
             traceback.print_exc()
-
+            
             # Filter technical details
             if "module" in error_str.lower() or "import" in error_str.lower() or "No module named" in error_str:
                 return {"success": False, "reason": "Cart service temporarily unavailable. Please try again later."}
-
+            
             return {"success": False, "reason": "Failed to add item to cart. Please try again later."}
-
+    
     elif tool_name == "update_cart":
         try:
             from core.cart import get_cart_manager
             operation = arguments.get("operation")
             product_id = arguments.get("product_id")
             quantity = arguments.get("quantity")
-
+            
             # Get user's telegram_id
             user_result = await asyncio.to_thread(
                 lambda: db.client.table("users").select("telegram_id").eq("id", user_id).execute()
             )
-
+            
             if not user_result.data:
                 return {"success": False, "reason": "User not found"}
-
+            
             telegram_id = user_result.data[0]["telegram_id"]
             cart_manager = get_cart_manager()  # Use singleton
-
+            
             if operation == "clear":
                 await cart_manager.clear_cart(telegram_id)
                 return {
@@ -936,11 +936,11 @@ async def execute_tool(
                     "message": "Cart cleared",
                     "cart_total": 0.0
                 }
-
+            
             elif operation == "remove_item":
                 if not product_id:
                     return {"success": False, "reason": "product_id required for remove_item"}
-
+                
                 cart = await cart_manager.remove_item(telegram_id, product_id)
                 if cart:
                     return {
@@ -949,33 +949,33 @@ async def execute_tool(
                         "cart_total": cart.total
                     }
                 return {"success": False, "reason": "Item not found in cart"}
-
+            
             elif operation == "update_quantity":
                 if not product_id or quantity is None:
                     return {"success": False, "reason": "product_id and quantity required for update_quantity"}
-
+                
                 if quantity < 0:
                     return {"success": False, "reason": "Quantity cannot be negative"}
-
+                
                 # Get product for available stock
                 product = await db.get_product_by_id(product_id)
                 if not product:
                     return {"success": False, "reason": "Product not found"}
-
+                
                 stock_result = await asyncio.to_thread(
                     lambda: db.client.table("available_stock_with_discounts").select(
                         "*"
                     ).eq("product_id", product_id).limit(1).execute()
                 )
                 available_stock = len(stock_result.data) if stock_result.data else 0
-
+                
                 if quantity == 0:
                     cart = await cart_manager.remove_item(telegram_id, product_id)
                 else:
                     cart = await cart_manager.update_item_quantity(
                         telegram_id, product_id, quantity, available_stock
                     )
-
+                
                 if cart:
                     return {
                         "success": True,
@@ -983,37 +983,37 @@ async def execute_tool(
                         "cart_total": cart.total
                     }
                 return {"success": False, "reason": "Cart not found or item not in cart"}
-
+            
             else:
                 return {"success": False, "reason": f"Unknown operation: {operation}"}
-
+                
         except Exception as e:
             error_str = str(e)
             print(f"ERROR: update_cart failed: {error_str}")
             import traceback
             traceback.print_exc()
-
+            
             # Filter technical details
             if "module" in error_str.lower() or "import" in error_str.lower() or "No module named" in error_str:
                 return {"success": False, "reason": "Cart service temporarily unavailable. Please try again later."}
-
+            
             return {"success": False, "reason": "Failed to update cart. Please try again later."}
-
+    
     elif tool_name == "request_refund":
         order_id = arguments.get("order_id")
         reason = arguments.get("reason", "")
-
+        
         # Get order
         order = await db.get_order_by_id(order_id)
         if not order:
             return {"success": False, "reason": "Order not found"}
-
+        
         if order.user_id != user_id:
             return {"success": False, "reason": "Not your order"}
-
+        
         if order.refund_requested:
             return {"success": False, "reason": "Refund already requested"}
-
+        
         # Atomic transaction: update order and create ticket together
         try:
             # First create ticket (if this fails, we don't update order)
@@ -1027,10 +1027,10 @@ async def execute_tool(
                     "status": "open"
                 }).execute()
             )
-
+            
             if not ticket_result.data:
                 return {"success": False, "reason": "Failed to create support ticket"}
-
+            
             # Then update order (if this fails, ticket exists but order not marked - acceptable)
             # Run synchronous Supabase call in thread pool to avoid blocking event loop
             await asyncio.to_thread(
@@ -1038,7 +1038,7 @@ async def execute_tool(
                     "refund_requested": True
                 }).eq("id", order_id).execute()
             )
-
+            
             return {
                 "success": True,
                 "message": "Refund request submitted for review",
@@ -1052,6 +1052,6 @@ async def execute_tool(
             if "module" in error_str.lower() or "import" in error_str.lower() or "No module named" in error_str:
                 return {"success": False, "reason": "Service temporarily unavailable. Please try again later."}
             return {"success": False, "reason": "Failed to process refund request. Please try again later."}
-
+    
     return {"error": f"Unknown tool: {tool_name}"}
 

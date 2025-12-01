@@ -277,10 +277,10 @@ def get_system_prompt(language: str, product_catalog: str) -> str:
         Complete system prompt
     """
     lang_instruction = LANGUAGE_INSTRUCTIONS.get(
-        language,
+        language, 
         LANGUAGE_INSTRUCTIONS["en"]
     )
-
+    
     return SYSTEM_PROMPT.format(
         product_catalog=product_catalog,
         language_instruction=lang_instruction
@@ -299,7 +299,7 @@ def format_product_catalog(products: list) -> str:
     """
     if not products:
         return "No products available at the moment."
-
+    
     lines = [
         "**IMPORTANT**: When calling functions that require product_id, use the exact UUID shown below.\n"
     ]
@@ -310,11 +310,11 @@ def format_product_catalog(products: list) -> str:
         if p.stock_count == 0:
             fulfillment_hours = getattr(p, 'fulfillment_time_hours', 48)
             fulfillment_info = f" | Fulfillment: {fulfillment_hours}h"
-
+        
         lines.append(
             f"- **{p.name}** (ID: `{p.id}`): {p.price}₽ | {p.type} | {stock_status}{fulfillment_info}\n"
             f"  Description: {p.description or 'No description'}"
         )
-
+    
     return "\n".join(lines)
 

@@ -10,24 +10,24 @@ import httpx
 
 class PaymentService:
     """Unified payment service for AAIO (Russia) and Stripe (International)"""
-
+    
     def __init__(self):
         # AAIO credentials
         self.aaio_merchant_id = os.environ.get("AAIO_MERCHANT_ID", "")
         self.aaio_secret_key = os.environ.get("AAIO_SECRET_KEY", "")
         self.aaio_api_key = os.environ.get("AAIO_API_KEY", "")
-
+        
         # Stripe credentials
         self.stripe_secret_key = os.environ.get("STRIPE_SECRET_KEY", "")
         self.stripe_webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
-
+        
         # CardLink credentials
         self.cardlink_api_token = os.environ.get("CARDLINK_API_TOKEN", "")
         self.cardlink_shop_id = os.environ.get("CARDLINK_SHOP_ID", "")
-
+        
         # Webhook URLs
         self.base_url = os.environ.get("WEBAPP_URL", "https://pvndora.app")
-
+    
     async def create_payment(
         self,
         order_id: str,
@@ -65,9 +65,9 @@ class PaymentService:
             )
         else:
             raise ValueError(f"Unknown payment method: {method}")
-
+    
     # ==================== AAIO ====================
-
+    
     async def _create_aaio_payment(
         self,
         order_id: str,
@@ -76,11 +76,11 @@ class PaymentService:
         currency: str = "RUB"
     ) -> str:
         """Create AAIO payment URL"""
-
+        
         # Generate signature
         sign_string = f"{self.aaio_merchant_id}:{amount}:{currency}:{self.aaio_secret_key}:{order_id}"
         sign = hashlib.sha256(sign_string.encode()).hexdigest()
-
+        
         # Build payment URL
         params = {
             "merchant_id": self.aaio_merchant_id,
@@ -91,9 +91,9 @@ class PaymentService:
             "desc": product_name[:128],  # Max 128 chars
             "lang": "ru"
         }
-
+        
         return f"https://aaio.so/merchant/pay?{urlencode(params)}"
-
+    
     async def verify_aaio_callback(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Verify AAIO callback signature and extract order info.
@@ -111,34 +111,34 @@ class PaymentService:
             currency = data.get("currency", "RUB")
             order_id = data.get("order_id", "")
             received_sign = data.get("sign", "")
-
+            
             # Verify merchant ID
             if merchant_id != self.aaio_merchant_id:
                 return {"success": False, "error": "Invalid merchant ID"}
-
+            
             # Verify signature
             sign_string = f"{self.aaio_merchant_id}:{amount}:{currency}:{self.aaio_secret_key}:{order_id}"
             expected_sign = hashlib.sha256(sign_string.encode()).hexdigest()
-
+            
             if not hmac.compare_digest(received_sign, expected_sign):
                 return {"success": False, "error": "Invalid signature"}
-
+            
             return {
                 "success": True,
                 "order_id": order_id,
                 "amount": float(amount),
                 "currency": currency
             }
-
+            
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     async def check_aaio_payment_status(self, order_id: str) -> Dict[str, Any]:
         """Check AAIO payment status via API"""
-
+        
         if not self.aaio_api_key:
             return {"success": False, "error": "API key not configured"}
-
+        
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -152,9 +152,9 @@ class PaymentService:
                         "order_id": order_id
                     }
                 )
-
+                
                 data = response.json()
-
+                
                 if data.get("type") == "success":
                     return {
                         "success": True,
@@ -162,14 +162,14 @@ class PaymentService:
                         "amount": data.get("amount"),
                         "order_id": order_id
                     }
-
+                
                 return {"success": False, "error": data.get("message", "Unknown error")}
-
+                
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     # ==================== STRIPE ====================
-
+    
     async def _create_stripe_payment(
         self,
         order_id: str,
@@ -179,17 +179,17 @@ class PaymentService:
         currency: str = "USD"
     ) -> str:
         """Create Stripe Checkout Session"""
-
+        
         if not self.stripe_secret_key:
             raise ValueError("Stripe secret key not configured")
-
+        
         try:
             import stripe
             stripe.api_key = self.stripe_secret_key
-
+            
             # Convert amount to cents
             amount_cents = int(amount * 100)
-
+            
             # Create Checkout Session
             session = stripe.checkout.Session.create(
                 payment_method_types=["card"],
@@ -212,13 +212,13 @@ class PaymentService:
                     "order_id": order_id
                 }
             )
-
+            
             return session.url
-
+            
         except Exception as e:
             print(f"Stripe error: {e}")
             raise
-
+    
     async def verify_stripe_webhook(
         self,
         payload: bytes,
@@ -236,20 +236,20 @@ class PaymentService:
         """
         if not self.stripe_webhook_secret:
             return {"success": False, "error": "Webhook secret not configured"}
-
+        
         try:
             import stripe
             stripe.api_key = self.stripe_secret_key
-
+            
             event = stripe.Webhook.construct_event(
                 payload, sig_header, self.stripe_webhook_secret
             )
-
+            
             # Handle checkout.session.completed
             if event["type"] == "checkout.session.completed":
                 session = event["data"]["object"]
                 order_id = session.get("client_reference_id") or session.get("metadata", {}).get("order_id")
-
+                
                 if order_id:
                     return {
                         "success": True,
@@ -257,15 +257,15 @@ class PaymentService:
                         "amount": session.get("amount_total", 0) / 100,
                         "currency": session.get("currency", "usd").upper()
                     }
-
+            
             # Other event types
             return {"success": False, "error": f"Unhandled event type: {event['type']}"}
-
+            
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     # ==================== CARDLINK ====================
-
+    
     async def _create_cardlink_payment(
         self,
         order_id: str,
@@ -274,10 +274,10 @@ class PaymentService:
         currency: str = "RUB"
     ) -> str:
         """Create CardLink payment URL"""
-
+        
         if not self.cardlink_api_token or not self.cardlink_shop_id:
             raise ValueError("CardLink credentials not configured")
-
+        
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -296,17 +296,17 @@ class PaymentService:
                         "fail_url": f"{self.base_url}/payment/fail?order_id={order_id}"
                     }
                 )
-
+                
                 response.raise_for_status()
                 data = response.json()
-
+                
                 # CardLink returns payment URL in response
                 return data.get("payment_url", data.get("url", ""))
-
+                
         except Exception as e:
             print(f"CardLink error: {e}")
             raise
-
+    
     async def verify_cardlink_webhook(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Verify CardLink webhook and extract order info.
@@ -322,7 +322,7 @@ class PaymentService:
             order_id = data.get("order_id", "")
             status = data.get("status", "")
             amount = data.get("amount", 0)
-
+            
             if status == "success" or status == "paid":
                 return {
                     "success": True,
@@ -336,12 +336,12 @@ class PaymentService:
                     "order_id": order_id,
                     "error": f"Payment status: {status}"
                 }
-
+                
         except Exception as e:
             return {"success": False, "error": str(e)}
-
+    
     # ==================== REFUNDS ====================
-
+    
     async def process_refund(
         self,
         order_id: str,
