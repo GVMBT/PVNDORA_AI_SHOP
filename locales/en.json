@@ -26,11 +26,13 @@
 
   "catalog": {
     "all": "All",
+    "subscription": "Subscriptions",
     "student": "Student",
     "trial": "Trial",
     "shared": "Shared",
-    "key": "API Key",
+    "key": "API Keys",
     "subtitle": "Premium AI Subscriptions",
+    "search": "Search AI tools...",
     "empty": "No products available"
   },
 
@@ -94,6 +96,7 @@
   "faq": {
     "title": "FAQ",
     "subtitle": "Frequently Asked Questions",
+    "description": "Find answers to common questions below",
     "empty": "No FAQ available",
     "emptyHint": "Check back later for answers to common questions",
     "stillNeedHelp": "Still need help?",

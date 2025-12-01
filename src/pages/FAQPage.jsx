@@ -60,7 +60,7 @@ export default function FAQPage({ onBack, onNavigate }) {
         <div className="text-center py-6 stagger-enter">
           <h1 className="text-2xl font-bold mb-2">{t('faq.subtitle')}</h1>
           <p className="text-muted-foreground text-sm">
-            Find answers to common questions below
+            {t('faq.description')}
           </p>
         </div>
         

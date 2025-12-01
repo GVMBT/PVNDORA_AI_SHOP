@@ -46,7 +46,7 @@ export default function CatalogPage({ onProductClick }) {
   
   const categories = [
     { id: 'all', label: t('catalog.all') },
-    { id: 'subscription', label: t('catalog.subscription') || 'Subscriptions' },
+    { id: 'subscription', label: t('catalog.subscription') },
     { id: 'key', label: t('catalog.key') }
   ]
 
@@ -67,7 +67,7 @@ export default function CatalogPage({ onProductClick }) {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Search AI tools..." 
+            placeholder={t('catalog.search')}
             className="pl-9 bg-card/50 border-border/50 focus:border-primary/50 transition-all"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

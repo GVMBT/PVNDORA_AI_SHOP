@@ -820,4 +820,3 @@ class AIConsultant:
     # Note: _format_purchase_message and _format_catalog_message removed
     # AI now handles formatting through Structured Outputs (reply_text field)
     # This gives AI more flexibility in how to present information
-

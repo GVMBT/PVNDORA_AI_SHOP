@@ -1285,11 +1285,11 @@ async def create_referral_share_link(user = Depends(verify_telegram_auth)):
 # ==================== FAQ API ====================
 
 @app.get("/api/faq")
-async def get_faq(lang: str = "en"):
+async def get_faq(language_code: str = "en"):
     """Get FAQ entries"""
     db = get_database()
-    faq = await db.get_faq(lang)
-    return faq
+    faq = await db.get_faq(language_code)
+    return {"faq": faq}
 
 
 # ==================== WISHLIST API ====================
