@@ -43,14 +43,42 @@
   "ai_thinking": "🤔 Je vérifie...",
   "ai_no_product": "Je n'ai pas trouvé de produit correspondant. Pouvez-vous préciser?",
   "ai_suggest": "Selon vos besoins, je recommande:\n\n{products}\n\nVoulez-vous en savoir plus?",
+  "common": {
+    "back": "Retour",
+    "retry": "Réessayer",
+    "days": "jours",
+    "loading": "Chargement..."
+  },
+
+  "nav": {
+    "catalog": "Catalogue",
+    "orders": "Commandes",
+    "leaderboard": "Classement",
+    "faq": "FAQ"
+  },
+
+  "catalog": {
+    "all": "Tout",
+    "subscription": "Abonnements",
+    "search": "Rechercher des outils AI...",
+    "empty": "Aucun produit disponible"
+  },
+
+  "faq": {
+    "title": "FAQ",
+    "subtitle": "Questions fréquentes",
+    "description": "Trouvez des réponses aux questions courantes"
+  },
+
   "contacts": {
     "title": "Contacts",
     "subtitle": "Contactez-nous",
     "support": "Support",
     "supportDescription": "Écrivez à notre assistant IA dans le bot Telegram — il répondra à toutes vos questions",
     "contactBot": "Contacter le bot",
+    "contactHint": "Chattez directement avec notre assistant AI",
     "email": "Email",
-    "emailAddress": "support@pvndora.app",
+    "emailAddress": "heevec@gmail.com",
     "workingHours": "Heures de travail",
     "workingHoursText": "24/7, en permanence"
   },

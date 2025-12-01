@@ -43,14 +43,42 @@
   "ai_thinking": "🤔 Kontrol ediyorum...",
   "ai_no_product": "Eşleşen ürün bulamadım. Daha detaylı anlatır mısınız?",
   "ai_suggest": "İhtiyaçlarınıza göre önerilerim:\n\n{products}\n\nDaha fazla bilgi ister misiniz?",
+  "common": {
+    "back": "Geri",
+    "retry": "Tekrar dene",
+    "days": "gün",
+    "loading": "Yükleniyor..."
+  },
+
+  "nav": {
+    "catalog": "Katalog",
+    "orders": "Siparişler",
+    "leaderboard": "Sıralama",
+    "faq": "SSS"
+  },
+
+  "catalog": {
+    "all": "Tümü",
+    "subscription": "Abonelikler",
+    "search": "AI araçları ara...",
+    "empty": "Ürün bulunamadı"
+  },
+
+  "faq": {
+    "title": "SSS",
+    "subtitle": "Sık Sorulan Sorular",
+    "description": "Sık sorulan sorulara cevaplar bulun"
+  },
+
   "contacts": {
     "title": "İletişim",
     "subtitle": "Bize ulaşın",
     "support": "Destek",
     "supportDescription": "Telegram botundaki AI asistanımıza yazın — tüm sorularınızı yanıtlayacak",
     "contactBot": "Bot ile iletişime geç",
+    "contactHint": "AI asistanımızla doğrudan sohbet edin",
     "email": "Email",
-    "emailAddress": "support@pvndora.app",
+    "emailAddress": "heevec@gmail.com",
     "workingHours": "Çalışma saatleri",
     "workingHoursText": "24/7, her zaman"
   },

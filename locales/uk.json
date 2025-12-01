@@ -55,14 +55,42 @@
   "ai_no_product": "Не знайшов відповідний товар. Опишіть детальніше?",
   "ai_suggest": "Виходячи з ваших потреб, рекомендую:\n\n{products}\n\nХочете дізнатись більше?",
 
+  "common": {
+    "back": "Назад",
+    "retry": "Повторити",
+    "days": "днів",
+    "loading": "Завантаження..."
+  },
+
+  "nav": {
+    "catalog": "Каталог",
+    "orders": "Замовлення",
+    "leaderboard": "Рейтинг",
+    "faq": "FAQ"
+  },
+
+  "catalog": {
+    "all": "Усі",
+    "subscription": "Підписки",
+    "search": "Пошук AI інструментів...",
+    "empty": "Товари не знайдено"
+  },
+
+  "faq": {
+    "title": "FAQ",
+    "subtitle": "Часті запитання",
+    "description": "Знайдіть відповіді на популярні запитання"
+  },
+
   "contacts": {
     "title": "Контакти",
     "subtitle": "Зв'яжіться з нами",
     "support": "Підтримка",
     "supportDescription": "Напишіть нашому AI-асистенту в Telegram боті — він відповість на всі ваші питання",
     "contactBot": "Написати боту",
+    "contactHint": "Спілкуйтеся безпосередньо з нашим AI-асистентом",
     "email": "Email",
-    "emailAddress": "support@pvndora.app",
+    "emailAddress": "heevec@gmail.com",
     "workingHours": "Час роботи",
     "workingHoursText": "Цілодобово, 24/7"
   },
