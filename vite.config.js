@@ -12,4 +12,26 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    // Optimize bundle size
+    target: 'es2020',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    },
+    // Code splitting for better caching
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['lucide-react', 'framer-motion']
+        }
+      }
+    },
+    // Reduce chunk size warnings
+    chunkSizeWarningLimit: 600
+  }
 })
