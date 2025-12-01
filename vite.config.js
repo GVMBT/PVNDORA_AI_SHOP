@@ -15,13 +15,7 @@ export default defineConfig({
   build: {
     // Optimize bundle size
     target: 'es2020',
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
-    },
+    minify: 'esbuild',
     // Code splitting for better caching
     rollupOptions: {
       output: {
@@ -33,5 +27,8 @@ export default defineConfig({
     },
     // Reduce chunk size warnings
     chunkSizeWarningLimit: 600
+  },
+  esbuild: {
+    drop: ['console', 'debugger']
   }
 })

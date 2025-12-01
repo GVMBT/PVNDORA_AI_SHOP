@@ -6,6 +6,130 @@
   "error_generic": "❌ Algo salió mal. Inténtalo más tarde.",
   "error_no_stock": "😔 Este producto está agotado. ¿Quieres unirte a la lista de espera?",
   "error_payment": "❌ Pago fallido. Los fondos se han acreditado a tu saldo.",
+
+  "common": {
+    "back": "Atrás",
+    "retry": "Reintentar",
+    "days": "días",
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar"
+  },
+
+  "nav": {
+    "catalog": "Catálogo",
+    "orders": "Pedidos",
+    "leaderboard": "Ranking",
+    "faq": "FAQ"
+  },
+
+  "catalog": {
+    "all": "Todo",
+    "subscription": "Suscripciones",
+    "student": "Estudiante",
+    "trial": "Prueba",
+    "shared": "Compartido",
+    "key": "Claves API",
+    "subtitle": "Suscripciones AI Premium",
+    "search": "Buscar herramientas AI...",
+    "empty": "No hay productos disponibles"
+  },
+
+  "product": {
+    "inStock": "En stock",
+    "outOfStock": "Agotado",
+    "onDemand": "Bajo pedido",
+    "sold": "vendidos",
+    "save": "Ahorro",
+    "available": "disponible",
+    "reviews": "reseñas",
+    "warranty": "Garantía",
+    "duration": "Duración",
+    "instructions": "Instrucciones",
+    "recentReviews": "Reseñas recientes",
+    "buyNow": "Comprar",
+    "preorder": "Preordenar",
+    "notifyMe": "Notificar",
+    "notFound": "Producto no encontrado"
+  },
+
+  "orders": {
+    "title": "Tus pedidos",
+    "subtitle": "Historial y estado de compras",
+    "empty": "Sin pedidos aún",
+    "emptyHint": "Haz tu primera compra",
+    "amount": "Monto",
+    "prepaid": "Prepagado",
+    "expiresOn": "Expira el",
+    "buyAgain": "Comprar de nuevo",
+    "leaveReview": "Reseña",
+    "unknownProduct": "Producto desconocido",
+    "status": {
+      "pending": "Pendiente",
+      "prepaid": "Pagado",
+      "fulfilling": "Preparando",
+      "ready": "Listo",
+      "delivered": "Entregado",
+      "refunded": "Reembolsado",
+      "cancelled": "Cancelado",
+      "failed": "Fallido"
+    }
+  },
+
+  "leaderboard": {
+    "title": "Ahorros",
+    "subtitle": "Top ahorradores este mes",
+    "yourRank": "Tu rango",
+    "yourSavings": "Tus ahorros",
+    "saved": "ahorrado",
+    "you": "tú",
+    "empty": "Ranking vacío",
+    "emptyHint": "Compra para aparecer en el ranking",
+    "howItWorks": "Cómo funciona",
+    "explanation": "¡Cada compra te ahorra dinero comparado con precios de retail. Cuanto más ahorres, más alto tu rango!",
+    "inviteFriend": "Invitar amigo",
+    "copyLink": "Copiar enlace",
+    "linkCopied": "¡Enlace copiado!"
+  },
+
+  "faq": {
+    "title": "FAQ",
+    "subtitle": "Preguntas frecuentes",
+    "description": "Encuentra respuestas a preguntas comunes",
+    "empty": "FAQ no disponible",
+    "emptyHint": "Vuelve más tarde",
+    "stillNeedHelp": "¿Más preguntas?",
+    "contactHint": "Nuestro asistente AI está listo para ayudarte",
+    "askBot": "Preguntar al bot",
+    "category": {
+      "general": "General",
+      "payment": "Pago",
+      "delivery": "Entrega",
+      "warranty": "Garantía"
+    }
+  },
+
+  "checkout": {
+    "title": "Pago",
+    "quantity": "Cantidad",
+    "unitPrice": "Precio unitario",
+    "promoCode": "Código promo",
+    "promoPlaceholder": "Ingresa código",
+    "apply": "Aplicar",
+    "promoApplied": "¡Promo aplicada!",
+    "promoInvalid": "Código inválido",
+    "summary": "Resumen",
+    "subtotal": "Subtotal",
+    "discount": "Descuento",
+    "total": "Total",
+    "paymentMethods": "Métodos de pago",
+    "paymentInfo": "Tarjeta, transferencia y cripto aceptados",
+    "pay": "Pagar",
+    "processing": "Procesando...",
+    "orderCreated": "¡Pedido creado! Redirigiendo al pago..."
+  },
+
   "product_card": "📦 {name}\n💰 Precio: {price}€\n⭐ Calificación: {rating}/5 ({reviews} reseñas)\n{stock_status}\n\n{description}",
   "stock_available": "✅ En stock",
   "stock_empty": "❌ Agotado",
@@ -49,8 +173,9 @@
     "support": "Soporte",
     "supportDescription": "Escriba a nuestro asistente IA en el bot de Telegram — responderá todas sus preguntas",
     "contactBot": "Contactar bot",
+    "contactHint": "Chatea directamente con nuestro asistente AI",
     "email": "Email",
-    "emailAddress": "support@pvndora.app",
+    "emailAddress": "heevec@gmail.com",
     "workingHours": "Horario de trabajo",
     "workingHoursText": "24/7, todo el día"
   },

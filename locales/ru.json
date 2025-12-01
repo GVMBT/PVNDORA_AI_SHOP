@@ -188,8 +188,9 @@
     "support": "Поддержка",
     "supportDescription": "Напишите нашему AI-ассистенту в Telegram боте — он ответит на все ваши вопросы",
     "contactBot": "Написать боту",
+    "contactHint": "Свяжитесь напрямую с AI-ассистентом",
     "email": "Email",
-    "emailAddress": "support@pvndora.app",
+    "emailAddress": "heevec@gmail.com",
     "workingHours": "Время работы",
     "workingHoursText": "Круглосуточно, 24/7"
   },

@@ -14,30 +14,30 @@ def get_shop_keyboard(lang: str, webapp_url: str) -> InlineKeyboardMarkup:
 
 
 def get_product_keyboard(
-    lang: str, 
-    product_id: str, 
+    lang: str,
+    product_id: str,
     webapp_url: str,
     in_stock: bool = True,
     quantity: int = 1
 ) -> InlineKeyboardMarkup:
     """Product action buttons - always opens Mini App for payment (no extra clicks!)"""
     buttons = []
-    
+
     # WebApp URL - direct to checkout with quantity
     # Format: pay_{product_id}_qty_{quantity}
     checkout_url = f"{webapp_url}?startapp=pay_{product_id}_qty_{quantity}"
-    
+
     if in_stock:
         btn_text = get_text("btn_pay", lang)  # "💳 Оплатить" instead of "💳 Купить"
     else:
         # Pre-order - same flow, just different button text
         btn_text = "💳 Оплатить под заказ" if lang == "ru" else "💳 Pay for Pre-order"
-    
+
     buttons.append([InlineKeyboardButton(
         text=btn_text,
         web_app=WebAppInfo(url=checkout_url)
     )])
-    
+
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 

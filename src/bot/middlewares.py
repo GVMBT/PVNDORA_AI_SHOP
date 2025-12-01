@@ -12,7 +12,7 @@ class AuthMiddleware(BaseMiddleware):
     Middleware for user authentication and ban check.
     Creates user if not exists, blocks banned users.
     """
-    
+
     async def __call__(
         self,
         handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
@@ -25,15 +25,15 @@ class AuthMiddleware(BaseMiddleware):
             user = event.from_user
         elif isinstance(event, CallbackQuery):
             user = event.from_user
-        
+
         if not user:
             return await handler(event, data)
-        
+
         db = get_database()
-        
+
         # Get or create user
         db_user = await db.get_user_by_telegram_id(user.id)
-        
+
         if db_user is None:
             # Check for referrer in start command
             referrer_id = None
@@ -43,7 +43,7 @@ class AuthMiddleware(BaseMiddleware):
                         referrer_id = int(event.text.split("ref_")[1].split()[0])
                     except (ValueError, IndexError):
                         pass
-            
+
             # Create new user
             db_user = await db.create_user(
                 telegram_id=user.id,
@@ -52,17 +52,17 @@ class AuthMiddleware(BaseMiddleware):
                 language_code=detect_language(user.language_code),
                 referrer_telegram_id=referrer_id
             )
-        
+
         # Check if banned
         if db_user.is_banned:
             if isinstance(event, Message):
                 from src.i18n import get_text
                 await event.answer(get_text("banned", db_user.language_code))
             return  # Stop processing
-        
+
         # Add user to data for handlers
         data["db_user"] = db_user
-        
+
         return await handler(event, data)
 
 
@@ -71,7 +71,7 @@ class LanguageMiddleware(BaseMiddleware):
     Middleware for language detection and update.
     Updates user language if it changed in Telegram settings.
     """
-    
+
     async def __call__(
         self,
         handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
@@ -83,17 +83,17 @@ class LanguageMiddleware(BaseMiddleware):
             user = event.from_user
         elif isinstance(event, CallbackQuery):
             user = event.from_user
-        
+
         if user and "db_user" in data:
             db_user = data["db_user"]
             new_lang = detect_language(user.language_code)
-            
+
             # Update if language changed
             if new_lang != db_user.language_code:
                 db = get_database()
                 await db.update_user_language(user.id, new_lang)
                 db_user.language_code = new_lang
-        
+
         return await handler(event, data)
 
 
@@ -102,7 +102,7 @@ class ActivityMiddleware(BaseMiddleware):
     Middleware for tracking user activity.
     Updates last_activity_at for re-engagement features.
     """
-    
+
     async def __call__(
         self,
         handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
@@ -114,11 +114,11 @@ class ActivityMiddleware(BaseMiddleware):
             user = event.from_user
         elif isinstance(event, CallbackQuery):
             user = event.from_user
-        
+
         if user:
             db = get_database()
             await db.update_user_activity(user.id)
-        
+
         return await handler(event, data)
 
 
@@ -126,7 +126,7 @@ class AnalyticsMiddleware(BaseMiddleware):
     """
     Middleware for logging analytics events.
     """
-    
+
     async def __call__(
         self,
         handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
@@ -134,11 +134,11 @@ class AnalyticsMiddleware(BaseMiddleware):
         data: Dict[str, Any]
     ) -> Any:
         db_user = data.get("db_user")
-        
+
         # Log event type
         event_type = None
         metadata = {}
-        
+
         if isinstance(event, Message):
             if event.text and event.text.startswith("/"):
                 event_type = "command"
@@ -150,7 +150,7 @@ class AnalyticsMiddleware(BaseMiddleware):
         elif isinstance(event, CallbackQuery):
             event_type = "callback"
             metadata["data"] = event.data
-        
+
         if event_type and db_user:
             db = get_database()
             await db.log_event(
@@ -158,6 +158,6 @@ class AnalyticsMiddleware(BaseMiddleware):
                 event_type=event_type,
                 metadata=metadata
             )
-        
+
         return await handler(event, data)
 

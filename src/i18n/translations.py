@@ -31,11 +31,11 @@ def _get_locales_path() -> Path:
         Path("locales"),  # Current directory
         Path("/var/task/locales"),  # Vercel
     ]
-    
+
     for path in paths:
         if path.exists():
             return path
-    
+
     # Create default path if none exists
     default_path = Path(__file__).parent.parent.parent.parent / "locales"
     default_path.mkdir(exist_ok=True)
@@ -46,16 +46,16 @@ def _load_translations(lang: str) -> Dict[str, str]:
     """Load translations for a language"""
     if lang in _translations:
         return _translations[lang]
-    
+
     locales_path = _get_locales_path()
     file_path = locales_path / f"{lang}.json"
-    
+
     if not file_path.exists():
         # Fallback to English
         if lang != DEFAULT_LANGUAGE:
             return _load_translations(DEFAULT_LANGUAGE)
         return {}
-    
+
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             _translations[lang] = json.load(f)
@@ -78,30 +78,30 @@ def get_text(key: str, lang: str = DEFAULT_LANGUAGE, **kwargs) -> str:
     """
     # Normalize language code (take first part: "ru-RU" -> "ru")
     lang = lang.split("-")[0].lower() if lang else DEFAULT_LANGUAGE
-    
+
     # Check if language is supported
     if lang not in SUPPORTED_LANGUAGES:
         lang = DEFAULT_LANGUAGE
-    
+
     translations = _load_translations(lang)
     text = translations.get(key)
-    
+
     # Fallback to English if key not found
     if text is None and lang != DEFAULT_LANGUAGE:
         translations = _load_translations(DEFAULT_LANGUAGE)
         text = translations.get(key)
-    
+
     # Return key if still not found
     if text is None:
         return key
-    
+
     # Format with kwargs if provided
     if kwargs:
         try:
             return text.format(**kwargs)
         except KeyError:
             return text
-    
+
     return text
 
 
@@ -125,10 +125,10 @@ def detect_language(language_code: Optional[str]) -> str:
     """
     if not language_code:
         return DEFAULT_LANGUAGE
-    
+
     # Normalize: "ru-RU" -> "ru"
     lang = language_code.split("-")[0].lower()
-    
+
     # Return if supported, otherwise default
     return lang if lang in SUPPORTED_LANGUAGES else DEFAULT_LANGUAGE
 
