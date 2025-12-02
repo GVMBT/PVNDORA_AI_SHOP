@@ -2,30 +2,20 @@
 Admin API Router
 
 Admin-only endpoints for managing products, users, orders, and stock.
-All endpoints require CRON_SECRET authentication.
+Requires Telegram Mini App authentication with admin privileges.
 """
 
-import os
 import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Depends, Header
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from src.services.database import get_database
 from core.routers.deps import get_notification_service
+from core.auth import verify_admin  # Uses Telegram initData + is_admin check
 
-router = APIRouter(prefix="/api/admin", tags=["admin"])
-
-
-# ==================== AUTH DEPENDENCY ====================
-
-async def verify_admin(authorization: str = Header(None)):
-    """Verify admin authentication via CRON_SECRET"""
-    cron_secret = os.environ.get("CRON_SECRET", "")
-    if not authorization or authorization != f"Bearer {cron_secret}":
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    return True
+router = APIRouter(tags=["admin"])
 
 
 # ==================== PYDANTIC MODELS ====================

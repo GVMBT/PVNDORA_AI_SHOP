@@ -56,6 +56,9 @@ from core.routers.deps import (
     verify_qstash
 )
 
+# Unified authentication
+from core.auth import verify_telegram_auth, verify_admin, verify_cron_secret
+
 
 # ==================== BOT INITIALIZATION ====================
 
@@ -241,48 +244,6 @@ async def _process_update_async(bot_instance: Bot, dispatcher: Dispatcher, updat
     except Exception as e:
         print(f"ERROR: Failed to process update {update_id}: {e}")
         print(f"ERROR: Traceback: {traceback.format_exc()}")
-
-
-# ==================== AUTHENTICATION ====================
-
-async def verify_telegram_auth(
-    authorization: str = Header(None, alias="Authorization"),
-    x_init_data: str = Header(None, alias="X-Init-Data")
-):
-    """
-    Verify Telegram Mini App authentication.
-    Accepts either:
-    - Authorization: tma <initData>
-    - X-Init-Data: <initData>
-    """
-    init_data = None
-    
-    # Try X-Init-Data header first (frontend sends this)
-    if x_init_data:
-        init_data = x_init_data
-    # Fallback to Authorization header
-    elif authorization:
-        parts = authorization.split(" ")
-        if len(parts) == 2 and parts[0].lower() == "tma":
-            init_data = parts[1]
-        else:
-            init_data = authorization  # Try raw value
-    
-    if not init_data:
-        raise HTTPException(status_code=401, detail="No authorization header")
-    
-    # For development/testing - allow bypass with special token
-    if init_data == "dev_bypass" and os.environ.get("DEBUG") == "true":
-        return {"id": 339469894, "first_name": "Test", "language_code": "ru"}
-    
-    if not validate_telegram_init_data(init_data, TELEGRAM_TOKEN):
-        raise HTTPException(status_code=401, detail="Invalid initData signature")
-    
-    user = extract_user_from_init_data(init_data)
-    if not user:
-        raise HTTPException(status_code=401, detail="Could not extract user")
-    
-    return user
 
 
 # ==================== PRODUCTS API ====================
@@ -1550,16 +1511,7 @@ async def remove_from_wishlist(product_id: str, user = Depends(verify_telegram_a
 
 
 # ==================== ADMIN API ====================
-
-async def verify_admin(user = Depends(verify_telegram_auth)):
-    """Verify that user is an admin"""
-    db = get_database()
-    db_user = await db.get_user_by_telegram_id(user.id)
-    
-    if not db_user or not db_user.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    return db_user
+# Authentication moved to core/auth.py (verify_admin, verify_telegram_auth)
 
 
 class AddStockRequest(BaseModel):
