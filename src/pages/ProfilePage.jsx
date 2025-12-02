@@ -281,7 +281,7 @@ export default function ProfilePage({ onBack }) {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium mb-1">{t('profile.yourReferralLink')}</p>
                 <p className="text-xs text-muted-foreground truncate font-mono">
-                  t.me/pvndora_ai_bot?start=ref_{user?.id}
+                  {`t.me/pvndora_ai_bot?start=ref_${user?.id}`}
                 </p>
               </div>
               <Button variant="outline" size="sm" onClick={handleCopyLink} className="gap-2">

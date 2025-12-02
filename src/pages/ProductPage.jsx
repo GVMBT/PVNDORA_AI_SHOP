@@ -113,7 +113,7 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
   const savings = msrp && final_price ? msrp - final_price : 0
   
   return (
-    <div className="pb-24">
+    <div className="pb-32">
       {/* Navigation Header */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50 p-4 flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8 rounded-full">
@@ -314,16 +314,24 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
         )}
       </div>
       
-      {/* Floating Action Button - above navigation (nav is h-16 = 64px) */}
-      <div className="fixed bottom-20 left-4 right-4 z-20 safe-area-bottom">
+      {/* Floating Action Button - above navigation (nav is h-16 = 64px + safe area) */}
+      <div className="fixed bottom-[calc(4rem+1rem+env(safe-area-inset-bottom))] left-4 right-4 z-40">
         <Button
           onClick={handleBuy}
           disabled={!isInStock && !can_fulfill_on_demand}
-          className="w-full h-14 text-lg shadow-xl shadow-primary/20 bg-gradient-to-r from-primary to-primary/80"
+          className="w-full h-14 text-lg font-semibold shadow-2xl shadow-primary/30 bg-gradient-to-r from-primary to-emerald-500 hover:from-primary/90 hover:to-emerald-500/90"
           size="lg"
         >
-          {isInStock ? t('product.buyNow') : can_fulfill_on_demand ? t('product.preorder') : t('product.notifyMe')}
-          {isInStock && <span className="ml-2">→</span>}
+          {isInStock ? (
+            <>
+              {t('product.buyNow')}
+              <span className="ml-2">→</span>
+            </>
+          ) : can_fulfill_on_demand ? (
+            t('product.preorder')
+          ) : (
+            t('product.notifyMe')
+          )}
         </Button>
       </div>
     </div>

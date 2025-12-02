@@ -174,7 +174,7 @@
 
   "subscription_expiring": "⏰ Your {product} subscription expires in {days} days. Renew now with a 10% discount!",
   "subscription_expired": "⌛ Your {product} subscription has expired. Would you like to renew?",
-  "reengagement_message": "👋 Hey{name}! Long time no see. We have new AI subscriptions and discounts. Check it out when you have a moment!",
+  "reengagement_message": "👋 Hey {name}! Long time no see. We have new AI subscriptions and discounts. Check it out when you have a moment!",
 
   "btn_shop": "🛒 Shop",
   "btn_buy": "💳 Buy Now",

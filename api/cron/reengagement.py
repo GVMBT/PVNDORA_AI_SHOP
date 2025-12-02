@@ -41,11 +41,13 @@ async def handler(request: Request):
         max_inactive = now - timedelta(days=14)
         reengagement_cutoff = now - timedelta(days=3)  # Don't spam
         
-        inactive_users = db.client.table("users").select(
-            "id,telegram_id,language_code,first_name,last_reengagement_at"
-        ).lt("last_activity_at", inactive_cutoff.isoformat()).gt(
-            "last_activity_at", max_inactive.isoformat()
-        ).eq("do_not_disturb", False).eq("is_banned", False).limit(50).execute()
+        inactive_users = await asyncio.to_thread(
+            lambda: db.client.table("users").select(
+                "id,telegram_id,language_code,first_name,last_reengagement_at"
+            ).lt("last_activity_at", inactive_cutoff.isoformat()).gt(
+                "last_activity_at", max_inactive.isoformat()
+            ).eq("do_not_disturb", False).eq("is_banned", False).limit(50).execute()
+        )
         
         sent_count = 0
         for user in (inactive_users.data or []):
@@ -78,9 +80,11 @@ async def handler(request: Request):
                     )
                 
                 # Update last_reengagement_at
-                db.client.table("users").update({
-                    "last_reengagement_at": now.isoformat()
-                }).eq("id", user["id"]).execute()
+                await asyncio.to_thread(
+                    lambda uid=user["id"]: db.client.table("users").update({
+                        "last_reengagement_at": now.isoformat()
+                    }).eq("id", uid).execute()
+                )
                 
                 sent_count += 1
             except Exception as e:
@@ -90,11 +94,13 @@ async def handler(request: Request):
         
         # 2. Wishlist reminders (items added 3+ days ago, not reminded yet)
         wishlist_cutoff = now - timedelta(days=3)
-        wishlist_items = db.client.table("wishlist").select(
-            "id,user_id,product_name,users(telegram_id,language_code)"
-        ).eq("reminded", False).lt(
-            "created_at", wishlist_cutoff.isoformat()
-        ).limit(50).execute()
+        wishlist_items = await asyncio.to_thread(
+            lambda: db.client.table("wishlist").select(
+                "id,user_id,product_name,users(telegram_id,language_code)"
+            ).eq("reminded", False).lt(
+                "created_at", wishlist_cutoff.isoformat()
+            ).limit(50).execute()
+        )
         
         wishlist_sent = 0
         for item in (wishlist_items.data or []):
@@ -121,9 +127,11 @@ async def handler(request: Request):
                     )
                 
                 # Mark as reminded
-                db.client.table("wishlist").update({
-                    "reminded": True
-                }).eq("id", item["id"]).execute()
+                await asyncio.to_thread(
+                    lambda item_id=item["id"]: db.client.table("wishlist").update({
+                        "reminded": True
+                    }).eq("id", item_id).execute()
+                )
                 
                 wishlist_sent += 1
             except Exception as e:
@@ -131,15 +139,17 @@ async def handler(request: Request):
         
         results["tasks"]["wishlist_reminders_sent"] = wishlist_sent
         
-        # 3. Expiring subscription notifications (3 days before expiry)
+        # 3. Expiring subscription notifications (2-4 days before expiry)
         expiry_window_start = now + timedelta(days=2)
         expiry_window_end = now + timedelta(days=4)
         
-        expiring_orders = db.client.table("orders").select(
-            "id,user_id,product_id,expires_at,products(name),users(telegram_id,language_code)"
-        ).eq("status", "completed").gte(
-            "expires_at", expiry_window_start.isoformat()
-        ).lte("expires_at", expiry_window_end.isoformat()).limit(50).execute()
+        expiring_orders = await asyncio.to_thread(
+            lambda: db.client.table("orders").select(
+                "id,user_id,product_id,expires_at,products(name),users(telegram_id,language_code)"
+            ).eq("status", "completed").gte(
+                "expires_at", expiry_window_start.isoformat()
+            ).lte("expires_at", expiry_window_end.isoformat()).limit(50).execute()
+        )
         
         expiry_sent = 0
         for order in (expiring_orders.data or []):
@@ -148,8 +158,18 @@ async def handler(request: Request):
             if not user_data or not product_data:
                 continue
             
+            # Calculate actual days left
+            expires_at_str = order.get("expires_at")
+            if expires_at_str:
+                try:
+                    expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
+                    days_left = (expires_at - now).days
+                except:
+                    days_left = 3  # fallback
+            else:
+                days_left = 3
+            
             lang = user_data.get("language_code", "en")
-            days_left = 3
             message = get_text(
                 "subscription_expiring", lang,
                 product=product_data.get("name", ""),
@@ -179,4 +199,3 @@ async def handler(request: Request):
         results["error"] = str(e)
     
     return JSONResponse(results)
-
