@@ -1,15 +1,68 @@
+# Python
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
+.Python
 venv/
+.venv/
+ENV/
+env/
+*.egg-info/
+.eggs/
+
+# Node
 node_modules/
 dist/
-.env
-.DS_Store
+.cache/
+.parcel-cache/
 
-# Research/notes files
-*.txt
-!locales/*.txt
+# Build outputs
+build/
+*.log
+
+# Environment
+.env
+.env.local
+.env.*.local
 
 # IDE
 .idea/
+.vscode/
 *.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Research/notes (don't include in bundle)
+*.txt
+!locales/*.txt
+research/
+notes/
+TODO.md
+
+# Test files
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+__tests__/
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp
+.temp/
+tmp/
+
+# Vercel
+.vercel/
+
+# Lock files (optional - некоторые проекты их коммитят)
+# package-lock.json
+# yarn.lock

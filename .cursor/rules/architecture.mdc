@@ -160,6 +160,25 @@ Ensure these are present in Vercel Project Settings:
 - **Validation:** Use `pydantic` for all data ingress (Telegram Updates, Webhook Payloads)
 - **Error Handling:** Use `tenacity` for retry logic on Pydantic validation errors
 
+## 5.1 Build Verification (CRITICAL)
+
+**Rule:** ALWAYS verify Vercel build status after pushing changes.
+
+**Workflow:**
+1. After `git push`, check Vercel deployment status
+2. If build fails, fix immediately before continuing
+3. Common failure causes:
+   - Missing UI components (Dialog, Label, etc.)
+   - Import errors
+   - TypeScript/JSX syntax errors
+   - Python import issues
+
+**Checklist before pushing:**
+- [ ] `npm run build` passes locally (or `vite build`)
+- [ ] `ruff check .` passes for Python files
+- [ ] All imported components exist
+- [ ] No circular imports
+
 ## 6. Key Principles
 
 1. **Always return fast** - Use BackgroundTasks for UX operations, QStash for critical operations
