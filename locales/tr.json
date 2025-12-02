@@ -6,6 +6,7 @@
   "error_generic": "❌ Bir şeyler yanlış gitti. Lütfen tekrar deneyin.",
   "error_no_stock": "😔 Bu ürün stokta yok. Bekleme listesine katılmak ister misiniz?",
   "error_payment": "❌ Ödeme başarısız. Bakiyenize yüklendi.",
+  "ai_audio_instruction": "Bu sesli mesajı dinle ve AI mağaza danışmanı olarak yanıt ver, sistem promptuna uyarak.",
   "product_card": "📦 {name}\n💰 Fiyat: {price}₺\n⭐ Puan: {rating}/5 ({reviews} yorum)\n{stock_status}\n\n{description}",
   "stock_available": "✅ Stokta var",
   "stock_empty": "❌ Stok yok",
@@ -78,7 +79,7 @@
     "contactBot": "Bot ile iletişime geç",
     "contactHint": "AI asistanımızla doğrudan sohbet edin",
     "email": "Email",
-    "emailAddress": "heevec@gmail.com",
+    "emailAddress": "support@pvndora.app",
     "workingHours": "Çalışma saatleri",
     "workingHoursText": "24/7, her zaman"
   },

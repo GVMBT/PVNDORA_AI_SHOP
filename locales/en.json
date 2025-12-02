@@ -6,6 +6,7 @@
   "error_generic": "❌ Something went wrong. Please try again later.",
   "error_no_stock": "😔 This product is currently out of stock. Would you like to join the waitlist?",
   "error_payment": "❌ Payment failed. Your funds have been credited to your balance.",
+  "ai_audio_instruction": "Listen to this voice message and respond as an AI store consultant, following the system prompt.",
 
   "common": {
     "back": "Back",
@@ -190,7 +191,7 @@
     "contactBot": "Contact Bot",
     "contactHint": "Chat directly with our AI assistant",
     "email": "Email",
-    "emailAddress": "heevec@gmail.com",
+    "emailAddress": "support@pvndora.app",
     "workingHours": "Working Hours",
     "workingHoursText": "24/7, around the clock"
   },

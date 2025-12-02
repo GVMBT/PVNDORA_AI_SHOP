@@ -6,6 +6,7 @@
   "error_generic": "❌ Etwas ist schiefgelaufen. Bitte versuchen Sie es später erneut.",
   "error_no_stock": "😔 Dieses Produkt ist derzeit nicht verfügbar. Möchten Sie auf die Warteliste?",
   "error_payment": "❌ Zahlung fehlgeschlagen. Ihr Guthaben wurde Ihrem Konto gutgeschrieben.",
+  "ai_audio_instruction": "Höre diese Sprachnachricht an und antworte als AI-Store-Berater gemäß dem Systemprompt.",
   
   "product_card": "📦 {name}\n💰 Preis: {price}€\n⭐ Bewertung: {rating}/5 ({reviews} Bewertungen)\n{stock_status}\n\n{description}",
   "stock_available": "✅ Auf Lager",
@@ -90,7 +91,7 @@
     "contactBot": "Bot kontaktieren",
     "contactHint": "Chatten Sie direkt mit unserem AI-Assistenten",
     "email": "E-Mail",
-    "emailAddress": "heevec@gmail.com",
+    "emailAddress": "support@pvndora.app",
     "workingHours": "Arbeitszeiten",
     "workingHoursText": "24/7, rund um die Uhr"
   },

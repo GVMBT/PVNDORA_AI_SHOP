@@ -172,11 +172,11 @@ class AIConsultant:
         # Get system prompt
         system_prompt = get_system_prompt(language, product_catalog)
         
-        # Encode audio as base64 (stored in message parts, not used directly)
-        base64.b64encode(voice_data).decode("utf-8")
-        
         # Build message with audio
         # Include explicit instruction to process as sales consultant query
+        from src.i18n import get_text
+        audio_instruction = get_text("ai_audio_instruction", language)
+        
         messages = [
             types.Content(
                 role="user",
@@ -185,9 +185,7 @@ class AIConsultant:
                         data=voice_data,
                         mime_type="audio/ogg"
                     ),
-                    types.Part.from_text(
-                        "Прослушай это голосовое сообщение и ответь как AI-консультант магазина, следуя системному промпту."
-                    )
+                    types.Part.from_text(audio_instruction)
                 ]
             )
         ]

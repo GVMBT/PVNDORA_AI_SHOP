@@ -6,6 +6,7 @@
   "error_generic": "❌ Une erreur s'est produite. Veuillez réessayer.",
   "error_no_stock": "😔 Ce produit est en rupture de stock. Voulez-vous être notifié?",
   "error_payment": "❌ Paiement échoué. Vos fonds ont été crédités.",
+  "ai_audio_instruction": "Écoute ce message vocal et réponds en tant que consultant IA du magasin, en suivant le prompt système.",
   "product_card": "📦 {name}\n💰 Prix: {price}€\n⭐ Note: {rating}/5 ({reviews} avis)\n{stock_status}\n\n{description}",
   "stock_available": "✅ En stock",
   "stock_empty": "❌ Rupture de stock",
@@ -78,7 +79,7 @@
     "contactBot": "Contacter le bot",
     "contactHint": "Chattez directement avec notre assistant AI",
     "email": "Email",
-    "emailAddress": "heevec@gmail.com",
+    "emailAddress": "support@pvndora.app",
     "workingHours": "Heures de travail",
     "workingHoursText": "24/7, en permanence"
   },

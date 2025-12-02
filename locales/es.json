@@ -6,6 +6,7 @@
   "error_generic": "❌ Algo salió mal. Inténtalo más tarde.",
   "error_no_stock": "😔 Este producto está agotado. ¿Quieres unirte a la lista de espera?",
   "error_payment": "❌ Pago fallido. Los fondos se han acreditado a tu saldo.",
+  "ai_audio_instruction": "Escucha este mensaje de voz y responde como consultor de IA de la tienda, siguiendo el prompt del sistema.",
   "product_card": "📦 {name}\n💰 Precio: {price}€\n⭐ Calificación: {rating}/5 ({reviews} reseñas)\n{stock_status}\n\n{description}",
   "stock_available": "✅ En stock",
   "stock_empty": "❌ Agotado",
@@ -78,7 +79,7 @@
     "contactBot": "Contactar bot",
     "contactHint": "Chatea directamente con nuestro asistente AI",
     "email": "Email",
-    "emailAddress": "heevec@gmail.com",
+    "emailAddress": "support@pvndora.app",
     "workingHours": "Horario de trabajo",
     "workingHoursText": "24/7, todo el día"
   },

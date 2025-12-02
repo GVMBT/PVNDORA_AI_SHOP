@@ -30,29 +30,29 @@ function pickLocale(lang) {
   return 'en';
 }
 
-// Font sources - prioritize CDNs that work in Russia
-// Latin and Cyrillic subsets for proper Russian support
-const FONT_SOURCES_LATIN = [
-  'https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.8/files/inter-latin-600-normal.woff',
-  'https://unpkg.com/@fontsource/inter@5.0.8/files/inter-latin-600-normal.woff',
+// Font sources - use FULL Inter font with ALL glyphs (Latin + Cyrillic + more)
+// CDNFonts works in Russia (unlike Google Fonts)
+const FONT_SOURCES = [
+  // CDNFonts - Full Inter with Cyrillic (works in Russia)
+  'https://fonts.cdnfonts.com/s/19795/Inter-SemiBold.woff',
+  // jsDelivr fontsource fallback (full Cyrillic)
+  'https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/cyrillic-600-normal.woff',
+  // Bunny CDN - Google Fonts alternative (works in Russia)
+  'https://fonts.bunny.net/inter/files/inter-cyrillic-600-normal.woff',
 ];
 
-const FONT_SOURCES_CYRILLIC = [
-  'https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.8/files/inter-cyrillic-600-normal.woff',
-  'https://unpkg.com/@fontsource/inter@5.0.8/files/inter-cyrillic-600-normal.woff',
-];
+// Module-level font cache
+let fontCache = null;
 
-// Fallback: Full Inter font with all glyphs from GitHub
-const FONT_SOURCES_FULL = [
-  'https://raw.githubusercontent.com/rsms/inter/v4.0/docs/font-files/Inter-SemiBold.woff',
-  'https://cdn.jsdelivr.net/gh/nicolo/inter-font@master/Inter%20(TTF%20hinted)/Inter-SemiBold.ttf',
-];
-
-async function loadFontFromSources(sources) {
-  for (const url of sources) {
+async function loadFont() {
+  if (fontCache) {
+    return fontCache;
+  }
+  
+  for (const url of FONT_SOURCES) {
     try {
       const response = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Vercel OG)' },
       });
       
       if (!response.ok) {
@@ -60,49 +60,18 @@ async function loadFontFromSources(sources) {
       }
       
       const data = await response.arrayBuffer();
-      if (data.byteLength > 1000) {
-        console.log(`Font loaded successfully from: ${url}`);
+      // Full font should be > 50KB, subsets are ~10-30KB
+      if (data.byteLength > 5000) {
+        console.log(`Font loaded: ${url} (${data.byteLength} bytes)`);
+        fontCache = data;
         return data;
       }
     } catch (error) {
-      console.warn(`Failed to load font from ${url}:`, error.message);
+      console.warn(`Font load failed ${url}:`, error.message);
     }
   }
-  return null;
-}
-
-// Cache fonts at module level
-let fontCacheLatin = null;
-let fontCacheCyrillic = null;
-let fontCacheFull = null;
-
-async function getFonts() {
-  // Try to load subset fonts first (smaller, faster)
-  if (!fontCacheLatin) {
-    fontCacheLatin = await loadFontFromSources(FONT_SOURCES_LATIN);
-  }
-  if (!fontCacheCyrillic) {
-    fontCacheCyrillic = await loadFontFromSources(FONT_SOURCES_CYRILLIC);
-  }
   
-  // If both subsets loaded, use them
-  if (fontCacheLatin && fontCacheCyrillic) {
-    return [
-      { name: 'Inter', data: fontCacheLatin, weight: 600, style: 'normal' },
-      { name: 'Inter', data: fontCacheCyrillic, weight: 600, style: 'normal' },
-    ];
-  }
-  
-  // Fallback to full font
-  if (!fontCacheFull) {
-    fontCacheFull = await loadFontFromSources(FONT_SOURCES_FULL);
-  }
-  
-  if (fontCacheFull) {
-    return [{ name: 'Inter', data: fontCacheFull, weight: 600, style: 'normal' }];
-  }
-  
-  throw new Error('Failed to load any font sources');
+  throw new Error('Failed to load font from any source');
 }
 
 export default async function handler(req, res) {
@@ -115,17 +84,15 @@ export default async function handler(req, res) {
       status: 'ok', 
       runtime: 'nodejs', 
       lib: 'satori+resvg',
-      fontSources: {
-        latin: FONT_SOURCES_LATIN,
-        cyrillic: FONT_SOURCES_CYRILLIC,
-        full: FONT_SOURCES_FULL,
-      },
+      fontSources: FONT_SOURCES,
+      fontCached: !!fontCache,
     });
   }
 
   try {
-    // Load fonts with Latin + Cyrillic support
-    const fonts = await getFonts();
+    // Load font with full Cyrillic support
+    const fontData = await loadFont();
+    const fonts = [{ name: 'Inter', data: fontData, weight: 600, style: 'normal' }];
 
     const lang = pickLocale(searchParams.get('lang') || 'ru');
     const copy = translations[lang];
