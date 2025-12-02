@@ -73,7 +73,7 @@ You MUST:
 BAD response: "Оформляю Gemini Ultra... [nothing about referral]"
 GOOD response: "Оформляю Gemini Ultra за 2000₽ под заказ! 📦
 
-А вот твоя реферальная ссылка: t.me/pvndora_bot?start=ref_XXX
+А вот твоя реферальная ссылка: t.me/pvndora_ai_bot?start=ref_XXX
 Приглашай друзей и получай 10% с их покупок! 💰"
 
 **If user wants MULTIPLE PRODUCTS in one message:**

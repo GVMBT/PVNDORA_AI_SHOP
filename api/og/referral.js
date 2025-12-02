@@ -3,6 +3,9 @@
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
 
+// Custom background image URL (hosted on the webapp)
+const BACKGROUND_IMAGE_URL = 'https://pvndora.app/assets/og-background.jpeg';
+
 const translations = {
   ru: {
     locale: 'ru-RU',
@@ -10,7 +13,7 @@ const translations = {
     savedPrefix: 'Я сэкономил',
     savedSuffix: 'на тарифах нейросетей',
     rankLabel: 'Место в рейтинге',
-    cta: 'Оплачиваю тарифы нейросетей за 20% от их стоимости',
+    cta: 'Получите доступ к топовым нейросетям в 5 раз дешевле официальных тарифов',
     handlePrefix: 'через',
   },
   en: {
@@ -19,7 +22,7 @@ const translations = {
     savedPrefix: 'I saved',
     savedSuffix: 'on AI subscriptions',
     rankLabel: 'Leaderboard rank',
-    cta: 'Get AI subscriptions for 20% of their cost',
+    cta: 'Get access to top AI tools at 5x cheaper than official prices',
     handlePrefix: 'via',
   },
 };
@@ -114,7 +117,7 @@ export default async function handler(req, res) {
     const formattedSaved = formatter.format(Number.isFinite(saved) ? saved : 0);
     const currencySymbol = lang === 'ru' ? '₽' : '$';
 
-    // Build Satori element structure
+    // Build Satori element structure with custom background
     const element = {
       type: 'div',
       props: {
@@ -122,46 +125,45 @@ export default async function handler(req, res) {
           width: '100%',
           height: '100%',
           display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          background: 'linear-gradient(145deg, #0c0a1d 0%, #1e1145 50%, #3b1d72 100%)',
+          position: 'relative',
           fontFamily: 'Inter',
           color: 'white',
-          padding: '50px 60px',
         },
         children: [
-          // Top badge
+          // Background image
           {
-            type: 'div',
+            type: 'img',
             props: {
+              src: BACKGROUND_IMAGE_URL,
               style: {
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: 'rgba(139, 92, 246, 0.3)',
-                borderRadius: '30px',
-                padding: '12px 30px',
-                fontSize: '22px',
-                letterSpacing: '0.15em',
-                marginTop: '10px',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
               },
-              children: copy.badge,
             },
           },
           
-          // Main content area
+          // Content overlay
           {
             type: 'div',
             props: {
               style: {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
                 display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
                 alignItems: 'center',
-                gap: '50px',
-                marginTop: '20px',
+                padding: '40px 60px',
               },
               children: [
-                // Avatar with glow effect
+                // Top badge
                 {
                   type: 'div',
                   props: {
@@ -169,153 +171,188 @@ export default async function handler(req, res) {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      borderRadius: '50%',
-                      padding: '6px',
-                      background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
+                      backgroundColor: 'rgba(30, 20, 45, 0.85)',
+                      border: '1px solid rgba(139, 92, 246, 0.5)',
+                      borderRadius: '30px',
+                      padding: '12px 30px',
+                      fontSize: '20px',
+                      letterSpacing: '0.12em',
                     },
-                    children: {
-                      type: 'img',
-                      props: {
-                        src: avatar,
-                        width: 160,
-                        height: 160,
-                        style: {
-                          borderRadius: '50%',
-                          border: '4px solid #1e1145',
-                        },
-                      },
-                    },
+                    children: copy.badge,
                   },
                 },
                 
-                // Stats block
-                {
-                  type: 'div',
-                  props: {
-                    style: {
-                      display: 'flex',
-                      flexDirection: 'column',
-                    },
-                    children: [
-                      // Saved amount - big number
-                      {
-                        type: 'div',
-                        props: {
-                          style: {
-                            fontSize: '72px',
-                            fontWeight: 600,
-                            lineHeight: 1.1,
-                            background: 'linear-gradient(90deg, #fff 0%, #c4b5fd 100%)',
-                            backgroundClip: 'text',
-                            color: 'transparent',
-                          },
-                          children: `${formattedSaved}${currencySymbol}`,
-                        },
-                      },
-                      // Saved text
-                      {
-                        type: 'div',
-                        props: {
-                          style: {
-                            fontSize: '28px',
-                            opacity: 0.85,
-                            marginTop: '8px',
-                          },
-                          children: `${copy.savedPrefix} ${copy.savedSuffix}`,
-                        },
-                      },
-                      // Rank if available
-                      rank ? {
-                        type: 'div',
-                        props: {
-                          style: {
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            marginTop: '20px',
-                            color: '#fbbf24',
-                          },
-                          children: [
-                            {
-                              type: 'span',
-                              props: {
-                                style: { fontSize: '24px' },
-                                children: `🏆 ${copy.rankLabel}:`,
-                              },
-                            },
-                            {
-                              type: 'span',
-                              props: {
-                                style: { 
-                                  fontSize: '42px', 
-                                  fontWeight: 600,
-                                },
-                                children: `#${rank}`,
-                              },
-                            },
-                          ],
-                        },
-                      } : null,
-                    ].filter(Boolean),
-                  },
-                },
-              ],
-            },
-          },
-          
-          // Bottom CTA and branding
-          {
-            type: 'div',
-            props: {
-              style: {
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '16px',
-                marginBottom: '10px',
-              },
-              children: [
-                // CTA text
-                {
-                  type: 'div',
-                  props: {
-                    style: {
-                      fontSize: '26px',
-                      color: '#c4b5fd',
-                      textAlign: 'center',
-                    },
-                    children: copy.cta,
-                  },
-                },
-                // Bot handle
+                // Main content area
                 {
                   type: 'div',
                   props: {
                     style: {
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '8px',
-                      fontSize: '22px',
-                      opacity: 0.7,
+                      gap: '50px',
                     },
                     children: [
+                      // Avatar with glow effect (positioned to overlap with purple circle)
                       {
-                        type: 'span',
+                        type: 'div',
                         props: {
-                          children: `${copy.handlePrefix} ${handle}`,
+                          style: {
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '50%',
+                            padding: '5px',
+                            background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
+                            boxShadow: '0 0 40px rgba(168, 85, 247, 0.5)',
+                          },
+                          children: {
+                            type: 'img',
+                            props: {
+                              src: avatar,
+                              width: 130,
+                              height: 130,
+                              style: {
+                                borderRadius: '50%',
+                                border: '3px solid #1e1145',
+                              },
+                            },
+                          },
                         },
                       },
+                      
+                      // Stats block
                       {
-                        type: 'span',
+                        type: 'div',
                         props: {
-                          style: { margin: '0 12px' },
-                          children: '•',
+                          style: {
+                            display: 'flex',
+                            flexDirection: 'column',
+                          },
+                          children: [
+                            // Saved amount - big number with gradient
+                            {
+                              type: 'div',
+                              props: {
+                                style: {
+                                  fontSize: '68px',
+                                  fontWeight: 600,
+                                  lineHeight: 1.1,
+                                  color: '#ffffff',
+                                  textShadow: '0 0 30px rgba(168, 85, 247, 0.5)',
+                                },
+                                children: `${formattedSaved}${currencySymbol}`,
+                              },
+                            },
+                            // Saved text
+                            {
+                              type: 'div',
+                              props: {
+                                style: {
+                                  fontSize: '24px',
+                                  color: 'rgba(255, 255, 255, 0.85)',
+                                  marginTop: '8px',
+                                },
+                                children: `${copy.savedPrefix} ${copy.savedSuffix}`,
+                              },
+                            },
+                            // Rank if available
+                            rank ? {
+                              type: 'div',
+                              props: {
+                                style: {
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '10px',
+                                  marginTop: '16px',
+                                },
+                                children: [
+                                  {
+                                    type: 'span',
+                                    props: {
+                                      style: { 
+                                        fontSize: '22px',
+                                        color: '#fbbf24',
+                                      },
+                                      children: `🏆 ${copy.rankLabel}:`,
+                                    },
+                                  },
+                                  {
+                                    type: 'span',
+                                    props: {
+                                      style: { 
+                                        fontSize: '38px', 
+                                        fontWeight: 600,
+                                        color: '#fbbf24',
+                                      },
+                                      children: `#${rank}`,
+                                    },
+                                  },
+                                ],
+                              },
+                            } : null,
+                          ].filter(Boolean),
                         },
                       },
+                    ],
+                  },
+                },
+                
+                // Bottom CTA and branding
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '10px',
+                    },
+                    children: [
+                      // CTA text
                       {
-                        type: 'span',
+                        type: 'div',
                         props: {
-                          children: 'PVNDORA',
+                          style: {
+                            fontSize: '22px',
+                            color: 'rgba(255, 255, 255, 0.9)',
+                            textAlign: 'center',
+                            maxWidth: '800px',
+                          },
+                          children: copy.cta,
+                        },
+                      },
+                      // Bot handle
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontSize: '18px',
+                            color: 'rgba(255, 255, 255, 0.6)',
+                          },
+                          children: [
+                            {
+                              type: 'span',
+                              props: {
+                                children: `${copy.handlePrefix} ${handle}`,
+                              },
+                            },
+                            {
+                              type: 'span',
+                              props: {
+                                style: { margin: '0 8px' },
+                                children: '•',
+                              },
+                            },
+                            {
+                              type: 'span',
+                              props: {
+                                children: 'PVNDORA',
+                              },
+                            },
+                          ],
                         },
                       },
                     ],

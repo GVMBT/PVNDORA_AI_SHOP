@@ -544,27 +544,45 @@ class Database:
     
     # ==================== REFERRAL ====================
     
+    # 3-level referral commission rates
+    REFERRAL_LEVELS = [
+        {"level": 1, "percent": 20},  # Direct referrer
+        {"level": 2, "percent": 10},  # Referrer's referrer  
+        {"level": 3, "percent": 5},   # 3rd level
+    ]
+    
     async def process_referral_bonus(self, order: Order) -> None:
-        """Process referral bonus for completed order"""
-        # Get user with referrer
-        user_result = self.client.table("users").select(
-            "referrer_id,personal_ref_percent"
-        ).eq("id", order.user_id).execute()
+        """
+        Process 3-level referral bonus for completed order.
+        Level 1: 20% to direct referrer
+        Level 2: 10% to referrer's referrer
+        Level 3: 5% to 3rd level referrer
+        """
+        current_user_id = order.user_id
         
-        if not user_result.data or not user_result.data[0].get("referrer_id"):
-            return
-        
-        referrer_id = user_result.data[0]["referrer_id"]
-        
-        # Get referrer's commission rate
-        referrer = self.client.table("users").select(
-            "personal_ref_percent"
-        ).eq("id", referrer_id).execute()
-        
-        if referrer.data:
-            percent = referrer.data[0].get("personal_ref_percent", 20)
+        for level_config in self.REFERRAL_LEVELS:
+            level = level_config["level"]
+            percent = level_config["percent"]
+            
+            # Get user's referrer
+            user_result = self.client.table("users").select(
+                "referrer_id"
+            ).eq("id", current_user_id).execute()
+            
+            if not user_result.data or not user_result.data[0].get("referrer_id"):
+                break  # No more referrers in chain
+            
+            referrer_id = user_result.data[0]["referrer_id"]
+            
+            # Calculate and award bonus
             bonus = order.amount * (percent / 100)
             await self.update_user_balance(referrer_id, bonus)
+            
+            # Log referral bonus
+            print(f"Referral L{level}: {percent}% = {bonus}₽ to user {referrer_id}")
+            
+            # Move up the chain for next level
+            current_user_id = referrer_id
 
 
 # Singleton instance

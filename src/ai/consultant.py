@@ -185,7 +185,7 @@ class AIConsultant:
                         data=voice_data,
                         mime_type="audio/ogg"
                     ),
-                    types.Part.from_text(audio_instruction)
+                    types.Part.from_text(text=audio_instruction)
                 ]
             )
         ]

@@ -727,7 +727,7 @@ async def execute_tool(
             
             return {
                 "success": True,
-                "referral_link": f"https://t.me/pvndora_bot?start=ref_{user['telegram_id']}",
+                "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{user['telegram_id']}",
                 "referral_percent": user["personal_ref_percent"],
                 "total_referrals": referrals.count if referrals.count else 0,
                 "balance": user["balance"]

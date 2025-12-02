@@ -72,7 +72,7 @@ export default function LeaderboardPage({ onBack }) {
       console.error('Share failed:', err)
       
       // Fallback: Copy link
-      const refLink = `https://t.me/PVNDORABot?start=ref_${user?.id}`
+      const refLink = `https://t.me/pvndora_ai_bot?start=ref_${user?.id}`
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(refLink)
         showPopup({
@@ -87,7 +87,7 @@ export default function LeaderboardPage({ onBack }) {
   }
   
   const handleCopyLink = async () => {
-    const refLink = `https://t.me/PVNDORABot?start=ref_${user?.id}`
+    const refLink = `https://t.me/pvndora_ai_bot?start=ref_${user?.id}`
     try {
         await navigator.clipboard.writeText(refLink)
         // Show toast/notification (using popup for now)
