@@ -3,7 +3,19 @@ import { useProducts } from '../hooks/useApi'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
 import StarRating from '../components/StarRating'
-import { ArrowLeft, Star, Clock, Package, ShieldCheck, FileText } from 'lucide-react'
+import { 
+  ArrowLeft, 
+  Star, 
+  Clock, 
+  Package, 
+  ShieldCheck, 
+  FileText, 
+  Share2, 
+  Heart,
+  Zap,
+  Users,
+  CheckCircle
+} from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Skeleton } from '../components/ui/skeleton'
@@ -165,6 +177,28 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
           </p>
         )}
 
+        {/* Key Benefits */}
+        <div className="flex flex-wrap gap-2">
+          {isInStock && (
+            <div className="flex items-center gap-1.5 text-xs bg-green-500/10 text-green-500 px-3 py-1.5 rounded-full">
+              <Zap className="h-3 w-3" />
+              <span>{t('product.instantDelivery')}</span>
+            </div>
+          )}
+          {warranty_days > 0 && (
+            <div className="flex items-center gap-1.5 text-xs bg-blue-500/10 text-blue-500 px-3 py-1.5 rounded-full">
+              <ShieldCheck className="h-3 w-3" />
+              <span>{warranty_days}d {t('product.warranty')}</span>
+            </div>
+          )}
+          {socialProof?.sales_count > 10 && (
+            <div className="flex items-center gap-1.5 text-xs bg-purple-500/10 text-purple-500 px-3 py-1.5 rounded-full">
+              <Users className="h-3 w-3" />
+              <span>{socialProof.sales_count}+ {t('product.sold')}</span>
+            </div>
+          )}
+        </div>
+
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
           {warranty_days > 0 && (
@@ -186,6 +220,30 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
                 <div>
                   <p className="text-xs text-muted-foreground">{t('product.duration')}</p>
                   <p className="font-semibold">{duration_days} {t('common.days')}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {fulfillment_time_hours && !isInStock && can_fulfill_on_demand && (
+            <Card className="bg-card/50 border-none">
+              <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                <Clock className="h-6 w-6 text-yellow-500" />
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('product.fulfillmentTime')}</p>
+                  <p className="font-semibold">{fulfillment_time_hours}h</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {available_count > 0 && (
+            <Card className="bg-card/50 border-none">
+              <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                <Package className="h-6 w-6 text-green-500" />
+                <div>
+                  <p className="text-xs text-muted-foreground">{t('product.available')}</p>
+                  <p className="font-semibold">{available_count} {t('product.units')}</p>
                 </div>
               </CardContent>
             </Card>

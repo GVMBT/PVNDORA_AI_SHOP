@@ -43,16 +43,19 @@
     "onDemand": "On Demand",
     "sold": "sold",
     "save": "Save",
-    "available": "available",
+    "available": "In Stock",
+    "units": "pcs",
     "reviews": "reviews",
-    "warranty": "Warranty",
+    "warranty": "warranty",
     "duration": "Duration",
     "instructions": "Instructions",
     "recentReviews": "Recent Reviews",
     "buyNow": "Buy Now",
     "preorder": "Pre-order",
     "notifyMe": "Notify Me",
-    "notFound": "Product not found"
+    "notFound": "Product not found",
+    "instantDelivery": "Instant Delivery",
+    "fulfillmentTime": "Fulfillment Time"
   },
 
   "orders": {

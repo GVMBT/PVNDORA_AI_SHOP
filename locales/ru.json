@@ -43,16 +43,19 @@
     "onDemand": "Под заказ",
     "sold": "продано",
     "save": "Экономия",
-    "available": "доступно",
+    "available": "В наличии",
+    "units": "шт.",
     "reviews": "отзывов",
-    "warranty": "Гарантия",
+    "warranty": "гарантия",
     "duration": "Срок действия",
     "instructions": "Инструкция",
     "recentReviews": "Последние отзывы",
     "buyNow": "Купить",
     "preorder": "Предзаказ",
     "notifyMe": "Уведомить",
-    "notFound": "Товар не найден"
+    "notFound": "Товар не найден",
+    "instantDelivery": "Мгновенная выдача",
+    "fulfillmentTime": "Время изготовления"
   },
 
   "orders": {
