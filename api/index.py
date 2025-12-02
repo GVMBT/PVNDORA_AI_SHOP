@@ -49,15 +49,22 @@ except ImportError as e:
     raise
 
 # Lazy-loaded singletons for reducing cold start
-from core.routers.deps import (
-    get_notification_service,
-    get_payment_service,
-    get_queue_publisher,
-    verify_qstash
-)
-
-# Unified authentication
-from core.auth import verify_telegram_auth, verify_admin, verify_cron_secret
+try:
+    from core.routers.deps import (
+        get_notification_service,
+        get_payment_service,
+        get_queue_publisher,
+        verify_qstash
+    )
+    
+    # Unified authentication
+    from core.auth import verify_telegram_auth, verify_admin, verify_cron_secret
+except ImportError as e:
+    import traceback
+    print(f"ERROR: Failed to import core modules: {e}")
+    print(f"ERROR: sys.path = {sys.path}")
+    print(f"ERROR: Traceback: {traceback.format_exc()}")
+    raise
 
 
 # ==================== BOT INITIALIZATION ====================

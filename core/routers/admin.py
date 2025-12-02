@@ -8,7 +8,7 @@ Requires Telegram Mini App authentication with admin privileges.
 import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel
 
 from src.services.database import get_database
