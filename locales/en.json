@@ -22,7 +22,7 @@
     "catalog": "Catalog",
     "orders": "Orders",
     "leaderboard": "Leaderboard",
-    "faq": "FAQ"
+    "profile": "Profile"
   },
 
   "catalog": {
@@ -260,5 +260,51 @@
     "payment": "Payment",
     "terms": "Terms",
     "privacy": "Privacy"
+  },
+
+  "profile": {
+    "title": "Profile",
+    "balance": "Balance",
+    "totalEarned": "Total earned",
+    "withdraw": "Withdraw",
+    "invite": "Invite",
+    "minWithdrawalNote": "Minimum withdrawal: {min}",
+    "yourReferralLink": "Your referral link",
+    "referralNetwork": "Referral Network",
+    "level1": "Level 1",
+    "level2": "Level 2",
+    "level3": "Level 3",
+    "commission": "commission",
+    "recentBonuses": "Recent Bonuses",
+    "referralBonus": "Referral bonus",
+    "withdrawalHistory": "Withdrawal History",
+    "howItWorks": "How it works",
+    "tip1": "Invite friends using your referral link",
+    "tip2": "Earn 20% from their purchases (Level 1)",
+    "tip3": "Earn bonuses from your referrals' referrals (Levels 2-3)",
+    "withdrawTitle": "Withdraw Funds",
+    "withdrawDescription": "Enter amount and select payout method",
+    "amount": "Amount",
+    "available": "Available",
+    "paymentMethod": "Payout Method",
+    "paymentDetails": "Payment Details",
+    "method": {
+      "card": "Card",
+      "phone": "Phone",
+      "crypto": "Crypto"
+    },
+    "requestWithdrawal": "Request Withdrawal",
+    "minWithdrawal": "Minimum amount: {min}",
+    "insufficientBalance": "Insufficient balance",
+    "enterPaymentDetails": "Enter payment details",
+    "withdrawalRequested": "Withdrawal request submitted! We'll process it within 24 hours.",
+    "linkCopied": "Link copied!",
+    "shareText": "I saved {saved} on AI subscriptions with PVNDORA! Join me:",
+    "status": {
+      "pending": "Pending",
+      "processing": "Processing",
+      "completed": "Completed",
+      "rejected": "Rejected"
+    }
   }
 }

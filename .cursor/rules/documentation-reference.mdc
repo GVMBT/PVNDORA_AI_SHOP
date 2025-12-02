@@ -41,6 +41,16 @@ description: How to use project documentation and when to reference it
 - **`docs/cicd-pipeline.md`** - CI/CD pipeline and deployment strategy
 - **`docs/QSTASH_EXPLAINED.md`** - QStash explanation and usage patterns
 
+## Cursor Rules Index
+
+| Rule File | Purpose |
+|-----------|---------|
+| `architecture.mdc` | Архитектурные паттерны, структура проекта, code style |
+| `platform-limits.mdc` | **Жёсткие лимиты Vercel**, квоты, TMA-специфика |
+| `localization-configuration.mdc` | Локализация бота, i18n стратегия |
+| `research-guidelines.mdc` | Использование Exa/Ref для исследований |
+| `documentation-reference.mdc` | Навигация по документации (этот файл) |
+
 ## Rules vs Documentation
 
 **`.cursor/rules/`** - Quick implementation rules (always applied by IDE)
@@ -48,6 +58,7 @@ description: How to use project documentation and when to reference it
 - Focus: "What to do" and "How to implement"
 - Format: Concise, actionable patterns
 - Usage: Automatic context for AI assistant
+- **Platform Limits:** See `platform-limits.mdc` for Vercel hard limits
 
 **`docs/`** - Detailed specifications (read when needed)
 
@@ -83,6 +94,14 @@ description: How to use project documentation and when to reference it
 1. Start with `docs/Brief.md` for requirements
 2. Check `docs/ON_DEMAND_ORDERS.md` for order model
 3. Reference `docs/CURRENCY_LOCALIZATION.md` for pricing
+
+### Checking Platform Constraints
+
+1. **Before adding dependencies:** Check `.cursor/rules/platform-limits.mdc` Section 2.1 (250MB bundle limit)
+2. **Before handling uploads:** Section 2.1 (4.5MB payload limit) → use Presigned URLs
+3. **Before long-running tasks:** Section 2.2 (timeout limits) → use QStash
+4. **Before using Vercel DB:** Section 4 → prefer Supabase
+5. **For commercial features:** Section 6 → Vercel Pro required
 
 ## Best Practices
 

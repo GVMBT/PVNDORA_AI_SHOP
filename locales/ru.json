@@ -22,7 +22,7 @@
     "catalog": "Каталог",
     "orders": "Заказы",
     "leaderboard": "Рейтинг",
-    "faq": "FAQ"
+    "profile": "Профиль"
   },
 
   "catalog": {
@@ -260,5 +260,51 @@
     "payment": "Оплата",
     "terms": "Условия",
     "privacy": "Конфиденциальность"
+  },
+
+  "profile": {
+    "title": "Профиль",
+    "balance": "Баланс",
+    "totalEarned": "Всего заработано",
+    "withdraw": "Вывести",
+    "invite": "Пригласить",
+    "minWithdrawalNote": "Минимальная сумма для вывода: {min}",
+    "yourReferralLink": "Ваша реферальная ссылка",
+    "referralNetwork": "Реферальная сеть",
+    "level1": "Уровень 1",
+    "level2": "Уровень 2", 
+    "level3": "Уровень 3",
+    "commission": "комиссия",
+    "recentBonuses": "Последние начисления",
+    "referralBonus": "Реферальный бонус",
+    "withdrawalHistory": "История выводов",
+    "howItWorks": "Как это работает",
+    "tip1": "Приглашайте друзей по реферальной ссылке",
+    "tip2": "Получайте 20% с их покупок (1 уровень)",
+    "tip3": "Получайте бонусы с покупок рефералов ваших рефералов (2-3 уровень)",
+    "withdrawTitle": "Вывод средств",
+    "withdrawDescription": "Введите сумму и выберите способ получения",
+    "amount": "Сумма",
+    "available": "Доступно",
+    "paymentMethod": "Способ получения",
+    "paymentDetails": "Реквизиты",
+    "method": {
+      "card": "Карта",
+      "phone": "СБП",
+      "crypto": "Крипто"
+    },
+    "requestWithdrawal": "Запросить вывод",
+    "minWithdrawal": "Минимальная сумма: {min}",
+    "insufficientBalance": "Недостаточно средств",
+    "enterPaymentDetails": "Введите реквизиты для получения",
+    "withdrawalRequested": "Заявка на вывод создана! Мы обработаем её в течение 24 часов.",
+    "linkCopied": "Ссылка скопирована!",
+    "shareText": "Я сэкономил {saved} на AI подписках с PVNDORA! Присоединяйся:",
+    "status": {
+      "pending": "Ожидает",
+      "processing": "Обработка",
+      "completed": "Выполнен",
+      "rejected": "Отклонён"
+    }
   }
 }

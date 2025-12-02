@@ -8,6 +8,7 @@ import CatalogPage from './pages/CatalogPage'
 import ProductPage from './pages/ProductPage'
 import OrdersPage from './pages/OrdersPage'
 import LeaderboardPage from './pages/LeaderboardPage'
+import ProfilePage from './pages/ProfilePage'
 import FAQPage from './pages/FAQPage'
 import CheckoutPage from './pages/CheckoutPage'
 import AdminPage from './pages/AdminPage'
@@ -75,6 +76,8 @@ export default function App() {
         setCurrentPage('leaderboard')
       } else if (startapp === 'faq') {
         setCurrentPage('faq')
+      } else if (startapp === 'profile') {
+        setCurrentPage('profile')
       } else if (startapp === 'contacts') {
         setCurrentPage('contacts')
       } else if (startapp === 'refund') {
@@ -150,6 +153,8 @@ export default function App() {
         return <OrdersPage onBack={() => navigateTo('catalog')} />
       case 'leaderboard':
         return <LeaderboardPage onBack={() => navigateTo('catalog')} />
+      case 'profile':
+        return <ProfilePage onBack={() => navigateTo('catalog')} />
       case 'faq':
         return <FAQPage onBack={() => navigateTo('catalog')} onNavigate={navigateTo} />
       case 'contacts':

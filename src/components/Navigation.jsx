@@ -1,13 +1,13 @@
 import React from 'react'
 import { useLocale } from '../hooks/useLocale'
-import { ShoppingBag, Package, Trophy, HelpCircle, Shield } from 'lucide-react'
+import { ShoppingBag, Package, Trophy, User, Shield } from 'lucide-react'
 import { cn } from '../lib/utils'
 
 const navItems = [
   { id: 'catalog', icon: ShoppingBag, labelKey: 'nav.catalog' },
   { id: 'orders', icon: Package, labelKey: 'nav.orders' },
   { id: 'leaderboard', icon: Trophy, labelKey: 'nav.leaderboard' },
-  { id: 'faq', icon: HelpCircle, labelKey: 'nav.faq' }
+  { id: 'profile', icon: User, labelKey: 'nav.profile' }
 ]
 
 export default function Navigation({ currentPage, onNavigate, isAdmin = false }) {

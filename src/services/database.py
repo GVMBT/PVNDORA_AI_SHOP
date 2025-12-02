@@ -584,18 +584,20 @@ class Database:
             bonus = round(order.amount * (percent / 100), 2)
             await self.update_user_balance(referrer_id, bonus)
             
-            # Log referral bonus to analytics
-            self.client.table("analytics_events").insert({
+            # Log referral bonus to dedicated table for tracking
+            self.client.table("referral_bonuses").insert({
                 "user_id": referrer_id,
-                "event_type": "referral_bonus",
-                "metadata": {
-                    "level": level,
-                    "percent": percent,
-                    "bonus": bonus,
-                    "order_id": str(order.id),
-                    "order_amount": float(order.amount),
-                    "from_user_id": str(order.user_id)
-                }
+                "from_user_id": str(order.user_id),
+                "order_id": str(order.id),
+                "level": level,
+                "percent": percent,
+                "amount": bonus
+            }).execute()
+            
+            # Also update total_referral_earnings
+            self.client.rpc("increment_referral_earnings", {
+                "p_user_id": referrer_id,
+                "p_amount": bonus
             }).execute()
             
             bonuses_awarded.append({

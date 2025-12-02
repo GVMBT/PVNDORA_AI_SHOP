@@ -1,0 +1,218 @@
+---
+alwaysApply: true
+---
+# Vercel Platform Limits & Telegram Mini App Constraints
+
+**Context:** PVNDORA — Telegram Mini App (TMA) на Vercel.  
+**Architecture:** Hybrid Monorepo (React/Vite Frontend + Python/FastAPI Backend + Supabase + Upstash Redis).
+
+---
+
+## 1. DEPLOYMENT MODEL
+
+| Layer | Type | Notes |
+|-------|------|-------|
+| Frontend | Static Site (Vite) | Served via Vercel Edge Network |
+| Backend | Serverless Function | Single entry point `api/index.py` ("Monolithic Function" pattern) |
+| Runtime | Python 3.12 | Standardized by Vercel |
+| Region | Auto | Backend resolves to AWS Lambda regions (e.g., IAD1) |
+
+---
+
+## 2. HARD LIMITS (NON-NEGOTIABLE)
+
+*Превышение этих лимитов вызывает немедленные ошибки.*
+
+### 2.1. Compute & Bundle
+
+| Limit | Value | Impact |
+|-------|-------|--------|
+| **Function Bundle Size** | 250 MB (uncompressed) | Python не поддерживает tree-shaking. Все библиотеки из `requirements.txt` включаются |
+| **Payload Size** | 4.5 MB (request & response) | Ограничение AWS Lambda/API Gateway |
+| **Environment Variables** | 64 KB total | Нельзя хранить большие JSON или RSA ключи |
+
+**Mitigation:**
+- Используй `excludeFiles` в `vercel.json` для тестов/документации
+- **НИКОГДА** не обрабатывай загрузку файлов через API — используй Client-side Direct Upload (Presigned URLs) в S3/Supabase Storage
+- Тяжёлые библиотеки (Pandas, NumPy, Torch) → выноси на Docker-платформы (Railway/VPS)
+
+### 2.2. Execution Timeouts (maxDuration)
+
+| Plan | Default | Maximum | Notes |
+|------|---------|---------|-------|
+| **Hobby** (Legacy) | 10 sec | 10 sec | Hard stop |
+| **Hobby** (Fluid Compute) | 60 sec | 300 sec (5 min) | Requires opt-in |
+| **Pro** | 60 sec | 900 sec (15 min) | Via `vercel.json` |
+
+**Rule:** Задачи >5 минут (AI генерация, видео) → **обязательно асинхронно** через QStash/Background Workers.
+
+---
+
+## 3. NETWORK & TRAFFIC QUOTAS
+
+### 3.1. Fast Origin Transfer (Backend ↔ Edge)
+
+| Plan | Limit | Overage |
+|------|-------|---------|
+| **Hobby** | 10 GB/month | N/A (hard limit) |
+| **Pro** | 100 GB/month | $0.06/GB |
+
+**Warning:** Это трафик между Frontend и Backend. Большие JSON-ответы быстро истощают лимит.
+
+### 3.2. Fast Data Transfer (Frontend → User)
+
+| Plan | Limit |
+|------|-------|
+| **Hobby** | 100 GB/month |
+| **Pro** | 1 TB/month |
+
+### 3.3. Image Optimization
+
+| Limit | Value |
+|-------|-------|
+| Max Source Resolution | 8192×8192 |
+| Max Optimized Size | 10 MB |
+| **Hobby Transformations** | 1,000–5,000 (hard limit) |
+
+**Risk:** При исчерпании лимита → **402 Payment Required**, изображения ломаются.
+
+---
+
+## 4. DATABASE & STATE CONSTRAINTS
+
+### 4.1. Vercel Postgres (Neon) — НЕ ИСПОЛЬЗОВАТЬ
+
+| Limit | Value | Trap |
+|-------|-------|------|
+| Compute Time (Hobby) | 60 hours/month | DB остаётся "активной" 5 мин после запроса |
+
+**Trap:** 1 запрос каждые 10 минут → DB активна 24/7 → лимит исчерпан за ~3 дня.
+
+**Rule:** **НЕ использовать Vercel Postgres на Hobby для Production.** Используй Supabase с `supabase-py` HTTP клиентом.
+
+### 4.2. Vercel KV (Redis)
+
+| Plan | Limit |
+|------|-------|
+| **Hobby** | ~3,000 requests/day |
+
+**Rule:** Нельзя использовать для Rate Limiting middleware на Hobby. Используй Upstash Redis.
+
+---
+
+## 5. OPERATIONAL LIMITS (DEVOPS)
+
+### 5.1. Logs & Observability
+
+| Plan | Retention | Log Drains |
+|------|-----------|------------|
+| **Hobby** | 1 hour | ❌ |
+| **Pro** | 1 day (default) | ✅ (paid bandwidth) |
+
+**Impact:** На Hobby невозможно дебажить пост-инциденты.
+
+### 5.2. Cron Jobs
+
+| Plan | Max Jobs | Min Frequency | Time Drift |
+|------|----------|---------------|------------|
+| **Hobby** | 2 | Daily | ±1 hour |
+| **Pro** | 40 | Minutely | Minimal |
+
+### 5.3. Build System
+
+| Plan | Concurrency | Timeout |
+|------|-------------|---------|
+| **Hobby** | 1 slot | 45 min |
+| **Pro** | 12 slots | 45 min |
+
+### 5.4. Firewall & WAF
+
+| Plan | Custom Rules | IP Blocks |
+|------|--------------|-----------|
+| **Hobby** | 3 | 10 |
+| **Pro** | 40 | 100 |
+
+---
+
+## 6. COMMERCIAL POLICY (TERMS OF SERVICE)
+
+### Hobby Plan — STRICTLY NON-COMMERCIAL
+
+**Запрещено:**
+- Сайты с рекламой (AdSense)
+- Affiliate ссылки
+- Payment processing (Stripe/Crypto)
+- Корпоративные лендинги (даже pre-revenue)
+
+**Enforcement:** Автоматический мониторинг + ручная проверка. Риск **немедленной блокировки без уведомления**.
+
+**Rule:** Для PVNDORA (AI Marketplace с платежами) → **Vercel Pro обязателен с Day-1**.
+
+---
+
+## 7. TELEGRAM MINI APP SPECIFICS
+
+### 7.1. SDK
+
+```typescript
+// Используй официальный SDK
+import { ... } from '@telegram-apps/sdk-react';
+```
+
+### 7.2. UX Hardening (Bot API 8.0+)
+
+**Problem:** Вертикальный свайп закрывает Mini App.
+
+**Solution:**
+```typescript
+// На mount компонента
+tg.requestFullscreen();
+```
+
+```css
+/* Предотвращает "rubber-banding" */
+body {
+  overscroll-behavior-y: none;
+}
+```
+
+### 7.3. Asset Safety
+
+**Rule:** Всегда валидируй размер `ArrayBuffer` при загрузке шрифтов для OG-изображений:
+
+```typescript
+// api/og/referral.js
+const fontData = await fetch(fontUrl).then(r => r.arrayBuffer());
+if (fontData.byteLength === 0) {
+  throw new Error('Font file is empty');
+}
+```
+
+---
+
+## 8. AI ASSISTANT INSTRUCTIONS
+
+При генерации кода **ВСЕГДА** проверяй эти лимиты:
+
+1. ❌ **НЕ** предлагай загрузку файлов на сервер — используй Presigned URLs
+2. ⚠️ **ПРЕДУПРЕЖДАЙ** о Cold Start при добавлении Python зависимостей
+3. ⚠️ **ПРЕДУПРЕЖДАЙ** о 4.5MB payload лимите при работе с большими данными
+4. ✅ Предполагай Vercel Pro для PVNDORA (коммерческий проект)
+5. ✅ Оптимизируй под Hobby лимиты где возможно (экономия)
+
+---
+
+## 9. QUICK REFERENCE TABLE
+
+| Resource | Hobby | Pro | Action if Exceeded |
+|----------|-------|-----|-------------------|
+| Function Size | 250 MB | 250 MB | Deployment fails |
+| Payload | 4.5 MB | 4.5 MB | 413 Error |
+| Timeout | 10s/300s* | 900s | 504 Gateway Timeout |
+| Origin Transfer | 10 GB/mo | 100 GB/mo | Service degrades |
+| Image Transforms | 5,000 | Pay-as-you-go | 402 Error |
+| Postgres Compute | 60 hrs/mo | 100 hrs/mo | DB suspends |
+| Redis Requests | 3K/day | 150K/day | 429 Too Many Requests |
+| Cron Jobs | 2 | 40 | Cannot schedule more |
+
+*With Fluid Compute enabled

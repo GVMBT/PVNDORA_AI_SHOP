@@ -581,6 +581,121 @@ async def get_webapp_faq(language_code: str = "en", user = Depends(verify_telegr
     }
 
 
+# ==================== PROFILE ENDPOINTS ====================
+
+@app.get("/api/webapp/profile")
+async def get_webapp_profile(user = Depends(verify_telegram_auth)):
+    """Get user profile with referral stats, balance, and history."""
+    db = get_database()
+    
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get referral stats from view
+    stats_result = await asyncio.to_thread(
+        lambda: db.client.table("user_referral_stats").select("*").eq(
+            "user_id", db_user.id
+        ).execute()
+    )
+    
+    referral_stats = None
+    if stats_result.data:
+        s = stats_result.data[0]
+        referral_stats = {
+            "level1_count": s.get("level1_count", 0),
+            "level2_count": s.get("level2_count", 0),
+            "level3_count": s.get("level3_count", 0),
+            "level1_earnings": float(s.get("level1_earnings", 0)),
+            "level2_earnings": float(s.get("level2_earnings", 0)),
+            "level3_earnings": float(s.get("level3_earnings", 0)),
+        }
+    
+    # Get recent bonus history
+    bonus_result = await asyncio.to_thread(
+        lambda: db.client.table("referral_bonuses").select("*").eq(
+            "user_id", db_user.id
+        ).order("created_at", desc=True).limit(10).execute()
+    )
+    
+    # Get withdrawal history
+    withdrawal_result = await asyncio.to_thread(
+        lambda: db.client.table("withdrawal_requests").select("*").eq(
+            "user_id", db_user.id
+        ).order("created_at", desc=True).limit(10).execute()
+    )
+    
+    return {
+        "profile": {
+            "balance": float(db_user.balance) if db_user.balance else 0,
+            "total_referral_earnings": float(
+                db_user.total_referral_earnings
+            ) if hasattr(db_user, 'total_referral_earnings') and \
+                db_user.total_referral_earnings else 0,
+            "total_saved": float(db_user.total_saved) if db_user.total_saved else 0,
+            "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{user.id}",
+            "created_at": db_user.created_at.isoformat() if db_user.created_at else None
+        },
+        "referral_stats": referral_stats,
+        "bonus_history": bonus_result.data or [],
+        "withdrawals": withdrawal_result.data or []
+    }
+
+
+class WithdrawalRequest(BaseModel):
+    amount: float
+    method: str  # card, phone, crypto
+    details: str
+
+
+@app.post("/api/webapp/profile/withdraw")
+async def request_withdrawal(
+    request: WithdrawalRequest,
+    user = Depends(verify_telegram_auth)
+):
+    """Request balance withdrawal."""
+    db = get_database()
+    
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    MIN_WITHDRAWAL = 500
+    balance = float(db_user.balance) if db_user.balance else 0
+    
+    if request.amount < MIN_WITHDRAWAL:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Minimum withdrawal is {MIN_WITHDRAWAL}₽"
+        )
+    
+    if request.amount > balance:
+        raise HTTPException(status_code=400, detail="Insufficient balance")
+    
+    if request.method not in ['card', 'phone', 'crypto']:
+        raise HTTPException(status_code=400, detail="Invalid payment method")
+    
+    # Create withdrawal request
+    await asyncio.to_thread(
+        lambda: db.client.table("withdrawal_requests").insert({
+            "user_id": db_user.id,
+            "amount": request.amount,
+            "payment_method": request.method,
+            "payment_details": {"details": request.details}
+        }).execute()
+    )
+    
+    # Deduct from balance (hold)
+    new_balance = balance - request.amount
+    await asyncio.to_thread(
+        lambda: db.client.table("users").update({
+            "balance": new_balance
+        }).eq("id", db_user.id).execute()
+    )
+    
+    return {"success": True, "message": "Withdrawal request submitted"}
+
+
 @app.get("/api/webapp/cart")
 async def get_webapp_cart(user = Depends(verify_telegram_auth)):
     """
