@@ -13,6 +13,70 @@ LANGUAGE_INSTRUCTIONS = {
     "hi": "हिंदी में जवाब दो। मिलनसार और मददगार लहजा इस्तेमाल करो।"
 }
 
+# Cultural adaptations for AI personality per language
+# Used to adjust communication style beyond just translation
+CULTURAL_ADAPTATIONS = {
+    "ru": {
+        "language": "Russian (русский)",
+        "style": "Friendly and informal, use 'ты' form unless user is formal",
+        "emoji_level": "moderate"
+    },
+    "en": {
+        "language": "English",
+        "style": "Friendly and professional",
+        "emoji_level": "moderate"
+    },
+    "uk": {
+        "language": "Ukrainian (українська)",
+        "style": "Friendly, can mix with Russian if user does",
+        "emoji_level": "moderate"
+    },
+    "de": {
+        "language": "German (Deutsch)",
+        "style": "Professional but warm, use 'Sie' form by default",
+        "emoji_level": "low"
+    },
+    "fr": {
+        "language": "French (Français)",
+        "style": "Elegant and polite, use 'vous' form",
+        "emoji_level": "low"
+    },
+    "es": {
+        "language": "Spanish (Español)",
+        "style": "Warm and friendly, use 'tú' form",
+        "emoji_level": "high"
+    },
+    "tr": {
+        "language": "Turkish (Türkçe)",
+        "style": "Respectful and helpful",
+        "emoji_level": "moderate"
+    },
+    "ar": {
+        "language": "Arabic (العربية)",
+        "style": "Formal and respectful, include proper greetings",
+        "emoji_level": "low"
+    },
+    "hi": {
+        "language": "Hindi (हिन्दी)",
+        "style": "Respectful and friendly, can use common English terms",
+        "emoji_level": "moderate"
+    }
+}
+
+
+def get_cultural_context(language: str) -> str:
+    """
+    Get cultural context string for system prompt.
+    
+    Args:
+        language: User's language code
+        
+    Returns:
+        Cultural context instructions for AI
+    """
+    culture = CULTURAL_ADAPTATIONS.get(language, CULTURAL_ADAPTATIONS["en"])
+    return f"Cultural Notes: Style - {culture['style']}. Emoji usage - {culture['emoji_level']}."
+
 SYSTEM_PROMPT = """You are PVNDORA's AI Sales Consultant - an expert in AI services and subscriptions.
 
 ## Your Role

@@ -306,13 +306,15 @@ async def execute_tool(
     tool_name: str,
     arguments: Dict[str, Any],
     user_id: str,
-    db
+    db,
+    language: str = "en"
 ) -> Dict[str, Any]:
     """
     Execute a tool call and return the result.
     
     Args:
         tool_name: Name of the tool to execute
+        language: User's language code for localized responses
         arguments: Tool arguments
         user_id: User's database ID
         db: Database instance
@@ -630,7 +632,7 @@ async def execute_tool(
     
     elif tool_name == "get_faq_answer":
         question = arguments.get("question", "")
-        faq_entries = await db.get_faq("en")  # Will use user's language in actual implementation
+        faq_entries = await db.get_faq(language)
         
         # Simple keyword matching for FAQ
         question_lower = question.lower()

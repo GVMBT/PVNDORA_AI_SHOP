@@ -1277,15 +1277,6 @@ async def cardlink_chargeback_webhook(request: Request):
     except Exception as e:
         print(f"CardLink chargeback webhook error: {e}")
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
-        
-        return JSONResponse(content={"status": "ok"})
-    
-    except Exception as e:
-        print(f"AAIO webhook error: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"error": str(e)}
-        )
 
 
 @app.post("/webhook/stripe")

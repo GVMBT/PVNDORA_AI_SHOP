@@ -339,7 +339,7 @@ class AIConsultant:
                 for tool_name, arguments in function_calls:
                     print(f"DEBUG: Executing {tool_name} with args: {arguments}")
                     try:
-                        result = await execute_tool(tool_name, arguments, user_id, db)
+                        result = await execute_tool(tool_name, arguments, user_id, db, language)
                         tool_results[tool_name] = result
                     except Exception as e:
                         print(f"ERROR: Tool {tool_name} failed: {e}")
@@ -706,91 +706,6 @@ class AIConsultant:
                 reply_text=initial_text if initial_text else self._get_error_message(language),
                 action=ActionType.NONE
             )
-    
-    async def _continue_with_tool_result(
-        self,
-        original_messages: List[types.Content],
-        original_response,
-        tool_name: str,
-        tool_result: Dict[str, Any],
-        user_id: str,
-        db,
-        language: str
-    ) -> StructuredAIResponse:
-        """Continue conversation with tool result using Structured Outputs"""
-        import traceback
-        
-        try:
-            # Build messages with full conversation context
-            messages = list(original_messages)
-            
-            # Add the model's response with function call
-            if original_response.candidates and original_response.candidates[0].content:
-                messages.append(original_response.candidates[0].content)
-            
-            # Check if tool execution failed
-            if isinstance(tool_result, dict) and tool_result.get("success") is False:
-                # Tool failed - add instruction for AI (technical details already filtered in tool execution)
-                error_message = types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(
-                        text=f"Function {tool_name} failed. "
-                             f"Please explain to the user in {language} language that something went wrong, "
-                             f"but DO NOT mention technical details like module names, error codes, or internal system components. "
-                             f"Just say that there was a temporary issue and suggest they try again later. "
-                             f"Be friendly and apologetic."
-                    )]
-                )
-                messages.append(error_message)
-            else:
-                # Tool succeeded - add function response normally
-                messages.append(types.Content(
-                    role="function",
-                    parts=[
-                        types.Part.from_function_response(
-                            name=tool_name,
-                            response=tool_result
-                        )
-                    ]
-                ))
-            
-            # Get products for context (not used in final response, but kept for potential future use)
-            products = await db.get_products(status="active")
-            product_catalog = format_product_catalog(products)
-            get_system_prompt(language, product_catalog)  # System prompt cached, not used here
-            
-            # Get cached content for this language
-            base_system_prompt = get_system_prompt(language, "")
-            cached_content_name = await self._get_or_create_cache(language, base_system_prompt)
-            
-            # Step 2: Generate final response with Structured Outputs (NO tools here!)
-            # After function calls, we generate structured JSON response
-            config_final = types.GenerateContentConfig(
-                temperature=0.7,
-                max_output_tokens=2048,
-                response_mime_type="application/json",
-                response_schema=StructuredAIResponse.model_json_schema()
-            )
-            
-            # Use cached content if available (skip if None - means caching disabled)
-            if cached_content_name:
-                config_final.cached_content = cached_content_name
-            else:
-                # Fallback: use system_instruction if caching failed
-                config_final.system_instruction = base_system_prompt
-            
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=messages,
-                config=config_final
-            )
-            
-            # Parse structured response
-            return self._parse_structured_response(response, language)
-            
-        except Exception as e:
-            print(f"Gemini follow-up error: {e}\n{traceback.format_exc()}")
-            return self._create_error_response(language, str(e))
     
     async def _continue_with_all_tool_results(
         self,

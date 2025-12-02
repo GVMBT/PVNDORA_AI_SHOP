@@ -1,12 +1,14 @@
 """Telegram Bot Handlers"""
 import os
 import asyncio
+import hashlib
 import traceback
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineQuery, InlineQueryResultArticle, InputTextMessageContent, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command, CommandStart
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+from aiogram.fsm.context import FSMContext
 
 from src.services.database import User, get_database
 from src.i18n import get_text
@@ -15,11 +17,45 @@ from src.bot.keyboards import (
     get_product_keyboard,
     get_checkout_keyboard
 )
+from src.bot.states import TicketStates, ReviewStates
 
 router = Router()
 
 # Get webapp URL from environment
 WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://pvndora.app")
+
+
+# ==================== HELPERS ====================
+
+def get_share_keyboard(product_name: str = "") -> InlineKeyboardMarkup:
+    """
+    Get keyboard with share button using switchInlineQuery.
+    
+    Args:
+        product_name: Product name to pre-fill in query
+    
+    Returns:
+        Keyboard with share button
+    """
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="📤 Поделиться с друзьями",
+            switch_inline_query=product_name
+        )]
+    ])
+
+
+def get_share_current_chat_keyboard(product_name: str) -> InlineKeyboardMarkup:
+    """
+    Get keyboard for sharing in current chat.
+    Uses switch_inline_query_current_chat.
+    """
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="📤 Поделиться здесь",
+            switch_inline_query_current_chat=product_name
+        )]
+    ])
 
 
 async def safe_answer(message: Message, text: str, **kwargs):
@@ -255,12 +291,283 @@ async def callback_support(callback: CallbackQuery, db_user: User):
 
 
 @router.callback_query(F.data.startswith("review:"))
-async def callback_review(callback: CallbackQuery, db_user: User):
-    """Handle review button click"""
-    callback.data.split(":")[1]  # Extract order_id (not used yet)
+async def callback_review(callback: CallbackQuery, db_user: User, state: FSMContext):
+    """Handle review button click - start review flow"""
+    order_id = callback.data.split(":")[1]
+    
+    # Store order_id and start review flow
+    await state.update_data(order_id=order_id)
+    await state.set_state(ReviewStates.waiting_for_rating)
+    
+    # Rating buttons
+    rating_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="⭐", callback_data="rating:1"),
+            InlineKeyboardButton(text="⭐⭐", callback_data="rating:2"),
+            InlineKeyboardButton(text="⭐⭐⭐", callback_data="rating:3"),
+            InlineKeyboardButton(text="⭐⭐⭐⭐", callback_data="rating:4"),
+            InlineKeyboardButton(text="⭐⭐⭐⭐⭐", callback_data="rating:5"),
+        ]
+    ])
     
     await callback.message.answer(
-        get_text("review_request", db_user.language_code)
+        "⭐ <b>Оставить отзыв</b>\n\n"
+        "Как бы вы оценили покупку?\n"
+        "💡 Получите 5% кэшбэка за честный отзыв!",
+        reply_markup=rating_keyboard,
+        parse_mode=ParseMode.HTML
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("rating:"))
+async def callback_rating(callback: CallbackQuery, db_user: User, state: FSMContext):
+    """Handle rating selection in review flow"""
+    rating = int(callback.data.split(":")[1])
+    
+    await state.update_data(rating=rating)
+    await state.set_state(ReviewStates.waiting_for_text)
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⏭ Пропустить текст", callback_data="review_skip_text")]
+    ])
+    
+    await callback.message.edit_text(
+        f"⭐ Оценка: {'⭐' * rating}\n\n"
+        "Хотите добавить текстовый отзыв? (опционально)\n"
+        "Просто напишите или нажмите Пропустить.",
+        reply_markup=keyboard
+    )
+
+
+@router.callback_query(F.data == "review_skip_text")
+async def callback_review_skip_text(callback: CallbackQuery, db_user: User, state: FSMContext):
+    """Submit review without text"""
+    data = await state.get_data()
+    order_id = data.get("order_id")
+    rating = data.get("rating", 5)
+    
+    await _submit_review(callback, order_id, rating, None, db_user)
+    await state.clear()
+
+
+@router.message(ReviewStates.waiting_for_text)
+async def handle_review_text(message: Message, db_user: User, state: FSMContext):
+    """Handle text input for review"""
+    data = await state.get_data()
+    order_id = data.get("order_id")
+    rating = data.get("rating", 5)
+    
+    await _submit_review_from_message(message, order_id, rating, message.text, db_user)
+    await state.clear()
+
+
+async def _submit_review(
+    callback: CallbackQuery,
+    order_id: str,
+    rating: int,
+    text: str | None,
+    db_user: User
+):
+    """Submit the review and trigger cashback."""
+    db = get_database()
+    
+    # Get order info
+    order = await db.get_order_by_id(order_id)
+    if not order:
+        await callback.message.edit_text("❌ Заказ не найден")
+        return
+    
+    # Create review
+    await db.create_review(
+        user_id=db_user.id,
+        order_id=order_id,
+        product_id=order.product_id,
+        rating=rating,
+        text=text
+    )
+    
+    # Trigger cashback worker via QStash (if available)
+    try:
+        from core.queue import publish_to_worker, WorkerEndpoints
+        await publish_to_worker(
+            endpoint=WorkerEndpoints.PROCESS_REVIEW_CASHBACK,
+            body={
+                "user_telegram_id": db_user.telegram_id,
+                "order_id": order_id,
+                "order_amount": float(order.amount),
+            }
+        )
+    except Exception as e:
+        print(f"WARNING: Failed to trigger cashback worker: {e}")
+    
+    await callback.message.edit_text(
+        f"✅ Спасибо за отзыв! {'⭐' * rating}\n\n"
+        "Ваш 5% кэшбэк скоро будет начислен на баланс."
+    )
+
+
+async def _submit_review_from_message(
+    message: Message,
+    order_id: str,
+    rating: int,
+    text: str | None,
+    db_user: User
+):
+    """Submit the review from message context."""
+    db = get_database()
+    
+    # Get order info
+    order = await db.get_order_by_id(order_id)
+    if not order:
+        await message.answer("❌ Заказ не найден")
+        return
+    
+    # Create review
+    await db.create_review(
+        user_id=db_user.id,
+        order_id=order_id,
+        product_id=order.product_id,
+        rating=rating,
+        text=text
+    )
+    
+    # Trigger cashback worker
+    try:
+        from core.queue import publish_to_worker, WorkerEndpoints
+        await publish_to_worker(
+            endpoint=WorkerEndpoints.PROCESS_REVIEW_CASHBACK,
+            body={
+                "user_telegram_id": db_user.telegram_id,
+                "order_id": order_id,
+                "order_amount": float(order.amount),
+            }
+        )
+    except Exception as e:
+        print(f"WARNING: Failed to trigger cashback worker: {e}")
+    
+    await message.answer(
+        f"✅ Спасибо за отзыв! {'⭐' * rating}\n\n"
+        "Ваш 5% кэшбэк скоро будет начислен на баланс."
+    )
+
+
+# ==================== TICKET CREATION FLOW ====================
+
+@router.callback_query(F.data == "create_ticket")
+async def callback_create_ticket_start(callback: CallbackQuery, db_user: User, state: FSMContext):
+    """Start support ticket creation flow"""
+    await state.set_state(TicketStates.waiting_for_order_id)
+    
+    await callback.message.answer(
+        "🎫 <b>Создать обращение</b>\n\n"
+        "Укажите номер заказа (можно найти в /my_orders).\n"
+        "Или напишите 'skip' если это не связано с конкретным заказом.",
+        parse_mode=ParseMode.HTML
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("ticket_order:"))
+async def callback_create_ticket_with_order(callback: CallbackQuery, db_user: User, state: FSMContext):
+    """Start ticket with pre-filled order ID"""
+    order_id = callback.data.split(":")[1]
+    
+    await state.update_data(order_id=order_id)
+    await state.set_state(TicketStates.waiting_for_description)
+    
+    await callback.message.answer(
+        f"📝 Заказ: {order_id[:8]}...\n\n"
+        "Опишите вашу проблему подробно:",
+        parse_mode=ParseMode.HTML
+    )
+    await callback.answer()
+
+
+@router.message(TicketStates.waiting_for_order_id)
+async def handle_ticket_order_id(message: Message, db_user: User, state: FSMContext):
+    """Handle order ID input for ticket"""
+    order_id = message.text.strip()
+    
+    if order_id.lower() == 'skip':
+        await state.update_data(order_id=None)
+    else:
+        await state.update_data(order_id=order_id)
+    
+    await state.set_state(TicketStates.waiting_for_description)
+    await message.answer("📝 Опишите вашу проблему подробно:")
+
+
+@router.message(TicketStates.waiting_for_description)
+async def handle_ticket_description(message: Message, db_user: User, state: FSMContext):
+    """Handle ticket description and create ticket"""
+    data = await state.get_data()
+    order_id = data.get("order_id")
+    description = message.text.strip()
+    
+    db = get_database()
+    
+    # Create support ticket in database
+    try:
+        # Use direct supabase client for ticket creation
+        import asyncio
+        result = await asyncio.to_thread(
+            lambda: db.client.table("support_tickets").insert({
+                "user_id": db_user.id,
+                "order_id": order_id,
+                "type": "general",
+                "description": description,
+                "status": "open"
+            }).execute()
+        )
+        
+        ticket_id = result.data[0]["id"] if result.data else None
+        
+        await message.answer(
+            f"✅ Обращение создано!\n\n"
+            f"🎫 Номер: {ticket_id[:8] if ticket_id else 'N/A'}...\n"
+            f"Мы ответим в ближайшее время."
+        )
+    except Exception as e:
+        print(f"ERROR: Failed to create ticket: {e}")
+        await message.answer(
+            "❌ Не удалось создать обращение. Попробуйте позже или напишите @support."
+        )
+    
+    await state.clear()
+
+
+# ==================== QUICK REORDER ====================
+
+@router.callback_query(F.data.startswith("buy_again:"))
+async def callback_buy_again(callback: CallbackQuery, db_user: User, bot: Bot):
+    """Quick reorder from order history"""
+    order_id = callback.data.split(":")[1]
+    
+    db = get_database()
+    order = await db.get_order_by_id(order_id)
+    
+    if not order:
+        await callback.answer("❌ Заказ не найден", show_alert=True)
+        return
+    
+    product = await db.get_product_by_id(order.product_id)
+    if not product:
+        await callback.answer("❌ Товар больше не доступен", show_alert=True)
+        return
+    
+    # Show product with buy button
+    await callback.message.answer(
+        f"🔄 <b>Повторный заказ</b>\n\n"
+        f"📦 {product.name}\n"
+        f"💰 {product.price}₽\n",
+        reply_markup=get_product_keyboard(
+            db_user.language_code,
+            product.id,
+            WEBAPP_URL,
+            in_stock=product.stock_count > 0
+        ),
+        parse_mode=ParseMode.HTML
     )
     await callback.answer()
 
@@ -309,44 +616,169 @@ async def callback_cancel(callback: CallbackQuery, db_user: User):
     await callback.answer()
 
 
-# ==================== INLINE QUERY HANDLER ====================
+# ==================== INLINE QUERY HANDLERS ====================
 
-@router.inline_query(F.query.startswith("invite"))
-async def handle_inline_invite(query: InlineQuery, db_user: User, bot: Bot):
-    """Handle inline query for invites (fallback for shareMessage)"""
+@router.inline_query()
+async def handle_inline_query(query: InlineQuery, db_user: User, bot: Bot):
+    """
+    Handle inline queries for product sharing and search.
+    
+    - Empty query: show default sharing options
+    - "invite" query: show referral sharing
+    - Other queries: search products to share
+    """
     # Validate db_user exists before accessing attributes
     if db_user is None:
         await query.answer([], cache_time=0)
         return
     
+    query_text = query.query.strip()
     bot_info = await bot.get_me()
-    referral_link = f"https://t.me/{bot_info.username}?start=ref_{db_user.id}"
+    user_telegram_id = query.from_user.id
+    referral_link = f"https://t.me/{bot_info.username}?start=ref_{user_telegram_id}"
     
-    # Calculate savings
-    total_saved = float(db_user.total_saved) if hasattr(db_user, 'total_saved') and db_user.total_saved else 0
+    results = []
     
-    results = [
-        InlineQueryResultArticle(
-            id=f"invite_{db_user.id}",
-            title="🎁 Пригласить друга (скидка 20%)",
-            description=f"Я сэкономил {int(total_saved)}₽. Поделись ссылкой!",
-            thumbnail_url=f"{WEBAPP_URL}/assets/share-preview.png",
-            input_message_content=InputTextMessageContent(
-                message_text=(
-                    f"🚀 <b>Я уже сэкономил {int(total_saved)}₽ на AI-подписках с PVNDORA!</b>\n\n"
-                    f"Залетай и получи скидку 20% на первый заказ 👇"
+    if not query_text or query_text.lower() == "invite":
+        # Default: show sharing options
+        total_saved = float(db_user.total_saved) if hasattr(db_user, 'total_saved') and db_user.total_saved else 0
+        
+        results.append(
+            InlineQueryResultArticle(
+                id=f"invite_{db_user.id}",
+                title="🎁 Пригласить друга (скидка 20%)",
+                description=f"Я сэкономил {int(total_saved)}₽. Поделись ссылкой!",
+                thumbnail_url=f"{WEBAPP_URL}/assets/share-preview.png",
+                input_message_content=InputTextMessageContent(
+                    message_text=(
+                        f"🚀 <b>Я уже сэкономил {int(total_saved)}₽ на AI-подписках с PVNDORA!</b>\n\n"
+                        f"Залетай и получи скидку 20% на первый заказ 👇"
+                    ),
+                    parse_mode=ParseMode.HTML
                 ),
-                parse_mode=ParseMode.HTML
-            ),
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[
-                    InlineKeyboardButton(text="🛍 Перейти в магазин", url=referral_link)
-                ]]
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[[
+                        InlineKeyboardButton(text="🛍 Перейти в магазин", url=referral_link)
+                    ]]
+                )
             )
         )
-    ]
+        
+        results.append(
+            InlineQueryResultArticle(
+                id="share_catalog",
+                title="🛍 Поделиться каталогом",
+                description="Отправить ссылку на каталог друзьям",
+                input_message_content=InputTextMessageContent(
+                    message_text=(
+                        "🛍 <b>PVNDORA Каталог</b>\n\n"
+                        "Премиум AI-подписки:\n"
+                        "✅ Лучшие цены\n"
+                        "✅ Мгновенная доставка\n"
+                        "✅ Гарантия включена\n\n"
+                        "Смотри! 👇"
+                    ),
+                    parse_mode=ParseMode.HTML
+                ),
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(
+                        text="🛍 Открыть каталог",
+                        url=referral_link
+                    )]
+                ])
+            )
+        )
     
-    await query.answer(results, cache_time=0, is_personal=True)
+    else:
+        # Search products to share
+        try:
+            db = get_database()
+            products = await db.search_products(query_text, limit=10)
+            
+            for product in products:
+                product_id = product.id
+                name = product.name
+                description = (product.description or "")[:100]
+                price = product.price
+                
+                # Create unique result ID
+                result_id = hashlib.md5(f"{product_id}:{user_telegram_id}".encode()).hexdigest()
+                
+                # Deep link with product ID and referral
+                product_link = f"https://t.me/{bot_info.username}?start=product_{product_id}_ref_{user_telegram_id}"
+                
+                results.append(
+                    InlineQueryResultArticle(
+                        id=result_id,
+                        title=f"📦 {name}",
+                        description=f"{description}... • {price:.0f}₽",
+                        input_message_content=InputTextMessageContent(
+                            message_text=(
+                                f"📦 <b>{name}</b>\n\n"
+                                f"{description}\n\n"
+                                f"💰 Цена: <b>{price:.0f}₽</b>\n\n"
+                                f"🛒 Купить здесь:"
+                            ),
+                            parse_mode=ParseMode.HTML
+                        ),
+                        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                            [InlineKeyboardButton(
+                                text=f"Купить {name}",
+                                url=product_link
+                            )]
+                        ])
+                    )
+                )
+        
+        except Exception as e:
+            print(f"ERROR: Inline product search failed: {e}")
+            # Fallback: show generic search result
+            results.append(
+                InlineQueryResultArticle(
+                    id="search_fallback",
+                    title=f"🔍 Найти: {query_text}",
+                    description="Поиск в PVNDORA",
+                    input_message_content=InputTextMessageContent(
+                        message_text=(
+                            f"🔍 Ищете <b>{query_text}</b>?\n\n"
+                            f"Найдите лучшие AI-подписки в PVNDORA!"
+                        ),
+                        parse_mode=ParseMode.HTML
+                    ),
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(
+                            text="🔍 Искать в PVNDORA",
+                            url=referral_link
+                        )]
+                    ])
+                )
+            )
+    
+    # Answer with results (personal for referral links)
+    await query.answer(results, cache_time=300, is_personal=True)
+
+
+@router.chosen_inline_result()
+async def handle_chosen_inline_result(chosen_result, db_user: User):
+    """
+    Track when user sends an inline result.
+    Used for analytics on viral sharing.
+    """
+    result_id = chosen_result.result_id
+    query_text = chosen_result.query
+    
+    try:
+        db = get_database()
+        await db.log_event(
+            user_id=db_user.id if db_user else None,
+            event_type="share",
+            metadata={
+                "result_id": result_id,
+                "query": query_text
+            }
+        )
+    except Exception:
+        pass  # Non-critical, don't fail
 
 
 # ==================== TEXT MESSAGE HANDLER ====================
