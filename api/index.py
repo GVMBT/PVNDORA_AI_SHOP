@@ -120,6 +120,21 @@ app.add_middleware(
 )
 
 
+# ==================== INCLUDE ROUTERS ====================
+# Роутеры разделяют код логически без создания новых serverless функций
+# Все роутеры включаются в один api/index.py
+
+from core.routers.webhooks import router as webhooks_router
+from core.routers.products import router as products_router
+from core.routers.admin import router as admin_router
+from core.routers.workers import router as workers_router
+
+app.include_router(webhooks_router)
+app.include_router(products_router)
+app.include_router(admin_router)
+app.include_router(workers_router)
+
+
 # ==================== HEALTH CHECK ====================
 
 @app.get("/api/health")
