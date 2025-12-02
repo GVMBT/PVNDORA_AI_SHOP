@@ -63,11 +63,13 @@ async function loadFont() {
       }
       
       const data = await response.arrayBuffer();
-      // Full font should be > 50KB, subsets are ~10-30KB
-      if (data.byteLength > 5000) {
+      // Full font should be > 50KB, subsets are ~10-30KB, reject anything < 50KB
+      if (data.byteLength > 50000) {
         console.log(`Font loaded: ${url} (${data.byteLength} bytes)`);
         fontCache = data;
         return data;
+      } else {
+        console.warn(`Font file too small (${data.byteLength} bytes), likely incomplete: ${url}`);
       }
     } catch (error) {
       console.warn(`Font load failed ${url}:`, error.message);

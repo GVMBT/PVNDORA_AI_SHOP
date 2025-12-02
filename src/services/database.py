@@ -559,6 +559,7 @@ class Database:
         Level 3: 5% to 3rd level referrer
         """
         current_user_id = order.user_id
+        bonuses_awarded = []
         
         for level_config in self.REFERRAL_LEVELS:
             level = level_config["level"]
@@ -574,15 +575,42 @@ class Database:
             
             referrer_id = user_result.data[0]["referrer_id"]
             
+            # Prevent self-referral loops
+            if referrer_id == order.user_id:
+                print(f"WARNING: Self-referral loop detected at L{level}")
+                break
+            
             # Calculate and award bonus
-            bonus = order.amount * (percent / 100)
+            bonus = round(order.amount * (percent / 100), 2)
             await self.update_user_balance(referrer_id, bonus)
             
-            # Log referral bonus
+            # Log referral bonus to analytics
+            self.client.table("analytics_events").insert({
+                "user_id": referrer_id,
+                "event_type": "referral_bonus",
+                "metadata": {
+                    "level": level,
+                    "percent": percent,
+                    "bonus": bonus,
+                    "order_id": str(order.id),
+                    "order_amount": float(order.amount),
+                    "from_user_id": str(order.user_id)
+                }
+            }).execute()
+            
+            bonuses_awarded.append({
+                "level": level,
+                "referrer_id": referrer_id,
+                "bonus": bonus
+            })
+            
             print(f"Referral L{level}: {percent}% = {bonus}₽ to user {referrer_id}")
             
             # Move up the chain for next level
             current_user_id = referrer_id
+        
+        if bonuses_awarded:
+            print(f"Total referral bonuses: {sum(b['bonus'] for b in bonuses_awarded)}₽")
 
 
 # Singleton instance

@@ -718,18 +718,46 @@ async def execute_tool(
             
             user = user_result.data[0]
             
-            # Count referrals
-            referrals = await asyncio.to_thread(
-                lambda: db.client.table("users").select("id", count="exact").eq(
-                    "referrer_id", user_id
-                ).execute()
+            # Count Level 1 referrals (direct)
+            level1_refs = await asyncio.to_thread(
+                lambda: db.client.table("users").select(
+                    "id", count="exact"
+                ).eq("referrer_id", user_id).execute()
             )
+            level1_count = level1_refs.count if level1_refs.count else 0
+            
+            # Count Level 2 referrals (referrals of referrals)
+            level2_count = 0
+            level3_count = 0
+            if level1_count > 0 and level1_refs.data:
+                level1_ids = [r["id"] for r in level1_refs.data]
+                for l1_id in level1_ids:
+                    l2_refs = await asyncio.to_thread(
+                        lambda lid=l1_id: db.client.table("users").select(
+                            "id", count="exact"
+                        ).eq("referrer_id", lid).execute()
+                    )
+                    level2_count += l2_refs.count if l2_refs.count else 0
+                    
+                    # Count Level 3 (rarer, simplified)
+                    if l2_refs.data:
+                        for l2 in l2_refs.data:
+                            l3_refs = await asyncio.to_thread(
+                                lambda lid=l2["id"]: db.client.table("users").select(
+                                    "id", count="exact"
+                                ).eq("referrer_id", lid).execute()
+                            )
+                            level3_count += l3_refs.count if l3_refs.count else 0
             
             return {
                 "success": True,
                 "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{user['telegram_id']}",
-                "referral_percent": user["personal_ref_percent"],
-                "total_referrals": referrals.count if referrals.count else 0,
+                "referral_levels": {
+                    "level_1": {"count": level1_count, "percent": 20},
+                    "level_2": {"count": level2_count, "percent": 10},
+                    "level_3": {"count": level3_count, "percent": 5}
+                },
+                "total_referrals": level1_count + level2_count + level3_count,
                 "balance": user["balance"]
             }
         except Exception as e:
