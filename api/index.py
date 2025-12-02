@@ -48,6 +48,14 @@ except ImportError as e:
     print(f"ERROR: Traceback: {traceback.format_exc()}")
     raise
 
+# Lazy-loaded singletons for reducing cold start
+from core.routers.deps import (
+    get_notification_service,
+    get_payment_service,
+    get_queue_publisher,
+    verify_qstash
+)
+
 
 # ==================== BOT INITIALIZATION ====================
 
@@ -984,8 +992,7 @@ async def create_webapp_order(
     else:
         payment_method = "stripe"
     
-    from src.services.payments import PaymentService
-    payment_service = PaymentService()
+    payment_service = get_payment_service()
     
     # Cart-based order
     if request.use_cart or (not request.product_id):
@@ -1185,13 +1192,12 @@ async def get_user_orders(user = Depends(verify_telegram_auth)):
 @app.post("/webhook/aaio")
 async def aaio_webhook(request: Request):
     """Handle AAIO payment callback"""
-    from src.services.payments import PaymentService
-    from core.queue import publish_to_worker, WorkerEndpoints
+    publish_to_worker, WorkerEndpoints = get_queue_publisher()
     
     try:
         data = await request.form()
         
-        payment_service = PaymentService()
+        payment_service = get_payment_service()
         result = await payment_service.verify_aaio_callback(dict(data))
         
         if result["success"]:
@@ -1225,13 +1231,12 @@ async def aaio_webhook(request: Request):
 @app.post("/api/webhook/cardlink")
 async def cardlink_webhook(request: Request):
     """Handle CardLink payment webhook"""
-    from src.services.payments import PaymentService
-    from core.queue import publish_to_worker, WorkerEndpoints
+    publish_to_worker, WorkerEndpoints = get_queue_publisher()
     
     try:
         data = await request.json()
         
-        payment_service = PaymentService()
+        payment_service = get_payment_service()
         result = await payment_service.verify_cardlink_webhook(data)
         
         if result["success"]:
@@ -1291,14 +1296,13 @@ async def cardlink_chargeback_webhook(request: Request):
 @app.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
     """Handle Stripe payment webhook"""
-    from src.services.payments import PaymentService
-    from core.queue import publish_to_worker, WorkerEndpoints
+    publish_to_worker, WorkerEndpoints = get_queue_publisher()
     
     try:
         payload = await request.body()
         sig_header = request.headers.get("stripe-signature")
         
-        payment_service = PaymentService()
+        payment_service = get_payment_service()
         result = await payment_service.verify_stripe_webhook(payload, sig_header)
         
         if result["success"]:
@@ -1887,8 +1891,7 @@ async def _notify_waitlist_for_product(product_name: str, product_id: Optional[s
         if product:
             in_stock = product.stock_count > 0
     
-    from src.services.notifications import NotificationService
-    notification_service = NotificationService()
+    notification_service = get_notification_service()
     
     for item in waitlist.data:
         user = item.get("users")
@@ -1934,9 +1937,7 @@ async def admin_get_stock(
 @app.post("/api/admin/broadcast")
 async def admin_broadcast(request: BroadcastRequest, admin = Depends(verify_admin)):
     """Send broadcast message to all users"""
-    from src.services.notifications import NotificationService
-    
-    notification_service = NotificationService()
+    notification_service = get_notification_service()
     sent_count = await notification_service.send_broadcast(
         message=request.message,
         exclude_dnd=request.exclude_dnd
@@ -2126,8 +2127,7 @@ async def cron_review_requests(authorization: str = Header(None)):
         "delivered_at", end_time.isoformat()
     ).execute()
     
-    from src.services.notifications import NotificationService
-    notification_service = NotificationService()
+    notification_service = get_notification_service()
     
     sent_count = 0
     for order in orders.data:
@@ -2155,8 +2155,7 @@ async def cron_expiration_reminders(authorization: str = Header(None)):
     # Get orders expiring in 3 days
     orders = await db.get_expiring_orders(days_before=3)
     
-    from src.services.notifications import NotificationService
-    notification_service = NotificationService()
+    notification_service = get_notification_service()
     
     sent_count = 0
     for order in orders:
@@ -2201,8 +2200,7 @@ async def cron_wishlist_reminders(authorization: str = Header(None)):
         "id,user_id,product_id,products(name,stock_count:stock_items(count))"
     ).eq("reminded", False).lt("created_at", cutoff.isoformat()).execute()
     
-    from src.services.notifications import NotificationService
-    notification_service = NotificationService()
+    notification_service = get_notification_service()
     
     sent_count = 0
     for item in items.data:
@@ -2265,8 +2263,7 @@ async def cron_re_engagement(authorization: str = Header(None)):
         "last_activity_at", cutoff.isoformat()
     ).limit(50).execute()
     
-    from src.services.notifications import NotificationService
-    notification_service = NotificationService()
+    notification_service = get_notification_service()
     bot = notification_service._get_bot()
     
     if not bot:
@@ -2313,8 +2310,7 @@ async def cron_daily_tasks(authorization: str = Header(None)):
         "rag_indexed": 0
     }
     
-    from src.services.notifications import NotificationService
-    notification_service = NotificationService()
+    notification_service = get_notification_service()
     db = get_database()
     bot = notification_service._get_bot()
     
@@ -2435,17 +2431,14 @@ async def worker_deliver_goods(request: Request):
     QStash Worker: Deliver digital goods after payment.
     Called by QStash with guaranteed delivery.
     """
-    from core.queue import verify_qstash_request
-    from src.services.notifications import NotificationService
-    
-    data = await verify_qstash_request(request)
+    data = await verify_qstash(request)
     order_id = data.get("order_id")
     
     if not order_id:
         return {"error": "order_id required"}
     
     db = get_database()
-    notification_service = NotificationService()
+    notification_service = get_notification_service()
     
     # Complete purchase via RPC
     result = db.client.rpc("complete_purchase", {"p_order_id": order_id}).execute()
@@ -2475,9 +2468,7 @@ async def worker_calculate_referral(request: Request):
     """
     QStash Worker: Calculate and apply referral bonuses.
     """
-    from core.queue import verify_qstash_request
-    
-    data = await verify_qstash_request(request)
+    data = await verify_qstash(request)
     order_id = data.get("order_id")
     
     if not order_id:
@@ -2515,9 +2506,7 @@ async def worker_notify_supplier(request: Request):
     """
     QStash Worker: Notify supplier about low stock.
     """
-    from core.queue import verify_qstash_request
-    
-    data = await verify_qstash_request(request)
+    data = await verify_qstash(request)
     product_id = data.get("product_id")
     threshold = data.get("threshold", 3)
     
@@ -2544,10 +2533,7 @@ async def worker_process_refund(request: Request):
     """
     QStash Worker: Process refund for prepaid orders.
     """
-    from core.queue import verify_qstash_request
-    from src.services.notifications import NotificationService
-    
-    data = await verify_qstash_request(request)
+    data = await verify_qstash(request)
     order_id = data.get("order_id")
     reason = data.get("reason", "Fulfillment deadline exceeded")
     
@@ -2555,7 +2541,7 @@ async def worker_process_refund(request: Request):
         return {"error": "order_id required"}
     
     db = get_database()
-    notification_service = NotificationService()
+    notification_service = get_notification_service()
     
     # Get order
     order = db.client.table("orders").select(
@@ -2598,9 +2584,7 @@ async def worker_process_review_cashback(request: Request):
     """
     QStash Worker: Process 5% cashback for review.
     """
-    from core.queue import verify_qstash_request
-    
-    data = await verify_qstash_request(request)
+    data = await verify_qstash(request)
     review_id = data.get("review_id")
     
     if not review_id:
