@@ -976,22 +976,31 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
     Handle voice messages - transcribe with Gemini and process.
     """
     import asyncio
+    import traceback
     from src.ai.consultant import AIConsultant
     
     db = get_database()
+    
+    # Save user's voice message marker in history (for context continuity)
+    await db.save_chat_message(db_user.id, "user", "[🎤 Голосовое сообщение]")
     
     # Typing indicator task - keeps sending "typing" every 4 seconds
     typing_active = True
     async def keep_typing():
         while typing_active:
-            await bot.send_chat_action(message.chat.id, "typing")
-            await asyncio.sleep(4)
+            try:
+                await bot.send_chat_action(message.chat.id, "typing")
+                await asyncio.sleep(4)
+            except Exception:
+                break
     
     typing_task = asyncio.create_task(keep_typing())
     
     try:
         # Download voice file
         voice = message.voice
+        print(f"DEBUG: Voice message - duration: {voice.duration}s, file_size: {voice.file_size}")
+        
         file = await bot.get_file(voice.file_id)
         voice_data = await bot.download_file(file.file_path)
         
@@ -1002,6 +1011,19 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
             voice_data=voice_data.read(),
             language=db_user.language_code
         )
+        
+    except Exception as e:
+        typing_active = False
+        typing_task.cancel()
+        
+        error_msg = f"Voice processing error: {str(e)}\n{traceback.format_exc()}"
+        print(f"ERROR: {error_msg}")
+        
+        # Send user-friendly error message
+        error_text = get_text("error_generic", db_user.language_code)
+        await safe_answer(message, error_text)
+        await db.save_chat_message(db_user.id, "assistant", error_text)
+        return
     finally:
         typing_active = False
         typing_task.cancel()

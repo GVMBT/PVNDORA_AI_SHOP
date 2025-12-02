@@ -165,8 +165,11 @@ class AIConsultant:
         """
         db = get_database()
         
-        # Get products for context
-        products = await db.get_products(status="active")
+        # Parallel DB calls for better performance (same as text messages)
+        products, history = await asyncio.gather(
+            db.get_products(status="active"),
+            db.get_chat_history(user_id, limit=5)
+        )
         product_catalog = format_product_catalog(products)
         
         # Get system prompt
@@ -177,12 +180,23 @@ class AIConsultant:
         # Telegram sends OGG Opus which may not be fully supported
         converted_data, mime_type = await self._convert_audio_for_gemini(voice_data)
         
-        # Build message with audio
-        # Include explicit instruction to process as sales consultant query
+        # Build messages with conversation history first
+        messages = []
+        
+        # Add conversation history for context continuity
+        for msg in history:
+            role = "user" if msg["role"] == "user" else "model"
+            messages.append(types.Content(
+                role=role,
+                parts=[types.Part.from_text(text=msg["content"])]
+            ))
+        
+        # Build voice message with audio and instruction
         from src.i18n import get_text
         audio_instruction = get_text("ai_audio_instruction", language)
         
-        messages = [
+        # Add current voice message
+        messages.append(
             types.Content(
                 role="user",
                 parts=[
@@ -193,7 +207,7 @@ class AIConsultant:
                     types.Part.from_text(text=audio_instruction)
                 ]
             )
-        ]
+        )
         
         # Convert tools to Gemini format
         gemini_tools = self._convert_tools_to_gemini_format()
@@ -242,8 +256,8 @@ class AIConsultant:
         Telegram sends: OGG Opus
         
         Strategy:
-        1. Try using OGG directly first (Gemini may support Opus)
-        2. If that fails in future, we can add pydub conversion
+        1. Gemini 2.5 Flash actually supports OGG Opus (tested working)
+        2. Use audio/ogg mime type which works with both Opus and Vorbis
         
         Args:
             ogg_data: Raw OGG Opus bytes from Telegram
@@ -251,17 +265,19 @@ class AIConsultant:
         Returns:
             Tuple of (audio_bytes, mime_type)
         """
-        # First, try to use the audio directly with the correct mime type
-        # Gemini 2.5 may support OGG Opus even if not officially documented
-        
-        # Check if the data is valid OGG by looking at magic bytes
-        if ogg_data[:4] == b'OggS':
-            # Valid OGG file
-            # Try with audio/ogg first - Gemini might handle Opus codec
+        # Validate OGG magic bytes
+        if len(ogg_data) < 4:
+            print(f"ERROR: Voice data too short: {len(ogg_data)} bytes")
             return ogg_data, "audio/ogg"
         
-        # If not valid OGG, return as-is and let Gemini try to process
-        print(f"WARNING: Voice data doesn't have OGG magic bytes, first 4: {ogg_data[:4]}")
+        # Check OGG magic bytes
+        if ogg_data[:4] == b'OggS':
+            print(f"DEBUG: Valid OGG file detected, size: {len(ogg_data)} bytes")
+            # Gemini 2.5 Flash supports OGG containers (including Opus codec)
+            return ogg_data, "audio/ogg"
+        
+        # If not valid OGG, log and try anyway
+        print(f"WARNING: Voice data doesn't have OGG magic bytes, first 4: {ogg_data[:4]!r}")
         return ogg_data, "audio/ogg"
     
     def _convert_tools_to_gemini_format(self) -> List[types.Tool]:
