@@ -2,15 +2,17 @@ import React, { useState, useEffect } from 'react'
 import { useLeaderboard, useApi } from '../hooks/useApi'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
-import { ArrowLeft, Trophy, Medal, Award, TrendingUp, Info, Share2, Copy } from 'lucide-react'
+import { ArrowLeft, Trophy, Medal, Award, TrendingUp, Info, Share2, Copy, Users, Calendar } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { Skeleton } from '../components/ui/skeleton'
 
+const PERIODS = ['all', 'month', 'week']
+
 export default function LeaderboardPage({ onBack }) {
   const { getLeaderboard, loading, error } = useLeaderboard()
-  const { post } = useApi()
+  const { post, get } = useApi()
   const { t, formatPrice } = useLocale()
   const { setBackButton, user, showPopup } = useTelegram()
   
@@ -18,6 +20,9 @@ export default function LeaderboardPage({ onBack }) {
   const [userRank, setUserRank] = useState(null)
   const [userSaved, setUserSaved] = useState(0)
   const [shareLoading, setShareLoading] = useState(false)
+  const [period, setPeriod] = useState('all')
+  const [totalUsers, setTotalUsers] = useState(0)
+  const [improvedToday, setImprovedToday] = useState(0)
   
   useEffect(() => {
     loadLeaderboard()
@@ -32,12 +37,14 @@ export default function LeaderboardPage({ onBack }) {
     }
   }, [])
   
-  const loadLeaderboard = async () => {
+  const loadLeaderboard = async (selectedPeriod = period) => {
     try {
-      const data = await getLeaderboard()
+      const data = await get(`/leaderboard?period=${selectedPeriod}`)
       setLeaderboard(data.leaderboard || [])
       setUserRank(data.user_rank)
       setUserSaved(data.user_saved || 0)
+      setTotalUsers(data.total_users || 0)
+      setImprovedToday(data.improved_today || 0)
     } catch (err) {
       console.error('Failed to load leaderboard:', err)
     }
@@ -115,6 +122,11 @@ export default function LeaderboardPage({ onBack }) {
     return 'bg-card/50'
   }
   
+  const handlePeriodChange = (newPeriod) => {
+    setPeriod(newPeriod)
+    loadLeaderboard(newPeriod)
+  }
+  
   return (
     <div className="pb-24">
       {/* Header */}
@@ -129,6 +141,39 @@ export default function LeaderboardPage({ onBack }) {
       </div>
       
       <div className="p-4 space-y-6">
+        {/* Period Selector */}
+        <div className="flex gap-2">
+          {PERIODS.map((p) => (
+            <Button
+              key={p}
+              variant={period === p ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handlePeriodChange(p)}
+              className="flex-1"
+            >
+              {t(`leaderboard.period.${p}`)}
+            </Button>
+          ))}
+        </div>
+        
+        {/* Social Proof */}
+        {(totalUsers > 0 || improvedToday > 0) && (
+          <div className="flex gap-3">
+            {totalUsers > 0 && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/30 px-3 py-1.5 rounded-full">
+                <Users className="h-3.5 w-3.5" />
+                <span>{totalUsers} {t('leaderboard.participants')}</span>
+              </div>
+            )}
+            {improvedToday > 0 && (
+              <div className="flex items-center gap-2 text-xs text-green-500 bg-green-500/10 px-3 py-1.5 rounded-full">
+                <TrendingUp className="h-3.5 w-3.5" />
+                <span>{improvedToday} {t('leaderboard.improvedToday')}</span>
+              </div>
+            )}
+          </div>
+        )}
+        
         {/* User Stats */}
         {userRank && (
           <Card className="bg-primary/5 border-primary/20 stagger-enter">

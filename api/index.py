@@ -471,40 +471,100 @@ async def get_webapp_orders(user = Depends(verify_telegram_auth)):
 
 
 @app.get("/api/webapp/leaderboard")
-async def get_webapp_leaderboard(user = Depends(verify_telegram_auth)):
+async def get_webapp_leaderboard(
+    period: str = "all",
+    user = Depends(verify_telegram_auth)
+):
     """
     Get savings leaderboard for Mini App.
-    Shows top 25 users by total_saved amount.
-    Falls back to showing all users if not enough have savings.
+    Supports period: all, month, week
     """
     db = get_database()
-    LEADERBOARD_SIZE = 25  # Optimal for mobile without pagination
+    LEADERBOARD_SIZE = 25
     
-    # First try to get users with savings > 0
-    result = await asyncio.to_thread(
-        lambda: db.client.table("users").select(
-            "telegram_id,username,first_name,total_saved"
-        ).gt("total_saved", 0).order(
-            "total_saved", desc=True
-        ).limit(LEADERBOARD_SIZE).execute()
-    )
+    # Calculate date cutoff for period
+    now = datetime.now(timezone.utc)
+    date_filter = None
+    if period == "week":
+        date_filter = (now - timedelta(days=7)).isoformat()
+    elif period == "month":
+        date_filter = (now - timedelta(days=30)).isoformat()
     
-    # If not enough users with savings, fill with recent users
-    if len(result.data) < LEADERBOARD_SIZE:
-        remaining = LEADERBOARD_SIZE - len(result.data)
-        existing_ids = [e["telegram_id"] for e in result.data]
+    # For period-based, we need to sum from orders
+    if date_filter:
+        # Get savings from orders in period
+        query = db.client.table("orders").select(
+            "user_id,amount,original_price,users(telegram_id,username,first_name)"
+        ).eq("status", "completed").gte("created_at", date_filter)
         
-        # Get recent users without savings to fill the board
-        fill_result = await asyncio.to_thread(
+        orders_result = await asyncio.to_thread(lambda: query.execute())
+        
+        # Aggregate savings by user
+        user_savings = {}
+        for order in (orders_result.data or []):
+            uid = order.get("user_id")
+            if not uid:
+                continue
+            orig = float(order.get("original_price") or order.get("amount") or 0)
+            paid = float(order.get("amount") or 0)
+            saved = max(0, orig - paid)
+            
+            if uid not in user_savings:
+                user_data = order.get("users", {})
+                user_savings[uid] = {
+                    "telegram_id": user_data.get("telegram_id"),
+                    "username": user_data.get("username"),
+                    "first_name": user_data.get("first_name"),
+                    "total_saved": 0
+                }
+            user_savings[uid]["total_saved"] += saved
+        
+        # Sort and limit
+        sorted_users = sorted(
+            user_savings.values(),
+            key=lambda x: x["total_saved"],
+            reverse=True
+        )[:LEADERBOARD_SIZE]
+        result_data = sorted_users
+    else:
+        # All-time: use total_saved from users table
+        result = await asyncio.to_thread(
             lambda: db.client.table("users").select(
                 "telegram_id,username,first_name,total_saved"
-            ).eq("total_saved", 0).order(
-                "created_at", desc=True
-            ).limit(remaining).execute()
+            ).gt("total_saved", 0).order(
+                "total_saved", desc=True
+            ).limit(LEADERBOARD_SIZE).execute()
         )
+        result_data = result.data or []
         
-        # Merge results
-        result.data.extend(fill_result.data)
+        # Fill with recent users if needed
+        if len(result_data) < LEADERBOARD_SIZE:
+            remaining = LEADERBOARD_SIZE - len(result_data)
+            fill_result = await asyncio.to_thread(
+                lambda: db.client.table("users").select(
+                    "telegram_id,username,first_name,total_saved"
+                ).eq("total_saved", 0).order(
+                    "created_at", desc=True
+                ).limit(remaining).execute()
+            )
+            result_data.extend(fill_result.data or [])
+    
+    # Get total users count
+    total_count = await asyncio.to_thread(
+        lambda: db.client.table("users").select("id", count="exact").execute()
+    )
+    total_users = total_count.count or 0
+    
+    # Count users who improved today (made a purchase today)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    improved_result = await asyncio.to_thread(
+        lambda: db.client.table("orders").select(
+            "user_id", count="exact"
+        ).eq("status", "completed").gte(
+            "created_at", today_start.isoformat()
+        ).execute()
+    )
+    improved_today = improved_result.count or 0
     
     # Get current user's stats
     db_user = await db.get_user_by_telegram_id(user.id)
@@ -515,7 +575,6 @@ async def get_webapp_leaderboard(user = Depends(verify_telegram_auth)):
         user_saved = float(db_user.total_saved) if hasattr(
             db_user, 'total_saved') and db_user.total_saved else 0
         
-        # Calculate user's rank (only among users with savings > 0)
         if user_saved > 0:
             rank_result = await asyncio.to_thread(
                 lambda: db.client.table("users").select(
@@ -524,7 +583,6 @@ async def get_webapp_leaderboard(user = Depends(verify_telegram_auth)):
             )
             user_rank = (rank_result.count or 0) + 1
         else:
-            # User has no savings - show position among all users
             total_with_savings = await asyncio.to_thread(
                 lambda: db.client.table("users").select(
                     "id", count="exact"
@@ -533,10 +591,10 @@ async def get_webapp_leaderboard(user = Depends(verify_telegram_auth)):
             user_rank = (total_with_savings.count or 0) + 1
     
     leaderboard = []
-    for i, entry in enumerate(result.data):
+    for i, entry in enumerate(result_data):
+        tg_id = entry.get("telegram_id")
         display_name = entry.get("username") or entry.get("first_name") or \
-            f"User{str(entry['telegram_id'])[-4:]}"
-        # Mask name for privacy (show first 3 chars + ***)
+            f"User{str(tg_id)[-4:]}" if tg_id else "User"
         if len(display_name) > 3:
             display_name = display_name[:3] + "***"
         
@@ -544,14 +602,15 @@ async def get_webapp_leaderboard(user = Depends(verify_telegram_auth)):
             "rank": i + 1,
             "name": display_name,
             "total_saved": float(entry.get("total_saved", 0)),
-            "is_current_user": entry["telegram_id"] == user.id
+            "is_current_user": tg_id == user.id if tg_id else False
         })
     
     return {
         "leaderboard": leaderboard,
         "user_rank": user_rank,
         "user_saved": user_saved,
-        "total_users": len(leaderboard)
+        "total_users": total_users,
+        "improved_today": improved_today
     }
 
 

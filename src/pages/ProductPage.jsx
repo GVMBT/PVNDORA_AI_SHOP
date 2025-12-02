@@ -314,15 +314,16 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
         )}
       </div>
       
-      {/* Floating Action Button */}
-      <div className="fixed bottom-4 left-4 right-4 z-20">
+      {/* Floating Action Button - above navigation (nav is h-16 = 64px) */}
+      <div className="fixed bottom-20 left-4 right-4 z-20 safe-area-bottom">
         <Button
           onClick={handleBuy}
           disabled={!isInStock && !can_fulfill_on_demand}
-          className="w-full h-14 text-lg shadow-xl shadow-primary/20"
+          className="w-full h-14 text-lg shadow-xl shadow-primary/20 bg-gradient-to-r from-primary to-primary/80"
           size="lg"
         >
           {isInStock ? t('product.buyNow') : can_fulfill_on_demand ? t('product.preorder') : t('product.notifyMe')}
+          {isInStock && <span className="ml-2">→</span>}
         </Button>
       </div>
     </div>

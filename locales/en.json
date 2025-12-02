@@ -83,7 +83,7 @@
 
   "leaderboard": {
     "title": "Money Saved",
-    "subtitle": "Top savers this month",
+    "subtitle": "Top savers",
     "yourRank": "Your Rank",
     "yourSavings": "Your Savings",
     "saved": "saved",
@@ -93,8 +93,15 @@
     "howItWorks": "How it works",
     "explanation": "Every purchase saves you money compared to retail prices. The more you save, the higher you rank!",
     "inviteFriend": "Invite Friend",
-    "copyLink": "Copy Link",
-    "linkCopied": "Link copied!"
+    "copyLink": "Copy",
+    "linkCopied": "Link copied!",
+    "period": {
+      "all": "All Time",
+      "month": "Month",
+      "week": "Week"
+    },
+    "participants": "participants",
+    "improvedToday": "improved rank today"
   },
 
   "faq": {

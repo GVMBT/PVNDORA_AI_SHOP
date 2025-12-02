@@ -48,6 +48,7 @@ export default function ProfilePage({ onBack }) {
   const [withdrawals, setWithdrawals] = useState([])
   const [activeTab, setActiveTab] = useState('overview') // overview, referrals, history, withdraw
   const [withdrawDialog, setWithdrawDialog] = useState(false)
+  const [shareLoading, setShareLoading] = useState(false)
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [withdrawMethod, setWithdrawMethod] = useState('card')
   const [withdrawDetails, setWithdrawDetails] = useState('')
@@ -78,35 +79,51 @@ export default function ProfilePage({ onBack }) {
     }
   }
   
-  const handleCopyLink = () => {
-    if (!profile?.referral_link) return
-    navigator.clipboard.writeText(profile.referral_link)
-    hapticFeedback('notification', 'success')
-    showPopup({
-      title: '✅',
-      message: t('profile.linkCopied'),
-      buttons: [{ type: 'ok' }]
-    })
+  const handleCopyLink = async () => {
+    const refLink = `https://t.me/pvndora_ai_bot?start=ref_${user?.id}`
+    try {
+      await navigator.clipboard.writeText(refLink)
+      hapticFeedback('notification', 'success')
+      showPopup({
+        title: '✅',
+        message: t('profile.linkCopied'),
+        buttons: [{ type: 'ok' }]
+      })
+    } catch (e) {
+      console.error('Copy failed', e)
+    }
   }
   
   const handleShare = async () => {
-    if (!profile?.referral_link) return
+    setShareLoading(true)
     hapticFeedback('impact', 'medium')
     
-    const text = t('profile.shareText', { saved: formatPrice(profile.total_saved || 0) })
-    
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'PVNDORA',
-          text: text,
-          url: profile.referral_link
+    try {
+      // 1. Generate prepared message via API
+      const { prepared_message_id } = await post('/referral/share-link')
+      
+      // 2. Use Telegram shareMessage if supported
+      if (window.Telegram?.WebApp?.shareMessage) {
+        window.Telegram.WebApp.shareMessage(prepared_message_id, (success) => {
+          if (success) {
+            console.log('Shared successfully')
+          }
         })
-      } catch (e) {
-        // User cancelled
+      } else {
+        // Fallback to switchInlineQuery
+        if (window.Telegram?.WebApp?.switchInlineQuery) {
+          window.Telegram.WebApp.switchInlineQuery("invite", ['users', 'groups', 'channels'])
+        } else {
+          // Final fallback: copy link
+          await handleCopyLink()
+        }
       }
-    } else {
-      handleCopyLink()
+    } catch (err) {
+      console.error('Share failed:', err)
+      // Fallback: Copy link
+      await handleCopyLink()
+    } finally {
+      setShareLoading(false)
     }
   }
   
@@ -233,13 +250,19 @@ export default function ProfilePage({ onBack }) {
               <Button 
                 onClick={() => setWithdrawDialog(true)}
                 disabled={(profile?.balance || 0) < WITHDRAWAL_MIN}
-                className="flex-1"
+                variant="outline"
+                className="flex-1 gap-2"
               >
+                <Wallet className="h-4 w-4" />
                 {t('profile.withdraw')}
               </Button>
-              <Button variant="outline" onClick={handleShare} className="flex-1 gap-2">
+              <Button 
+                onClick={handleShare} 
+                disabled={shareLoading}
+                className="flex-1 gap-2 bg-gradient-to-r from-primary to-primary/80"
+              >
                 <Share2 className="h-4 w-4" />
-                {t('profile.invite')}
+                {shareLoading ? '...' : t('profile.invite')}
               </Button>
             </div>
             
@@ -257,12 +280,13 @@ export default function ProfilePage({ onBack }) {
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium mb-1">{t('profile.yourReferralLink')}</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {profile?.referral_link}
+                <p className="text-xs text-muted-foreground truncate font-mono">
+                  t.me/pvndora_ai_bot?start=ref_{user?.id}
                 </p>
               </div>
-              <Button variant="ghost" size="icon" onClick={handleCopyLink}>
+              <Button variant="outline" size="sm" onClick={handleCopyLink} className="gap-2">
                 <Copy className="h-4 w-4" />
+                {t('leaderboard.copyLink')}
               </Button>
             </div>
           </CardContent>

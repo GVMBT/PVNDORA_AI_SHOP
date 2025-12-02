@@ -179,6 +179,36 @@ Ensure these are present in Vercel Project Settings:
 - [ ] All imported components exist
 - [ ] No circular imports
 
+## 5.2 Feature Testing (REQUIRED)
+
+**Rule:** After implementing new UI features, ALWAYS test visually and functionally.
+
+**Visual Testing Checklist:**
+- [ ] Button placement (above navigation bar, not hidden)
+- [ ] Button styling matches design system
+- [ ] Loading states work correctly
+- [ ] Responsive on mobile screens
+- [ ] RTL layout if applicable
+
+**Functional Testing Checklist:**
+- [ ] All buttons trigger correct handlers
+- [ ] API calls complete successfully
+- [ ] Error states handled gracefully
+- [ ] Toast/popup notifications work
+- [ ] Navigation works as expected
+
+**Consistency Checklist:**
+- [ ] Same functionality uses same implementation across pages
+- [ ] Colors/styles match design system
+- [ ] Icons used consistently
+- [ ] Copy/Share buttons use same Telegram API methods
+
+**Testing Method:**
+1. Use browser tools to test at different viewports
+2. Check console for errors
+3. Test all user flows end-to-end
+4. Verify API responses in Network tab
+
 ## 6. Key Principles
 
 1. **Always return fast** - Use BackgroundTasks for UX operations, QStash for critical operations
