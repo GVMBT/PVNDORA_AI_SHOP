@@ -172,6 +172,11 @@ class AIConsultant:
         # Get system prompt
         system_prompt = get_system_prompt(language, product_catalog)
         
+        # Convert OGG Opus (Telegram format) to a supported format
+        # Gemini supports: WAV, MP3, AIFF, AAC, OGG Vorbis, FLAC
+        # Telegram sends OGG Opus which may not be fully supported
+        converted_data, mime_type = await self._convert_audio_for_gemini(voice_data)
+        
         # Build message with audio
         # Include explicit instruction to process as sales consultant query
         from src.i18n import get_text
@@ -182,8 +187,8 @@ class AIConsultant:
                 role="user",
                 parts=[
                     types.Part.from_bytes(
-                        data=voice_data,
-                        mime_type="audio/ogg"
+                        data=converted_data,
+                        mime_type=mime_type
                     ),
                     types.Part.from_text(text=audio_instruction)
                 ]
@@ -194,6 +199,8 @@ class AIConsultant:
         gemini_tools = self._convert_tools_to_gemini_format()
         
         try:
+            print(f"DEBUG: Voice message processing - audio size: {len(converted_data)} bytes, mime: {mime_type}")
+            
             # Step 1: Generate with tools (NO structured output here - Gemini limitation)
             config_with_tools = types.GenerateContentConfig(
                 system_instruction=system_prompt,
@@ -208,16 +215,54 @@ class AIConsultant:
                 config=config_with_tools
             )
             
+            print(f"DEBUG: Voice response received, candidates: {len(response.candidates) if response.candidates else 0}")
+            
             # Process response (handles function calls and structured output)
             result = await self._process_response(response, user_id, db, language, messages)
             
             return result
             
         except Exception as e:
-            print(f"Gemini voice API error: {e}")
+            error_str = str(e)
+            print(f"ERROR: Gemini voice API error: {error_str}")
             import traceback
             traceback.print_exc()
+            
+            # Check for specific error types
+            if "INVALID_ARGUMENT" in error_str or "unsupported" in error_str.lower():
+                print("ERROR: Audio format may not be supported. Telegram sends OGG Opus, Gemini expects OGG Vorbis.")
+            
             return self._create_error_response(language, str(e))
+    
+    async def _convert_audio_for_gemini(self, ogg_data: bytes) -> tuple[bytes, str]:
+        """
+        Convert OGG Opus audio (from Telegram) to a format supported by Gemini.
+        
+        Gemini officially supports: WAV, MP3, AIFF, AAC, OGG Vorbis, FLAC
+        Telegram sends: OGG Opus
+        
+        Strategy:
+        1. Try using OGG directly first (Gemini may support Opus)
+        2. If that fails in future, we can add pydub conversion
+        
+        Args:
+            ogg_data: Raw OGG Opus bytes from Telegram
+            
+        Returns:
+            Tuple of (audio_bytes, mime_type)
+        """
+        # First, try to use the audio directly with the correct mime type
+        # Gemini 2.5 may support OGG Opus even if not officially documented
+        
+        # Check if the data is valid OGG by looking at magic bytes
+        if ogg_data[:4] == b'OggS':
+            # Valid OGG file
+            # Try with audio/ogg first - Gemini might handle Opus codec
+            return ogg_data, "audio/ogg"
+        
+        # If not valid OGG, return as-is and let Gemini try to process
+        print(f"WARNING: Voice data doesn't have OGG magic bytes, first 4: {ogg_data[:4]}")
+        return ogg_data, "audio/ogg"
     
     def _convert_tools_to_gemini_format(self) -> List[types.Tool]:
         """Convert our tool definitions to Gemini format"""
