@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 
 # Import models from separate file
-from api.models import ProductResponse, SubmitReviewRequest
+from api.models import SubmitReviewRequest
 
 # Add src to path for imports
 # Try multiple paths for Vercel compatibility
@@ -248,102 +248,9 @@ async def _process_update_async(bot_instance: Bot, dispatcher: Dispatcher, updat
         print(f"ERROR: Traceback: {traceback.format_exc()}")
 
 
-# ==================== PRODUCTS API ====================
-
-@app.get("/api/products")
-async def get_products():
-    """Get all available products"""
-    db = get_database()
-    products = await db.get_products(status="active")
-    
-    result = []
-    for p in products:
-        rating_info = await db.get_product_rating(p.id)
-        result.append(ProductResponse(
-            id=p.id,
-            name=p.name,
-            description=p.description,
-            price=p.price,
-            type=p.type,
-            status=p.status,
-            stock_count=p.stock_count,
-            warranty_hours=p.warranty_hours,
-            rating=rating_info["average"],
-            reviews_count=rating_info["count"]
-        ))
-    
-    return result
-
-
-@app.get("/api/products/{product_id}")
-async def get_product(product_id: str):
-    """Get product by ID"""
-    db = get_database()
-    product = await db.get_product_by_id(product_id)
-    
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    
-    rating_info = await db.get_product_rating(product_id)
-    reviews = await db.get_product_reviews(product_id, limit=5)
-    
-    return {
-        "id": product.id,
-        "name": product.name,
-        "description": product.description,
-        "price": product.price,
-        "type": product.type,
-        "status": product.status,
-        "stock_count": product.stock_count,
-        "warranty_hours": product.warranty_hours,
-        "instructions": product.instructions,
-        "terms": product.terms,
-        "rating": rating_info["average"],
-        "reviews_count": rating_info["count"],
-        "reviews": reviews
-    }
-
-
-# WebApp API endpoints moved to core/routers/webapp.py
-
-
-@app.get("/api/orders")
-async def get_user_orders(user = Depends(verify_telegram_auth)):
-    """Get user's orders"""
-    db = get_database()
-    
-    db_user = await db.get_user_by_telegram_id(user.id)
-    if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    orders = await db.get_user_orders(db_user.id)
-    return orders
-
-
-# Payment webhooks moved to core/routers/webhooks.py
+# Products/Orders/Profile API moved to core/routers/webapp.py
 
 # ==================== USER API ====================
-
-@app.get("/api/user/profile")
-async def get_user_profile(user = Depends(verify_telegram_auth)):
-    """Get user profile"""
-    db = get_database()
-    db_user = await db.get_user_by_telegram_id(user.id)
-    
-    if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    return {
-        "id": db_user.id,
-        "telegram_id": db_user.telegram_id,
-        "username": db_user.username,
-        "first_name": db_user.first_name,
-        "balance": db_user.balance,
-        "language_code": db_user.language_code,
-        "referral_percent": db_user.personal_ref_percent,
-        "is_admin": db_user.is_admin or False
-    }
-
 
 @app.get("/api/user/referral")
 async def get_referral_info(user = Depends(verify_telegram_auth)):

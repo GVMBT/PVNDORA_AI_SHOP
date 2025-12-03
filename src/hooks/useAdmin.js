@@ -53,9 +53,8 @@ export function useAdmin() {
 
   const checkAdminStatus = useCallback(async () => {
     try {
-      // Use full path to bypass /api/webapp prefix
       const initData = window.Telegram?.WebApp?.initData || ''
-      const response = await fetch('/api/user/profile', {
+      const response = await fetch('/api/webapp/profile', {
         headers: {
           'Content-Type': 'application/json',
           'X-Init-Data': initData
@@ -68,9 +67,9 @@ export function useAdmin() {
         throw new Error(`HTTP ${response.status}`)
       }
       
-      const profile = await response.json()
-      console.log('Admin profile check:', profile)
-      setIsAdmin(profile.is_admin === true)
+      const data = await response.json()
+      console.log('Admin profile check:', data.profile)
+      setIsAdmin(data.profile?.is_admin === true)
     } catch (err) {
       console.error('Failed to check admin status:', err)
       setIsAdmin(false)

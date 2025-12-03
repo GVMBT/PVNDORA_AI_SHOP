@@ -57,16 +57,18 @@ async def _get_keyboard_for_response(response, db_user: User, db):
     return None
 
 
-# Tool display names for progress updates
-TOOL_NAMES = {
-    "search_products": "🔍",
-    "get_product_details": "📦",
-    "check_availability": "✅",
-    "get_cart": "🛒",
-    "add_to_cart": "➕",
-    "get_order_history": "📋",
-    "get_user_profile": "👤",
-    "get_faq": "❓",
+# Tool display names (human-readable) for progress updates
+TOOL_LABELS = {
+    "search_products": {"ru": "Ищу товары", "en": "Searching products"},
+    "get_product_details": {"ru": "Загружаю детали", "en": "Loading details"},
+    "check_availability": {"ru": "Проверяю наличие", "en": "Checking stock"},
+    "get_cart": {"ru": "Загружаю корзину", "en": "Loading cart"},
+    "add_to_cart": {"ru": "Добавляю в корзину", "en": "Adding to cart"},
+    "get_order_history": {"ru": "Загружаю заказы", "en": "Loading orders"},
+    "get_user_profile": {"ru": "Загружаю профиль", "en": "Loading profile"},
+    "get_faq": {"ru": "Ищу в FAQ", "en": "Searching FAQ"},
+    "get_wishlist": {"ru": "Загружаю избранное", "en": "Loading wishlist"},
+    "create_support_ticket": {"ru": "Создаю тикет", "en": "Creating ticket"},
 }
 
 
@@ -79,27 +81,50 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
     db = get_database()
     await db.save_chat_message(db_user.id, "user", message.text)
     
+    lang = db_user.language_code if db_user.language_code in ("ru", "en") else "en"
+    
     # Send initial progress message
-    progress_msg = await message.answer("⏳")
-    last_stage = {"value": ""}
+    progress_msg = await message.answer("." if lang == "ru" else ".")
+    dots_state = {"count": 1, "task": None, "active": True, "base_text": ""}
+    
+    async def animate_dots():
+        """Animate dots: . → .. → ... → . (loop)"""
+        while dots_state["active"]:
+            await asyncio.sleep(0.4)
+            if not dots_state["active"]:
+                break
+            dots_state["count"] = (dots_state["count"] % 3) + 1
+            dots = "." * dots_state["count"]
+            try:
+                text = f"{dots_state['base_text']}{dots}" if dots_state["base_text"] else dots
+                await progress_msg.edit_text(text)
+            except Exception:
+                pass
     
     async def update_progress(stage: str, details: str):
         """Update progress message based on stage."""
         try:
             if stage == "analyzing":
-                text = "🔄 Анализирую..." if db_user.language_code == "ru" else "🔄 Analyzing..."
+                dots_state["base_text"] = "Анализирую" if lang == "ru" else "Analyzing"
             elif stage == "tool":
-                icon = TOOL_NAMES.get(details, "⚙️")
-                text = f"{icon} {last_stage['value']}" if last_stage['value'] else icon
-                last_stage["value"] = text
+                # Get first tool label if multiple tools
+                first_tool = details.split()[0] if details else ""
+                tool_info = TOOL_LABELS.get(first_tool, {})
+                dots_state["base_text"] = tool_info.get(lang, "Обрабатываю" if lang == "ru" else "Processing")
             elif stage == "generating":
-                text = "✨ Готовлю ответ..." if db_user.language_code == "ru" else "✨ Generating..."
+                dots_state["base_text"] = "Формирую ответ" if lang == "ru" else "Generating"
             else:
                 return
             
-            await progress_msg.edit_text(text)
+            # Start animation task if not running
+            if dots_state["task"] is None:
+                dots_state["task"] = asyncio.create_task(animate_dots())
+            
+            # Immediate update
+            dots = "." * dots_state["count"]
+            await progress_msg.edit_text(f"{dots_state['base_text']}{dots}")
         except Exception:
-            pass  # Ignore edit errors
+            pass
     
     try:
         consultant = AIConsultant()
@@ -126,6 +151,11 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
         
         print(f"DEBUG: Action: {response.action}, Product: {response.product_id}")
         
+        # Stop animation
+        dots_state["active"] = False
+        if dots_state["task"]:
+            dots_state["task"].cancel()
+        
         # Edit progress message with final response
         try:
             await progress_msg.edit_text(response.reply_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
@@ -137,6 +167,11 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
     except Exception as e:
         print(f"ERROR: AI error: {e}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
+        
+        # Stop animation
+        dots_state["active"] = False
+        if dots_state["task"]:
+            dots_state["task"].cancel()
         
         error_text = get_text("error_generic", db_user.language_code)
         try:

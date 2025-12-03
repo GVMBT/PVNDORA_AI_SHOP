@@ -201,7 +201,8 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
             "total_referral_earnings": float(db_user.total_referral_earnings) if hasattr(db_user, 'total_referral_earnings') and db_user.total_referral_earnings else 0,
             "total_saved": float(db_user.total_saved) if db_user.total_saved else 0,
             "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{user.id}",
-            "created_at": db_user.created_at.isoformat() if db_user.created_at else None
+            "created_at": db_user.created_at.isoformat() if db_user.created_at else None,
+            "is_admin": db_user.is_admin or False
         },
         "referral_stats": referral_stats,
         "bonus_history": bonus_result.data or [],
