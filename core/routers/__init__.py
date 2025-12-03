@@ -8,11 +8,9 @@ FastAPI Routers Package
 from core.routers.webhooks import router as webhooks_router
 from core.routers.admin import router as admin_router
 from core.routers.workers import router as workers_router
-from core.routers.cron import router as cron_router
 
 __all__ = [
     "webhooks_router",
     "admin_router",
     "workers_router",
-    "cron_router",
 ]

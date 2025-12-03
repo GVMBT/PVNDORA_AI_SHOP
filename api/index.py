@@ -145,12 +145,12 @@ app.add_middleware(
 from core.routers.admin import router as admin_router
 from core.routers.webhooks import router as webhooks_router
 from core.routers.workers import router as workers_router
-from core.routers.cron import router as cron_router
+# Cron jobs are in api/cron/*.py (separate Vercel serverless functions)
 
 app.include_router(admin_router, prefix="/api/admin")
 app.include_router(webhooks_router)
 app.include_router(workers_router)
-app.include_router(cron_router)
+# Cron routers not needed - Vercel crons use api/cron/*.py directly
 
 
 # ==================== HEALTH CHECK ====================
