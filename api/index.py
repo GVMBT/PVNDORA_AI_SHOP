@@ -11,11 +11,10 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
-from fastapi import FastAPI, Request, HTTPException, Depends, Header, BackgroundTasks
+from fastapi import FastAPI, Request, HTTPException, Depends, BackgroundTasks
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 
 # Import models from separate file
 from api.models import (
@@ -1208,7 +1207,6 @@ async def create_referral_share_link(user = Depends(verify_telegram_auth)):
     
     # Dynamic Image URL powered by Vercel OG
     import urllib.parse
-    from datetime import timezone
     timestamp = int(datetime.now(timezone.utc).timestamp())
     avatar_url = getattr(user, "photo_url", None)
     if not avatar_url:
