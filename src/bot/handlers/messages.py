@@ -57,6 +57,19 @@ async def _get_keyboard_for_response(response, db_user: User, db):
     return None
 
 
+# Tool display names for progress updates
+TOOL_NAMES = {
+    "search_products": "🔍",
+    "get_product_details": "📦",
+    "check_availability": "✅",
+    "get_cart": "🛒",
+    "add_to_cart": "➕",
+    "get_order_history": "📋",
+    "get_user_profile": "👤",
+    "get_faq": "❓",
+}
+
+
 @router.message(F.text)
 async def handle_text_message(message: Message, db_user: User, bot: Bot):
     """Handle regular text messages - route to AI consultant."""
@@ -66,24 +79,35 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
     db = get_database()
     await db.save_chat_message(db_user.id, "user", message.text)
     
-    # Typing indicator
-    typing_active = True
-    async def keep_typing():
-        while typing_active:
-            try:
-                await bot.send_chat_action(message.chat.id, "typing")
-                await asyncio.sleep(4)
-            except Exception:
-                break
+    # Send initial progress message
+    progress_msg = await message.answer("⏳")
+    last_stage = {"value": ""}
     
-    typing_task = asyncio.create_task(keep_typing())
+    async def update_progress(stage: str, details: str):
+        """Update progress message based on stage."""
+        try:
+            if stage == "analyzing":
+                text = "🔄 Анализирую..." if db_user.language_code == "ru" else "🔄 Analyzing..."
+            elif stage == "tool":
+                icon = TOOL_NAMES.get(details, "⚙️")
+                text = f"{icon} {last_stage['value']}" if last_stage['value'] else icon
+                last_stage["value"] = text
+            elif stage == "generating":
+                text = "✨ Готовлю ответ..." if db_user.language_code == "ru" else "✨ Generating..."
+            else:
+                return
+            
+            await progress_msg.edit_text(text)
+        except Exception:
+            pass  # Ignore edit errors
     
     try:
         consultant = AIConsultant()
         response = await consultant.get_response(
             user_id=db_user.id,
             user_message=message.text,
-            language=db_user.language_code
+            language=db_user.language_code,
+            progress_callback=update_progress
         )
         
         await db.save_chat_message(db_user.id, "assistant", response.reply_text)
@@ -101,18 +125,25 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
         keyboard = await _get_keyboard_for_response(response, db_user, db)
         
         print(f"DEBUG: Action: {response.action}, Product: {response.product_id}")
-        await safe_answer(message, response.reply_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+        
+        # Edit progress message with final response
+        try:
+            await progress_msg.edit_text(response.reply_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+        except Exception:
+            # If edit fails (e.g., same text), send new message
+            await progress_msg.delete()
+            await safe_answer(message, response.reply_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
         
     except Exception as e:
         print(f"ERROR: AI error: {e}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         
         error_text = get_text("error_generic", db_user.language_code)
-        await safe_answer(message, error_text)
+        try:
+            await progress_msg.edit_text(error_text)
+        except Exception:
+            await safe_answer(message, error_text)
         await db.save_chat_message(db_user.id, "assistant", error_text)
-    finally:
-        typing_active = False
-        typing_task.cancel()
 
 
 @router.message(F.voice)

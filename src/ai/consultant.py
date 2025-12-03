@@ -52,7 +52,8 @@ class AIConsultant:
         self,
         user_id: str,
         user_message: str,
-        language: str = "en"
+        language: str = "en",
+        progress_callback=None
     ) -> StructuredAIResponse:
         """
         Get AI response for a text message using Structured Outputs.
@@ -131,8 +132,12 @@ class AIConsultant:
                 config=config_with_tools
             )
             
+            # Notify progress: analyzing response
+            if progress_callback:
+                await progress_callback("analyzing", "")
+            
             # Process response (handles function calls, then final structured output)
-            return await self._process_response(response, user_id, db, language, messages)
+            return await self._process_response(response, user_id, db, language, messages, progress_callback)
             
         except Exception as e:
             print(f"Gemini API error: {e}")
@@ -300,7 +305,8 @@ class AIConsultant:
         user_id: str,
         db,
         language: str,
-        original_messages: List[types.Content] = None
+        original_messages: List[types.Content] = None,
+        progress_callback=None
     ) -> StructuredAIResponse:
         """
         Process Gemini response with Structured Outputs.
@@ -351,7 +357,11 @@ class AIConsultant:
                 
                 # Execute all tools and collect results
                 tool_results = {}
-                for tool_name, arguments in function_calls:
+                for i, (tool_name, arguments) in enumerate(function_calls):
+                    # Progress callback for each tool
+                    if progress_callback:
+                        await progress_callback("tool", tool_name)
+                    
                     print(f"DEBUG: Executing {tool_name} with args: {arguments}")
                     try:
                         result = await execute_tool(tool_name, arguments, user_id, db, language)
@@ -371,6 +381,10 @@ class AIConsultant:
                             parts=[types.Part.from_text(text=msg["content"])]
                         ))
                 
+                # Progress: generating response
+                if progress_callback:
+                    await progress_callback("generating", "")
+                
                 # Continue with ALL tool results combined
                 return await self._continue_with_all_tool_results(
                     original_messages,
@@ -381,6 +395,10 @@ class AIConsultant:
                     db,
                     language
                 )
+            
+            # Progress: generating response (no tools)
+            if progress_callback:
+                await progress_callback("generating", "")
             
             # No function call - need to make SECOND request with structured output
             # Because Gemini doesn't support tools + response_schema simultaneously
