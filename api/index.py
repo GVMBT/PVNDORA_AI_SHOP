@@ -384,15 +384,7 @@ async def create_referral_share_link(user = Depends(verify_telegram_auth)):
         raise HTTPException(status_code=500, detail=f"Failed to save prepared message: {error_msg}")
 
 
-# ==================== FAQ API ====================
-
-@app.get("/api/faq")
-async def get_faq(language_code: str = "en"):
-    """Get FAQ entries"""
-    db = get_database()
-    faq = await db.get_faq(language_code)
-    return {"faq": faq}
-
+# FAQ moved to core/routers/webapp.py (/api/webapp/faq)
 
 # ==================== WISHLIST API ====================
 
