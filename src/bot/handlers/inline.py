@@ -132,3 +132,4 @@ async def handle_chosen_inline_result(chosen_result: ChosenInlineResult, db_user
     except Exception:
         pass
 
+

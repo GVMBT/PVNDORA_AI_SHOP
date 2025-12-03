@@ -59,3 +59,4 @@ async def safe_answer(message: Message, text: str, **kwargs) -> bool:
         traceback.print_exc()
         return False
 
+

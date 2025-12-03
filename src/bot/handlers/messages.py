@@ -164,3 +164,4 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
         typing_active = False
         typing_task.cancel()
 
+

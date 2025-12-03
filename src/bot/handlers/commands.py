@@ -141,3 +141,4 @@ async def cmd_referral(message: Message, db_user: User, bot: Bot):
     )
     await message.answer(text, parse_mode=ParseMode.HTML)
 
+
