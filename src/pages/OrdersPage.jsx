@@ -92,7 +92,8 @@ export default function OrdersPage({ onBack }) {
           orders.map((order, index) => {
             const status = statusConfig[order.status] || statusConfig.pending
             const StatusIconComponent = status.icon
-            const productName = order.products?.name || t('orders.unknownProduct')
+            // API returns product_name directly, not nested products.name
+            const productName = order.product_name || order.products?.name || t('orders.unknownProduct')
             
             return (
               <Card 

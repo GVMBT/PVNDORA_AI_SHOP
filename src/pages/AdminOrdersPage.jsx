@@ -144,7 +144,7 @@ export default function AdminOrdersPage({ onBack }) {
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        User: {order.user?.username || order.user_id}
+                        User: @{order.users?.username || order.users?.first_name || `ID: ${order.users?.telegram_id}`}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {formatDate(order.created_at)}
