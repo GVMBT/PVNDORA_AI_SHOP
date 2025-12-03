@@ -1,0 +1,562 @@
+"""
+WebApp API Router
+
+Mini App endpoints for Telegram WebApp frontend.
+Requires Telegram initData authentication for user-specific endpoints.
+"""
+import os
+import asyncio
+from datetime import datetime, timezone, timedelta
+
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+
+from src.services.database import get_database
+from core.auth import verify_telegram_auth
+from core.routers.deps import get_payment_service
+
+router = APIRouter(prefix="/api/webapp", tags=["webapp"])
+
+
+# ==================== PYDANTIC MODELS ====================
+
+class WithdrawalRequest(BaseModel):
+    amount: float
+    method: str  # card, phone, crypto
+    details: str
+
+
+class PromoCheckRequest(BaseModel):
+    code: str
+
+
+class WebAppReviewRequest(BaseModel):
+    order_id: str
+    rating: int
+    text: str | None = None
+
+
+class CreateOrderRequest(BaseModel):
+    product_id: str | None = None
+    quantity: int | None = 1
+    promo_code: str | None = None
+    use_cart: bool = False
+
+
+class OrderResponse(BaseModel):
+    order_id: str
+    amount: float
+    original_price: float
+    discount_percent: int
+    payment_url: str
+    payment_method: str
+
+
+# ==================== PUBLIC ENDPOINTS ====================
+
+@router.get("/products/{product_id}")
+async def get_webapp_product(product_id: str):
+    """Get product with discount and social proof for Mini App."""
+    db = get_database()
+    product = await db.get_product_by_id(product_id)
+    
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    stock_result = await asyncio.to_thread(
+        lambda: db.client.table("available_stock_with_discounts").select("*").eq("product_id", product_id).limit(1).execute()
+    )
+    
+    discount_percent = stock_result.data[0].get("discount_percent", 0) if stock_result.data else 0
+    rating_info = await db.get_product_rating(product_id)
+    
+    original_price = float(product.price)
+    final_price = original_price * (1 - discount_percent / 100)
+    fulfillment_time_hours = getattr(product, 'fulfillment_time_hours', 48)
+    
+    return {
+        "product": {
+            "id": product.id, "name": product.name, "description": product.description,
+            "original_price": original_price, "price": original_price,
+            "discount_percent": discount_percent, "final_price": round(final_price, 2),
+            "warranty_days": product.warranty_hours // 24 if hasattr(product, 'warranty_hours') else 1,
+            "duration_days": getattr(product, 'duration_days', None),
+            "available_count": product.stock_count, "available": product.stock_count > 0,
+            "can_fulfill_on_demand": product.status == 'active',
+            "fulfillment_time_hours": fulfillment_time_hours if product.status == 'active' else None,
+            "type": product.type, "instructions": product.instructions,
+            "rating": rating_info["average"], "reviews_count": rating_info["count"]
+        }
+    }
+
+
+@router.get("/products")
+async def get_webapp_products():
+    """Get all active products for Mini App catalog."""
+    db = get_database()
+    products = await db.get_products(status="active")
+    
+    result = []
+    for p in products:
+        stock_result = await asyncio.to_thread(
+            lambda pid=p.id: db.client.table("available_stock_with_discounts").select("*").eq("product_id", pid).limit(1).execute()
+        )
+        discount_percent = stock_result.data[0].get("discount_percent", 0) if stock_result.data else 0
+        rating_info = await db.get_product_rating(p.id)
+        
+        original_price = float(p.price)
+        final_price = original_price * (1 - discount_percent / 100)
+        
+        result.append({
+            "id": p.id, "name": p.name, "description": p.description,
+            "original_price": original_price, "price": original_price,
+            "discount_percent": discount_percent, "final_price": round(final_price, 2),
+            "available_count": p.stock_count, "available": p.stock_count > 0,
+            "can_fulfill_on_demand": p.status == 'active',
+            "type": p.type, "rating": rating_info["average"], "reviews_count": rating_info["count"]
+        })
+    
+    return {"products": result, "count": len(result)}
+
+
+# ==================== AUTH REQUIRED ENDPOINTS ====================
+
+@router.get("/orders")
+async def get_webapp_orders(user=Depends(verify_telegram_auth)):
+    """Get user's order history."""
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    orders = await db.get_user_orders(db_user.id, limit=50)
+    
+    result = []
+    for o in orders:
+        product = await db.get_product_by_id(o.product_id)
+        result.append({
+            "id": o.id, "product_id": o.product_id,
+            "product_name": product.name if product else "Unknown Product",
+            "amount": o.amount, "original_price": o.original_price,
+            "discount_percent": o.discount_percent, "status": o.status,
+            "order_type": getattr(o, 'order_type', 'instant'),
+            "created_at": o.created_at.isoformat() if o.created_at else None,
+            "delivered_at": o.delivered_at.isoformat() if hasattr(o, 'delivered_at') and o.delivered_at else None,
+            "expires_at": o.expires_at.isoformat() if o.expires_at else None,
+            "warranty_until": o.warranty_until.isoformat() if hasattr(o, 'warranty_until') and o.warranty_until else None
+        })
+    
+    return {"orders": result, "count": len(result)}
+
+
+@router.get("/faq")
+async def get_webapp_faq(language_code: str = "en", user=Depends(verify_telegram_auth)):
+    """Get FAQ entries grouped by category."""
+    db = get_database()
+    faq_entries = await db.get_faq(language_code)
+    
+    categories = {}
+    for entry in faq_entries:
+        category = entry.get("category", "general")
+        if category not in categories:
+            categories[category] = []
+        categories[category].append({"question": entry["question"], "answer": entry["answer"]})
+    
+    return {"categories": categories, "total": len(faq_entries)}
+
+
+@router.get("/profile")
+async def get_webapp_profile(user=Depends(verify_telegram_auth)):
+    """Get user profile with referral stats, balance, and history."""
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    stats_result = await asyncio.to_thread(
+        lambda: db.client.table("user_referral_stats").select("*").eq("user_id", db_user.id).execute()
+    )
+    
+    referral_stats = None
+    if stats_result.data:
+        s = stats_result.data[0]
+        referral_stats = {
+            "level1_count": s.get("level1_count", 0), "level2_count": s.get("level2_count", 0),
+            "level3_count": s.get("level3_count", 0),
+            "level1_earnings": float(s.get("level1_earnings", 0)),
+            "level2_earnings": float(s.get("level2_earnings", 0)),
+            "level3_earnings": float(s.get("level3_earnings", 0)),
+        }
+    
+    bonus_result = await asyncio.to_thread(
+        lambda: db.client.table("referral_bonuses").select("*").eq("user_id", db_user.id).order("created_at", desc=True).limit(10).execute()
+    )
+    withdrawal_result = await asyncio.to_thread(
+        lambda: db.client.table("withdrawal_requests").select("*").eq("user_id", db_user.id).order("created_at", desc=True).limit(10).execute()
+    )
+    
+    return {
+        "profile": {
+            "balance": float(db_user.balance) if db_user.balance else 0,
+            "total_referral_earnings": float(db_user.total_referral_earnings) if hasattr(db_user, 'total_referral_earnings') and db_user.total_referral_earnings else 0,
+            "total_saved": float(db_user.total_saved) if db_user.total_saved else 0,
+            "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{user.id}",
+            "created_at": db_user.created_at.isoformat() if db_user.created_at else None
+        },
+        "referral_stats": referral_stats,
+        "bonus_history": bonus_result.data or [],
+        "withdrawals": withdrawal_result.data or []
+    }
+
+
+@router.post("/profile/withdraw")
+async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_telegram_auth)):
+    """Request balance withdrawal."""
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    MIN_WITHDRAWAL = 500
+    balance = float(db_user.balance) if db_user.balance else 0
+    
+    if request.amount < MIN_WITHDRAWAL:
+        raise HTTPException(status_code=400, detail=f"Minimum withdrawal is {MIN_WITHDRAWAL}₽")
+    if request.amount > balance:
+        raise HTTPException(status_code=400, detail="Insufficient balance")
+    if request.method not in ['card', 'phone', 'crypto']:
+        raise HTTPException(status_code=400, detail="Invalid payment method")
+    
+    await asyncio.to_thread(
+        lambda: db.client.table("withdrawal_requests").insert({
+            "user_id": db_user.id, "amount": request.amount,
+            "payment_method": request.method, "payment_details": {"details": request.details}
+        }).execute()
+    )
+    
+    await asyncio.to_thread(
+        lambda: db.client.table("users").update({"balance": balance - request.amount}).eq("id", db_user.id).execute()
+    )
+    
+    return {"success": True, "message": "Withdrawal request submitted"}
+
+
+@router.get("/cart")
+async def get_webapp_cart(user=Depends(verify_telegram_auth)):
+    """Get user's shopping cart."""
+    from core.cart import get_cart_manager
+    
+    try:
+        cart_manager = get_cart_manager()
+        cart = await cart_manager.get_cart(user.id)
+        
+        if not cart:
+            return {"cart": None, "items": [], "total": 0.0, "subtotal": 0.0,
+                    "instant_total": 0.0, "prepaid_total": 0.0, "promo_code": None, "promo_discount_percent": 0.0}
+        
+        db = get_database()
+        items_with_details = []
+        for item in cart.items:
+            product = await db.get_product_by_id(item.product_id)
+            items_with_details.append({
+                "product_id": item.product_id, "product_name": product.name if product else "Unknown",
+                "quantity": item.quantity, "instant_quantity": item.instant_quantity,
+                "prepaid_quantity": item.prepaid_quantity, "unit_price": item.unit_price,
+                "final_price": item.final_price, "total_price": item.total_price, "discount_percent": item.discount_percent
+            })
+        
+        return {
+            "cart": {"user_telegram_id": cart.user_telegram_id, "created_at": cart.created_at, "updated_at": cart.updated_at},
+            "items": items_with_details, "total": cart.total, "subtotal": cart.subtotal,
+            "instant_total": cart.instant_total, "prepaid_total": cart.prepaid_total,
+            "promo_code": cart.promo_code, "promo_discount_percent": cart.promo_discount_percent
+        }
+    except Exception as e:
+        print(f"ERROR: Failed to get cart: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve cart: {str(e)}")
+
+
+@router.post("/promo/check")
+async def check_webapp_promo(request: PromoCheckRequest, user=Depends(verify_telegram_auth)):
+    """Check if promo code is valid."""
+    db = get_database()
+    code = request.code.strip().upper()
+    promo = await db.validate_promo_code(code)
+    
+    if promo:
+        return {
+            "valid": True, "code": code, "discount_percent": promo["discount_percent"],
+            "expires_at": promo.get("expires_at"),
+            "usage_remaining": (promo.get("usage_limit") or 999) - (promo.get("usage_count") or 0)
+        }
+    return {"valid": False, "code": code, "message": "Invalid or expired promo code"}
+
+
+@router.post("/reviews")
+async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify_telegram_auth)):
+    """Submit a product review. Awards 5% cashback."""
+    db = get_database()
+    
+    if not 1 <= request.rating <= 5:
+        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
+    
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    order = await db.get_order_by_id(request.order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.user_id != db_user.id:
+        raise HTTPException(status_code=403, detail="Order does not belong to user")
+    if order.status not in ["completed", "delivered"]:
+        raise HTTPException(status_code=400, detail="Can only review completed orders")
+    
+    existing = await asyncio.to_thread(
+        lambda: db.client.table("reviews").select("id").eq("order_id", request.order_id).execute()
+    )
+    if existing.data:
+        raise HTTPException(status_code=400, detail="Order already reviewed")
+    
+    result = await asyncio.to_thread(
+        lambda: db.client.table("reviews").insert({
+            "user_id": db_user.id, "order_id": request.order_id, "product_id": order.product_id,
+            "rating": request.rating, "text": request.text, "cashback_given": False
+        }).execute()
+    )
+    
+    cashback_amount = float(order.amount) * 0.05
+    await asyncio.to_thread(
+        lambda: db.client.table("users").update({"balance": db_user.balance + cashback_amount}).eq("id", db_user.id).execute()
+    )
+    await asyncio.to_thread(
+        lambda: db.client.table("reviews").update({"cashback_given": True}).eq("id", result.data[0]["id"]).execute()
+    )
+    
+    return {"success": True, "review_id": result.data[0]["id"], "cashback_awarded": round(cashback_amount, 2),
+            "new_balance": round(float(db_user.balance) + cashback_amount, 2)}
+
+
+@router.get("/leaderboard")
+async def get_webapp_leaderboard(period: str = "all", user=Depends(verify_telegram_auth)):
+    """Get savings leaderboard. Supports period: all, month, week"""
+    db = get_database()
+    LEADERBOARD_SIZE = 25
+    now = datetime.now(timezone.utc)
+    
+    date_filter = None
+    if period == "week":
+        date_filter = (now - timedelta(days=7)).isoformat()
+    elif period == "month":
+        date_filter = (now - timedelta(days=30)).isoformat()
+    
+    if date_filter:
+        orders_result = await asyncio.to_thread(
+            lambda: db.client.table("orders").select(
+                "user_id,amount,original_price,users(telegram_id,username,first_name)"
+            ).eq("status", "completed").gte("created_at", date_filter).execute()
+        )
+        
+        user_savings = {}
+        for order in (orders_result.data or []):
+            uid = order.get("user_id")
+            if not uid:
+                continue
+            orig = float(order.get("original_price") or order.get("amount") or 0)
+            paid = float(order.get("amount") or 0)
+            saved = max(0, orig - paid)
+            
+            if uid not in user_savings:
+                user_data = order.get("users", {})
+                user_savings[uid] = {
+                    "telegram_id": user_data.get("telegram_id"),
+                    "username": user_data.get("username"),
+                    "first_name": user_data.get("first_name"),
+                    "total_saved": 0
+                }
+            user_savings[uid]["total_saved"] += saved
+        
+        result_data = sorted(user_savings.values(), key=lambda x: x["total_saved"], reverse=True)[:LEADERBOARD_SIZE]
+    else:
+        result = await asyncio.to_thread(
+            lambda: db.client.table("users").select("telegram_id,username,first_name,total_saved").gt("total_saved", 0).order("total_saved", desc=True).limit(LEADERBOARD_SIZE).execute()
+        )
+        result_data = result.data or []
+        
+        if len(result_data) < LEADERBOARD_SIZE:
+            fill_result = await asyncio.to_thread(
+                lambda: db.client.table("users").select("telegram_id,username,first_name,total_saved").eq("total_saved", 0).order("created_at", desc=True).limit(LEADERBOARD_SIZE - len(result_data)).execute()
+            )
+            result_data.extend(fill_result.data or [])
+    
+    total_count = await asyncio.to_thread(lambda: db.client.table("users").select("id", count="exact").execute())
+    total_users = total_count.count or 0
+    
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    improved_result = await asyncio.to_thread(
+        lambda: db.client.table("orders").select("user_id", count="exact").eq("status", "completed").gte("created_at", today_start.isoformat()).execute()
+    )
+    improved_today = improved_result.count or 0
+    
+    db_user = await db.get_user_by_telegram_id(user.id)
+    user_rank, user_saved = None, 0
+    
+    if db_user:
+        user_saved = float(db_user.total_saved) if hasattr(db_user, 'total_saved') and db_user.total_saved else 0
+        if user_saved > 0:
+            rank_result = await asyncio.to_thread(
+                lambda: db.client.table("users").select("id", count="exact").gt("total_saved", user_saved).execute()
+            )
+            user_rank = (rank_result.count or 0) + 1
+        else:
+            total_with_savings = await asyncio.to_thread(
+                lambda: db.client.table("users").select("id", count="exact").gt("total_saved", 0).execute()
+            )
+            user_rank = (total_with_savings.count or 0) + 1
+    
+    leaderboard = []
+    for i, entry in enumerate(result_data):
+        tg_id = entry.get("telegram_id")
+        display_name = entry.get("username") or entry.get("first_name") or (f"User{str(tg_id)[-4:]}" if tg_id else "User")
+        if len(display_name) > 3:
+            display_name = display_name[:3] + "***"
+        
+        leaderboard.append({
+            "rank": i + 1, "name": display_name, "total_saved": float(entry.get("total_saved", 0)),
+            "is_current_user": tg_id == user.id if tg_id else False
+        })
+    
+    return {
+        "leaderboard": leaderboard, "user_rank": user_rank, "user_saved": user_saved,
+        "total_users": total_users, "improved_today": improved_today
+    }
+
+
+@router.post("/orders")
+async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_telegram_auth)):
+    """Create new order from Mini App. Supports both single product and cart-based orders."""
+    db = get_database()
+    
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    cardlink_configured = bool(os.environ.get("CARDLINK_API_TOKEN") and os.environ.get("CARDLINK_SHOP_ID"))
+    if cardlink_configured and db_user.language_code in ["ru", "uk", "be", "kk"]:
+        payment_method = "cardlink"
+    elif db_user.language_code in ["ru", "uk", "be", "kk"]:
+        payment_method = "aaio"
+    else:
+        payment_method = "stripe"
+    
+    payment_service = get_payment_service()
+    
+    if request.use_cart or (not request.product_id):
+        from core.cart import get_cart_manager
+        cart_manager = get_cart_manager()
+        cart = await cart_manager.get_cart(user.id)
+        
+        if not cart or not cart.items:
+            raise HTTPException(status_code=400, detail="Cart is empty")
+        
+        total_amount, total_original = 0.0, 0.0
+        order_items = []
+        
+        for item in cart.items:
+            product = await db.get_product_by_id(item.product_id)
+            if not product:
+                raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
+            
+            if item.instant_quantity > 0:
+                available_stock = await db.get_available_stock_count(item.product_id)
+                if available_stock < item.instant_quantity:
+                    raise HTTPException(status_code=400, detail=f"Not enough stock for {product.name}")
+            
+            original_price = product.price * item.quantity
+            discount_percent = item.discount_percent
+            if cart.promo_code and cart.promo_discount_percent > 0:
+                discount_percent = max(discount_percent, cart.promo_discount_percent)
+            
+            final_price = original_price * (1 - discount_percent / 100)
+            total_amount += final_price
+            total_original += original_price
+            
+            order_items.append({
+                "product_id": item.product_id, "product_name": product.name,
+                "quantity": item.quantity, "amount": final_price,
+                "original_price": original_price, "discount_percent": discount_percent
+            })
+        
+        first_item = order_items[0]
+        order = await db.create_order(
+            user_id=db_user.id, product_id=first_item["product_id"],
+            amount=total_amount, original_price=total_original,
+            discount_percent=int((1 - total_amount / total_original) * 100) if total_original > 0 else 0,
+            payment_method=payment_method
+        )
+        
+        product_names = ", ".join([item["product_name"] for item in order_items[:3]])
+        if len(order_items) > 3:
+            product_names += f" и еще {len(order_items) - 3}"
+        
+        payment_url = await payment_service.create_payment(
+            order_id=order.id, amount=total_amount, product_name=product_names,
+            method=payment_method, user_email=f"{user.id}@telegram.user"
+        )
+        
+        if cart.promo_code:
+            await db.use_promo_code(cart.promo_code)
+        await cart_manager.clear_cart(user.id)
+        
+        return OrderResponse(
+            order_id=order.id, amount=total_amount, original_price=total_original,
+            discount_percent=int((1 - total_amount / total_original) * 100) if total_original > 0 else 0,
+            payment_url=payment_url, payment_method=payment_method
+        )
+    
+    else:
+        if not request.product_id:
+            raise HTTPException(status_code=400, detail="product_id is required")
+        
+        product = await db.get_product_by_id(request.product_id)
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
+        
+        quantity = request.quantity or 1
+        available_stock = await db.get_available_stock_count(request.product_id)
+        if available_stock < quantity:
+            raise HTTPException(status_code=400, detail=f"Not enough stock. Available: {available_stock}")
+        
+        original_price = product.price * quantity
+        discount_percent = 0
+        
+        stock_item = await db.get_available_stock_item(request.product_id)
+        if stock_item:
+            discount_percent = await db.calculate_discount(stock_item, product)
+        
+        if request.promo_code:
+            promo = await db.validate_promo_code(request.promo_code)
+            if promo:
+                discount_percent = max(discount_percent, promo["discount_percent"])
+        
+        final_price = original_price * (1 - discount_percent / 100)
+        
+        order = await db.create_order(
+            user_id=db_user.id, product_id=request.product_id,
+            amount=final_price, original_price=original_price,
+            discount_percent=discount_percent, payment_method=payment_method
+        )
+        
+        payment_url = await payment_service.create_payment(
+            order_id=order.id, amount=final_price, product_name=product.name,
+            method=payment_method, user_email=f"{user.id}@telegram.user"
+        )
+        
+        if request.promo_code:
+            await db.use_promo_code(request.promo_code)
+        
+        return OrderResponse(
+            order_id=order.id, amount=final_price, original_price=original_price,
+            discount_percent=discount_percent, payment_url=payment_url, payment_method=payment_method
+        )
+
