@@ -410,6 +410,76 @@ async def admin_get_analytics(
     }
 
 
+@router.get("/metrics/business")
+async def admin_get_business_metrics(
+    days: int = 30,
+    admin=Depends(verify_admin)
+):
+    """Get comprehensive business metrics from views"""
+    db = get_database()
+    
+    # Get daily metrics
+    daily = await asyncio.to_thread(
+        lambda: db.client.table("business_metrics").select("*").limit(days).execute()
+    )
+    
+    # Get referral program metrics
+    referral = await asyncio.to_thread(
+        lambda: db.client.table("referral_program_metrics").select("*").single().execute()
+    )
+    
+    # Get product metrics
+    products = await asyncio.to_thread(
+        lambda: db.client.table("product_metrics").select("*").limit(10).execute()
+    )
+    
+    # Get retention cohorts
+    retention = await asyncio.to_thread(
+        lambda: db.client.table("retention_cohorts").select("*").limit(8).execute()
+    )
+    
+    # Calculate summary
+    daily_data = daily.data or []
+    summary = {
+        "total_revenue": sum(d.get("revenue", 0) for d in daily_data),
+        "total_orders": sum(d.get("completed_orders", 0) for d in daily_data),
+        "total_new_users": sum(d.get("new_users", 0) for d in daily_data),
+        "avg_daily_revenue": sum(d.get("revenue", 0) for d in daily_data) / len(daily_data) if daily_data else 0,
+        "avg_conversion_rate": sum(d.get("order_conversion_rate", 0) for d in daily_data) / len(daily_data) if daily_data else 0,
+        "avg_order_value": sum(d.get("avg_order_value", 0) for d in daily_data) / len([d for d in daily_data if d.get("avg_order_value", 0) > 0]) if any(d.get("avg_order_value", 0) > 0 for d in daily_data) else 0
+    }
+    
+    return {
+        "period_days": days,
+        "summary": summary,
+        "daily_metrics": daily_data,
+        "referral_metrics": referral.data if referral.data else {},
+        "product_metrics": products.data or [],
+        "retention_cohorts": retention.data or []
+    }
+
+
+@router.get("/metrics/referral")
+async def admin_get_referral_metrics(admin=Depends(verify_admin)):
+    """Get detailed referral program metrics"""
+    db = get_database()
+    
+    # Get overall stats
+    stats = await asyncio.to_thread(
+        lambda: db.client.table("referral_program_metrics").select("*").single().execute()
+    )
+    
+    # Get extended stats for top referrers
+    top_referrers = await asyncio.to_thread(
+        lambda: db.client.table("referral_stats_extended").select("*").order("total_referral_earnings", desc=True).limit(20).execute()
+    )
+    
+    return {
+        "overview": stats.data if stats.data else {},
+        "top_referrers": top_referrers.data or []
+    }
+
+
 # ==================== SUPPORT TICKETS ====================
 
 @router.get("/tickets")
