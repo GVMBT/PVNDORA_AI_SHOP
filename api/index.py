@@ -152,8 +152,6 @@ from core.routers.admin import router as admin_router
 from core.routers.webhooks import router as webhooks_router
 from core.routers.workers import router as workers_router
 from core.routers.cron import router as cron_router
-# Note: products_router exists but index.py versions have more features
-# (available_stock_with_discounts view, on-demand fulfillment logic)
 
 app.include_router(admin_router, prefix="/api/admin")
 app.include_router(webhooks_router)
