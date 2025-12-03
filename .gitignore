@@ -53,6 +53,9 @@ TODO.md
 __tests__/
 coverage/
 .nyc_output/
+htmlcov/
+coverage.xml
+.coverage
 
 # Temporary files
 *.tmp

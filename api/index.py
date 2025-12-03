@@ -141,19 +141,12 @@ app.add_middleware(
 from core.routers.admin import router as admin_router
 from core.routers.webhooks import router as webhooks_router
 from core.routers.workers import router as workers_router
+# Note: products_router exists but index.py versions have more features
+# (available_stock_with_discounts view, on-demand fulfillment logic)
 
 app.include_router(admin_router, prefix="/api/admin")
 app.include_router(webhooks_router)
 app.include_router(workers_router)
-
-
-# ==================== ROUTERS (DISABLED) ====================
-# Роутеры созданы для будущей миграции, но пока отключены
-# чтобы избежать конфликтов с оригинальной авторизацией.
-# См. core/routers/ - готовы к использованию после полной миграции.
-#
-# TODO: Мигрировать verify_admin и verify_telegram_auth в core/routers/deps.py
-# и удалить дублирующиеся endpoints из index.py
 
 
 # ==================== HEALTH CHECK ====================
