@@ -351,24 +351,29 @@ class AIConsultant:
                     
                     function_calls.append((tool_name, arguments))
             
-            # If we have function calls, execute ALL of them
+            # If we have function calls, execute ALL of them in PARALLEL
             if function_calls:
                 print(f"DEBUG: Found {len(function_calls)} function calls: {[fc[0] for fc in function_calls]}")
                 
-                # Execute all tools and collect results
-                tool_results = {}
-                for i, (tool_name, arguments) in enumerate(function_calls):
-                    # Progress callback for each tool
-                    if progress_callback:
-                        await progress_callback("tool", tool_name)
-                    
+                # Progress callback - show all tools at once
+                if progress_callback:
+                    tool_names = " ".join([fc[0] for fc in function_calls])
+                    await progress_callback("tool", tool_names)
+                
+                # Execute all tools in PARALLEL for better latency
+                async def execute_single_tool(tool_name: str, arguments: dict):
                     print(f"DEBUG: Executing {tool_name} with args: {arguments}")
                     try:
-                        result = await execute_tool(tool_name, arguments, user_id, db, language)
-                        tool_results[tool_name] = result
+                        return tool_name, await execute_tool(tool_name, arguments, user_id, db, language)
                     except Exception as e:
                         print(f"ERROR: Tool {tool_name} failed: {e}")
-                        tool_results[tool_name] = {"success": False, "error": str(e)}
+                        return tool_name, {"success": False, "error": str(e)}
+                
+                # Run all tools concurrently
+                results = await asyncio.gather(*[
+                    execute_single_tool(name, args) for name, args in function_calls
+                ])
+                tool_results = dict(results)
                 
                 # Build chat history if not provided
                 if not original_messages:
