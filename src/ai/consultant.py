@@ -1,6 +1,5 @@
 """AI Consultant - Gemini Integration"""
 import os
-import base64
 import asyncio
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta

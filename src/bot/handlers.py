@@ -89,7 +89,7 @@ async def safe_answer(message: Message, text: str, **kwargs):
         return False
     except Exception as e:
         print(f"ERROR: Unexpected error in safe_answer: {type(e).__name__}: {e}")
-        print(f"ERROR: Full traceback:")
+        print("ERROR: Full traceback:")
         traceback.print_exc()
         return False
 
@@ -838,7 +838,7 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
             has_price = "₽" in response.reply_text or "руб" in reply_text_lower or "рубл" in reply_text_lower
             
             if has_order_summary and has_price:
-                print(f"DEBUG: Auto-detected payment intent from reply text, setting action=OFFER_PAYMENT")
+                print("DEBUG: Auto-detected payment intent from reply text, setting action=OFFER_PAYMENT")
                 response.action = ActionType.OFFER_PAYMENT
         
         # Send response to user based on structured action
@@ -887,7 +887,6 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
                 except (IndexError, AttributeError, TypeError, KeyError) as e:
                     print(f"ERROR: Failed to process cart_items: {e}")
                     print(f"ERROR: cart_items type: {type(response.cart_items)}, value: {response.cart_items}")
-                    import traceback
                     traceback.print_exc()
                     # Fallback to generic checkout
                     reply_markup = get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
@@ -947,7 +946,7 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
         print(f"ERROR: {error_msg}")
         import sys
         print(f"ERROR: Exception type: {type(e).__name__}", file=sys.stderr)
-        print(f"ERROR: Full traceback:", file=sys.stderr)
+        print("ERROR: Full traceback:", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         
         # Send user-friendly error message

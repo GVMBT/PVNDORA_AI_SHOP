@@ -115,6 +115,5 @@ async def verify_cron_secret(
 
 
 # Type aliases for FastAPI Depends
-TelegramUser = dict  # User from Telegram initData
 AdminUser = object   # Database user object with is_admin=True
 

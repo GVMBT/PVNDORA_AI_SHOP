@@ -5,6 +5,7 @@ Admin-only endpoints for managing products, users, orders, and stock.
 Requires Telegram Mini App authentication with admin privileges.
 """
 
+import os
 import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, List

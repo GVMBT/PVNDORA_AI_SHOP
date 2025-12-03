@@ -50,7 +50,6 @@ try:
         AnalyticsMiddleware
     )
     from src.services.database import get_database
-    from src.utils.validators import validate_telegram_init_data, extract_user_from_init_data
 except ImportError as e:
     import traceback
     print(f"ERROR: Failed to import modules: {e}")
@@ -60,15 +59,10 @@ except ImportError as e:
 
 # Lazy-loaded singletons for reducing cold start
 try:
-    from core.routers.deps import (
-        get_notification_service,
-        get_payment_service,
-        get_queue_publisher,
-        verify_qstash
-    )
+    from core.routers.deps import get_payment_service
     
     # Unified authentication
-    from core.auth import verify_telegram_auth, verify_admin, verify_cron_secret
+    from core.auth import verify_telegram_auth
 except ImportError as e:
     import traceback
     print(f"ERROR: Failed to import core modules: {e}")

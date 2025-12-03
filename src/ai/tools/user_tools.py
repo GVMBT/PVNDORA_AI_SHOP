@@ -2,7 +2,7 @@
 import asyncio
 from typing import Dict, Any
 
-from .helpers import get_user_telegram_id, create_error_response, resolve_product_id
+from .helpers import create_error_response, resolve_product_id
 
 
 async def handle_get_user_orders(

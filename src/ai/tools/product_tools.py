@@ -1,5 +1,4 @@
 """Product-related tool handlers."""
-import asyncio
 from typing import Dict, Any
 
 from .helpers import resolve_product_id
