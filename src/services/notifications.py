@@ -354,6 +354,94 @@ class NotificationService:
         except Exception as e:
             print(f"Failed to send waitlist notification: {e}")
     
+    async def send_referral_unlock_notification(self, telegram_id: int) -> None:
+        """
+        Send notification when referral program is unlocked after first purchase.
+        """
+        bot = self._get_bot()
+        if not bot:
+            return
+        
+        message = (
+            "🎉 <b>Реферальная программа активирована!</b>\n\n"
+            "Теперь вы можете приглашать друзей и получать бонусы с их покупок:\n\n"
+            "💰 <b>5%</b> с покупок ваших рефералов\n\n"
+            "📈 <b>Повышайте уровень</b> для открытия дополнительных линий:\n"
+            "• Уровень 2 (от 5,000₽): +2% со 2-й линии\n"
+            "• Уровень 3 (от 15,000₽): +1% с 3-й линии\n\n"
+            "🔗 Ваша реферальная ссылка доступна в профиле!"
+        )
+        
+        try:
+            await bot.send_message(
+                chat_id=telegram_id, 
+                text=message,
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            print(f"Failed to send referral unlock notification: {e}")
+    
+    async def send_referral_level_up_notification(self, telegram_id: int, new_level: int) -> None:
+        """
+        Send notification when user's referral level increases.
+        """
+        bot = self._get_bot()
+        if not bot:
+            return
+        
+        if new_level == 2:
+            message = (
+                "🚀 <b>Уровень реферальной программы повышен!</b>\n\n"
+                "Вы достигли <b>Уровня 2</b>!\n\n"
+                "Теперь вы получаете:\n"
+                "• 5% с покупок рефералов 1-й линии\n"
+                "• <b>+2% с покупок рефералов 2-й линии</b>\n\n"
+                "До Уровня 3 осталось набрать 15,000₽ покупок."
+            )
+        elif new_level == 3:
+            message = (
+                "🏆 <b>Максимальный уровень достигнут!</b>\n\n"
+                "Поздравляем с <b>Уровнем 3</b>!\n\n"
+                "Теперь вы получаете максимальные бонусы:\n"
+                "• 5% с покупок рефералов 1-й линии\n"
+                "• 2% с покупок рефералов 2-й линии\n"
+                "• <b>+1% с покупок рефералов 3-й линии</b>\n\n"
+                "🎉 Вы — VIP партнёр PVNDORA!"
+            )
+        else:
+            return
+        
+        try:
+            await bot.send_message(
+                chat_id=telegram_id, 
+                text=message,
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            print(f"Failed to send referral level up notification: {e}")
+    
+    async def send_delivery(self, telegram_id: int, product_name: str, content: str) -> None:
+        """Send delivery notification with product credentials."""
+        bot = self._get_bot()
+        if not bot:
+            return
+        
+        message = (
+            f"📦 <b>Ваш заказ доставлен!</b>\n\n"
+            f"Товар: {product_name}\n\n"
+            f"<code>{content}</code>\n\n"
+            f"Спасибо за покупку! Оставьте отзыв и получите 5% кэшбэк."
+        )
+        
+        try:
+            await bot.send_message(
+                chat_id=telegram_id,
+                text=message,
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            print(f"Failed to send delivery notification: {e}")
+    
     async def send_broadcast(
         self,
         message: str,
