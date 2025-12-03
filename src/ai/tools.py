@@ -15,6 +15,22 @@ def is_valid_uuid(value: str) -> bool:
     return bool(UUID_PATTERN.match(value))
 
 
+async def get_user_telegram_id(user_id: str, db) -> Optional[int]:
+    """Get user's telegram_id from database ID. Cached per request."""
+    result = await asyncio.to_thread(
+        lambda: db.client.table("users").select("telegram_id").eq("id", user_id).execute()
+    )
+    return result.data[0]["telegram_id"] if result.data else None
+
+
+def create_error_response(e: Exception, default_msg: str = "Operation failed.") -> Dict[str, Any]:
+    """Create standardized error response, filtering technical details."""
+    error_str = str(e)
+    if "module" in error_str.lower() or "import" in error_str.lower() or "No module named" in error_str:
+        return {"success": False, "reason": "Service temporarily unavailable. Please try again later."}
+    return {"success": False, "reason": default_msg}
+
+
 async def resolve_product_id(product_id_or_name: str, db) -> Tuple[Optional[str], Optional[str]]:
     """
     Resolve product ID from UUID or search by name.
@@ -73,7 +89,7 @@ TOOLS = [
     },
     {
         "name": "search_products",
-        "description": "Search for products based on user requirements. Use when user describes what they need without mentioning a specific product.",
+        "description": "Search products by user needs. Uses semantic search.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -92,7 +108,7 @@ TOOLS = [
     },
     {
         "name": "create_purchase_intent",
-        "description": "Create a purchase intent when user wants to buy a product. Use when user shows clear buying intent (e.g., 'I want to buy', 'давай', 'беру').",
+        "description": "Create purchase intent for buying. Use when user wants to buy.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -120,7 +136,7 @@ TOOLS = [
     },
     {
         "name": "get_catalog",
-        "description": "Get the full product catalog with ALL available products. Use when user asks to see all products, what's available, catalog, or asks 'что есть', 'что есть в наличии', 'покажи все', 'каталог', 'what do you have', 'show me everything'. ALWAYS use this when user explicitly asks about availability or wants to see all products.",
+        "description": "Get all available products. Use for catalog/availability requests.",
         "parameters": {
             "type": "object",
             "properties": {}
@@ -143,7 +159,7 @@ TOOLS = [
     },
     {
         "name": "create_support_ticket",
-        "description": "Create a support ticket when user reports an issue with their purchase. Use when user says product doesn't work, wants replacement, or needs help.",
+        "description": "Create support ticket for issues with purchase.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -258,7 +274,7 @@ TOOLS = [
     },
     {
         "name": "add_to_cart",
-        "description": "Add a product to user's shopping cart. Automatically splits items into instant (in stock) and prepaid (on-demand) quantities. Use when user wants to add a product to cart.",
+        "description": "Add product to cart. Auto-splits into instant/prepaid based on stock.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -278,7 +294,7 @@ TOOLS = [
     },
     {
         "name": "update_cart",
-        "description": "Update shopping cart: change quantity or remove item. Use when user explicitly wants to modify their cart. NEVER use 'clear' operation before payment - cart must remain filled until payment is completed!",
+        "description": "Update cart: change quantity or remove item. Don't clear before payment.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -763,16 +779,8 @@ async def execute_tool(
                 "balance": user["balance"]
             }
         except Exception as e:
-            error_str = str(e)
-            print(f"ERROR: get_referral_info failed: {error_str}")
-            import traceback
-            traceback.print_exc()
-            
-            # Filter technical details
-            if "module" in error_str.lower() or "import" in error_str.lower() or "No module named" in error_str:
-                return {"success": False, "reason": "Service temporarily unavailable. Please try again later."}
-            
-            return {"success": False, "reason": "Failed to retrieve referral information. Please try again later."}
+            print(f"ERROR: get_referral_info failed: {e}")
+            return create_error_response(e, "Failed to get referral info.")
     
     elif tool_name == "get_wishlist":
         try:
@@ -803,16 +811,11 @@ async def execute_tool(
     elif tool_name == "get_user_cart":
         try:
             from core.cart import get_cart_manager
-            # Get user's telegram_id
-            user_result = await asyncio.to_thread(
-                lambda: db.client.table("users").select("telegram_id").eq("id", user_id).execute()
-            )
-            
-            if not user_result.data:
+            telegram_id = await get_user_telegram_id(user_id, db)
+            if not telegram_id:
                 return {"success": False, "reason": "User not found"}
             
-            telegram_id = user_result.data[0]["telegram_id"]
-            cart_manager = get_cart_manager()  # Use singleton
+            cart_manager = get_cart_manager()
             cart = await cart_manager.get_cart(telegram_id)
             
             if not cart:
@@ -847,16 +850,8 @@ async def execute_tool(
                 "promo_discount_percent": cart.promo_discount_percent
             }
         except Exception as e:
-            error_str = str(e)
-            print(f"ERROR: get_user_cart failed: {error_str}")
-            import traceback
-            traceback.print_exc()
-            
-            # Filter technical details
-            if "module" in error_str.lower() or "import" in error_str.lower() or "No module named" in error_str:
-                return {"success": False, "reason": "Cart service temporarily unavailable. Please try again later."}
-            
-            return {"success": False, "reason": "Failed to retrieve cart. Please try again later."}
+            print(f"ERROR: get_user_cart failed: {e}")
+            return create_error_response(e, "Failed to retrieve cart.")
     
     elif tool_name == "add_to_cart":
         try:
@@ -889,16 +884,11 @@ async def execute_tool(
             available_stock = len(stock_result.data) if stock_result.data else 0
             discount_percent = stock_result.data[0].get("discount_percent", 0) if stock_result.data else 0
             
-            # Get user's telegram_id
-            user_result = await asyncio.to_thread(
-                lambda: db.client.table("users").select("telegram_id").eq("id", user_id).execute()
-            )
-            
-            if not user_result.data:
+            telegram_id = await get_user_telegram_id(user_id, db)
+            if not telegram_id:
                 return {"success": False, "reason": "User not found"}
             
-            telegram_id = user_result.data[0]["telegram_id"]
-            cart_manager = get_cart_manager()  # Use singleton
+            cart_manager = get_cart_manager()
             
             # Add to cart (auto-splits instant/prepaid)
             cart = await cart_manager.add_item(
@@ -930,16 +920,8 @@ async def execute_tool(
                 "message": f"Added {product.name} to cart"
             }
         except Exception as e:
-            error_str = str(e)
-            print(f"ERROR: add_to_cart failed: {error_str}")
-            import traceback
-            traceback.print_exc()
-            
-            # Filter technical details
-            if "module" in error_str.lower() or "import" in error_str.lower() or "No module named" in error_str:
-                return {"success": False, "reason": "Cart service temporarily unavailable. Please try again later."}
-            
-            return {"success": False, "reason": "Failed to add item to cart. Please try again later."}
+            print(f"ERROR: add_to_cart failed: {e}")
+            return create_error_response(e, "Failed to add to cart.")
     
     elif tool_name == "update_cart":
         try:
@@ -948,16 +930,11 @@ async def execute_tool(
             product_id = arguments.get("product_id")
             quantity = arguments.get("quantity")
             
-            # Get user's telegram_id
-            user_result = await asyncio.to_thread(
-                lambda: db.client.table("users").select("telegram_id").eq("id", user_id).execute()
-            )
-            
-            if not user_result.data:
+            telegram_id = await get_user_telegram_id(user_id, db)
+            if not telegram_id:
                 return {"success": False, "reason": "User not found"}
             
-            telegram_id = user_result.data[0]["telegram_id"]
-            cart_manager = get_cart_manager()  # Use singleton
+            cart_manager = get_cart_manager()
             
             if operation == "clear":
                 await cart_manager.clear_cart(telegram_id)
@@ -1018,16 +995,8 @@ async def execute_tool(
                 return {"success": False, "reason": f"Unknown operation: {operation}"}
                 
         except Exception as e:
-            error_str = str(e)
-            print(f"ERROR: update_cart failed: {error_str}")
-            import traceback
-            traceback.print_exc()
-            
-            # Filter technical details
-            if "module" in error_str.lower() or "import" in error_str.lower() or "No module named" in error_str:
-                return {"success": False, "reason": "Cart service temporarily unavailable. Please try again later."}
-            
-            return {"success": False, "reason": "Failed to update cart. Please try again later."}
+            print(f"ERROR: update_cart failed: {e}")
+            return create_error_response(e, "Failed to update cart.")
     
     elif tool_name == "request_refund":
         order_id = arguments.get("order_id")
