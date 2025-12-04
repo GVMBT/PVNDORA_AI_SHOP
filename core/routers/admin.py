@@ -574,11 +574,13 @@ class ReferralSettingsRequest(BaseModel):
 @router.get("/referral/settings")
 async def admin_get_referral_settings(admin=Depends(verify_admin)):
     """Get current referral program settings"""
+    print(f"DEBUG: admin_get_referral_settings called by admin: {admin.id if hasattr(admin, 'id') else admin}")
     db = get_database()
     
     result = await asyncio.to_thread(
         lambda: db.client.table("referral_settings").select("*").limit(1).execute()
     )
+    print(f"DEBUG: referral_settings result: {result.data}")
     
     if not result.data or len(result.data) == 0:
         # Return defaults
@@ -653,14 +655,17 @@ async def admin_get_referral_dashboard(admin=Depends(verify_admin)):
     - margin_percent: Маржа в %
     - active_partners: Партнёры с хотя бы 1 платящим
     """
+    print(f"DEBUG: admin_get_referral_dashboard called by admin: {admin.id if hasattr(admin, 'id') else admin}")
     db = get_database()
     
     # Get ROI metrics from view
     try:
+        print("DEBUG: Querying referral_roi_dashboard...")
         roi_result = await asyncio.to_thread(
             lambda: db.client.table("referral_roi_dashboard").select("*").execute()
         )
         roi = roi_result.data[0] if roi_result.data else {}
+        print(f"DEBUG: ROI data: {roi}")
     except Exception as e:
         print(f"ERROR: Failed to query referral_roi_dashboard: {e}")
         import traceback
@@ -716,6 +721,7 @@ async def admin_get_partners_crm(
     partner_type: "business" (VIP partners only), "referral" (referral program partners), "all" (both)
     Sortable by: referral_revenue, total_earned, total_referrals, paying_referrals, conversion_rate
     """
+    print(f"DEBUG: admin_get_partners_crm called - sort_by={sort_by}, partner_type={partner_type}, admin={admin.id if hasattr(admin, 'id') else admin}")
     db = get_database()
     
     try:

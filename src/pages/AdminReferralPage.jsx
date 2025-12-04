@@ -43,7 +43,6 @@ import {
 
 export default function AdminReferralPage({ onBack }) {
   const { 
-    loading, 
     getReferralSettings, 
     updateReferralSettings, 
     getReferralDashboard, 
@@ -66,6 +65,10 @@ export default function AdminReferralPage({ onBack }) {
   const [newPartnerTelegramId, setNewPartnerTelegramId] = useState('')
   const [newPartnerLevel, setNewPartnerLevel] = useState('3')
   
+  // Loading and error states
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
+  
   // Form state for settings
   const [formSettings, setFormSettings] = useState({
     level2_threshold: '',
@@ -75,8 +78,46 @@ export default function AdminReferralPage({ onBack }) {
     level3_commission: ''
   })
   
+  // Load data on mount
   useEffect(() => {
-    loadData()
+    console.log('[AdminReferralPage] Component mounted, loading data...')
+    
+    const fetchData = async () => {
+      setIsLoading(true)
+      setLoadError(null)
+      
+      try {
+        console.log('[AdminReferralPage] Fetching settings and dashboard...')
+        const [settingsData, dashboardData] = await Promise.all([
+          getReferralSettings(),
+          getReferralDashboard()
+        ])
+        
+        console.log('[AdminReferralPage] Settings data:', settingsData)
+        console.log('[AdminReferralPage] Dashboard data:', dashboardData)
+        
+        setDashboard(dashboardData)
+        
+        // Initialize form with current settings
+        const currentSettings = dashboardData?.settings || settingsData?.settings
+        if (currentSettings) {
+          setFormSettings({
+            level2_threshold: currentSettings.level2_threshold || currentSettings.level2_threshold_usd || 250,
+            level3_threshold: currentSettings.level3_threshold || currentSettings.level3_threshold_usd || 1000,
+            level1_commission: currentSettings.level1_commission || currentSettings.level1_commission_percent || 20,
+            level2_commission: currentSettings.level2_commission || currentSettings.level2_commission_percent || 10,
+            level3_commission: currentSettings.level3_commission || currentSettings.level3_commission_percent || 5
+          })
+        }
+      } catch (err) {
+        console.error('[AdminReferralPage] Failed to load data:', err)
+        setLoadError(err.message || 'Failed to load data')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchData()
     
     setBackButton({
       isVisible: true,
@@ -86,18 +127,24 @@ export default function AdminReferralPage({ onBack }) {
     return () => {
       setBackButton({ isVisible: false })
     }
-  }, [loadData, onBack, setBackButton])
+  }, [onBack, setBackButton, getReferralSettings, getReferralDashboard])
   
+  // Load partners when tab changes
   useEffect(() => {
     if (activeTab === 'partners') {
-      console.log('Tab switched to partners, loading data...')
+      console.log('[AdminReferralPage] Tab switched to partners, loading...')
       loadPartners()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, partnerType]) // Reload when partner type changes
+  }, [activeTab, partnerType])
   
+  // Manual reload function
   const loadData = useCallback(async () => {
+    setIsLoading(true)
+    setLoadError(null)
+    
     try {
+      console.log('[AdminReferralPage] Manual reload...')
       const [settingsData, dashboardData] = await Promise.all([
         getReferralSettings(),
         getReferralDashboard()
@@ -105,7 +152,6 @@ export default function AdminReferralPage({ onBack }) {
       
       setDashboard(dashboardData)
       
-      // Initialize form with current settings (from dashboard or settingsData)
       const currentSettings = dashboardData?.settings || settingsData?.settings
       if (currentSettings) {
         setFormSettings({
@@ -117,7 +163,10 @@ export default function AdminReferralPage({ onBack }) {
         })
       }
     } catch (err) {
-      console.error('Failed to load referral data:', err)
+      console.error('[AdminReferralPage] Manual reload failed:', err)
+      setLoadError(err.message || 'Failed to load data')
+    } finally {
+      setIsLoading(false)
     }
   }, [getReferralSettings, getReferralDashboard])
   
@@ -126,28 +175,30 @@ export default function AdminReferralPage({ onBack }) {
   const loadPartners = useCallback(async () => {
     setLoadingPartners(true)
     try {
-      console.log('Loading partners with sortBy:', sortBy, 'sortOrder:', sortOrder, 'partnerType:', partnerType)
+      console.log('[AdminReferralPage] Loading partners:', { sortBy, sortOrder, partnerType })
       const data = await getReferralPartnersCRM(sortBy, sortOrder, 50, partnerType)
-      console.log('Partners data received:', data)
-      console.log('Partners array:', data?.partners)
-      console.log('Total count:', data?.total)
-      setPartners(data?.partners || [])
-      setTotalPartners(data?.total || 0)
+      console.log('[AdminReferralPage] Partners response:', data)
+      
+      if (!data) {
+        console.warn('[AdminReferralPage] No data returned from API')
+        setPartners([])
+        setTotalPartners(0)
+        return
+      }
+      
+      setPartners(data.partners || [])
+      setTotalPartners(data.total || 0)
+      console.log('[AdminReferralPage] Set partners:', data.partners?.length, 'total:', data.total)
     } catch (err) {
-      console.error('Failed to load partners:', err)
-      console.error('Error details:', err.response || err.message || err)
-      showPopup({
-        title: '❌',
-        message: err.message || 'Ошибка загрузки партнёров',
-        buttons: [{ type: 'ok' }]
-      })
-      // Set empty state on error
+      console.error('[AdminReferralPage] Failed to load partners:', err)
+      // Don't show popup for initial load errors, just log
       setPartners([])
       setTotalPartners(0)
+      setLoadError(err.message || 'Ошибка загрузки партнёров')
     } finally {
       setLoadingPartners(false)
     }
-  }, [getReferralPartnersCRM, sortBy, sortOrder, partnerType, showPopup])
+  }, [getReferralPartnersCRM, sortBy, sortOrder, partnerType])
   
   const handleSaveSettings = async () => {
     setSaving(true)
@@ -245,12 +296,48 @@ export default function AdminReferralPage({ onBack }) {
     )
   })
   
-  if (loading && !dashboard) {
+  // Loading state
+  if (isLoading && !dashboard) {
     return (
       <div className="p-4 space-y-4">
+        <div className="flex items-center gap-4 mb-4">
+          <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8 rounded-full">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-lg font-bold">Реферальная система</h1>
+            <p className="text-xs text-muted-foreground">Загрузка...</p>
+          </div>
+        </div>
         <Skeleton className="h-12 w-full rounded-xl" />
         <Skeleton className="h-32 w-full rounded-xl" />
         <Skeleton className="h-48 w-full rounded-xl" />
+      </div>
+    )
+  }
+  
+  // Error state
+  if (loadError && !dashboard) {
+    return (
+      <div className="p-4 space-y-4">
+        <div className="flex items-center gap-4 mb-4">
+          <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8 rounded-full">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-lg font-bold">Реферальная система</h1>
+            <p className="text-xs text-destructive">Ошибка загрузки</p>
+          </div>
+        </div>
+        <Card className="border-destructive/50">
+          <CardContent className="p-6 text-center">
+            <p className="text-destructive mb-4">{loadError}</p>
+            <Button onClick={loadData} variant="outline" className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Повторить
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }

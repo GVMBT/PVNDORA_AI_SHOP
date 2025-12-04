@@ -66,6 +66,7 @@ class AIConsultant:
         Returns:
             StructuredAIResponse with structured fields
         """
+        print(f"DEBUG: AIConsultant.get_response called for user {user_id}, message: {user_message[:50]}...")
         db = get_database()
         
         # Parallel DB calls for better performance (reduces latency by ~50%)

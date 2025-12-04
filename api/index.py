@@ -164,6 +164,71 @@ async def test_webhook():
     }
 
 
+@app.get("/api/webhook/status")
+async def webhook_status():
+    """Check Telegram webhook status - calls Telegram API directly"""
+    import httpx
+    
+    if not TELEGRAM_TOKEN:
+        return {"error": "TELEGRAM_TOKEN not configured"}
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getWebhookInfo")
+            result = response.json()
+            
+            if result.get("ok"):
+                info = result["result"]
+                return {
+                    "ok": True,
+                    "url": info.get("url", "NOT SET"),
+                    "pending_updates": info.get("pending_update_count", 0),
+                    "last_error_date": info.get("last_error_date"),
+                    "last_error_message": info.get("last_error_message"),
+                    "max_connections": info.get("max_connections"),
+                    "expected_url": f"{WEBAPP_URL}/webhook/telegram",
+                    "url_matches": info.get("url") == f"{WEBAPP_URL}/webhook/telegram"
+                }
+            else:
+                return {"ok": False, "error": result.get("description")}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/webhook/set")
+async def set_webhook_endpoint():
+    """Set Telegram webhook - call this to configure the webhook"""
+    import httpx
+    
+    if not TELEGRAM_TOKEN:
+        return {"error": "TELEGRAM_TOKEN not configured"}
+    
+    webhook_url = f"{WEBAPP_URL}/webhook/telegram"
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/setWebhook",
+                json={
+                    "url": webhook_url,
+                    "allowed_updates": ["message", "callback_query", "my_chat_member"],
+                    "drop_pending_updates": True
+                }
+            )
+            result = response.json()
+            
+            if result.get("ok"):
+                return {
+                    "ok": True,
+                    "message": "Webhook set successfully",
+                    "url": webhook_url
+                }
+            else:
+                return {"ok": False, "error": result.get("description")}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 # ==================== TELEGRAM WEBHOOK ====================
 
 @app.post("/webhook/telegram")
@@ -171,12 +236,19 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
     """Handle Telegram webhook updates"""
     import traceback
     
+    print("=" * 50)
+    print("DEBUG: Telegram webhook received!")
+    print(f"DEBUG: Request method: {request.method}")
+    print(f"DEBUG: Request URL: {request.url}")
+    print("=" * 50)
+    
     # IMPORTANT: Return 200 immediately to avoid 307 redirects
     # Process update in background to avoid timeout
     try:
         # Get bot and dispatcher
         bot_instance = get_bot()
         dispatcher = get_dispatcher()
+        print(f"DEBUG: Bot instance: {bot_instance is not None}, Dispatcher: {dispatcher is not None}")
         
         if not bot_instance:
             print("ERROR: Bot instance is None - TELEGRAM_TOKEN may be missing")
