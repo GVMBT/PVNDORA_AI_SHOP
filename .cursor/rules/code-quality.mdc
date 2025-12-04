@@ -1,0 +1,86 @@
+---
+alwaysApply: true
+---
+
+# Code Quality & Safety Rules
+
+## CRITICAL: Always Study Existing Code Before Making Changes
+
+**Rule:** Before writing ANY new code or modifying existing code, you MUST:
+
+1. **Read and understand the current implementation** - Use `read_file`, `grep`, `codebase_search` to understand:
+   - Existing function/class names to avoid duplicates
+   - Current patterns and conventions
+   - Dependencies and imports
+   - Related files that might be affected
+
+2. **Check for duplicates** - Before adding a new function/class/endpoint:
+   - Search for similar names using `grep` (e.g., `grep -r "function_name"`)
+   - Check if functionality already exists
+   - Verify endpoint paths don't conflict
+
+3. **Run linters before committing**:
+   ```bash
+   python -m pyflakes <files_you_changed>
+   ```
+   - Fix ALL warnings before pushing
+   - Common issues: unused variables, duplicate definitions, missing imports
+
+4. **Check Python version compatibility**:
+   - Python 3.12 deprecations (e.g., `datetime.utcnow()` → `datetime.now(timezone.utc)`)
+   - Use `timezone` import when working with datetime
+   - Check library versions in `requirements.txt`
+
+## Pre-Commit Checklist
+
+Before committing ANY changes:
+
+- [ ] Read existing code in the file you're modifying
+- [ ] Search for duplicate function/class names
+- [ ] Check imports are correct and not circular
+- [ ] Run `pyflakes` on modified files
+- [ ] Verify no syntax errors (Python 3.12 compatible)
+- [ ] Test that imports work (check for missing modules)
+- [ ] Verify endpoint paths don't conflict with existing routes
+
+## Common Pitfalls to Avoid
+
+1. **Duplicate Function Names**: 
+   - ❌ Two functions with same name in same module
+   - ✅ Use descriptive, unique names or rename existing
+
+2. **Deprecated APIs**:
+   - ❌ `datetime.utcnow()` (Python 3.12)
+   - ✅ `datetime.now(timezone.utc)`
+
+3. **Unused Variables**:
+   - ❌ Assigning to variable but never using it
+   - ✅ Remove or use the variable
+
+4. **Missing Imports**:
+   - ❌ Using `timezone` without importing it
+   - ✅ `from datetime import datetime, timezone`
+
+5. **Import Errors**:
+   - ❌ Importing non-existent modules
+   - ✅ Verify module exists and path is correct
+
+## When Adding New Features
+
+1. **Search first** - Use `codebase_search` to find similar implementations
+2. **Check existing patterns** - Follow the same structure as existing code
+3. **Verify dependencies** - Ensure all imports exist
+4. **Test imports** - Run `pyflakes` to catch import issues early
+
+## Error Prevention
+
+If you see errors like:
+- "Error importing api/index.py"
+- "Signature.from_callable" errors
+- "redefinition of unused" warnings
+
+**STOP** and:
+1. Check for duplicate function/class definitions
+2. Verify all imports are correct
+3. Check Python version compatibility
+4. Run linters to find the exact issue

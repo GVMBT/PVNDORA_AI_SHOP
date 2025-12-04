@@ -222,6 +222,25 @@ Ensure these are present in Vercel Project Settings:
 9. **Atomic transactions** - Use PostgreSQL RPC for all transactional operations
 10. **No ORM** - Direct SQL queries via supabase-py only
 
+## 7. Code Quality & Safety (CRITICAL)
+
+**⚠️ BEFORE making ANY changes, read `.cursor/rules/code-quality.mdc`**
+
+**Mandatory checks:**
+- Study existing code before modifying
+- Search for duplicate function/class names
+- Run `pyflakes` before committing
+- Check Python 3.12 compatibility (no `datetime.utcnow()`)
+- Verify all imports exist and are correct
+
+**Common mistakes to avoid:**
+- Duplicate function definitions (causes import errors)
+- Using deprecated APIs (`datetime.utcnow()` → `datetime.now(timezone.utc)`)
+- Missing imports (`timezone` not imported)
+- Unused variables (lint warnings)
+
+See `code-quality.mdc` for complete checklist.
+
 ## 7. Documentation Reference
 
 For detailed specifications and complete context, see documentation in `docs/`:
