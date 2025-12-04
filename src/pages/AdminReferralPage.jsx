@@ -85,15 +85,15 @@ export default function AdminReferralPage({ onBack }) {
     return () => {
       setBackButton({ isVisible: false })
     }
-  }, [])
+  }, [loadData, onBack, setBackButton])
   
   useEffect(() => {
     if (activeTab === 'partners') {
       loadPartners()
     }
-  }, [sortBy, sortOrder, activeTab])
+  }, [activeTab, loadPartners])
   
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [settingsData, dashboardData] = await Promise.all([
         getReferralSettings(),
@@ -116,7 +116,7 @@ export default function AdminReferralPage({ onBack }) {
     } catch (err) {
       console.error('Failed to load referral data:', err)
     }
-  }
+  }, [getReferralSettings, getReferralDashboard])
   
   const loadPartners = useCallback(async () => {
     try {

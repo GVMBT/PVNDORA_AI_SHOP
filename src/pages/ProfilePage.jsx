@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useApi } from '../hooks/useApi'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
@@ -143,6 +143,19 @@ export default function ProfilePage({ onBack }) {
   const [withdrawDetails, setWithdrawDetails] = useState('')
   const [submitting, setSubmitting] = useState(false)
   
+  const loadProfile = useCallback(async () => {
+    try {
+      const data = await get('/profile')
+      setProfile(data.profile)
+      setReferralStats(data.referral_stats)
+      setReferralProgram(data.referral_program)
+      setBonusHistory(data.bonus_history || [])
+      setWithdrawals(data.withdrawals || [])
+    } catch (err) {
+      console.error('Failed to load profile:', err)
+    }
+  }, [get])
+  
   useEffect(() => {
     loadProfile()
     
@@ -154,20 +167,7 @@ export default function ProfilePage({ onBack }) {
     return () => {
       setBackButton({ isVisible: false })
     }
-  }, [])
-  
-  const loadProfile = async () => {
-    try {
-      const data = await get('/profile')
-      setProfile(data.profile)
-      setReferralStats(data.referral_stats)
-      setReferralProgram(data.referral_program)
-      setBonusHistory(data.bonus_history || [])
-      setWithdrawals(data.withdrawals || [])
-    } catch (err) {
-      console.error('Failed to load profile:', err)
-    }
-  }
+  }, [loadProfile, onBack, setBackButton])
   
   const handleCopyLink = async () => {
     const refLink = `https://t.me/pvndora_ai_bot?start=ref_${user?.id}`
