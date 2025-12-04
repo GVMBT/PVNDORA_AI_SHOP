@@ -580,7 +580,7 @@ async def admin_get_referral_settings(admin=Depends(verify_admin)):
         lambda: db.client.table("referral_settings").select("*").limit(1).execute()
     )
     
-    if not result.data:
+    if not result.data or len(result.data) == 0:
         # Return defaults
         return {
             "settings": {

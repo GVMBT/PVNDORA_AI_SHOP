@@ -178,7 +178,7 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
         settings_result = await asyncio.to_thread(
             lambda: db.client.table("referral_settings").select("*").limit(1).execute()
         )
-        settings = settings_result.data[0] if settings_result.data else {}
+        settings = settings_result.data[0] if settings_result.data and len(settings_result.data) > 0 else {}
     except Exception as e:
         print(f"ERROR: Failed to load referral_settings: {e}")
         settings = {}
@@ -202,12 +202,42 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
         print(f"ERROR: Failed to query referral_stats_extended: {e}")
         import traceback
         print(f"ERROR: Traceback: {traceback.format_exc()}")
-        extended_stats_result = type('obj', (object,), {'data': None})()
+        extended_stats_result = type('obj', (object,), {'data': []})()
     
-    referral_stats = None
-    referral_program = None
+    # Initialize with default values
+    referral_stats = {
+        "level1_count": 0, "level2_count": 0, "level3_count": 0,
+        "level1_earnings": 0, "level2_earnings": 0, "level3_earnings": 0,
+        "active_referrals": 0
+    }
+    referral_program = {
+        "unlocked": False,
+        "status": "locked",
+        "is_partner": False,
+        "effective_level": 0,
+        "level1_unlocked": False,
+        "level2_unlocked": False,
+        "level3_unlocked": False,
+        "turnover_usd": 0,
+        "amount_to_level2_usd": THRESHOLD_LEVEL2,
+        "amount_to_level3_usd": THRESHOLD_LEVEL3,
+        "amount_to_next_level_usd": THRESHOLD_LEVEL2,
+        "next_threshold_usd": THRESHOLD_LEVEL2,
+        "thresholds_usd": {
+            "level2": THRESHOLD_LEVEL2,
+            "level3": THRESHOLD_LEVEL3
+        },
+        "commissions_percent": {
+            "level1": COMMISSION_LEVEL1,
+            "level2": COMMISSION_LEVEL2,
+            "level3": COMMISSION_LEVEL3
+        },
+        "level1_unlocked_at": None,
+        "level2_unlocked_at": None,
+        "level3_unlocked_at": None,
+    }
     
-    if extended_stats_result.data:
+    if extended_stats_result.data and len(extended_stats_result.data) > 0:
         s = extended_stats_result.data[0]
         
         # Referral network counts (always counted, even if level locked)
@@ -481,15 +511,19 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
         }).execute()
     )
     
+    if not result.data or len(result.data) == 0:
+        raise HTTPException(status_code=500, detail="Failed to create review")
+    
+    review_id = result.data[0]["id"]
     cashback_amount = float(order.amount) * 0.05
     await asyncio.to_thread(
         lambda: db.client.table("users").update({"balance": db_user.balance + cashback_amount}).eq("id", db_user.id).execute()
     )
     await asyncio.to_thread(
-        lambda: db.client.table("reviews").update({"cashback_given": True}).eq("id", result.data[0]["id"]).execute()
+        lambda: db.client.table("reviews").update({"cashback_given": True}).eq("id", review_id).execute()
     )
     
-    return {"success": True, "review_id": result.data[0]["id"], "cashback_awarded": round(cashback_amount, 2),
+    return {"success": True, "review_id": review_id, "cashback_awarded": round(cashback_amount, 2),
             "new_balance": round(float(db_user.balance) + cashback_amount, 2)}
 
 
