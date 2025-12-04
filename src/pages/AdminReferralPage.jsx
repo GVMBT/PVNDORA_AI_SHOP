@@ -60,6 +60,7 @@ export default function AdminReferralPage({ onBack }) {
   const [sortBy, setSortBy] = useState('referral_revenue')
   const [sortOrder, setSortOrder] = useState('desc')
   const [searchQuery, setSearchQuery] = useState('')
+  const [partnerType, setPartnerType] = useState('all') // 'all', 'business', 'referral'
   const [saving, setSaving] = useState(false)
   const [partnerDialog, setPartnerDialog] = useState(false)
   const [newPartnerTelegramId, setNewPartnerTelegramId] = useState('')
@@ -93,7 +94,7 @@ export default function AdminReferralPage({ onBack }) {
       loadPartners()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]) // loadPartners is stable due to useCallback with stable deps
+  }, [activeTab, partnerType]) // Reload when partner type changes
   
   const loadData = useCallback(async () => {
     try {
@@ -125,8 +126,8 @@ export default function AdminReferralPage({ onBack }) {
   const loadPartners = useCallback(async () => {
     setLoadingPartners(true)
     try {
-      console.log('Loading partners with sortBy:', sortBy, 'sortOrder:', sortOrder)
-      const data = await getReferralPartnersCRM(sortBy, sortOrder, 50)
+      console.log('Loading partners with sortBy:', sortBy, 'sortOrder:', sortOrder, 'partnerType:', partnerType)
+      const data = await getReferralPartnersCRM(sortBy, sortOrder, 50, partnerType)
       console.log('Partners data received:', data)
       console.log('Partners array:', data?.partners)
       console.log('Total count:', data?.total)
@@ -146,7 +147,7 @@ export default function AdminReferralPage({ onBack }) {
     } finally {
       setLoadingPartners(false)
     }
-  }, [getReferralPartnersCRM, sortBy, sortOrder, showPopup])
+  }, [getReferralPartnersCRM, sortBy, sortOrder, partnerType, showPopup])
   
   const handleSaveSettings = async () => {
     setSaving(true)
@@ -372,6 +373,34 @@ export default function AdminReferralPage({ onBack }) {
           
           {/* Partners CRM Tab */}
           <TabsContent value="partners" className="space-y-4">
+            {/* Partner Type Filter */}
+            <div className="flex gap-2">
+              <Button
+                variant={partnerType === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setPartnerType('all')}
+                className="flex-1"
+              >
+                Все
+              </Button>
+              <Button
+                variant={partnerType === 'business' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setPartnerType('business')}
+                className="flex-1 gap-1"
+              >
+                <Star className="h-3 w-3" /> VIP
+              </Button>
+              <Button
+                variant={partnerType === 'referral' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setPartnerType('referral')}
+                className="flex-1"
+              >
+                Программа
+              </Button>
+            </div>
+            
             {/* Search and Add */}
             <div className="flex gap-2">
               <div className="relative flex-1">
@@ -383,10 +412,12 @@ export default function AdminReferralPage({ onBack }) {
                   className="pl-10"
                 />
               </div>
-              <Button onClick={() => setPartnerDialog(true)} className="gap-2">
-                <UserPlus className="h-4 w-4" />
-                VIP
-              </Button>
+              {partnerType === 'business' && (
+                <Button onClick={() => setPartnerDialog(true)} className="gap-2">
+                  <UserPlus className="h-4 w-4" />
+                  VIP
+                </Button>
+              )}
             </div>
             
             {/* Sort Options */}

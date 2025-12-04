@@ -139,8 +139,8 @@ export function useAdmin() {
     body: JSON.stringify(data)
   }), [adminRequest])
   const getReferralDashboard = useCallback(() => adminRequest('/referral/dashboard'), [adminRequest])
-  const getReferralPartnersCRM = useCallback((sortBy = 'referral_revenue', sortOrder = 'desc', limit = 50) => 
-    adminRequest(`/referral/partners-crm?sort_by=${sortBy}&sort_order=${sortOrder}&limit=${limit}`), [adminRequest])
+  const getReferralPartnersCRM = useCallback((sortBy = 'referral_revenue', sortOrder = 'desc', limit = 50, partnerType = 'all') => 
+    adminRequest(`/referral/partners-crm?sort_by=${sortBy}&sort_order=${sortOrder}&limit=${limit}&partner_type=${partnerType}`), [adminRequest])
   const getPartners = useCallback(() => adminRequest('/partners'), [adminRequest])
   const setPartner = useCallback((data) => adminRequest('/partners/set', {
     method: 'POST',

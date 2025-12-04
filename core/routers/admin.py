@@ -707,11 +707,13 @@ async def admin_get_partners_crm(
     sort_order: str = "desc",
     limit: int = 50,
     offset: int = 0,
+    partner_type: str = "all",  # "business" (VIP), "referral" (program), "all"
     admin=Depends(verify_admin)
 ):
     """
     CRM таблица партнёров с полной аналитикой.
     
+    partner_type: "business" (VIP partners only), "referral" (referral program partners), "all" (both)
     Sortable by: referral_revenue, total_earned, total_referrals, paying_referrals, conversion_rate
     """
     db = get_database()
@@ -722,30 +724,38 @@ async def admin_get_partners_crm(
         if sort_by not in valid_sorts:
             sort_by = "referral_revenue"
         
+        # Select view based on partner_type
+        if partner_type == "business":
+            view_name = "business_partners_analytics"
+        elif partner_type == "referral":
+            view_name = "referral_program_partners_analytics"
+        else:
+            view_name = "partner_analytics"  # Combined view for "all"
+        
         # Test view existence with a simple query first
         try:
             test_result = await asyncio.to_thread(
-                lambda: db.client.table("partner_analytics").select("user_id").limit(1).execute()
+                lambda: db.client.table(view_name).select("user_id").limit(1).execute()
             )
         except Exception as view_error:
             error_msg = str(view_error)
             if "relation" in error_msg.lower() or "does not exist" in error_msg.lower():
                 raise HTTPException(
                     status_code=500, 
-                    detail="View 'partner_analytics' not found. Please apply migration 009_fix_partner_analytics_view.sql"
+                    detail=f"View '{view_name}' not found. Please apply migration separate_business_and_referral_partners"
                 )
             raise
         
         # Get partners from analytics view
         result = await asyncio.to_thread(
-            lambda: db.client.table("partner_analytics").select("*").order(
+            lambda: db.client.table(view_name).select("*").order(
                 sort_by, desc=(sort_order == "desc")
             ).range(offset, offset + limit - 1).execute()
         )
         
         # Get total count
         count_result = await asyncio.to_thread(
-            lambda: db.client.table("partner_analytics").select("user_id", count="exact").execute()
+            lambda: db.client.table(view_name).select("user_id", count="exact").execute()
         )
         
         partners = []
