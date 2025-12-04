@@ -601,9 +601,9 @@ export default function AdminReferralPage({ onBack }) {
                     {filteredPartners.map((partner) => (
                       <Card key={partner.user_id} className="overflow-hidden">
                         <CardContent className="p-4">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          <div className="flex items-start justify-between mb-3 gap-2">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${
                                 partner.status === 'VIP' 
                                   ? 'bg-purple-500/20' 
                                   : 'bg-primary/10'
@@ -612,37 +612,45 @@ export default function AdminReferralPage({ onBack }) {
                                   {partner.first_name?.[0] || partner.username?.[0] || '?'}
                                 </span>
                               </div>
-                              <div>
-                                <p className="font-medium flex items-center gap-2">
-                                  {partner.username || partner.first_name || `User ${partner.telegram_id}`}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
+                              <div className="min-w-0 flex-1">
+                                <a 
+                                  href={partner.username 
+                                    ? `https://t.me/${partner.username}`
+                                    : `tg://user?id=${partner.telegram_id}`
+                                  }
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-medium flex items-center gap-2 hover:text-primary truncate"
+                                >
+                                  {partner.username ? `@${partner.username}` : partner.first_name || `User`}
+                                </a>
+                                <p className="text-xs text-muted-foreground truncate">
                                   ID: {partner.telegram_id}
                                 </p>
                               </div>
                             </div>
                             
                             {/* VIP Toggle + Level Override */}
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 flex-shrink-0">
                               {/* VIP Partner Toggle */}
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-1">
                                     <Switch
                                       checked={partner.status === 'VIP'}
                                       onCheckedChange={() => handleTogglePartnerStatus(partner)}
-                                      className="data-[state=checked]:bg-purple-500"
+                                      className={partner.status === 'VIP' ? 'bg-purple-500' : ''}
                                     />
                                     {partner.status === 'VIP' && (
                                       <Star className="h-4 w-4 text-purple-400" />
                                     )}
                                   </div>
                                 </TooltipTrigger>
-                                <TooltipContent>
-                                  <p className="text-xs">
+                                <TooltipContent side="bottom">
+                                  <p>
                                     {partner.status === 'VIP' 
-                                      ? 'VIP-партнёр: доступ к Partner Dashboard' 
-                                      : 'Назначить VIP (автоматически Level 3)'}
+                                      ? 'VIP: доступ к Dashboard' 
+                                      : 'Сделать VIP (Level 3)'}
                                   </p>
                                 </TooltipContent>
                               </Tooltip>
@@ -655,7 +663,7 @@ export default function AdminReferralPage({ onBack }) {
                                       value={partner.effective_level?.toString() || '0'}
                                       onValueChange={(value) => handleUpdatePartnerLevel(partner, value)}
                                     >
-                                      <SelectTrigger className="w-16 h-8 text-xs">
+                                      <SelectTrigger className="w-[68px] h-8 text-xs px-2">
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
@@ -667,11 +675,9 @@ export default function AdminReferralPage({ onBack }) {
                                     </Select>
                                   </div>
                                 </TooltipTrigger>
-                                <TooltipContent>
-                                  <p className="text-xs max-w-48">
-                                    <b>Принудительный уровень</b><br/>
-                                    L0 = комиссии отключены<br/>
-                                    Для Partner Dashboard нужен VIP-статус.
+                                <TooltipContent side="bottom">
+                                  <p>
+                                    Принудительный уровень комиссии
                                   </p>
                                 </TooltipContent>
                               </Tooltip>

@@ -568,7 +568,7 @@ async def submit_partner_application(request: PartnerApplicationRequest, user=De
         lambda: db.client.table("partner_applications").insert({
             "user_id": str(db_user.id),
             "telegram_id": user.id,
-            "username": user.username,
+            "username": getattr(user, 'username', None),
             "email": request.email,
             "phone": request.phone,
             "source": request.source,
@@ -580,10 +580,14 @@ async def submit_partner_application(request: PartnerApplicationRequest, user=De
         }).execute()
     )
     
+    # Verify insert succeeded
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Failed to create application")
+    
     return {
         "success": True,
         "message": "Application submitted successfully",
-        "application_id": result.data[0]["id"] if result.data else None
+        "application_id": result.data[0]["id"]
     }
 
 

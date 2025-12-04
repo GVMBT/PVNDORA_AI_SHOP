@@ -915,9 +915,7 @@ async def admin_get_partner_applications(
     """Get partner applications with filtering."""
     db = get_database()
     
-    query = db.client.table("partner_applications").select(
-        "*, users!partner_applications_user_id_fkey(username, first_name, telegram_id, total_purchases_amount)"
-    )
+    query = db.client.table("partner_applications").select("*")
     
     if status != "all":
         query = query.eq("status", status)
@@ -967,12 +965,17 @@ async def admin_review_application(request: ReviewApplicationRequest, admin=Depe
     user_id = app_result.data["user_id"]
     new_status = "approved" if request.approve else "rejected"
     
+    # Get admin user ID (verify_admin returns db_user which always has .id)
+    admin_id = str(admin.id) if admin and admin.id else None
+    if not admin_id:
+        raise HTTPException(status_code=500, detail="Admin ID not available")
+    
     # Update application
     await asyncio.to_thread(
         lambda: db.client.table("partner_applications").update({
             "status": new_status,
             "admin_comment": request.admin_comment,
-            "reviewed_by": str(admin.id) if hasattr(admin, 'id') else None,
+            "reviewed_by": admin_id,
             "reviewed_at": datetime.now(timezone.utc).isoformat()
         }).eq("id", request.application_id).execute()
     )
