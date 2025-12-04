@@ -4,6 +4,33 @@ alwaysApply: true
 
 # Development Workflow & Quality Rules
 
+## CRITICAL: Mode Detection & Read-Only Enforcement
+
+**Rule:** ALWAYS detect user intent before making ANY changes:
+
+### Read-Only Mode (Investigation)
+**Triggers:** User says "исследование", "проверь", "изучи", "посмотри", "исследуй", "research", "investigate", "check", "examine", "analyze"
+
+**Actions:**
+- ✅ Use ONLY read-only tools: `read_file`, `grep`, `codebase_search`, `list_dir`
+- ✅ Provide analysis and findings
+- ✅ Suggest solutions but DO NOT implement
+- ❌ NEVER use `write`, `search_replace`, `delete_file`, or any modification tools
+- ❌ NEVER create or modify files
+- ❌ NEVER run commands that change code
+
+### Write Mode (Implementation)
+**Triggers:** User explicitly says "сделай", "исправь", "реализуй", "добавь", "do", "fix", "implement", "add", "create"
+
+**Actions:**
+- ✅ First: Complete investigation (read-only mode)
+- ✅ Then: Make changes only after explicit user request
+- ✅ Follow all pre-change checklists
+
+**Example:**
+- User: "Проверь почему не работает" → Read-only investigation
+- User: "Исправь проблему" → Investigation first, then fix
+
 ## CRITICAL: Always Study Existing Code Before Making Changes
 
 **Rule:** Before writing ANY new code or modifying existing code, you MUST:
@@ -12,6 +39,19 @@ alwaysApply: true
 2. **Check for duplicates** - Search for similar names using `grep` before adding functions/classes/endpoints
 3. **Run linters** - `python -m pyflakes <files>` before committing
 4. **Check Python 3.12 compatibility** - No `datetime.utcnow()`, use `datetime.now(timezone.utc)`
+
+## Pre-Change Checklist (MANDATORY)
+
+**Rule:** Before making ANY code changes, verify ALL of these:
+
+- [ ] User explicitly requested changes (not just "investigate" or "check")
+- [ ] Completed read-only investigation first
+- [ ] Read existing code in the file you're modifying completely
+- [ ] Searched for duplicate function/class names using `grep`
+- [ ] Checked imports are correct and not circular
+- [ ] Verified migrations are applied (for database changes)
+- [ ] Checked database schema matches expectations (for API changes)
+- [ ] Verified endpoint paths don't conflict with existing routes
 
 ## Pre-Commit Checklist
 

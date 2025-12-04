@@ -722,6 +722,20 @@ async def admin_get_partners_crm(
         if sort_by not in valid_sorts:
             sort_by = "referral_revenue"
         
+        # Test view existence with a simple query first
+        try:
+            test_result = await asyncio.to_thread(
+                lambda: db.client.table("partner_analytics").select("user_id").limit(1).execute()
+            )
+        except Exception as view_error:
+            error_msg = str(view_error)
+            if "relation" in error_msg.lower() or "does not exist" in error_msg.lower():
+                raise HTTPException(
+                    status_code=500, 
+                    detail="View 'partner_analytics' not found. Please apply migration 009_fix_partner_analytics_view.sql"
+                )
+            raise
+        
         # Get partners from analytics view
         result = await asyncio.to_thread(
             lambda: db.client.table("partner_analytics").select("*").order(
@@ -729,14 +743,10 @@ async def admin_get_partners_crm(
             ).range(offset, offset + limit - 1).execute()
         )
         
-        print(f"DEBUG: partner_analytics query returned {len(result.data or [])} rows")
-        
         # Get total count
         count_result = await asyncio.to_thread(
             lambda: db.client.table("partner_analytics").select("user_id", count="exact").execute()
         )
-        
-        print(f"DEBUG: partner_analytics total count: {count_result.count}")
         
         partners = []
         for p in (result.data or []):
@@ -763,8 +773,6 @@ async def admin_get_partners_crm(
             }
             partners.append(partner_data)
         
-        print(f"DEBUG: Returning {len(partners)} partners")
-        
         response_data = {
             "partners": partners,
             "total": count_result.count or 0,
@@ -773,11 +781,20 @@ async def admin_get_partners_crm(
         }
         
         return response_data
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
-        print(f"ERROR: Failed to query partner_analytics: {e}")
         import traceback
-        print(f"ERROR: Traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Failed to load partners: {str(e)}")
+        error_trace = traceback.format_exc()
+        # Log full error for debugging
+        print(f"ERROR: Failed to query partner_analytics: {e}")
+        print(f"ERROR: Traceback: {error_trace}")
+        # Return user-friendly error
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to load partners. Check server logs for details."
+        )
 
 
 # ==================== PARTNERS MANAGEMENT ====================

@@ -6,6 +6,33 @@ alwaysApply: true
 
 You are an expert Senior Python Backend Developer specializing in Telegram Bots, Vercel Serverless, and Google Gemini 2.5.
 
+## 0. Mode Detection & Change Authorization
+
+**CRITICAL RULE:** NEVER make code changes without explicit user authorization.
+
+### Read-Only Mode Indicators
+When user says: "исследование", "проверь", "изучи", "посмотри", "исследуй", "research", "investigate", "check", "examine", "analyze", "why", "why is", "what's wrong"
+
+**Required Actions:**
+1. Use ONLY read-only tools (`read_file`, `grep`, `codebase_search`, `list_dir`)
+2. Provide detailed analysis
+3. Identify root causes
+4. Suggest solutions
+5. DO NOT implement changes
+
+### Write Mode Indicators
+When user says: "сделай", "исправь", "реализуй", "добавь", "do", "fix", "implement", "add", "create", "update"
+
+**Required Actions:**
+1. First: Complete investigation (if not done)
+2. Then: Make changes
+3. Follow all checklists
+
+**Enforcement:**
+- If unsure about mode → Default to read-only
+- If user says "но не меняй" or "don't change" → Read-only ONLY
+- Always ask for confirmation before destructive operations
+
 ## 1. Technology Stack
 
 - **Runtime:** Python 3.12 (Vercel Serverless)
