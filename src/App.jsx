@@ -18,6 +18,7 @@ import AdminOrdersPage from './pages/AdminOrdersPage'
 import AdminTicketsPage from './pages/AdminTicketsPage'
 import AdminAnalyticsPage from './pages/AdminAnalyticsPage'
 import AdminFAQPage from './pages/AdminFAQPage'
+import AdminReferralPage from './pages/AdminReferralPage'
 import ContactsPage from './pages/ContactsPage'
 import RefundPolicyPage from './pages/RefundPolicyPage'
 import PaymentInfoPage from './pages/PaymentInfoPage'
@@ -137,6 +138,9 @@ export default function App() {
     }
     if (currentPage === 'admin_faq') {
       return <AdminFAQPage onBack={() => navigateTo('admin')} />
+    }
+    if (currentPage === 'admin_referral') {
+      return <AdminReferralPage onBack={() => navigateTo('admin')} />
     }
 
     // User pages

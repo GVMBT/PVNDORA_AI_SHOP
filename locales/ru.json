@@ -318,17 +318,16 @@
       "rejected": "Отклонён"
     },
     "programLocked": "Программа не активна",
-    "programPending": "Набираем оборот",
     "programActive": "Программа активна",
+    "level": "Уровень",
     "makeFirstPurchase": "Сделай первую покупку, чтобы разблокировать реферальную программу",
+    "makeFirstPurchaseInstant": "Сделай первую покупку и сразу получи 1 уровень (20% с рефералов)",
     "goToCatalog": "Перейти в каталог",
-    "buildTurnover": "Набери оборот чтобы открыть комиссии 1-го уровня",
     "yourTurnover": "Ваш оборот",
-    "amountToLevel1": "Ещё {amount} до открытия 1 уровня",
-    "turnoverProgress": "Прогресс оборота",
-    "amountToNextLevel": "Ещё {amount} до уровня {level}",
+    "amountToNextLevel": "${amount} до уровня {level}",
     "maxLevelReached": "Максимальный уровень достигнут!",
     "unlockAt": "Откроется при",
+    "unlockOnPurchase": "Откроется при покупке",
     "pendingRewards": "Награды ожидают"
   }
 }

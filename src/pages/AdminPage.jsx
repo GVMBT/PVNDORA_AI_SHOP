@@ -1,6 +1,6 @@
 import React from 'react'
 import { useLocale } from '../hooks/useLocale'
-import { Package, BarChart2, Settings, HelpCircle, MessageSquare, Database, LogOut } from 'lucide-react'
+import { Package, BarChart2, Settings, HelpCircle, MessageSquare, Database, LogOut, Users } from 'lucide-react'
 import { Card, CardContent } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 
@@ -11,6 +11,7 @@ export default function AdminPage({ onNavigate }) {
     { id: 'products', icon: Package, label: 'Products', desc: 'Manage catalog & prices' },
     { id: 'stock', icon: Database, label: 'Stock', desc: 'Inventory management' },
     { id: 'orders', icon: BarChart2, label: 'Orders', desc: 'View & manage orders' },
+    { id: 'referral', icon: Users, label: 'Referrals', desc: 'Partners, ROI & settings' },
     { id: 'tickets', icon: MessageSquare, label: 'Tickets', desc: 'Support requests' },
     { id: 'analytics', icon: BarChart2, label: 'Analytics', desc: 'Sales & performance' },
     { id: 'faq', icon: HelpCircle, label: 'FAQ', desc: 'Manage common questions' }

@@ -173,10 +173,21 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Пороги разблокировки уровней в USD
-    THRESHOLD_LEVEL1 = 50
-    THRESHOLD_LEVEL2 = 250
-    THRESHOLD_LEVEL3 = 1000
+    # Загружаем динамические настройки из БД
+    settings_result = await asyncio.to_thread(
+        lambda: db.client.table("referral_settings").select("*").limit(1).execute()
+    )
+    settings = settings_result.data[0] if settings_result.data else {}
+    
+    # Пороги разблокировки уровней в USD (из настроек)
+    THRESHOLD_LEVEL1 = float(settings.get("level1_threshold_usd", 0))  # Instant unlock!
+    THRESHOLD_LEVEL2 = float(settings.get("level2_threshold_usd", 250))
+    THRESHOLD_LEVEL3 = float(settings.get("level3_threshold_usd", 1000))
+    
+    # Комиссии
+    COMMISSION_LEVEL1 = float(settings.get("level1_commission_percent", 20))
+    COMMISSION_LEVEL2 = float(settings.get("level2_commission_percent", 10))
+    COMMISSION_LEVEL3 = float(settings.get("level3_commission_percent", 5))
     
     # Get extended referral stats from view
     extended_stats_result = await asyncio.to_thread(
@@ -205,24 +216,35 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
         is_partner = s.get("is_partner", False)
         partner_override = s.get("partner_level_override")
         turnover_usd = float(s.get("turnover_usd") or 0)
-        effective_level = s.get("effective_level", 0)
-        status = s.get("status", "locked")  # locked, pre_level, active
+        
+        # Эффективный уровень (Level 1 = мгновенно после покупки!)
+        if is_partner and partner_override is not None:
+            effective_level = partner_override
+        elif not unlocked:
+            effective_level = 0
+        elif turnover_usd >= THRESHOLD_LEVEL3:
+            effective_level = 3
+        elif turnover_usd >= THRESHOLD_LEVEL2:
+            effective_level = 2
+        elif unlocked:  # Level 1 даётся СРАЗУ при активации
+            effective_level = 1
+        else:
+            effective_level = 0
+        
+        # Статус (упрощённый: locked или active)
+        status = "locked" if not unlocked else "active"
         
         # Calculate level thresholds
-        level1_unlocked = effective_level >= 1 or (is_partner and (partner_override or 0) >= 1)
-        level2_unlocked = effective_level >= 2 or (is_partner and (partner_override or 0) >= 2)
-        level3_unlocked = effective_level >= 3 or (is_partner and (partner_override or 0) >= 3)
+        level1_unlocked = effective_level >= 1
+        level2_unlocked = effective_level >= 2
+        level3_unlocked = effective_level >= 3
         
-        # Amount to each threshold
-        amount_to_level1 = max(0, THRESHOLD_LEVEL1 - turnover_usd) if not level1_unlocked else 0
+        # Amount to each threshold (Level 1 = 0, так как мгновенный)
         amount_to_level2 = max(0, THRESHOLD_LEVEL2 - turnover_usd) if not level2_unlocked else 0
         amount_to_level3 = max(0, THRESHOLD_LEVEL3 - turnover_usd) if not level3_unlocked else 0
         
-        # Next threshold to reach
-        if not level1_unlocked:
-            next_threshold = THRESHOLD_LEVEL1
-            amount_to_next = amount_to_level1
-        elif not level2_unlocked:
+        # Next threshold to reach (теперь стартуем с Level 2!)
+        if not level2_unlocked:
             next_threshold = THRESHOLD_LEVEL2
             amount_to_next = amount_to_level2
         elif not level3_unlocked:
@@ -235,10 +257,10 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
         referral_program = {
             # Basic status
             "unlocked": unlocked,  # Program activated (first purchase made)
-            "status": status,  # "locked" | "pre_level" | "active"
+            "status": status,  # "locked" | "active" (pre_level removed!)
             "is_partner": is_partner,
             
-            # Levels unlock state
+            # Levels unlock state (Level 1 = instant!)
             "effective_level": effective_level,
             "level1_unlocked": level1_unlocked,
             "level2_unlocked": level2_unlocked,
@@ -246,17 +268,20 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
             
             # Turnover & progress (in USD)
             "turnover_usd": turnover_usd,
-            "amount_to_level1_usd": amount_to_level1,
             "amount_to_level2_usd": amount_to_level2,
             "amount_to_level3_usd": amount_to_level3,
             "amount_to_next_level_usd": amount_to_next,
             "next_threshold_usd": next_threshold,
             
-            # Thresholds reference
+            # Thresholds and commissions (dynamic from settings)
             "thresholds_usd": {
-                "level1": THRESHOLD_LEVEL1,
                 "level2": THRESHOLD_LEVEL2,
                 "level3": THRESHOLD_LEVEL3
+            },
+            "commissions_percent": {
+                "level1": COMMISSION_LEVEL1,
+                "level2": COMMISSION_LEVEL2,
+                "level3": COMMISSION_LEVEL3
             },
             
             # Unlock timestamps
@@ -280,15 +305,18 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
             "level2_unlocked": False,
             "level3_unlocked": False,
             "turnover_usd": 0,
-            "amount_to_level1_usd": THRESHOLD_LEVEL1,
             "amount_to_level2_usd": THRESHOLD_LEVEL2,
             "amount_to_level3_usd": THRESHOLD_LEVEL3,
-            "amount_to_next_level_usd": THRESHOLD_LEVEL1,
-            "next_threshold_usd": THRESHOLD_LEVEL1,
+            "amount_to_next_level_usd": THRESHOLD_LEVEL2,  # Level 1 instant, so next is Level 2
+            "next_threshold_usd": THRESHOLD_LEVEL2,
             "thresholds_usd": {
-                "level1": THRESHOLD_LEVEL1,
                 "level2": THRESHOLD_LEVEL2,
                 "level3": THRESHOLD_LEVEL3
+            },
+            "commissions_percent": {
+                "level1": COMMISSION_LEVEL1,
+                "level2": COMMISSION_LEVEL2,
+                "level3": COMMISSION_LEVEL3
             },
             "level1_unlocked_at": None,
             "level2_unlocked_at": None,

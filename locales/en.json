@@ -318,17 +318,16 @@
       "rejected": "Rejected"
     },
     "programLocked": "Program Locked",
-    "programPending": "Building Turnover",
     "programActive": "Program Active",
+    "level": "Level",
     "makeFirstPurchase": "Make your first purchase to unlock the referral program",
+    "makeFirstPurchaseInstant": "Make your first purchase to instantly unlock Level 1 (20% commissions)",
     "goToCatalog": "Go to Catalog",
-    "buildTurnover": "Build your turnover to unlock Level 1 commissions",
     "yourTurnover": "Your turnover",
-    "amountToLevel1": "{amount} more to unlock Level 1",
-    "turnoverProgress": "Turnover progress",
-    "amountToNextLevel": "{amount} to unlock Level {level}",
+    "amountToNextLevel": "${amount} to Level {level}",
     "maxLevelReached": "Maximum level reached!",
     "unlockAt": "Unlock at",
+    "unlockOnPurchase": "Unlock on first purchase",
     "pendingRewards": "Rewards pending"
   }
 }

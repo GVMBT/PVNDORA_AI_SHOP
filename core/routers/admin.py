@@ -549,6 +549,201 @@ async def admin_index_products(authorization: str = Header(None)):
         return {"success": False, "error": str(e)}
 
 
+# ==================== REFERRAL SETTINGS ====================
+
+class ReferralSettingsRequest(BaseModel):
+    level2_threshold_usd: Optional[float] = None
+    level3_threshold_usd: Optional[float] = None
+    level1_commission_percent: Optional[float] = None
+    level2_commission_percent: Optional[float] = None
+    level3_commission_percent: Optional[float] = None
+
+
+@router.get("/referral/settings")
+async def admin_get_referral_settings(admin=Depends(verify_admin)):
+    """Get current referral program settings"""
+    db = get_database()
+    
+    result = await asyncio.to_thread(
+        lambda: db.client.table("referral_settings").select("*").limit(1).execute()
+    )
+    
+    if not result.data:
+        # Return defaults
+        return {
+            "settings": {
+                "level1_threshold_usd": 0,  # Instant unlock
+                "level2_threshold_usd": 250,
+                "level3_threshold_usd": 1000,
+                "level1_commission_percent": 20,
+                "level2_commission_percent": 10,
+                "level3_commission_percent": 5
+            }
+        }
+    
+    return {"settings": result.data[0]}
+
+
+@router.put("/referral/settings")
+async def admin_update_referral_settings(request: ReferralSettingsRequest, admin=Depends(verify_admin)):
+    """Update referral program settings (thresholds and commissions)"""
+    db = get_database()
+    
+    # Build update dict with only provided fields
+    update_data = {"updated_at": datetime.utcnow().isoformat()}
+    
+    if request.level2_threshold_usd is not None:
+        if request.level2_threshold_usd < 0:
+            raise HTTPException(status_code=400, detail="Threshold must be >= 0")
+        update_data["level2_threshold_usd"] = request.level2_threshold_usd
+        
+    if request.level3_threshold_usd is not None:
+        if request.level3_threshold_usd < 0:
+            raise HTTPException(status_code=400, detail="Threshold must be >= 0")
+        update_data["level3_threshold_usd"] = request.level3_threshold_usd
+        
+    if request.level1_commission_percent is not None:
+        if not 0 <= request.level1_commission_percent <= 100:
+            raise HTTPException(status_code=400, detail="Commission must be 0-100%")
+        update_data["level1_commission_percent"] = request.level1_commission_percent
+        
+    if request.level2_commission_percent is not None:
+        if not 0 <= request.level2_commission_percent <= 100:
+            raise HTTPException(status_code=400, detail="Commission must be 0-100%")
+        update_data["level2_commission_percent"] = request.level2_commission_percent
+        
+    if request.level3_commission_percent is not None:
+        if not 0 <= request.level3_commission_percent <= 100:
+            raise HTTPException(status_code=400, detail="Commission must be 0-100%")
+        update_data["level3_commission_percent"] = request.level3_commission_percent
+    
+    # Update settings (single row)
+    result = await asyncio.to_thread(
+        lambda: db.client.table("referral_settings").update(update_data).eq(
+            "id", "00000000-0000-0000-0000-000000000001"
+        ).execute()
+    )
+    
+    return {"success": True, "updated": update_data}
+
+
+# ==================== REFERRAL ANALYTICS (ROI + CRM) ====================
+
+@router.get("/referral/dashboard")
+async def admin_get_referral_dashboard(admin=Depends(verify_admin)):
+    """
+    ROI Dashboard - ключевые метрики эффективности реферального канала.
+    
+    Returns:
+    - total_referral_revenue: Общий оборот от рефералов
+    - total_payouts: Выплаченные комиссии
+    - net_profit: Чистая прибыль (Оборот - Комиссии)
+    - margin_percent: Маржа в %
+    - active_partners: Партнёры с хотя бы 1 платящим
+    """
+    db = get_database()
+    
+    # Get ROI metrics from view
+    roi_result = await asyncio.to_thread(
+        lambda: db.client.table("referral_roi_dashboard").select("*").execute()
+    )
+    
+    roi = roi_result.data[0] if roi_result.data else {}
+    
+    # Get current settings
+    settings_result = await asyncio.to_thread(
+        lambda: db.client.table("referral_settings").select("*").limit(1).execute()
+    )
+    settings = settings_result.data[0] if settings_result.data else {}
+    
+    return {
+        "roi": {
+            "total_referral_revenue": float(roi.get("total_referral_revenue", 0)),
+            "total_payouts": float(roi.get("total_payouts", 0)),
+            "revoked_payouts": float(roi.get("revoked_payouts", 0)),
+            "net_profit": float(roi.get("net_profit", 0)),
+            "margin_percent": float(roi.get("margin_percent", 100)),
+        },
+        "partners": {
+            "active": roi.get("active_partners", 0),
+            "total": roi.get("total_partners", 0),
+            "vip": roi.get("vip_partners", 0)
+        },
+        "settings": {
+            "level1_threshold": float(settings.get("level1_threshold_usd", 0)),
+            "level2_threshold": float(settings.get("level2_threshold_usd", 250)),
+            "level3_threshold": float(settings.get("level3_threshold_usd", 1000)),
+            "level1_commission": float(settings.get("level1_commission_percent", 20)),
+            "level2_commission": float(settings.get("level2_commission_percent", 10)),
+            "level3_commission": float(settings.get("level3_commission_percent", 5))
+        }
+    }
+
+
+@router.get("/referral/partners-crm")
+async def admin_get_partners_crm(
+    sort_by: str = "referral_revenue",
+    sort_order: str = "desc",
+    limit: int = 50,
+    offset: int = 0,
+    admin=Depends(verify_admin)
+):
+    """
+    CRM таблица партнёров с полной аналитикой.
+    
+    Sortable by: referral_revenue, total_earned, total_referrals, paying_referrals, conversion_rate
+    """
+    db = get_database()
+    
+    # Validate sort field
+    valid_sorts = ["referral_revenue", "total_earned", "total_referrals", "paying_referrals", "conversion_rate", "joined_at"]
+    if sort_by not in valid_sorts:
+        sort_by = "referral_revenue"
+    
+    # Get partners from analytics view
+    result = await asyncio.to_thread(
+        lambda: db.client.table("partner_analytics").select("*").order(
+            sort_by, desc=(sort_order == "desc")
+        ).range(offset, offset + limit - 1).execute()
+    )
+    
+    # Get total count
+    count_result = await asyncio.to_thread(
+        lambda: db.client.table("partner_analytics").select("user_id", count="exact").execute()
+    )
+    
+    partners = []
+    for p in (result.data or []):
+        partners.append({
+            "user_id": p.get("user_id"),
+            "telegram_id": p.get("telegram_id"),
+            "username": p.get("username"),
+            "first_name": p.get("first_name"),
+            "status": "VIP" if p.get("is_partner") else "Regular",
+            "effective_level": p.get("effective_level", 0),
+            "joined_at": p.get("joined_at"),
+            # Referral stats
+            "total_referrals": p.get("total_referrals", 0),
+            "paying_referrals": p.get("paying_referrals", 0),
+            "conversion_rate": float(p.get("conversion_rate", 0)),
+            # Financial
+            "referral_revenue": float(p.get("referral_revenue", 0)),
+            "total_earned": float(p.get("total_earned", 0)),
+            "current_balance": float(p.get("current_balance", 0)),
+            # Tree depth
+            "level1_referrals": p.get("level1_referrals", 0),
+            "level2_referrals": p.get("level2_referrals", 0),
+            "level3_referrals": p.get("level3_referrals", 0),
+        })
+    
+    return {
+        "partners": partners,
+        "total": count_result.count or 0,
+        "limit": limit,
+        "offset": offset
+    }
+
+
 # ==================== PARTNERS MANAGEMENT ====================
 
 class SetPartnerRequest(BaseModel):

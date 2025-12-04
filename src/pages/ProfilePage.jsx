@@ -42,7 +42,7 @@ import { Label } from '../components/ui/label'
 const WITHDRAWAL_MIN = 500 // Минимум для вывода
 
 // Level Card Component with visual states
-function LevelCard({ level, commission, threshold, isUnlocked, isProgramLocked, count, earnings, formatPrice, t, color }) {
+function LevelCard({ level, commission, threshold, isUnlocked, isProgramLocked, count, earnings, formatPrice, t, color, isInstant }) {
   const isLocked = !isUnlocked
   
   // Color configs
@@ -72,6 +72,17 @@ function LevelCard({ level, commission, threshold, isUnlocked, isProgramLocked, 
   
   const cfg = colorConfig[color]
   
+  // Unlock description based on level type
+  const getUnlockDescription = () => {
+    if (isUnlocked) {
+      return `${commission} ${t('profile.commission')}`
+    }
+    if (isInstant) {
+      return t('profile.unlockOnPurchase')  // "Откроется при покупке"
+    }
+    return `${t('profile.unlockAt')} $${threshold}`
+  }
+  
   return (
     <Card className={`${isLocked ? cfg.locked : cfg.active} ${isLocked ? 'opacity-60' : ''} transition-all`}>
       <CardContent className="p-4 flex items-center justify-between">
@@ -88,10 +99,7 @@ function LevelCard({ level, commission, threshold, isUnlocked, isProgramLocked, 
               {t(`profile.level${level}`)}
             </p>
             <p className="text-xs text-muted-foreground">
-              {isLocked 
-                ? `${t('profile.unlockAt')} $${threshold}` 
-                : `${commission} ${t('profile.commission')}`
-              }
+              {getUnlockDescription()}
             </p>
           </div>
         </div>
@@ -361,8 +369,6 @@ export default function ProfilePage({ onBack }) {
           <Card className={
             referralProgram.status === 'locked' 
               ? "bg-gradient-to-r from-gray-500/10 to-gray-500/5 border-gray-500/20" 
-              : referralProgram.status === 'pre_level'
-              ? "bg-gradient-to-r from-amber-500/10 to-amber-500/5 border-amber-500/20"
               : "bg-gradient-to-r from-green-500/10 to-emerald-500/5 border-green-500/20"
           }>
             <CardContent className="p-4">
@@ -370,19 +376,20 @@ export default function ProfilePage({ onBack }) {
                 <div className="flex items-center gap-2">
                   {referralProgram.status === 'locked' ? (
                     <Lock className="h-5 w-5 text-gray-400" />
-                  ) : referralProgram.status === 'pre_level' ? (
-                    <Clock className="h-5 w-5 text-amber-500" />
                   ) : (
                     <CheckCircle className="h-5 w-5 text-green-500" />
                   )}
                   <span className="font-semibold">
                     {referralProgram.status === 'locked' 
                       ? t('profile.programLocked')
-                      : referralProgram.status === 'pre_level'
-                      ? t('profile.programPending')
                       : t('profile.programActive')
                     }
                   </span>
+                  {referralProgram.status === 'active' && (
+                    <Badge variant="outline" className="ml-2 text-green-500 border-green-500/30">
+                      {t('profile.level')} {referralProgram.effective_level}
+                    </Badge>
+                  )}
                 </div>
                 {referralProgram.is_partner && (
                   <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
@@ -395,7 +402,7 @@ export default function ProfilePage({ onBack }) {
               {referralProgram.status === 'locked' && (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    {t('profile.makeFirstPurchase')}
+                    {t('profile.makeFirstPurchaseInstant')}
                   </p>
                   <Button variant="outline" className="w-full gap-2" onClick={onBack}>
                     <Gift className="h-4 w-4" />
@@ -404,54 +411,42 @@ export default function ProfilePage({ onBack }) {
                 </div>
               )}
               
-              {/* State 1: Pre-Level - Purchased but turnover < $50 */}
-              {referralProgram.status === 'pre_level' && (
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    {t('profile.buildTurnover')}
-                  </p>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <DollarSign className="h-3 w-3" /> {t('profile.yourTurnover')}
-                      </span>
-                      <span className="font-bold text-amber-500">
-                        ${referralProgram.turnover_usd?.toFixed(0) || 0} / ${referralProgram.thresholds_usd?.level1 || 50}
-                      </span>
-                    </div>
-                    <div className="h-3 bg-secondary rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all"
-                        style={{ 
-                          width: `${Math.min(100, ((referralProgram.turnover_usd || 0) / (referralProgram.thresholds_usd?.level1 || 50)) * 100)}%` 
-                        }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {t('profile.amountToLevel1', { amount: `$${referralProgram.amount_to_level1_usd?.toFixed(0) || 50}` })}
-                    </p>
-                  </div>
-                </div>
-              )}
-              
-              {/* State 2: Active - At least Level 1 unlocked */}
+              {/* Active State - Level 1 instant, progress to Level 2/3 */}
               {referralProgram.status === 'active' && (
                 <div className="space-y-3">
-                  {referralProgram.effective_level < 3 && (
+                  {/* Current commissions info */}
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="px-2 py-1 rounded bg-green-500/10 text-green-500">
+                      L1: {referralProgram.commissions_percent?.level1 || 20}%
+                    </span>
+                    {referralProgram.level2_unlocked && (
+                      <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-500">
+                        L2: {referralProgram.commissions_percent?.level2 || 10}%
+                      </span>
+                    )}
+                    {referralProgram.level3_unlocked && (
+                      <span className="px-2 py-1 rounded bg-purple-500/10 text-purple-500">
+                        L3: {referralProgram.commissions_percent?.level3 || 5}%
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* Progress bar to next level */}
+                  {referralProgram.effective_level < 3 && referralProgram.next_threshold_usd && (
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground flex items-center gap-1">
-                          <DollarSign className="h-3 w-3" /> {t('profile.turnoverProgress')}
+                          <DollarSign className="h-3 w-3" /> {t('profile.yourTurnover')}
                         </span>
                         <span className="font-bold text-green-500">
-                          ${referralProgram.turnover_usd?.toFixed(0) || 0} / ${referralProgram.next_threshold_usd || 0}
+                          ${referralProgram.turnover_usd?.toFixed(0) || 0} / ${referralProgram.next_threshold_usd}
                         </span>
                       </div>
                       <div className="h-3 bg-secondary rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all"
                           style={{ 
-                            width: `${Math.min(100, ((referralProgram.turnover_usd || 0) / (referralProgram.next_threshold_usd || 1)) * 100)}%` 
+                            width: `${Math.min(100, ((referralProgram.turnover_usd || 0) / referralProgram.next_threshold_usd) * 100)}%` 
                           }}
                         />
                       </div>
@@ -528,11 +523,11 @@ export default function ProfilePage({ onBack }) {
           </h2>
           
           <div className="grid gap-3">
-            {/* Level 1 - $50 threshold */}
+            {/* Level 1 - Instant unlock (no threshold) */}
             <LevelCard 
               level={1}
-              commission="20%"
-              threshold={50}
+              commission={`${referralProgram?.commissions_percent?.level1 || 20}%`}
+              threshold={0}  // Instant!
               isUnlocked={referralProgram?.level1_unlocked}
               isProgramLocked={referralProgram?.status === 'locked'}
               count={referralStats?.level1_count || 0}
@@ -540,13 +535,14 @@ export default function ProfilePage({ onBack }) {
               formatPrice={formatPrice}
               t={t}
               color="green"
+              isInstant={true}
             />
             
-            {/* Level 2 - $250 threshold */}
+            {/* Level 2 - Dynamic threshold from settings */}
             <LevelCard 
               level={2}
-              commission="10%"
-              threshold={250}
+              commission={`${referralProgram?.commissions_percent?.level2 || 10}%`}
+              threshold={referralProgram?.thresholds_usd?.level2 || 250}
               isUnlocked={referralProgram?.level2_unlocked}
               isProgramLocked={referralProgram?.status === 'locked'}
               count={referralStats?.level2_count || 0}
@@ -556,11 +552,11 @@ export default function ProfilePage({ onBack }) {
               color="blue"
             />
             
-            {/* Level 3 - $1000 threshold */}
+            {/* Level 3 - Dynamic threshold from settings */}
             <LevelCard 
               level={3}
-              commission="5%"
-              threshold={1000}
+              commission={`${referralProgram?.commissions_percent?.level3 || 5}%`}
+              threshold={referralProgram?.thresholds_usd?.level3 || 1000}
               isUnlocked={referralProgram?.level3_unlocked}
               isProgramLocked={referralProgram?.status === 'locked'}
               count={referralStats?.level3_count || 0}
