@@ -173,19 +173,54 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    stats_result = await asyncio.to_thread(
-        lambda: db.client.table("user_referral_stats").select("*").eq("user_id", db_user.id).execute()
+    # Get extended referral stats from new view
+    extended_stats_result = await asyncio.to_thread(
+        lambda: db.client.table("referral_stats_extended").select("*").eq("user_id", db_user.id).execute()
     )
     
     referral_stats = None
-    if stats_result.data:
-        s = stats_result.data[0]
+    referral_program = None
+    
+    if extended_stats_result.data:
+        s = extended_stats_result.data[0]
         referral_stats = {
-            "level1_count": s.get("level1_count", 0), "level2_count": s.get("level2_count", 0),
+            "level1_count": s.get("level1_count", 0),
+            "level2_count": s.get("level2_count", 0),
             "level3_count": s.get("level3_count", 0),
-            "level1_earnings": float(s.get("level1_earnings", 0)),
-            "level2_earnings": float(s.get("level2_earnings", 0)),
-            "level3_earnings": float(s.get("level3_earnings", 0)),
+            "level1_earnings": float(s.get("level1_earnings") or 0),
+            "level2_earnings": float(s.get("level2_earnings") or 0),
+            "level3_earnings": float(s.get("level3_earnings") or 0),
+            "active_referrals": s.get("active_referrals_count", 0),
+            "conversion_rate": float(s.get("referral_conversion_rate") or 0),
+            "avg_order_value": float(s.get("referral_avg_order_value") or 0),
+        }
+        referral_program = {
+            "unlocked": s.get("referral_program_unlocked", False),
+            "level": s.get("referral_level", 1),
+            "total_purchases": float(s.get("total_purchases_amount") or 0),
+            "amount_to_next_level": float(s.get("amount_to_next_level") or 0),
+        }
+    else:
+        # Fallback to old view
+        stats_result = await asyncio.to_thread(
+            lambda: db.client.table("user_referral_stats").select("*").eq("user_id", db_user.id).execute()
+        )
+        if stats_result.data:
+            s = stats_result.data[0]
+            referral_stats = {
+                "level1_count": s.get("level1_count", 0),
+                "level2_count": s.get("level2_count", 0),
+                "level3_count": s.get("level3_count", 0),
+                "level1_earnings": float(s.get("level1_earnings") or 0),
+                "level2_earnings": float(s.get("level2_earnings") or 0),
+                "level3_earnings": float(s.get("level3_earnings") or 0),
+            }
+        # Get program status from user directly
+        referral_program = {
+            "unlocked": getattr(db_user, 'referral_program_unlocked', False) or False,
+            "level": getattr(db_user, 'referral_level', 1) or 1,
+            "total_purchases": float(getattr(db_user, 'total_purchases_amount', 0) or 0),
+            "amount_to_next_level": 5000 - float(getattr(db_user, 'total_purchases_amount', 0) or 0) if (getattr(db_user, 'referral_level', 1) or 1) == 1 else 0,
         }
     
     bonus_result = await asyncio.to_thread(
@@ -204,6 +239,7 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
             "created_at": db_user.created_at.isoformat() if db_user.created_at else None,
             "is_admin": db_user.is_admin or False
         },
+        "referral_program": referral_program,
         "referral_stats": referral_stats,
         "bonus_history": bonus_result.data or [],
         "withdrawals": withdrawal_result.data or []

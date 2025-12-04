@@ -44,9 +44,10 @@ export default function ProfilePage({ onBack }) {
   
   const [profile, setProfile] = useState(null)
   const [referralStats, setReferralStats] = useState(null)
+  const [referralProgram, setReferralProgram] = useState(null)
   const [bonusHistory, setBonusHistory] = useState([])
   const [withdrawals, setWithdrawals] = useState([])
-  const [activeTab, setActiveTab] = useState('overview') // overview, referrals, history, withdraw
+  const [activeTab, setActiveTab] = useState('overview')
   const [withdrawDialog, setWithdrawDialog] = useState(false)
   const [shareLoading, setShareLoading] = useState(false)
   const [withdrawAmount, setWithdrawAmount] = useState('')
@@ -72,6 +73,7 @@ export default function ProfilePage({ onBack }) {
       const data = await get('/profile')
       setProfile(data.profile)
       setReferralStats(data.referral_stats)
+      setReferralProgram(data.referral_program)
       setBonusHistory(data.bonus_history || [])
       setWithdrawals(data.withdrawals || [])
     } catch (err) {
@@ -274,6 +276,67 @@ export default function ProfilePage({ onBack }) {
           </CardContent>
         </Card>
         
+        {/* Referral Program Status */}
+        {referralProgram && (
+          <Card className={referralProgram.unlocked 
+            ? "bg-gradient-to-r from-green-500/10 to-emerald-500/5 border-green-500/20" 
+            : "bg-gradient-to-r from-gray-500/10 to-gray-500/5 border-gray-500/20"
+          }>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  {referralProgram.unlocked ? (
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 text-gray-400" />
+                  )}
+                  <span className="font-semibold">
+                    {referralProgram.unlocked ? 'Программа активна' : 'Программа не активна'}
+                  </span>
+                </div>
+                <Badge variant={referralProgram.unlocked ? "default" : "secondary"}>
+                  Уровень {referralProgram.level}
+                </Badge>
+              </div>
+              
+              {!referralProgram.unlocked && (
+                <p className="text-sm text-muted-foreground mb-3">
+                  Сделай первую покупку, чтобы разблокировать реферальную программу
+                </p>
+              )}
+              
+              {referralProgram.unlocked && referralProgram.level < 3 && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">До уровня {referralProgram.level + 1}</span>
+                    <span className="font-medium">{formatPrice(referralProgram.amount_to_next_level)}</span>
+                  </div>
+                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full transition-all"
+                      style={{ 
+                        width: `${Math.min(100, (referralProgram.total_purchases / (referralProgram.level === 1 ? 5000 : 15000)) * 100)}%` 
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {referralProgram.level === 1 
+                      ? 'Уровень 2: +2% со 2-й линии (от 5,000₽)' 
+                      : 'Уровень 3: +1% с 3-й линии (от 15,000₽)'
+                    }
+                  </p>
+                </div>
+              )}
+              
+              {referralProgram.level === 3 && (
+                <p className="text-sm text-green-600 font-medium">
+                  🏆 Максимальный уровень достигнут!
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+        
         {/* Referral Link */}
         <Card>
           <CardContent className="p-4">
@@ -291,6 +354,32 @@ export default function ProfilePage({ onBack }) {
             </div>
           </CardContent>
         </Card>
+        
+        {/* Referral Performance */}
+        {referralStats && (referralStats.level1_count > 0 || referralStats.active_referrals > 0) && (
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="font-semibold mb-3 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                Эффективность
+              </h3>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-2xl font-bold text-primary">{referralStats.active_referrals || 0}</p>
+                  <p className="text-xs text-muted-foreground">Активных</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-green-500">{referralStats.conversion_rate || 0}%</p>
+                  <p className="text-xs text-muted-foreground">Конверсия</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{formatPrice(referralStats.avg_order_value || 0)}</p>
+                  <p className="text-xs text-muted-foreground">Ср. чек</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         
         {/* 3-Level Referral Stats */}
         <div className="space-y-3">
