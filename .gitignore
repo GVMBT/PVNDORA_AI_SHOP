@@ -10,21 +10,59 @@ ENV/
 env/
 *.egg-info/
 .eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+cython_debug/
+.tox/
+.nox/
+.hypothesis/
+.python-version
+pip-log.txt
+pip-delete-this-directory.txt
+*.cover
+*.py,cover
+.coverage.*
+.coverage
+htmlcov/
+dist/
+build/
+*.egg
 
 # Node
 node_modules/
-dist/
 .cache/
 .parcel-cache/
+.npm/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+.next/
+out/
+.nuxt/
+.vuepress/dist/
+.serverless/
+.fusebox/
+.dynamodb/
+.tern-port
+.vscode-test/
+*.code-workspace
 
 # Build outputs
-build/
 *.log
 
 # Environment
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
+!.env.template
+*.local
+.local/
 
 # IDE
 .idea/
@@ -32,11 +70,27 @@ build/
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
+.history/
+# Cursor IDE - ignore logs and plans, but keep rules
+.cursor/cache/
+.cursor/logs/
+.cursor/debug.log
+.cursor/plans/
+.cursor/*.log
+!.cursor/rules/
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 Thumbs.db
 desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
 
 # Research/notes (don't include in bundle)
 *.txt
@@ -53,18 +107,26 @@ TODO.md
 __tests__/
 coverage/
 .nyc_output/
-htmlcov/
 coverage.xml
-.coverage
 
 # Temporary files
 *.tmp
 *.temp
 .temp/
 tmp/
+*.bak
+*.orig
 
 # Vercel
 .vercel/
+.vercelignore
+.vercel.json.local
+vercel.json.local
+
+# Supabase
+supabase/.temp/
+supabase/.branches/
+supabase/.git/
 
 # Lock files (optional - некоторые проекты их коммитят)
 # package-lock.json

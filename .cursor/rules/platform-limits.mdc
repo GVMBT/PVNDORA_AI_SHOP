@@ -1,94 +1,67 @@
 ---
 alwaysApply: true
 ---
+
 # Vercel Platform Limits & Telegram Mini App Constraints
 
-**Context:** PVNDORA — Telegram Mini App (TMA) на Vercel.  
+**Context:** PVNDORA — Telegram Mini App (TMA) on Vercel.  
 **Architecture:** Hybrid Monorepo (React/Vite Frontend + Python/FastAPI Backend + Supabase + Upstash Redis).
-
----
 
 ## 1. DEPLOYMENT MODEL
 
 | Layer | Type | Notes |
 |-------|------|-------|
 | Frontend | Static Site (Vite) | Served via Vercel Edge Network |
-| Backend | Serverless Function | Single entry point `api/index.py` ("Monolithic Function" pattern) |
+| Backend | Serverless Function | Single entry point `api/index.py` |
 | Runtime | Python 3.12 | Standardized by Vercel |
-| Region | Auto | Backend resolves to AWS Lambda regions (e.g., IAD1) |
-
----
+| Region | Auto | Backend resolves to AWS Lambda regions |
 
 ## 2. HARD LIMITS (NON-NEGOTIABLE)
-
-*Превышение этих лимитов вызывает немедленные ошибки.*
 
 ### 2.1. Compute & Bundle
 
 | Limit | Value | Impact |
 |-------|-------|--------|
-| **Function Bundle Size** | 250 MB (uncompressed) | Python не поддерживает tree-shaking. Все библиотеки из `requirements.txt` включаются |
-| **Payload Size** | 4.5 MB (request & response) | Ограничение AWS Lambda/API Gateway |
-| **Environment Variables** | 64 KB total | Нельзя хранить большие JSON или RSA ключи |
+| **Function Bundle Size** | 250 MB (uncompressed) | Python doesn't support tree-shaking |
+| **Payload Size** | 4.5 MB (request & response) | AWS Lambda/API Gateway limitation |
+| **Environment Variables** | 64 KB total | Cannot store large JSON or RSA keys |
 
 **Mitigation:**
-- Используй `excludeFiles` в `vercel.json` для тестов/документации
-- **НИКОГДА** не обрабатывай загрузку файлов через API — используй Client-side Direct Upload (Presigned URLs) в S3/Supabase Storage
-- Тяжёлые библиотеки (Pandas, NumPy, Torch) → выноси на Docker-платформы (Railway/VPS)
+- Use `excludeFiles` in `vercel.json` for tests/documentation
+- **NEVER** handle file uploads via API — use Presigned URLs (S3/Supabase Storage)
+- Heavy libraries (Pandas, NumPy, Torch) → move to Docker platforms
 
-### 2.2. Execution Timeouts (maxDuration)
+### 2.2. Execution Timeouts
 
-| Plan | Default | Maximum | Notes |
-|------|---------|---------|-------|
-| **Hobby** (Legacy) | 10 sec | 10 sec | Hard stop |
-| **Hobby** (Fluid Compute) | 60 sec | 300 sec (5 min) | Requires opt-in |
-| **Pro** | 60 sec | 900 sec (15 min) | Via `vercel.json` |
+| Plan | Default | Maximum |
+|------|---------|---------|
+| **Hobby** (Legacy) | 10 sec | 10 sec |
+| **Hobby** (Fluid Compute) | 60 sec | 300 sec (5 min) |
+| **Pro** | 60 sec | 900 sec (15 min) |
 
-**Rule:** Задачи >5 минут (AI генерация, видео) → **обязательно асинхронно** через QStash/Background Workers.
-
----
+**Rule:** Tasks >5 minutes → **must be async** via QStash/Background Workers.
 
 ## 3. NETWORK & TRAFFIC QUOTAS
 
-### 3.1. Fast Origin Transfer (Backend ↔ Edge)
+| Resource | Hobby | Pro |
+|----------|-------|-----|
+| Fast Origin Transfer (Backend ↔ Edge) | 10 GB/month | 100 GB/month |
+| Fast Data Transfer (Frontend → User) | 100 GB/month | 1 TB/month |
+| Image Optimization Transforms | 1,000–5,000 (hard limit) | Pay-as-you-go |
 
-| Plan | Limit | Overage |
-|------|-------|---------|
-| **Hobby** | 10 GB/month | N/A (hard limit) |
-| **Pro** | 100 GB/month | $0.06/GB |
-
-**Warning:** Это трафик между Frontend и Backend. Большие JSON-ответы быстро истощают лимит.
-
-### 3.2. Fast Data Transfer (Frontend → User)
-
-| Plan | Limit |
-|------|-------|
-| **Hobby** | 100 GB/month |
-| **Pro** | 1 TB/month |
-
-### 3.3. Image Optimization
-
-| Limit | Value |
-|-------|-------|
-| Max Source Resolution | 8192×8192 |
-| Max Optimized Size | 10 MB |
-| **Hobby Transformations** | 1,000–5,000 (hard limit) |
-
-**Risk:** При исчерпании лимита → **402 Payment Required**, изображения ломаются.
-
----
+**Warning:** Large JSON responses quickly exhaust Origin Transfer limit.
 
 ## 4. DATABASE & STATE CONSTRAINTS
 
-### 4.1. Vercel Postgres (Neon) — НЕ ИСПОЛЬЗОВАТЬ
+### 4.1. Vercel Postgres (Neon) — DO NOT USE
 
 | Limit | Value | Trap |
 |-------|-------|------|
-| Compute Time (Hobby) | 60 hours/month | DB остаётся "активной" 5 мин после запроса |
+| Compute Time (Hobby) | 60 hours/month | DB remains "active" 5 min after request |
 
-**Trap:** 1 запрос каждые 10 минут → DB активна 24/7 → лимит исчерпан за ~3 дня.
+**Trap:** 1 request every 10 minutes → DB active 24/7 → limit exhausted in ~3 days.
 
-**Rule:** **НЕ использовать Vercel Postgres на Hobby для Production.** Используй Supabase с `supabase-py` HTTP клиентом.
+**Rule:** **DO NOT use Vercel Postgres on Hobby for Production.** Use Supabase with `supabase-py` HTTP client.
 
 ### 4.2. Vercel KV (Redis)
 
@@ -96,111 +69,70 @@ alwaysApply: true
 |------|-------|
 | **Hobby** | ~3,000 requests/day |
 
-**Rule:** Нельзя использовать для Rate Limiting middleware на Hobby. Используй Upstash Redis.
+**Rule:** Cannot use for Rate Limiting middleware on Hobby. Use Upstash Redis.
 
----
+## 5. OPERATIONAL LIMITS
 
-## 5. OPERATIONAL LIMITS (DEVOPS)
+| Resource | Hobby | Pro |
+|----------|-------|-----|
+| Logs Retention | 1 hour | 1 day (default) |
+| Log Drains | ❌ | ✅ (paid bandwidth) |
+| Cron Jobs | 2 (daily, ±1 hour drift) | 40 (minutely) |
+| Build Concurrency | 1 slot | 12 slots |
+| Build Timeout | 45 min | 45 min |
+| Firewall Custom Rules | 3 | 40 |
+| Firewall IP Blocks | 10 | 100 |
 
-### 5.1. Logs & Observability
+**When to Use Runtime Logs:**
+- Debugging errors in production: `vercel logs [deployment-url] --follow`
+- Post-deployment diagnostics (imports, connections)
+- Monitoring critical endpoints (webhooks, workers)
+- Verification after bug fixes
 
-| Plan | Retention | Log Drains |
-|------|-----------|------------|
-| **Hobby** | 1 hour | ❌ |
-| **Pro** | 1 day (default) | ✅ (paid bandwidth) |
+**See `scripts/get_latest_deployment_logs.py` for automation.**
 
-**Impact:** На Hobby невозможно дебажить пост-инциденты.
-
-### 5.2. Cron Jobs
-
-| Plan | Max Jobs | Min Frequency | Time Drift |
-|------|----------|---------------|------------|
-| **Hobby** | 2 | Daily | ±1 hour |
-| **Pro** | 40 | Minutely | Minimal |
-
-### 5.3. Build System
-
-| Plan | Concurrency | Timeout |
-|------|-------------|---------|
-| **Hobby** | 1 slot | 45 min |
-| **Pro** | 12 slots | 45 min |
-
-### 5.4. Firewall & WAF
-
-| Plan | Custom Rules | IP Blocks |
-|------|--------------|-----------|
-| **Hobby** | 3 | 10 |
-| **Pro** | 40 | 100 |
-
----
-
-## 6. COMMERCIAL POLICY (TERMS OF SERVICE)
+## 6. COMMERCIAL POLICY
 
 ### Hobby Plan — STRICTLY NON-COMMERCIAL
 
-**Запрещено:**
-- Сайты с рекламой (AdSense)
-- Affiliate ссылки
+**Prohibited:**
+- Sites with advertising (AdSense)
+- Affiliate links
 - Payment processing (Stripe/Crypto)
-- Корпоративные лендинги (даже pre-revenue)
+- Corporate landing pages (even pre-revenue)
 
-**Enforcement:** Автоматический мониторинг + ручная проверка. Риск **немедленной блокировки без уведомления**.
+**Enforcement:** Automatic monitoring + manual review. Risk of **immediate blocking without notice**.
 
-**Rule:** Для PVNDORA (AI Marketplace с платежами) → **Vercel Pro обязателен с Day-1**.
-
----
+**Rule:** For PVNDORA (AI Marketplace with payments) → **Vercel Pro required from Day-1**.
 
 ## 7. TELEGRAM MINI APP SPECIFICS
 
 ### 7.1. SDK
-
 ```typescript
-// Используй официальный SDK
 import { ... } from '@telegram-apps/sdk-react';
 ```
 
 ### 7.2. UX Hardening (Bot API 8.0+)
-
-**Problem:** Вертикальный свайп закрывает Mini App.
-
-**Solution:**
 ```typescript
-// На mount компонента
+// On component mount
 tg.requestFullscreen();
 ```
-
 ```css
-/* Предотвращает "rubber-banding" */
-body {
-  overscroll-behavior-y: none;
-}
+body { overscroll-behavior-y: none; }
 ```
 
 ### 7.3. Asset Safety
-
-**Rule:** Всегда валидируй размер `ArrayBuffer` при загрузке шрифтов для OG-изображений:
-
-```typescript
-// api/og/referral.js
-const fontData = await fetch(fontUrl).then(r => r.arrayBuffer());
-if (fontData.byteLength === 0) {
-  throw new Error('Font file is empty');
-}
-```
-
----
+**Rule:** Always validate `ArrayBuffer` size when loading fonts for OG images.
 
 ## 8. AI ASSISTANT INSTRUCTIONS
 
-При генерации кода **ВСЕГДА** проверяй эти лимиты:
+When generating code **ALWAYS** check these limits:
 
-1. ❌ **НЕ** предлагай загрузку файлов на сервер — используй Presigned URLs
-2. ⚠️ **ПРЕДУПРЕЖДАЙ** о Cold Start при добавлении Python зависимостей
-3. ⚠️ **ПРЕДУПРЕЖДАЙ** о 4.5MB payload лимите при работе с большими данными
-4. ✅ Предполагай Vercel Pro для PVNDORA (коммерческий проект)
-5. ✅ Оптимизируй под Hobby лимиты где возможно (экономия)
-
----
+1. ❌ **DO NOT** suggest file uploads to server — use Presigned URLs
+2. ⚠️ **WARN** about Cold Start when adding Python dependencies
+3. ⚠️ **WARN** about 4.5MB payload limit when working with large data
+4. ✅ Assume Vercel Pro for PVNDORA (commercial project)
+5. ✅ Optimize for Hobby limits where possible (cost savings)
 
 ## 9. QUICK REFERENCE TABLE
 

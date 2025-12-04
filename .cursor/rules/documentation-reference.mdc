@@ -47,6 +47,7 @@ description: How to use project documentation and when to reference it
 |-----------|---------|
 | `architecture.mdc` | Архитектурные паттерны, структура проекта, code style |
 | `platform-limits.mdc` | **Жёсткие лимиты Vercel**, квоты, TMA-специфика |
+| `development-workflow.mdc` | Code quality, database migrations, pre-commit checks |
 | `localization-configuration.mdc` | Локализация бота, i18n стратегия |
 | `research-guidelines.mdc` | Использование Exa/Ref для исследований |
 | `documentation-reference.mdc` | Навигация по документации (этот файл) |

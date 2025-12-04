@@ -100,17 +100,17 @@ export default function AdminReferralPage({ onBack }) {
         getReferralDashboard()
       ])
       
-      setSettings(settingsData.settings)
       setDashboard(dashboardData)
       
-      // Initialize form with current settings
-      if (settingsData.settings) {
+      // Initialize form with current settings (from dashboard or settingsData)
+      const currentSettings = dashboardData?.settings || settingsData?.settings
+      if (currentSettings) {
         setFormSettings({
-          level2_threshold: settingsData.settings.level2_threshold_usd || 250,
-          level3_threshold: settingsData.settings.level3_threshold_usd || 1000,
-          level1_commission: settingsData.settings.level1_commission_percent || 20,
-          level2_commission: settingsData.settings.level2_commission_percent || 10,
-          level3_commission: settingsData.settings.level3_commission_percent || 5
+          level2_threshold: currentSettings.level2_threshold || currentSettings.level2_threshold_usd || 250,
+          level3_threshold: currentSettings.level3_threshold || currentSettings.level3_threshold_usd || 1000,
+          level1_commission: currentSettings.level1_commission || currentSettings.level1_commission_percent || 20,
+          level2_commission: currentSettings.level2_commission || currentSettings.level2_commission_percent || 10,
+          level3_commission: currentSettings.level3_commission || currentSettings.level3_commission_percent || 5
         })
       }
     } catch (err) {
