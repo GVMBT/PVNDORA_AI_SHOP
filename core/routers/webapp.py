@@ -173,7 +173,12 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Get extended referral stats from new view
+    # Пороги разблокировки уровней в USD
+    THRESHOLD_LEVEL1 = 50
+    THRESHOLD_LEVEL2 = 250
+    THRESHOLD_LEVEL3 = 1000
+    
+    # Get extended referral stats from view
     extended_stats_result = await asyncio.to_thread(
         lambda: db.client.table("referral_stats_extended").select("*").eq("user_id", db_user.id).execute()
     )
@@ -183,6 +188,8 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     
     if extended_stats_result.data:
         s = extended_stats_result.data[0]
+        
+        # Referral network counts (always counted, even if level locked)
         referral_stats = {
             "level1_count": s.get("level1_count", 0),
             "level2_count": s.get("level2_count", 0),
@@ -191,40 +198,105 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
             "level2_earnings": float(s.get("level2_earnings") or 0),
             "level3_earnings": float(s.get("level3_earnings") or 0),
             "active_referrals": s.get("active_referrals_count", 0),
-            "conversion_rate": float(s.get("referral_conversion_rate") or 0),
-            "avg_order_value": float(s.get("referral_avg_order_value") or 0),
         }
+        
+        # Core program data from view
+        unlocked = s.get("referral_program_unlocked", False)
+        is_partner = s.get("is_partner", False)
+        partner_override = s.get("partner_level_override")
+        turnover_usd = float(s.get("turnover_usd") or 0)
+        effective_level = s.get("effective_level", 0)
+        status = s.get("status", "locked")  # locked, pre_level, active
+        
+        # Calculate level thresholds
+        level1_unlocked = effective_level >= 1 or (is_partner and (partner_override or 0) >= 1)
+        level2_unlocked = effective_level >= 2 or (is_partner and (partner_override or 0) >= 2)
+        level3_unlocked = effective_level >= 3 or (is_partner and (partner_override or 0) >= 3)
+        
+        # Amount to each threshold
+        amount_to_level1 = max(0, THRESHOLD_LEVEL1 - turnover_usd) if not level1_unlocked else 0
+        amount_to_level2 = max(0, THRESHOLD_LEVEL2 - turnover_usd) if not level2_unlocked else 0
+        amount_to_level3 = max(0, THRESHOLD_LEVEL3 - turnover_usd) if not level3_unlocked else 0
+        
+        # Next threshold to reach
+        if not level1_unlocked:
+            next_threshold = THRESHOLD_LEVEL1
+            amount_to_next = amount_to_level1
+        elif not level2_unlocked:
+            next_threshold = THRESHOLD_LEVEL2
+            amount_to_next = amount_to_level2
+        elif not level3_unlocked:
+            next_threshold = THRESHOLD_LEVEL3
+            amount_to_next = amount_to_level3
+        else:
+            next_threshold = None
+            amount_to_next = 0
+        
         referral_program = {
-            "unlocked": s.get("referral_program_unlocked", False),
-            "level": s.get("referral_level", 1),
-            "total_purchases": float(s.get("total_purchases_amount") or 0),
-            "amount_to_next_level": float(s.get("amount_to_next_level") or 0),
+            # Basic status
+            "unlocked": unlocked,  # Program activated (first purchase made)
+            "status": status,  # "locked" | "pre_level" | "active"
+            "is_partner": is_partner,
+            
+            # Levels unlock state
+            "effective_level": effective_level,
+            "level1_unlocked": level1_unlocked,
+            "level2_unlocked": level2_unlocked,
+            "level3_unlocked": level3_unlocked,
+            
+            # Turnover & progress (in USD)
+            "turnover_usd": turnover_usd,
+            "amount_to_level1_usd": amount_to_level1,
+            "amount_to_level2_usd": amount_to_level2,
+            "amount_to_level3_usd": amount_to_level3,
+            "amount_to_next_level_usd": amount_to_next,
+            "next_threshold_usd": next_threshold,
+            
+            # Thresholds reference
+            "thresholds_usd": {
+                "level1": THRESHOLD_LEVEL1,
+                "level2": THRESHOLD_LEVEL2,
+                "level3": THRESHOLD_LEVEL3
+            },
+            
+            # Unlock timestamps
+            "level1_unlocked_at": s.get("level1_unlocked_at"),
+            "level2_unlocked_at": s.get("level2_unlocked_at"),
+            "level3_unlocked_at": s.get("level3_unlocked_at"),
         }
     else:
-        # Fallback to old view
-        stats_result = await asyncio.to_thread(
-            lambda: db.client.table("user_referral_stats").select("*").eq("user_id", db_user.id).execute()
-        )
-        if stats_result.data:
-            s = stats_result.data[0]
-            referral_stats = {
-                "level1_count": s.get("level1_count", 0),
-                "level2_count": s.get("level2_count", 0),
-                "level3_count": s.get("level3_count", 0),
-                "level1_earnings": float(s.get("level1_earnings") or 0),
-                "level2_earnings": float(s.get("level2_earnings") or 0),
-                "level3_earnings": float(s.get("level3_earnings") or 0),
-            }
-        # Get program status from user directly
+        # Fallback for users not in view
+        referral_stats = {
+            "level1_count": 0, "level2_count": 0, "level3_count": 0,
+            "level1_earnings": 0, "level2_earnings": 0, "level3_earnings": 0,
+            "active_referrals": 0
+        }
         referral_program = {
-            "unlocked": getattr(db_user, 'referral_program_unlocked', False) or False,
-            "level": getattr(db_user, 'referral_level', 1) or 1,
-            "total_purchases": float(getattr(db_user, 'total_purchases_amount', 0) or 0),
-            "amount_to_next_level": 5000 - float(getattr(db_user, 'total_purchases_amount', 0) or 0) if (getattr(db_user, 'referral_level', 1) or 1) == 1 else 0,
+            "unlocked": False,
+            "status": "locked",
+            "is_partner": False,
+            "effective_level": 0,
+            "level1_unlocked": False,
+            "level2_unlocked": False,
+            "level3_unlocked": False,
+            "turnover_usd": 0,
+            "amount_to_level1_usd": THRESHOLD_LEVEL1,
+            "amount_to_level2_usd": THRESHOLD_LEVEL2,
+            "amount_to_level3_usd": THRESHOLD_LEVEL3,
+            "amount_to_next_level_usd": THRESHOLD_LEVEL1,
+            "next_threshold_usd": THRESHOLD_LEVEL1,
+            "thresholds_usd": {
+                "level1": THRESHOLD_LEVEL1,
+                "level2": THRESHOLD_LEVEL2,
+                "level3": THRESHOLD_LEVEL3
+            },
+            "level1_unlocked_at": None,
+            "level2_unlocked_at": None,
+            "level3_unlocked_at": None,
         }
     
     bonus_result = await asyncio.to_thread(
-        lambda: db.client.table("referral_bonuses").select("*").eq("user_id", db_user.id).order("created_at", desc=True).limit(10).execute()
+        lambda: db.client.table("referral_bonuses").select("*").eq("user_id", db_user.id).eq("eligible", True).order("created_at", desc=True).limit(10).execute()
     )
     withdrawal_result = await asyncio.to_thread(
         lambda: db.client.table("withdrawal_requests").select("*").eq("user_id", db_user.id).order("created_at", desc=True).limit(10).execute()

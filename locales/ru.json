@@ -316,6 +316,19 @@
       "processing": "Обработка",
       "completed": "Выполнен",
       "rejected": "Отклонён"
-    }
+    },
+    "programLocked": "Программа не активна",
+    "programPending": "Набираем оборот",
+    "programActive": "Программа активна",
+    "makeFirstPurchase": "Сделай первую покупку, чтобы разблокировать реферальную программу",
+    "goToCatalog": "Перейти в каталог",
+    "buildTurnover": "Набери оборот чтобы открыть комиссии 1-го уровня",
+    "yourTurnover": "Ваш оборот",
+    "amountToLevel1": "Ещё {amount} до открытия 1 уровня",
+    "turnoverProgress": "Прогресс оборота",
+    "amountToNextLevel": "Ещё {amount} до уровня {level}",
+    "maxLevelReached": "Максимальный уровень достигнут!",
+    "unlockAt": "Откроется при",
+    "pendingRewards": "Награды ожидают"
   }
 }

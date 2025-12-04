@@ -56,10 +56,15 @@ async def worker_deliver_goods(request: Request):
 async def worker_calculate_referral(request: Request):
     """
     QStash Worker: Calculate and apply referral bonuses.
-    Also handles referral program unlock notification.
+    
+    Logic:
+    1. Update buyer's turnover (in USD) - this may unlock new levels
+    2. Check if referral program should be unlocked (first purchase)
+    3. Process referral bonuses - ONLY for levels that referrer has unlocked
     """
     data = await verify_qstash(request)
     order_id = data.get("order_id")
+    usd_rate = data.get("usd_rate", 100)  # RUB/USD rate, default 100
     
     if not order_id:
         return {"error": "order_id required"}
@@ -77,90 +82,59 @@ async def worker_calculate_referral(request: Request):
     
     user_id = order.data.get("user_id")
     amount = float(order.data["amount"])
+    telegram_id = order.data.get("user_telegram_id")
+    was_unlocked = order.data.get("users", {}).get("referral_program_unlocked", False)
     
-    # 1. Unlock referral program and check level up
-    unlock_result = db.client.rpc("unlock_referral_program", {
+    # 1. Update buyer's turnover in USD (this may trigger level unlocks)
+    turnover_result = db.client.rpc("update_user_turnover", {
         "p_user_id": user_id,
+        "p_amount_rub": amount,
+        "p_usd_rate": usd_rate
+    }).execute()
+    
+    turnover_data = turnover_result.data if turnover_result.data else {}
+    level_up = turnover_data.get("level_up", False)
+    new_level = turnover_data.get("new_level", 0)
+    
+    # 2. Unlock referral program if first purchase
+    if not was_unlocked:
+        db.client.table("users").update({
+            "referral_program_unlocked": True
+        }).eq("id", user_id).execute()
+        
+        # Send unlock notification
+        if telegram_id:
+            await notification_service.send_referral_unlock_notification(telegram_id)
+    
+    # 3. Send level up notification if applicable
+    if level_up and new_level > 0 and telegram_id:
+        await notification_service.send_referral_level_up_notification(telegram_id, new_level)
+    
+    # 4. Process referral bonuses for referrer chain (checks level unlock status)
+    referrer_id = order.data.get("users", {}).get("referrer_id")
+    if not referrer_id:
+        return {
+            "success": True, 
+            "turnover": turnover_data,
+            "first_unlock": not was_unlocked,
+            "bonuses": "no_referrer"
+        }
+    
+    # Use new function that checks level unlock status
+    bonus_result = db.client.rpc("process_referral_bonus", {
+        "p_buyer_id": user_id,
+        "p_order_id": order_id,
         "p_order_amount": amount
     }).execute()
     
-    if unlock_result.data:
-        result_data = unlock_result.data
-        
-        # Send notification if first unlock
-        if result_data.get("first_unlock"):
-            telegram_id = order.data.get("user_telegram_id")
-            if telegram_id:
-                await notification_service.send_referral_unlock_notification(telegram_id)
-        
-        # Send notification if level up
-        if result_data.get("level_up"):
-            telegram_id = order.data.get("user_telegram_id")
-            new_level = result_data.get("new_level", 1)
-            if telegram_id:
-                await notification_service.send_referral_level_up_notification(telegram_id, new_level)
-    
-    # 2. Calculate referral bonuses for referrer chain
-    referrer_id = order.data.get("users", {}).get("referrer_id")
-    if not referrer_id:
-        return {"success": True, "unlock_result": unlock_result.data, "bonuses": "no_referrer"}
-    
-    bonuses_paid = []
-    current_referrer = referrer_id
-    
-    for level in range(1, 4):  # Levels 1, 2, 3
-        if not current_referrer:
-            break
-        
-        # Get referrer's level and calculate percent
-        referrer = db.client.table("users").select(
-            "id, referrer_id, referral_level, telegram_id"
-        ).eq("id", current_referrer).single().execute()
-        
-        if not referrer.data:
-            break
-        
-        referrer_level = referrer.data.get("referral_level", 1)
-        
-        # Get percents based on referrer's level
-        percents = db.client.rpc("get_referral_percents", {
-            "p_user_level": referrer_level
-        }).execute()
-        
-        if percents.data:
-            percent_key = f"level{level}_percent"
-            percent = percents.data[0].get(percent_key, 0) if percents.data else 0
-            
-            if percent > 0:
-                bonus = amount * percent / 100
-                
-                # Record bonus
-                db.client.table("referral_bonuses").insert({
-                    "user_id": current_referrer,
-                    "from_user_id": user_id,
-                    "order_id": order_id,
-                    "level": level,
-                    "percent": percent,
-                    "amount": bonus
-                }).execute()
-                
-                # Add to balance
-                db.client.table("users").update({
-                    "balance": db.client.table("users").select("balance").eq("id", current_referrer).single().execute().data.get("balance", 0) + bonus,
-                    "total_referral_earnings": db.client.table("users").select("total_referral_earnings").eq("id", current_referrer).single().execute().data.get("total_referral_earnings", 0) + bonus
-                }).eq("id", current_referrer).execute()
-                
-                bonuses_paid.append({
-                    "level": level,
-                    "referrer_id": current_referrer,
-                    "percent": percent,
-                    "bonus": bonus
-                })
-        
-        # Move to next level referrer
-        current_referrer = referrer.data.get("referrer_id")
-    
-    return {"success": True, "bonuses_paid": bonuses_paid}
+    return {
+        "success": True,
+        "turnover": turnover_data,
+        "first_unlock": not was_unlocked,
+        "level_up": level_up,
+        "new_level": new_level,
+        "bonuses": bonus_result.data if bonus_result.data else {}
+    }
 
 
 @router.post("/notify-supplier")
@@ -194,10 +168,15 @@ async def worker_notify_supplier(request: Request):
 async def worker_process_refund(request: Request):
     """
     QStash Worker: Process refund for prepaid orders.
+    
+    Also handles:
+    - Rollback of turnover (user loses referral progress)
+    - Revoke referral bonuses paid for this order
     """
     data = await verify_qstash(request)
     order_id = data.get("order_id")
     reason = data.get("reason", "Fulfillment deadline exceeded")
+    usd_rate = data.get("usd_rate", 100)
     
     if not order_id:
         return {"error": "order_id required"}
@@ -213,32 +192,47 @@ async def worker_process_refund(request: Request):
     if not order.data:
         return {"error": "Order not found"}
     
-    if order.data["status"] != "prepaid":
-        return {"skipped": True, "reason": f"Order status is {order.data['status']}"}
+    if order.data["status"] not in ["prepaid", "completed", "delivered"]:
+        return {"skipped": True, "reason": f"Order status is {order.data['status']}, cannot refund"}
     
-    # Refund to balance
+    amount = float(order.data["amount"])
+    user_id = order.data["user_id"]
+    
+    # 1. Rollback turnover and revoke referral bonuses
+    rollback_result = db.client.rpc("rollback_user_turnover", {
+        "p_user_id": user_id,
+        "p_amount_rub": amount,
+        "p_usd_rate": usd_rate,
+        "p_order_id": order_id
+    }).execute()
+    
+    # 2. Refund to user balance
     db.client.rpc("add_to_user_balance", {
-        "p_user_id": order.data["user_id"],
-        "p_amount": float(order.data["amount"]),
+        "p_user_id": user_id,
+        "p_amount": amount,
         "p_reason": f"Refund for order {order_id}: {reason}"
     }).execute()
     
-    # Update order
+    # 3. Update order status
     db.client.table("orders").update({
         "status": "refunded",
         "refund_reason": reason,
         "refund_processed_at": datetime.utcnow().isoformat()
     }).eq("id", order_id).execute()
     
-    # Notify user
+    # 4. Notify user
     await notification_service.send_refund_notification(
         telegram_id=order.data["user_telegram_id"],
         product_name=order.data.get("products", {}).get("name", "Product"),
-        amount=order.data["amount"],
+        amount=amount,
         reason=reason
     )
     
-    return {"success": True, "refunded_amount": order.data["amount"]}
+    return {
+        "success": True, 
+        "refunded_amount": amount,
+        "turnover_rollback": rollback_result.data if rollback_result.data else {}
+    }
 
 
 @router.post("/process-review-cashback")

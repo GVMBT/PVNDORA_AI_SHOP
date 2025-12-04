@@ -17,7 +17,11 @@ import {
   AlertCircle,
   CreditCard,
   Smartphone,
-  Bitcoin
+  Bitcoin,
+  Lock,
+  Unlock,
+  DollarSign,
+  Star
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -37,6 +41,83 @@ import { Label } from '../components/ui/label'
 
 const WITHDRAWAL_MIN = 500 // Минимум для вывода
 
+// Level Card Component with visual states
+function LevelCard({ level, commission, threshold, isUnlocked, isProgramLocked, count, earnings, formatPrice, t, color }) {
+  const isLocked = !isUnlocked
+  
+  // Color configs
+  const colorConfig = {
+    green: {
+      active: 'bg-gradient-to-r from-green-500/10 to-transparent border-green-500/20',
+      locked: 'bg-gradient-to-r from-gray-500/5 to-transparent border-gray-500/10',
+      circle: isLocked ? 'bg-gray-500/10' : 'bg-green-500/20',
+      text: isLocked ? 'text-gray-400' : 'text-green-500',
+      earnings: isLocked ? 'text-gray-400' : 'text-green-500'
+    },
+    blue: {
+      active: 'bg-gradient-to-r from-blue-500/10 to-transparent border-blue-500/20',
+      locked: 'bg-gradient-to-r from-gray-500/5 to-transparent border-gray-500/10',
+      circle: isLocked ? 'bg-gray-500/10' : 'bg-blue-500/20',
+      text: isLocked ? 'text-gray-400' : 'text-blue-500',
+      earnings: isLocked ? 'text-gray-400' : 'text-blue-500'
+    },
+    purple: {
+      active: 'bg-gradient-to-r from-purple-500/10 to-transparent border-purple-500/20',
+      locked: 'bg-gradient-to-r from-gray-500/5 to-transparent border-gray-500/10',
+      circle: isLocked ? 'bg-gray-500/10' : 'bg-purple-500/20',
+      text: isLocked ? 'text-gray-400' : 'text-purple-500',
+      earnings: isLocked ? 'text-gray-400' : 'text-purple-500'
+    }
+  }
+  
+  const cfg = colorConfig[color]
+  
+  return (
+    <Card className={`${isLocked ? cfg.locked : cfg.active} ${isLocked ? 'opacity-60' : ''} transition-all`}>
+      <CardContent className="p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-full ${cfg.circle} flex items-center justify-center relative`}>
+            {isLocked ? (
+              <Lock className={`h-4 w-4 ${cfg.text}`} />
+            ) : (
+              <span className={`font-bold ${cfg.text}`}>{level}</span>
+            )}
+          </div>
+          <div>
+            <p className={`font-medium ${isLocked ? 'text-muted-foreground' : ''}`}>
+              {t(`profile.level${level}`)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {isLocked 
+                ? `${t('profile.unlockAt')} $${threshold}` 
+                : `${commission} ${t('profile.commission')}`
+              }
+            </p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className={`font-bold text-lg ${isLocked ? 'text-muted-foreground' : ''}`}>
+            {count}
+          </p>
+          {isUnlocked && earnings > 0 ? (
+            <p className={`text-xs ${cfg.earnings}`}>
+              +{formatPrice(earnings)}
+            </p>
+          ) : isLocked && !isProgramLocked ? (
+            <p className="text-xs text-muted-foreground">
+              {t('profile.pendingRewards')}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {formatPrice(0)}
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function ProfilePage({ onBack }) {
   const { get, post, loading } = useApi()
   const { t, formatPrice } = useLocale()
@@ -47,7 +128,6 @@ export default function ProfilePage({ onBack }) {
   const [referralProgram, setReferralProgram] = useState(null)
   const [bonusHistory, setBonusHistory] = useState([])
   const [withdrawals, setWithdrawals] = useState([])
-  const [activeTab, setActiveTab] = useState('overview')
   const [withdrawDialog, setWithdrawDialog] = useState(false)
   const [shareLoading, setShareLoading] = useState(false)
   const [withdrawAmount, setWithdrawAmount] = useState('')
@@ -276,62 +356,121 @@ export default function ProfilePage({ onBack }) {
           </CardContent>
         </Card>
         
-        {/* Referral Program Status */}
+        {/* Referral Program Status Card */}
         {referralProgram && (
-          <Card className={referralProgram.unlocked 
-            ? "bg-gradient-to-r from-green-500/10 to-emerald-500/5 border-green-500/20" 
-            : "bg-gradient-to-r from-gray-500/10 to-gray-500/5 border-gray-500/20"
+          <Card className={
+            referralProgram.status === 'locked' 
+              ? "bg-gradient-to-r from-gray-500/10 to-gray-500/5 border-gray-500/20" 
+              : referralProgram.status === 'pre_level'
+              ? "bg-gradient-to-r from-amber-500/10 to-amber-500/5 border-amber-500/20"
+              : "bg-gradient-to-r from-green-500/10 to-emerald-500/5 border-green-500/20"
           }>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  {referralProgram.unlocked ? (
-                    <CheckCircle className="h-5 w-5 text-green-500" />
+                  {referralProgram.status === 'locked' ? (
+                    <Lock className="h-5 w-5 text-gray-400" />
+                  ) : referralProgram.status === 'pre_level' ? (
+                    <Clock className="h-5 w-5 text-amber-500" />
                   ) : (
-                    <AlertCircle className="h-5 w-5 text-gray-400" />
+                    <CheckCircle className="h-5 w-5 text-green-500" />
                   )}
                   <span className="font-semibold">
-                    {referralProgram.unlocked ? 'Программа активна' : 'Программа не активна'}
+                    {referralProgram.status === 'locked' 
+                      ? t('profile.programLocked')
+                      : referralProgram.status === 'pre_level'
+                      ? t('profile.programPending')
+                      : t('profile.programActive')
+                    }
                   </span>
                 </div>
-                <Badge variant={referralProgram.unlocked ? "default" : "secondary"}>
-                  Уровень {referralProgram.level}
-                </Badge>
+                {referralProgram.is_partner && (
+                  <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
+                    <Star className="h-3 w-3 mr-1" /> Partner
+                  </Badge>
+                )}
               </div>
               
-              {!referralProgram.unlocked && (
-                <p className="text-sm text-muted-foreground mb-3">
-                  Сделай первую покупку, чтобы разблокировать реферальную программу
-                </p>
-              )}
-              
-              {referralProgram.unlocked && referralProgram.level < 3 && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">До уровня {referralProgram.level + 1}</span>
-                    <span className="font-medium">{formatPrice(referralProgram.amount_to_next_level)}</span>
-                  </div>
-                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full transition-all"
-                      style={{ 
-                        width: `${Math.min(100, (referralProgram.total_purchases / (referralProgram.level === 1 ? 5000 : 15000)) * 100)}%` 
-                      }}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {referralProgram.level === 1 
-                      ? 'Уровень 2: +2% со 2-й линии (от 5,000₽)' 
-                      : 'Уровень 3: +1% с 3-й линии (от 15,000₽)'
-                    }
+              {/* State 0: Locked - No purchases yet */}
+              {referralProgram.status === 'locked' && (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    {t('profile.makeFirstPurchase')}
                   </p>
+                  <Button variant="outline" className="w-full gap-2" onClick={onBack}>
+                    <Gift className="h-4 w-4" />
+                    {t('profile.goToCatalog')}
+                  </Button>
                 </div>
               )}
               
-              {referralProgram.level === 3 && (
-                <p className="text-sm text-green-600 font-medium">
-                  🏆 Максимальный уровень достигнут!
-                </p>
+              {/* State 1: Pre-Level - Purchased but turnover < $50 */}
+              {referralProgram.status === 'pre_level' && (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    {t('profile.buildTurnover')}
+                  </p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <DollarSign className="h-3 w-3" /> {t('profile.yourTurnover')}
+                      </span>
+                      <span className="font-bold text-amber-500">
+                        ${referralProgram.turnover_usd?.toFixed(0) || 0} / ${referralProgram.thresholds_usd?.level1 || 50}
+                      </span>
+                    </div>
+                    <div className="h-3 bg-secondary rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all"
+                        style={{ 
+                          width: `${Math.min(100, ((referralProgram.turnover_usd || 0) / (referralProgram.thresholds_usd?.level1 || 50)) * 100)}%` 
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t('profile.amountToLevel1', { amount: `$${referralProgram.amount_to_level1_usd?.toFixed(0) || 50}` })}
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {/* State 2: Active - At least Level 1 unlocked */}
+              {referralProgram.status === 'active' && (
+                <div className="space-y-3">
+                  {referralProgram.effective_level < 3 && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          <DollarSign className="h-3 w-3" /> {t('profile.turnoverProgress')}
+                        </span>
+                        <span className="font-bold text-green-500">
+                          ${referralProgram.turnover_usd?.toFixed(0) || 0} / ${referralProgram.next_threshold_usd || 0}
+                        </span>
+                      </div>
+                      <div className="h-3 bg-secondary rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all"
+                          style={{ 
+                            width: `${Math.min(100, ((referralProgram.turnover_usd || 0) / (referralProgram.next_threshold_usd || 1)) * 100)}%` 
+                          }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {t('profile.amountToNextLevel', { 
+                          level: referralProgram.effective_level + 1, 
+                          amount: `$${referralProgram.amount_to_next_level_usd?.toFixed(0) || 0}` 
+                        })}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {referralProgram.effective_level >= 3 && (
+                    <p className="text-sm text-green-600 font-medium flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4" />
+                      {t('profile.maxLevelReached')}
+                    </p>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -381,7 +520,7 @@ export default function ProfilePage({ onBack }) {
           </Card>
         )}
         
-        {/* 3-Level Referral Stats */}
+        {/* 3-Level Referral Stats with Visual States */}
         <div className="space-y-3">
           <h2 className="font-semibold flex items-center gap-2">
             <Users className="h-4 w-4 text-primary" />
@@ -389,68 +528,47 @@ export default function ProfilePage({ onBack }) {
           </h2>
           
           <div className="grid gap-3">
-            {/* Level 1 */}
-            <Card className="bg-gradient-to-r from-green-500/10 to-transparent border-green-500/20">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
-                    <span className="font-bold text-green-500">1</span>
-                  </div>
-                  <div>
-                    <p className="font-medium">{t('profile.level1')}</p>
-                    <p className="text-xs text-muted-foreground">20% {t('profile.commission')}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-lg">{referralStats?.level1_count || 0}</p>
-                  <p className="text-xs text-green-500">
-                    +{formatPrice(referralStats?.level1_earnings || 0)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Level 1 - $50 threshold */}
+            <LevelCard 
+              level={1}
+              commission="20%"
+              threshold={50}
+              isUnlocked={referralProgram?.level1_unlocked}
+              isProgramLocked={referralProgram?.status === 'locked'}
+              count={referralStats?.level1_count || 0}
+              earnings={referralStats?.level1_earnings || 0}
+              formatPrice={formatPrice}
+              t={t}
+              color="green"
+            />
             
-            {/* Level 2 */}
-            <Card className="bg-gradient-to-r from-blue-500/10 to-transparent border-blue-500/20">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-                    <span className="font-bold text-blue-500">2</span>
-                  </div>
-                  <div>
-                    <p className="font-medium">{t('profile.level2')}</p>
-                    <p className="text-xs text-muted-foreground">10% {t('profile.commission')}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-lg">{referralStats?.level2_count || 0}</p>
-                  <p className="text-xs text-blue-500">
-                    +{formatPrice(referralStats?.level2_earnings || 0)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Level 2 - $250 threshold */}
+            <LevelCard 
+              level={2}
+              commission="10%"
+              threshold={250}
+              isUnlocked={referralProgram?.level2_unlocked}
+              isProgramLocked={referralProgram?.status === 'locked'}
+              count={referralStats?.level2_count || 0}
+              earnings={referralStats?.level2_earnings || 0}
+              formatPrice={formatPrice}
+              t={t}
+              color="blue"
+            />
             
-            {/* Level 3 */}
-            <Card className="bg-gradient-to-r from-purple-500/10 to-transparent border-purple-500/20">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
-                    <span className="font-bold text-purple-500">3</span>
-                  </div>
-                  <div>
-                    <p className="font-medium">{t('profile.level3')}</p>
-                    <p className="text-xs text-muted-foreground">5% {t('profile.commission')}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-lg">{referralStats?.level3_count || 0}</p>
-                  <p className="text-xs text-purple-500">
-                    +{formatPrice(referralStats?.level3_earnings || 0)}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Level 3 - $1000 threshold */}
+            <LevelCard 
+              level={3}
+              commission="5%"
+              threshold={1000}
+              isUnlocked={referralProgram?.level3_unlocked}
+              isProgramLocked={referralProgram?.status === 'locked'}
+              count={referralStats?.level3_count || 0}
+              earnings={referralStats?.level3_earnings || 0}
+              formatPrice={formatPrice}
+              t={t}
+              color="purple"
+            />
           </div>
         </div>
         

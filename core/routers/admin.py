@@ -549,6 +549,147 @@ async def admin_index_products(authorization: str = Header(None)):
         return {"success": False, "error": str(e)}
 
 
+# ==================== PARTNERS MANAGEMENT ====================
+
+class SetPartnerRequest(BaseModel):
+    telegram_id: int
+    is_partner: bool = True
+    level_override: Optional[int] = None  # 1, 2, or 3 - force unlock levels
+
+
+@router.get("/partners")
+async def admin_get_partners(admin=Depends(verify_admin)):
+    """Get all partners (VIP referrers like bloggers, schools)"""
+    db = get_database()
+    
+    result = await asyncio.to_thread(
+        lambda: db.client.table("users").select(
+            "id, telegram_id, username, first_name, is_partner, partner_level_override, "
+            "turnover_usd, referral_program_unlocked, total_referral_earnings, balance, "
+            "level1_unlocked_at, level2_unlocked_at, level3_unlocked_at, created_at"
+        ).eq("is_partner", True).order("total_referral_earnings", desc=True).execute()
+    )
+    
+    # Get referral counts for each partner
+    partners = []
+    for p in (result.data or []):
+        stats_result = await asyncio.to_thread(
+            lambda uid=p["id"]: db.client.table("referral_stats_extended").select(
+                "level1_count, level2_count, level3_count, effective_level"
+            ).eq("user_id", uid).execute()
+        )
+        
+        stats = stats_result.data[0] if stats_result.data else {}
+        partners.append({
+            **p,
+            "referral_counts": {
+                "level1": stats.get("level1_count", 0),
+                "level2": stats.get("level2_count", 0),
+                "level3": stats.get("level3_count", 0)
+            },
+            "effective_level": stats.get("effective_level", 0)
+        })
+    
+    return {"partners": partners, "count": len(partners)}
+
+
+@router.post("/partners/set")
+async def admin_set_partner(request: SetPartnerRequest, admin=Depends(verify_admin)):
+    """
+    Set user as partner and optionally force-unlock referral levels.
+    
+    Use cases:
+    - Make blogger a partner with all 3 levels unlocked: level_override=3
+    - Promote active referrer to partner status: is_partner=True
+    - Remove partner status: is_partner=False
+    """
+    db = get_database()
+    
+    # Find user by telegram_id
+    user_result = await asyncio.to_thread(
+        lambda: db.client.table("users").select("id, username").eq(
+            "telegram_id", request.telegram_id
+        ).single().execute()
+    )
+    
+    if not user_result.data:
+        raise HTTPException(status_code=404, detail=f"User with telegram_id {request.telegram_id} not found")
+    
+    user_id = user_result.data["id"]
+    
+    # Use RPC function to set partner status
+    result = await asyncio.to_thread(
+        lambda: db.client.rpc("admin_set_partner_level", {
+            "p_user_id": user_id,
+            "p_level": request.level_override or 0,
+            "p_is_partner": request.is_partner
+        }).execute()
+    )
+    
+    if result.data and result.data.get("success"):
+        return {
+            "success": True,
+            "user_id": user_id,
+            "username": user_result.data.get("username"),
+            "is_partner": request.is_partner,
+            "level_override": request.level_override
+        }
+    
+    raise HTTPException(status_code=500, detail=result.data.get("error", "Failed to update partner status"))
+
+
+@router.get("/referral-metrics")
+async def admin_get_referral_metrics(admin=Depends(verify_admin)):
+    """Get comprehensive referral program metrics"""
+    db = get_database()
+    
+    # Get overall metrics from view
+    metrics_result = await asyncio.to_thread(
+        lambda: db.client.table("referral_program_metrics").select("*").execute()
+    )
+    
+    metrics = metrics_result.data[0] if metrics_result.data else {}
+    
+    # Top referrers by earnings
+    top_earners = await asyncio.to_thread(
+        lambda: db.client.table("users").select(
+            "id, telegram_id, username, first_name, total_referral_earnings, turnover_usd, is_partner"
+        ).gt("total_referral_earnings", 0).order("total_referral_earnings", desc=True).limit(20).execute()
+    )
+    
+    # Pending bonuses (ineligible due to locked levels)
+    pending_bonuses = await asyncio.to_thread(
+        lambda: db.client.table("referral_bonuses").select(
+            "amount, level, ineligible_reason"
+        ).eq("eligible", False).execute()
+    )
+    
+    pending_by_level = {"level1": 0, "level2": 0, "level3": 0}
+    for bonus in (pending_bonuses.data or []):
+        level_key = f"level{bonus.get('level', 1)}"
+        pending_by_level[level_key] += float(bonus.get("amount", 0))
+    
+    return {
+        "overview": {
+            "total_active_users": metrics.get("total_active_users", 0),
+            "total_partners": metrics.get("total_partners", 0),
+            "level1_users": metrics.get("level1_users", 0),
+            "level2_users": metrics.get("level2_users", 0),
+            "level3_users": metrics.get("level3_users", 0),
+            "total_paid_bonuses": float(metrics.get("total_paid_bonuses", 0)),
+            "total_revoked_bonuses": float(metrics.get("total_revoked_bonuses", 0)),
+            "total_network_turnover_usd": float(metrics.get("total_network_turnover_usd", 0))
+        },
+        "pending_by_level": pending_by_level,
+        "top_earners": top_earners.data or [],
+        "thresholds_usd": {
+            "level1": 50,
+            "level2": 250,
+            "level3": 1000
+        }
+    }
+
+
 # ==================== HELPERS ====================
 
 async def _notify_waitlist_for_product(db, product_name: str, product_id: Optional[str] = None):
