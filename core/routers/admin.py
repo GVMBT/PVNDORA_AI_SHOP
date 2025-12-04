@@ -465,14 +465,26 @@ async def admin_get_referral_metrics(admin=Depends(verify_admin)):
     db = get_database()
     
     # Get overall stats
-    stats = await asyncio.to_thread(
-        lambda: db.client.table("referral_program_metrics").select("*").single().execute()
-    )
+    try:
+        stats = await asyncio.to_thread(
+            lambda: db.client.table("referral_program_metrics").select("*").single().execute()
+        )
+    except Exception as e:
+        print(f"ERROR: Failed to query referral_program_metrics: {e}")
+        import traceback
+        print(f"ERROR: Traceback: {traceback.format_exc()}")
+        stats = type('obj', (object,), {'data': None})()
     
     # Get extended stats for top referrers
-    top_referrers = await asyncio.to_thread(
-        lambda: db.client.table("referral_stats_extended").select("*").order("total_referral_earnings", desc=True).limit(20).execute()
-    )
+    try:
+        top_referrers = await asyncio.to_thread(
+            lambda: db.client.table("referral_stats_extended").select("*").order("total_referral_earnings", desc=True).limit(20).execute()
+        )
+    except Exception as e:
+        print(f"ERROR: Failed to query referral_stats_extended: {e}")
+        import traceback
+        print(f"ERROR: Traceback: {traceback.format_exc()}")
+        top_referrers = type('obj', (object,), {'data': []})()
     
     return {
         "overview": stats.data if stats.data else {},
@@ -644,17 +656,26 @@ async def admin_get_referral_dashboard(admin=Depends(verify_admin)):
     db = get_database()
     
     # Get ROI metrics from view
-    roi_result = await asyncio.to_thread(
-        lambda: db.client.table("referral_roi_dashboard").select("*").execute()
-    )
-    
-    roi = roi_result.data[0] if roi_result.data else {}
+    try:
+        roi_result = await asyncio.to_thread(
+            lambda: db.client.table("referral_roi_dashboard").select("*").execute()
+        )
+        roi = roi_result.data[0] if roi_result.data else {}
+    except Exception as e:
+        print(f"ERROR: Failed to query referral_roi_dashboard: {e}")
+        import traceback
+        print(f"ERROR: Traceback: {traceback.format_exc()}")
+        roi = {}
     
     # Get current settings
-    settings_result = await asyncio.to_thread(
-        lambda: db.client.table("referral_settings").select("*").limit(1).execute()
-    )
-    settings = settings_result.data[0] if settings_result.data else {}
+    try:
+        settings_result = await asyncio.to_thread(
+            lambda: db.client.table("referral_settings").select("*").limit(1).execute()
+        )
+        settings = settings_result.data[0] if settings_result.data else {}
+    except Exception as e:
+        print(f"ERROR: Failed to query referral_settings: {e}")
+        settings = {}
     
     return {
         "roi": {
@@ -768,13 +789,16 @@ async def admin_get_partners(admin=Depends(verify_admin)):
     # Get referral counts for each partner
     partners = []
     for p in (result.data or []):
-        stats_result = await asyncio.to_thread(
-            lambda uid=p["id"]: db.client.table("referral_stats_extended").select(
-                "level1_count, level2_count, level3_count, effective_level"
-            ).eq("user_id", uid).execute()
-        )
-        
-        stats = stats_result.data[0] if stats_result.data else {}
+        try:
+            stats_result = await asyncio.to_thread(
+                lambda uid=p["id"]: db.client.table("referral_stats_extended").select(
+                    "level1_count, level2_count, level3_count, effective_level"
+                ).eq("user_id", uid).execute()
+            )
+            stats = stats_result.data[0] if stats_result.data else {}
+        except Exception as e:
+            print(f"ERROR: Failed to query referral_stats_extended for partner {p['id']}: {e}")
+            stats = {}
         partners.append({
             **p,
             "referral_counts": {
@@ -839,11 +863,16 @@ async def admin_get_referral_metrics_detailed(admin=Depends(verify_admin)):
     db = get_database()
     
     # Get overall metrics from view
-    metrics_result = await asyncio.to_thread(
-        lambda: db.client.table("referral_program_metrics").select("*").execute()
-    )
-    
-    metrics = metrics_result.data[0] if metrics_result.data else {}
+    try:
+        metrics_result = await asyncio.to_thread(
+            lambda: db.client.table("referral_program_metrics").select("*").execute()
+        )
+        metrics = metrics_result.data[0] if metrics_result.data else {}
+    except Exception as e:
+        print(f"ERROR: Failed to query referral_program_metrics: {e}")
+        import traceback
+        print(f"ERROR: Traceback: {traceback.format_exc()}")
+        metrics = {}
     
     # Top referrers by earnings
     top_earners = await asyncio.to_thread(

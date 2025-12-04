@@ -174,25 +174,35 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
         raise HTTPException(status_code=404, detail="User not found")
     
     # Загружаем динамические настройки из БД
-    settings_result = await asyncio.to_thread(
-        lambda: db.client.table("referral_settings").select("*").limit(1).execute()
-    )
-    settings = settings_result.data[0] if settings_result.data else {}
+    try:
+        settings_result = await asyncio.to_thread(
+            lambda: db.client.table("referral_settings").select("*").limit(1).execute()
+        )
+        settings = settings_result.data[0] if settings_result.data else {}
+    except Exception as e:
+        print(f"ERROR: Failed to load referral_settings: {e}")
+        settings = {}
     
     # Пороги разблокировки уровней в USD (из настроек)
     # Level 1 is instant (threshold = 0), so we don't need THRESHOLD_LEVEL1
-    THRESHOLD_LEVEL2 = float(settings.get("level2_threshold_usd", 250))
-    THRESHOLD_LEVEL3 = float(settings.get("level3_threshold_usd", 1000))
+    THRESHOLD_LEVEL2 = float(settings.get("level2_threshold_usd", 250) or 250)
+    THRESHOLD_LEVEL3 = float(settings.get("level3_threshold_usd", 1000) or 1000)
     
     # Комиссии
-    COMMISSION_LEVEL1 = float(settings.get("level1_commission_percent", 20))
-    COMMISSION_LEVEL2 = float(settings.get("level2_commission_percent", 10))
-    COMMISSION_LEVEL3 = float(settings.get("level3_commission_percent", 5))
+    COMMISSION_LEVEL1 = float(settings.get("level1_commission_percent", 20) or 20)
+    COMMISSION_LEVEL2 = float(settings.get("level2_commission_percent", 10) or 10)
+    COMMISSION_LEVEL3 = float(settings.get("level3_commission_percent", 5) or 5)
     
     # Get extended referral stats from view
-    extended_stats_result = await asyncio.to_thread(
-        lambda: db.client.table("referral_stats_extended").select("*").eq("user_id", db_user.id).execute()
-    )
+    try:
+        extended_stats_result = await asyncio.to_thread(
+            lambda: db.client.table("referral_stats_extended").select("*").eq("user_id", db_user.id).execute()
+        )
+    except Exception as e:
+        print(f"ERROR: Failed to query referral_stats_extended: {e}")
+        import traceback
+        print(f"ERROR: Traceback: {traceback.format_exc()}")
+        extended_stats_result = type('obj', (object,), {'data': None})()
     
     referral_stats = None
     referral_program = None
@@ -205,9 +215,9 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
             "level1_count": s.get("level1_count", 0),
             "level2_count": s.get("level2_count", 0),
             "level3_count": s.get("level3_count", 0),
-            "level1_earnings": float(s.get("level1_earnings") or 0),
-            "level2_earnings": float(s.get("level2_earnings") or 0),
-            "level3_earnings": float(s.get("level3_earnings") or 0),
+            "level1_earnings": float(s.get("level1_earnings") or 0) if s.get("level1_earnings") is not None else 0,
+            "level2_earnings": float(s.get("level2_earnings") or 0) if s.get("level2_earnings") is not None else 0,
+            "level3_earnings": float(s.get("level3_earnings") or 0) if s.get("level3_earnings") is not None else 0,
             "active_referrals": s.get("active_referrals_count", 0),
         }
         
@@ -215,7 +225,7 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
         unlocked = s.get("referral_program_unlocked", False)
         is_partner = s.get("is_partner", False)
         partner_override = s.get("partner_level_override")
-        turnover_usd = float(s.get("turnover_usd") or 0)
+        turnover_usd = float(s.get("turnover_usd") or 0) if s.get("turnover_usd") is not None else 0
         
         # Эффективный уровень (Level 1 = мгновенно после покупки!)
         if is_partner and partner_override is not None:
@@ -323,12 +333,21 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
             "level3_unlocked_at": None,
         }
     
-    bonus_result = await asyncio.to_thread(
-        lambda: db.client.table("referral_bonuses").select("*").eq("user_id", db_user.id).eq("eligible", True).order("created_at", desc=True).limit(10).execute()
-    )
-    withdrawal_result = await asyncio.to_thread(
-        lambda: db.client.table("withdrawal_requests").select("*").eq("user_id", db_user.id).order("created_at", desc=True).limit(10).execute()
-    )
+    try:
+        bonus_result = await asyncio.to_thread(
+            lambda: db.client.table("referral_bonuses").select("*").eq("user_id", db_user.id).eq("eligible", True).order("created_at", desc=True).limit(10).execute()
+        )
+    except Exception as e:
+        print(f"ERROR: Failed to query referral_bonuses: {e}")
+        bonus_result = type('obj', (object,), {'data': []})()
+    
+    try:
+        withdrawal_result = await asyncio.to_thread(
+            lambda: db.client.table("withdrawal_requests").select("*").eq("user_id", db_user.id).order("created_at", desc=True).limit(10).execute()
+        )
+    except Exception as e:
+        print(f"ERROR: Failed to query withdrawal_requests: {e}")
+        withdrawal_result = type('obj', (object,), {'data': []})()
     
     return {
         "profile": {
