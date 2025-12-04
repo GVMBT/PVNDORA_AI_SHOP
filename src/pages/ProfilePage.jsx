@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useApi } from '../hooks/useApi'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
+import PartnerDashboard from '../components/PartnerDashboard'
 import { 
   ArrowLeft, 
   Wallet, 
@@ -304,6 +305,9 @@ export default function ProfilePage({ onBack }) {
     )
   }
   
+  // Check if user is a VIP Partner
+  const isPartner = profile?.is_partner || referralProgram?.is_partner
+  
   return (
     <div className="pb-24">
       {/* Header */}
@@ -313,14 +317,29 @@ export default function ProfilePage({ onBack }) {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-lg font-bold">{t('profile.title')}</h1>
-            <p className="text-xs text-muted-foreground">@{user?.username || 'user'}</p>
+            <h1 className="text-lg font-bold">
+              {isPartner ? 'Partner Dashboard' : t('profile.title')}
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              @{user?.username || 'user'}
+              {isPartner && <span className="text-purple-400 ml-2">⭐ VIP</span>}
+            </p>
           </div>
         </div>
       </div>
       
       <div className="p-4 space-y-6">
-        {/* Balance Card */}
+        {/* VIP Partner Dashboard - completely different UI */}
+        {isPartner ? (
+          <PartnerDashboard 
+            profile={profile}
+            referralLink={`https://t.me/pvndora_ai_bot?start=ref_${user?.id}`}
+            onWithdraw={() => setWithdrawDialog(true)}
+            onShare={handleShare}
+          />
+        ) : (
+          <>
+        {/* Balance Card - Regular User */}
         <Card className="bg-gradient-to-br from-primary/20 via-primary/10 to-background border-primary/20">
           <CardContent className="p-6">
             <div className="flex items-start justify-between">
@@ -654,6 +673,8 @@ export default function ProfilePage({ onBack }) {
             </ul>
           </CardContent>
         </Card>
+        </>
+        )}
       </div>
       
       {/* Withdrawal Dialog */}

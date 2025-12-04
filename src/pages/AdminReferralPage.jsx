@@ -40,6 +40,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select'
+import { Switch } from '../components/ui/switch'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../components/ui/tooltip'
 
 export default function AdminReferralPage({ onBack }) {
   const { 
@@ -271,12 +278,44 @@ export default function AdminReferralPage({ onBack }) {
     try {
       await setPartner({
         telegram_id: partner.telegram_id,
-        is_partner: true,
+        is_partner: partner.status === 'VIP',
         level_override: parseInt(newLevel)
       })
       
       hapticFeedback('notification', 'success')
       loadPartners()
+    } catch (err) {
+      showPopup({
+        title: '❌',
+        message: err.message || 'Ошибка обновления',
+        buttons: [{ type: 'ok' }]
+      })
+    }
+  }
+  
+  // Toggle VIP Partner status with auto-set level=3
+  const handleTogglePartnerStatus = async (partner) => {
+    const newIsPartner = partner.status !== 'VIP'
+    
+    try {
+      await setPartner({
+        telegram_id: partner.telegram_id,
+        is_partner: newIsPartner,
+        // Auto-set level 3 when promoting to VIP, reset when demoting
+        level_override: newIsPartner ? 3 : null
+      })
+      
+      hapticFeedback('notification', 'success')
+      showPopup({
+        title: newIsPartner ? '⭐' : '✓',
+        message: newIsPartner 
+          ? 'Пользователь назначен VIP-партнёром (Level 3)' 
+          : 'VIP-статус снят, уровень рассчитывается по обороту',
+        buttons: [{ type: 'ok' }]
+      })
+      
+      loadPartners()
+      loadData()
     } catch (err) {
       showPopup({
         title: '❌',
@@ -558,12 +597,17 @@ export default function AdminReferralPage({ onBack }) {
                   </div>
                   
                   {filteredPartners.length > 0 ? (
-                    filteredPartners.map((partner) => (
+                    <TooltipProvider>
+                    {filteredPartners.map((partner) => (
                       <Card key={partner.user_id} className="overflow-hidden">
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center gap-2">
-                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                partner.status === 'VIP' 
+                                  ? 'bg-purple-500/20' 
+                                  : 'bg-primary/10'
+                              }`}>
                                 <span className="text-lg font-bold">
                                   {partner.first_name?.[0] || partner.username?.[0] || '?'}
                                 </span>
@@ -571,31 +615,66 @@ export default function AdminReferralPage({ onBack }) {
                               <div>
                                 <p className="font-medium flex items-center gap-2">
                                   {partner.username || partner.first_name || `User ${partner.telegram_id}`}
-                                  {partner.status === 'VIP' && (
-                                    <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs">
-                                      <Star className="h-3 w-3 mr-1" /> VIP
-                                    </Badge>
-                                  )}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  ID: {partner.telegram_id} • Level {partner.effective_level}
+                                  ID: {partner.telegram_id}
                                 </p>
                               </div>
                             </div>
                             
-                            <Select
-                              value={partner.effective_level?.toString()}
-                              onValueChange={(value) => handleUpdatePartnerLevel(partner, value)}
-                            >
-                              <SelectTrigger className="w-20 h-8">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="1">L1</SelectItem>
-                                <SelectItem value="2">L2</SelectItem>
-                                <SelectItem value="3">L3</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            {/* VIP Toggle + Level Override */}
+                            <div className="flex items-center gap-2">
+                              {/* VIP Partner Toggle */}
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      checked={partner.status === 'VIP'}
+                                      onCheckedChange={() => handleTogglePartnerStatus(partner)}
+                                      className="data-[state=checked]:bg-purple-500"
+                                    />
+                                    {partner.status === 'VIP' && (
+                                      <Star className="h-4 w-4 text-purple-400" />
+                                    )}
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-xs">
+                                    {partner.status === 'VIP' 
+                                      ? 'VIP-партнёр: доступ к Partner Dashboard' 
+                                      : 'Назначить VIP (автоматически Level 3)'}
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                              
+                              {/* Level Override */}
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div>
+                                    <Select
+                                      value={partner.effective_level?.toString() || '1'}
+                                      onValueChange={(value) => handleUpdatePartnerLevel(partner, value)}
+                                    >
+                                      <SelectTrigger className="w-16 h-8 text-xs">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="1">L1 (20%)</SelectItem>
+                                        <SelectItem value="2">L2 (+10%)</SelectItem>
+                                        <SelectItem value="3">L3 (+5%)</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-xs max-w-48">
+                                    <b>Принудительный уровень</b><br/>
+                                    Влияет на % комиссии.<br/>
+                                    Для Partner Dashboard нужен VIP-статус.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
                           </div>
                           
                           <div className="grid grid-cols-4 gap-2 text-center text-xs">
@@ -627,7 +706,8 @@ export default function AdminReferralPage({ onBack }) {
                           </div>
                         </CardContent>
                       </Card>
-                    ))
+                    ))}
+                    </TooltipProvider>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       {partners.length === 0 
