@@ -15,14 +15,8 @@ export default defineConfig({
   build: {
     target: 'es2020',
     minify: 'esbuild',
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['lucide-react', 'framer-motion']
-        }
-      }
-    },
+    // Removed manualChunks to prevent build errors when dependencies are removed
+    // Vite will automatically optimize chunks
     chunkSizeWarningLimit: 600
   },
   esbuild: {
