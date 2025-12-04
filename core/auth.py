@@ -5,6 +5,8 @@ All authentication functions for API endpoints.
 Used by both api/index.py and core/routers/*.
 """
 
+from __future__ import annotations
+
 import os
 from typing import TYPE_CHECKING
 from fastapi import Header, HTTPException, Depends
