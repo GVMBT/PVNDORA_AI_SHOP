@@ -729,14 +729,18 @@ async def admin_get_partners_crm(
             ).range(offset, offset + limit - 1).execute()
         )
         
+        print(f"DEBUG: partner_analytics query returned {len(result.data or [])} rows")
+        
         # Get total count
         count_result = await asyncio.to_thread(
             lambda: db.client.table("partner_analytics").select("user_id", count="exact").execute()
         )
         
+        print(f"DEBUG: partner_analytics total count: {count_result.count}")
+        
         partners = []
         for p in (result.data or []):
-            partners.append({
+            partner_data = {
                 "user_id": p.get("user_id"),
                 "telegram_id": p.get("telegram_id"),
                 "username": p.get("username"),
@@ -756,14 +760,19 @@ async def admin_get_partners_crm(
                 "level1_referrals": p.get("level1_referrals", 0),
                 "level2_referrals": p.get("level2_referrals", 0),
                 "level3_referrals": p.get("level3_referrals", 0),
-            })
+            }
+            partners.append(partner_data)
         
-        return {
+        print(f"DEBUG: Returning {len(partners)} partners")
+        
+        response_data = {
             "partners": partners,
             "total": count_result.count or 0,
             "limit": limit,
             "offset": offset
         }
+        
+        return response_data
     except Exception as e:
         print(f"ERROR: Failed to query partner_analytics: {e}")
         import traceback

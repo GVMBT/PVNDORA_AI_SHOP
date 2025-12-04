@@ -89,9 +89,11 @@ export default function AdminReferralPage({ onBack }) {
   
   useEffect(() => {
     if (activeTab === 'partners') {
+      console.log('Tab switched to partners, loading data...')
       loadPartners()
     }
-  }, [activeTab, loadPartners])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]) // loadPartners is stable due to useCallback with stable deps
   
   const loadData = useCallback(async () => {
     try {
@@ -118,13 +120,21 @@ export default function AdminReferralPage({ onBack }) {
     }
   }, [getReferralSettings, getReferralDashboard])
   
+  const [loadingPartners, setLoadingPartners] = useState(false)
+  
   const loadPartners = useCallback(async () => {
+    setLoadingPartners(true)
     try {
+      console.log('Loading partners with sortBy:', sortBy, 'sortOrder:', sortOrder)
       const data = await getReferralPartnersCRM(sortBy, sortOrder, 50)
-      setPartners(data.partners || [])
-      setTotalPartners(data.total || 0)
+      console.log('Partners data received:', data)
+      console.log('Partners array:', data?.partners)
+      console.log('Total count:', data?.total)
+      setPartners(data?.partners || [])
+      setTotalPartners(data?.total || 0)
     } catch (err) {
       console.error('Failed to load partners:', err)
+      console.error('Error details:', err.response || err.message || err)
       showPopup({
         title: '❌',
         message: err.message || 'Ошибка загрузки партнёров',
@@ -133,6 +143,8 @@ export default function AdminReferralPage({ onBack }) {
       // Set empty state on error
       setPartners([])
       setTotalPartners(0)
+    } finally {
+      setLoadingPartners(false)
     }
   }, [getReferralPartnersCRM, sortBy, sortOrder, showPopup])
   
@@ -409,85 +421,103 @@ export default function AdminReferralPage({ onBack }) {
             
             {/* Partners Table */}
             <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">
-                Найдено: {filteredPartners.length} из {totalPartners}
-              </p>
-              
-              {filteredPartners.map((partner) => (
-                <Card key={partner.user_id} className="overflow-hidden">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <span className="text-lg font-bold">
-                            {partner.first_name?.[0] || partner.username?.[0] || '?'}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="font-medium flex items-center gap-2">
-                            {partner.username || partner.first_name || `User ${partner.telegram_id}`}
-                            {partner.status === 'VIP' && (
-                              <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs">
-                                <Star className="h-3 w-3 mr-1" /> VIP
-                              </Badge>
-                            )}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            ID: {partner.telegram_id} • Level {partner.effective_level}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <Select
-                        value={partner.effective_level?.toString()}
-                        onValueChange={(value) => handleUpdatePartnerLevel(partner, value)}
-                      >
-                        <SelectTrigger className="w-20 h-8">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">L1</SelectItem>
-                          <SelectItem value="2">L2</SelectItem>
-                          <SelectItem value="3">L3</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="grid grid-cols-4 gap-2 text-center text-xs">
-                      <div>
-                        <p className="font-bold text-primary">{partner.total_referrals}</p>
-                        <p className="text-muted-foreground">Регистр.</p>
-                      </div>
-                      <div>
-                        <p className="font-bold text-green-500">{partner.paying_referrals}</p>
-                        <p className="text-muted-foreground">Покупат.</p>
-                      </div>
-                      <div>
-                        <p className="font-bold text-blue-500">{partner.conversion_rate}%</p>
-                        <p className="text-muted-foreground">Конверсия</p>
-                      </div>
-                      <div>
-                        <p className="font-bold">{formatPrice(partner.referral_revenue)}</p>
-                        <p className="text-muted-foreground">Оборот</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-between items-center mt-3 pt-3 border-t border-border/50 text-xs">
-                      <span className="text-muted-foreground">
-                        Заработано: <span className="text-green-500 font-medium">{formatPrice(partner.total_earned)}</span>
-                      </span>
-                      <span className="text-muted-foreground">
-                        Баланс: <span className="font-medium">{formatPrice(partner.current_balance)}</span>
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              
-              {filteredPartners.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  Партнёры не найдены
+              {loadingPartners ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-32 w-full rounded-xl" />
+                  <Skeleton className="h-32 w-full rounded-xl" />
                 </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      Найдено: {filteredPartners.length} из {totalPartners}
+                    </p>
+                    {partners.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Всего в памяти: {partners.length}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {filteredPartners.length > 0 ? (
+                    filteredPartners.map((partner) => (
+                      <Card key={partner.user_id} className="overflow-hidden">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                <span className="text-lg font-bold">
+                                  {partner.first_name?.[0] || partner.username?.[0] || '?'}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="font-medium flex items-center gap-2">
+                                  {partner.username || partner.first_name || `User ${partner.telegram_id}`}
+                                  {partner.status === 'VIP' && (
+                                    <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs">
+                                      <Star className="h-3 w-3 mr-1" /> VIP
+                                    </Badge>
+                                  )}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  ID: {partner.telegram_id} • Level {partner.effective_level}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <Select
+                              value={partner.effective_level?.toString()}
+                              onValueChange={(value) => handleUpdatePartnerLevel(partner, value)}
+                            >
+                              <SelectTrigger className="w-20 h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="1">L1</SelectItem>
+                                <SelectItem value="2">L2</SelectItem>
+                                <SelectItem value="3">L3</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                            <div>
+                              <p className="font-bold text-primary">{partner.total_referrals}</p>
+                              <p className="text-muted-foreground">Регистр.</p>
+                            </div>
+                            <div>
+                              <p className="font-bold text-green-500">{partner.paying_referrals}</p>
+                              <p className="text-muted-foreground">Покупат.</p>
+                            </div>
+                            <div>
+                              <p className="font-bold text-blue-500">{partner.conversion_rate}%</p>
+                              <p className="text-muted-foreground">Конверсия</p>
+                            </div>
+                            <div>
+                              <p className="font-bold">{formatPrice(partner.referral_revenue)}</p>
+                              <p className="text-muted-foreground">Оборот</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex justify-between items-center mt-3 pt-3 border-t border-border/50 text-xs">
+                            <span className="text-muted-foreground">
+                              Заработано: <span className="text-green-500 font-medium">{formatPrice(partner.total_earned)}</span>
+                            </span>
+                            <span className="text-muted-foreground">
+                              Баланс: <span className="font-medium">{formatPrice(partner.current_balance)}</span>
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      {partners.length === 0 
+                        ? 'Партнёры не найдены. Проверьте консоль для отладки.' 
+                        : `Нет результатов по фильтру "${searchQuery}". Всего партнёров: ${partners.length}`}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </TabsContent>
