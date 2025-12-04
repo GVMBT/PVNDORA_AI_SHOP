@@ -199,11 +199,11 @@ export default function PartnerDashboard({ profile, referralLink, onWithdraw, on
       </Card>
       
       {/* Partner Mode Switch */}
-      <Card className="border-dashed">
+      <Card className="border-dashed overflow-hidden">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg transition-colors ${
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
                 discountMode 
                   ? 'bg-amber-500/20' 
                   : 'bg-green-500/20'
@@ -214,33 +214,33 @@ export default function PartnerDashboard({ profile, referralLink, onWithdraw, on
                   <Coins className="h-5 w-5 text-green-500" />
                 )}
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="font-medium text-sm">
-                    {discountMode ? 'Режим скидок' : 'Режим комиссий'}
+                  <p className="font-medium text-sm whitespace-nowrap">
+                    {discountMode ? 'Скидки' : 'Комиссии'}
                   </p>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help flex-shrink-0" />
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-[250px]">
                       <p className="text-xs">
                         {discountMode 
-                          ? 'Вы отказались от комиссий. Ваши рефералы получают 15% скидку на все товары.'
-                          : 'Вы получаете комиссию с покупок рефералов. Переключите, чтобы дать им скидку.'}
+                          ? 'Рефералы получают 15% скидку. Вы не получаете комиссию.'
+                          : 'Вы получаете комиссию. Переключите, чтобы дать рефералам скидку.'}
                       </p>
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground truncate">
                   {discountMode 
-                    ? 'Рефералы получают 15% скидку' 
-                    : 'Вы получаете комиссию'}
+                    ? '15% скидка рефералам' 
+                    : 'Вы получаете %'}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className="text-xs">
                 {discountMode ? '🎁' : '💰'}
               </span>
               <Switch

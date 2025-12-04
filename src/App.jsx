@@ -30,11 +30,17 @@ import LoginPage from './pages/LoginPage'
 // Components
 import Navigation from './components/Navigation'
 import LoadingScreen from './components/LoadingScreen'
+import DesktopLayout from './components/DesktopLayout'
 import { useAdmin } from './hooks/useAdmin'
 
 // Check if running outside Telegram
 const isWebMode = () => {
   return !window.Telegram?.WebApp?.initData
+}
+
+// Check if desktop viewport
+const isDesktop = () => {
+  return window.innerWidth >= 1024
 }
 
 export default function App() {
@@ -132,13 +138,13 @@ export default function App() {
     }
   }, [params])
   
-  // Web mode: show login page if not authenticated
-  if (isWebMode() && !webUser) {
+  // Web mode without auth: allow browsing but show login for protected actions
+  // Only block completely if trying to access admin
+  if (isWebMode() && !webUser && currentPage.startsWith('admin')) {
     return (
       <LoginPage 
         onLogin={(userData, token) => {
           setWebUser(userData)
-          setCurrentPage('admin')
         }}
       />
     )
@@ -231,6 +237,31 @@ export default function App() {
     }
   }
   
+  // Desktop layout for web users on large screens
+  if (isWebMode() && isDesktop()) {
+    return (
+      <DesktopLayout
+        currentPage={currentPage}
+        onNavigate={navigateTo}
+        isAdmin={webUser?.is_admin || isAdmin}
+        user={webUser}
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentPage}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {renderPage()}
+          </motion.div>
+        </AnimatePresence>
+      </DesktopLayout>
+    )
+  }
+  
+  // Mobile layout (Telegram Mini App or mobile web)
   return (
     <div 
       className="min-h-screen bg-background text-foreground overflow-x-hidden"

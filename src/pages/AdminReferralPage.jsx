@@ -87,21 +87,15 @@ export default function AdminReferralPage({ onBack }) {
   
   // Load data on mount
   useEffect(() => {
-    console.log('[AdminReferralPage] Component mounted, loading data...')
-    
     const fetchData = async () => {
       setIsLoading(true)
       setLoadError(null)
       
       try {
-        console.log('[AdminReferralPage] Fetching settings and dashboard...')
         const [settingsData, dashboardData] = await Promise.all([
           getReferralSettings(),
           getReferralDashboard()
         ])
-        
-        console.log('[AdminReferralPage] Settings data:', settingsData)
-        console.log('[AdminReferralPage] Dashboard data:', dashboardData)
         
         setDashboard(dashboardData)
         
@@ -139,7 +133,6 @@ export default function AdminReferralPage({ onBack }) {
   // Load partners when tab changes
   useEffect(() => {
     if (activeTab === 'partners') {
-      console.log('[AdminReferralPage] Tab switched to partners, loading...')
       loadPartners()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -151,7 +144,6 @@ export default function AdminReferralPage({ onBack }) {
     setLoadError(null)
     
     try {
-      console.log('[AdminReferralPage] Manual reload...')
       const [settingsData, dashboardData] = await Promise.all([
         getReferralSettings(),
         getReferralDashboard()
@@ -170,7 +162,6 @@ export default function AdminReferralPage({ onBack }) {
         })
       }
     } catch (err) {
-      console.error('[AdminReferralPage] Manual reload failed:', err)
       setLoadError(err.message || 'Failed to load data')
     } finally {
       setIsLoading(false)
@@ -182,12 +173,9 @@ export default function AdminReferralPage({ onBack }) {
   const loadPartners = useCallback(async () => {
     setLoadingPartners(true)
     try {
-      console.log('[AdminReferralPage] Loading partners:', { sortBy, sortOrder, partnerType })
-      const data = await getReferralPartnersCRM(sortBy, sortOrder, 50, partnerType)
-      console.log('[AdminReferralPage] Partners response:', data)
+      const data = await getReferralPartnersCRM(sortBy, sortOrder, 500, partnerType)
       
       if (!data) {
-        console.warn('[AdminReferralPage] No data returned from API')
         setPartners([])
         setTotalPartners(0)
         return
@@ -195,9 +183,7 @@ export default function AdminReferralPage({ onBack }) {
       
       setPartners(data.partners || [])
       setTotalPartners(data.total || 0)
-      console.log('[AdminReferralPage] Set partners:', data.partners?.length, 'total:', data.total)
     } catch (err) {
-      console.error('[AdminReferralPage] Failed to load partners:', err)
       // Don't show popup for initial load errors, just log
       setPartners([])
       setTotalPartners(0)
@@ -337,7 +323,7 @@ export default function AdminReferralPage({ onBack }) {
         level_override: newIsPartner ? 3 : null
       })
       
-      // Success - remove loading, show confirmation
+      // Success - keep optimistic state, only remove loading
       updatePartnerOptimistically(partner.user_id, { _loading: false })
       hapticFeedback('notification', 'success')
       showPopup({
@@ -347,9 +333,7 @@ export default function AdminReferralPage({ onBack }) {
           : 'VIP-статус снят',
         buttons: [{ type: 'ok' }]
       })
-      
-      // Refresh dashboard metrics
-      loadData()
+      // Note: Dashboard metrics refresh removed - keep optimistic update stable
     } catch (err) {
       // Rollback on error - use 'Regular' to match API response format
       updatePartnerOptimistically(partner.user_id, { 
@@ -628,13 +612,8 @@ export default function AdminReferralPage({ onBack }) {
                 <>
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-muted-foreground">
-                      Найдено: {filteredPartners.length} из {totalPartners}
+                      Показано: {filteredPartners.length} из {totalPartners}
                     </p>
-                    {partners.length > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        Всего в памяти: {partners.length}
-                      </p>
-                    )}
                   </div>
                   
                   {filteredPartners.length > 0 ? (
@@ -678,6 +657,7 @@ export default function AdminReferralPage({ onBack }) {
                                 <TooltipTrigger asChild>
                                   <div className="flex items-center gap-1">
                                     <Switch
+                                      key={`switch-${partner.user_id}-${partner.status}`}
                                       checked={partner.status === 'VIP'}
                                       onCheckedChange={() => handleTogglePartnerStatus(partner)}
                                       disabled={partner._loading}
