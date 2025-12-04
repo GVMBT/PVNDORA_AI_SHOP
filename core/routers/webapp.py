@@ -180,7 +180,7 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     settings = settings_result.data[0] if settings_result.data else {}
     
     # Пороги разблокировки уровней в USD (из настроек)
-    THRESHOLD_LEVEL1 = float(settings.get("level1_threshold_usd", 0))  # Instant unlock!
+    # Level 1 is instant (threshold = 0), so we don't need THRESHOLD_LEVEL1
     THRESHOLD_LEVEL2 = float(settings.get("level2_threshold_usd", 250))
     THRESHOLD_LEVEL3 = float(settings.get("level3_threshold_usd", 1000))
     

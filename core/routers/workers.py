@@ -5,7 +5,7 @@ Guaranteed delivery workers for critical operations.
 All workers verify QStash request signature.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Request
 
 from src.services.database import get_database
@@ -217,7 +217,7 @@ async def worker_process_refund(request: Request):
     db.client.table("orders").update({
         "status": "refunded",
         "refund_reason": reason,
-        "refund_processed_at": datetime.utcnow().isoformat()
+        "refund_processed_at": datetime.now(timezone.utc).isoformat()
     }).eq("id", order_id).execute()
     
     # 4. Notify user

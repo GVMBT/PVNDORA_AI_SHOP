@@ -7,7 +7,7 @@ Requires Telegram Mini App authentication with admin privileges.
 
 import os
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel
@@ -375,7 +375,7 @@ async def admin_get_analytics(
     """Get sales analytics"""
     db = get_database()
     
-    end_date = datetime.utcnow()
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=days)
     start_iso = start_date.isoformat()
     
@@ -520,7 +520,7 @@ async def admin_resolve_ticket(
     db.client.table("support_tickets").update({
         "status": "resolved",
         "resolution": resolution,
-        "resolved_at": datetime.utcnow().isoformat()
+        "resolved_at": datetime.now(timezone.utc).isoformat()
     }).eq("id", ticket_id).execute()
     
     return {"success": True, "ticket_id": ticket_id}
@@ -590,7 +590,7 @@ async def admin_update_referral_settings(request: ReferralSettingsRequest, admin
     db = get_database()
     
     # Build update dict with only provided fields
-    update_data = {"updated_at": datetime.utcnow().isoformat()}
+    update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
     
     if request.level2_threshold_usd is not None:
         if request.level2_threshold_usd < 0:
@@ -618,7 +618,7 @@ async def admin_update_referral_settings(request: ReferralSettingsRequest, admin
         update_data["level3_commission_percent"] = request.level3_commission_percent
     
     # Update settings (single row)
-    result = await asyncio.to_thread(
+    await asyncio.to_thread(
         lambda: db.client.table("referral_settings").update(update_data).eq(
             "id", "00000000-0000-0000-0000-000000000001"
         ).execute()
@@ -834,8 +834,8 @@ async def admin_set_partner(request: SetPartnerRequest, admin=Depends(verify_adm
 
 
 @router.get("/referral-metrics")
-async def admin_get_referral_metrics(admin=Depends(verify_admin)):
-    """Get comprehensive referral program metrics"""
+async def admin_get_referral_metrics_detailed(admin=Depends(verify_admin)):
+    """Get comprehensive referral program metrics (detailed version)"""
     db = get_database()
     
     # Get overall metrics from view
