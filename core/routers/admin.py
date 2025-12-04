@@ -716,53 +716,59 @@ async def admin_get_partners_crm(
     """
     db = get_database()
     
-    # Validate sort field
-    valid_sorts = ["referral_revenue", "total_earned", "total_referrals", "paying_referrals", "conversion_rate", "joined_at"]
-    if sort_by not in valid_sorts:
-        sort_by = "referral_revenue"
-    
-    # Get partners from analytics view
-    result = await asyncio.to_thread(
-        lambda: db.client.table("partner_analytics").select("*").order(
-            sort_by, desc=(sort_order == "desc")
-        ).range(offset, offset + limit - 1).execute()
-    )
-    
-    # Get total count
-    count_result = await asyncio.to_thread(
-        lambda: db.client.table("partner_analytics").select("user_id", count="exact").execute()
-    )
-    
-    partners = []
-    for p in (result.data or []):
-        partners.append({
-            "user_id": p.get("user_id"),
-            "telegram_id": p.get("telegram_id"),
-            "username": p.get("username"),
-            "first_name": p.get("first_name"),
-            "status": "VIP" if p.get("is_partner") else "Regular",
-            "effective_level": p.get("effective_level", 0),
-            "joined_at": p.get("joined_at"),
-            # Referral stats
-            "total_referrals": p.get("total_referrals", 0),
-            "paying_referrals": p.get("paying_referrals", 0),
-            "conversion_rate": float(p.get("conversion_rate", 0)),
-            # Financial
-            "referral_revenue": float(p.get("referral_revenue", 0)),
-            "total_earned": float(p.get("total_earned", 0)),
-            "current_balance": float(p.get("current_balance", 0)),
-            # Tree depth
-            "level1_referrals": p.get("level1_referrals", 0),
-            "level2_referrals": p.get("level2_referrals", 0),
-            "level3_referrals": p.get("level3_referrals", 0),
-        })
-    
-    return {
-        "partners": partners,
-        "total": count_result.count or 0,
-        "limit": limit,
-        "offset": offset
-    }
+    try:
+        # Validate sort field
+        valid_sorts = ["referral_revenue", "total_earned", "total_referrals", "paying_referrals", "conversion_rate", "joined_at"]
+        if sort_by not in valid_sorts:
+            sort_by = "referral_revenue"
+        
+        # Get partners from analytics view
+        result = await asyncio.to_thread(
+            lambda: db.client.table("partner_analytics").select("*").order(
+                sort_by, desc=(sort_order == "desc")
+            ).range(offset, offset + limit - 1).execute()
+        )
+        
+        # Get total count
+        count_result = await asyncio.to_thread(
+            lambda: db.client.table("partner_analytics").select("user_id", count="exact").execute()
+        )
+        
+        partners = []
+        for p in (result.data or []):
+            partners.append({
+                "user_id": p.get("user_id"),
+                "telegram_id": p.get("telegram_id"),
+                "username": p.get("username"),
+                "first_name": p.get("first_name"),
+                "status": "VIP" if p.get("is_partner") else "Regular",
+                "effective_level": p.get("effective_level", 0),
+                "joined_at": p.get("joined_at"),
+                # Referral stats
+                "total_referrals": p.get("total_referrals", 0),
+                "paying_referrals": p.get("paying_referrals", 0),
+                "conversion_rate": float(p.get("conversion_rate", 0)),
+                # Financial
+                "referral_revenue": float(p.get("referral_revenue", 0)),
+                "total_earned": float(p.get("total_earned", 0)),
+                "current_balance": float(p.get("current_balance", 0)),
+                # Tree depth
+                "level1_referrals": p.get("level1_referrals", 0),
+                "level2_referrals": p.get("level2_referrals", 0),
+                "level3_referrals": p.get("level3_referrals", 0),
+            })
+        
+        return {
+            "partners": partners,
+            "total": count_result.count or 0,
+            "limit": limit,
+            "offset": offset
+        }
+    except Exception as e:
+        print(f"ERROR: Failed to query partner_analytics: {e}")
+        import traceback
+        print(f"ERROR: Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to load partners: {str(e)}")
 
 
 # ==================== PARTNERS MANAGEMENT ====================

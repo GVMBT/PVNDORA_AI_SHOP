@@ -126,10 +126,13 @@ class AIConsultant:
                 # Fallback: use system_instruction if caching failed
                 config_with_tools.system_instruction = base_system_prompt
             
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=messages,
-                config=config_with_tools
+            # Wrap synchronous API call in thread to avoid blocking event loop
+            response = await asyncio.to_thread(
+                lambda: self.client.models.generate_content(
+                    model=self.model,
+                    contents=messages,
+                    config=config_with_tools
+                )
             )
             
             # Notify progress: analyzing response
@@ -227,10 +230,13 @@ class AIConsultant:
                 max_output_tokens=2048
             )
             
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=messages,
-                config=config_with_tools
+            # Wrap synchronous API call in thread to avoid blocking event loop
+            response = await asyncio.to_thread(
+                lambda: self.client.models.generate_content(
+                    model=self.model,
+                    contents=messages,
+                    config=config_with_tools
+                )
             )
             
             print(f"DEBUG: Voice response received, candidates: {len(response.candidates) if response.candidates else 0}")
@@ -694,10 +700,13 @@ class AIConsultant:
             else:
                 config_structured.system_instruction = base_system_prompt
             
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=structured_messages,
-                config=config_structured
+            # Wrap synchronous API call in thread to avoid blocking event loop
+            response = await asyncio.to_thread(
+                lambda: self.client.models.generate_content(
+                    model=self.model,
+                    contents=structured_messages,
+                    config=config_structured
+                )
             )
             
             # Check if response is empty
@@ -801,10 +810,13 @@ class AIConsultant:
             else:
                 config_final.system_instruction = base_system_prompt
             
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=messages,
-                config=config_final
+            # Wrap synchronous API call in thread to avoid blocking event loop
+            response = await asyncio.to_thread(
+                lambda: self.client.models.generate_content(
+                    model=self.model,
+                    contents=messages,
+                    config=config_final
+                )
             )
             
             return self._parse_structured_response(response, language)

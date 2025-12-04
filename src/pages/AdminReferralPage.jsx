@@ -125,8 +125,16 @@ export default function AdminReferralPage({ onBack }) {
       setTotalPartners(data.total || 0)
     } catch (err) {
       console.error('Failed to load partners:', err)
+      showPopup({
+        title: '❌',
+        message: err.message || 'Ошибка загрузки партнёров',
+        buttons: [{ type: 'ok' }]
+      })
+      // Set empty state on error
+      setPartners([])
+      setTotalPartners(0)
     }
-  }, [getReferralPartnersCRM, sortBy, sortOrder])
+  }, [getReferralPartnersCRM, sortBy, sortOrder, showPopup])
   
   const handleSaveSettings = async () => {
     setSaving(true)
