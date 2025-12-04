@@ -22,6 +22,17 @@ class User(BaseModel):
     total_referral_earnings: float = 0
     last_activity_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
+    # Partner/Referral fields
+    is_partner: bool = False
+    partner_level_override: Optional[int] = None
+    partner_mode: str = "commission"  # commission | discount
+    partner_discount_percent: int = 0
+    referral_program_unlocked: bool = False
+    turnover_usd: float = 0
+    total_purchases_amount: float = 0
+    
+    class Config:
+        extra = "ignore"  # Ignore unknown fields from DB
 
 
 class Product(BaseModel):

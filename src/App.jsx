@@ -24,11 +24,17 @@ import RefundPolicyPage from './pages/RefundPolicyPage'
 import PaymentInfoPage from './pages/PaymentInfoPage'
 import TermsPage from './pages/TermsPage'
 import PrivacyPage from './pages/PrivacyPage'
+import LoginPage from './pages/LoginPage'
 
 // Components
 import Navigation from './components/Navigation'
 import LoadingScreen from './components/LoadingScreen'
 import { useAdmin } from './hooks/useAdmin'
+
+// Check if running outside Telegram
+const isWebMode = () => {
+  return !window.Telegram?.WebApp?.initData
+}
 
 export default function App() {
   const { initData, user, isReady } = useTelegram()
@@ -39,6 +45,36 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState('catalog')
   const [productId, setProductId] = useState(null)
   const [initialQuantity, setInitialQuantity] = useState(1)
+  const [webUser, setWebUser] = useState(null)
+  
+  // Check for existing web session
+  useEffect(() => {
+    if (isWebMode()) {
+      const savedUser = localStorage.getItem('pvndora_user')
+      const sessionToken = localStorage.getItem('pvndora_session')
+      
+      if (savedUser && sessionToken) {
+        // Verify session is still valid
+        fetch('/api/webapp/auth/verify-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_token: sessionToken })
+        })
+          .then(res => res.ok ? res.json() : Promise.reject())
+          .then(data => {
+            if (data.valid) {
+              setWebUser(JSON.parse(savedUser))
+              setCurrentPage('admin') // Web users go straight to admin
+            }
+          })
+          .catch(() => {
+            // Clear invalid session
+            localStorage.removeItem('pvndora_user')
+            localStorage.removeItem('pvndora_session')
+          })
+      }
+    }
+  }, [])
   
   // Parse startapp parameter for deep linking
   useEffect(() => {
@@ -105,8 +141,20 @@ export default function App() {
     }
   }, [params])
   
+  // Web mode: show login page if not authenticated
+  if (isWebMode() && !webUser) {
+    return (
+      <LoginPage 
+        onLogin={(userData, token) => {
+          setWebUser(userData)
+          setCurrentPage('admin')
+        }}
+      />
+    )
+  }
+  
   // Show loading while Telegram SDK initializes or checking admin status
-  if (!isReady || checking) {
+  if (!isWebMode() && (!isReady || checking)) {
     return <LoadingScreen />
   }
   

@@ -59,6 +59,13 @@
   * {
     @apply border-border;
   }
+  
+  /* Full height layout for TMA */
+  html, body {
+    height: 100%;
+    overflow-x: hidden;
+  }
+  
   body {
     @apply bg-background text-foreground;
     /* System font stack - no external dependencies, instant load */
@@ -67,6 +74,16 @@
                  sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Prevent pull-to-refresh in TMA */
+    overscroll-behavior-y: none;
+    /* Allow scrolling */
+    overflow-y: auto;
+  }
+  
+  #root {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
   }
 }
 

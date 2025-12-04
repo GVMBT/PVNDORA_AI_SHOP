@@ -274,20 +274,44 @@ export default function AdminReferralPage({ onBack }) {
     }
   }
   
+  // Optimistic update helper
+  const updatePartnerOptimistically = (partnerId, updates) => {
+    setPartners(prev => prev.map(p => 
+      p.user_id === partnerId ? { ...p, ...updates } : p
+    ))
+  }
+  
   const handleUpdatePartnerLevel = async (partner, newLevel) => {
+    const previousLevel = partner.effective_level
+    const level = parseInt(newLevel)
+    
+    // Optimistic update
+    updatePartnerOptimistically(partner.user_id, { 
+      effective_level: level,
+      _loading: true 
+    })
+    hapticFeedback('impact', 'light')
+    
     try {
       await setPartner({
         telegram_id: partner.telegram_id,
         is_partner: partner.status === 'VIP',
-        level_override: parseInt(newLevel)
+        level_override: level
       })
       
+      // Success - remove loading state
+      updatePartnerOptimistically(partner.user_id, { _loading: false })
       hapticFeedback('notification', 'success')
-      loadPartners()
     } catch (err) {
+      // Rollback on error
+      updatePartnerOptimistically(partner.user_id, { 
+        effective_level: previousLevel,
+        _loading: false 
+      })
+      hapticFeedback('notification', 'error')
       showPopup({
         title: '❌',
-        message: err.message || 'Ошибка обновления',
+        message: err.message || 'Ошибка обновления уровня',
         buttons: [{ type: 'ok' }]
       })
     }
@@ -295,31 +319,48 @@ export default function AdminReferralPage({ onBack }) {
   
   // Toggle VIP Partner status with auto-set level=3
   const handleTogglePartnerStatus = async (partner) => {
-    const newIsPartner = partner.status !== 'VIP'
+    const wasVIP = partner.status === 'VIP'
+    const newIsPartner = !wasVIP
+    
+    // Optimistic update
+    updatePartnerOptimistically(partner.user_id, { 
+      status: newIsPartner ? 'VIP' : 'Active',
+      effective_level: newIsPartner ? 3 : partner.effective_level,
+      _loading: true
+    })
+    hapticFeedback('impact', 'medium')
     
     try {
       await setPartner({
         telegram_id: partner.telegram_id,
         is_partner: newIsPartner,
-        // Auto-set level 3 when promoting to VIP, reset when demoting
         level_override: newIsPartner ? 3 : null
       })
       
+      // Success - remove loading, show confirmation
+      updatePartnerOptimistically(partner.user_id, { _loading: false })
       hapticFeedback('notification', 'success')
       showPopup({
         title: newIsPartner ? '⭐' : '✓',
         message: newIsPartner 
-          ? 'Пользователь назначен VIP-партнёром (Level 3)' 
-          : 'VIP-статус снят, уровень рассчитывается по обороту',
+          ? 'VIP-партнёр назначен (Level 3)' 
+          : 'VIP-статус снят',
         buttons: [{ type: 'ok' }]
       })
       
-      loadPartners()
+      // Refresh dashboard metrics
       loadData()
     } catch (err) {
+      // Rollback on error
+      updatePartnerOptimistically(partner.user_id, { 
+        status: wasVIP ? 'VIP' : 'Active',
+        effective_level: partner.effective_level,
+        _loading: false 
+      })
+      hapticFeedback('notification', 'error')
       showPopup({
         title: '❌',
-        message: err.message || 'Ошибка обновления',
+        message: err.message || 'Ошибка обновления статуса',
         buttons: [{ type: 'ok' }]
       })
     }
@@ -631,7 +672,7 @@ export default function AdminReferralPage({ onBack }) {
                             </div>
                             
                             {/* VIP Toggle + Level Override */}
-                            <div className="flex items-center gap-1 flex-shrink-0">
+                            <div className={`flex items-center gap-1 flex-shrink-0 transition-opacity ${partner._loading ? 'opacity-50 pointer-events-none' : ''}`}>
                               {/* VIP Partner Toggle */}
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -639,10 +680,11 @@ export default function AdminReferralPage({ onBack }) {
                                     <Switch
                                       checked={partner.status === 'VIP'}
                                       onCheckedChange={() => handleTogglePartnerStatus(partner)}
+                                      disabled={partner._loading}
                                       className={partner.status === 'VIP' ? 'bg-purple-500' : ''}
                                     />
                                     {partner.status === 'VIP' && (
-                                      <Star className="h-4 w-4 text-purple-400" />
+                                      <Star className={`h-4 w-4 text-purple-400 ${partner._loading ? 'animate-pulse' : ''}`} />
                                     )}
                                   </div>
                                 </TooltipTrigger>
@@ -662,8 +704,9 @@ export default function AdminReferralPage({ onBack }) {
                                     <Select
                                       value={partner.effective_level?.toString() || '0'}
                                       onValueChange={(value) => handleUpdatePartnerLevel(partner, value)}
+                                      disabled={partner._loading}
                                     >
-                                      <SelectTrigger className="w-[68px] h-8 text-xs px-2">
+                                      <SelectTrigger className={`w-[68px] h-8 text-xs px-2 ${partner._loading ? 'animate-pulse' : ''}`}>
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
