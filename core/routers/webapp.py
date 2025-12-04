@@ -522,6 +522,104 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
     }
 
 
+# ==================== PARTNER APPLICATION ====================
+
+class PartnerApplicationRequest(BaseModel):
+    email: str | None = None
+    phone: str | None = None
+    source: str  # instagram, youtube, telegram_channel, website, other
+    audience_size: str  # 1k-10k, 10k-50k, 50k-100k, 100k+
+    description: str  # Why they want partnership
+    expected_volume: str | None = None  # Expected monthly volume
+    social_links: dict | None = None  # {instagram: url, youtube: url, ...}
+
+
+@router.post("/partner/apply")
+async def submit_partner_application(request: PartnerApplicationRequest, user=Depends(verify_telegram_auth)):
+    """
+    Submit application to become a VIP partner.
+    
+    Required fields:
+    - source: Where your audience is (instagram, youtube, telegram_channel, website, other)
+    - audience_size: Size of your audience (1k-10k, 10k-50k, 50k-100k, 100k+)
+    - description: Why you want to become a partner
+    """
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if already a partner
+    if getattr(db_user, 'is_partner', False):
+        raise HTTPException(status_code=400, detail="You are already a partner")
+    
+    # Check for existing pending application
+    existing = await asyncio.to_thread(
+        lambda: db.client.table("partner_applications").select("id, status").eq(
+            "user_id", db_user.id
+        ).eq("status", "pending").execute()
+    )
+    
+    if existing.data:
+        raise HTTPException(status_code=400, detail="You already have a pending application")
+    
+    # Insert application
+    result = await asyncio.to_thread(
+        lambda: db.client.table("partner_applications").insert({
+            "user_id": str(db_user.id),
+            "telegram_id": user.id,
+            "username": user.username,
+            "email": request.email,
+            "phone": request.phone,
+            "source": request.source,
+            "audience_size": request.audience_size,
+            "description": request.description,
+            "expected_volume": request.expected_volume,
+            "social_links": request.social_links or {},
+            "status": "pending"
+        }).execute()
+    )
+    
+    return {
+        "success": True,
+        "message": "Application submitted successfully",
+        "application_id": result.data[0]["id"] if result.data else None
+    }
+
+
+@router.get("/partner/application-status")
+async def get_partner_application_status(user=Depends(verify_telegram_auth)):
+    """Get status of user's partner application."""
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if already partner
+    is_partner = getattr(db_user, 'is_partner', False)
+    if is_partner:
+        return {
+            "is_partner": True,
+            "application": None,
+            "message": "You are already a partner"
+        }
+    
+    # Get latest application
+    result = await asyncio.to_thread(
+        lambda: db.client.table("partner_applications").select(
+            "id, status, created_at, admin_comment, reviewed_at"
+        ).eq("user_id", db_user.id).order("created_at", desc=True).limit(1).execute()
+    )
+    
+    application = result.data[0] if result.data else None
+    
+    return {
+        "is_partner": False,
+        "application": application,
+        "can_apply": application is None or application.get("status") in ["rejected"]
+    }
+
+
 @router.post("/profile/withdraw")
 async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_telegram_auth)):
     """Request balance withdrawal."""

@@ -180,7 +180,15 @@ export function useAdmin() {
     getReferralDashboard,
     getReferralPartnersCRM,
     getPartners,
-    setPartner
+    setPartner,
+    // Partner Applications
+    getPartnerApplications: useCallback((status = 'pending') => 
+      adminRequest(`/partner-applications?status=${status}`), [adminRequest]),
+    reviewPartnerApplication: useCallback((data) => 
+      adminRequest('/partner-applications/review', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }), [adminRequest])
   }
 }
 

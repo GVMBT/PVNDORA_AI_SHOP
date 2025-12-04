@@ -905,6 +905,96 @@ async def admin_set_partner(request: SetPartnerRequest, admin=Depends(verify_adm
     raise HTTPException(status_code=500, detail=result.data.get("error", "Failed to update partner status"))
 
 
+# ==================== PARTNER APPLICATIONS ====================
+
+@router.get("/partner-applications")
+async def admin_get_partner_applications(
+    status: str = "pending",  # pending, approved, rejected, all
+    admin=Depends(verify_admin)
+):
+    """Get partner applications with filtering."""
+    db = get_database()
+    
+    query = db.client.table("partner_applications").select(
+        "*, users!partner_applications_user_id_fkey(username, first_name, telegram_id, total_purchases_amount)"
+    )
+    
+    if status != "all":
+        query = query.eq("status", status)
+    
+    result = await asyncio.to_thread(
+        lambda: query.order("created_at", desc=True).execute()
+    )
+    
+    return {
+        "applications": result.data or [],
+        "count": len(result.data or [])
+    }
+
+
+class ReviewApplicationRequest(BaseModel):
+    application_id: str
+    approve: bool
+    admin_comment: str | None = None
+    level_override: int = 3  # Default to full access for approved partners
+
+
+@router.post("/partner-applications/review")
+async def admin_review_application(request: ReviewApplicationRequest, admin=Depends(verify_admin)):
+    """
+    Review (approve/reject) a partner application.
+    
+    If approved:
+    - Sets is_partner = true
+    - Sets partner_level_override = level_override (default 3)
+    - Sets referral_program_unlocked = true
+    """
+    db = get_database()
+    
+    # Get application
+    app_result = await asyncio.to_thread(
+        lambda: db.client.table("partner_applications").select(
+            "id, user_id, status"
+        ).eq("id", request.application_id).single().execute()
+    )
+    
+    if not app_result.data:
+        raise HTTPException(status_code=404, detail="Application not found")
+    
+    if app_result.data["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Application already reviewed")
+    
+    user_id = app_result.data["user_id"]
+    new_status = "approved" if request.approve else "rejected"
+    
+    # Update application
+    await asyncio.to_thread(
+        lambda: db.client.table("partner_applications").update({
+            "status": new_status,
+            "admin_comment": request.admin_comment,
+            "reviewed_by": str(admin.id) if hasattr(admin, 'id') else None,
+            "reviewed_at": datetime.now(timezone.utc).isoformat()
+        }).eq("id", request.application_id).execute()
+    )
+    
+    # If approved, make user a partner
+    if request.approve:
+        await asyncio.to_thread(
+            lambda: db.client.rpc("admin_set_partner_level", {
+                "p_user_id": user_id,
+                "p_level": request.level_override,
+                "p_is_partner": True
+            }).execute()
+        )
+    
+    return {
+        "success": True,
+        "application_id": request.application_id,
+        "new_status": new_status,
+        "user_id": user_id
+    }
+
+
 @router.get("/referral-metrics")
 async def admin_get_referral_metrics_detailed(admin=Depends(verify_admin)):
     """Get comprehensive referral program metrics (detailed version)"""

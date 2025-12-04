@@ -652,13 +652,14 @@ export default function AdminReferralPage({ onBack }) {
                                 <TooltipTrigger asChild>
                                   <div>
                                     <Select
-                                      value={partner.effective_level?.toString() || '1'}
+                                      value={partner.effective_level?.toString() || '0'}
                                       onValueChange={(value) => handleUpdatePartnerLevel(partner, value)}
                                     >
                                       <SelectTrigger className="w-16 h-8 text-xs">
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
+                                        <SelectItem value="0">L0 (0%)</SelectItem>
                                         <SelectItem value="1">L1 (20%)</SelectItem>
                                         <SelectItem value="2">L2 (+10%)</SelectItem>
                                         <SelectItem value="3">L3 (+5%)</SelectItem>
@@ -669,7 +670,7 @@ export default function AdminReferralPage({ onBack }) {
                                 <TooltipContent>
                                   <p className="text-xs max-w-48">
                                     <b>Принудительный уровень</b><br/>
-                                    Влияет на % комиссии.<br/>
+                                    L0 = комиссии отключены<br/>
                                     Для Partner Dashboard нужен VIP-статус.
                                   </p>
                                 </TooltipContent>
