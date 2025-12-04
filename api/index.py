@@ -16,8 +16,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 
-# Import models from separate file
-from api.models import SubmitReviewRequest
+# Models moved to core/routers/user.py
 
 # Add src to path for imports
 # Try multiple paths for Vercel compatibility
@@ -135,11 +134,13 @@ from core.routers.admin import router as admin_router
 from core.routers.webhooks import router as webhooks_router
 from core.routers.workers import router as workers_router
 from core.routers.webapp import router as webapp_router
+from core.routers.user import router as user_router
 
 app.include_router(admin_router, prefix="/api/admin")
 app.include_router(webhooks_router)
 app.include_router(workers_router)
 app.include_router(webapp_router)  # WebApp API endpoints
+app.include_router(user_router)  # User API (wishlist, reviews)
 
 
 # ==================== HEALTH CHECK ====================
@@ -457,112 +458,8 @@ async def create_referral_share_link(user = Depends(verify_telegram_auth)):
 
 
 # FAQ moved to core/routers/webapp.py (/api/webapp/faq)
-
-# ==================== WISHLIST API ====================
-
-@app.get("/api/wishlist")
-async def get_wishlist(user = Depends(verify_telegram_auth)):
-    """Get user's wishlist"""
-    db = get_database()
-    db_user = await db.get_user_by_telegram_id(user.id)
-    
-    if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    products = await db.get_wishlist(db_user.id)
-    return [
-        {
-            "id": p.id,
-            "name": p.name,
-            "price": p.price,
-            "stock_count": p.stock_count
-        }
-        for p in products
-    ]
-
-
-@app.post("/api/wishlist/{product_id}")
-async def add_to_wishlist(product_id: str, user = Depends(verify_telegram_auth)):
-    """Add product to wishlist"""
-    db = get_database()
-    db_user = await db.get_user_by_telegram_id(user.id)
-    
-    if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    await db.add_to_wishlist(db_user.id, product_id)
-    return {"success": True}
-
-
-@app.delete("/api/wishlist/{product_id}")
-async def remove_from_wishlist(product_id: str, user = Depends(verify_telegram_auth)):
-    """Remove product from wishlist"""
-    db = get_database()
-    db_user = await db.get_user_by_telegram_id(user.id)
-    
-    if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    await db.remove_from_wishlist(db_user.id, product_id)
-    return {"success": True}
-
-
-# Admin API moved to core/routers/admin.py
-
-# ==================== REVIEWS API ====================
-
-@app.post("/api/reviews")
-async def submit_review(
-    request: SubmitReviewRequest,
-    user = Depends(verify_telegram_auth)
-):
-    """Submit product review with 5% cashback"""
-    db = get_database()
-    
-    db_user = await db.get_user_by_telegram_id(user.id)
-    if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Get order
-    order = await db.get_order_by_id(request.order_id)
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    
-    if order.user_id != db_user.id:
-        raise HTTPException(status_code=403, detail="Not your order")
-    
-    if order.status != "completed":
-        raise HTTPException(status_code=400, detail="Order not completed")
-    
-    # Check if review already exists
-    existing = db.client.table("reviews").select("id").eq("order_id", request.order_id).execute()
-    if existing.data:
-        raise HTTPException(status_code=400, detail="Review already submitted")
-    
-    # Create review
-    await db.create_review(
-        user_id=db_user.id,
-        order_id=request.order_id,
-        product_id=order.product_id,
-        rating=request.rating,
-        text=request.text
-    )
-    
-    # Calculate 5% cashback
-    cashback = order.amount * 0.05
-    await db.update_user_balance(db_user.id, cashback)
-    
-    # Mark cashback as given
-    db.client.table("reviews").update({
-        "cashback_given": True
-    }).eq("order_id", request.order_id).execute()
-    
-    return {
-        "success": True,
-        "cashback": cashback,
-        "new_balance": db_user.balance + cashback
-    }
-
+# Wishlist API moved to core/routers/user.py
+# Reviews API moved to core/routers/user.py
 
 # Cron jobs moved to core/routers/cron.py
 # QStash workers moved to core/routers/workers.py

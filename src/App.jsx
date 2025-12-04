@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useSearchParams } from './hooks/useSearchParams'
 import { useTelegram } from './hooks/useTelegram'
 import { useLocale } from './hooks/useLocale'
+import { AnimatePresence, motion } from 'framer-motion'
 
 // Pages
 import CatalogPage from './pages/CatalogPage'
@@ -82,9 +83,6 @@ export default function App() {
     
     // Debug logging
     console.log('DEBUG: App.jsx - startapp param:', startapp)
-    console.log('DEBUG: App.jsx - all params:', Array.from(params.entries()))
-    console.log('DEBUG: App.jsx - window.location.search:', window.location.search)
-    console.log('DEBUG: App.jsx - window.location.hash:', window.location.hash)
     
     if (startapp) {
       if (startapp.startsWith('product_')) {
@@ -94,18 +92,14 @@ export default function App() {
       } else if (startapp.startsWith('pay_')) {
         // Format: pay_{product_id}_qty_{quantity}
         const parts = startapp.replace('pay_', '')
-        console.log('DEBUG: App.jsx - pay_ detected, parts:', parts)
         if (parts.includes('_qty_')) {
           const [id, qty] = parts.split('_qty_')
-          console.log('DEBUG: App.jsx - parsed product_id:', id, 'quantity:', qty)
           setProductId(id)
           setInitialQuantity(parseInt(qty) || 1)
         } else {
-          console.log('DEBUG: App.jsx - no _qty_ found, using parts as product_id:', parts)
           setProductId(parts)
           setInitialQuantity(1)
         }
-        console.log('DEBUG: App.jsx - setting currentPage to checkout')
         setCurrentPage('checkout')
       } else if (startapp === 'orders') {
         setCurrentPage('orders')
@@ -126,7 +120,6 @@ export default function App() {
       } else if (startapp === 'privacy') {
         setCurrentPage('privacy')
       } else if (startapp === 'checkout') {
-        // Cart-based checkout
         setCurrentPage('checkout')
         setProductId(null)
       } else if (startapp === 'catalog') {
@@ -136,8 +129,6 @@ export default function App() {
       } else if (startapp.startsWith('admin_')) {
         setCurrentPage(startapp)
       }
-    } else {
-      console.log('DEBUG: App.jsx - no startapp found, staying on catalog')
     }
   }, [params])
   
@@ -159,6 +150,9 @@ export default function App() {
   }
   
   const navigateTo = (page, id = null) => {
+    if (window.Telegram?.WebApp?.HapticFeedback) {
+      window.Telegram.WebApp.HapticFeedback.impactOccurred('light')
+    }
     setCurrentPage(page)
     if (id) setProductId(id)
     window.scrollTo(0, 0)
@@ -239,11 +233,24 @@ export default function App() {
   
   return (
     <div 
-      className="min-h-screen bg-gradient-animated"
+      className="min-h-screen bg-background text-foreground overflow-x-hidden"
       dir={isRTL ? 'rtl' : 'ltr'}
     >
-      <main className="pb-20 safe-area-bottom">
-        {renderPage()}
+      {/* Ambient Background */}
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background pointer-events-none z-0" />
+      
+      <main className="relative z-10 pb-24 safe-area-bottom min-h-screen">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentPage}
+            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+            transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+          >
+            {renderPage()}
+          </motion.div>
+        </AnimatePresence>
       </main>
       
       <Navigation 
@@ -254,5 +261,3 @@ export default function App() {
     </div>
   )
 }
-
-

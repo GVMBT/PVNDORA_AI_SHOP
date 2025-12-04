@@ -10,9 +10,7 @@ import {
   TrendingUp, 
   Copy, 
   Share2, 
-  ChevronRight,
   Gift,
-  Clock,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -20,15 +18,15 @@ import {
   Smartphone,
   Bitcoin,
   Lock,
-  Unlock,
   DollarSign,
-  Star
+  Star,
+  Settings,
+  Trophy
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
+import { Card, CardContent } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { Skeleton } from '../components/ui/skeleton'
-import { Separator } from '../components/ui/separator'
 import {
   Dialog,
   DialogContent,
@@ -39,91 +37,82 @@ import {
 } from '../components/ui/dialog'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
+import { motion } from 'framer-motion'
+import { cn } from '../lib/utils'
 
-const WITHDRAWAL_MIN = 500 // Минимум для вывода
+const WITHDRAWAL_MIN = 500 
 
-// Level Card Component with visual states
 function LevelCard({ level, commission, threshold, isUnlocked, isProgramLocked, count, earnings, formatPrice, t, color, isInstant }) {
   const isLocked = !isUnlocked
   
-  // Color configs
-  const colorConfig = {
+  const colors = {
     green: {
-      active: 'bg-gradient-to-r from-green-500/10 to-transparent border-green-500/20',
-      locked: 'bg-gradient-to-r from-gray-500/5 to-transparent border-gray-500/10',
-      circle: isLocked ? 'bg-gray-500/10' : 'bg-green-500/20',
-      text: isLocked ? 'text-gray-400' : 'text-green-500',
-      earnings: isLocked ? 'text-gray-400' : 'text-green-500'
+      gradient: 'from-emerald-500/20 to-teal-500/5',
+      border: 'border-emerald-500/20',
+      text: 'text-emerald-500',
+      bg: 'bg-emerald-500/10',
+      shadow: 'shadow-emerald-500/10'
     },
     blue: {
-      active: 'bg-gradient-to-r from-blue-500/10 to-transparent border-blue-500/20',
-      locked: 'bg-gradient-to-r from-gray-500/5 to-transparent border-gray-500/10',
-      circle: isLocked ? 'bg-gray-500/10' : 'bg-blue-500/20',
-      text: isLocked ? 'text-gray-400' : 'text-blue-500',
-      earnings: isLocked ? 'text-gray-400' : 'text-blue-500'
+      gradient: 'from-blue-500/20 to-indigo-500/5',
+      border: 'border-blue-500/20',
+      text: 'text-blue-500',
+      bg: 'bg-blue-500/10',
+      shadow: 'shadow-blue-500/10'
     },
     purple: {
-      active: 'bg-gradient-to-r from-purple-500/10 to-transparent border-purple-500/20',
-      locked: 'bg-gradient-to-r from-gray-500/5 to-transparent border-gray-500/10',
-      circle: isLocked ? 'bg-gray-500/10' : 'bg-purple-500/20',
-      text: isLocked ? 'text-gray-400' : 'text-purple-500',
-      earnings: isLocked ? 'text-gray-400' : 'text-purple-500'
+      gradient: 'from-purple-500/20 to-fuchsia-500/5',
+      border: 'border-purple-500/20',
+      text: 'text-purple-500',
+      bg: 'bg-purple-500/10',
+      shadow: 'shadow-purple-500/10'
     }
   }
   
-  const cfg = colorConfig[color]
-  
-  // Unlock description based on level type
-  const getUnlockDescription = () => {
-    if (isUnlocked) {
-      return `${commission} ${t('profile.commission')}`
-    }
-    if (isInstant) {
-      return t('profile.unlockOnPurchase')  // "Откроется при покупке"
-    }
-    return `${t('profile.unlockAt')} $${threshold}`
-  }
+  const cfg = colors[color]
   
   return (
-    <Card className={`${isLocked ? cfg.locked : cfg.active} ${isLocked ? 'opacity-60' : ''} transition-all`}>
-      <CardContent className="p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-full ${cfg.circle} flex items-center justify-center relative`}>
-            {isLocked ? (
-              <Lock className={`h-4 w-4 ${cfg.text}`} />
-            ) : (
-              <span className={`font-bold ${cfg.text}`}>{level}</span>
-            )}
+    <motion.div
+      whileHover={{ scale: isLocked ? 1 : 1.02 }}
+      whileTap={{ scale: isLocked ? 1 : 0.98 }}
+      className={cn(
+        "relative overflow-hidden rounded-2xl border p-4 transition-all duration-300",
+        isLocked 
+          ? "bg-card/30 border-white/5 grayscale opacity-60" 
+          : `bg-gradient-to-br ${cfg.gradient} ${cfg.border} shadow-lg ${cfg.shadow}`
+      )}
+    >
+       {/* Background Pattern */}
+       <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay pointer-events-none" />
+       
+       <div className="flex justify-between items-start relative z-10">
+          <div className="flex gap-3">
+             <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg shadow-inner", isLocked ? "bg-white/5 text-muted-foreground" : `${cfg.bg} ${cfg.text}`)}>
+               {isLocked ? <Lock className="w-4 h-4" /> : level}
+             </div>
+             <div>
+                <h3 className="font-bold text-sm">{t(`profile.level${level}`)}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {isUnlocked ? `${commission} ${t('profile.commission')}` : isInstant ? t('profile.unlockOnPurchase') : `${t('profile.unlockAt')} $${threshold}`}
+                </p>
+             </div>
           </div>
-          <div>
-            <p className={`font-medium ${isLocked ? 'text-muted-foreground' : ''}`}>
-              {t(`profile.level${level}`)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {getUnlockDescription()}
-            </p>
+          
+          <div className="text-right">
+             <div className="text-xl font-bold font-mono tracking-tight">{count}</div>
+             <div className={cn("text-[10px] font-medium", isLocked ? "text-muted-foreground" : cfg.text)}>
+               {isUnlocked && earnings > 0 ? `+${formatPrice(earnings)}` : 'Referrals'}
+             </div>
           </div>
-        </div>
-        <div className="text-right">
-          <p className={`font-bold text-lg ${isLocked ? 'text-muted-foreground' : ''}`}>
-            {count}
-          </p>
-          {isUnlocked && earnings > 0 ? (
-            <p className={`text-xs ${cfg.earnings}`}>
-              +{formatPrice(earnings)}
-            </p>
-          ) : isLocked && !isProgramLocked ? (
-            <p className="text-xs text-muted-foreground">
-              {t('profile.pendingRewards')}
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              {formatPrice(0)}
-            </p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+       </div>
+       
+       {/* Progress Bar for Locked Levels */}
+       {!isUnlocked && !isInstant && !isProgramLocked && (
+         <div className="mt-3 h-1 bg-white/5 rounded-full overflow-hidden">
+           <div className="h-full bg-white/20 w-1/3" /> 
+         </div>
+       )}
+    </motion.div>
   )
 }
 
@@ -159,15 +148,8 @@ export default function ProfilePage({ onBack }) {
   
   useEffect(() => {
     loadProfile()
-    
-    setBackButton({
-      isVisible: true,
-      onClick: onBack
-    })
-    
-    return () => {
-      setBackButton({ isVisible: false })
-    }
+    setBackButton({ isVisible: true, onClick: onBack })
+    return () => setBackButton({ isVisible: false })
   }, [loadProfile, onBack, setBackButton])
   
   const handleCopyLink = async () => {
@@ -175,11 +157,7 @@ export default function ProfilePage({ onBack }) {
     try {
       await navigator.clipboard.writeText(refLink)
       hapticFeedback('notification', 'success')
-      showPopup({
-        title: '✅',
-        message: t('profile.linkCopied'),
-        buttons: [{ type: 'ok' }]
-      })
+      showPopup({ title: '✅', message: t('profile.linkCopied'), buttons: [{ type: 'ok' }] })
     } catch (e) {
       console.error('Copy failed', e)
     }
@@ -188,30 +166,18 @@ export default function ProfilePage({ onBack }) {
   const handleShare = async () => {
     setShareLoading(true)
     hapticFeedback('impact', 'medium')
-    
     try {
-      // 1. Generate prepared message via API
       const { prepared_message_id } = await post('/referral/share-link')
-      
-      // 2. Use Telegram shareMessage if supported
       if (window.Telegram?.WebApp?.shareMessage) {
         window.Telegram.WebApp.shareMessage(prepared_message_id, (success) => {
-          if (success) {
-            console.log('Shared successfully')
-          }
+          if (success) console.log('Shared successfully')
         })
+      } else if (window.Telegram?.WebApp?.switchInlineQuery) {
+        window.Telegram.WebApp.switchInlineQuery("invite", ['users', 'groups', 'channels'])
       } else {
-        // Fallback to switchInlineQuery
-        if (window.Telegram?.WebApp?.switchInlineQuery) {
-          window.Telegram.WebApp.switchInlineQuery("invite", ['users', 'groups', 'channels'])
-        } else {
-          // Final fallback: copy link
-          await handleCopyLink()
-        }
+        await handleCopyLink()
       }
     } catch (err) {
-      console.error('Share failed:', err)
-      // Fallback: Copy link
       await handleCopyLink()
     } finally {
       setShareLoading(false)
@@ -221,68 +187,31 @@ export default function ProfilePage({ onBack }) {
   const handleWithdraw = async () => {
     const amount = parseFloat(withdrawAmount)
     if (isNaN(amount) || amount < WITHDRAWAL_MIN) {
-      showPopup({
-        title: '❌',
-        message: t('profile.minWithdrawal', { min: formatPrice(WITHDRAWAL_MIN) }),
-        buttons: [{ type: 'ok' }]
-      })
+      showPopup({ title: '❌', message: t('profile.minWithdrawal', { min: formatPrice(WITHDRAWAL_MIN) }), buttons: [{ type: 'ok' }] })
       return
     }
-    
     if (amount > (profile?.balance || 0)) {
-      showPopup({
-        title: '❌',
-        message: t('profile.insufficientBalance'),
-        buttons: [{ type: 'ok' }]
-      })
+      showPopup({ title: '❌', message: t('profile.insufficientBalance'), buttons: [{ type: 'ok' }] })
       return
     }
-    
     if (!withdrawDetails.trim()) {
-      showPopup({
-        title: '❌',
-        message: t('profile.enterPaymentDetails'),
-        buttons: [{ type: 'ok' }]
-      })
+      showPopup({ title: '❌', message: t('profile.enterPaymentDetails'), buttons: [{ type: 'ok' }] })
       return
     }
     
     setSubmitting(true)
     try {
-      await post('/profile/withdraw', {
-        amount,
-        method: withdrawMethod,
-        details: withdrawDetails
-      })
-      
+      await post('/profile/withdraw', { amount, method: withdrawMethod, details: withdrawDetails })
       hapticFeedback('notification', 'success')
-      showPopup({
-        title: '✅',
-        message: t('profile.withdrawalRequested'),
-        buttons: [{ type: 'ok' }]
-      })
-      
+      showPopup({ title: '✅', message: t('profile.withdrawalRequested'), buttons: [{ type: 'ok' }] })
       setWithdrawDialog(false)
       setWithdrawAmount('')
       setWithdrawDetails('')
       loadProfile()
     } catch (err) {
-      showPopup({
-        title: '❌',
-        message: err.message || t('common.error'),
-        buttons: [{ type: 'ok' }]
-      })
+      showPopup({ title: '❌', message: err.message || t('common.error'), buttons: [{ type: 'ok' }] })
     } finally {
       setSubmitting(false)
-    }
-  }
-  
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'completed': return <CheckCircle className="h-4 w-4 text-green-500" />
-      case 'rejected': return <XCircle className="h-4 w-4 text-red-500" />
-      case 'processing': return <Clock className="h-4 w-4 text-yellow-500" />
-      default: return <AlertCircle className="h-4 w-4 text-muted-foreground" />
     }
   }
   
@@ -298,38 +227,47 @@ export default function ProfilePage({ onBack }) {
   if (loading && !profile) {
     return (
       <div className="p-4 space-y-4">
-        <Skeleton className="h-32 w-full rounded-xl" />
-        <Skeleton className="h-24 w-full rounded-xl" />
-        <Skeleton className="h-48 w-full rounded-xl" />
+        <Skeleton className="h-48 w-full rounded-3xl" />
+        <Skeleton className="h-32 w-full rounded-2xl" />
+        <Skeleton className="h-64 w-full rounded-2xl" />
       </div>
     )
   }
   
-  // Check if user is a VIP Partner
   const isPartner = profile?.is_partner || referralProgram?.is_partner
   
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-background pb-24 relative overflow-hidden">
+      {/* Ambient Background */}
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-500/10 via-background to-background pointer-events-none" />
+
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50 p-4 flex-shrink-0">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8 rounded-full">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-lg font-bold">
-              {isPartner ? 'Partner Dashboard' : t('profile.title')}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              @{user?.username || 'user'}
-              {isPartner && <span className="text-purple-400 ml-2">⭐ VIP</span>}
-            </p>
-          </div>
-        </div>
+      <div className="sticky top-0 z-20 p-4 flex justify-between items-center">
+        <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 rounded-full bg-secondary/30 backdrop-blur-md">
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-secondary/30 backdrop-blur-md">
+          <Settings className="h-5 w-5" />
+        </Button>
       </div>
       
-      <div className="p-4 pb-24 space-y-6 flex-1 overflow-y-auto">
-        {/* VIP Partner Dashboard - completely different UI */}
+      <div className="px-4 space-y-6 relative z-10">
+        
+        {/* User Info */}
+        <div className="flex items-center gap-4 px-2">
+           <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-blue-600 p-[2px]">
+              <div className="w-full h-full rounded-full bg-background flex items-center justify-center text-2xl font-bold overflow-hidden">
+                {user?.photo_url ? <img src={user.photo_url} alt="ava" className="w-full h-full object-cover" /> : (user?.username?.[0] || 'U')}
+              </div>
+           </div>
+           <div>
+              <h1 className="text-xl font-bold flex items-center gap-2">
+                 {user?.first_name} {isPartner && <Badge variant="secondary" className="bg-purple-500/20 text-purple-400 text-[10px] h-5">VIP</Badge>}
+              </h1>
+              <p className="text-muted-foreground text-sm">@{user?.username || 'user'}</p>
+           </div>
+        </div>
+
         {isPartner ? (
           <PartnerDashboard 
             profile={profile}
@@ -339,366 +277,154 @@ export default function ProfilePage({ onBack }) {
           />
         ) : (
           <>
-        {/* Balance Card - Regular User */}
-        <Card className="bg-gradient-to-br from-primary/20 via-primary/10 to-background border-primary/20">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">{t('profile.balance')}</p>
-                <p className="text-4xl font-bold">{formatPrice(profile?.balance || 0)}</p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {t('profile.totalEarned')}: {formatPrice(profile?.total_referral_earnings || 0)}
-                </p>
-              </div>
-              <div className="p-3 rounded-full bg-primary/20">
-                <Wallet className="h-6 w-6 text-primary" />
-              </div>
-            </div>
-            
-            <div className="flex gap-3 mt-6">
-              <Button 
-                onClick={() => setWithdrawDialog(true)}
-                disabled={(profile?.balance || 0) < WITHDRAWAL_MIN}
-                variant="outline"
-                className="flex-1 gap-2"
-              >
-                <Wallet className="h-4 w-4" />
-                {t('profile.withdraw')}
-              </Button>
-              <Button 
-                onClick={handleShare} 
-                disabled={shareLoading}
-                className="flex-1 gap-2 bg-gradient-to-r from-primary to-primary/80"
-              >
-                <Share2 className="h-4 w-4" />
-                {shareLoading ? '...' : t('profile.invite')}
-              </Button>
-            </div>
-            
-            {(profile?.balance || 0) < WITHDRAWAL_MIN && (
-              <p className="text-xs text-muted-foreground text-center mt-3">
-                {t('profile.minWithdrawalNote', { min: formatPrice(WITHDRAWAL_MIN) })}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        
-        {/* Referral Program Status Card */}
-        {referralProgram && (
-          <Card className={
-            referralProgram.status === 'locked' 
-              ? "bg-gradient-to-r from-gray-500/10 to-gray-500/5 border-gray-500/20" 
-              : "bg-gradient-to-r from-green-500/10 to-emerald-500/5 border-green-500/20"
-          }>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  {referralProgram.status === 'locked' ? (
-                    <Lock className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                  )}
-                  <span className="font-semibold">
-                    {referralProgram.status === 'locked' 
-                      ? t('profile.programLocked')
-                      : t('profile.programActive')
-                    }
-                  </span>
-                  {referralProgram.status === 'active' && (
-                    <Badge variant="outline" className="ml-2 text-green-500 border-green-500/30">
-                      {t('profile.level')} {referralProgram.effective_level}
-                    </Badge>
-                  )}
-                </div>
-                {referralProgram.is_partner && (
-                  <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">
-                    <Star className="h-3 w-3 mr-1" /> Partner
-                  </Badge>
-                )}
-              </div>
-              
-              {/* State 0: Locked - No purchases yet */}
-              {referralProgram.status === 'locked' && (
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    {t('profile.makeFirstPurchaseInstant')}
-                  </p>
-                  <Button variant="outline" className="w-full gap-2" onClick={onBack}>
-                    <Gift className="h-4 w-4" />
-                    {t('profile.goToCatalog')}
-                  </Button>
-                </div>
-              )}
-              
-              {/* Active State - Level 1 instant, progress to Level 2/3 */}
-              {referralProgram.status === 'active' && (
-                <div className="space-y-3">
-                  {/* Current commissions info */}
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    <span className="px-2 py-1 rounded bg-green-500/10 text-green-500">
-                      L1: {referralProgram.commissions_percent?.level1 || 20}%
-                    </span>
-                    {referralProgram.level2_unlocked && (
-                      <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-500">
-                        L2: {referralProgram.commissions_percent?.level2 || 10}%
-                      </span>
-                    )}
-                    {referralProgram.level3_unlocked && (
-                      <span className="px-2 py-1 rounded bg-purple-500/10 text-purple-500">
-                        L3: {referralProgram.commissions_percent?.level3 || 5}%
-                      </span>
-                    )}
-                  </div>
-                  
-                  {/* Progress bar to next level */}
-                  {referralProgram.effective_level < 3 && referralProgram.next_threshold_usd && (
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground flex items-center gap-1">
-                          <DollarSign className="h-3 w-3" /> {t('profile.yourTurnover')}
-                        </span>
-                        <span className="font-bold text-green-500">
-                          ${referralProgram.turnover_usd?.toFixed(0) || 0} / ${referralProgram.next_threshold_usd}
-                        </span>
-                      </div>
-                      <div className="h-3 bg-secondary rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all"
-                          style={{ 
-                            width: `${Math.min(100, ((referralProgram.turnover_usd || 0) / referralProgram.next_threshold_usd) * 100)}%` 
-                          }}
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {t('profile.amountToNextLevel', { 
-                          level: referralProgram.effective_level + 1, 
-                          amount: `$${referralProgram.amount_to_next_level_usd?.toFixed(0) || 0}` 
-                        })}
-                      </p>
-                    </div>
-                  )}
-                  
-                  {referralProgram.effective_level >= 3 && (
-                    <p className="text-sm text-green-600 font-medium flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4" />
-                      {t('profile.maxLevelReached')}
-                    </p>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-        
-        {/* Referral Link */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium mb-1">{t('profile.yourReferralLink')}</p>
-                <p className="text-xs text-muted-foreground truncate font-mono">
-                  {`t.me/pvndora_ai_bot?start=ref_${user?.id}`}
-                </p>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleCopyLink} className="gap-2">
-                <Copy className="h-4 w-4" />
-                {t('leaderboard.copyLink')}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-        
-        {/* Referral Performance */}
-        {referralStats && (referralStats.level1_count > 0 || referralStats.active_referrals > 0) && (
-          <Card>
-            <CardContent className="p-4">
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                Эффективность
-              </h3>
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <p className="text-2xl font-bold text-primary">{referralStats.active_referrals || 0}</p>
-                  <p className="text-xs text-muted-foreground">Активных</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-green-500">{referralStats.conversion_rate || 0}%</p>
-                  <p className="text-xs text-muted-foreground">Конверсия</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{formatPrice(referralStats.avg_order_value || 0)}</p>
-                  <p className="text-xs text-muted-foreground">Ср. чек</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        {/* 3-Level Referral Stats with Visual States */}
-        <div className="space-y-3">
-          <h2 className="font-semibold flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" />
-            {t('profile.referralNetwork')}
-          </h2>
-          
-          <div className="grid gap-3">
-            {/* Level 1 - Instant unlock (no threshold) */}
-            <LevelCard 
-              level={1}
-              commission={`${referralProgram?.commissions_percent?.level1 || 20}%`}
-              threshold={0}  // Instant!
-              isUnlocked={referralProgram?.level1_unlocked}
-              isProgramLocked={referralProgram?.status === 'locked'}
-              count={referralStats?.level1_count || 0}
-              earnings={referralStats?.level1_earnings || 0}
-              formatPrice={formatPrice}
-              t={t}
-              color="green"
-              isInstant={true}
-            />
-            
-            {/* Level 2 - Dynamic threshold from settings */}
-            <LevelCard 
-              level={2}
-              commission={`${referralProgram?.commissions_percent?.level2 || 10}%`}
-              threshold={referralProgram?.thresholds_usd?.level2 || 250}
-              isUnlocked={referralProgram?.level2_unlocked}
-              isProgramLocked={referralProgram?.status === 'locked'}
-              count={referralStats?.level2_count || 0}
-              earnings={referralStats?.level2_earnings || 0}
-              formatPrice={formatPrice}
-              t={t}
-              color="blue"
-            />
-            
-            {/* Level 3 - Dynamic threshold from settings */}
-            <LevelCard 
-              level={3}
-              commission={`${referralProgram?.commissions_percent?.level3 || 5}%`}
-              threshold={referralProgram?.thresholds_usd?.level3 || 1000}
-              isUnlocked={referralProgram?.level3_unlocked}
-              isProgramLocked={referralProgram?.status === 'locked'}
-              count={referralStats?.level3_count || 0}
-              earnings={referralStats?.level3_earnings || 0}
-              formatPrice={formatPrice}
-              t={t}
-              color="purple"
-            />
-          </div>
-        </div>
-        
-        {/* Recent Bonuses */}
-        {bonusHistory.length > 0 && (
-          <div className="space-y-3">
-            <h2 className="font-semibold flex items-center gap-2">
-              <Gift className="h-4 w-4 text-primary" />
-              {t('profile.recentBonuses')}
-            </h2>
-            
-            <Card>
-              <CardContent className="p-0 divide-y divide-border">
-                {bonusHistory.slice(0, 5).map((bonus, i) => (
-                  <div key={i} className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className={
-                        bonus.level === 1 ? 'bg-green-500/10 text-green-500 border-green-500/20' :
-                        bonus.level === 2 ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
-                        'bg-purple-500/10 text-purple-500 border-purple-500/20'
-                      }>
-                        L{bonus.level}
-                      </Badge>
-                      <div>
-                        <p className="text-sm font-medium">{t('profile.referralBonus')}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(bonus.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="font-bold text-green-500">
-                      +{formatPrice(bonus.amount)}
+            {/* Balance Card (Glassmorphism + Neon) */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-primary/20 via-background to-background border border-primary/20 shadow-[0_0_30px_rgba(0,245,212,0.15)]"
+            >
+               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 blur-3xl rounded-full -mr-10 -mt-10 pointer-events-none" />
+               
+               <div className="p-6">
+                  <p className="text-sm text-muted-foreground mb-1">{t('profile.balance')}</p>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-400">
+                      {formatPrice(profile?.balance || 0)}
                     </span>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        )}
-        
-        {/* Withdrawal History */}
-        {withdrawals.length > 0 && (
-          <div className="space-y-3">
-            <h2 className="font-semibold flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              {t('profile.withdrawalHistory')}
-            </h2>
-            
-            <Card>
-              <CardContent className="p-0 divide-y divide-border">
-                {withdrawals.map((w, i) => (
-                  <div key={i} className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {getMethodIcon(w.payment_method)}
-                      <div>
-                        <p className="text-sm font-medium">{formatPrice(w.amount)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(w.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(w.status)}
-                      <Badge variant={
-                        w.status === 'completed' ? 'success' :
-                        w.status === 'rejected' ? 'destructive' :
-                        'secondary'
-                      }>
-                        {t(`profile.status.${w.status}`)}
-                      </Badge>
-                    </div>
+                  
+                  <div className="mt-6 grid grid-cols-2 gap-3">
+                     <Button 
+                        onClick={() => setWithdrawDialog(true)}
+                        disabled={(profile?.balance || 0) < WITHDRAWAL_MIN}
+                        className="bg-background/50 backdrop-blur-md border border-white/10 hover:bg-background/80 shadow-sm"
+                      >
+                        <Wallet className="h-4 w-4 mr-2" />
+                        {t('profile.withdraw')}
+                      </Button>
+                      <Button 
+                        onClick={handleShare}
+                        disabled={shareLoading}
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(0,245,212,0.4)]"
+                      >
+                        <Share2 className="h-4 w-4 mr-2" />
+                        {t('profile.invite')}
+                      </Button>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-        )}
-        
-        {/* Info Card */}
-        <Card className="bg-secondary/30 border-none">
-          <CardContent className="p-4">
-            <h3 className="font-medium mb-2">{t('profile.howItWorks')}</h3>
-            <ul className="text-sm text-muted-foreground space-y-2">
-              <li>• {t('profile.tip1')}</li>
-              <li>• {t('profile.tip2')}</li>
-              <li>• {t('profile.tip3')}</li>
-            </ul>
-          </CardContent>
-        </Card>
-        </>
+                  
+                  {(profile?.balance || 0) < WITHDRAWAL_MIN && (
+                     <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground opacity-70">
+                       <Lock className="h-3 w-3" />
+                       {t('profile.minWithdrawalNote', { min: formatPrice(WITHDRAWAL_MIN) })}
+                     </div>
+                  )}
+               </div>
+            </motion.div>
+
+            {/* Referral Stats Grid */}
+            <div className="grid grid-cols-3 gap-3">
+               <div className="bg-secondary/20 rounded-2xl p-3 text-center border border-white/5">
+                  <div className="text-xl font-bold text-foreground">{referralStats?.active_referrals || 0}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">Users</div>
+               </div>
+               <div className="bg-secondary/20 rounded-2xl p-3 text-center border border-white/5">
+                  <div className="text-xl font-bold text-green-500">{referralStats?.conversion_rate || 0}%</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">Conv.</div>
+               </div>
+               <div className="bg-secondary/20 rounded-2xl p-3 text-center border border-white/5">
+                  <div className="text-xl font-bold text-foreground">{formatPrice(referralStats?.avg_order_value || 0)}</div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">Avg.</div>
+               </div>
+            </div>
+
+            {/* Gamification Levels */}
+            <div className="space-y-4">
+               <div className="flex items-center justify-between px-1">
+                 <h2 className="font-bold flex items-center gap-2">
+                   <Trophy className="h-5 w-5 text-yellow-500" />
+                   {t('profile.referralNetwork')}
+                 </h2>
+                 <Badge variant="outline" className="bg-secondary/30 border-0">
+                    Level {referralProgram?.effective_level || 1}
+                 </Badge>
+               </div>
+               
+               <div className="space-y-3">
+                  <LevelCard 
+                    level={1}
+                    commission={`${referralProgram?.commissions_percent?.level1 || 20}%`}
+                    threshold={0}
+                    isUnlocked={referralProgram?.level1_unlocked}
+                    isProgramLocked={referralProgram?.status === 'locked'}
+                    count={referralStats?.level1_count || 0}
+                    earnings={referralStats?.level1_earnings || 0}
+                    formatPrice={formatPrice}
+                    t={t}
+                    color="green"
+                    isInstant={true}
+                  />
+                  <LevelCard 
+                    level={2}
+                    commission={`${referralProgram?.commissions_percent?.level2 || 10}%`}
+                    threshold={referralProgram?.thresholds_usd?.level2 || 250}
+                    isUnlocked={referralProgram?.level2_unlocked}
+                    isProgramLocked={referralProgram?.status === 'locked'}
+                    count={referralStats?.level2_count || 0}
+                    earnings={referralStats?.level2_earnings || 0}
+                    formatPrice={formatPrice}
+                    t={t}
+                    color="blue"
+                  />
+                  <LevelCard 
+                    level={3}
+                    commission={`${referralProgram?.commissions_percent?.level3 || 5}%`}
+                    threshold={referralProgram?.thresholds_usd?.level3 || 1000}
+                    isUnlocked={referralProgram?.level3_unlocked}
+                    isProgramLocked={referralProgram?.status === 'locked'}
+                    count={referralStats?.level3_count || 0}
+                    earnings={referralStats?.level3_earnings || 0}
+                    formatPrice={formatPrice}
+                    t={t}
+                    color="purple"
+                  />
+               </div>
+            </div>
+            
+            {/* Copy Link */}
+            <div className="bg-secondary/20 rounded-2xl p-4 flex items-center justify-between gap-4 border border-white/5">
+               <div className="min-w-0">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">{t('profile.yourReferralLink')}</p>
+                  <p className="text-sm font-mono truncate opacity-80">t.me/pvndora_bot?start=ref_{user?.id}</p>
+               </div>
+               <Button variant="secondary" size="icon" onClick={handleCopyLink} className="shrink-0 rounded-xl">
+                  <Copy className="h-4 w-4" />
+               </Button>
+            </div>
+          </>
         )}
       </div>
-      
+
       {/* Withdrawal Dialog */}
       <Dialog open={withdrawDialog} onOpenChange={setWithdrawDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-xl border-white/10">
           <DialogHeader>
             <DialogTitle>{t('profile.withdrawTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('profile.withdrawDescription')}
-            </DialogDescription>
+            <DialogDescription>{t('profile.withdrawDescription')}</DialogDescription>
           </DialogHeader>
-          
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>{t('profile.amount')}</Label>
-              <Input
-                type="number"
-                placeholder={formatPrice(WITHDRAWAL_MIN)}
-                value={withdrawAmount}
-                onChange={(e) => setWithdrawAmount(e.target.value)}
-                min={WITHDRAWAL_MIN}
-                max={profile?.balance || 0}
-              />
-              <p className="text-xs text-muted-foreground">
+              <div className="relative">
+                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                 <Input
+                  type="number"
+                  className="pl-8"
+                  placeholder={formatPrice(WITHDRAWAL_MIN)}
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-right text-muted-foreground">
                 {t('profile.available')}: {formatPrice(profile?.balance || 0)}
               </p>
             </div>
@@ -707,15 +433,17 @@ export default function ProfilePage({ onBack }) {
               <Label>{t('profile.paymentMethod')}</Label>
               <div className="grid grid-cols-3 gap-2">
                 {['card', 'phone', 'crypto'].map((method) => (
-                  <Button
+                  <button
                     key={method}
-                    variant={withdrawMethod === method ? 'default' : 'outline'}
                     onClick={() => setWithdrawMethod(method)}
-                    className="h-12 flex-col gap-1"
+                    className={cn(
+                      "flex flex-col items-center gap-2 p-3 rounded-xl border transition-all",
+                      withdrawMethod === method ? "bg-primary/10 border-primary text-primary" : "bg-secondary/30 border-transparent hover:bg-secondary/50"
+                    )}
                   >
                     {getMethodIcon(method)}
-                    <span className="text-xs">{t(`profile.method.${method}`)}</span>
-                  </Button>
+                    <span className="text-[10px] font-medium uppercase">{t(`profile.method.${method}`)}</span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -723,22 +451,15 @@ export default function ProfilePage({ onBack }) {
             <div className="space-y-2">
               <Label>{t('profile.paymentDetails')}</Label>
               <Input
-                placeholder={
-                  withdrawMethod === 'card' ? '4276 **** **** ****' :
-                  withdrawMethod === 'phone' ? '+7 (***) ***-**-**' :
-                  'TRC20 / BTC address'
-                }
+                placeholder={withdrawMethod === 'card' ? '4276 **** **** ****' : withdrawMethod === 'phone' ? '+7 900 000 00 00' : 'Wallet Address'}
                 value={withdrawDetails}
                 onChange={(e) => setWithdrawDetails(e.target.value)}
               />
             </div>
           </div>
-          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setWithdrawDialog(false)}>
-              {t('common.cancel')}
-            </Button>
-            <Button onClick={handleWithdraw} disabled={submitting}>
+            <Button variant="ghost" onClick={() => setWithdrawDialog(false)}>{t('common.cancel')}</Button>
+            <Button onClick={handleWithdraw} disabled={submitting} className="bg-primary text-black hover:bg-primary/90">
               {submitting ? t('common.loading') : t('profile.requestWithdrawal')}
             </Button>
           </DialogFooter>
@@ -747,4 +468,3 @@ export default function ProfilePage({ onBack }) {
     </div>
   )
 }
-
