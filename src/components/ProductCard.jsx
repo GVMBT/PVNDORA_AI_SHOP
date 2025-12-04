@@ -6,22 +6,23 @@ import { Badge } from './ui/badge'
 import { cn } from '../lib/utils'
 import { motion } from 'framer-motion'
 
-const GRADIENTS = [
-  'from-blue-600 via-indigo-500 to-purple-600',
-  'from-emerald-500 via-teal-500 to-cyan-500',
-  'from-orange-500 via-amber-500 to-yellow-500',
-  'from-pink-500 via-rose-500 to-red-500',
-  'from-fuchsia-600 via-purple-600 to-indigo-600',
-  'from-sky-500 via-blue-500 to-indigo-500',
+// Dark elegant textures with subtle accents
+const TEXTURES = [
+  { bg: 'from-zinc-800 via-zinc-900 to-neutral-900', accent: 'cyan' },
+  { bg: 'from-slate-800 via-slate-900 to-zinc-900', accent: 'emerald' },
+  { bg: 'from-neutral-800 via-stone-900 to-zinc-900', accent: 'amber' },
+  { bg: 'from-gray-800 via-zinc-900 to-slate-900', accent: 'purple' },
+  { bg: 'from-stone-800 via-neutral-900 to-zinc-900', accent: 'rose' },
+  { bg: 'from-zinc-800 via-gray-900 to-neutral-900', accent: 'blue' },
 ]
 
-function getGradient(str) {
+function getTexture(str) {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  const index = Math.abs(hash) % GRADIENTS.length;
-  return GRADIENTS[index];
+  const index = Math.abs(hash) % TEXTURES.length;
+  return TEXTURES[index];
 }
 
 export default function ProductCard({ product, socialProof, onClick }) {
@@ -42,7 +43,7 @@ export default function ProductCard({ product, socialProof, onClick }) {
   const hasDiscount = discount_percent > 0
   const isInStock = available_count > 0
   
-  const gradientClass = useMemo(() => getGradient(name), [name])
+  const texture = useMemo(() => getTexture(name), [name])
 
   return (
     <motion.div
@@ -57,10 +58,23 @@ export default function ProductCard({ product, socialProof, onClick }) {
         className="relative overflow-hidden border-0 h-full flex flex-col bg-card/40 backdrop-blur-md ring-1 ring-white/10 shadow-xl cursor-pointer group"
         onClick={() => onClick(id)}
       >
-        {/* Generative Art Header */}
-        <div className={cn("h-32 w-full relative bg-gradient-to-br p-4", gradientClass)}>
-          <div className="absolute inset-0 bg-black/10" />
-          <div className="absolute inset-0 bg-[url('/noise.png')] opacity-20 mix-blend-overlay" />
+        {/* Elegant Dark Header with subtle pattern */}
+        <div className={cn("h-32 w-full relative bg-gradient-to-br p-4", texture.bg)}>
+          {/* Grid pattern overlay */}
+          <div className="absolute inset-0 opacity-[0.03]" style={{
+            backgroundImage: 'linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)',
+            backgroundSize: '20px 20px'
+          }} />
+          {/* Subtle accent glow */}
+          <div className={cn(
+            "absolute -bottom-10 -right-10 w-40 h-40 rounded-full blur-3xl opacity-20",
+            texture.accent === 'cyan' && 'bg-cyan-500',
+            texture.accent === 'emerald' && 'bg-emerald-500',
+            texture.accent === 'amber' && 'bg-amber-500',
+            texture.accent === 'purple' && 'bg-purple-500',
+            texture.accent === 'rose' && 'bg-rose-500',
+            texture.accent === 'blue' && 'bg-blue-500',
+          )} />
           
           {/* Badges */}
           <div className="relative z-10 flex justify-between items-start">

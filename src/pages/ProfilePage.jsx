@@ -20,7 +20,6 @@ import {
   Lock,
   DollarSign,
   Star,
-  Settings,
   Trophy
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
@@ -242,12 +241,9 @@ export default function ProfilePage({ onBack }) {
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-500/10 via-background to-background pointer-events-none z-0" />
 
       {/* Header */}
-      <div className="sticky top-0 z-20 p-4 flex justify-between items-center">
+      <div className="sticky top-0 z-20 p-4">
         <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 rounded-full bg-secondary/30 backdrop-blur-md">
           <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-secondary/30 backdrop-blur-md">
-          <Settings className="h-5 w-5" />
         </Button>
       </div>
       

@@ -53,6 +53,7 @@ export default function App() {
   const [productId, setProductId] = useState(null)
   const [initialQuantity, setInitialQuantity] = useState(1)
   const [webUser, setWebUser] = useState(null)
+  const [showLoginModal, setShowLoginModal] = useState(false)
   
   // Check for existing web session
   useEffect(() => {
@@ -237,14 +238,30 @@ export default function App() {
     }
   }
   
+  // Handle login callback
+  const handleWebLogin = (userData, token) => {
+    setWebUser(userData)
+    setShowLoginModal(false)
+  }
+  
   // Desktop layout for web users on large screens
   if (isWebMode() && isDesktop()) {
+    // Show login modal if requested
+    if (showLoginModal) {
+      return (
+        <LoginPage 
+          onLogin={handleWebLogin}
+        />
+      )
+    }
+    
     return (
       <DesktopLayout
         currentPage={currentPage}
         onNavigate={navigateTo}
         isAdmin={webUser?.is_admin || isAdmin}
         user={webUser}
+        onLogin={() => setShowLoginModal(true)}
       >
         <AnimatePresence mode="wait">
           <motion.div

@@ -47,6 +47,7 @@ export default function CatalogPage({ onProductClick }) {
   const categories = [
     { id: 'all', label: t('catalog.all') },
     { id: 'subscription', label: t('catalog.subscription') },
+    { id: 'shared', label: 'Shared' },
     { id: 'key', label: t('catalog.key') }
   ]
 

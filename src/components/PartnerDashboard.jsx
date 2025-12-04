@@ -235,7 +235,7 @@ export default function PartnerDashboard({ profile, referralLink, onWithdraw, on
                 <p className="text-xs text-muted-foreground truncate">
                   {discountMode 
                     ? '15% скидка рефералам' 
-                    : 'Вы получаете %'}
+                    : 'Комиссия с покупок'}
                 </p>
               </div>
             </div>
