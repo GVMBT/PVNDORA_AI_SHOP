@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { useAdminApi } from '../hooks/useAdminApi'
+import { useAdmin } from '../hooks/useAdmin'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
 import {
@@ -42,12 +42,18 @@ import {
 } from '../components/ui/select'
 
 export default function AdminReferralPage({ onBack }) {
-  const { get, put, post, loading } = useAdminApi()
+  const { 
+    loading, 
+    getReferralSettings, 
+    updateReferralSettings, 
+    getReferralDashboard, 
+    getReferralPartnersCRM,
+    setPartner 
+  } = useAdmin()
   const { formatPrice } = useLocale()
   const { setBackButton, showPopup, hapticFeedback } = useTelegram()
   
   const [activeTab, setActiveTab] = useState('dashboard')
-  const [settings, setSettings] = useState(null)
   const [dashboard, setDashboard] = useState(null)
   const [partners, setPartners] = useState([])
   const [totalPartners, setTotalPartners] = useState(0)
@@ -56,7 +62,6 @@ export default function AdminReferralPage({ onBack }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [saving, setSaving] = useState(false)
   const [partnerDialog, setPartnerDialog] = useState(false)
-  const [selectedPartner, setSelectedPartner] = useState(null)
   const [newPartnerTelegramId, setNewPartnerTelegramId] = useState('')
   const [newPartnerLevel, setNewPartnerLevel] = useState('3')
   
@@ -91,8 +96,8 @@ export default function AdminReferralPage({ onBack }) {
   const loadData = async () => {
     try {
       const [settingsData, dashboardData] = await Promise.all([
-        get('/referral/settings'),
-        get('/referral/dashboard')
+        getReferralSettings(),
+        getReferralDashboard()
       ])
       
       setSettings(settingsData.settings)
@@ -115,18 +120,18 @@ export default function AdminReferralPage({ onBack }) {
   
   const loadPartners = useCallback(async () => {
     try {
-      const data = await get(`/referral/partners-crm?sort_by=${sortBy}&sort_order=${sortOrder}&limit=50`)
+      const data = await getReferralPartnersCRM(sortBy, sortOrder, 50)
       setPartners(data.partners || [])
       setTotalPartners(data.total || 0)
     } catch (err) {
       console.error('Failed to load partners:', err)
     }
-  }, [get, sortBy, sortOrder])
+  }, [getReferralPartnersCRM, sortBy, sortOrder])
   
   const handleSaveSettings = async () => {
     setSaving(true)
     try {
-      await put('/referral/settings', {
+      await updateReferralSettings({
         level2_threshold_usd: parseFloat(formSettings.level2_threshold),
         level3_threshold_usd: parseFloat(formSettings.level3_threshold),
         level1_commission_percent: parseFloat(formSettings.level1_commission),
@@ -153,7 +158,7 @@ export default function AdminReferralPage({ onBack }) {
     }
   }
   
-  const handleSetPartner = async () => {
+  const handleSetPartnerSubmit = async () => {
     if (!newPartnerTelegramId) {
       showPopup({
         title: '❌',
@@ -164,7 +169,7 @@ export default function AdminReferralPage({ onBack }) {
     }
     
     try {
-      await post('/partners/set', {
+      await setPartner({
         telegram_id: parseInt(newPartnerTelegramId),
         is_partner: true,
         level_override: parseInt(newPartnerLevel)
@@ -192,7 +197,7 @@ export default function AdminReferralPage({ onBack }) {
   
   const handleUpdatePartnerLevel = async (partner, newLevel) => {
     try {
-      await post('/partners/set', {
+      await setPartner({
         telegram_id: partner.telegram_id,
         is_partner: true,
         level_override: parseInt(newLevel)
@@ -637,7 +642,7 @@ export default function AdminReferralPage({ onBack }) {
             <Button variant="outline" onClick={() => setPartnerDialog(false)}>
               Отмена
             </Button>
-            <Button onClick={handleSetPartner}>
+            <Button onClick={handleSetPartnerSubmit}>
               Добавить
             </Button>
           </DialogFooter>

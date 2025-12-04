@@ -132,11 +132,27 @@ export function useAdmin() {
       body: JSON.stringify({ telegram_id: telegramId, ban })
     }), [adminRequest])
 
+  // Referral System
+  const getReferralSettings = useCallback(() => adminRequest('/referral/settings'), [adminRequest])
+  const updateReferralSettings = useCallback((data) => adminRequest('/referral/settings', {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }), [adminRequest])
+  const getReferralDashboard = useCallback(() => adminRequest('/referral/dashboard'), [adminRequest])
+  const getReferralPartnersCRM = useCallback((sortBy = 'referral_revenue', sortOrder = 'desc', limit = 50) => 
+    adminRequest(`/referral/partners-crm?sort_by=${sortBy}&sort_order=${sortOrder}&limit=${limit}`), [adminRequest])
+  const getPartners = useCallback(() => adminRequest('/partners'), [adminRequest])
+  const setPartner = useCallback((data) => adminRequest('/partners/set', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }), [adminRequest])
+
   return {
     isAdmin,
     checking,
     loading,
     error,
+    adminRequest,
     // Products
     getProducts,
     createProduct,
@@ -157,7 +173,14 @@ export function useAdmin() {
     createFAQ,
     // Users
     getUsers,
-    banUser
+    banUser,
+    // Referral
+    getReferralSettings,
+    updateReferralSettings,
+    getReferralDashboard,
+    getReferralPartnersCRM,
+    getPartners,
+    setPartner
   }
 }
 
