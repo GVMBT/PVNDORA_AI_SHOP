@@ -168,10 +168,14 @@ async def telegram_login_widget_auth(data: TelegramLoginData):
     }
 
 
+class SessionTokenRequest(BaseModel):
+    session_token: str
+
+
 @router.post("/auth/verify-session")
-async def verify_web_session(session_token: str):
+async def verify_web_session(data: SessionTokenRequest):
     """Verify a web session token."""
-    session = _web_sessions.get(session_token)
+    session = _web_sessions.get(data.session_token)
     
     if not session:
         raise HTTPException(status_code=401, detail="Invalid session")
@@ -179,7 +183,7 @@ async def verify_web_session(session_token: str):
     # Check expiration
     expires_at = datetime.fromisoformat(session["expires_at"])
     if datetime.now(timezone.utc) > expires_at:
-        del _web_sessions[session_token]
+        del _web_sessions[data.session_token]
         raise HTTPException(status_code=401, detail="Session expired")
     
     return {

@@ -309,9 +309,9 @@ export default function ProfilePage({ onBack }) {
   const isPartner = profile?.is_partner || referralProgram?.is_partner
   
   return (
-    <div className="pb-24">
+    <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50 p-4">
+      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50 p-4 flex-shrink-0">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8 rounded-full">
             <ArrowLeft className="h-5 w-5" />
@@ -328,7 +328,7 @@ export default function ProfilePage({ onBack }) {
         </div>
       </div>
       
-      <div className="p-4 space-y-6">
+      <div className="p-4 pb-24 space-y-6 flex-1 overflow-y-auto">
         {/* VIP Partner Dashboard - completely different UI */}
         {isPartner ? (
           <PartnerDashboard 

@@ -888,12 +888,18 @@ async def admin_set_partner(request: SetPartnerRequest, admin=Depends(verify_adm
     result = await asyncio.to_thread(
         lambda: db.client.rpc("admin_set_partner_level", {
             "p_user_id": user_id,
-            "p_level": request.level_override or 0,
+            "p_level": request.level_override if request.level_override is not None else 0,
             "p_is_partner": request.is_partner
         }).execute()
     )
     
-    if result.data and result.data.get("success"):
+    # Supabase RPC returns the JSONB result directly in result.data
+    # Handle both array and direct object formats
+    rpc_result = result.data
+    if isinstance(rpc_result, list):
+        rpc_result = rpc_result[0] if rpc_result else {}
+    
+    if rpc_result and rpc_result.get("success"):
         return {
             "success": True,
             "user_id": user_id,
@@ -902,7 +908,8 @@ async def admin_set_partner(request: SetPartnerRequest, admin=Depends(verify_adm
             "level_override": request.level_override
         }
     
-    raise HTTPException(status_code=500, detail=result.data.get("error", "Failed to update partner status"))
+    error_msg = rpc_result.get("error", "Failed to update partner status") if rpc_result else "No response from database"
+    raise HTTPException(status_code=500, detail=error_msg)
 
 
 # ==================== PARTNER APPLICATIONS ====================
