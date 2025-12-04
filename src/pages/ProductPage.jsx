@@ -4,7 +4,6 @@ import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
 import StarRating from '../components/StarRating'
 import { 
-  ArrowLeft, 
   Star, 
   Clock, 
   Package, 
@@ -19,7 +18,6 @@ import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Skeleton } from '../components/ui/skeleton'
 import { Card, CardContent } from '../components/ui/card'
-import { Separator } from '../components/ui/separator'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 
@@ -44,7 +42,7 @@ function getGradient(str) {
 
 export default function ProductPage({ productId, onBack, onCheckout }) {
   const { getProduct, loading, error } = useProducts()
-  const { t, formatPrice, formatDate } = useLocale()
+  const { t, formatPrice } = useLocale()
   const { setBackButton, hapticFeedback } = useTelegram()
   
   const [product, setProduct] = useState(null)
@@ -62,6 +60,7 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
     return () => {
       setBackButton({ isVisible: false })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId])
   
   const loadProduct = async () => {
@@ -129,7 +128,6 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
   
   const hasDiscount = discount_percent > 0
   const isInStock = available_count > 0
-  const savings = msrp && final_price ? msrp - final_price : 0
   
   return (
     <div className="pb-32 bg-background min-h-screen">

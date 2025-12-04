@@ -11,31 +11,35 @@ import {
   Share2,
   Star,
   RefreshCw,
-  ChevronRight,
   UserCheck,
-  ShoppingBag,
   BarChart3,
   Percent,
-  Calendar
+  Gift,
+  Coins,
+  ArrowLeftRight,
+  Info
 } from 'lucide-react'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card'
 import { Badge } from './ui/badge'
 import { Skeleton } from './ui/skeleton'
-import { Separator } from './ui/separator'
+import { Switch } from './ui/switch'
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip'
 
 /**
  * Partner Dashboard - VIP Partner exclusive view
  * Shows extended analytics, referral list, earnings chart
  */
 export default function PartnerDashboard({ profile, referralLink, onWithdraw, onShare }) {
-  const { get } = useApi()
+  const { get, post } = useApi()
   const { formatPrice, t } = useLocale()
   const { hapticFeedback, showPopup } = useTelegram()
   
   const [dashboard, setDashboard] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [discountMode, setDiscountMode] = useState(false)
+  const [togglingMode, setTogglingMode] = useState(false)
   
   const loadDashboard = useCallback(async () => {
     setLoading(true)
@@ -44,6 +48,8 @@ export default function PartnerDashboard({ profile, referralLink, onWithdraw, on
     try {
       const data = await get('/partner/dashboard')
       setDashboard(data)
+      // Set discount mode from profile data
+      setDiscountMode(data?.partner_mode === 'discount')
     } catch (err) {
       console.error('Failed to load partner dashboard:', err)
       setError(err.message || 'Ошибка загрузки')
@@ -55,6 +61,43 @@ export default function PartnerDashboard({ profile, referralLink, onWithdraw, on
   useEffect(() => {
     loadDashboard()
   }, [loadDashboard])
+  
+  // Toggle discount mode vs commission mode
+  const handleToggleMode = async () => {
+    const newMode = !discountMode
+    setTogglingMode(true)
+    
+    // Optimistic update
+    setDiscountMode(newMode)
+    hapticFeedback('impact', 'medium')
+    
+    try {
+      await post('/partner/mode', {
+        mode: newMode ? 'discount' : 'commission',
+        discount_percent: newMode ? 15 : 0
+      })
+      
+      hapticFeedback('notification', 'success')
+      showPopup({
+        title: newMode ? '🎁' : '💰',
+        message: newMode 
+          ? 'Режим скидок активирован. Ваши рефералы получат 15% скидку на все покупки!' 
+          : 'Режим комиссий активирован. Вы будете получать вознаграждения за покупки рефералов.',
+        buttons: [{ type: 'ok' }]
+      })
+    } catch (err) {
+      // Rollback
+      setDiscountMode(!newMode)
+      hapticFeedback('notification', 'error')
+      showPopup({
+        title: '❌',
+        message: err.message || 'Ошибка переключения режима',
+        buttons: [{ type: 'ok' }]
+      })
+    } finally {
+      setTogglingMode(false)
+    }
+  }
   
   const handleCopyLink = async () => {
     try {
@@ -155,6 +198,62 @@ export default function PartnerDashboard({ profile, referralLink, onWithdraw, on
         </CardContent>
       </Card>
       
+      {/* Partner Mode Switch */}
+      <Card className="border-dashed">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg transition-colors ${
+                discountMode 
+                  ? 'bg-amber-500/20' 
+                  : 'bg-green-500/20'
+              }`}>
+                {discountMode ? (
+                  <Gift className="h-5 w-5 text-amber-500" />
+                ) : (
+                  <Coins className="h-5 w-5 text-green-500" />
+                )}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-sm">
+                    {discountMode ? 'Режим скидок' : 'Режим комиссий'}
+                  </p>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[250px]">
+                      <p className="text-xs">
+                        {discountMode 
+                          ? 'Вы отказались от комиссий. Ваши рефералы получают 15% скидку на все товары.'
+                          : 'Вы получаете комиссию с покупок рефералов. Переключите, чтобы дать им скидку.'}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {discountMode 
+                    ? 'Рефералы получают 15% скидку' 
+                    : 'Вы получаете комиссию'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                {discountMode ? '🎁' : '💰'}
+              </span>
+              <Switch
+                checked={discountMode}
+                onCheckedChange={handleToggleMode}
+                disabled={togglingMode}
+                className={discountMode ? 'bg-amber-500' : ''}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Key Metrics Grid */}
       <div className="grid grid-cols-2 gap-3">
         <Card className="bg-gradient-to-br from-green-500/10 to-transparent border-green-500/20">

@@ -89,12 +89,8 @@ async def telegram_login_widget_auth(data: TelegramLoginData):
             language_code="en"
         )
     
-    # Check if admin (required for web access)
-    if not db_user.is_admin:
-        raise HTTPException(
-            status_code=403, 
-            detail="Web access is only available for administrators. Please use the Telegram Mini App."
-        )
+    # Web access is available for all users (desktop version)
+    # Admins get full access, regular users get read-only access
     
     # Create session token
     session_token = secrets.token_urlsafe(32)

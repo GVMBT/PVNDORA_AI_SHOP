@@ -322,9 +322,9 @@ export default function AdminReferralPage({ onBack }) {
     const wasVIP = partner.status === 'VIP'
     const newIsPartner = !wasVIP
     
-    // Optimistic update
+    // Optimistic update - use 'Regular' to match API response format
     updatePartnerOptimistically(partner.user_id, { 
-      status: newIsPartner ? 'VIP' : 'Active',
+      status: newIsPartner ? 'VIP' : 'Regular',
       effective_level: newIsPartner ? 3 : partner.effective_level,
       _loading: true
     })
@@ -351,9 +351,9 @@ export default function AdminReferralPage({ onBack }) {
       // Refresh dashboard metrics
       loadData()
     } catch (err) {
-      // Rollback on error
+      // Rollback on error - use 'Regular' to match API response format
       updatePartnerOptimistically(partner.user_id, { 
-        status: wasVIP ? 'VIP' : 'Active',
+        status: wasVIP ? 'VIP' : 'Regular',
         effective_level: partner.effective_level,
         _loading: false 
       })
@@ -423,9 +423,9 @@ export default function AdminReferralPage({ onBack }) {
   }
   
   return (
-    <div className="min-h-screen flex flex-col">
+    <div>
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50 p-4 flex-shrink-0">
+      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50 p-4">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8 rounded-full">
             <ArrowLeft className="h-5 w-5" />
@@ -437,7 +437,7 @@ export default function AdminReferralPage({ onBack }) {
         </div>
       </div>
       
-      <div className="p-4 pb-24 flex-1 overflow-y-auto">
+      <div className="p-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="dashboard" className="gap-2">

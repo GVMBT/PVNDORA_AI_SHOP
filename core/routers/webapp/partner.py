@@ -9,9 +9,17 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, HTTPException, Depends
 
+from pydantic import BaseModel
+from typing import Optional
+
 from src.services.database import get_database
 from core.auth import verify_telegram_auth
 from .models import PartnerApplicationRequest
+
+
+class PartnerModeRequest(BaseModel):
+    mode: str  # 'commission' or 'discount'
+    discount_percent: Optional[int] = 15
 
 router = APIRouter(tags=["webapp-partner"])
 
@@ -122,6 +130,10 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
     paying_referrals = sum(1 for r in referrals if r.get("is_paying"))
     conversion_rate = (paying_referrals / total_referrals * 100) if total_referrals > 0 else 0
     
+    # Get partner mode
+    partner_mode = getattr(db_user, 'partner_mode', 'commission') or 'commission'
+    partner_discount_percent = getattr(db_user, 'partner_discount_percent', 0) or 0
+    
     return {
         "summary": {
             "balance": float(db_user.balance) if db_user.balance else 0,
@@ -135,8 +147,67 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
         "referrals": referrals,
         "earnings_history": earnings_history,
         "top_products": top_products,
-        "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{user.id}"
+        "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{user.id}",
+        "partner_mode": partner_mode,
+        "partner_discount_percent": partner_discount_percent
     }
+
+
+@router.post("/partner/mode")
+async def set_partner_mode(request: PartnerModeRequest, user=Depends(verify_telegram_auth)):
+    """
+    Toggle partner mode between commission and discount.
+    
+    In discount mode:
+    - Partner gives up commission earnings
+    - Their level 1 referrals get a discount (default 15%) on all purchases
+    
+    In commission mode:
+    - Partner receives commission on referral purchases
+    - Referrals pay normal prices
+    """
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Must be a partner
+    is_partner = getattr(db_user, 'is_partner', False)
+    if not is_partner:
+        raise HTTPException(status_code=403, detail="Partner access required")
+    
+    # Validate mode
+    if request.mode not in ['commission', 'discount']:
+        raise HTTPException(status_code=400, detail="Mode must be 'commission' or 'discount'")
+    
+    # Validate discount percent
+    discount_percent = 0
+    if request.mode == 'discount':
+        discount_percent = min(max(request.discount_percent or 15, 5), 25)  # 5-25% range
+    
+    # Update user
+    try:
+        result = await asyncio.to_thread(
+            lambda: db.client.table("users").update({
+                "partner_mode": request.mode,
+                "partner_discount_percent": discount_percent
+            }).eq("id", db_user.id).execute()
+        )
+        
+        if not result.data:
+            raise HTTPException(status_code=500, detail="Failed to update partner mode")
+        
+        return {
+            "success": True,
+            "mode": request.mode,
+            "discount_percent": discount_percent,
+            "message": "Режим скидок активирован" if request.mode == 'discount' else "Режим комиссий активирован"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR: Failed to update partner mode: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update partner mode")
 
 
 @router.post("/partner/apply")

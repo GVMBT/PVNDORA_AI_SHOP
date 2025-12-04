@@ -237,9 +237,9 @@ export default function ProfilePage({ onBack }) {
   const isPartner = profile?.is_partner || referralProgram?.is_partner
   
   return (
-    <div className="min-h-screen bg-background pb-24 relative overflow-hidden">
+    <div className="bg-background relative">
       {/* Ambient Background */}
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-500/10 via-background to-background pointer-events-none" />
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-500/10 via-background to-background pointer-events-none z-0" />
 
       {/* Header */}
       <div className="sticky top-0 z-20 p-4 flex justify-between items-center">
