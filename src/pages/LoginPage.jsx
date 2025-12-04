@@ -66,8 +66,15 @@ export default function LoginPage({ onLogin, botUsername = 'pvndora_ai_bot' }) {
         localStorage.setItem('pvndora_session', session_token)
         localStorage.setItem('pvndora_user', JSON.stringify(userData))
         
-        // Notify parent
+        // Notify parent and redirect
         onLogin?.(userData, session_token)
+        
+        // Redirect to admin page after successful login
+        if (userData.is_admin) {
+          window.location.href = '/#admin'
+        } else {
+          window.location.href = '/#catalog'
+        }
       } catch (err) {
         console.error('Auth error:', err)
         setError(err.message)

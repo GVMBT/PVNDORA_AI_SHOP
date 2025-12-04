@@ -10,11 +10,25 @@ export function useApi() {
   const [error, setError] = useState(null)
   
   const getHeaders = useCallback(() => {
-    const initData = window.Telegram?.WebApp?.initData || ''
-    return {
-      'Content-Type': 'application/json',
-      'X-Init-Data': initData
+    const headers = {
+      'Content-Type': 'application/json'
     }
+    
+    // Try Telegram initData first (Mini App)
+    const initData = window.Telegram?.WebApp?.initData || ''
+    if (initData) {
+      headers['X-Init-Data'] = initData
+    } else {
+      // Fallback to Bearer token (web session)
+      const sessionToken = typeof window !== 'undefined' && window.localStorage 
+        ? window.localStorage.getItem('pvndora_session')
+        : null
+      if (sessionToken) {
+        headers['Authorization'] = `Bearer ${sessionToken}`
+      }
+    }
+    
+    return headers
   }, [])
   
   const request = useCallback(async (endpoint, options = {}) => {

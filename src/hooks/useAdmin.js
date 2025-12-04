@@ -8,17 +8,73 @@ export function useAdmin() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [checking, setChecking] = useState(true)
 
+  const checkAdminStatus = useCallback(async () => {
+    if (typeof window === 'undefined') {
+      setChecking(false)
+      return
+    }
+    
+    try {
+      const headers = {
+        'Content-Type': 'application/json'
+      }
+      
+      // Try Telegram initData first (Mini App)
+      const initData = window.Telegram?.WebApp?.initData || ''
+      if (initData) {
+        headers['X-Init-Data'] = initData
+      } else {
+        // Fallback to Bearer token (web session)
+        const sessionToken = window.localStorage?.getItem('pvndora_session')
+        if (sessionToken) {
+          headers['Authorization'] = `Bearer ${sessionToken}`
+        }
+      }
+      
+      const response = await fetch('/api/webapp/profile', { headers })
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Admin check failed:', response.status, errorText)
+        throw new Error(`HTTP ${response.status}`)
+      }
+      
+      const data = await response.json()
+      console.log('Admin profile check:', data.profile)
+      setIsAdmin(data.profile?.is_admin === true)
+    } catch (err) {
+      console.error('Failed to check admin status:', err)
+      setIsAdmin(false)
+    } finally {
+      setChecking(false)
+    }
+  }, [])
+
   // Check admin status on mount
   useEffect(() => {
     checkAdminStatus()
-  }, [])
+  }, [checkAdminStatus])
 
   const getHeaders = useCallback(() => {
-    const initData = window.Telegram?.WebApp?.initData || ''
-    return {
-      'Content-Type': 'application/json',
-      'X-Init-Data': initData
+    const headers = {
+      'Content-Type': 'application/json'
     }
+    
+    // Try Telegram initData first (Mini App)
+    const initData = typeof window !== 'undefined' && window.Telegram?.WebApp?.initData || ''
+    if (initData) {
+      headers['X-Init-Data'] = initData
+    } else {
+      // Fallback to Bearer token (web session)
+      const sessionToken = typeof window !== 'undefined' && window.localStorage 
+        ? window.localStorage.getItem('pvndora_session')
+        : null
+      if (sessionToken) {
+        headers['Authorization'] = `Bearer ${sessionToken}`
+      }
+    }
+    
+    return headers
   }, [])
 
   const adminRequest = useCallback(async (endpoint, options = {}) => {
@@ -50,33 +106,6 @@ export function useAdmin() {
       throw err
     }
   }, [getHeaders])
-
-  const checkAdminStatus = useCallback(async () => {
-    try {
-      const initData = window.Telegram?.WebApp?.initData || ''
-      const response = await fetch('/api/webapp/profile', {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Init-Data': initData
-        }
-      })
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Admin check failed:', response.status, errorText)
-        throw new Error(`HTTP ${response.status}`)
-      }
-      
-      const data = await response.json()
-      console.log('Admin profile check:', data.profile)
-      setIsAdmin(data.profile?.is_admin === true)
-    } catch (err) {
-      console.error('Failed to check admin status:', err)
-      setIsAdmin(false)
-    } finally {
-      setChecking(false)
-    }
-  }, [])
 
   // Products
   const getProducts = useCallback(() => adminRequest('/products'), [adminRequest])

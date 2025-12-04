@@ -6,18 +6,15 @@ Web authentication via Telegram Login Widget for desktop/web access.
 import os
 import hmac
 import hashlib
-import secrets
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, HTTPException
 
 from src.services.database import get_database
+from core.auth import create_web_session
 from .models import TelegramLoginData, SessionTokenRequest
 
 router = APIRouter(tags=["webapp-auth"])
-
-# Session tokens for web login (in-memory for simplicity, use Redis in production)
-_web_sessions = {}
 
 
 def verify_telegram_login_hash(data: dict, bot_token: str) -> bool:
@@ -92,16 +89,13 @@ async def telegram_login_widget_auth(data: TelegramLoginData):
     # Web access is available for all users (desktop version)
     # Admins get full access, regular users get read-only access
     
-    # Create session token
-    session_token = secrets.token_urlsafe(32)
-    _web_sessions[session_token] = {
-        "user_id": str(db_user.id),
-        "telegram_id": data.id,
-        "username": data.username,
-        "is_admin": db_user.is_admin,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
-    }
+    # Create session token using unified auth module
+    session_token = create_web_session(
+        user_id=str(db_user.id),
+        telegram_id=data.id,
+        username=data.username,
+        is_admin=db_user.is_admin
+    )
     
     return {
         "session_token": session_token,
@@ -115,18 +109,13 @@ async def telegram_login_widget_auth(data: TelegramLoginData):
 
 
 @router.post("/auth/verify-session")
-async def verify_web_session(data: SessionTokenRequest):
+async def verify_web_session_endpoint(data: SessionTokenRequest):
     """Verify a web session token."""
-    session = _web_sessions.get(data.session_token)
+    from core.auth import verify_web_session_token
+    session = verify_web_session_token(data.session_token)
     
     if not session:
-        raise HTTPException(status_code=401, detail="Invalid session")
-    
-    # Check expiration
-    expires_at = datetime.fromisoformat(session["expires_at"])
-    if datetime.now(timezone.utc) > expires_at:
-        del _web_sessions[data.session_token]
-        raise HTTPException(status_code=401, detail="Session expired")
+        raise HTTPException(status_code=401, detail="Invalid session or expired")
     
     return {
         "valid": True,

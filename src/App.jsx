@@ -242,6 +242,12 @@ export default function App() {
   const handleWebLogin = (userData, token) => {
     setWebUser(userData)
     setShowLoginModal(false)
+    // Redirect to admin if admin, otherwise to catalog
+    if (userData.is_admin) {
+      setCurrentPage('admin')
+    } else {
+      setCurrentPage('catalog')
+    }
   }
   
   // Desktop layout for web users on large screens

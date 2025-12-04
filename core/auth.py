@@ -8,6 +8,8 @@ Used by both api/index.py and core/routers/*.
 from __future__ import annotations
 
 import os
+import secrets
+from datetime import datetime, timezone, timedelta
 from typing import TYPE_CHECKING
 from fastapi import Header, HTTPException, Depends
 
@@ -17,6 +19,9 @@ if TYPE_CHECKING:
 # Lazy imports to avoid circular dependencies
 _database = None
 _telegram_token = None
+
+# In-memory session store for web access
+_web_sessions = {}
 
 
 def _get_database():
@@ -36,26 +41,71 @@ def _get_telegram_token():
     return _telegram_token
 
 
+def create_web_session(user_id: str, telegram_id: int, username: str, is_admin: bool) -> str:
+    """Create a new web session and return the token."""
+    session_token = secrets.token_urlsafe(32)
+    _web_sessions[session_token] = {
+        "user_id": str(user_id),
+        "telegram_id": telegram_id,
+        "username": username,
+        "is_admin": is_admin,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+    }
+    return session_token
+
+
+def verify_web_session_token(token: str) -> dict | None:
+    """Verify a web session token and return session data."""
+    session = _web_sessions.get(token)
+    
+    if not session:
+        return None
+    
+    # Check expiration
+    expires_at = datetime.fromisoformat(session["expires_at"])
+    if datetime.now(timezone.utc) > expires_at:
+        del _web_sessions[token]
+        return None
+        
+    return session
+
+
 async def verify_telegram_auth(
     authorization: str = Header(None, alias="Authorization"),
     x_init_data: str = Header(None, alias="X-Init-Data")
 ) -> "TelegramUser":
     """
-    Verify Telegram Mini App authentication.
+    Verify Telegram Mini App authentication (hybrid mode).
     Accepts either:
-    - Authorization: tma <initData>
-    - X-Init-Data: <initData>
+    - Authorization: Bearer <session_token> (for web login)
+    - Authorization: tma <initData> (for Telegram Mini App)
+    - X-Init-Data: <initData> (for Telegram Mini App)
     
     Returns TelegramUser object (Pydantic model with .id, .first_name, etc.)
     """
     from src.utils.validators import validate_telegram_init_data, extract_user_from_init_data, TelegramUser
     
+    # Try Bearer token first (web session)
+    if authorization:
+        parts = authorization.split(" ")
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            session_token = parts[1]
+            session = verify_web_session_token(session_token)
+            if session:
+                return TelegramUser(
+                    id=session["telegram_id"],
+                    first_name=session.get("username", "User"),
+                    username=session.get("username"),
+                    language_code="en"
+                )
+    
     init_data = None
     
-    # Try X-Init-Data header first (frontend sends this)
+    # Try X-Init-Data header (Telegram Mini App)
     if x_init_data:
         init_data = x_init_data
-    # Fallback to Authorization header
+    # Fallback to Authorization header (Telegram Mini App)
     elif authorization:
         parts = authorization.split(" ")
         if len(parts) == 2 and parts[0].lower() == "tma":
