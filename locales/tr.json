@@ -48,29 +48,69 @@
     "back": "Geri",
     "retry": "Tekrar dene",
     "days": "gün",
-    "loading": "Yükleniyor..."
+    "loading": "Yükleniyor...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
   },
-
   "nav": {
     "catalog": "Katalog",
     "orders": "Siparişler",
     "leaderboard": "Sıralama",
-    "faq": "SSS"
+    "faq": "SSS",
+    "profile": "Profile"
   },
-
   "catalog": {
     "all": "Tümü",
     "subscription": "Abonelikler",
     "search": "AI araçları ara...",
-    "empty": "Ürün bulunamadı"
+    "empty": "Ürün bulunamadı",
+    "student": "Student",
+    "trial": "Trial",
+    "shared": "Personal",
+    "key": "API Keys",
+    "subtitle": "Premium Access to AI Tools & Digital Assets",
+    "category": {
+      "aiSolutions": "AI Solutions",
+      "designTools": "Design Tools",
+      "developerAccess": "Developer Access"
+    },
+    "about": {
+      "title": "About Service",
+      "description": "PVNDORA — Your reliable hub for AI technology access.\n\nWe are a specialized digital distribution service providing seamless access to leading generative AI tools. We eliminate payment barriers and regional restrictions, offering licensed keys, invite links, and ready accounts for SaaS platforms.\n\nOur mission: Make advanced technologies (LLM, image generation, code assistants) accessible to every professional and developer."
+    },
+    "security": {
+      "title": "Security & Guarantees",
+      "instantDelivery": {
+        "title": "Instant Digital Delivery",
+        "description": "Automated system for issuing credentials immediately after transaction processing"
+      },
+      "validity": {
+        "title": "Validity Guarantee",
+        "description": "Verification of digital goods functionality before delivery to client"
+      },
+      "support": {
+        "title": "Customer Support",
+        "description": "Prompt resolution of technical issues related to service authorization"
+      }
+    }
   },
-
   "faq": {
     "title": "SSS",
     "subtitle": "Sık Sorulan Sorular",
-    "description": "Sık sorulan sorulara cevaplar bulun"
+    "description": "Sık sorulan sorulara cevaplar bulun",
+    "empty": "No FAQ available",
+    "emptyHint": "Check back later for answers to common questions",
+    "stillNeedHelp": "Still need help?",
+    "contactHint": "Our AI assistant is ready to help you",
+    "askBot": "Ask the Bot",
+    "category": {
+      "general": "General",
+      "payment": "Payment",
+      "delivery": "Delivery",
+      "warranty": "Warranty"
+    }
   },
-
   "contacts": {
     "title": "İletişim",
     "subtitle": "Bize ulaşın",
@@ -137,11 +177,159 @@
     "emailAddress": "privacy@pvndora.app",
     "contactEmail": "Email gönder"
   },
+  "product": {
+    "addToCart": "Sepete ekle",
+    "addedToCart": "Sepete eklendi",
+    "inStock": "In Stock",
+    "outOfStock": "Out of Stock",
+    "onDemand": "On Demand",
+    "sold": "sold",
+    "save": "Save",
+    "available": "In Stock",
+    "units": "pcs",
+    "reviews": "reviews",
+    "warranty": "warranty",
+    "duration": "Duration",
+    "instructions": "Instructions",
+    "recentReviews": "Recent Reviews",
+    "buyNow": "Buy Now",
+    "preorder": "Pre-order",
+    "notifyMe": "Notify Me",
+    "notFound": "Product not found",
+    "instantDelivery": "Instant Delivery",
+    "fulfillmentTime": "Fulfillment Time"
+  },
   "legal": {
     "contacts": "İletişim",
     "refund": "İade",
     "payment": "Ödeme",
     "terms": "Şartlar",
     "privacy": "Gizlilik"
+  },
+  "orders": {
+    "title": "Your Orders",
+    "subtitle": "Purchase history and status",
+    "empty": "No orders yet",
+    "emptyHint": "Start shopping to see your orders here",
+    "amount": "Amount",
+    "prepaid": "Pre-paid",
+    "expiresOn": "Expires on",
+    "buyAgain": "Buy Again",
+    "leaveReview": "Review",
+    "unknownProduct": "Unknown Product",
+    "status": {
+      "pending": "Pending",
+      "prepaid": "Paid",
+      "fulfilling": "Preparing",
+      "ready": "Ready",
+      "delivered": "Delivered",
+      "refunded": "Refunded",
+      "cancelled": "Cancelled",
+      "failed": "Failed"
+    }
+  },
+  "leaderboard": {
+    "title": "Money Saved",
+    "subtitle": "Top savers",
+    "yourRank": "Your Rank",
+    "yourSavings": "Your Savings",
+    "saved": "saved",
+    "you": "you",
+    "empty": "Leaderboard is empty",
+    "emptyHint": "Make purchases to appear on the leaderboard",
+    "howItWorks": "How it works",
+    "explanation": "Every purchase saves you money compared to retail prices. The more you save, the higher you rank!",
+    "inviteFriend": "Invite Friend",
+    "copyLink": "Copy",
+    "linkCopied": "Link copied!",
+    "period": {
+      "all": "All Time",
+      "month": "Month",
+      "week": "Week"
+    },
+    "participants": "participants",
+    "improvedToday": "improved rank today"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "quantity": "Quantity",
+    "unitPrice": "Unit price",
+    "promoCode": "Promo Code",
+    "promoPlaceholder": "Enter code",
+    "apply": "Apply",
+    "promoApplied": "Promo applied!",
+    "promoInvalid": "Invalid promo code",
+    "summary": "Order Summary",
+    "subtotal": "Subtotal",
+    "discount": "Discount",
+    "total": "Total",
+    "paymentMethods": "Payment Methods",
+    "paymentInfo": "Card, bank transfer, and crypto accepted",
+    "pay": "Pay",
+    "processing": "Processing...",
+    "orderCreated": "Order created! Redirecting to payment..."
+  },
+  "waitlist_notify_in_stock": "🎉 The product {product} you were waiting for is back in stock! You can order it right now.",
+  "waitlist_notify_prepaid": "🎉 The product {product} you were waiting for is available again! You can order prepaid (on-demand) or get it instantly if in stock.",
+  "wishlist_reminder": "💭 Remember {product} you saved? It's still available! Would you like to get it today?",
+  "reengagement_message": "👋 Hey {name}! Long time no see. We have new AI subscriptions and discounts. Check it out when you have a moment!",
+  "btn_preorder": "📦 Pre-order",
+  "preorder_confirm": "📦 **{product}**\n💰 Price: {price}₽\n⏱ Fulfillment: {hours} hours\n\nClick below to proceed with payment:",
+  "profile": {
+    "title": "Profile",
+    "balance": "Balance",
+    "totalEarned": "Total earned",
+    "withdraw": "Withdraw",
+    "invite": "Invite",
+    "minWithdrawalNote": "Minimum withdrawal: {min}",
+    "yourReferralLink": "Your referral link",
+    "referralNetwork": "Referral Network",
+    "level1": "Level 1",
+    "level2": "Level 2",
+    "level3": "Level 3",
+    "commission": "commission",
+    "recentBonuses": "Recent Bonuses",
+    "referralBonus": "Referral bonus",
+    "withdrawalHistory": "Withdrawal History",
+    "howItWorks": "How it works",
+    "tip1": "Invite friends using your referral link",
+    "tip2": "Earn 20% from their purchases (Level 1)",
+    "tip3": "Earn bonuses from your referrals' referrals (Levels 2-3)",
+    "withdrawTitle": "Withdraw Funds",
+    "withdrawDescription": "Enter amount and select payout method",
+    "amount": "Amount",
+    "available": "Available",
+    "paymentMethod": "Payout Method",
+    "paymentDetails": "Payment Details",
+    "method": {
+      "card": "Card",
+      "phone": "Phone",
+      "crypto": "Crypto"
+    },
+    "requestWithdrawal": "Request Withdrawal",
+    "minWithdrawal": "Minimum amount: {min}",
+    "insufficientBalance": "Insufficient balance",
+    "enterPaymentDetails": "Enter payment details",
+    "withdrawalRequested": "Withdrawal request submitted! We'll process it within 24 hours.",
+    "linkCopied": "Link copied!",
+    "shareText": "I saved {saved} on AI subscriptions with PVNDORA! Join me:",
+    "status": {
+      "pending": "Pending",
+      "processing": "Processing",
+      "completed": "Completed",
+      "rejected": "Rejected"
+    },
+    "programLocked": "Program Locked",
+    "programActive": "Program Active",
+    "level": "Level",
+    "makeFirstPurchase": "Make your first purchase to unlock the referral program",
+    "makeFirstPurchaseInstant": "Make your first purchase to instantly unlock Level 1 (20% commissions)",
+    "goToCatalog": "Go to Catalog",
+    "yourTurnover": "Your turnover",
+    "amountToNextLevel": "${amount} to Level {level}",
+    "maxLevelReached": "Maximum level reached!",
+    "unlockAt": "Unlock at",
+    "unlockOnPurchase": "Unlock on first purchase",
+    "pendingRewards": "Rewards pending"
   }
 }

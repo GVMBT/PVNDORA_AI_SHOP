@@ -135,34 +135,36 @@ export default function CatalogPage({ onProductClick }) {
         
         {/* Categories */}
         <div className="overflow-x-auto -mx-4 px-4 no-scrollbar">
-          <Tabs
-            value={filter}
-            onValueChange={(value) => {
-              hapticFeedback('selection')
-              setFilter(value)
-            }}
-          >
-            <TabsList className="flex gap-2 bg-transparent p-0 min-w-max">
-              {categories.map((cat) => {
-                const Icon = cat.icon
-                return (
-                  <TabsTrigger
-                    key={cat.id}
-                    value={cat.id}
-                    className={`
-                      px-4 py-2 h-auto rounded-full text-sm font-semibold whitespace-nowrap border flex items-center gap-2
-                      data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary data-[state=active]:shadow-[0_10px_30px_rgba(0,245,212,0.25)]
-                      data-[state=inactive]:bg-white/5 data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-white/10
-                      transition-all
-                    `}
-                  >
-                    {Icon && <Icon className="h-4 w-4" />}
-                    {cat.label}
-                  </TabsTrigger>
-                )
-              })}
-            </TabsList>
-          </Tabs>
+          <div className="bg-background/70 backdrop-blur-xl p-2 rounded-2xl border border-white/10 shadow-lg min-w-max">
+            <Tabs
+              value={filter}
+              onValueChange={(value) => {
+                hapticFeedback('selection')
+                setFilter(value)
+              }}
+            >
+              <TabsList className="flex gap-2 bg-transparent p-0 border-0 shadow-none">
+                {categories.map((cat) => {
+                  const Icon = cat.icon
+                  return (
+                    <TabsTrigger
+                      key={cat.id}
+                      value={cat.id}
+                      className={`
+                        px-4 py-2 h-auto rounded-full text-sm font-semibold whitespace-nowrap border flex items-center gap-2
+                        data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary data-[state=active]:shadow-[0_10px_30px_rgba(0,245,212,0.25)]
+                        data-[state=inactive]:bg-white/5 data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-white/10
+                        transition-all
+                      `}
+                    >
+                      {Icon && <Icon className="h-4 w-4" />}
+                      {cat.label}
+                    </TabsTrigger>
+                  )
+                })}
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
         
         {/* Product Grid */}

@@ -317,8 +317,8 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
         )}
       </div>
       
-      {/* Floating Action Button */}
-      <div className="fixed bottom-[calc(4rem+1rem+env(safe-area-inset-bottom))] left-4 right-4 z-40">
+      {/* Floating Action Button (raised above bottom nav) */}
+      <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-4 right-4 z-40">
         <div className="absolute inset-0 bg-background/50 blur-xl -z-10 rounded-full transform scale-y-50 translate-y-4" />
         <Button
           onClick={handleBuy}

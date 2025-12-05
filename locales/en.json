@@ -77,6 +77,8 @@
     "buyNow": "Buy Now",
     "preorder": "Pre-order",
     "notifyMe": "Notify Me",
+    "addToCart": "Add to cart",
+    "addedToCart": "Added to cart",
     "notFound": "Product not found",
     "instantDelivery": "Instant Delivery",
     "fulfillmentTime": "Fulfillment Time"

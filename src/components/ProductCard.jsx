@@ -172,7 +172,7 @@ export default function ProductCard({ product, socialProof, onClick, onAddToCart
                   onAddToCart(product)
                 }}
               >
-                {t('product.addToCart') || 'Add to cart'}
+                {t('product.addToCart') || 'В корзину'}
               </Button>
             )}
           </div>

@@ -160,8 +160,20 @@ class PaymentService:
                     
                     if payment_id or guid:
                         print(f"1Plat payment created: payment_id={payment_id}, guid={guid}, order_id={order_id}")
-                        # TODO: Сохранить payment_id в orders.payment_id для поиска в webhook
-                        # Это можно сделать через update_order после создания платежа
+                        # Сохраняем payment_id/guid в заказ для последующего поиска в webhook
+                        try:
+                            from src.services.database import get_database
+                            import asyncio
+                            db = get_database()
+                            pid_value = payment_id or guid
+                            await asyncio.to_thread(
+                                lambda: db.client.table("orders")
+                                .update({"payment_id": pid_value})
+                                .eq("id", order_id)
+                                .execute()
+                            )
+                        except Exception as e:
+                            print(f"Warning: failed to save payment_id for order {order_id}: {e}")
                     
                     return payment_url
                     
@@ -227,22 +239,30 @@ class PaymentService:
             payment_id = data.get("payment_id")
             guid = data.get("guid")
             
-            # Пробуем найти заказ по payment_id в БД (если он был сохранен)
             order_id = None
-            if payment_id:
-                try:
-                    from src.services.database import get_database
-                    db = get_database()
-                    # Ищем заказ по payment_id (если поле существует и заполнено)
-                    # Пока используем guid для запроса к API 1Plat
-                    order_id = payment_id  # Временное решение - используем payment_id
-                except:
-                    pass
+            # Пробуем найти заказ по сохраненному payment_id/guid
+            try:
+                from src.services.database import get_database
+                import asyncio
+                db = get_database()
+                if payment_id:
+                    result = await asyncio.to_thread(
+                        lambda: db.client.table("orders").select("id").eq("payment_id", payment_id).limit(1).execute()
+                    )
+                    if result.data:
+                        order_id = result.data[0].get("id")
+                if not order_id and guid:
+                    result = await asyncio.to_thread(
+                        lambda: db.client.table("orders").select("id").eq("payment_id", guid).limit(1).execute()
+                    )
+                    if result.data:
+                        order_id = result.data[0].get("id")
+            except Exception as e:
+                print(f"1Plat webhook: lookup by payment_id/guid failed: {e}")
             
             # Если не нашли в БД, используем guid для запроса к API 1Plat
             if not order_id and guid:
                 try:
-                    # Запрашиваем информацию о платеже по guid
                     base_url = os.environ.get("ONEPLAT_API_URL", "https://1plat.cash")
                     shop_id = self.onplat_shop_id or self.onplat_merchant_id or ""
                     
@@ -259,10 +279,10 @@ class PaymentService:
                         if response.status_code == 200:
                             info_data = response.json()
                             if info_data.get("success"):
-                                # В response может быть merchant_order_id или можно использовать payment.id
                                 payment = info_data.get("payment", {})
-                                # Пока используем guid как order_id (нужно будет сохранять mapping)
-                                order_id = guid
+                                order_id = payment.get("merchant_order_id") or payment.get("order_id") or guid
+                                if not amount and payment.get("amount"):
+                                    amount = float(payment.get("amount")) / 100.0
                                 print(f"1Plat: Found payment info by guid {guid}")
                 except Exception as e:
                     print(f"1Plat: Failed to get payment info by guid: {e}")
