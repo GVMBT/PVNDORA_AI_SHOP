@@ -95,6 +95,7 @@ $RECYCLE.BIN/
 # Research/notes (don't include in bundle)
 *.txt
 !locales/*.txt
+!public/1plat.txt
 research/
 notes/
 TODO.md
