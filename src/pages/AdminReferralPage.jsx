@@ -607,6 +607,36 @@ export default function AdminReferralPage({ onBack }) {
           
           {/* Partners CRM Tab */}
           <TabsContent value="partners" className="space-y-4">
+            {/* View Toggle: Partners vs All Users */}
+            <div className="flex gap-2 mb-2">
+              <Button
+                variant={crmView === 'partners' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setCrmView('partners')
+                  loadPartners()
+                }}
+                className="flex-1"
+              >
+                <Users className="h-3 w-3 mr-1" />
+                Партнёры
+              </Button>
+              <Button
+                variant={crmView === 'all_users' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setCrmView('all_users')
+                  loadAllUsers()
+                }}
+                className="flex-1"
+              >
+                <Users className="h-3 w-3 mr-1" />
+                Все пользователи
+              </Button>
+            </div>
+            
+            {crmView === 'partners' ? (
+              <>
             {/* Partner Type Filter */}
             <div className="flex gap-2">
               <Button
