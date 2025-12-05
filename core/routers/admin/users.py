@@ -1,135 +1,249 @@
 """
-Admin Users & Tickets Router
+Admin Users CRM Router
 
-User management and support tickets endpoints.
+Extended user analytics and management.
 """
 import asyncio
-from datetime import datetime, timezone
 from typing import Optional
-
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 
 from src.services.database import get_database
 from core.auth import verify_admin
-from core.routers.deps import get_notification_service
-from .models import BanUserRequest, BroadcastRequest
 
 router = APIRouter(tags=["admin-users"])
 
 
-# ==================== USERS ====================
-
-@router.get("/users")
-async def admin_get_users(
+@router.get("/users/crm")
+async def admin_get_users_crm(
+    sort_by: str = "total_orders",
+    sort_order: str = "desc",
     limit: int = 50,
     offset: int = 0,
+    search: Optional[str] = Query(None, description="Search by username, first_name, or telegram_id"),
+    filter_banned: Optional[bool] = Query(None, description="Filter by banned status"),
+    filter_partner: Optional[bool] = Query(None, description="Filter by partner status"),
     admin=Depends(verify_admin)
 ):
-    """Get all users"""
+    """Get all users with extended analytics (orders, refunds, tickets, etc.)"""
     db = get_database()
     
-    result = db.client.table("users").select("*").order(
-        "created_at", desc=True
-    ).range(offset, offset + limit - 1).execute()
-    
-    return result.data
+    try:
+        # Build query
+        query = db.client.table("users_extended_analytics").select("*")
+        
+        # Apply search filter
+        if search:
+            try:
+                # Try to search by telegram_id (if search is numeric)
+                telegram_id = int(search)
+                query = query.or_(f"telegram_id.eq.{telegram_id},username.ilike.%{search}%,first_name.ilike.%{search}%")
+            except ValueError:
+                # Search by username or first_name
+                query = query.or_(f"username.ilike.%{search}%,first_name.ilike.%{search}%")
+        
+        # Apply filters
+        if filter_banned is not None:
+            query = query.eq("is_banned", filter_banned)
+        if filter_partner is not None:
+            query = query.eq("is_partner", filter_partner)
+        
+        # Validate sort_by
+        valid_sorts = [
+            "total_orders", "delivered_orders", "refunded_orders", "total_spent",
+            "total_tickets", "open_tickets", "total_reviews", "avg_rating",
+            "total_referrals", "total_withdrawals", "joined_at", "last_activity_at",
+            "balance", "total_referral_earnings", "warnings_count"
+        ]
+        if sort_by not in valid_sorts:
+            sort_by = "total_orders"
+        
+        # Execute query with sorting and pagination
+        result = await asyncio.to_thread(
+            lambda: query.order(sort_by, desc=(sort_order == "desc"))
+            .range(offset, offset + limit - 1)
+            .execute()
+        )
+        
+        # Get total count
+        count_query = db.client.table("users_extended_analytics").select("user_id", count="exact")
+        if search:
+            try:
+                telegram_id = int(search)
+                count_query = count_query.or_(f"telegram_id.eq.{telegram_id},username.ilike.%{search}%,first_name.ilike.%{search}%")
+            except ValueError:
+                count_query = count_query.or_(f"username.ilike.%{search}%,first_name.ilike.%{search}%")
+        if filter_banned is not None:
+            count_query = count_query.eq("is_banned", filter_banned)
+        if filter_partner is not None:
+            count_query = count_query.eq("is_partner", filter_partner)
+        
+        count_result = await asyncio.to_thread(
+            lambda: count_query.execute()
+        )
+        
+        users = []
+        for u in (result.data or []):
+            user_data = {
+                "user_id": u.get("user_id"),
+                "telegram_id": u.get("telegram_id"),
+                "username": u.get("username"),
+                "first_name": u.get("first_name"),
+                "language_code": u.get("language_code"),
+                "joined_at": u.get("joined_at"),
+                "is_admin": u.get("is_admin", False),
+                "is_banned": u.get("is_banned", False),
+                "is_partner": u.get("is_partner", False),
+                "balance": float(u.get("balance", 0)),
+                "total_referral_earnings": float(u.get("total_referral_earnings", 0)),
+                "total_saved": float(u.get("total_saved", 0)),
+                "warnings_count": u.get("warnings_count", 0),
+                "do_not_disturb": u.get("do_not_disturb", False),
+                "last_activity_at": u.get("last_activity_at"),
+                "referral_program_unlocked": u.get("referral_program_unlocked", False),
+                "turnover_usd": float(u.get("turnover_usd", 0)),
+                "total_purchases_amount": float(u.get("total_purchases_amount", 0)),
+                
+                # Orders metrics
+                "total_orders": u.get("total_orders", 0),
+                "delivered_orders": u.get("delivered_orders", 0),
+                "pending_orders": u.get("pending_orders", 0),
+                "paid_orders": u.get("paid_orders", 0),
+                "refunded_orders": u.get("refunded_orders", 0),
+                "refund_requests": u.get("refund_requests", 0),
+                "total_spent": float(u.get("total_spent", 0)),
+                "total_refunded": float(u.get("total_refunded", 0)),
+                
+                # Tickets metrics
+                "total_tickets": u.get("total_tickets", 0),
+                "open_tickets": u.get("open_tickets", 0),
+                "approved_tickets": u.get("approved_tickets", 0),
+                "rejected_tickets": u.get("rejected_tickets", 0),
+                "closed_tickets": u.get("closed_tickets", 0),
+                
+                # Reviews metrics
+                "total_reviews": u.get("total_reviews", 0),
+                "avg_rating": float(u.get("avg_rating", 0)),
+                
+                # Referral metrics
+                "total_referrals": u.get("total_referrals", 0),
+                "active_referrals": u.get("active_referrals", 0),
+                
+                # Withdrawal metrics
+                "total_withdrawals": u.get("total_withdrawals", 0),
+                "pending_withdrawals": u.get("pending_withdrawals", 0),
+                "total_withdrawn": float(u.get("total_withdrawn", 0)),
+                
+                # Chat metrics
+                "total_chat_messages": u.get("total_chat_messages", 0),
+                "last_chat_message_at": u.get("last_chat_message_at"),
+            }
+            users.append(user_data)
+        
+        return {
+            "users": users,
+            "total": count_result.count or 0,
+            "limit": limit,
+            "offset": offset
+        }
+    except Exception as e:
+        import traceback
+        print(f"ERROR: Failed to query users_extended_analytics: {e}")
+        print(f"ERROR: Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="Failed to load users.")
 
 
-@router.get("/users/{telegram_id}")
-async def admin_get_user(telegram_id: int, admin=Depends(verify_admin)):
-    """Get specific user details"""
-    db = get_database()
-    user = await db.get_user_by_telegram_id(telegram_id)
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    orders = await db.get_user_orders(user.id, limit=20)
-    
-    return {
-        "user": user,
-        "orders": orders
-    }
-
-
-@router.post("/users/ban")
-async def admin_ban_user(request: BanUserRequest, admin=Depends(verify_admin)):
+@router.post("/users/{user_id}/ban")
+async def admin_ban_user(
+    user_id: str,
+    ban: bool = True,
+    admin=Depends(verify_admin)
+):
     """Ban or unban a user"""
     db = get_database()
-    await db.ban_user(request.telegram_id, request.ban)
     
-    return {"success": True, "banned": request.ban}
+    try:
+        result = await asyncio.to_thread(
+            lambda: db.client.table("users")
+            .update({"is_banned": ban})
+            .eq("id", user_id)
+            .execute()
+        )
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {"success": True, "is_banned": ban}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR: Failed to ban user: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update user ban status")
 
 
-@router.post("/users/{telegram_id}/warning")
-async def admin_add_warning(telegram_id: int, admin=Depends(verify_admin)):
-    """Add warning to user (auto-ban after 3)"""
-    db = get_database()
-    new_count = await db.add_warning(telegram_id)
-    
-    return {
-        "success": True,
-        "warnings_count": new_count,
-        "auto_banned": new_count >= 3
-    }
-
-
-# ==================== BROADCAST ====================
-
-@router.post("/broadcast")
-async def admin_broadcast(request: BroadcastRequest, admin=Depends(verify_admin)):
-    """Send broadcast message to all users"""
-    notification_service = get_notification_service()
-    
-    sent_count = await notification_service.send_broadcast(
-        message=request.message,
-        exclude_dnd=request.exclude_dnd
-    )
-    
-    return {"success": True, "sent_count": sent_count}
-
-
-# ==================== SUPPORT TICKETS ====================
-
-@router.get("/tickets")
-async def admin_get_tickets(
-    status: Optional[str] = None,
+@router.post("/users/{user_id}/balance")
+async def admin_update_user_balance(
+    user_id: str,
+    amount: float,
     admin=Depends(verify_admin)
 ):
-    """Get support tickets"""
+    """Update user balance (add or subtract)"""
     db = get_database()
     
-    query = db.client.table("support_tickets").select(
-        "*, users(telegram_id, username)"
-    ).order("created_at", desc=True)
-    
-    if status:
-        query = query.eq("status", status)
-    
-    result = query.execute()
-    return {"tickets": result.data if result.data else []}
+    try:
+        # Get current balance
+        user_result = await asyncio.to_thread(
+            lambda: db.client.table("users")
+            .select("balance")
+            .eq("id", user_id)
+            .single()
+            .execute()
+        )
+        
+        if not user_result.data:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        current_balance = float(user_result.data.get("balance", 0))
+        new_balance = current_balance + amount
+        
+        # Update balance
+        result = await asyncio.to_thread(
+            lambda: db.client.table("users")
+            .update({"balance": new_balance})
+            .eq("id", user_id)
+            .execute()
+        )
+        
+        return {"success": True, "old_balance": current_balance, "new_balance": new_balance}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR: Failed to update balance: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update user balance")
 
 
-@router.post("/tickets/{ticket_id}/resolve")
-async def admin_resolve_ticket(
-    ticket_id: str,
-    resolution: str = "resolved",
+@router.post("/users/{user_id}/warnings")
+async def admin_update_warnings(
+    user_id: str,
+    count: int,
     admin=Depends(verify_admin)
 ):
-    """Resolve a support ticket"""
+    """Update user warnings count"""
     db = get_database()
     
-    ticket = db.client.table("support_tickets").select(
-        "*, users(telegram_id), orders(id)"
-    ).eq("id", ticket_id).single().execute()
-    
-    if not ticket.data:
-        raise HTTPException(status_code=404, detail="Ticket not found")
-    
-    db.client.table("support_tickets").update({
-        "status": "resolved",
-        "resolution": resolution,
-        "resolved_at": datetime.now(timezone.utc).isoformat()
-    }).eq("id", ticket_id).execute()
-    
-    return {"success": True, "ticket_id": ticket_id}
+    try:
+        result = await asyncio.to_thread(
+            lambda: db.client.table("users")
+            .update({"warnings_count": count})
+            .eq("id", user_id)
+            .execute()
+        )
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {"success": True, "warnings_count": count}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR: Failed to update warnings: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update warnings")

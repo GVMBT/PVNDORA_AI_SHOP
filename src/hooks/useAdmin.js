@@ -208,6 +208,10 @@ export function useAdmin() {
     updateReferralSettings,
     getReferralDashboard,
     getReferralPartnersCRM,
+    getUsersCRM,
+    banUser,
+    updateUserBalance,
+    updateUserWarnings,
     getPartners,
     setPartner,
     // Partner Applications
