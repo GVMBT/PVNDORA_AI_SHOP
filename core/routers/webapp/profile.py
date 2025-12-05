@@ -83,6 +83,17 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
         print(f"ERROR: Failed to query withdrawal_requests: {e}")
         withdrawal_result = type('obj', (object,), {'data': []})()
     
+    # Get currency service and determine user currency
+    currency = "USD"
+    try:
+        from core.db import get_redis
+        from src.services.currency import get_currency_service
+        redis = await get_redis()
+        currency_service = get_currency_service(redis)
+        currency = currency_service.get_user_currency(db_user.language_code if db_user and db_user.language_code else user.language_code)
+    except Exception as e:
+        print(f"Warning: Currency service unavailable: {e}, using USD")
+    
     return {
         "profile": {
             "balance": float(db_user.balance) if db_user.balance else 0,
@@ -91,12 +102,14 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
             "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{user.id}",
             "created_at": db_user.created_at.isoformat() if db_user.created_at else None,
             "is_admin": db_user.is_admin or False,
-            "is_partner": referral_program.get("is_partner", False)
+            "is_partner": referral_program.get("is_partner", False),
+            "currency": currency
         },
         "referral_program": referral_program,
         "referral_stats": referral_stats,
         "bonus_history": bonus_result.data or [],
-        "withdrawals": withdrawal_result.data or []
+        "withdrawals": withdrawal_result.data or [],
+        "currency": currency
     }
 
 

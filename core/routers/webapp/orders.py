@@ -18,30 +18,58 @@ router = APIRouter(tags=["webapp-orders"])
 
 @router.get("/orders")
 async def get_webapp_orders(user=Depends(verify_telegram_auth)):
-    """Get user's order history."""
+    """Get user's order history with currency conversion."""
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get currency service and convert prices
+    currency = "USD"
+    currency_service = None
+    
+    try:
+        from core.db import get_redis
+        from src.services.currency import get_currency_service
+        redis = await get_redis()
+        currency_service = get_currency_service(redis)
+        currency = currency_service.get_user_currency(db_user.language_code or user.language_code)
+    except Exception as e:
+        print(f"Warning: Currency service unavailable: {e}, using USD")
     
     orders = await db.get_user_orders(db_user.id, limit=50)
     
     result = []
     for o in orders:
         product = await db.get_product_by_id(o.product_id)
+        
+        # Convert prices from USD to user currency
+        amount_converted = float(o.amount)
+        original_price_converted = float(o.original_price) if o.original_price else None
+        
+        if currency_service and currency != "USD":
+            try:
+                amount_converted = await currency_service.convert_price(float(o.amount), currency, round_to_int=True)
+                if original_price_converted:
+                    original_price_converted = await currency_service.convert_price(float(o.original_price), currency, round_to_int=True)
+            except Exception as e:
+                print(f"Warning: Failed to convert order prices: {e}")
+        
         result.append({
             "id": o.id, "product_id": o.product_id,
             "product_name": product.name if product else "Unknown Product",
-            "amount": o.amount, "original_price": o.original_price,
+            "amount": amount_converted, 
+            "original_price": original_price_converted,
             "discount_percent": o.discount_percent, "status": o.status,
             "order_type": getattr(o, 'order_type', 'instant'),
+            "currency": currency,
             "created_at": o.created_at.isoformat() if o.created_at else None,
             "delivered_at": o.delivered_at.isoformat() if hasattr(o, 'delivered_at') and o.delivered_at else None,
             "expires_at": o.expires_at.isoformat() if o.expires_at else None,
             "warranty_until": o.warranty_until.isoformat() if hasattr(o, 'warranty_until') and o.warranty_until else None
         })
     
-    return {"orders": result, "count": len(result)}
+    return {"orders": result, "count": len(result), "currency": currency}
 
 
 @router.post("/orders")

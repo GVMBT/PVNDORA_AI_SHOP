@@ -121,6 +121,7 @@ export default function ProfilePage({ onBack }) {
   const { setBackButton, user, showPopup, hapticFeedback } = useTelegram()
   
   const [profile, setProfile] = useState(null)
+  const [currency, setCurrency] = useState('USD')
   const [referralStats, setReferralStats] = useState(null)
   const [referralProgram, setReferralProgram] = useState(null)
   const [bonusHistory, setBonusHistory] = useState([])
@@ -136,6 +137,7 @@ export default function ProfilePage({ onBack }) {
     try {
       const data = await get('/profile')
       setProfile(data.profile)
+      setCurrency(data.currency || 'USD')
       setReferralStats(data.referral_stats)
       setReferralProgram(data.referral_program)
       setBonusHistory(data.bonus_history || [])
@@ -186,7 +188,7 @@ export default function ProfilePage({ onBack }) {
   const handleWithdraw = async () => {
     const amount = parseFloat(withdrawAmount)
     if (isNaN(amount) || amount < WITHDRAWAL_MIN) {
-      showPopup({ title: '❌', message: t('profile.minWithdrawal', { min: formatPrice(WITHDRAWAL_MIN) }), buttons: [{ type: 'ok' }] })
+      showPopup({ title: '❌', message: t('profile.minWithdrawal', { min: formatPrice(WITHDRAWAL_MIN, currency) }), buttons: [{ type: 'ok' }] })
       return
     }
     if (amount > (profile?.balance || 0)) {
@@ -285,7 +287,7 @@ export default function ProfilePage({ onBack }) {
                   <p className="text-sm text-muted-foreground mb-1">{t('profile.balance')}</p>
                   <div className="flex items-baseline gap-1">
                     <span className="text-4xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-400">
-                      {formatPrice(profile?.balance || 0)}
+                      {formatPrice(profile?.balance || 0, currency)}
                     </span>
                   </div>
                   
@@ -311,7 +313,7 @@ export default function ProfilePage({ onBack }) {
                   {(profile?.balance || 0) < WITHDRAWAL_MIN && (
                      <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground opacity-70">
                        <Lock className="h-3 w-3" />
-                       {t('profile.minWithdrawalNote', { min: formatPrice(WITHDRAWAL_MIN) })}
+                       {t('profile.minWithdrawalNote', { min: formatPrice(WITHDRAWAL_MIN, currency) })}
                      </div>
                   )}
                </div>
@@ -328,7 +330,7 @@ export default function ProfilePage({ onBack }) {
                   <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">Conv.</div>
                </div>
                <div className="bg-secondary/20 rounded-2xl p-3 text-center border border-white/5">
-                  <div className="text-xl font-bold text-foreground">{formatPrice(referralStats?.avg_order_value || 0)}</div>
+                  <div className="text-xl font-bold text-foreground">{formatPrice(referralStats?.avg_order_value || 0, currency)}</div>
                   <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">Avg.</div>
                </div>
             </div>
@@ -415,13 +417,13 @@ export default function ProfilePage({ onBack }) {
                  <Input
                   type="number"
                   className="pl-8"
-                  placeholder={formatPrice(WITHDRAWAL_MIN)}
+                  placeholder={formatPrice(WITHDRAWAL_MIN, currency)}
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(e.target.value)}
                 />
               </div>
               <p className="text-xs text-right text-muted-foreground">
-                {t('profile.available')}: {formatPrice(profile?.balance || 0)}
+                {t('profile.available')}: {formatPrice(profile?.balance || 0, currency)}
               </p>
             </div>
             

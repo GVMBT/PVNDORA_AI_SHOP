@@ -28,10 +28,13 @@ export default function OrdersPage({ onBack }) {
   
   const [orders, setOrders] = useState([])
   
+  const [currency, setCurrency] = useState('USD')
+  
   const loadOrders = useCallback(async () => {
     try {
       const data = await getOrders()
       setOrders(data.orders || [])
+      setCurrency(data.currency || 'USD')
     } catch (err) {
       console.error('Failed to load orders:', err)
     }
@@ -151,7 +154,7 @@ export default function OrdersPage({ onBack }) {
                            <div className="flex justify-between items-center mb-4">
                              <div>
                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">{t('orders.amount')}</p>
-                               <p className="text-xl font-bold font-mono tracking-tight">{formatPrice(order.amount)}</p>
+                               <p className="text-xl font-bold font-mono tracking-tight">{formatPrice(order.amount, order.currency || currency)}</p>
                              </div>
                              
                              {order.order_type === 'prepaid' && (

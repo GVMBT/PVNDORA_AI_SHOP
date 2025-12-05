@@ -49,8 +49,9 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
   useEffect(() => {
     const total = calculateTotal()
     if (total > 0) {
+      const currency = product?.currency || cart?.currency || 'USD'
       setMainButton({
-        text: `${t('checkout.pay')} ${formatPrice(total)}`,
+        text: `${t('checkout.pay')} ${formatPrice(total, currency)}`,
         isVisible: true,
         onClick: handleCheckout
       })
@@ -201,6 +202,7 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
   
   const total = calculateTotal()
   let subtotal, discount
+  const currency = product?.currency || cart?.currency || 'USD'
   
   if (isCartMode) {
     subtotal = cart.subtotal || 0
@@ -244,10 +246,10 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
                           <div>
                              <p className="font-bold text-foreground">{item.product_name}</p>
                              <p className="text-xs text-muted-foreground mt-1">
-                               {item.quantity} x {formatPrice(item.final_price)}
+                               {item.quantity} x {formatPrice(item.final_price, item.currency || currency)}
                              </p>
                           </div>
-                          <p className="font-mono font-bold">{formatPrice(item.total_price)}</p>
+                          <p className="font-mono font-bold">{formatPrice(item.total_price, item.currency || currency)}</p>
                        </div>
                      ))}
                    </div>
@@ -256,7 +258,7 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
                     <div className="flex justify-between items-start mb-4">
                       <h2 className="text-xl font-bold leading-tight pr-4">{product.name}</h2>
                       <p className="font-mono text-primary font-bold text-lg whitespace-nowrap">
-                        {formatPrice(product.final_price || product.price)}
+                        {formatPrice(product.final_price || product.price, currency)}
                       </p>
                     </div>
                     
@@ -367,13 +369,13 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
              <CardContent className="p-6 space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{t('checkout.subtotal')}</span>
-                  <span className="font-mono">{formatPrice(subtotal)}</span>
+                  <span className="font-mono">{formatPrice(subtotal, currency)}</span>
                 </div>
                 
                 {discount > 0 && (
                   <div className="flex justify-between text-sm text-green-500">
                     <span>{t('checkout.discount')}</span>
-                    <span className="font-mono">-{formatPrice(discount)}</span>
+                    <span className="font-mono">-{formatPrice(discount, currency)}</span>
                   </div>
                 )}
                 
@@ -382,7 +384,7 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
                 <div className="flex justify-between items-end">
                   <span className="font-bold text-lg">{t('checkout.total')}</span>
                   <span className="text-3xl font-bold text-primary font-mono tracking-tighter">
-                    {formatPrice(total)}
+                    {formatPrice(total, currency)}
                   </span>
                 </div>
              </CardContent>
