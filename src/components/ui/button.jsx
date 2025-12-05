@@ -13,7 +13,7 @@ const Button = React.forwardRef(({ className, variant = "default", size = "defau
           "bg-gradient-to-r from-primary via-emerald-400 to-primary text-black shadow-[0_8px_30px_rgba(0,245,212,0.25)] hover:brightness-[1.05]":
             variant === "default",
           "bg-destructive text-destructive-foreground hover:bg-destructive/90": variant === "destructive",
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground": variant === "outline",
+          "border border-primary/40 text-primary bg-background hover:bg-primary/10": variant === "outline",
           "bg-secondary text-secondary-foreground hover:bg-secondary/80": variant === "secondary",
           "hover:bg-accent hover:text-accent-foreground": variant === "ghost",
           "text-primary underline-offset-4 hover:underline": variant === "link",

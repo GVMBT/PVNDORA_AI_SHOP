@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useProducts } from '../hooks/useApi'
+import { useProducts, useCart } from '../hooks/useApi'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
 import ProductCard from '../components/ProductCard'
@@ -12,12 +12,14 @@ import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs'
 
 export default function CatalogPage({ onProductClick }) {
   const { getProducts, loading, error } = useProducts()
+  const { addToCart, getCart } = useCart()
   const { t } = useLocale()
-  const { hapticFeedback } = useTelegram()
+  const { hapticFeedback, showAlert } = useTelegram()
   
   const [products, setProducts] = useState([])
   const [filter, setFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [toast, setToast] = useState(null)
   
   useEffect(() => {
     loadProducts()
@@ -35,6 +37,20 @@ export default function CatalogPage({ onProductClick }) {
   const handleProductClick = (id) => {
     hapticFeedback('light')
     onProductClick(id)
+  }
+
+  const handleAddToCart = async (product) => {
+    try {
+      hapticFeedback('impact', 'light')
+      await addToCart(product.id, 1)
+      // Refresh cart cache (optional, but keeps totals in checkout mode)
+      await getCart()
+      setToast({ type: 'success', message: t('product.addedToCart') || 'Added to cart' })
+      setTimeout(() => setToast(null), 2000)
+    } catch (err) {
+      setToast({ type: 'error', message: err.message || t('common.error') })
+      setTimeout(() => setToast(null), 2500)
+    }
   }
   
   // Filter products
@@ -199,6 +215,7 @@ export default function CatalogPage({ onProductClick }) {
                     product={product}
                     socialProof={product.social_proof}
                     onClick={handleProductClick}
+                    onAddToCart={handleAddToCart}
                   />
                 </motion.div>
               ))}
@@ -281,6 +298,21 @@ export default function CatalogPage({ onProductClick }) {
           </div>
         </motion.div>
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+          <div
+            className={`px-4 py-3 rounded-xl shadow-lg text-sm font-semibold backdrop-blur ${
+              toast.type === 'success'
+                ? 'bg-emerald-500/90 text-white'
+                : 'bg-destructive/90 text-white'
+            }`}
+          >
+            {toast.message}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

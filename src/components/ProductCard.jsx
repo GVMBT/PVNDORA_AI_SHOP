@@ -3,6 +3,7 @@ import { useLocale } from '../hooks/useLocale'
 import { Star, Clock, Package, Sparkles } from 'lucide-react'
 import { Card } from './ui/card'
 import { Badge } from './ui/badge'
+import { Button } from './ui/button'
 import { cn } from '../lib/utils'
 import { motion } from 'framer-motion'
 
@@ -25,7 +26,7 @@ function getTexture(str) {
   return TEXTURES[index];
 }
 
-export default function ProductCard({ product, socialProof, onClick }) {
+export default function ProductCard({ product, socialProof, onClick, onAddToCart }) {
   const { formatPrice, t } = useLocale()
   
   const {
@@ -83,8 +84,8 @@ export default function ProductCard({ product, socialProof, onClick }) {
               {type}
             </Badge>
             
-            {hasDiscount && (
-              <Badge className="bg-white/90 text-black font-bold shadow-lg animate-pulse">
+              {hasDiscount && (
+              <Badge className="bg-primary text-black font-bold border-primary/30">
                 -{discount_percent}%
               </Badge>
             )}
@@ -134,22 +135,46 @@ export default function ProductCard({ product, socialProof, onClick }) {
 
             <div className="flex flex-col items-end">
                {isInStock ? (
-                <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full ring-1 ring-emerald-500/20">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  {available_count > 10 ? t('product.inStock') : `${available_count} left`}
-                </div>
-              ) : can_fulfill_on_demand ? (
-                <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded-full ring-1 ring-amber-500/20">
-                  <Clock className="w-3 h-3" />
-                  {t('product.onDemand')}
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-1 rounded-full ring-1 ring-red-500/20">
-                  <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                  {t('product.outOfStock')}
-                </div>
-              )}
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary bg-primary/10 px-2 py-1 rounded-full ring-1 ring-primary/20">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                {available_count > 10 ? t('product.inStock') : `${available_count} left`}
+              </div>
+            ) : can_fulfill_on_demand ? (
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded-full ring-1 ring-amber-500/20">
+                <Clock className="w-3 h-3" />
+                {t('product.onDemand')}
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-1 rounded-full ring-1 ring-red-500/20">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                {t('product.outOfStock')}
+              </div>
+            )}
             </div>
+          </div>
+
+          <div className="mt-4 flex gap-2">
+            <Button
+              className="flex-1"
+              onClick={(e) => {
+                e.stopPropagation()
+                onClick(id)
+              }}
+            >
+              {t('product.buyNow') || 'Buy now'}
+            </Button>
+            {onAddToCart && (
+              <Button
+                variant="outline"
+                className="flex-1 border-primary/40 text-primary hover:bg-primary/10"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onAddToCart(product)
+                }}
+              >
+                {t('product.addToCart') || 'Add to cart'}
+              </Button>
+            )}
           </div>
         </div>
       </Card>

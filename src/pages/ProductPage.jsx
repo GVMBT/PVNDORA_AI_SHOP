@@ -323,14 +323,11 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
         <Button
           onClick={handleBuy}
           disabled={!isInStock && !can_fulfill_on_demand}
-          variant="default"
           className={cn(
             "w-full h-14 text-lg font-bold rounded-2xl shadow-lg transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]",
-            isInStock
-              ? "bg-primary text-primary-foreground hover:bg-primary/90"
-              : can_fulfill_on_demand
-                ? "bg-amber-500 text-black hover:bg-amber-400"
-                : "bg-secondary text-muted-foreground hover:bg-secondary"
+            isInStock || can_fulfill_on_demand
+              ? "bg-gradient-to-r from-primary via-emerald-400 to-primary text-black hover:brightness-[1.05]"
+              : "bg-secondary text-muted-foreground hover:bg-secondary"
           )}
         >
           {isInStock ? (
@@ -338,13 +335,11 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
               <Zap className="w-5 h-5 fill-current" />
               {t('product.buyNow')}
             </div>
-          ) : can_fulfill_on_demand ? (
+          ) : (
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5" />
-              {t('product.preorder')}
+              {can_fulfill_on_demand ? t('product.preorder') : t('product.notifyMe')}
             </div>
-          ) : (
-            t('product.notifyMe')
           )}
         </Button>
       </div>
