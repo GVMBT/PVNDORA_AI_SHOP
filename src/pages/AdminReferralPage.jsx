@@ -637,7 +637,7 @@ export default function AdminReferralPage({ onBack }) {
             
             {crmView === 'partners' ? (
               <>
-            {/* Partner Type Filter */}
+                {/* Partner Type Filter */}
             <div className="flex gap-2">
               <Button
                 variant={partnerType === 'all' ? 'default' : 'outline'}
@@ -859,6 +859,10 @@ export default function AdminReferralPage({ onBack }) {
                     </div>
                   )}
                 </>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  Загрузка всех пользователей...
+                </div>
               )}
             </div>
           </TabsContent>
