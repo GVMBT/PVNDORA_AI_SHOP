@@ -60,7 +60,7 @@ export default function AdminPage({ onNavigate }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Admin Panel</h1>
+          <h1 className="text-2xl font-bold">Панель администратора</h1>
           <p className="text-sm text-muted-foreground">Управление магазином</p>
         </div>
         <Button 

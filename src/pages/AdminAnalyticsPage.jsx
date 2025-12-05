@@ -56,12 +56,12 @@ export default function AdminAnalyticsPage({ onBack }) {
       const response = await fetch(`/api/admin/metrics/business?days=${days}`, { headers })
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.detail || errorData.error || 'Failed to load metrics')
+        throw new Error(errorData.detail || errorData.error || 'Не удалось загрузить метрики')
       }
       const data = await response.json()
       setMetrics(data)
     } catch (err) {
-      await showAlert(`Error: ${err.message}`)
+      await showAlert(`Ошибка: ${err.message}`)
     } finally {
       setRefreshing(false)
     }
@@ -82,7 +82,7 @@ export default function AdminAnalyticsPage({ onBack }) {
         </div>
         {trend !== undefined && (
           <div className={`mt-2 text-xs font-medium ${trend >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-            {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}% vs prev period
+            {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}% к прошлому периоду
           </div>
         )}
       </CardContent>

@@ -16,7 +16,14 @@ import {
   ChevronDown,
   ChevronUp,
   Search,
-  BarChart3
+  BarChart3,
+  Ban,
+  Wallet,
+  AlertTriangle,
+  MessageSquare,
+  ShoppingCart,
+  RotateCcw,
+  Eye
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card'
@@ -60,9 +67,13 @@ export default function AdminReferralPage({ onBack }) {
   const { setBackButton, showPopup, hapticFeedback } = useTelegram()
   
   const [activeTab, setActiveTab] = useState('dashboard')
+  const [crmView, setCrmView] = useState('partners') // 'partners' or 'all_users'
   const [dashboard, setDashboard] = useState(null)
   const [partners, setPartners] = useState([])
   const [totalPartners, setTotalPartners] = useState(0)
+  const [allUsers, setAllUsers] = useState([])
+  const [totalUsers, setTotalUsers] = useState(0)
+  const [loadingUsers, setLoadingUsers] = useState(false)
   const [sortBy, setSortBy] = useState('referral_revenue')
   const [sortOrder, setSortOrder] = useState('desc')
   const [searchQuery, setSearchQuery] = useState('')
@@ -132,11 +143,79 @@ export default function AdminReferralPage({ onBack }) {
   
   // Load partners when tab changes
   useEffect(() => {
-    if (activeTab === 'partners') {
+    if (activeTab === 'partners' && crmView === 'partners') {
       loadPartners()
+    } else if (activeTab === 'partners' && crmView === 'all_users') {
+      loadAllUsers()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, partnerType])
+  }, [activeTab, partnerType, crmView])
+  
+  // Load all users
+  const loadAllUsers = useCallback(async () => {
+    setLoadingUsers(true)
+    try {
+      const data = await getUsersCRM(sortBy, sortOrder, 500, 0, searchQuery || null, null, null)
+      setAllUsers(data.users || [])
+      setTotalUsers(data.total || 0)
+    } catch (err) {
+      setAllUsers([])
+      setTotalUsers(0)
+      setLoadError(err.message || 'Ошибка загрузки пользователей')
+    } finally {
+      setLoadingUsers(false)
+    }
+  }, [getUsersCRM, sortBy, sortOrder, searchQuery])
+  
+  // User actions
+  const handleBanUser = async (user, ban) => {
+    hapticFeedback('impact', 'medium')
+    try {
+      await banUserCRM(user.user_id, ban)
+      await showPopup({
+        title: ban ? '🔒' : '🔓',
+        message: ban ? 'Пользователь заблокирован' : 'Пользователь разблокирован',
+        buttons: [{ type: 'ok' }]
+      })
+      loadAllUsers()
+    } catch (err) {
+      await showPopup({
+        title: '❌',
+        message: err.message || 'Ошибка',
+        buttons: [{ type: 'ok' }]
+      })
+    }
+  }
+  
+  const handleUpdateBalance = async (user, amount) => {
+    const result = await showPopup({
+      title: '💰 Изменить баланс',
+      message: `Текущий баланс: ${formatPrice(user.balance)}\nВведите сумму изменения:`,
+      buttons: [
+        { type: 'ok', text: 'Отмена' }
+      ]
+    })
+    // TODO: Implement balance update dialog
+  }
+  
+  const handleUpdateWarnings = async (user, count) => {
+    hapticFeedback('impact', 'light')
+    try {
+      await updateUserWarnings(user.user_id, count)
+      await showPopup({
+        title: '✅',
+        message: `Предупреждений: ${count}`,
+        buttons: [{ type: 'ok' }]
+      })
+      loadAllUsers()
+    } catch (err) {
+      await showPopup({
+        title: '❌',
+        message: err.message || 'Ошибка',
+        buttons: [{ type: 'ok' }]
+      })
+    }
+  }
   
   // Manual reload function
   const loadData = useCallback(async () => {
@@ -462,7 +541,7 @@ export default function AdminReferralPage({ onBack }) {
               
               <Card className="bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/20">
                 <CardContent className="p-4">
-                  <p className="text-xs text-muted-foreground">Net Profit</p>
+                  <p className="text-xs text-muted-foreground">Чистая прибыль</p>
                   <p className="text-2xl font-bold text-blue-500">
                     {formatPrice(dashboard?.roi?.net_profit || 0)}
                   </p>

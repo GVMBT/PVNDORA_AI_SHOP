@@ -225,7 +225,7 @@ export default function AdminProductsPage({ onBack }) {
           <Button variant="ghost" size="icon" onClick={onBack}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-xl font-bold">Products</h1>
+          <h1 className="text-xl font-bold">Товары</h1>
         </div>
         <Button onClick={() => setShowForm(true)} size="sm" className="gap-2">
           <Plus className="h-4 w-4" /> Add
@@ -241,7 +241,7 @@ export default function AdminProductsPage({ onBack }) {
           <div className="p-4 rounded-full bg-secondary text-muted-foreground">
             <Package className="h-12 w-12" />
           </div>
-          <p className="text-muted-foreground">No products found</p>
+          <p className="text-muted-foreground">Товары не найдены</p>
           <Button onClick={() => setShowForm(true)}>
             Create First Product
           </Button>
@@ -267,7 +267,7 @@ export default function AdminProductsPage({ onBack }) {
                         {product.type}
                       </Badge>
                       <Badge variant={product.available_count > 0 ? "outline" : "destructive"} className="text-xs">
-                        Stock: {product.available_count}
+                        Остаток: {product.available_count}
                       </Badge>
                     </div>
                   </div>

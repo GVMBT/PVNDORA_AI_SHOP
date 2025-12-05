@@ -10,14 +10,14 @@ import { Badge } from '../components/ui/badge'
 import { Skeleton } from '../components/ui/skeleton'
 
 const statusConfig = {
-  pending: { icon: Clock, color: 'warning', label: 'Pending' },
-  prepaid: { icon: Clock, color: 'primary', label: 'Prepaid' },
-  fulfilling: { icon: RefreshCw, color: 'primary', label: 'Fulfilling' },
-  ready: { icon: CheckCircle, color: 'success', label: 'Ready' },
-  delivered: { icon: CheckCircle, color: 'success', label: 'Delivered' },
-  refunded: { icon: RefreshCw, color: 'secondary', label: 'Refunded' },
-  cancelled: { icon: XCircle, color: 'destructive', label: 'Cancelled' },
-  failed: { icon: AlertTriangle, color: 'destructive', label: 'Failed' }
+  pending: { icon: Clock, color: 'warning', label: 'Ожидает' },
+  prepaid: { icon: Clock, color: 'primary', label: 'Предоплата' },
+  fulfilling: { icon: RefreshCw, color: 'primary', label: 'Выполняется' },
+  ready: { icon: CheckCircle, color: 'success', label: 'Готов' },
+  delivered: { icon: CheckCircle, color: 'success', label: 'Доставлен' },
+  refunded: { icon: RefreshCw, color: 'secondary', label: 'Возврат' },
+  cancelled: { icon: XCircle, color: 'destructive', label: 'Отменён' },
+  failed: { icon: AlertTriangle, color: 'destructive', label: 'Ошибка' }
 }
 
 export default function AdminOrdersPage({ onBack }) {
@@ -70,7 +70,7 @@ export default function AdminOrdersPage({ onBack }) {
     hapticFeedback('impact', 'medium')
     try {
       await updateOrderStatus(orderId, newStatus)
-      await showAlert(`Order status updated to ${newStatus}`)
+      await showAlert(`Статус заказа изменён на ${statusConfig[newStatus]?.label || newStatus}`)
       loadOrders()
     } catch (err) {
       await showAlert(`Error: ${err.message}`)
@@ -83,14 +83,14 @@ export default function AdminOrdersPage({ onBack }) {
         <Button variant="ghost" size="icon" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-xl font-bold">Orders</h1>
+        <h1 className="text-xl font-bold">Заказы</h1>
       </div>
 
       <div className="space-y-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Search orders..." 
+            placeholder="Поиск заказов..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
