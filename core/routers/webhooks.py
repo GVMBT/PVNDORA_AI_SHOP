@@ -119,6 +119,53 @@ async def cardlink_chargeback_webhook(request: Request):
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
 
+# ==================== 1PLAT WEBHOOK ====================
+
+@router.post("/api/webhook/1plat")
+@router.post("/webhook/1plat")
+async def onplat_webhook(request: Request):
+    """Handle 1Plat payment webhook"""
+    try:
+        # Try JSON first, then form data
+        try:
+            data = await request.json()
+        except:
+            data = await request.form()
+            data = dict(data)
+        
+        payment_service = get_payment_service()
+        result = await payment_service.verify_1plat_webhook(data)
+        
+        if result["success"]:
+            order_id = result["order_id"]
+            
+            publish_to_worker, WorkerEndpoints = get_queue_publisher()
+            
+            # Guaranteed delivery via QStash
+            await publish_to_worker(
+                endpoint=WorkerEndpoints.DELIVER_GOODS,
+                body={"order_id": order_id},
+                retries=5,
+                deduplication_id=f"deliver-{order_id}"
+            )
+            
+            # Calculate referral bonus
+            await publish_to_worker(
+                endpoint=WorkerEndpoints.CALCULATE_REFERRAL,
+                body={"order_id": order_id},
+                retries=3,
+                deduplication_id=f"referral-{order_id}"
+            )
+            
+            return JSONResponse({"ok": True})
+        
+        return JSONResponse({"ok": False, "error": result.get("error")}, status_code=400)
+        
+    except Exception as e:
+        print(f"1Plat webhook error: {e}")
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
 # ==================== STRIPE WEBHOOK ====================
 
 @router.post("/webhook/stripe")

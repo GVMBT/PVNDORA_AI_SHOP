@@ -25,6 +25,11 @@ class PaymentService:
         self.cardlink_api_token = os.environ.get("CARDLINK_API_TOKEN", "")
         self.cardlink_shop_id = os.environ.get("CARDLINK_SHOP_ID", "")
         
+        # 1Plat credentials
+        self.onplat_api_key = os.environ.get("ONEPLAT_API_KEY", "")
+        self.onplat_secret_key = os.environ.get("ONEPLAT_SECRET_KEY", "")
+        self.onplat_merchant_id = os.environ.get("ONEPLAT_MERCHANT_ID", "")
+        
         # Webhook URLs
         self.base_url = os.environ.get("WEBAPP_URL", "https://pvndora.app")
     
@@ -61,6 +66,10 @@ class PaymentService:
             )
         elif method == "cardlink":
             return await self._create_cardlink_payment(
+                order_id, amount, product_name, currency
+            )
+        elif method == "1plat" or method == "onplat":
+            return await self._create_1plat_payment(
                 order_id, amount, product_name, currency
             )
         else:
@@ -324,6 +333,107 @@ class PaymentService:
             amount = data.get("amount", 0)
             
             if status == "success" or status == "paid":
+                return {
+                    "success": True,
+                    "order_id": order_id,
+                    "amount": float(amount) if amount else 0,
+                    "currency": data.get("currency", "RUB")
+                }
+            else:
+                return {
+                    "success": False,
+                    "order_id": order_id,
+                    "error": f"Payment status: {status}"
+                }
+                
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    # ==================== 1PLAT ====================
+    
+    async def _create_1plat_payment(
+        self,
+        order_id: str,
+        amount: float,
+        product_name: str,
+        currency: str = "RUB"
+    ) -> str:
+        """Create 1Plat payment URL"""
+        
+        if not self.onplat_api_key:
+            raise ValueError("1Plat API key not configured")
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                # 1Plat API endpoint (adjust based on actual API)
+                api_url = os.environ.get("ONEPLAT_API_URL", "https://api.1plat.ru/v1/payments")
+                
+                payload = {
+                    "api_key": self.onplat_api_key,
+                    "amount": amount,
+                    "currency": currency,
+                    "order_id": order_id,
+                    "description": product_name[:128],  # Max 128 chars
+                    "success_url": f"{self.base_url}/payment/success?order_id={order_id}",
+                    "cancel_url": f"{self.base_url}/payment/fail?order_id={order_id}",
+                    "webhook_url": f"{self.base_url}/api/webhook/1plat",
+                    "type": os.environ.get("ONEPLAT_TYPE", "live")  # 'sandbox' or 'live'
+                }
+                
+                # Add merchant_id if provided
+                if self.onplat_merchant_id:
+                    payload["merchant_id"] = self.onplat_merchant_id
+                
+                response = await client.post(
+                    api_url,
+                    headers={
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    },
+                    json=payload
+                )
+                
+                response.raise_for_status()
+                data = response.json()
+                
+                # 1Plat returns payment URL in response
+                # Adjust field names based on actual API response
+                return data.get("payment_url", data.get("url", data.get("checkout_url", "")))
+                
+        except Exception as e:
+            print(f"1Plat error: {e}")
+            raise
+    
+    async def verify_1plat_webhook(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Verify 1Plat webhook and extract order info.
+        
+        Args:
+            data: Webhook JSON data or form data
+            
+        Returns:
+            Dict with success status and order_id
+        """
+        try:
+            # Extract order info (adjust field names based on actual API)
+            order_id = data.get("order_id") or data.get("orderId") or data.get("my_data", "")
+            status = data.get("status", "").lower()
+            amount = data.get("amount", 0)
+            
+            # Verify signature if secret_key is provided
+            if self.onplat_secret_key:
+                received_sign = data.get("signature") or data.get("sign") or data.get("hash", "")
+                
+                if received_sign:
+                    # Build signature string (adjust based on actual API)
+                    sign_string = f"{order_id}:{amount}:{self.onplat_secret_key}"
+                    expected_sign = hashlib.sha256(sign_string.encode()).hexdigest()
+                    
+                    if not hmac.compare_digest(received_sign, expected_sign):
+                        return {"success": False, "error": "Invalid signature"}
+            
+            # Check payment status
+            if status in ["success", "paid", "completed", "successful"]:
                 return {
                     "success": True,
                     "order_id": order_id,

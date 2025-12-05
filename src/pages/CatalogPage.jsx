@@ -3,7 +3,7 @@ import { useProducts } from '../hooks/useApi'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
 import ProductCard from '../components/ProductCard'
-import { Search, SlidersHorizontal, Sparkles } from 'lucide-react'
+import { Search, SlidersHorizontal, Sparkles, Brain, Paintbrush, Code, Shield, Zap, CheckCircle2 } from 'lucide-react'
 import { Input } from '../components/ui/input'
 import { Button } from '../components/ui/button'
 import { Skeleton } from '../components/ui/skeleton'
@@ -45,10 +45,10 @@ export default function CatalogPage({ onProductClick }) {
   })
   
   const categories = [
-    { id: 'all', label: t('catalog.all') },
-    { id: 'subscription', label: t('catalog.subscription') },
-    { id: 'shared', label: t('catalog.shared') },
-    { id: 'key', label: t('catalog.key') }
+    { id: 'all', label: t('catalog.all'), icon: null },
+    { id: 'ai_solutions', label: t('catalog.category.aiSolutions'), icon: Brain },
+    { id: 'design_tools', label: t('catalog.category.designTools'), icon: Paintbrush },
+    { id: 'developer_access', label: t('catalog.category.developerAccess'), icon: Code }
   ]
 
   const containerVariants = {
@@ -86,7 +86,19 @@ export default function CatalogPage({ onProductClick }) {
               {t('catalog.subtitle')}
             </p>
           </div>
-          {/* Optional User Avatar or Menu could go here */}
+        </motion.div>
+        
+        {/* About Service Block */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-gradient-to-br from-card/50 to-background rounded-2xl p-5 border border-white/10 shadow-xl"
+        >
+          <h2 className="text-xl font-bold mb-3">{t('catalog.about.title')}</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+            {t('catalog.about.description')}
+          </p>
         </motion.div>
         
         {/* Search & Filter - Sticky-ish */}
@@ -112,24 +124,28 @@ export default function CatalogPage({ onProductClick }) {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
           >
-            {categories.map(cat => (
-              <motion.button
-                key={cat.id}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  hapticFeedback('selection')
-                  setFilter(cat.id)
-                }}
-                className={`
-                  px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border
-                  ${filter === cat.id 
-                    ? 'bg-primary text-black border-primary shadow-[0_0_15px_rgba(0,245,212,0.4)]' 
-                    : 'bg-secondary/50 text-muted-foreground border-transparent hover:bg-secondary hover:text-foreground'}
-                `}
-              >
-                {cat.label}
-              </motion.button>
-            ))}
+            {categories.map(cat => {
+              const Icon = cat.icon
+              return (
+                <motion.button
+                  key={cat.id}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    hapticFeedback('selection')
+                    setFilter(cat.id)
+                  }}
+                  className={`
+                    px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all border flex items-center gap-2
+                    ${filter === cat.id 
+                      ? 'bg-primary text-black border-primary shadow-[0_0_15px_rgba(0,245,212,0.4)]' 
+                      : 'bg-secondary/50 text-muted-foreground border-transparent hover:bg-secondary hover:text-foreground'}
+                  `}
+                >
+                  {Icon && <Icon className="h-4 w-4" />}
+                  {cat.label}
+                </motion.button>
+              )
+            })}
           </motion.div>
         </div>
         
@@ -189,6 +205,81 @@ export default function CatalogPage({ onProductClick }) {
             </AnimatePresence>
           </motion.div>
         )}
+        
+        {/* Security & Guarantees Block */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="space-y-4 pt-6"
+        >
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <Shield className="h-5 w-5 text-primary" />
+            {t('catalog.security.title')}
+          </h2>
+          
+          <div className="grid grid-cols-1 gap-4">
+            {/* Instant Delivery */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-gradient-to-br from-card/50 to-background rounded-xl p-4 border border-white/10"
+            >
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Zap className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">{t('catalog.security.instantDelivery.title')}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {t('catalog.security.instantDelivery.description')}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+            
+            {/* Validity Guarantee */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.5 }}
+              className="bg-gradient-to-br from-card/50 to-background rounded-xl p-4 border border-white/10"
+            >
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <CheckCircle2 className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">{t('catalog.security.validity.title')}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {t('catalog.security.validity.description')}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+            
+            {/* Customer Support */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6 }}
+              className="bg-gradient-to-br from-card/50 to-background rounded-xl p-4 border border-white/10"
+            >
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Shield className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">{t('catalog.security.support.title')}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {t('catalog.security.support.description')}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </motion.div>
       </div>
     </div>
   )

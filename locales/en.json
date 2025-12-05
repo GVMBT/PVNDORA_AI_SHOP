@@ -32,9 +32,33 @@
     "trial": "Trial",
     "shared": "Personal",
     "key": "API Keys",
-    "subtitle": "Premium AI Subscriptions",
+    "subtitle": "Premium Access to AI Tools & Digital Assets",
     "search": "Search AI tools...",
-    "empty": "No products available"
+    "empty": "No products available",
+    "category": {
+      "aiSolutions": "AI Solutions",
+      "designTools": "Design Tools",
+      "developerAccess": "Developer Access"
+    },
+    "about": {
+      "title": "About Service",
+      "description": "PVNDORA — Your reliable hub for AI technology access.\n\nWe are a specialized digital distribution service providing seamless access to leading generative AI tools. We eliminate payment barriers and regional restrictions, offering licensed keys, invite links, and ready accounts for SaaS platforms.\n\nOur mission: Make advanced technologies (LLM, image generation, code assistants) accessible to every professional and developer."
+    },
+    "security": {
+      "title": "Security & Guarantees",
+      "instantDelivery": {
+        "title": "Instant Digital Delivery",
+        "description": "Automated system for issuing credentials immediately after transaction processing"
+      },
+      "validity": {
+        "title": "Validity Guarantee",
+        "description": "Verification of digital goods functionality before delivery to client"
+      },
+      "support": {
+        "title": "Customer Support",
+        "description": "Prompt resolution of technical issues related to service authorization"
+      }
+    }
   },
 
   "product": {

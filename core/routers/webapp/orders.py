@@ -82,8 +82,13 @@ async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_t
         raise HTTPException(status_code=404, detail="User not found")
     
     # Determine payment method based on user region
+    # Priority: 1Plat > CardLink > AAIO > Stripe
+    onplat_configured = bool(os.environ.get("ONEPLAT_API_KEY"))
     cardlink_configured = bool(os.environ.get("CARDLINK_API_TOKEN") and os.environ.get("CARDLINK_SHOP_ID"))
-    if cardlink_configured and db_user.language_code in ["ru", "uk", "be", "kk"]:
+    
+    if onplat_configured and db_user.language_code in ["ru", "uk", "be", "kk"]:
+        payment_method = "1plat"
+    elif cardlink_configured and db_user.language_code in ["ru", "uk", "be", "kk"]:
         payment_method = "cardlink"
     elif db_user.language_code in ["ru", "uk", "be", "kk"]:
         payment_method = "aaio"
