@@ -37,14 +37,27 @@ export default function AdminAnalyticsPage({ onBack }) {
   const loadMetrics = async () => {
     setRefreshing(true)
     try {
+      const headers = {
+        'Content-Type': 'application/json'
+      }
+      
+      // Try Telegram initData first (Mini App)
       const initData = window.Telegram?.WebApp?.initData || ''
-      const response = await fetch(`/api/admin/metrics/business?days=${days}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Init-Data': initData
+      if (initData) {
+        headers['X-Init-Data'] = initData
+      } else {
+        // Fallback to Bearer token (web session)
+        const sessionToken = window.localStorage?.getItem('pvndora_session')
+        if (sessionToken) {
+          headers['Authorization'] = `Bearer ${sessionToken}`
         }
-      })
-      if (!response.ok) throw new Error('Failed to load metrics')
+      }
+      
+      const response = await fetch(`/api/admin/metrics/business?days=${days}`, { headers })
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || errorData.error || 'Failed to load metrics')
+      }
       const data = await response.json()
       setMetrics(data)
     } catch (err) {

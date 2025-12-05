@@ -66,10 +66,16 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
   const loadProduct = async () => {
     try {
       const data = await getProduct(productId)
-      setProduct(data.product)
-      setSocialProof(data.social_proof)
+      if (data && data.product) {
+        setProduct(data.product)
+        setSocialProof(data.social_proof || null)
+      } else {
+        console.error('Invalid product data:', data)
+        setProduct(null)
+      }
     } catch (err) {
       console.error('Failed to load product:', err)
+      setProduct(null)
     }
   }
   
@@ -111,21 +117,21 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
   }
   
   const {
-    name,
-    description,
-    price,
-    msrp,
-    discount_percent,
-    final_price,
-    available_count,
-    can_fulfill_on_demand,
-    fulfillment_time_hours,
-    type,
-    warranty_days,
-    duration_days,
-    instructions,
-    currency
-  } = product
+    name = '',
+    description = '',
+    price = 0,
+    msrp = null,
+    discount_percent = 0,
+    final_price = 0,
+    available_count = 0,
+    can_fulfill_on_demand = false,
+    fulfillment_time_hours = 48,
+    type = 'key',
+    warranty_days = 0,
+    duration_days = null,
+    instructions = null,
+    currency = 'USD'
+  } = product || {}
   
   const hasDiscount = discount_percent > 0
   const isInStock = available_count > 0

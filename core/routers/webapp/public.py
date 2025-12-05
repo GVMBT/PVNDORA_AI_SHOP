@@ -35,6 +35,11 @@ async def get_webapp_product(
     rating_info = await db.get_product_rating(product_id)
     
     # Get currency service and convert prices
+    currency = "USD"
+    original_price = float(product.price)
+    final_price = original_price * (1 - discount_percent / 100)
+    msrp = float(product.msrp) if hasattr(product, 'msrp') and product.msrp else None
+    
     try:
         redis = await get_redis()
         currency_service = get_currency_service(redis)
@@ -48,17 +53,30 @@ async def get_webapp_product(
         final_price_usd = price_usd * (1 - discount_percent / 100)
         final_price = await currency_service.convert_price(final_price_usd, currency, round_to_int=True)
         
-        msrp = None
         if msrp_usd:
             msrp = await currency_service.convert_price(msrp_usd, currency, round_to_int=True)
     except Exception as e:
         print(f"Warning: Currency conversion failed: {e}, using USD")
-        currency = "USD"
-        original_price = float(product.price)
-        final_price = original_price * (1 - discount_percent / 100)
-        msrp = float(product.msrp) if hasattr(product, 'msrp') and product.msrp else None
+        # Values already set to USD above
     
     fulfillment_time_hours = getattr(product, 'fulfillment_time_hours', 48)
+    
+    # Get social proof data
+    try:
+        social_proof_result = await asyncio.to_thread(
+            lambda: db.client.table("product_social_proof").select("*").eq("product_id", product_id).single().execute()
+        )
+        social_proof_data = social_proof_result.data if social_proof_result.data else {}
+    except Exception:
+        social_proof_data = {}
+    
+    # Build social proof response
+    social_proof = {
+        "rating": rating_info.get("average", 0),
+        "review_count": rating_info.get("count", 0),
+        "sales_count": social_proof_data.get("sales_count", 0),
+        "recent_reviews": social_proof_data.get("recent_reviews", [])
+    }
     
     return {
         "product": {
@@ -66,16 +84,17 @@ async def get_webapp_product(
             "original_price": original_price, "price": original_price,
             "price_usd": float(product.price),  # Keep USD for reference
             "msrp": msrp,  # Converted MSRP
-            "currency": currency,
+            "currency": currency or "USD",  # Ensure currency is always set
             "discount_percent": discount_percent, "final_price": round(final_price, 2),
-            "warranty_days": product.warranty_hours // 24 if hasattr(product, 'warranty_hours') else 1,
+            "warranty_days": product.warranty_hours // 24 if hasattr(product, 'warranty_hours') and product.warranty_hours else 0,
             "duration_days": getattr(product, 'duration_days', None),
             "available_count": product.stock_count, "available": product.stock_count > 0,
             "can_fulfill_on_demand": product.status == 'active',
             "fulfillment_time_hours": fulfillment_time_hours if product.status == 'active' else None,
             "type": product.type, "instructions": product.instructions,
-            "rating": rating_info["average"], "reviews_count": rating_info["count"]
-        }
+            "rating": rating_info.get("average", 0), "reviews_count": rating_info.get("count", 0)
+        },
+        "social_proof": social_proof
     }
 
 
@@ -88,14 +107,16 @@ async def get_webapp_products(
     products = await db.get_products(status="active")
     
     # Get currency service and convert prices
+    currency = "USD"
+    currency_service = None
+    
     try:
         redis = await get_redis()
         currency_service = get_currency_service(redis)
         currency = currency_service.get_user_currency(language_code)
     except Exception as e:
         print(f"Warning: Currency service unavailable: {e}, using USD")
-        currency = "USD"
-        currency_service = None
+        # Values already set to USD above
     
     result = []
     for p in products:
@@ -119,11 +140,11 @@ async def get_webapp_products(
             "id": p.id, "name": p.name, "description": p.description,
             "original_price": original_price, "price": original_price,
             "price_usd": price_usd,  # Keep USD for reference
-            "currency": currency,
+            "currency": currency or "USD",  # Ensure currency is always set
             "discount_percent": discount_percent, "final_price": round(final_price, 2),
             "available_count": p.stock_count, "available": p.stock_count > 0,
             "can_fulfill_on_demand": p.status == 'active',
-            "type": p.type, "rating": rating_info["average"], "reviews_count": rating_info["count"]
+            "type": p.type, "rating": rating_info.get("average", 0), "reviews_count": rating_info.get("count", 0)
         })
     
     return {"products": result, "count": len(result)}

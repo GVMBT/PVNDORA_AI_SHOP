@@ -99,19 +99,21 @@ async def verify_telegram_auth(
                     username=session.get("username"),
                     language_code="en"
                 )
+            # If Bearer token is invalid and no X-Init-Data, raise error
+            if not x_init_data:
+                raise HTTPException(status_code=401, detail="Invalid session token")
     
     init_data = None
     
     # Try X-Init-Data header (Telegram Mini App)
     if x_init_data:
         init_data = x_init_data
-    # Fallback to Authorization header (Telegram Mini App)
+    # Fallback to Authorization header (Telegram Mini App) - only if not Bearer
     elif authorization:
         parts = authorization.split(" ")
         if len(parts) == 2 and parts[0].lower() == "tma":
             init_data = parts[1]
-        else:
-            init_data = authorization  # Try raw value
+        # Don't try raw authorization as initData - it will fail validation
     
     if not init_data:
         raise HTTPException(status_code=401, detail="No authorization header")
