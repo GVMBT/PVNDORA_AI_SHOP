@@ -61,6 +61,10 @@ export default function AdminReferralPage({ onBack }) {
     updateReferralSettings, 
     getReferralDashboard, 
     getReferralPartnersCRM,
+    getUsersCRM,
+    banUserCRM,
+    updateUserBalance,
+    updateUserWarnings,
     setPartner 
   } = useAdmin()
   const { formatPrice } = useLocale()
