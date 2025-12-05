@@ -41,6 +41,22 @@ class OrderResponse(BaseModel):
     payment_method: str
 
 
+# ==================== CART MODELS ====================
+
+class AddToCartRequest(BaseModel):
+    product_id: str
+    quantity: int = 1
+
+
+class UpdateCartItemRequest(BaseModel):
+    product_id: str
+    quantity: int = 1  # 0 означает удалить
+
+
+class ApplyPromoRequest(BaseModel):
+    code: str
+
+
 # ==================== PROFILE MODELS ====================
 
 class WithdrawalRequest(BaseModel):

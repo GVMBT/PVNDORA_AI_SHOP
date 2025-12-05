@@ -219,14 +219,23 @@ async def _create_single_order(db, db_user, user, request: CreateOrderRequest, p
     # active или out_of_stock - можно заказать (RPC функция обработает)
     quantity = request.quantity or 1
     
-    # For quantity > 1, we need to handle it differently
-    # For now, we'll create orders one by one (can be optimized later)
+    # Если пользователь хочет >1, переводим в корзину с уже готовым сплитом instant/prepaid
     if quantity > 1:
-        # TODO: Support multiple quantities - create multiple orders or use cart
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Multiple quantities not yet supported. Please use cart for multiple items."
+        from core.cart import get_cart_manager
+        cart_manager = get_cart_manager()
+        
+        available_stock = await db.get_available_stock_count(request.product_id)
+        await cart_manager.add_item(
+            user_telegram_id=user.id,
+            product_id=request.product_id,
+            product_name=product.name,
+            quantity=quantity,
+            available_stock=available_stock,
+            unit_price=product.price,
+            discount_percent=0.0
         )
+        # Ресет используемого флага: идём через cart checkout
+        return await _create_cart_order(db, db_user, user, payment_service, payment_method)
     
     # Use RPC function that automatically handles instant vs prepaid
     # RPC функция принимает только active и out_of_stock

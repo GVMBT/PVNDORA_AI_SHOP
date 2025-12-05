@@ -100,6 +100,10 @@ research/
 notes/
 TODO.md
 
+# HTTP client request files
+*.http
+*.rest
+
 # Test files
 *.test.js
 *.test.ts
