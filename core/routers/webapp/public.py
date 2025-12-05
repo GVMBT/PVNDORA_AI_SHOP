@@ -67,7 +67,8 @@ async def get_webapp_product(
             lambda: db.client.table("product_social_proof").select("*").eq("product_id", product_id).single().execute()
         )
         social_proof_data = social_proof_result.data if social_proof_result.data else {}
-    except Exception:
+    except Exception as e:
+        print(f"Warning: Failed to get social proof: {e}")
         social_proof_data = {}
     
     # Build social proof response
