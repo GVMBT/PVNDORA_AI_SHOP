@@ -21,6 +21,7 @@ import { Skeleton } from '../components/ui/skeleton'
 import { Card, CardContent } from '../components/ui/card'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
+import { HeaderBar } from '../components/ui/header-bar'
 
 const GRADIENTS = [
   'from-blue-600 via-indigo-500 to-purple-600',
@@ -139,22 +140,12 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
   
   return (
     <div className="pb-32 bg-background min-h-screen">
+      <HeaderBar title={product?.name || t('product.title')} onBack={onBack} />
+
       {/* Immersive Header */}
       <div className={cn("relative h-72 w-full overflow-hidden bg-gradient-to-br", gradientClass)}>
         <div className="absolute inset-0 bg-black/20" />
         <div className="absolute inset-0 bg-[url('/noise.png')] opacity-30 mix-blend-overlay" />
-        
-        {/* Back Button Overlay */}
-        <div className="absolute top-4 left-4 z-20">
-           <Button 
-            variant="secondary" 
-            size="icon" 
-            onClick={onBack} 
-            className="h-10 w-10 rounded-full bg-black/20 backdrop-blur-md border border-white/10 hover:bg-black/40 text-white"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </div>
 
         {/* Hero Content */}
         <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background via-background/80 to-transparent pt-20">
@@ -332,13 +323,14 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
         <Button
           onClick={handleBuy}
           disabled={!isInStock && !can_fulfill_on_demand}
+          variant="default"
           className={cn(
-            "w-full h-14 text-lg font-bold rounded-2xl shadow-[0_0_20px_rgba(0,245,212,0.3)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]",
-            isInStock 
-              ? "bg-gradient-to-r from-primary via-teal-400 to-primary text-black" 
+            "w-full h-14 text-lg font-bold rounded-2xl shadow-lg transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]",
+            isInStock
+              ? "bg-primary text-primary-foreground hover:bg-primary/90"
               : can_fulfill_on_demand
-                ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white"
-                : "bg-secondary text-muted-foreground"
+                ? "bg-amber-500 text-black hover:bg-amber-400"
+                : "bg-secondary text-muted-foreground hover:bg-secondary"
           )}
         >
           {isInStock ? (

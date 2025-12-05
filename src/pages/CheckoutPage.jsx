@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useProducts, useOrders, usePromo, useCart } from '../hooks/useApi'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
@@ -8,14 +8,14 @@ import { Input } from '../components/ui/input'
 import { Card, CardContent } from '../components/ui/card'
 import { Separator } from '../components/ui/separator'
 import { Skeleton } from '../components/ui/skeleton'
-import { motion, AnimatePresence } from 'framer-motion'
-import { cn } from '../lib/utils'
+import { motion as Motion, AnimatePresence } from 'framer-motion'
+import { HeaderBar } from '../components/ui/header-bar'
 
 export default function CheckoutPage({ productId, initialQuantity = 1, onBack, onSuccess }) {
   const { getProduct, loading: productLoading } = useProducts()
-  const { createOrder, createOrderFromCart, loading: orderLoading } = useOrders()
+  const { createOrder, createOrderFromCart } = useOrders()
   const { checkPromo, loading: promoLoading } = usePromo()
-  const { getCart, loading: cartLoading } = useCart()
+  const { getCart, updateCartItem, removeCartItem, applyCartPromo, removeCartPromo, loading: cartLoading } = useCart()
   const { t, formatPrice } = useLocale()
   const { setBackButton, setMainButton, hapticFeedback, showAlert } = useTelegram()
   
@@ -27,47 +27,16 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
   const [error, setError] = useState(null)
   const isCartMode = !productId
   
-  useEffect(() => {
-    if (productId) {
-      loadProduct()
-    } else {
-      loadCart()
-    }
-    
-    setBackButton({
-      isVisible: true,
-      onClick: onBack
-    })
-    
-    return () => {
-      setBackButton({ isVisible: false })
-      setMainButton({ isVisible: false })
-    }
-  }, [productId])
-  
-  // Update main button when product/cart/promo changes
-  useEffect(() => {
-    const total = calculateTotal()
-    if (total > 0) {
-      const currency = product?.currency || cart?.currency || 'USD'
-      setMainButton({
-        text: `${t('checkout.pay')} ${formatPrice(total, currency)}`,
-        isVisible: true,
-        onClick: handleCheckout
-      })
-    }
-  }, [product, cart, quantity, promoResult])
-  
-  const loadProduct = async () => {
+  const loadProduct = useCallback(async () => {
     try {
       const data = await getProduct(productId)
       setProduct(data.product)
     } catch (err) {
       setError(err.message)
     }
-  }
+  }, [getProduct, productId])
   
-  const loadCart = async () => {
+  const loadCart = useCallback(async () => {
     try {
       const data = await getCart()
       if (data && data.items && Array.isArray(data.items) && data.items.length > 0) {
@@ -81,9 +50,9 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
     } catch (err) {
       setError(err.message)
     }
-  }
+  }, [getCart, t])
   
-  const calculateTotal = () => {
+  const calculateTotal = useCallback(() => {
     if (isCartMode) {
       if (!cart || !cart.items || !Array.isArray(cart.items) || cart.items.length === 0) return 0
       
@@ -110,27 +79,72 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
       
       return total
     }
-  }
+  }, [isCartMode, cart, promoResult, product, quantity])
   
   const handlePromoCheck = async () => {
     if (!promoCode.trim()) return
     
     try {
-      const result = await checkPromo(promoCode)
-      setPromoResult(result)
-      
-      if (result.is_valid) {
+      if (isCartMode) {
+        const updated = await applyCartPromo(promoCode)
+        setCart(updated)
+        setPromoResult({ is_valid: true, discount_percent: updated.promo_discount_percent || 0 })
         hapticFeedback('notification', 'success')
       } else {
-        hapticFeedback('notification', 'error')
+        const result = await checkPromo(promoCode)
+        setPromoResult(result)
+        
+        if (result.is_valid) {
+          hapticFeedback('notification', 'success')
+        } else {
+          hapticFeedback('notification', 'error')
+        }
       }
     } catch (err) {
       setPromoResult({ is_valid: false, error: err.message })
       hapticFeedback('notification', 'error')
+      await showAlert(err.message)
+    }
+  }
+
+  const handleRemovePromo = async () => {
+    if (!isCartMode) {
+      setPromoResult(null)
+      setPromoCode('')
+      return
+    }
+    try {
+      const updated = await removeCartPromo()
+      setCart(updated)
+      setPromoResult(null)
+      setPromoCode('')
+      hapticFeedback('notification', 'success')
+    } catch (err) {
+      await showAlert(err.message)
+    }
+  }
+
+  const handleCartQuantity = async (productId, newQuantity) => {
+    try {
+      hapticFeedback('selection')
+      const updated = await updateCartItem(productId, newQuantity)
+      setCart(updated)
+    } catch (err) {
+      await showAlert(err.message)
+    }
+  }
+
+  const handleCartRemove = async (productId) => {
+    try {
+      hapticFeedback('selection')
+      const updated = await removeCartItem(productId)
+      setCart(updated)
+    } catch (err) {
+      await showAlert(err.message)
     }
   }
   
-  const handleCheckout = async () => {
+  const handleCheckout = useCallback(async () => {
     try {
       hapticFeedback('impact', 'medium')
       setMainButton({ isLoading: true })
@@ -172,7 +186,51 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
     } finally {
       setMainButton({ isLoading: false })
     }
-  }
+  }, [
+    createOrder,
+    createOrderFromCart,
+    hapticFeedback,
+    isCartMode,
+    onSuccess,
+    productId,
+    promoCode,
+    promoResult,
+    quantity,
+    setMainButton,
+    showAlert,
+    t
+  ])
+  
+  useEffect(() => {
+    if (productId) {
+      loadProduct()
+    } else {
+      loadCart()
+    }
+    
+    setBackButton({
+      isVisible: true,
+      onClick: onBack
+    })
+    
+    return () => {
+      setBackButton({ isVisible: false })
+      setMainButton({ isVisible: false })
+    }
+  }, [productId, loadProduct, loadCart, onBack, setBackButton, setMainButton])
+  
+  // Update main button when product/cart/promo changes
+  useEffect(() => {
+    const total = calculateTotal()
+    if (total > 0) {
+      const currency = product?.currency || cart?.currency || 'USD'
+      setMainButton({
+        text: `${t('checkout.pay')} ${formatPrice(total, currency)}`,
+        isVisible: true,
+        onClick: handleCheckout
+      })
+    }
+  }, [product, cart, calculateTotal, formatPrice, t, handleCheckout, setMainButton])
   
   if (productLoading || cartLoading) {
     return (
@@ -217,18 +275,12 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
     <div className="min-h-screen bg-background pb-24 relative">
       <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-background pointer-events-none" />
       
-      {/* Header */}
-      <div className="sticky top-0 z-10 backdrop-blur-md border-b border-border/10 p-4 flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 rounded-full bg-secondary/30 hover:bg-secondary/50">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <span className="font-bold text-lg">{t('checkout.title')}</span>
-      </div>
+      <HeaderBar title={t('checkout.title')} onBack={onBack} className="z-20" />
       
       <div className="p-4 space-y-6 relative z-10">
         
         {/* Order Item(s) */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="space-y-4"
@@ -242,14 +294,43 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
                 {isCartMode ? (
                    <div className="divide-y divide-white/5">
                      {cart.items.map((item, index) => (
-                       <div key={index} className="p-4 flex justify-between items-center">
-                          <div>
-                             <p className="font-bold text-foreground">{item.product_name}</p>
-                             <p className="text-xs text-muted-foreground mt-1">
-                               {item.quantity} x {formatPrice(item.final_price, item.currency || currency)}
-                             </p>
+                       <div key={index} className="p-4 space-y-2">
+                          <div className="flex justify-between items-center">
+                             <div>
+                               <p className="font-bold text-foreground">{item.product_name}</p>
+                               <p className="text-xs text-muted-foreground mt-1">
+                                 {item.instant_quantity > 0 ? `${item.instant_quantity} instant` : null}
+                                 {item.prepaid_quantity > 0 ? `${item.instant_quantity > 0 ? ' • ' : ''}${item.prepaid_quantity} prepaid` : null}
+                               </p>
+                             </div>
+                             <div className="flex items-center gap-2">
+                                <p className="font-mono font-bold">{formatPrice(item.total_price, item.currency || currency)}</p>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md" onClick={() => handleCartRemove(item.product_id)}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                             </div>
                           </div>
-                          <p className="font-mono font-bold">{formatPrice(item.total_price, item.currency || currency)}</p>
+                          <div className="flex items-center justify-end gap-3">
+                            <div className="flex items-center gap-3 bg-background rounded-lg p-1 shadow-sm">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-md hover:bg-secondary"
+                                onClick={() => handleCartQuantity(item.product_id, Math.max(0, item.quantity - 1))}
+                              >
+                                <Minus className="h-4 w-4" />
+                              </Button>
+                              <span className="font-mono font-bold w-6 text-center">{item.quantity}</span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-md hover:bg-secondary"
+                                onClick={() => handleCartQuantity(item.product_id, item.quantity + 1)}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
                        </div>
                      ))}
                    </div>
@@ -294,10 +375,10 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
                 )}
               </CardContent>
             </Card>
-        </motion.div>
+        </Motion.div>
         
         {/* Promo Code */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -329,38 +410,47 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
                 
                  <AnimatePresence>
                   {(promoResult || (isCartMode && cart.promo_code)) && (
-                    <motion.div
+                    <Motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
                       className="overflow-hidden"
                     >
-                      <div className={`flex items-center gap-2 text-sm mt-3 p-2 rounded-lg ${
+                      <div className={`flex items-center justify-between text-sm mt-3 p-2 rounded-lg ${
                         (promoResult?.is_valid || cart.promo_discount_percent > 0) 
                           ? 'bg-green-500/10 text-green-500' 
                           : 'bg-destructive/10 text-destructive'
                       }`}>
-                        {promoResult?.is_valid || cart.promo_discount_percent > 0 ? (
-                          <>
-                            <Check className="h-4 w-4" />
-                            <span className="font-bold">{t('checkout.promoApplied')} -{promoResult?.discount_percent || cart.promo_discount_percent || 0}%</span>
-                          </>
-                        ) : (
-                          <>
+                        <div className="flex items-center gap-2">
+                          {promoResult?.is_valid || cart.promo_discount_percent > 0 ? (
+                            <>
+                              <Check className="h-4 w-4" />
+                              <span className="font-bold">
+                                {t('checkout.promoApplied')} -{promoResult?.discount_percent || cart.promo_discount_percent || 0}%
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <X className="h-4 w-4" />
+                              <span>{promoResult?.error || t('checkout.promoInvalid')}</span>
+                            </>
+                          )}
+                        </div>
+                        {(promoResult?.is_valid || cart.promo_discount_percent > 0) && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleRemovePromo}>
                             <X className="h-4 w-4" />
-                            <span>{promoResult?.error || t('checkout.promoInvalid')}</span>
-                          </>
+                          </Button>
                         )}
                       </div>
-                    </motion.div>
+                    </Motion.div>
                   )}
                 </AnimatePresence>
              </CardContent>
           </Card>
-        </motion.div>
+        </Motion.div>
         
         {/* Total Summary */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -389,7 +479,7 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
                 </div>
              </CardContent>
            </Card>
-        </motion.div>
+        </Motion.div>
         
         {/* Trust Badge */}
         <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground opacity-70">

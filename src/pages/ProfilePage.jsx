@@ -38,6 +38,8 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { motion } from 'framer-motion'
 import { cn } from '../lib/utils'
+import { HeaderBar } from '../components/ui/header-bar'
+import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs'
 
 const WITHDRAWAL_MIN = 500 
 
@@ -242,12 +244,7 @@ export default function ProfilePage({ onBack }) {
       {/* Ambient Background */}
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-500/10 via-background to-background pointer-events-none z-0" />
 
-      {/* Header */}
-      <div className="sticky top-0 z-20 p-4">
-        <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 rounded-full bg-secondary/30 backdrop-blur-md">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-      </div>
+      <HeaderBar title={t('profile.title')} onBack={onBack} className="z-20" />
       
       <div className="px-4 space-y-6 relative z-10">
         
@@ -429,21 +426,24 @@ export default function ProfilePage({ onBack }) {
             
             <div className="space-y-2">
               <Label>{t('profile.paymentMethod')}</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {['card', 'phone', 'crypto'].map((method) => (
-                  <button
-                    key={method}
-                    onClick={() => setWithdrawMethod(method)}
-                    className={cn(
-                      "flex flex-col items-center gap-2 p-3 rounded-xl border transition-all",
-                      withdrawMethod === method ? "bg-primary/10 border-primary text-primary" : "bg-secondary/30 border-transparent hover:bg-secondary/50"
-                    )}
-                  >
-                    {getMethodIcon(method)}
-                    <span className="text-[10px] font-medium uppercase">{t(`profile.method.${method}`)}</span>
-                  </button>
-                ))}
-              </div>
+              <Tabs value={withdrawMethod} onValueChange={setWithdrawMethod}>
+                <TabsList className="grid grid-cols-3 gap-2 bg-transparent p-0">
+                  {['card', 'phone', 'crypto'].map((method) => (
+                    <TabsTrigger
+                      key={method}
+                      value={method}
+                      className={cn(
+                        "flex flex-col items-center gap-2 py-3 px-3 h-auto rounded-xl border",
+                        "data-[state=active]:bg-primary/10 data-[state=active]:border-primary data-[state=active]:text-primary",
+                        "data-[state=inactive]:bg-secondary/30 data-[state=inactive]:border-transparent"
+                      )}
+                    >
+                      {getMethodIcon(method)}
+                      <span className="text-[10px] font-medium uppercase">{t(`profile.method.${method}`)}</span>
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
             </div>
             
             <div className="space-y-2">

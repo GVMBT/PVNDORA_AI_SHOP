@@ -8,6 +8,7 @@ import { Input } from '../components/ui/input'
 import { Button } from '../components/ui/button'
 import { Skeleton } from '../components/ui/skeleton'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs'
 
 export default function CatalogPage({ onProductClick }) {
   const { getProducts, loading, error } = useProducts()
@@ -118,35 +119,33 @@ export default function CatalogPage({ onProductClick }) {
         
         {/* Categories */}
         <div className="overflow-x-auto -mx-4 px-4 no-scrollbar">
-          <motion.div 
-            className="flex gap-2 min-w-max"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
+          <Tabs
+            value={filter}
+            onValueChange={(value) => {
+              hapticFeedback('selection')
+              setFilter(value)
+            }}
           >
-            {categories.map(cat => {
-              const Icon = cat.icon
-              return (
-                <motion.button
-                  key={cat.id}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    hapticFeedback('selection')
-                    setFilter(cat.id)
-                  }}
-                  className={`
-                    px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all border flex items-center gap-2
-                    ${filter === cat.id 
-                      ? 'bg-primary text-black border-primary shadow-[0_0_15px_rgba(0,245,212,0.4)]' 
-                      : 'bg-secondary/50 text-muted-foreground border-transparent hover:bg-secondary hover:text-foreground'}
-                  `}
-                >
-                  {Icon && <Icon className="h-4 w-4" />}
-                  {cat.label}
-                </motion.button>
-              )
-            })}
-          </motion.div>
+            <TabsList className="flex gap-2 bg-transparent p-0 min-w-max">
+              {categories.map((cat) => {
+                const Icon = cat.icon
+                return (
+                  <TabsTrigger
+                    key={cat.id}
+                    value={cat.id}
+                    className={`
+                      px-5 py-2.5 h-auto rounded-full text-sm font-bold whitespace-nowrap border flex items-center gap-2
+                      data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary data-[state=active]:shadow-[0_0_15px_rgba(0,245,212,0.4)]
+                      data-[state=inactive]:bg-secondary/50 data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-transparent
+                    `}
+                  >
+                    {Icon && <Icon className="h-4 w-4" />}
+                    {cat.label}
+                  </TabsTrigger>
+                )
+              })}
+            </TabsList>
+          </Tabs>
         </div>
         
         {/* Product Grid */}

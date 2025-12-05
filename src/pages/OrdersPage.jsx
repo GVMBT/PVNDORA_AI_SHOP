@@ -9,6 +9,7 @@ import { Card, CardContent } from '../components/ui/card'
 import { Skeleton } from '../components/ui/skeleton'
 import { motion } from 'framer-motion'
 import { cn } from '../lib/utils'
+import { HeaderBar } from '../components/ui/header-bar'
 
 const statusConfig = {
   pending: { icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/20', labelKey: 'orders.status.pending' },
@@ -72,16 +73,12 @@ export default function OrdersPage({ onBack }) {
     <div className="min-h-screen pb-20 bg-background relative">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/5 via-background to-background pointer-events-none" />
 
-      {/* Header */}
-      <div className="sticky top-0 z-10 backdrop-blur-xl border-b border-white/5 p-4 flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={onBack} className="h-10 w-10 rounded-full bg-secondary/30 hover:bg-secondary/50">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">{t('orders.title')}</h1>
-          <p className="text-xs text-muted-foreground font-medium">{t('orders.subtitle')}</p>
-        </div>
-      </div>
+      <HeaderBar
+        title={t('orders.title')}
+        subtitle={t('orders.subtitle')}
+        onBack={onBack}
+        className="z-20"
+      />
       
       <div className="p-4 space-y-4 relative z-10">
         {loading ? (
@@ -134,10 +131,18 @@ export default function OrdersPage({ onBack }) {
                         {/* Ticket Header */}
                         <div className="p-4 pb-6 border-b border-dashed border-white/10 bg-white/5">
                           <div className="flex justify-between items-start mb-3">
-                            <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border", status.color, status.bg, status.border)}>
-                               <StatusIconComponent className="h-3 w-3" />
-                               {t(status.labelKey)}
-                            </div>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold uppercase tracking-wider border",
+                                status.color,
+                                status.bg,
+                                status.border
+                              )}
+                            >
+                              <StatusIconComponent className="h-3 w-3" />
+                              {t(status.labelKey)}
+                            </Badge>
                             <p className="font-mono text-xs text-muted-foreground opacity-70">
                               #{order.id.slice(0, 8)}
                             </p>

@@ -74,6 +74,17 @@ export function useApi() {
       method: 'PUT',
       body: JSON.stringify(body)
     }), [request])
+
+  const patch = useCallback((endpoint, body) =>
+    request(endpoint, {
+      method: 'PATCH',
+      body: JSON.stringify(body)
+    }), [request])
+
+  const del = useCallback((endpoint) =>
+    request(endpoint, {
+      method: 'DELETE'
+    }), [request])
   
   return {
     loading,
@@ -81,6 +92,8 @@ export function useApi() {
     get,
     post,
     put,
+    patch,
+    del,
     request
   }
 }
@@ -129,11 +142,20 @@ export function useOrders() {
 }
 
 export function useCart() {
-  const { get, loading, error } = useApi()
+  const { get, post, patch, del, loading, error } = useApi()
   
   const getCart = useCallback(() => get('/cart'), [get])
+  const addToCart = useCallback((productId, quantity = 1) => 
+    post('/cart/add', { product_id: productId, quantity }), [post])
+  const updateCartItem = useCallback((productId, quantity = 1) => 
+    patch('/cart/item', { product_id: productId, quantity }), [patch])
+  const removeCartItem = useCallback((productId) => 
+    del(`/cart/item?product_id=${encodeURIComponent(productId)}`), [del])
+  const applyCartPromo = useCallback((code) => 
+    post('/cart/promo/apply', { code }), [post])
+  const removeCartPromo = useCallback(() => post('/cart/promo/remove', {}), [post])
   
-  return { getCart, loading, error }
+  return { getCart, addToCart, updateCartItem, removeCartItem, applyCartPromo, removeCartPromo, loading, error }
 }
 
 export function useLeaderboard() {
