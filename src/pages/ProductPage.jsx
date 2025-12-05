@@ -123,7 +123,8 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
     type,
     warranty_days,
     duration_days,
-    instructions
+    instructions,
+    currency
   } = product
   
   const hasDiscount = discount_percent > 0
@@ -184,11 +185,11 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
              <p className="text-xs text-muted-foreground mb-0.5">{t('product.price')}</p>
              <div className="flex items-baseline gap-2">
                <span className="text-3xl font-bold text-primary font-mono tracking-tight">
-                  {formatPrice(final_price || price)}
+                  {formatPrice(final_price || price, currency)}
                 </span>
                 {hasDiscount && msrp && (
                   <span className="text-sm text-muted-foreground line-through decoration-destructive/50">
-                    {formatPrice(msrp)}
+                    {formatPrice(msrp, currency)}
                   </span>
                 )}
              </div>

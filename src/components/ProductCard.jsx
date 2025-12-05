@@ -37,7 +37,8 @@ export default function ProductCard({ product, socialProof, onClick }) {
     final_price,
     available_count,
     can_fulfill_on_demand,
-    type
+    type,
+    currency
   } = product
   
   const hasDiscount = discount_percent > 0
@@ -123,11 +124,11 @@ export default function ProductCard({ product, socialProof, onClick }) {
             <div>
               {hasDiscount && msrp && (
                 <div className="text-xs text-muted-foreground line-through mb-0.5 font-mono">
-                  {formatPrice(msrp)}
+                  {formatPrice(msrp, currency)}
                 </div>
               )}
               <div className="text-xl font-bold text-primary font-mono tracking-tight">
-                {formatPrice(final_price || price)}
+                {formatPrice(final_price || price, currency)}
               </div>
             </div>
 

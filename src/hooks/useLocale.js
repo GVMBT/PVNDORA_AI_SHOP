@@ -68,14 +68,59 @@ export function useLocale() {
     return value
   }, [locale])
   
-  const formatPrice = useCallback((amount, currency = 'RUB') => {
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
+  // Determine currency based on language
+  const getCurrency = useCallback(() => {
+    const languageToCurrency = {
+      'ru': 'RUB',
+      'uk': 'UAH',
+      'en': 'USD',
+      'de': 'EUR',
+      'fr': 'EUR',
+      'es': 'EUR',
+      'tr': 'TRY',
+      'ar': 'AED',
+      'hi': 'INR',
+      'be': 'RUB',
+      'kk': 'RUB'
+    }
+    return languageToCurrency[locale] || 'USD'
   }, [locale])
+
+  const formatPrice = useCallback((amount, currency = null) => {
+    // Use provided currency or determine from language
+    const targetCurrency = currency || getCurrency()
+    
+    // Custom formatting for better control
+    const symbols = {
+      'USD': '$',
+      'RUB': '₽',
+      'EUR': '€',
+      'UAH': '₴',
+      'TRY': '₺',
+      'INR': '₹',
+      'AED': 'د.إ'
+    }
+    
+    const symbol = symbols[targetCurrency] || targetCurrency
+    
+    // Format number based on currency
+    let formatted
+    if (['RUB', 'UAH', 'TRY', 'INR'].includes(targetCurrency)) {
+      formatted = Math.round(amount).toLocaleString(locale)
+    } else {
+      formatted = amount.toLocaleString(locale, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })
+    }
+    
+    // Place symbol based on currency
+    if (['USD', 'EUR', 'GBP'].includes(targetCurrency)) {
+      return `${symbol}${formatted}`
+    } else {
+      return `${formatted} ${symbol}`
+    }
+  }, [locale, getCurrency])
   
   const formatDate = useCallback((date, options = {}) => {
     return new Intl.DateTimeFormat(locale, {

@@ -89,12 +89,25 @@ export function useApi() {
 export function useProducts() {
   const { get, loading, error } = useApi()
   
-  const getProducts = useCallback((category) => {
-    const params = category ? `?category=${category}` : ''
-    return get(`/products${params}`)
-  }, [get])
+  // Get user language from Telegram or browser
+  const getLanguageCode = useCallback(() => {
+    const tgLang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code
+    const browserLang = navigator.language?.split('-')[0]
+    return tgLang || browserLang || 'en'
+  }, [])
   
-  const getProduct = useCallback((id) => get(`/products/${id}`), [get])
+  const getProducts = useCallback((category) => {
+    const lang = getLanguageCode()
+    const params = new URLSearchParams()
+    if (category) params.append('category', category)
+    params.append('language_code', lang)
+    return get(`/products?${params.toString()}`)
+  }, [get, getLanguageCode])
+  
+  const getProduct = useCallback((id) => {
+    const lang = getLanguageCode()
+    return get(`/products/${id}?language_code=${lang}`)
+  }, [get, getLanguageCode])
   
   return { getProducts, getProduct, loading, error }
 }
