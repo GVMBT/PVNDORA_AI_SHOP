@@ -110,40 +110,26 @@ Content-Type: application/json
 }
 ```
 
-### 2. POST /api/webhook/payment/aaio
+### 2. POST /api/webhook/1plat
 
-Webhook от платежной системы AAIO.
-
-**Request:**
-```http
-POST /api/webhook/payment/aaio
-Content-Type: application/json
-
-{
-  "order_id": "456e7890-e89b-12d3-a456-426614174001",
-  "status": "paid",
-  "signature": "..."
-}
-```
-
-### 3. POST /api/webhook/payment/stripe
-
-Webhook от Stripe.
+Webhook от платежной системы 1Plat.
 
 **Request:**
 ```http
-POST /api/webhook/payment/stripe
-Stripe-Signature: {signature}
+POST /api/webhook/1plat
 Content-Type: application/json
 
 {
-  "type": "checkout.session.completed",
-  "data": {
-    "object": {
-      "client_reference_id": "456e7890-e89b-12d3-a456-426614174001",
-      "amount_total": 26850
-    }
-  }
+  "signature": "...",
+  "signature_v2": "...",
+  "payment_id": "123",
+  "guid": "guid",
+  "merchant_id": "543",
+  "user_id": "1111",
+  "status": 1,
+  "amount": 14500,
+  "amount_to_pay": 14500,
+  "amount_to_shop": 12325
 }
 ```
 

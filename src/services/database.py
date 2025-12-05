@@ -121,7 +121,7 @@ class Database:
         amount: float,
         original_price: Optional[float] = None,
         discount_percent: int = 0,
-        payment_method: str = "aaio"
+        payment_method: str = "1plat"
     ) -> Order:
         return await self._orders.create(user_id, product_id, amount, original_price, discount_percent, payment_method)
     

@@ -249,7 +249,7 @@
     "title": "Payment Information",
     "subtitle": "Payment methods and process",
     "methods": "Payment Methods",
-    "methodsText": "We accept the following payment methods:\n\n• Bank cards (Visa, Mastercard, MIR)\n• Fast Payment System (FPS)\n• Cryptocurrencies (Bitcoin, USDT, Ethereum)\n\nAll payments are processed through the secure CardLink payment gateway.",
+    "methodsText": "We accept the following payment methods:\n\n• Bank cards (Visa, Mastercard, MIR)\n• Fast Payment System (FPS)\n• Cryptocurrencies (Bitcoin, USDT, Ethereum)\n• QR codes (NSPK)\n\nAll payments are processed through the secure 1Plat payment gateway.",
     "process": "Payment Process",
     "processText": "1. Select a product and click \"Pay\"\n2. You will be redirected to the payment page\n3. Enter card details or choose another method\n4. After successful payment, the product will be delivered automatically\n5. You will receive a notification in Telegram with access credentials",
     "security": "Security",

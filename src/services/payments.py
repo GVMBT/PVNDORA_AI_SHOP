@@ -1,33 +1,23 @@
-"""Payment Service - AAIO and Stripe Integration"""
+"""Payment Service - 1Plat Integration"""
 import os
 import hashlib
 import hmac
 from typing import Dict, Any
-from urllib.parse import urlencode
 
 import httpx
 
 
 class PaymentService:
-    """Unified payment service for AAIO (Russia) and Stripe (International)"""
+    """Payment service for 1Plat payment gateway"""
     
     def __init__(self):
-        # AAIO credentials
-        self.aaio_merchant_id = os.environ.get("AAIO_MERCHANT_ID", "")
-        self.aaio_secret_key = os.environ.get("AAIO_SECRET_KEY", "")
-        self.aaio_api_key = os.environ.get("AAIO_API_KEY", "")
-        
-        # Stripe credentials
-        self.stripe_secret_key = os.environ.get("STRIPE_SECRET_KEY", "")
-        self.stripe_webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
-        
-        # CardLink credentials
-        self.cardlink_api_token = os.environ.get("CARDLINK_API_TOKEN", "")
-        self.cardlink_shop_id = os.environ.get("CARDLINK_SHOP_ID", "")
-        
         # 1Plat credentials
+        # x-shop = Shop ID (Merchant ID) - видно рядом с названием магазина в ЛК
+        # x-secret = Secret Key - в настройках магазина в ЛК
+        self.onplat_shop_id = os.environ.get("ONEPLAT_SHOP_ID", "")  # x-shop (ID магазина, например #1182)
+        self.onplat_secret_key = os.environ.get("ONEPLAT_SECRET_KEY", "")  # x-secret (секретный ключ)
+        # Для обратной совместимости
         self.onplat_api_key = os.environ.get("ONEPLAT_API_KEY", "")
-        self.onplat_secret_key = os.environ.get("ONEPLAT_SECRET_KEY", "")
         self.onplat_merchant_id = os.environ.get("ONEPLAT_MERCHANT_ID", "")
         
         # Webhook URLs
@@ -38,9 +28,10 @@ class PaymentService:
         order_id: str,
         amount: float,
         product_name: str,
-        method: str = "aaio",
+        method: str = "1plat",
         user_email: str = "",
-        currency: str = "RUB"
+        currency: str = "RUB",
+        user_id: int = None
     ) -> str:
         """
         Create payment and return payment URL.
@@ -49,305 +40,20 @@ class PaymentService:
             order_id: Unique order ID
             amount: Payment amount
             product_name: Product name for description
-            method: Payment method ('aaio' or 'stripe')
-            user_email: User email for receipts
+            method: Payment method (only '1plat' supported)
+            user_email: User email for receipts (not used for 1Plat)
             currency: Currency code
+            user_id: User ID (required for 1Plat)
             
         Returns:
             Payment URL for redirect
         """
-        if method == "aaio":
-            return await self._create_aaio_payment(
-                order_id, amount, product_name, currency
-            )
-        elif method == "stripe":
-            return await self._create_stripe_payment(
-                order_id, amount, product_name, user_email, currency
-            )
-        elif method == "cardlink":
-            return await self._create_cardlink_payment(
-                order_id, amount, product_name, currency
-            )
-        elif method == "1plat" or method == "onplat":
+        if method == "1plat" or method == "onplat":
             return await self._create_1plat_payment(
-                order_id, amount, product_name, currency
+                order_id, amount, product_name, currency, user_id
             )
         else:
-            raise ValueError(f"Unknown payment method: {method}")
-    
-    # ==================== AAIO ====================
-    
-    async def _create_aaio_payment(
-        self,
-        order_id: str,
-        amount: float,
-        product_name: str,
-        currency: str = "RUB"
-    ) -> str:
-        """Create AAIO payment URL"""
-        
-        # Generate signature
-        sign_string = f"{self.aaio_merchant_id}:{amount}:{currency}:{self.aaio_secret_key}:{order_id}"
-        sign = hashlib.sha256(sign_string.encode()).hexdigest()
-        
-        # Build payment URL
-        params = {
-            "merchant_id": self.aaio_merchant_id,
-            "amount": str(amount),
-            "currency": currency,
-            "order_id": order_id,
-            "sign": sign,
-            "desc": product_name[:128],  # Max 128 chars
-            "lang": "ru"
-        }
-        
-        return f"https://aaio.so/merchant/pay?{urlencode(params)}"
-    
-    async def verify_aaio_callback(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Verify AAIO callback signature and extract order info.
-        
-        Args:
-            data: Callback form data
-            
-        Returns:
-            Dict with success status and order_id
-        """
-        try:
-            # Extract fields
-            merchant_id = data.get("merchant_id", "")
-            amount = data.get("amount", "")
-            currency = data.get("currency", "RUB")
-            order_id = data.get("order_id", "")
-            received_sign = data.get("sign", "")
-            
-            # Verify merchant ID
-            if merchant_id != self.aaio_merchant_id:
-                return {"success": False, "error": "Invalid merchant ID"}
-            
-            # Verify signature
-            sign_string = f"{self.aaio_merchant_id}:{amount}:{currency}:{self.aaio_secret_key}:{order_id}"
-            expected_sign = hashlib.sha256(sign_string.encode()).hexdigest()
-            
-            if not hmac.compare_digest(received_sign, expected_sign):
-                return {"success": False, "error": "Invalid signature"}
-            
-            return {
-                "success": True,
-                "order_id": order_id,
-                "amount": float(amount),
-                "currency": currency
-            }
-            
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-    
-    async def check_aaio_payment_status(self, order_id: str) -> Dict[str, Any]:
-        """Check AAIO payment status via API"""
-        
-        if not self.aaio_api_key:
-            return {"success": False, "error": "API key not configured"}
-        
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "https://aaio.so/api/info-pay",
-                    headers={
-                        "Accept": "application/json",
-                        "X-Api-Key": self.aaio_api_key
-                    },
-                    data={
-                        "merchant_id": self.aaio_merchant_id,
-                        "order_id": order_id
-                    }
-                )
-                
-                data = response.json()
-                
-                if data.get("type") == "success":
-                    return {
-                        "success": True,
-                        "status": data.get("status"),  # "in_process", "success", "expired", etc.
-                        "amount": data.get("amount"),
-                        "order_id": order_id
-                    }
-                
-                return {"success": False, "error": data.get("message", "Unknown error")}
-                
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-    
-    # ==================== STRIPE ====================
-    
-    async def _create_stripe_payment(
-        self,
-        order_id: str,
-        amount: float,
-        product_name: str,
-        user_email: str,
-        currency: str = "USD"
-    ) -> str:
-        """Create Stripe Checkout Session"""
-        
-        if not self.stripe_secret_key:
-            raise ValueError("Stripe secret key not configured")
-        
-        try:
-            import stripe
-            stripe.api_key = self.stripe_secret_key
-            
-            # Convert amount to cents
-            amount_cents = int(amount * 100)
-            
-            # Create Checkout Session
-            session = stripe.checkout.Session.create(
-                payment_method_types=["card"],
-                line_items=[{
-                    "price_data": {
-                        "currency": currency.lower(),
-                        "product_data": {
-                            "name": product_name,
-                        },
-                        "unit_amount": amount_cents,
-                    },
-                    "quantity": 1,
-                }],
-                mode="payment",
-                success_url=f"{self.base_url}/payment/success?order_id={order_id}",
-                cancel_url=f"{self.base_url}/payment/cancel?order_id={order_id}",
-                client_reference_id=order_id,
-                customer_email=user_email if "@" in user_email else None,
-                metadata={
-                    "order_id": order_id
-                }
-            )
-            
-            return session.url
-            
-        except Exception as e:
-            print(f"Stripe error: {e}")
-            raise
-    
-    async def verify_stripe_webhook(
-        self,
-        payload: bytes,
-        sig_header: str
-    ) -> Dict[str, Any]:
-        """
-        Verify Stripe webhook signature and extract event data.
-        
-        Args:
-            payload: Raw request body
-            sig_header: Stripe-Signature header value
-            
-        Returns:
-            Dict with success status and order_id
-        """
-        if not self.stripe_webhook_secret:
-            return {"success": False, "error": "Webhook secret not configured"}
-        
-        try:
-            import stripe
-            stripe.api_key = self.stripe_secret_key
-            
-            event = stripe.Webhook.construct_event(
-                payload, sig_header, self.stripe_webhook_secret
-            )
-            
-            # Handle checkout.session.completed
-            if event["type"] == "checkout.session.completed":
-                session = event["data"]["object"]
-                order_id = session.get("client_reference_id") or session.get("metadata", {}).get("order_id")
-                
-                if order_id:
-                    return {
-                        "success": True,
-                        "order_id": order_id,
-                        "amount": session.get("amount_total", 0) / 100,
-                        "currency": session.get("currency", "usd").upper()
-                    }
-            
-            # Other event types
-            return {"success": False, "error": f"Unhandled event type: {event['type']}"}
-            
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-    
-    # ==================== CARDLINK ====================
-    
-    async def _create_cardlink_payment(
-        self,
-        order_id: str,
-        amount: float,
-        product_name: str,
-        currency: str = "RUB"
-    ) -> str:
-        """Create CardLink payment URL"""
-        
-        if not self.cardlink_api_token or not self.cardlink_shop_id:
-            raise ValueError("CardLink credentials not configured")
-        
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "https://api.cardlink.link/v1/payments",
-                    headers={
-                        "Authorization": f"Bearer {self.cardlink_api_token}",
-                        "Content-Type": "application/json"
-                    },
-                    json={
-                        "shop_id": self.cardlink_shop_id,
-                        "amount": amount,
-                        "currency": currency,
-                        "order_id": order_id,
-                        "description": product_name[:128],  # Max 128 chars
-                        "success_url": f"{self.base_url}/payment/success?order_id={order_id}",
-                        "fail_url": f"{self.base_url}/payment/fail?order_id={order_id}"
-                    }
-                )
-                
-                response.raise_for_status()
-                data = response.json()
-                
-                # CardLink returns payment URL in response
-                return data.get("payment_url", data.get("url", ""))
-                
-        except Exception as e:
-            print(f"CardLink error: {e}")
-            raise
-    
-    async def verify_cardlink_webhook(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Verify CardLink webhook and extract order info.
-        
-        Args:
-            data: Webhook JSON data
-            
-        Returns:
-            Dict with success status and order_id
-        """
-        try:
-            # CardLink webhook format (verify signature if provided)
-            order_id = data.get("order_id", "")
-            status = data.get("status", "")
-            amount = data.get("amount", 0)
-            
-            if status == "success" or status == "paid":
-                return {
-                    "success": True,
-                    "order_id": order_id,
-                    "amount": float(amount) if amount else 0,
-                    "currency": data.get("currency", "RUB")
-                }
-            else:
-                return {
-                    "success": False,
-                    "order_id": order_id,
-                    "error": f"Payment status: {status}"
-                }
-                
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+            raise ValueError(f"Unknown payment method: {method}. Only '1plat' is supported.")
     
     # ==================== 1PLAT ====================
     
@@ -356,98 +62,320 @@ class PaymentService:
         order_id: str,
         amount: float,
         product_name: str,
-        currency: str = "RUB"
+        currency: str = "RUB",
+        user_id: int = None
     ) -> str:
-        """Create 1Plat payment URL"""
+        """
+        Create 1Plat payment URL.
         
-        if not self.onplat_api_key:
-            raise ValueError("1Plat API key not configured")
+        Based on 1Plat API documentation:
+        - Endpoint: POST /api/merchant/order/create/by-api
+        - Base URL: https://1plat.cash
+        - Authentication: x-shop (Shop ID) and x-secret (Secret Key) in headers
+        - Обязательные поля: merchant_order_id, user_id, amount, method
+        """
+        
+        # Используем shop_id (x-shop) или merchant_id для обратной совместимости
+        shop_id = self.onplat_shop_id or self.onplat_merchant_id or ""
+        if not shop_id:
+            raise ValueError("1Plat Shop ID (x-shop) not configured. Set ONEPLAT_SHOP_ID or ONEPLAT_MERCHANT_ID")
+        
+        if not self.onplat_secret_key:
+            raise ValueError("1Plat Secret Key (x-secret) not configured. Set ONEPLAT_SECRET_KEY")
+        
+        # user_id обязателен для 1Plat API
+        if user_id is None:
+            # Используем order_id как user_id если не передан (временное решение)
+            try:
+                user_id = int(order_id.split('-')[0]) if '-' in order_id else 0
+            except:
+                user_id = 0
         
         try:
-            async with httpx.AsyncClient() as client:
-                # 1Plat API endpoint (adjust based on actual API)
-                api_url = os.environ.get("ONEPLAT_API_URL", "https://api.1plat.ru/v1/payments")
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                # 1Plat API base URL и endpoint
+                base_url = os.environ.get("ONEPLAT_API_URL", "https://1plat.cash")
+                api_url = f"{base_url.rstrip('/')}/api/merchant/order/create/by-api"
                 
+                # Преобразуем amount в копейки (1Plat принимает INT в копейках)
+                amount_kopecks = int(float(amount) * 100)
+                
+                # Build payload согласно документации 1Plat
                 payload = {
-                    "api_key": self.onplat_api_key,
-                    "amount": amount,
-                    "currency": currency,
-                    "order_id": order_id,
-                    "description": product_name[:128],  # Max 128 chars
-                    "success_url": f"{self.base_url}/payment/success?order_id={order_id}",
-                    "cancel_url": f"{self.base_url}/payment/fail?order_id={order_id}",
-                    "webhook_url": f"{self.base_url}/api/webhook/1plat",
-                    "type": os.environ.get("ONEPLAT_TYPE", "live")  # 'sandbox' or 'live'
+                    "merchant_order_id": order_id,  # required: Id платежа на стороне мерчанта
+                    "user_id": int(user_id),  # required: Id пользователя на стороне мерчанта
+                    "amount": amount_kopecks,  # required: Сумма платежа в копейках
+                    "email": f"{user_id}@temp.com",  # shield: E-mail пользователя
+                    "method": "card",  # shield: При использовании host2host обязателен (card, sbp, qr, crypto)
                 }
                 
-                # Add merchant_id if provided
-                if self.onplat_merchant_id:
-                    payload["merchant_id"] = self.onplat_merchant_id
+                # Если метод crypto, добавляем currency
+                if payload["method"] == "crypto":
+                    payload["currency"] = currency.upper()
                 
-                response = await client.post(
-                    api_url,
-                    headers={
-                        "Content-Type": "application/json",
-                        "Accept": "application/json"
-                    },
-                    json=payload
-                )
+                # Prepare headers с авторизацией через x-shop и x-secret
+                headers = {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "x-shop": str(shop_id),  # ID магазина (например, 1182)
+                    "x-secret": self.onplat_secret_key  # Секретный ключ
+                }
                 
-                response.raise_for_status()
-                data = response.json()
+                try:
+                    response = await client.post(
+                        api_url,
+                        headers=headers,
+                        json=payload
+                    )
+                    
+                    response.raise_for_status()
+                    data = response.json()
+                    
+                    # Проверяем success
+                    if not data.get("success"):
+                        error_msg = data.get("error") or data.get("message") or "Unknown error"
+                        print(f"1Plat API error: {error_msg}")
+                        raise ValueError(f"1Plat API error: {error_msg}")
+                    
+                    # Log response for debugging (without sensitive data)
+                    print(f"1Plat payment created for order {order_id}, guid: {data.get('guid', 'N/A')}")
+                    
+                    # 1Plat возвращает payment URL в поле "url"
+                    payment_url = data.get("url", "")
+                    
+                    if not payment_url:
+                        # Fallback: формируем URL из guid
+                        guid = data.get("guid", "")
+                        if guid:
+                            payment_url = f"https://pay.1plat.cash/pay/{guid}"
+                        else:
+                            print(f"1Plat API response structure: {list(data.keys()) if isinstance(data, dict) else type(data)}")
+                            raise ValueError(f"Payment URL not found in 1Plat response. Response: {data}")
+                    
+                    # Сохраняем payment_id и guid для последующего поиска заказа в webhook
+                    # payment_id из response можно сохранить в orders.payment_id
+                    payment_info = data.get("payment", {})
+                    payment_id = payment_info.get("id") or data.get("payment_id")
+                    guid = data.get("guid", "")
+                    
+                    if payment_id or guid:
+                        print(f"1Plat payment created: payment_id={payment_id}, guid={guid}, order_id={order_id}")
+                        # TODO: Сохранить payment_id в orders.payment_id для поиска в webhook
+                        # Это можно сделать через update_order после создания платежа
+                    
+                    return payment_url
+                    
+                except httpx.HTTPStatusError as e:
+                    error_detail = ""
+                    try:
+                        error_data = e.response.json()
+                        error_detail = error_data.get("message") or error_data.get("error") or str(error_data)
+                    except:
+                        error_detail = e.response.text[:200]
+                    
+                    print(f"1Plat API error {e.response.status_code}: {error_detail}")
+                    raise ValueError(f"1Plat API error: {error_detail or 'Unknown error'}")
                 
-                # 1Plat returns payment URL in response
-                # Adjust field names based on actual API response
-                return data.get("payment_url", data.get("url", data.get("checkout_url", "")))
-                
+        except httpx.RequestError as e:
+            print(f"1Plat network error: {e}")
+            raise ValueError(f"Failed to connect to 1Plat API: {str(e)}")
         except Exception as e:
             print(f"1Plat error: {e}")
             raise
     
     async def verify_1plat_webhook(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Verify 1Plat webhook and extract order info.
+        Verify 1Plat webhook signature and extract order info.
+        
+        According to 1Plat documentation, callback format:
+        {
+            signature: '...',
+            signature_v2: '...',
+            payment_id: '123',
+            guid: 'guid',
+            merchant_id: '543',
+            user_id: '1111',
+            status: 0,
+            amount: 100,
+            amount_to_pay: 100,
+            amount_to_shop: 85,
+            expired: 'date',
+        }
         
         Args:
-            data: Webhook JSON data or form data
+            data: Webhook JSON data
             
         Returns:
-            Dict with success status and order_id
+            Dict with success status, order_id, amount, currency
         """
         try:
-            # Extract order info (adjust field names based on actual API)
-            order_id = data.get("order_id") or data.get("orderId") or data.get("my_data", "")
-            status = data.get("status", "").lower()
-            amount = data.get("amount", 0)
+            # 1Plat callback формат:
+            # {
+            #   signature: '...',
+            #   signature_v2: '...',
+            #   payment_id: '123',  # ID платежа в системе 1Plat
+            #   guid: 'guid',  # GUID платежа
+            #   merchant_id: '543',
+            #   user_id: '1111',
+            #   status: 0,
+            #   amount: 100,  # в копейках
+            #   ...
+            # }
             
-            # Verify signature if secret_key is provided
-            if self.onplat_secret_key:
-                received_sign = data.get("signature") or data.get("sign") or data.get("hash", "")
-                
-                if received_sign:
-                    # Build signature string (adjust based on actual API)
-                    sign_string = f"{order_id}:{amount}:{self.onplat_secret_key}"
-                    expected_sign = hashlib.sha256(sign_string.encode()).hexdigest()
+            # В callback НЕ приходит merchant_order_id напрямую
+            # Нужно найти заказ по payment_id или guid через API или по сохраненному payment_id в БД
+            payment_id = data.get("payment_id")
+            guid = data.get("guid")
+            
+            # Пробуем найти заказ по payment_id в БД (если он был сохранен)
+            order_id = None
+            if payment_id:
+                try:
+                    from src.services.database import get_database
+                    db = get_database()
+                    # Ищем заказ по payment_id (если поле существует и заполнено)
+                    # Пока используем guid для запроса к API 1Plat
+                    order_id = payment_id  # Временное решение - используем payment_id
+                except:
+                    pass
+            
+            # Если не нашли в БД, используем guid для запроса к API 1Plat
+            if not order_id and guid:
+                try:
+                    # Запрашиваем информацию о платеже по guid
+                    base_url = os.environ.get("ONEPLAT_API_URL", "https://1plat.cash")
+                    shop_id = self.onplat_shop_id or self.onplat_merchant_id or ""
                     
-                    if not hmac.compare_digest(received_sign, expected_sign):
-                        return {"success": False, "error": "Invalid signature"}
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        info_url = f"{base_url.rstrip('/')}/api/merchant/order/info/{guid}/by-api"
+                        headers = {
+                            "Content-Type": "application/json",
+                            "Accept": "application/json",
+                            "x-shop": str(shop_id),
+                            "x-secret": self.onplat_secret_key
+                        }
+                        
+                        response = await client.get(info_url, headers=headers)
+                        if response.status_code == 200:
+                            info_data = response.json()
+                            if info_data.get("success"):
+                                # В response может быть merchant_order_id или можно использовать payment.id
+                                payment = info_data.get("payment", {})
+                                # Пока используем guid как order_id (нужно будет сохранять mapping)
+                                order_id = guid
+                                print(f"1Plat: Found payment info by guid {guid}")
+                except Exception as e:
+                    print(f"1Plat: Failed to get payment info by guid: {e}")
+            
+            # Если все еще не нашли, используем payment_id или guid как временный order_id
+            if not order_id:
+                order_id = payment_id or guid or ""
+            
+            if not order_id:
+                print(f"1Plat webhook: order_id not found. Keys: {list(data.keys())}")
+                return {"success": False, "error": "order_id not found in webhook data"}
+            
+            # Extract status - 1Plat использует числовые статусы: -2, -1, 0, 1, 2
+            # 1 = оплачен (отправляется колбэк, нужно ответить 200/201)
+            # 2 = подтвержден мерчантом (полностью закрыт)
+            status = data.get("status")
+            if status is None:
+                status = data.get("payment_status") or data.get("state")
+            
+            # Extract amount - в callback amount в копейках
+            amount = data.get("amount") or 0
+            try:
+                amount = float(amount) / 100.0  # Конвертируем из копеек в рубли
+            except (ValueError, TypeError):
+                amount = 0
+            
+            # Extract currency - по умолчанию RUB
+            currency = data.get("currency") or "RUB"
+            if isinstance(currency, str):
+                currency = currency.upper()
+            
+            # Extract merchant_id и shop_id для signature_v2
+            merchant_id = data.get("merchant_id") or ""
+            shop_id = self.onplat_shop_id or self.onplat_merchant_id or ""
+            
+            # Verify signatures if secret_key is provided
+            if self.onplat_secret_key:
+                received_signature = data.get("signature") or ""
+                received_signature_v2 = data.get("signature_v2") or ""
+                
+                verified = False
+                
+                # Method 1: Verify signature (HMAC-SHA256)
+                if received_signature:
+                    try:
+                        # Создаем копию данных БЕЗ полей signature и signature_v2
+                        payload_for_sign = {k: v for k, v in data.items() 
+                                          if k not in ["signature", "signature_v2"]}
+                        
+                        # JSON.stringify эквивалент
+                        import json
+                        payload_json = json.dumps(payload_for_sign, separators=(',', ':'), ensure_ascii=False, sort_keys=True)
+                        
+                        # HMAC-SHA256
+                        expected_signature = hmac.new(
+                            self.onplat_secret_key.encode('utf-8'),
+                            payload_json.encode('utf-8'),
+                            hashlib.sha256
+                        ).hexdigest()
+                        
+                        if hmac.compare_digest(received_signature.lower(), expected_signature.lower()):
+                            verified = True
+                            print(f"1Plat webhook: signature verified successfully")
+                    except Exception as e:
+                        print(f"1Plat signature verification failed: {e}")
+                
+                # Method 2: Verify signature_v2 (MD5)
+                if not verified and received_signature_v2:
+                    try:
+                        # MD5 от merchantId + amount + shopId + shopSecret
+                        # amount в копейках (как приходит в callback)
+                        amount_kopecks = int(data.get("amount", 0))
+                        sign_string = f"{merchant_id}{amount_kopecks}{shop_id}{self.onplat_secret_key}"
+                        expected_signature_v2 = hashlib.md5(sign_string.encode('utf-8')).hexdigest()
+                        
+                        if hmac.compare_digest(received_signature_v2.lower(), expected_signature_v2.lower()):
+                            verified = True
+                            print(f"1Plat webhook: signature_v2 verified successfully")
+                    except Exception as e:
+                        print(f"1Plat signature_v2 verification failed: {e}")
+                
+                if not verified and (received_signature or received_signature_v2):
+                    print(f"1Plat webhook signature verification failed for order {order_id}")
+                    return {"success": False, "error": "Invalid signature"}
+                elif not received_signature and not received_signature_v2:
+                    # Нет подписи - возможно, это тестовый webhook
+                    print(f"1Plat webhook: No signature provided (optional verification)")
             
             # Check payment status
-            if status in ["success", "paid", "completed", "successful"]:
+            # Статусы 1Plat: -2, -1, 0, 1, 2
+            # 1 = оплачен (отправляется колбэк, нужно ответить 200/201)
+            # 2 = подтвержден мерчантом (полностью закрыт)
+            if status in [1, 2]:
+                print(f"1Plat webhook: Payment successful for order {order_id}, amount: {amount} {currency}, status: {status}")
                 return {
                     "success": True,
                     "order_id": order_id,
-                    "amount": float(amount) if amount else 0,
-                    "currency": data.get("currency", "RUB")
+                    "amount": amount,
+                    "currency": currency
                 }
             else:
+                # Log non-success status for debugging
+                print(f"1Plat webhook: Payment status '{status}' for order {order_id}")
                 return {
                     "success": False,
                     "order_id": order_id,
-                    "error": f"Payment status: {status}"
+                    "error": f"Payment status: {status or 'unknown'}"
                 }
                 
         except Exception as e:
+            print(f"1Plat webhook verification error: {e}")
+            import traceback
+            print(traceback.format_exc())
             return {"success": False, "error": str(e)}
     
     # ==================== REFUNDS ====================

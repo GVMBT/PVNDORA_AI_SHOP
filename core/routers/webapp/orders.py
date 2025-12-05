@@ -81,19 +81,20 @@ async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_t
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Determine payment method based on user region
-    # Priority: 1Plat > CardLink > AAIO > Stripe
-    onplat_configured = bool(os.environ.get("ONEPLAT_API_KEY"))
-    cardlink_configured = bool(os.environ.get("CARDLINK_API_TOKEN") and os.environ.get("CARDLINK_SHOP_ID"))
+    # Determine payment method - only 1Plat is supported
+    # 1Plat использует x-shop (ONEPLAT_SHOP_ID) и x-secret (ONEPLAT_SECRET_KEY)
+    onplat_configured = bool(
+        (os.environ.get("ONEPLAT_SHOP_ID") or os.environ.get("ONEPLAT_MERCHANT_ID")) and
+        os.environ.get("ONEPLAT_SECRET_KEY")
+    )
     
-    if onplat_configured and db_user.language_code in ["ru", "uk", "be", "kk"]:
-        payment_method = "1plat"
-    elif cardlink_configured and db_user.language_code in ["ru", "uk", "be", "kk"]:
-        payment_method = "cardlink"
-    elif db_user.language_code in ["ru", "uk", "be", "kk"]:
-        payment_method = "aaio"
-    else:
-        payment_method = "stripe"
+    if not onplat_configured:
+        raise HTTPException(
+            status_code=500,
+            detail="Payment service not configured. Please configure 1Plat credentials."
+        )
+    
+    payment_method = "1plat"
     
     payment_service = get_payment_service()
     
@@ -156,7 +157,8 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
     
     payment_url = await payment_service.create_payment(
         order_id=order.id, amount=total_amount, product_name=product_names,
-        method=payment_method, user_email=f"{user.id}@telegram.user"
+        method=payment_method, user_email=f"{user.id}@telegram.user",
+        user_id=db_user.id
     )
     
     if cart.promo_code:
@@ -206,7 +208,8 @@ async def _create_single_order(db, db_user, user, request: CreateOrderRequest, p
     
     payment_url = await payment_service.create_payment(
         order_id=order.id, amount=final_price, product_name=product.name,
-        method=payment_method, user_email=f"{user.id}@telegram.user"
+        method=payment_method, user_email=f"{user.id}@telegram.user",
+        user_id=db_user.id
     )
     
     if request.promo_code:

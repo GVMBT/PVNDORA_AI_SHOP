@@ -62,7 +62,7 @@ When user says: "сделай", "исправь", "реализуй", "доба�
 
 ### C. Payment Flow
 
-**Rule:** Use WebApp "Gasket" for external payments (AAIO/CryptoPay/Yookassa).
+**Rule:** Use WebApp "Gasket" for external payments (1Plat).
 
 **Flow:** AI detects purchase → Generate order UUID → Bot sends payment button → WebApp redirects → Webhook updates DB → Deliver goods
 
@@ -107,8 +107,7 @@ When user says: "сделай", "исправь", "реализуй", "доба�
 - `GEMINI_API_KEY`
 - `QSTASH_URL`, `QSTASH_TOKEN`
 - `UPSTASH_REDIS_URL`, `UPSTASH_REDIS_TOKEN`
-- `AAIO_MERCHANT_ID`, `AAIO_SECRET_KEY` (optional)
-- `YUKASSA_SHOP_ID`, `YUKASSA_SECRET_KEY` (optional)
+- `ONEPLAT_SHOP_ID`, `ONEPLAT_SECRET_KEY` (required)
 
 ## 4. Code Style
 

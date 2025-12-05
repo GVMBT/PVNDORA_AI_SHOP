@@ -207,12 +207,8 @@ async def get_currency_rate(target_currency: str) -> float:
 ```python
 def get_payment_provider(currency: str, language: str) -> str:
     """Определение платежного провайдера"""
-    # Для рублевой зоны - AAIO/ЮКасса
-    if currency in ["RUB", "UAH"]:
-        return "aaio" if language in ["ru", "uk"] else "yukassa"
-    
-    # Для других валют - Stripe/CryptoPay
-    return "stripe"
+    # Используется только 1Plat для всех регионов
+    return "1plat"
 ```
 
 ### Конвертация для Платежа

@@ -114,7 +114,7 @@
     "title": "Zahlungsinformationen",
     "subtitle": "Zahlungsmethoden und Prozess",
     "methods": "Zahlungsmethoden",
-    "methodsText": "Wir akzeptieren folgende Zahlungsmethoden:\n\n• Bankkarten (Visa, Mastercard, MIR)\n• Schnellzahlungssystem (FPS)\n• Kryptowährungen (Bitcoin, USDT, Ethereum)\n\nAlle Zahlungen werden über das sichere CardLink-Zahlungsgateway abgewickelt.",
+    "methodsText": "Wir akzeptieren folgende Zahlungsmethoden:\n\n• Bankkarten (Visa, Mastercard, MIR)\n• Schnellzahlungssystem (FPS)\n• Kryptowährungen (Bitcoin, USDT, Ethereum)\n• QR-Codes (NSPK)\n\nAlle Zahlungen werden über das sichere 1Plat-Zahlungsgateway abgewickelt.",
     "process": "Zahlungsprozess",
     "processText": "1. Produkt auswählen und auf \"Zahlen\" klicken\n2. Sie werden zur Zahlungsseite weitergeleitet\n3. Kartendaten eingeben oder andere Methode wählen\n4. Nach erfolgreicher Zahlung wird das Produkt automatisch geliefert\n5. Sie erhalten eine Benachrichtigung in Telegram mit Zugangsdaten",
     "security": "Sicherheit",

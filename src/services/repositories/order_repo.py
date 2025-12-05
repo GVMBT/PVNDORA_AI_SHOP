@@ -15,7 +15,7 @@ class OrderRepository(BaseRepository):
         amount: float,
         original_price: Optional[float] = None,
         discount_percent: int = 0,
-        payment_method: str = "aaio"
+        payment_method: str = "1plat"
     ) -> Order:
         """Create new order."""
         data = {

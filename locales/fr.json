@@ -100,7 +100,7 @@
     "title": "Informations de paiement",
     "subtitle": "Méthodes et processus de paiement",
     "methods": "Méthodes de paiement",
-    "methodsText": "Nous acceptons les méthodes de paiement suivantes:\n\n• Cartes bancaires (Visa, Mastercard, MIR)\n• Système de paiement rapide (FPS)\n• Cryptomonnaies (Bitcoin, USDT, Ethereum)\n\nTous les paiements sont traités via la passerelle de paiement sécurisée CardLink.",
+    "methodsText": "Nous acceptons les méthodes de paiement suivantes:\n\n• Cartes bancaires (Visa, Mastercard, MIR)\n• Système de paiement rapide (FPS)\n• Cryptomonnaies (Bitcoin, USDT, Ethereum)\n• Codes QR (NSPK)\n\nTous les paiements sont traités via la passerelle de paiement sécurisée 1Plat.",
     "process": "Processus de paiement",
     "processText": "1. Sélectionnez un produit et cliquez sur \"Payer\"\n2. Vous serez redirigé vers la page de paiement\n3. Entrez les détails de la carte ou choisissez une autre méthode\n4. Après paiement réussi, le produit sera livré automatiquement\n5. Vous recevrez une notification dans Telegram avec les identifiants",
     "security": "Sécurité",

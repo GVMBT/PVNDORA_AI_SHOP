@@ -97,7 +97,7 @@ result = supabase.rpc('reserve_product_for_purchase', {
 
 ### 5. Платежный Поток (Middleman Pattern)
 
-**Требование:** Использование только внешних платежных шлюзов (AAIO, ЮКасса, CryptoPay). Нативные платежи Telegram (Stars) не используются.
+**Требование:** Использование только внешних платежных шлюзов (1Plat). Нативные платежи Telegram (Stars) не используются.
 
 **Поток:**
 1. Пользователь инициирует оплату в Mini App
@@ -265,9 +265,8 @@ vercel.json              # Config with Fluid Compute enabled
 **Примечание:** Upstash имеет официальную интеграцию с Vercel. Можно настроить через Vercel Dashboard → Settings → Integrations → Upstash, либо вручную через [console.upstash.com](https://console.upstash.com/). См. детали в `docs/QSTASH_EXPLAINED.md`.
 
 **Payments:**
-- `AAIO_MERCHANT_ID` — AAIO merchant ID
-- `AAIO_SECRET_KEY` — AAIO secret key
-- `YUKASSA_SHOP_ID` — ЮКасса shop ID
+- `ONEPLAT_SHOP_ID` — 1Plat shop ID (x-shop)
+- `ONEPLAT_SECRET_KEY` — 1Plat secret key (x-secret)
 - `YUKASSA_SECRET_KEY` — ЮКасса secret key
 
 ## Key Principles

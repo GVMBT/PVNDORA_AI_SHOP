@@ -421,7 +421,7 @@ Web App был минималистичной прокладкой к оплат
 - **База данных:** Supabase (PostgreSQL) + vecs (pgvector client для RAG)
 - **AI:** google-genai SDK (Gemini 2.5 Flash)
 - **FSM Storage:** RedisStorage (Upstash HTTP Redis)
-- **Платежи:** AAIO / ЮKassa / CryptoPay
+- **Платежи:** 1Plat
 - **Деплой:** Vercel
 
 **Важные технические ограничения:**
@@ -483,7 +483,7 @@ Web App был минималистичной прокладкой к оплат
    - См. детали в `docs/ux-deep-linking.md`
 
 9. **Платежный Поток (Middleman Pattern):**
-   - Использование только внешних платежных шлюзов (AAIO, ЮКасса, CryptoPay)
+   - Использование только внешних платежных шлюзов (1Plat)
    - Нативные платежи Telegram (Stars) не используются
    - См. детали в `docs/async-architecture.md`
 
@@ -522,9 +522,8 @@ Web App был минималистичной прокладкой к оплат
 **Настройка:** Upstash имеет официальную интеграцию с Vercel. Можно настроить через Vercel Dashboard → Settings → Integrations → Upstash (автоматическая синхронизация переменных), либо вручную через [console.upstash.com](https://console.upstash.com/). См. детали в `docs/QSTASH_EXPLAINED.md`.
 
 **Платежи:**
-- `AAIO_MERCHANT_ID` — ID мерчанта AAIO
-- `AAIO_SECRET_KEY` — Секретный ключ AAIO
-- `YUKASSA_SHOP_ID` — ID магазина ЮКассы
+- `ONEPLAT_SHOP_ID` — ID магазина 1Plat (x-shop)
+- `ONEPLAT_SECRET_KEY` — Секретный ключ 1Plat (x-secret)
 - `YUKASSA_SECRET_KEY` — Секретный ключ ЮКассы
 
 Уже настроены в vercel

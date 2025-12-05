@@ -100,7 +100,7 @@
     "title": "Ödeme bilgileri",
     "subtitle": "Ödeme yöntemleri ve süreç",
     "methods": "Ödeme yöntemleri",
-    "methodsText": "Aşağıdaki ödeme yöntemlerini kabul ediyoruz:\n\n• Banka kartları (Visa, Mastercard, MIR)\n• Hızlı ödeme sistemi (FPS)\n• Kripto paralar (Bitcoin, USDT, Ethereum)\n\nTüm ödemeler güvenli CardLink ödeme ağ geçidi üzerinden işlenir.",
+    "methodsText": "Aşağıdaki ödeme yöntemlerini kabul ediyoruz:\n\n• Banka kartları (Visa, Mastercard, MIR)\n• Hızlı ödeme sistemi (FPS)\n• Kripto paralar (Bitcoin, USDT, Ethereum)\n• QR kodlar (NSPK)\n\nTüm ödemeler güvenli 1Plat ödeme ağ geçidi üzerinden işlenir.",
     "process": "Ödeme süreci",
     "processText": "1. Bir ürün seçin ve \"Öde\"ye tıklayın\n2. Ödeme sayfasına yönlendirileceksiniz\n3. Kart bilgilerini girin veya başka bir yöntem seçin\n4. Başarılı ödemeden sonra ürün otomatik olarak teslim edilecek\n5. Telegram'da kimlik bilgileriyle bildirim alacaksınız",
     "security": "Güvenlik",
