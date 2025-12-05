@@ -93,11 +93,22 @@ async def verify_telegram_auth(
             session_token = parts[1]
             session = verify_web_session_token(session_token)
             if session:
+                # Get user language from database
+                language_code = "en"
+                try:
+                    from src.services.database import get_database
+                    db = get_database()
+                    db_user = await db.get_user_by_telegram_id(session["telegram_id"])
+                    if db_user and db_user.language_code:
+                        language_code = db_user.language_code
+                except Exception as e:
+                    print(f"Warning: Failed to get user language from DB: {e}")
+                
                 return TelegramUser(
                     id=session["telegram_id"],
                     first_name=session.get("username", "User"),
                     username=session.get("username"),
-                    language_code="en"
+                    language_code=language_code
                 )
             # If Bearer token is invalid and no X-Init-Data, raise error
             if not x_init_data:
