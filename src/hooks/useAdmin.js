@@ -170,6 +170,27 @@ export function useAdmin() {
   const getReferralDashboard = useCallback(() => adminRequest('/referral/dashboard'), [adminRequest])
   const getReferralPartnersCRM = useCallback((sortBy = 'referral_revenue', sortOrder = 'desc', limit = 50, partnerType = 'all') => 
     adminRequest(`/referral/partners-crm?sort_by=${sortBy}&sort_order=${sortOrder}&limit=${limit}&partner_type=${partnerType}`), [adminRequest])
+  
+  // Users CRM - Extended analytics
+  const getUsersCRM = useCallback((sortBy = 'total_orders', sortOrder = 'desc', limit = 50, offset = 0, search = null, filterBanned = null, filterPartner = null) => {
+    const params = new URLSearchParams({
+      sort_by: sortBy,
+      sort_order: sortOrder,
+      limit: limit.toString(),
+      offset: offset.toString()
+    })
+    if (search) params.append('search', search)
+    if (filterBanned !== null) params.append('filter_banned', filterBanned.toString())
+    if (filterPartner !== null) params.append('filter_partner', filterPartner.toString())
+    return adminRequest(`/users/crm?${params.toString()}`)
+  }, [adminRequest])
+  const banUserCRM = useCallback((userId, ban = true) => 
+    adminRequest(`/users/${userId}/ban?ban=${ban}`, { method: 'POST' }), [adminRequest])
+  const updateUserBalance = useCallback((userId, amount) => 
+    adminRequest(`/users/${userId}/balance?amount=${amount}`, { method: 'POST' }), [adminRequest])
+  const updateUserWarnings = useCallback((userId, count) => 
+    adminRequest(`/users/${userId}/warnings?count=${count}`, { method: 'POST' }), [adminRequest])
+  
   const getPartners = useCallback(() => adminRequest('/partners'), [adminRequest])
   const setPartner = useCallback((data) => adminRequest('/partners/set', {
     method: 'POST',
@@ -203,13 +224,18 @@ export function useAdmin() {
     // Users
     getUsers,
     banUser,
+    // Users CRM (Extended Analytics)
+    getUsersCRM,
+    banUserCRM,
+    updateUserBalance,
+    updateUserWarnings,
     // Referral
     getReferralSettings,
     updateReferralSettings,
     getReferralDashboard,
     getReferralPartnersCRM,
     getUsersCRM,
-    banUser,
+    banUserCRM,
     updateUserBalance,
     updateUserWarnings,
     getPartners,
