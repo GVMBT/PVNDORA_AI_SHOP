@@ -11,8 +11,8 @@ export function HeaderBar({ title, subtitle, onBack, rightSlot, className }) {
   return (
     <div
       className={cn(
-        "sticky top-0 z-30 flex items-center gap-3 px-4 py-3",
-        "backdrop-blur-xl bg-background/80 border-b border-border/10",
+        "sticky top-0 z-30 flex items-center gap-3 px-4 py-3 h-14",
+        "backdrop-blur-xl bg-background/85 border-b border-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.25)]",
         className
       )}
     >

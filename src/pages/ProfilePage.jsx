@@ -433,9 +433,9 @@ export default function ProfilePage({ onBack }) {
                       key={method}
                       value={method}
                       className={cn(
-                        "flex flex-col items-center gap-2 py-3 px-3 h-auto rounded-xl border",
-                        "data-[state=active]:bg-primary/10 data-[state=active]:border-primary data-[state=active]:text-primary",
-                        "data-[state=inactive]:bg-secondary/30 data-[state=inactive]:border-transparent"
+                        "flex flex-col items-center gap-2 py-3 px-3 h-auto rounded-full border",
+                        "data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary data-[state=active]:shadow-[0_10px_30px_rgba(0,245,212,0.25)]",
+                        "data-[state=inactive]:bg-white/5 data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-white/10"
                       )}
                     >
                       {getMethodIcon(method)}

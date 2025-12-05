@@ -134,9 +134,10 @@ export default function CatalogPage({ onProductClick }) {
                     key={cat.id}
                     value={cat.id}
                     className={`
-                      px-5 py-2.5 h-auto rounded-full text-sm font-bold whitespace-nowrap border flex items-center gap-2
-                      data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary data-[state=active]:shadow-[0_0_15px_rgba(0,245,212,0.4)]
-                      data-[state=inactive]:bg-secondary/50 data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-transparent
+                      px-4 py-2 h-auto rounded-full text-sm font-semibold whitespace-nowrap border flex items-center gap-2
+                      data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary data-[state=active]:shadow-[0_10px_30px_rgba(0,245,212,0.25)]
+                      data-[state=inactive]:bg-white/5 data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-white/10
+                      transition-all
                     `}
                   >
                     {Icon && <Icon className="h-4 w-4" />}
