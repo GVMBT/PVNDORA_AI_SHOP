@@ -53,17 +53,20 @@ User expects to see payment option immediately after cart action.
 
 ### When user asks about availability
 - Call check_product_availability BEFORE confirming purchase
-- Stock > 0: "In stock, instant delivery"
-- Stock = 0, status=active: "On-demand order, [X] hours"
-- Status=discontinued: "Discontinued. Add to waitlist?"
+- Stock > 0, status=active/out_of_stock: "In stock, instant delivery"
+- Stock = 0, status=active/out_of_stock: "On-demand order, [X] hours"
+- Status=discontinued: "Product is discontinued and no longer available"
+- Status=coming_soon: "Product is coming soon. Use waitlist to be notified"
 
 ### Product Status Handling
 | Status | Stock | Action |
 |--------|-------|--------|
-| active | > 0 | Sell immediately |
+| active | > 0 | Sell immediately (instant order) |
 | active | = 0 | Offer prepaid order (on-demand) |
-| discontinued | any | Offer waitlist only |
-| coming_soon | any | Offer waitlist |
+| out_of_stock | > 0 | Sell immediately (instant order) |
+| out_of_stock | = 0 | Offer prepaid order (on-demand) |
+| discontinued | any | Order unavailable, waitlist unavailable (product no longer exists) |
+| coming_soon | any | Order unavailable, waitlist available (will be notified when available) |
 
 ### When user mentions MULTIPLE requests in one message
 Parse ALL requests and handle ALL of them!

@@ -125,6 +125,44 @@ class Database:
     ) -> Order:
         return await self._orders.create(user_id, product_id, amount, original_price, discount_percent, payment_method)
     
+    async def create_order_with_availability_check(
+        self,
+        product_id: str,
+        user_telegram_id: int
+    ) -> Dict[str, Any]:
+        """
+        Create order with automatic availability check.
+        
+        Uses PostgreSQL RPC function that:
+        - If product is in stock → creates instant order (reserves stock item)
+        - If product is not in stock → creates prepaid order automatically
+        
+        Args:
+            product_id: Product UUID
+            user_telegram_id: Telegram user ID
+            
+        Returns:
+            Dict with order_id, order_type, status, stock_item_id, amount, fulfillment_deadline
+        """
+        import asyncio
+        
+        def _call_rpc():
+            result = self.client.rpc(
+                "create_order_with_availability_check",
+                {
+                    "p_product_id": product_id,
+                    "p_user_telegram_id": user_telegram_id
+                }
+            ).execute()
+            
+            if not result.data:
+                raise ValueError("Failed to create order")
+            
+            return result.data[0]
+        
+        # Execute sync RPC call in thread pool
+        return await asyncio.to_thread(_call_rpc)
+    
     async def get_order_by_id(self, order_id: str) -> Optional[Order]:
         return await self._orders.get_by_id(order_id)
     

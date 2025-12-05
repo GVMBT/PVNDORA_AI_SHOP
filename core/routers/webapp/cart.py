@@ -30,7 +30,7 @@ async def get_webapp_cart(user=Depends(verify_telegram_auth)):
         try:
             from core.db import get_redis
             from src.services.currency import get_currency_service
-            redis = await get_redis()
+            redis = get_redis()  # get_redis() is synchronous, no await needed
             currency_service = get_currency_service(redis)
             currency = currency_service.get_user_currency(db_user.language_code if db_user else user.language_code)
         except Exception as e:

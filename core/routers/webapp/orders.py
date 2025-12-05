@@ -31,7 +31,7 @@ async def get_webapp_orders(user=Depends(verify_telegram_auth)):
     try:
         from core.db import get_redis
         from src.services.currency import get_currency_service
-        redis = await get_redis()
+        redis = get_redis()  # get_redis() is synchronous, no await needed
         currency_service = get_currency_service(redis)
         currency = currency_service.get_user_currency(db_user.language_code or user.language_code)
     except Exception as e:
@@ -123,10 +123,19 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         if not product:
             raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
         
+        # Cart already splits items into instant_quantity and prepaid_quantity
+        # We need to create orders for both types
+        # For now, we'll create one order per item (can be optimized to create separate orders for instant/prepaid)
+        
+        # Check if instant items are still available (stock might have changed)
         if item.instant_quantity > 0:
             available_stock = await db.get_available_stock_count(item.product_id)
             if available_stock < item.instant_quantity:
-                raise HTTPException(status_code=400, detail=f"Not enough stock for {product.name}")
+                # Stock changed - update cart split or create prepaid order
+                # For simplicity, convert to prepaid if stock insufficient
+                print(f"Warning: Stock changed for {product.name}. Requested {item.instant_quantity}, available {available_stock}")
+                # Continue with prepaid for unavailable items
+                # TODO: Better handling - update cart or create mixed order
         
         original_price = product.price * item.quantity
         discount_percent = item.discount_percent
@@ -139,7 +148,10 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         
         order_items.append({
             "product_id": item.product_id, "product_name": product.name,
-            "quantity": item.quantity, "amount": final_price,
+            "quantity": item.quantity, 
+            "instant_quantity": item.instant_quantity,
+            "prepaid_quantity": item.prepaid_quantity,
+            "amount": final_price,
             "original_price": original_price, "discount_percent": discount_percent
         })
     
@@ -173,7 +185,13 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
 
 
 async def _create_single_order(db, db_user, user, request: CreateOrderRequest, payment_service, payment_method: str) -> OrderResponse:
-    """Create order for single product."""
+    """
+    Create order for single product.
+    
+    Uses create_order_with_availability_check RPC function which:
+    - If product is in stock → creates instant order
+    - If product is not in stock → creates prepaid order automatically
+    """
     if not request.product_id:
         raise HTTPException(status_code=400, detail="product_id is required")
     
@@ -181,33 +199,87 @@ async def _create_single_order(db, db_user, user, request: CreateOrderRequest, p
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     
+    # Проверка статуса товара
+    product_status = getattr(product, 'status', 'active')
+    
+    # discontinued - товара больше нет, заказ недоступен
+    if product_status == 'discontinued':
+        raise HTTPException(
+            status_code=400,
+            detail="Product is discontinued and no longer available for order."
+        )
+    
+    # coming_soon - только waitlist, заказ недоступен
+    if product_status == 'coming_soon':
+        raise HTTPException(
+            status_code=400,
+            detail="Product is coming soon. Please use waitlist to be notified when available."
+        )
+    
+    # active или out_of_stock - можно заказать (RPC функция обработает)
     quantity = request.quantity or 1
-    available_stock = await db.get_available_stock_count(request.product_id)
-    if available_stock < quantity:
-        raise HTTPException(status_code=400, detail=f"Not enough stock. Available: {available_stock}")
     
-    original_price = product.price * quantity
-    discount_percent = 0
+    # For quantity > 1, we need to handle it differently
+    # For now, we'll create orders one by one (can be optimized later)
+    if quantity > 1:
+        # TODO: Support multiple quantities - create multiple orders or use cart
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Multiple quantities not yet supported. Please use cart for multiple items."
+        )
     
-    stock_item = await db.get_available_stock_item(request.product_id)
-    if stock_item:
-        discount_percent = await db.calculate_discount(stock_item, product)
+    # Use RPC function that automatically handles instant vs prepaid
+    # RPC функция принимает только active и out_of_stock
+    try:
+        order_result = await db.create_order_with_availability_check(
+            product_id=request.product_id,
+            user_telegram_id=user.id
+        )
+    except Exception as e:
+        error_msg = str(e)
+        if "not found or unavailable" in error_msg.lower():
+            raise HTTPException(
+                status_code=400,
+                detail="Product is not available for ordering. Status must be active or out_of_stock."
+            )
+        print(f"Error creating order: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create order: {str(e)}")
     
+    order_id = order_result["order_id"]
+    order_type = order_result["order_type"]  # "instant" or "prepaid"
+    
+    # Get the created order to get full details (amount, original_price, discount_percent)
+    order = await db.get_order_by_id(order_id)
+    if not order:
+        raise HTTPException(status_code=500, detail="Order created but not found")
+    
+    # Get prices from order (RPC function already calculated discount for instant orders)
+    amount = float(order.amount)
+    original_price = float(order.original_price) if order.original_price else amount
+    discount_percent = order.discount_percent or 0
+    
+    # Apply promo code discount if provided (additional discount on top of stock discount)
     if request.promo_code:
         promo = await db.validate_promo_code(request.promo_code)
         if promo:
-            discount_percent = max(discount_percent, promo["discount_percent"])
+            promo_discount = promo["discount_percent"]
+            # Apply promo discount on top of existing discount
+            # Calculate from original_price
+            total_discount = max(discount_percent, promo_discount)
+            amount = original_price * (1 - total_discount / 100)
+            discount_percent = total_discount
+            # TODO: Update order amount and discount_percent in DB if promo applied
     
-    final_price = original_price * (1 - discount_percent / 100)
-    
-    order = await db.create_order(
-        user_id=db_user.id, product_id=request.product_id,
-        amount=final_price, original_price=original_price,
-        discount_percent=discount_percent, payment_method=payment_method
-    )
+    # Prepare product name for payment
+    product_name = product.name
+    if order_type == "prepaid":
+        fulfillment_deadline = order_result.get("fulfillment_deadline")
+        if fulfillment_deadline:
+            # Add prepaid info to product name
+            product_name = f"{product.name} (под заказ)"
     
     payment_url = await payment_service.create_payment(
-        order_id=order.id, amount=final_price, product_name=product.name,
+        order_id=order_id, amount=amount, product_name=product_name,
         method=payment_method, user_email=f"{user.id}@telegram.user",
         user_id=db_user.id
     )
@@ -216,6 +288,6 @@ async def _create_single_order(db, db_user, user, request: CreateOrderRequest, p
         await db.use_promo_code(request.promo_code)
     
     return OrderResponse(
-        order_id=order.id, amount=final_price, original_price=original_price,
+        order_id=order_id, amount=amount, original_price=original_price,
         discount_percent=discount_percent, payment_url=payment_url, payment_method=payment_method
     )

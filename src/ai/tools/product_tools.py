@@ -206,13 +206,23 @@ async def handle_create_purchase_intent(
     
     product_status = getattr(product, 'status', 'active')
     is_discontinued = product_status == 'discontinued'
+    is_coming_soon = product_status == 'coming_soon'
     
+    # discontinued - товара больше нет, заказ и waitlist недоступны
     if is_discontinued:
         return {
             "success": False,
-            "reason": "Product is discontinued. Please use waitlist."
+            "reason": "Product is discontinued and no longer available."
         }
     
+    # coming_soon - только waitlist, заказ недоступен
+    if is_coming_soon:
+        return {
+            "success": False,
+            "reason": "Product is coming soon. Please use waitlist to be notified when available."
+        }
+    
+    # active или out_of_stock - можно заказать
     if product.stock_count > 0:
         return {
             "success": True,
@@ -244,17 +254,44 @@ async def handle_add_to_waitlist(
     db,
     language: str
 ) -> Dict[str, Any]:
-    """Add user to waitlist for an out-of-stock product."""
+    """Add user to waitlist for coming_soon products only."""
     try:
         product_name = arguments.get("product_name", "").strip()
         if not product_name:
             return {"success": False, "reason": "Product name is required"}
         
-        await db.add_to_waitlist(user_id, product_name)
+        # Проверяем статус товара
+        products = await db.search_products(product_name)
+        if not products:
+            return {"success": False, "reason": "Product not found"}
+        
+        product = products[0]
+        product_details = await db.get_product_by_id(product.id)
+        if not product_details:
+            return {"success": False, "reason": "Product not found"}
+        
+        product_status = getattr(product_details, 'status', 'active')
+        
+        # discontinued - товара больше нет, waitlist недоступен
+        if product_status == 'discontinued':
+            return {
+                "success": False,
+                "reason": "Product is discontinued and no longer available. Waitlist is not available."
+            }
+        
+        # coming_soon - можно добавить в waitlist
+        if product_status == 'coming_soon':
+            await db.add_to_waitlist(user_id, product_name)
+            return {
+                "success": True,
+                "product_name": product_name,
+                "message": f"Added to waitlist for {product_name}. You will be notified when it becomes available."
+            }
+        
+        # active или out_of_stock - можно заказать, waitlist не нужен
         return {
-            "success": True,
-            "product_name": product_name,
-            "message": f"Added to waitlist for {product_name}"
+            "success": False,
+            "reason": f"Product is available for order. You can purchase it directly."
         }
     except Exception as e:
         error_str = str(e)

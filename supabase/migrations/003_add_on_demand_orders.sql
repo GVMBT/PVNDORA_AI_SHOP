@@ -63,6 +63,8 @@ DECLARE
     v_expires_at TIMESTAMPTZ;
 BEGIN
     -- Получение информации о товаре
+    -- Разрешаем заказы для active и out_of_stock (можно заказать под заказ)
+    -- discontinued и coming_soon должны блокироваться на уровне API
     SELECT 
         p.*,
         EXISTS(
@@ -73,10 +75,11 @@ BEGIN
         ) as has_stock
     INTO v_product
     FROM products p
-    WHERE p.id = p_product_id AND p.status = 'active';
+    WHERE p.id = p_product_id 
+    AND p.status IN ('active', 'out_of_stock');
     
     IF NOT FOUND THEN
-        RAISE EXCEPTION 'Product not found or inactive';
+        RAISE EXCEPTION 'Product not found or unavailable for ordering (status must be active or out_of_stock)';
     END IF;
     
     -- Определение типа заказа

@@ -41,7 +41,7 @@ async def get_webapp_product(
     msrp = float(product.msrp) if hasattr(product, 'msrp') and product.msrp else None
     
     try:
-        redis = await get_redis()
+        redis = get_redis()  # get_redis() is synchronous, no await needed
         currency_service = get_currency_service(redis)
         currency = currency_service.get_user_currency(language_code)
         
@@ -112,7 +112,7 @@ async def get_webapp_products(
     currency_service = None
     
     try:
-        redis = await get_redis()
+        redis = get_redis()  # get_redis() is synchronous, no await needed
         currency_service = get_currency_service(redis)
         currency = currency_service.get_user_currency(language_code)
     except Exception as e:
