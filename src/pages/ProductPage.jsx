@@ -12,7 +12,8 @@ import {
   Zap,
   Users,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  ArrowLeft
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
