@@ -26,6 +26,8 @@ import PaymentInfoPage from './pages/PaymentInfoPage'
 import TermsPage from './pages/TermsPage'
 import PrivacyPage from './pages/PrivacyPage'
 import LoginPage from './pages/LoginPage'
+import PaymentResultPage from './pages/PaymentResultPage'
+import PaymentFormPage from './pages/PaymentFormPage'
 
 // Components
 import Navigation from './components/Navigation'
@@ -49,11 +51,23 @@ export default function App() {
   const { isAdmin, checking } = useAdmin()
   const params = useSearchParams()
   
-  const [currentPage, setCurrentPage] = useState('catalog')
+  const [currentPage, setCurrentPage] = useState(() => {
+    // Check URL path for payment result pages
+    const path = window.location.pathname
+    if (path === '/payment/success') return 'payment_success'
+    if (path === '/payment/fail') return 'payment_fail'
+    if (path === '/payment/form') return 'payment_form'
+    return 'catalog'
+  })
   const [productId, setProductId] = useState(null)
   const [initialQuantity, setInitialQuantity] = useState(1)
   const [webUser, setWebUser] = useState(null)
   const [showLoginModal, setShowLoginModal] = useState(false)
+  const [paymentOrderId, setPaymentOrderId] = useState(() => {
+    // Get order_id from URL for payment result pages
+    const urlParams = new URLSearchParams(window.location.search)
+    return urlParams.get('order_id') || null
+  })
   
   // Check for existing web session
   useEffect(() => {
@@ -220,6 +234,31 @@ export default function App() {
         return <TermsPage onBack={() => navigateTo('catalog')} />
       case 'privacy':
         return <PrivacyPage onBack={() => navigateTo('catalog')} />
+      case 'payment_success':
+        return (
+          <PaymentResultPage 
+            isSuccess={true}
+            orderId={paymentOrderId}
+            onNavigate={navigateTo}
+            onBack={() => navigateTo('catalog')}
+          />
+        )
+      case 'payment_fail':
+        return (
+          <PaymentResultPage 
+            isSuccess={false}
+            orderId={paymentOrderId}
+            onNavigate={navigateTo}
+            onBack={() => navigateTo('checkout')}
+          />
+        )
+      case 'payment_form':
+        return (
+          <PaymentFormPage 
+            onNavigate={navigateTo}
+            onBack={() => navigateTo('catalog')}
+          />
+        )
       case 'checkout':
         return (
           <CheckoutPage 

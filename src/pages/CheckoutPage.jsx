@@ -115,19 +115,30 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
         <div className="space-y-3">
           <h4 className="text-sm font-semibold px-1">{t('checkout.paymentMethod') || 'Способ оплаты'}</h4>
           <div className="grid grid-cols-2 gap-2">
-            {(availableMethods?.length ? availableMethods : ['card', 'sbp', 'qr', 'crypto']).map((m) => (
-              <button
-                key={m}
-                onClick={() => setPaymentMethod(m)}
-                className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-all ${
-                  paymentMethod === m
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border bg-card/40 text-foreground/80'
-                }`}
-              >
-                {m.toUpperCase()}
-              </button>
-            ))}
+            {(availableMethods?.length ? availableMethods : [
+              { system_group: 'card', name: 'Карта', icon: '💳' },
+              { system_group: 'sbp', name: 'СБП', icon: '🏦' },
+              { system_group: 'sbp_qr', name: 'QR-код', icon: '📱' },
+              { system_group: 'crypto', name: 'Крипто', icon: '₿' },
+            ]).map((m) => {
+              const methodId = typeof m === 'string' ? m : m.system_group
+              const methodName = typeof m === 'string' ? m.toUpperCase() : m.name
+              const methodIcon = typeof m === 'string' ? '' : m.icon
+              return (
+                <button
+                  key={methodId}
+                  onClick={() => setPaymentMethod(methodId)}
+                  className={`rounded-xl border px-3 py-3 text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                    paymentMethod === methodId
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-card/40 text-foreground/80 hover:border-primary/50'
+                  }`}
+                >
+                  {methodIcon && <span>{methodIcon}</span>}
+                  <span>{methodName}</span>
+                </button>
+              )
+            })}
           </div>
         </div>
 

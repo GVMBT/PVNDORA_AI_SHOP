@@ -31,7 +31,7 @@ class CreateOrderRequest(BaseModel):
     promo_code: str | None = None
     use_cart: bool = False
     payment_method: str | None = None  # card, sbp, qr, crypto
-    payment_gateway: str | None = None  # 1plat, freekassa
+    payment_gateway: str | None = None  # rukassa, 1plat, freekassa
 
 
 class OrderResponse(BaseModel):
@@ -41,6 +41,12 @@ class OrderResponse(BaseModel):
     discount_percent: int
     payment_url: str
     payment_method: str
+
+
+class ConfirmPaymentRequest(BaseModel):
+    """Request to confirm manual payment (H2H)."""
+    order_id: str
+    hash: Optional[str] = None
 
 
 # ==================== CART MODELS ====================

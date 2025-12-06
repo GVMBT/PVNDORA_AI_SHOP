@@ -166,16 +166,25 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
       hapticFeedback('notification', 'success')
 
       if (result.payment_url) {
-        if (window.Telegram?.WebApp?.openLink) {
-          window.Telegram.WebApp.openLink(result.payment_url)
+        // Check if it's our local H2H payment form
+        const isLocalForm = result.payment_url.includes('/payment/form')
+        
+        if (isLocalForm) {
+          // Navigate to our payment form page
+          window.location.href = result.payment_url
         } else {
-          window.open(result.payment_url, '_blank')
-        }
-        setTimeout(() => {
-          if (window.Telegram?.WebApp?.close) {
-            window.Telegram.WebApp.close()
+          // External payment gateway - open in browser
+          if (window.Telegram?.WebApp?.openLink) {
+            window.Telegram.WebApp.openLink(result.payment_url)
+          } else {
+            window.open(result.payment_url, '_blank')
           }
-        }, 500)
+          setTimeout(() => {
+            if (window.Telegram?.WebApp?.close) {
+              window.Telegram.WebApp.close()
+            }
+          }, 500)
+        }
       } else {
         await showAlert(t('checkout.orderCreated'))
         onSuccess()
@@ -213,13 +222,23 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
     getPaymentMethods()
       .then((data) => {
         if (data && Array.isArray(data.systems)) {
-          setAvailableMethods(data.systems.map((s) => s.system_group))
+          // Keep full method objects for icons/names
+          setAvailableMethods(data.systems)
           setPaymentMethod(data.systems[0]?.system_group || 'card')
         } else {
-          setAvailableMethods(['card', 'sbp', 'qr', 'crypto'])
+          // Default Rukassa methods
+          setAvailableMethods([
+            { system_group: 'card', name: 'Карта', icon: '💳' },
+            { system_group: 'sbp', name: 'СБП', icon: '🏦' },
+            { system_group: 'sbp_qr', name: 'QR-код', icon: '📱' },
+            { system_group: 'crypto', name: 'Крипто', icon: '₿' },
+          ])
         }
       })
-      .catch(() => setAvailableMethods(['card', 'sbp', 'qr', 'crypto']))
+      .catch(() => setAvailableMethods([
+        { system_group: 'card', name: 'Карта', icon: '💳' },
+        { system_group: 'sbp', name: 'СБП', icon: '🏦' },
+      ]))
 
     setBackButton({
       isVisible: true,

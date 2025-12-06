@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from src.services.database import get_database
 from core.auth import verify_telegram_auth
 from core.routers.deps import get_payment_service
-from .models import CreateOrderRequest, OrderResponse
+from .models import CreateOrderRequest, OrderResponse, ConfirmPaymentRequest
 
 router = APIRouter(tags=["webapp-orders"])
 
@@ -83,7 +83,7 @@ async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_t
         raise HTTPException(status_code=404, detail="User not found")
     
     # Determine payment gateway - support 1Plat, Freekassa, and Rukassa
-    payment_gateway = request.payment_gateway or os.environ.get("DEFAULT_PAYMENT_GATEWAY", "1plat")
+    payment_gateway = request.payment_gateway or os.environ.get("DEFAULT_PAYMENT_GATEWAY", "rukassa")
     
     # Check if requested gateway is configured
     if payment_gateway == "freekassa":
@@ -132,17 +132,37 @@ async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_t
 
 @router.get("/payments/methods")
 async def get_payment_methods(user=Depends(verify_telegram_auth)):
-    """Get available payment methods from 1Plat."""
+    """Get available payment methods based on configured gateway."""
+    gateway = os.environ.get("DEFAULT_PAYMENT_GATEWAY", "rukassa")
+    
+    # Rukassa methods (https://lk.rukassa.io)
+    if gateway == "rukassa":
+        return {
+            "systems": [
+                {"system_group": "card", "name": "Карта", "icon": "💳"},
+                {"system_group": "sbp", "name": "СБП", "icon": "🏦"},
+                {"system_group": "sbp_qr", "name": "QR-код", "icon": "📱"},
+                {"system_group": "crypto", "name": "Крипто", "icon": "₿"},
+            ]
+        }
+    
+    # Fallback to 1Plat methods
     payment_service = get_payment_service()
     try:
         data = await payment_service.list_payment_methods()
         return data
     except Exception as e:
         print(f"Failed to fetch payment methods: {e}")
-        raise HTTPException(status_code=502, detail="Failed to fetch payment methods")
+        # Return default methods on error
+        return {
+            "systems": [
+                {"system_group": "card", "name": "Карта", "icon": "💳"},
+                {"system_group": "sbp", "name": "СБП", "icon": "🏦"},
+            ]
+        }
 
 
-async def _create_cart_order(db, db_user, user, payment_service, payment_method: str, payment_gateway: str = "1plat") -> OrderResponse:
+async def _create_cart_order(db, db_user, user, payment_service, payment_method: str, payment_gateway: str = "rukassa") -> OrderResponse:
     """Create order from cart items."""
     from core.cart import get_cart_manager
     cart_manager = get_cart_manager()
@@ -306,7 +326,7 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
     )
 
 
-async def _create_single_order(db, db_user, user, request: CreateOrderRequest, payment_service, payment_method: str, payment_gateway: str = "1plat") -> OrderResponse:
+async def _create_single_order(db, db_user, user, request: CreateOrderRequest, payment_service, payment_method: str, payment_gateway: str = "rukassa") -> OrderResponse:
     """
     Create order for single product.
     
@@ -365,3 +385,41 @@ async def _create_single_order(db, db_user, user, request: CreateOrderRequest, p
     
     # Выполняем checkout по корзине (один заказ на содержимое корзины)
     return await _create_cart_order(db, db_user, user, payment_service, payment_method, payment_gateway)
+
+
+@router.post("/orders/confirm-payment")
+async def confirm_manual_payment(request: ConfirmPaymentRequest, user=Depends(verify_telegram_auth)):
+    """
+    Confirm that user has made manual payment (H2H mode).
+    
+    This updates order status to indicate user claims payment was made.
+    Actual confirmation happens via webhook from payment gateway.
+    """
+    db = get_database()
+    
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get order and verify ownership
+    order = await db.get_order_by_id(request.order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    if order.user_id != db_user.id:
+        raise HTTPException(status_code=403, detail="Order does not belong to user")
+    
+    # Only pending orders can be confirmed
+    if order.status not in ["pending", "awaiting_payment"]:
+        raise HTTPException(status_code=400, detail=f"Order status is {order.status}, cannot confirm")
+    
+    # Update order status to "payment_pending" - user claims paid, awaiting webhook
+    import asyncio
+    await asyncio.to_thread(
+        lambda: db.client.table("orders").update({
+            "status": "payment_pending",
+            "notes": "User confirmed manual payment, awaiting gateway confirmation"
+        }).eq("id", request.order_id).execute()
+    )
+    
+    return {"success": True, "message": "Payment confirmation received. Awaiting bank confirmation."}

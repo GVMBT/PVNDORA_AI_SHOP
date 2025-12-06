@@ -837,6 +837,11 @@ class PaymentService:
             rukassa_method = method_map.get(payment_method.lower(), payment_method)
             payload["method"] = rukassa_method
         
+        # H2H mode - get payment details for custom form
+        use_h2h = os.environ.get("RUKASSA_H2H_MODE", "false").lower() == "true"
+        if use_h2h:
+            payload["json"] = True
+        
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",
             "Accept": "application/json",
@@ -865,12 +870,29 @@ class PaymentService:
                 logger.error("Rukassa API error for order %s: code=%s, msg=%s", order_id, error_code, error_msg)
                 raise ValueError(f"Rukassa: {error_msg}")
             
-            # Extract payment URL from response
-            payment_url = data.get("url")
+            # Extract payment data from response
             payment_id = data.get("id")
             payment_hash = data.get("hash")
+            payment_url = data.get("url")
             
-            if not payment_url:
+            # H2H mode returns card details instead of URL
+            if use_h2h and data.get("card"):
+                # Build custom form URL with payment details
+                from urllib.parse import urlencode
+                form_params = {
+                    "card": data.get("card", ""),
+                    "bank": data.get("bank", ""),
+                    "receiver": data.get("receiver", ""),
+                    "amount": data.get("amount", amount_rub),
+                    "date": data.get("date", ""),
+                    "order_id": order_id,
+                    "hash": payment_hash or "",
+                    "id": payment_id or "",
+                }
+                payment_url = f"{self.base_url}/payment/form?{urlencode(form_params)}"
+                logger.info("Rukassa H2H payment: order=%s, card=%s, bank=%s", 
+                           order_id, data.get("card", "")[:4] + "****", data.get("bank"))
+            elif not payment_url:
                 logger.error("Rukassa: URL not in response. Keys: %s", list(data.keys()))
                 raise ValueError("Payment URL not found in Rukassa response")
             
