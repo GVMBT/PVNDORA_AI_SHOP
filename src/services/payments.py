@@ -30,6 +30,11 @@ class PaymentService:
         self.freekassa_secret_word_2 = os.environ.get("FREEKASSA_SECRET_WORD_2", "")
         self.freekassa_api_url = os.environ.get("FREEKASSA_API_URL", "https://pay.freekassa.ru")
         
+        # Rukassa credentials (lk.rukassa.io)
+        self.rukassa_shop_id = os.environ.get("RUKASSA_SHOP_ID", "")
+        self.rukassa_token = os.environ.get("RUKASSA_TOKEN", "")
+        self.rukassa_api_url = os.environ.get("RUKASSA_API_URL", "https://lk.rukassa.io/api/v1")
+        
         # Webhook URLs
         self.base_url = os.environ.get("WEBAPP_URL", "https://pvndora.app")
         
@@ -297,7 +302,17 @@ class PaymentService:
                 currency=currency,
                 user_email=user_email,
             )
-        raise ValueError(f"Unknown payment method: {method}. Supported: '1plat', 'freekassa'.")
+        elif method == "rukassa":
+            return await self._create_rukassa_payment(
+                order_id=order_id,
+                amount=amount,
+                product_name=product_name,
+                currency=currency,
+                user_email=user_email,
+                user_id=user_id,
+                payment_method=payment_method,
+            )
+        raise ValueError(f"Unknown payment method: {method}. Supported: '1plat', 'freekassa', 'rukassa'.")
     
     # ==================== 1PLAT ====================
     
@@ -746,6 +761,241 @@ class PaymentService:
                 
         except Exception as e:
             logger.exception("Freekassa webhook verification error")
+            return {"success": False, "error": str(e)}
+    
+    # ==================== RUKASSA (lk.rukassa.io) ====================
+    
+    def _validate_rukassa_config(self) -> Tuple[str, str, str]:
+        """Проверка обязательных настроек Rukassa и возврат shop_id, token, api_url."""
+        shop_id = self.rukassa_shop_id or ""
+        token = self.rukassa_token or ""
+        api_url = self.rukassa_api_url.rstrip("/")
+        
+        if not shop_id:
+            raise ValueError("Rukassa Shop ID (RUKASSA_SHOP_ID) не настроен")
+        if not token:
+            raise ValueError("Rukassa Token (RUKASSA_TOKEN) не настроен")
+        return shop_id, token, api_url
+    
+    async def _create_rukassa_payment(
+        self,
+        order_id: str,
+        amount: float,
+        product_name: str,
+        currency: str = "RUB",
+        user_email: str = "",
+        user_id: int = None,
+        payment_method: str = None,
+    ) -> str:
+        """
+        Create Rukassa payment via API.
+        
+        Based on Rukassa API documentation (lk.rukassa.io/api/v1):
+        - Endpoint: POST /create
+        - Required: shop_id, order_id, amount, token
+        - Optional: data, method, list, currency, user_code, json
+        
+        Response: id, hash, url (or error, message on failure)
+        """
+        shop_id, token, api_url = self._validate_rukassa_config()
+        
+        # Amount in rubles (float)
+        amount_rub = float(amount)
+        
+        # Data object to pass with webhook callback
+        callback_data = {
+            "product_name": product_name[:100] if product_name else "",
+        }
+        if user_email:
+            callback_data["email"] = user_email
+        
+        # API request payload (form data style)
+        import json as json_module
+        payload = {
+            "shop_id": int(shop_id),
+            "order_id": order_id,
+            "amount": amount_rub,
+            "token": token,
+            "data": json_module.dumps(callback_data),
+            "currency": currency or "RUB",
+        }
+        
+        # user_code for Anti-Fraud (use telegram_id or order_id)
+        if user_id:
+            payload["user_code"] = str(user_id)
+        else:
+            payload["user_code"] = str(order_id)
+        
+        # Payment method (card, sbp, crypta, etc.)
+        if payment_method:
+            method_map = {
+                "card": "card",
+                "sbp": "sbp",
+                "crypto": "crypta",
+                "qr": "sbp_qr",
+            }
+            rukassa_method = method_map.get(payment_method.lower(), payment_method)
+            payload["method"] = rukassa_method
+        
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+        }
+        
+        logger.info("Rukassa payment creation for order %s: amount=%s %s, user_code=%s", 
+                   order_id, amount_rub, currency, payload.get("user_code"))
+        
+        client = await self._get_http_client()
+        try:
+            # POST to /create endpoint with form data
+            response = await client.post(
+                f"{api_url}/create",
+                headers=headers,
+                data=payload  # form-urlencoded
+            )
+            logger.info("Rukassa API response status: %s for order %s", response.status_code, order_id)
+            
+            data = response.json()
+            logger.debug("Rukassa API response: %s", data)
+            
+            # Check for errors
+            if data.get("error"):
+                error_code = data.get("error")
+                error_msg = data.get("message") or f"Error code: {error_code}"
+                logger.error("Rukassa API error for order %s: code=%s, msg=%s", order_id, error_code, error_msg)
+                raise ValueError(f"Rukassa: {error_msg}")
+            
+            # Extract payment URL from response
+            payment_url = data.get("url")
+            payment_id = data.get("id")
+            payment_hash = data.get("hash")
+            
+            if not payment_url:
+                logger.error("Rukassa: URL not in response. Keys: %s", list(data.keys()))
+                raise ValueError("Payment URL not found in Rukassa response")
+            
+            # Save payment reference
+            if payment_id or payment_hash:
+                await self._save_payment_reference(order_id, str(payment_id or payment_hash))
+            
+            logger.info("Rukassa payment created: order=%s, id=%s, hash=%s", order_id, payment_id, payment_hash)
+            return payment_url
+            
+        except httpx.HTTPStatusError as e:
+            try:
+                error_data = e.response.json()
+                error_detail = error_data.get("message") or error_data.get("error") or str(error_data)
+            except Exception:
+                error_detail = e.response.text[:200]
+            logger.error("Rukassa API error %s for order %s: %s", e.response.status_code, order_id, error_detail)
+            raise ValueError(f"Rukassa API error: {error_detail}")
+        except httpx.RequestError as e:
+            logger.error("Rukassa network error: %s", e)
+            raise ValueError(f"Failed to connect to Rukassa API: {str(e)}")
+    
+    async def verify_rukassa_webhook(self, data: Dict[str, Any], signature: str = None) -> Dict[str, Any]:
+        """
+        Verify Rukassa webhook signature and extract order info.
+        
+        Webhook parameters from Rukassa (POST):
+        - id (Int): Payment ID in Rukassa system
+        - order_id (Int): Order ID in our system  
+        - amount (Float): Payment amount
+        - in_amount (Float): Amount actually paid by client
+        - data (Json): Custom data passed during payment creation
+        - createdDateTime (String): Payment creation time
+        - status (String): PAID if successful
+        
+        Signature verification:
+        - Header: Signature (HTTP_SIGNATURE)
+        - Formula: hmac_sha256(id + '|' + createdDateTime + '|' + amount, token)
+        
+        Returns:
+            {"success": bool, "order_id": str, "amount": float, "currency": str, "error": str}
+        """
+        try:
+            # Extract required fields
+            payment_id = str(data.get("id", "")).strip()
+            order_id = str(data.get("order_id", "")).strip()
+            amount_str = str(data.get("amount", "")).strip()
+            in_amount_str = str(data.get("in_amount", "")).strip()
+            status = str(data.get("status", "")).strip().upper()
+            created_datetime = str(data.get("createdDateTime", "")).strip()
+            
+            # Log webhook data
+            logger.info("Rukassa webhook: id=%s, order_id=%s, amount=%s, in_amount=%s, status=%s", 
+                       payment_id, order_id, amount_str, in_amount_str, status)
+            
+            if not order_id:
+                logger.error("Rukassa webhook: order_id not found")
+                return {"success": False, "error": "order_id not found"}
+            
+            if not payment_id:
+                logger.error("Rukassa webhook: payment id not found")
+                return {"success": False, "error": "payment id not found"}
+            
+            # Verify signature if provided
+            # Signature = hmac_sha256(id + '|' + createdDateTime + '|' + amount, token)
+            token = self.rukassa_token or ""
+            if signature and token:
+                sign_string = f"{payment_id}|{created_datetime}|{amount_str}"
+                expected_signature = hmac.new(
+                    token.encode("utf-8"),
+                    sign_string.encode("utf-8"),
+                    hashlib.sha256
+                ).hexdigest()
+                
+                if not hmac.compare_digest(signature.lower(), expected_signature.lower()):
+                    logger.error("Rukassa webhook: Signature mismatch for order %s", order_id)
+                    logger.debug("Rukassa signature: received=%s, expected=%s", signature, expected_signature)
+                    return {"success": False, "error": "Invalid signature"}
+                
+                logger.info("Rukassa webhook: Signature verified for order %s", order_id)
+            elif not signature:
+                logger.warning("Rukassa webhook: No signature provided for order %s", order_id)
+            
+            # Check payment status - PAID means successful
+            if status != "PAID":
+                logger.warning("Rukassa webhook: Payment status '%s' for order %s", status, order_id)
+                return {"success": False, "error": f"Payment not successful. Status: {status}"}
+            
+            # Parse amounts
+            try:
+                amount = float(amount_str) if amount_str else 0.0
+                in_amount = float(in_amount_str) if in_amount_str else amount
+            except (ValueError, TypeError):
+                amount = 0.0
+                in_amount = 0.0
+            
+            # Verify paid amount >= expected amount
+            if in_amount < amount:
+                logger.warning("Rukassa webhook: Underpayment for order %s. Expected %s, got %s", 
+                             order_id, amount, in_amount)
+                return {"success": False, "error": f"Underpayment. Expected {amount}, received {in_amount}"}
+            
+            # Parse custom data if provided
+            custom_data = data.get("data")
+            if custom_data and isinstance(custom_data, str):
+                try:
+                    import html
+                    import json as json_module
+                    custom_data = json_module.loads(html.unescape(custom_data))
+                except Exception:
+                    pass
+            
+            logger.info("Rukassa webhook verified: order=%s, amount=%s, in_amount=%s", 
+                       order_id, amount, in_amount)
+            return {
+                "success": True,
+                "order_id": order_id,
+                "amount": amount,
+                "in_amount": in_amount,
+                "currency": "RUB",
+                "custom_data": custom_data
+            }
+                
+        except Exception as e:
+            logger.exception("Rukassa webhook verification error")
             return {"success": False, "error": str(e)}
     
     # ==================== REFUNDS ====================

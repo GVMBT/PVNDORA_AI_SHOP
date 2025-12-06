@@ -7,7 +7,7 @@ All webhooks verify signatures and delegate to QStash workers.
 
 import json
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
 from core.routers.deps import get_payment_service, get_queue_publisher
@@ -185,6 +185,98 @@ async def freekassa_webhook(request: Request):
             {"error": str(e)},
             status_code=500
         )
+
+
+# ==================== RUKASSA WEBHOOK ====================
+
+@router.post("/api/webhook/rukassa")
+@router.post("/webhook/rukassa")
+async def rukassa_webhook(request: Request):
+    """
+    Handle Rukassa payment webhook.
+    
+    Rukassa sends POST with form data:
+    - id: Payment ID in Rukassa
+    - order_id: Our order ID
+    - amount: Expected amount
+    - in_amount: Actually paid amount
+    - data: Custom data (JSON string)
+    - createdDateTime: Payment creation time
+    - status: PAID if successful
+    
+    Signature in header: Signature
+    Formula: hmac_sha256(id + '|' + createdDateTime + '|' + amount, token)
+    
+    Must return 'OK' on success.
+    """
+    try:
+        # Get signature from header
+        signature = request.headers.get("Signature") or request.headers.get("signature") or ""
+        
+        # Parse form data (Rukassa sends as POST form)
+        data = None
+        content_type = request.headers.get("content-type", "")
+        
+        if "application/json" in content_type:
+            raw_body = await request.body()
+            data = json.loads(raw_body.decode('utf-8'))
+        else:
+            # Form data
+            form_data = await request.form()
+            data = dict(form_data)
+        
+        if not data:
+            print("Rukassa webhook: Could not parse request body")
+            return Response(content="ERROR PARSE", status_code=400)
+        
+        # Log webhook receipt
+        order_id = data.get("order_id") or "unknown"
+        payment_id = data.get("id") or "unknown"
+        status = data.get("status") or "unknown"
+        print(f"Rukassa webhook: order={order_id}, id={payment_id}, status={status}")
+        
+        payment_service = get_payment_service()
+        result = await payment_service.verify_rukassa_webhook(data, signature=signature)
+        
+        if result["success"]:
+            order_id = result["order_id"]
+            
+            print(f"Rukassa webhook verified for order: {order_id}")
+            
+            publish_to_worker, WorkerEndpoints = get_queue_publisher()
+            
+            # Guaranteed delivery via QStash
+            await publish_to_worker(
+                endpoint=WorkerEndpoints.DELIVER_GOODS,
+                body={"order_id": order_id},
+                retries=5,
+                deduplication_id=f"deliver-{order_id}"
+            )
+            
+            # Calculate referral bonus
+            await publish_to_worker(
+                endpoint=WorkerEndpoints.CALCULATE_REFERRAL,
+                body={"order_id": order_id},
+                retries=3,
+                deduplication_id=f"referral-{order_id}"
+            )
+            
+            # Rukassa expects 'OK' response
+            return Response(content="OK", status_code=200)
+        
+        # Log verification failure
+        error_msg = result.get("error", "Unknown error")
+        print(f"Rukassa webhook failed: {error_msg}")
+        
+        # Return error message for Rukassa
+        return Response(content=f"ERROR {error_msg}", status_code=400)
+        
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Rukassa webhook error: {e}")
+        print(f"Traceback: {error_trace}")
+        return Response(content=f"ERROR {str(e)}", status_code=500)
 
 
 

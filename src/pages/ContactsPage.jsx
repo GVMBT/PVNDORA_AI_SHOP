@@ -56,7 +56,7 @@ export default function ContactsPage({ onBack }) {
               >
                 <Button className="w-full min-w-[200px]">
                   @gvmbt158
-                </Button>
+              </Button>
               </a>
             </div>
           </CardContent>

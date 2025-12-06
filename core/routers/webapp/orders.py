@@ -82,7 +82,7 @@ async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_t
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Determine payment gateway - support both 1Plat and Freekassa
+    # Determine payment gateway - support 1Plat, Freekassa, and Rukassa
     payment_gateway = request.payment_gateway or os.environ.get("DEFAULT_PAYMENT_GATEWAY", "1plat")
     
     # Check if requested gateway is configured
@@ -96,6 +96,16 @@ async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_t
             raise HTTPException(
                 status_code=500,
                 detail="Freekassa не настроен. Настройте FREEKASSA_MERCHANT_ID, FREEKASSA_SECRET_WORD_1, FREEKASSA_SECRET_WORD_2"
+            )
+    elif payment_gateway == "rukassa":
+        rukassa_configured = bool(
+            os.environ.get("RUKASSA_SHOP_ID") and
+            os.environ.get("RUKASSA_TOKEN")
+        )
+        if not rukassa_configured:
+            raise HTTPException(
+                status_code=500,
+                detail="Rukassa не настроен. Настройте RUKASSA_SHOP_ID, RUKASSA_TOKEN"
             )
     else:  # Default to 1Plat
         onplat_configured = bool(
