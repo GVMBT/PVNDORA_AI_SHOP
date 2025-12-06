@@ -3,6 +3,8 @@ import { motion } from 'framer-motion'
 import { Lock } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
+const MotionCard = motion.div
+
 export function LevelCard({ level, commission, threshold, isUnlocked, isProgramLocked, count, earnings, formatPrice, t, color, isInstant }) {
   const isLocked = !isUnlocked
 
@@ -33,7 +35,7 @@ export function LevelCard({ level, commission, threshold, isUnlocked, isProgramL
   const cfg = colors[color] || colors.green
 
   return (
-    <motion.div
+    <MotionCard
       whileHover={{ scale: isLocked ? 1 : 1.02 }}
       whileTap={{ scale: isLocked ? 1 : 0.98 }}
       className={cn(
@@ -69,7 +71,7 @@ export function LevelCard({ level, commission, threshold, isUnlocked, isProgramL
           <div className="h-full bg-white/20 w-1/3" />
         </div>
       )}
-    </motion.div>
+    </MotionCard>
   )
 }
 

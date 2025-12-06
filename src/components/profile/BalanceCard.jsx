@@ -3,6 +3,8 @@ import { motion } from 'framer-motion'
 import { Wallet, Share2, Lock } from 'lucide-react'
 import { Button } from '../ui/button'
 
+const MotionCard = motion.div
+
 export function BalanceCard({
   balance = 0,
   currency = 'USD',
@@ -16,7 +18,7 @@ export function BalanceCard({
   const disabled = balance < minWithdrawal
 
   return (
-    <motion.div
+    <MotionCard
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-primary/20 via-background to-background border border-primary/20 shadow-[0_0_30px_rgba(0,245,212,0.15)]"
@@ -57,7 +59,7 @@ export function BalanceCard({
           </div>
         )}
       </div>
-    </motion.div>
+    </MotionCard>
   )
 }
 

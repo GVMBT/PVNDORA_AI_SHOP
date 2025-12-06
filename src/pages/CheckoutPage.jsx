@@ -31,7 +31,6 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
     handleRemovePromo,
     handleCartQuantity,
     handleCartRemove,
-    handleCheckout,
     formatPrice,
     t,
   } = useCheckoutFlow({ productId, initialQuantity, onBack, onSuccess })
