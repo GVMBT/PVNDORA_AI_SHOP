@@ -248,20 +248,20 @@ async def _create_single_order(db, db_user, user, request: CreateOrderRequest, p
     # active или out_of_stock - можно заказать
     quantity = request.quantity or 1
     
-        from core.cart import get_cart_manager
-        cart_manager = get_cart_manager()
+    from core.cart import get_cart_manager
+    cart_manager = get_cart_manager()
         
     # Добавляем в корзину (учитывая сток для разбиения instant/prepaid внутри cart_manager)
-        available_stock = await db.get_available_stock_count(request.product_id)
-        await cart_manager.add_item(
-            user_telegram_id=user.id,
-            product_id=request.product_id,
-            product_name=product.name,
-            quantity=quantity,
-            available_stock=available_stock,
-            unit_price=product.price,
-            discount_percent=0.0
-        )
+    available_stock = await db.get_available_stock_count(request.product_id)
+    await cart_manager.add_item(
+        user_telegram_id=user.id,
+        product_id=request.product_id,
+        product_name=product.name,
+        quantity=quantity,
+        available_stock=available_stock,
+        unit_price=product.price,
+        discount_percent=0.0
+    )
     
     # Применяем промокод к корзине, если передан
     if request.promo_code:
