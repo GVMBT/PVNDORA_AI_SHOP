@@ -17,6 +17,30 @@ from .models import CreateOrderRequest, OrderResponse, ConfirmPaymentRequest
 router = APIRouter(tags=["webapp-orders"])
 
 
+@router.get("/orders/{order_id}/status")
+async def get_order_status(order_id: str, user=Depends(verify_telegram_auth)):
+    """Get order status by ID (for payment polling)."""
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    order = await db.get_order_by_id(order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Verify ownership
+    if order.user_id != db_user.id:
+        raise HTTPException(status_code=403, detail="Order does not belong to user")
+    
+    return {
+        "order_id": order.id,
+        "status": order.status,
+        "amount": order.amount,
+        "created_at": order.created_at.isoformat() if order.created_at else None,
+    }
+
+
 @router.get("/orders")
 async def get_webapp_orders(user=Depends(verify_telegram_auth)):
     """Get user's order history with currency conversion."""

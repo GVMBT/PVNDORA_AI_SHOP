@@ -1,15 +1,20 @@
-import React from 'react'
-import { ShoppingBag, ShieldCheck } from 'lucide-react'
+import React, { useState } from 'react'
+import { ShoppingBag, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react'
 import { motion as Motion } from 'framer-motion'
 
 import { Skeleton } from '../components/ui/skeleton'
 import { HeaderBar } from '../components/ui/header-bar'
+import { Button } from '../components/ui/button'
 import OrderSummaryCard from '../components/checkout/OrderSummaryCard'
 import PromoBlock from '../components/checkout/PromoBlock'
 import TotalSummary from '../components/checkout/TotalSummary'
+import PaymentMethodDialog from '../components/checkout/PaymentMethodDialog'
 import { useCheckoutFlow } from '../hooks/useCheckoutFlow'
 
 export default function CheckoutPage({ productId, initialQuantity = 1, onBack, onSuccess }) {
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+  
   const {
     product,
     cart,
@@ -31,10 +36,9 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
     handleRemovePromo,
     handleCartQuantity,
     handleCartRemove,
+    handleCheckout,
     formatPrice,
     t,
-    paymentMethod,
-    setPaymentMethod,
     availableMethods,
   } = useCheckoutFlow({ productId, initialQuantity, onBack, onSuccess })
 
@@ -112,41 +116,44 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
           />
         </Motion.div>
 
-        <div className="space-y-3">
-          <h4 className="text-sm font-semibold px-1">{t('checkout.paymentMethod') || 'Способ оплаты'}</h4>
-          <div className="grid grid-cols-2 gap-2">
-            {(availableMethods?.length ? availableMethods : [
-              { system_group: 'card', name: 'Карта', icon: '💳' },
-              { system_group: 'sbp', name: 'СБП', icon: '🏦' },
-              { system_group: 'sbp_qr', name: 'QR-код', icon: '📱' },
-              { system_group: 'crypto', name: 'Крипто', icon: '₿' },
-            ]).map((m) => {
-              const methodId = typeof m === 'string' ? m : m.system_group
-              const methodName = typeof m === 'string' ? m.toUpperCase() : m.name
-              const methodIcon = typeof m === 'string' ? '' : m.icon
-              return (
-                <button
-                  key={methodId}
-                  onClick={() => setPaymentMethod(methodId)}
-                  className={`rounded-xl border px-3 py-3 text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
-                    paymentMethod === methodId
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border bg-card/40 text-foreground/80 hover:border-primary/50'
-                  }`}
-                >
-                  {methodIcon && <span>{methodIcon}</span>}
-                  <span>{methodName}</span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        {/* Pay button - opens payment method selection */}
+        <Motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+          <Button
+            onClick={() => setShowPaymentDialog(true)}
+            disabled={total <= 0}
+            className="w-full h-14 text-lg font-semibold rounded-2xl"
+          >
+            {t('checkout.proceedToPayment') || 'К оплате'}
+            <ArrowRight className="w-5 h-5 ml-2" />
+          </Button>
+        </Motion.div>
 
         <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground opacity-70">
           <ShieldCheck className="h-3 w-3" />
           <span>{t('checkout.paymentInfo')}</span>
         </div>
       </div>
+
+      {/* Payment Method Dialog */}
+      <PaymentMethodDialog
+        open={showPaymentDialog}
+        onClose={() => setShowPaymentDialog(false)}
+        availableMethods={availableMethods}
+        total={total}
+        currency={currency}
+        formatPrice={formatPrice}
+        isLoading={isProcessing}
+        t={t}
+        onConfirm={async (method) => {
+          setIsProcessing(true)
+          try {
+            await handleCheckout(method)
+          } finally {
+            setIsProcessing(false)
+            setShowPaymentDialog(false)
+          }
+        }}
+      />
     </div>
   )
 }

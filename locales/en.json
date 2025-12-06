@@ -165,7 +165,12 @@
     "paymentInfo": "Card, bank transfer, and crypto accepted",
     "pay": "Pay",
     "processing": "Processing...",
-    "orderCreated": "Order created! Redirecting to payment..."
+    "orderCreated": "Order created! Redirecting to payment...",
+    "proceedToPayment": "Proceed to Payment",
+    "selectPaymentMethod": "Payment Method",
+    "selectPaymentMethodDesc": "Choose your preferred payment method",
+    "securePayment": "Secure payment",
+    "cartEmpty": "Cart is empty"
   },
 
   "product_card": "📦 {name}\n💰 Price: ${price}\n⭐ Rating: {rating}/5 ({reviews} reviews)\n{stock_status}\n\n{description}",

@@ -7,7 +7,7 @@ import { useTelegram } from './useTelegram'
 /**
  * Инкапсулирует логику страницы Checkout: загрузка товара/корзины,
  * промокоды, пересчёт тоталов, оформление заказа и взаимодействие
- * с Telegram UI (back/main buttons, haptics, alerts).
+ * с Telegram UI (back button, haptics, alerts).
  */
 export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSuccess }) {
   const { getProduct, loading: productLoading } = useProducts()
@@ -15,7 +15,7 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
   const { checkPromo, loading: promoLoading } = usePromo()
   const { getCart, addToCart, updateCartItem, removeCartItem, applyCartPromo, removeCartPromo, loading: cartLoading } = useCart()
   const { t, formatPrice } = useLocale()
-  const { setBackButton, setMainButton, hapticFeedback, showAlert } = useTelegram()
+  const { setBackButton, hapticFeedback, showAlert } = useTelegram()
 
   const [product, setProduct] = useState(null)
   const [cart, setCart] = useState(null)
@@ -23,7 +23,6 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
   const [promoResult, setPromoResult] = useState(null)
   const [quantity, setQuantity] = useState(initialQuantity)
   const [error, setError] = useState(null)
-  const [paymentMethod, setPaymentMethod] = useState('card')
   const [availableMethods, setAvailableMethods] = useState([])
   const isCartMode = !productId
 
@@ -144,10 +143,9 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
     }
   }, [hapticFeedback, removeCartItem, showAlert])
 
-  const handleCheckout = useCallback(async () => {
+  const handleCheckout = useCallback(async (selectedPaymentMethod = 'card') => {
     try {
       hapticFeedback('impact', 'medium')
-      setMainButton({ isLoading: true })
 
       // Всегда идём через корзину: если в режиме товара, сначала положим в корзину
       if (!isCartMode && productId) {
@@ -160,8 +158,8 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
 
       const result = await createOrderFromCart(
         promoResult?.is_valid ? promoCode : null,
-        paymentMethod
-        )
+        selectedPaymentMethod
+      )
 
       hapticFeedback('notification', 'success')
 
@@ -193,8 +191,7 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
     } catch (err) {
       hapticFeedback('notification', 'error')
       await showAlert(err.message)
-    } finally {
-      setMainButton({ isLoading: false })
+      throw err // re-throw для обработки в UI
     }
   }, [
     addToCart,
@@ -207,7 +204,6 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
     promoCode,
     promoResult,
     quantity,
-    setMainButton,
     showAlert,
     t
   ])
@@ -224,19 +220,18 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
         if (data && Array.isArray(data.systems)) {
           // Keep full method objects for icons/names
           setAvailableMethods(data.systems)
-          setPaymentMethod(data.systems[0]?.system_group || 'card')
         } else {
           // Default Rukassa methods
           setAvailableMethods([
-            { system_group: 'card', name: 'Карта', icon: '💳' },
+            { system_group: 'card', name: 'Банковская карта', icon: '💳' },
             { system_group: 'sbp', name: 'СБП', icon: '🏦' },
-            { system_group: 'sbp_qr', name: 'QR-код', icon: '📱' },
-            { system_group: 'crypto', name: 'Крипто', icon: '₿' },
+            { system_group: 'sbp_qr', name: 'QR-код СБП', icon: '📱' },
+            { system_group: 'crypto', name: 'Криптовалюта', icon: '₿' },
           ])
         }
       })
       .catch(() => setAvailableMethods([
-        { system_group: 'card', name: 'Карта', icon: '💳' },
+        { system_group: 'card', name: 'Банковская карта', icon: '💳' },
         { system_group: 'sbp', name: 'СБП', icon: '🏦' },
       ]))
 
@@ -247,21 +242,8 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
 
     return () => {
       setBackButton({ isVisible: false })
-      setMainButton({ isVisible: false })
     }
-  }, [productId, loadProduct, loadCart, onBack, setBackButton, setMainButton, getPaymentMethods])
-
-  useEffect(() => {
-    const total = calculateTotal()
-    if (total > 0) {
-      const currency = product?.currency || cart?.currency || 'USD'
-      setMainButton({
-        text: `${t('checkout.pay')} ${formatPrice(total, currency)}`,
-        isVisible: true,
-        onClick: handleCheckout
-      })
-    }
-  }, [product, cart, calculateTotal, formatPrice, t, handleCheckout, setMainButton])
+  }, [productId, loadProduct, loadCart, onBack, setBackButton, getPaymentMethods])
 
   const total = calculateTotal()
   const currency = product?.currency || cart?.currency || 'USD'
@@ -307,8 +289,6 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
     calculateTotal,
     formatPrice,
     t,
-    paymentMethod,
-    setPaymentMethod,
     availableMethods,
   }
 }
