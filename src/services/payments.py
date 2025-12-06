@@ -69,6 +69,21 @@ class PaymentService:
             return user_email
         return ""
 
+    async def list_payment_methods(self) -> Dict[str, Any]:
+        """Получить актуальные методы оплаты с 1Plat."""
+        shop_id, secret, base_url = self._validate_config()
+        api_url = f"{base_url}/api/merchant/payments/methods/by-api"
+        client = await self._get_http_client()
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "x-shop": shop_id,
+            "x-secret": secret,
+        }
+        resp = await client.get(api_url, headers=headers)
+        resp.raise_for_status()
+        return resp.json()
+
     async def _save_payment_reference(self, order_id: str, pid_value: str) -> None:
         """Сохранить payment_id/guid в заказ (best-effort)."""
         if not order_id or not pid_value:

@@ -8,7 +8,7 @@ from google.genai import types
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.services.database import get_database
-from src.ai.prompts import get_system_prompt, format_product_catalog
+from src.ai.prompts import get_system_prompt, format_product_catalog_with_currency, format_product_catalog
 from src.ai.tools import TOOLS, execute_tool
 from core.models import AIResponse as StructuredAIResponse, ActionType
 
@@ -74,7 +74,20 @@ class AIConsultant:
             db.get_products(status="active"),
             db.get_chat_history(user_id, limit=5)  # Reduced from 10 to 5 for speed
         )
-        product_catalog = format_product_catalog(products)
+
+        # Currency setup for agent output
+        currency_service = None
+        user_currency = "RUB"
+        try:
+            from core.db import get_redis
+            from src.services.currency import get_currency_service
+            redis = get_redis()
+            currency_service = get_currency_service(redis)
+            user_currency = currency_service.get_user_currency(language)
+        except Exception:
+            user_currency = "RUB"
+
+        product_catalog = format_product_catalog_with_currency(products, currency_service, user_currency)
         
         # Build messages
         messages = []
@@ -178,7 +191,19 @@ class AIConsultant:
             db.get_products(status="active"),
             db.get_chat_history(user_id, limit=5)
         )
-        product_catalog = format_product_catalog(products)
+        # Currency setup for agent output
+        currency_service = None
+        user_currency = "RUB"
+        try:
+            from core.db import get_redis
+            from src.services.currency import get_currency_service
+            redis = get_redis()
+            currency_service = get_currency_service(redis)
+            user_currency = currency_service.get_user_currency(language)
+        except Exception:
+            user_currency = "RUB"
+
+        product_catalog = format_product_catalog_with_currency(products, currency_service, user_currency)
         
         # Get system prompt
         system_prompt = get_system_prompt(language, product_catalog)

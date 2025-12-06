@@ -14,6 +14,7 @@ export function useProfileData({ onBack }) {
 
   const [profile, setProfile] = useState(null)
   const [currency, setCurrency] = useState('USD')
+  const [error, setError] = useState(null)
   const [referralStats, setReferralStats] = useState(null)
   const [referralProgram, setReferralProgram] = useState(null)
   const [bonusHistory, setBonusHistory] = useState([])
@@ -27,6 +28,11 @@ export function useProfileData({ onBack }) {
 
   const loadProfile = useCallback(async () => {
     try {
+      if (!user?.id) {
+        setError('unauthorized')
+        setProfile(null)
+        return
+      }
       const data = await get('/profile')
       setProfile(data.profile)
       setCurrency(data.currency || 'USD')
@@ -34,10 +40,12 @@ export function useProfileData({ onBack }) {
       setReferralProgram(data.referral_program)
       setBonusHistory(data.bonus_history || [])
       setWithdrawals(data.withdrawals || [])
+      setError(null)
     } catch (err) {
       console.error('Failed to load profile:', err)
+      setError(err.message || 'failed')
     }
-  }, [get])
+  }, [get, user?.id])
 
   useEffect(() => {
     loadProfile()
@@ -111,6 +119,7 @@ export function useProfileData({ onBack }) {
   return {
     loading,
     profile,
+    error,
     currency,
     referralStats,
     referralProgram,

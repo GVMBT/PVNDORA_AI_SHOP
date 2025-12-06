@@ -33,6 +33,9 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
     handleCartRemove,
     formatPrice,
     t,
+    paymentMethod,
+    setPaymentMethod,
+    availableMethods,
   } = useCheckoutFlow({ productId, initialQuantity, onBack, onSuccess })
 
   if (productLoading || cartLoading) {
@@ -108,6 +111,25 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
             t={t}
           />
         </Motion.div>
+
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold px-1">{t('checkout.paymentMethod') || 'Способ оплаты'}</h4>
+          <div className="grid grid-cols-2 gap-2">
+            {(availableMethods?.length ? availableMethods : ['card', 'sbp', 'qr', 'crypto']).map((m) => (
+              <button
+                key={m}
+                onClick={() => setPaymentMethod(m)}
+                className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-all ${
+                  paymentMethod === m
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border bg-card/40 text-foreground/80'
+                }`}
+              >
+                {m.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground opacity-70">
           <ShieldCheck className="h-3 w-3" />

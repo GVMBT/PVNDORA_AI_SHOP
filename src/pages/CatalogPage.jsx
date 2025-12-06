@@ -175,7 +175,7 @@ export default function CatalogPage({ onProductClick, onGoCart }) {
               setFilter(value)
             }}
           >
-            <TabsList className="flex gap-2 p-1.5 rounded-2xl min-w-max">
+            <TabsList className="gap-2 p-1.5 rounded-2xl">
               {categories.map((cat) => {
                 const Icon = cat.icon
                 return (

@@ -12,6 +12,7 @@ import BalanceCard from '../components/profile/BalanceCard'
 import ReferralStatsGrid from '../components/profile/ReferralStatsGrid'
 import CopyReferralLink from '../components/profile/CopyReferralLink'
 import WithdrawDialog from '../components/profile/WithdrawDialog'
+import { useTelegram } from '../hooks/useTelegram'
 
 const WITHDRAWAL_MIN = 500
 
@@ -19,6 +20,7 @@ export default function ProfilePage({ onBack }) {
   const {
     loading,
     profile,
+    error,
     currency,
     referralStats,
     referralProgram,
@@ -41,6 +43,7 @@ export default function ProfilePage({ onBack }) {
     t,
     user,
   } = useProfileData({ onBack })
+  const { openTelegramLink } = useTelegram()
   
   const getMethodIcon = (method) => {
     switch (method) {
@@ -51,6 +54,25 @@ export default function ProfilePage({ onBack }) {
     }
   }
   
+  if ((error === 'unauthorized' || !user?.id) && !profile) {
+    return (
+      <div className="p-6 space-y-4">
+        <HeaderBar title={t('profile.title')} onBack={onBack} />
+        <div className="bg-card/50 border border-white/10 rounded-2xl p-4 space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {t('profile.authRequired') || 'Для просмотра профиля авторизуйся через Telegram Mini App.'}
+          </p>
+          <Button
+            className="w-full rounded-xl"
+            onClick={() => openTelegramLink && openTelegramLink('https://t.me/pvndora_ai_bot')}
+          >
+            {t('profile.openInTelegram') || 'Открыть в Telegram'}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   if (loading && !profile) {
     return (
       <div className="p-4 space-y-4">

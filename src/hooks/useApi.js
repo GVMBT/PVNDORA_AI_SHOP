@@ -129,16 +129,17 @@ export function useOrders() {
   const { get, post, loading, error } = useApi()
   
   const getOrders = useCallback(() => get('/orders'), [get])
+  const getPaymentMethods = useCallback(() => get('/payments/methods'), [get])
   
-  const createOrder = useCallback((productId, quantity = 1, promoCode = null) => 
-    post('/orders', { product_id: productId, quantity, promo_code: promoCode }), 
+  const createOrder = useCallback((productId, quantity = 1, promoCode = null, paymentMethod = 'card') => 
+    post('/orders', { product_id: productId, quantity, promo_code: promoCode, payment_method: paymentMethod }), 
     [post])
   
-  const createOrderFromCart = useCallback((promoCode = null) => 
-    post('/orders', { use_cart: true, promo_code: promoCode }), 
+  const createOrderFromCart = useCallback((promoCode = null, paymentMethod = 'card') => 
+    post('/orders', { use_cart: true, promo_code: promoCode, payment_method: paymentMethod }), 
     [post])
   
-  return { getOrders, createOrder, createOrderFromCart, loading, error }
+  return { getOrders, getPaymentMethods, createOrder, createOrderFromCart, loading, error }
 }
 
 export function useCart() {

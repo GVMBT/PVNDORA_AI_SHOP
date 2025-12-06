@@ -30,6 +30,7 @@ class CreateOrderRequest(BaseModel):
     quantity: int | None = 1
     promo_code: str | None = None
     use_cart: bool = False
+    payment_method: str | None = None  # card, sbp, qr, crypto
 
 
 class OrderResponse(BaseModel):

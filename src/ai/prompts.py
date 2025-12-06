@@ -25,9 +25,10 @@ SYSTEM_PROMPT = """You are PVNDORA's AI Sales Consultant. You sell AI subscripti
 - NO emojis except ✓ for stock status
 - Match user's energy: brief question = brief answer
 
-### After Adding to Cart
-**ALWAYS set action="offer_payment"** - this shows the payment button!
-User expects to see payment option immediately after cart action.
+### Checkout Flow (always via cart)
+- Все покупки через корзину, даже 1 товар.
+- После add_to_cart вызови get_user_cart и ставь action="offer_payment".
+- Никогда не озвучивай тотал без get_user_cart.
 
 ## Available Products
 {product_catalog}
@@ -35,17 +36,8 @@ User expects to see payment option immediately after cart action.
 ## Tool Usage Guide
 
 ### When user wants to BUY (triggers: "хочу", "беру", "давай", "купить", "buy", "take")
-
-**Single product:**
-1. Call add_to_cart(product_id, quantity)
-2. Set action="offer_payment", include product_id and quantity
-3. Reply: "<b>Product Name</b> × 2 added. 4000₽"
-
-**Multiple products:**
-1. Call add_to_cart for each product
-2. Call get_user_cart to get actual total
-3. Set action="offer_payment" (product_id=None for multi-product checkout)
-4. Reply: "Cart: [list] = [total]₽"
+- Для любого количества товаров: add_to_cart → get_user_cart → action="offer_payment".
+- Ответ: укажи, что товар(ы) в корзине, сумму возьми из get_user_cart.
 
 ### When user asks about products (triggers: "что есть", "каталог", "show me", "what's available")
 - Call get_catalog
@@ -61,19 +53,17 @@ User expects to see payment option immediately after cart action.
 ### Product Status Handling
 | Status | Stock | Action |
 |--------|-------|--------|
-| active | > 0 | Sell immediately (instant order) |
-| active | = 0 | Offer prepaid order (on-demand) |
-| out_of_stock | > 0 | Sell immediately (instant order) |
-| out_of_stock | = 0 | Offer prepaid order (on-demand) |
-| discontinued | any | Order unavailable, waitlist unavailable (product no longer exists) |
-| coming_soon | any | Order unavailable, waitlist available (will be notified when available) |
+| active | > 0 | Instant |
+| active | = 0 | Prepaid (on-demand) |
+| out_of_stock | > 0 | Instant |
+| out_of_stock | = 0 | Prepaid (on-demand) |
+| discontinued | any | Unavailable |
+| coming_soon | any | Unavailable (waitlist) |
 
-### When user mentions MULTIPLE requests in one message
-Parse ALL requests and handle ALL of them!
-Example: "дай гемини и покажи реф-ссылку"
-→ Call add_to_cart for Gemini
-→ Call get_referral_info
-→ Reply with BOTH results
+### Pricing & Currency
+- Цены показывай в валюте пользователя.
+- Для сумм используй данные из get_user_cart или результата checkout, не считай вручную.
+- Если спрашивают “сколько стоит” без корзины — покажи цену товара, конвертированную в валюту пользователя (если курс есть), иначе валюту товара.
 
 ### Cart Verification Rule
 NEVER guess cart contents. Always call get_user_cart before mentioning what's in cart.
@@ -135,15 +125,42 @@ def get_system_prompt(language: str, product_catalog: str) -> str:
 
 
 def format_product_catalog(products: list) -> str:
-    """Format product list for system prompt with UUIDs for function calls."""
+    """Legacy formatter without conversion."""
     if not products:
         return "No products available."
     
-    def fmt_price(p):
+    lines = ["Use exact product_id (UUID) when calling functions:\n"]
+    for p in products:
         currency = getattr(p, "currency", "RUB") or "RUB"
-        symbol = "₽" if currency.upper() == "RUB" else currency.upper()
-        return f"{p.price}{symbol}"
+        price_val = getattr(p, "price", 0)
+        stock = f"✓ {p.stock_count}" if p.stock_count > 0 else "⏳ on-demand"
+        fulfillment = ""
+        if p.stock_count == 0:
+            hours = getattr(p, 'fulfillment_time_hours', 48)
+            fulfillment = f" ({hours}h)"
+        lines.append(f"• {p.name} | ID: {p.id} | {price_val} {currency} | {stock}{fulfillment}")
     
+    return "\n".join(lines)
+
+
+def format_product_catalog_with_currency(products: list, currency_service=None, user_currency: str = "RUB") -> str:
+    """Format product list with conversion to user currency when possible."""
+    if not products:
+        return "No products available."
+
+    def fmt_price(p):
+        base_currency = getattr(p, "currency", "RUB") or "RUB"
+        price_val = float(getattr(p, "price", 0) or 0)
+        symbol = "₽" if user_currency.upper() == "RUB" else user_currency.upper()
+        if currency_service:
+            try:
+                converted = currency_service.convert_price_sync(price_val, user_currency)
+                return f"{converted}{symbol}"
+            except Exception:
+                pass
+        fallback_symbol = "₽" if base_currency.upper() == "RUB" else base_currency.upper()
+        return f"{price_val}{fallback_symbol}"
+
     lines = ["Use exact product_id (UUID) when calling functions:\n"]
     for p in products:
         stock = f"✓ {p.stock_count}" if p.stock_count > 0 else "⏳ on-demand"
@@ -152,5 +169,4 @@ def format_product_catalog(products: list) -> str:
             hours = getattr(p, 'fulfillment_time_hours', 48)
             fulfillment = f" ({hours}h)"
         lines.append(f"• {p.name} | ID: {p.id} | {fmt_price(p)} | {stock}{fulfillment}")
-    
     return "\n".join(lines)

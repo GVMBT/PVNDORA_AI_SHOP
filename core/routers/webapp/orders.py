@@ -94,7 +94,7 @@ async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_t
             detail="Payment service not configured. Please configure 1Plat credentials."
         )
     
-    payment_method = "1plat"
+    payment_method = request.payment_method or "card"
     
     payment_service = get_payment_service()
     
@@ -104,6 +104,18 @@ async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_t
     
     # Single product order
     return await _create_single_order(db, db_user, user, request, payment_service, payment_method)
+
+
+@router.get("/payments/methods")
+async def get_payment_methods(user=Depends(verify_telegram_auth)):
+    """Get available payment methods from 1Plat."""
+    payment_service = get_payment_service()
+    try:
+        data = await payment_service.list_payment_methods()
+        return data
+    except Exception as e:
+        print(f"Failed to fetch payment methods: {e}")
+        raise HTTPException(status_code=502, detail="Failed to fetch payment methods")
 
 
 async def _create_cart_order(db, db_user, user, payment_service, payment_method: str) -> OrderResponse:
@@ -167,10 +179,23 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
     if len(order_items) > 3:
         product_names += f" и еще {len(order_items) - 3}"
     
+    # Конвертация суммы в RUB для платёжного шлюза
+    payable_amount = total_amount
+    try:
+        from core.db import get_redis
+        from src.services.currency import get_currency_service
+        redis = get_redis()
+        currency_service = get_currency_service(redis)
+        user_currency = currency_service.get_user_currency(db_user.language_code or user.language_code)
+        payable_amount = await currency_service.convert_price(float(total_amount), "RUB", round_to_int=True)
+    except Exception as e:
+        print(f"Warning: currency conversion failed, using raw amount: {e}")
+
     try:
         payment_url = await payment_service.create_payment(
-            order_id=order.id, amount=total_amount, product_name=product_names,
-            method=payment_method, user_email=f"{user.id}@telegram.user",
+            order_id=order.id, amount=payable_amount, product_name=product_names,
+            method="1plat", payment_method=payment_method,
+            user_email=f"{user.id}@telegram.user",
             user_id=user.id  # Telegram user id (numeric) for gateway
         )
     except Exception as e:

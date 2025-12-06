@@ -11,7 +11,7 @@ import { useTelegram } from './useTelegram'
  */
 export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSuccess }) {
   const { getProduct, loading: productLoading } = useProducts()
-  const { createOrderFromCart } = useOrders()
+  const { createOrderFromCart, getPaymentMethods } = useOrders()
   const { checkPromo, loading: promoLoading } = usePromo()
   const { getCart, addToCart, updateCartItem, removeCartItem, applyCartPromo, removeCartPromo, loading: cartLoading } = useCart()
   const { t, formatPrice } = useLocale()
@@ -23,6 +23,8 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
   const [promoResult, setPromoResult] = useState(null)
   const [quantity, setQuantity] = useState(initialQuantity)
   const [error, setError] = useState(null)
+  const [paymentMethod, setPaymentMethod] = useState('card')
+  const [availableMethods, setAvailableMethods] = useState([])
   const isCartMode = !productId
 
   const loadProduct = useCallback(async () => {
@@ -157,7 +159,8 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
       }
 
       const result = await createOrderFromCart(
-        promoResult?.is_valid ? promoCode : null
+        promoResult?.is_valid ? promoCode : null,
+        paymentMethod
       )
 
       hapticFeedback('notification', 'success')
@@ -206,6 +209,17 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
     } else {
       loadCart()
     }
+    // load payment methods
+    getPaymentMethods()
+      .then((data) => {
+        if (data && Array.isArray(data.systems)) {
+          setAvailableMethods(data.systems.map((s) => s.system_group))
+          setPaymentMethod(data.systems[0]?.system_group || 'card')
+        } else {
+          setAvailableMethods(['card', 'sbp', 'qr', 'crypto'])
+        }
+      })
+      .catch(() => setAvailableMethods(['card', 'sbp', 'qr', 'crypto']))
 
     setBackButton({
       isVisible: true,
@@ -216,7 +230,7 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
       setBackButton({ isVisible: false })
       setMainButton({ isVisible: false })
     }
-  }, [productId, loadProduct, loadCart, onBack, setBackButton, setMainButton])
+  }, [productId, loadProduct, loadCart, onBack, setBackButton, setMainButton, getPaymentMethods])
 
   useEffect(() => {
     const total = calculateTotal()
@@ -274,6 +288,9 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
     calculateTotal,
     formatPrice,
     t,
+    paymentMethod,
+    setPaymentMethod,
+    availableMethods,
   }
 }
 
