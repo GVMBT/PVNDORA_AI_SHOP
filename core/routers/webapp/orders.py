@@ -132,7 +132,7 @@ async def get_payment_methods(user=Depends(verify_telegram_auth)):
         raise HTTPException(status_code=502, detail="Failed to fetch payment methods")
 
 
-async def _create_cart_order(db, db_user, user, payment_service, payment_method: str) -> OrderResponse:
+async def _create_cart_order(db, db_user, user, payment_service, payment_method: str, payment_gateway: str = "1plat") -> OrderResponse:
     """Create order from cart items."""
     from core.cart import get_cart_manager
     cart_manager = get_cart_manager()
