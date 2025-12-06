@@ -16,7 +16,7 @@ export default function Footer({ onNavigate }) {
     { 
       icon: MessageCircle, 
       label: 'Support', 
-      href: 'https://t.me/pvndora_support' 
+      href: 'https://t.me/gvmbt158' 
     },
   ]
   

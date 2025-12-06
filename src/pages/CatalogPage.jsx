@@ -3,14 +3,14 @@ import { useProducts, useCart } from '../hooks/useApi'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
 import ProductCard from '../components/ProductCard'
-import { Search, SlidersHorizontal, Sparkles, Brain, Paintbrush, Code, Zap, CheckCircle2, Shield } from 'lucide-react'
+import { Search, SlidersHorizontal, Sparkles, Brain, Paintbrush, Code, Zap, CheckCircle2, Shield, FileText, MessageCircle, HelpCircle } from 'lucide-react'
 import { Input } from '../components/ui/input'
 import { Button } from '../components/ui/button'
 import { Skeleton } from '../components/ui/skeleton'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs'
 
-export default function CatalogPage({ onProductClick, onGoCart }) {
+export default function CatalogPage({ onProductClick, onGoCart, onNavigate }) {
   const { getProducts, loading, error } = useProducts()
   const { addToCart, getCart } = useCart()
   const { t } = useLocale()
@@ -348,6 +348,46 @@ export default function CatalogPage({ onProductClick, onGoCart }) {
             </motion.div>
           </div>
         </motion.div>
+        
+        {/* Legal Links Section */}
+        {onNavigate && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="mt-8 pt-6 border-t border-border/30"
+          >
+            <div className="flex flex-wrap justify-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => onNavigate('faq')}
+              >
+                <HelpCircle className="h-3.5 w-3.5 mr-1.5" />
+                {t('faq.title')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => onNavigate('terms')}
+              >
+                <FileText className="h-3.5 w-3.5 mr-1.5" />
+                {t('terms.title')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => onNavigate('contacts')}
+              >
+                <MessageCircle className="h-3.5 w-3.5 mr-1.5" />
+                {t('contacts.support')}
+              </Button>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* Toast */}

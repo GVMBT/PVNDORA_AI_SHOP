@@ -31,7 +31,7 @@ const ADMIN_ITEMS = [
 
 const SOCIAL_LINKS = [
   { icon: Send, label: 'Telegram', href: 'https://t.me/pvndora_news' },
-  { icon: MessageCircle, label: 'Поддержка', href: 'https://t.me/pvndora_support' },
+  { icon: MessageCircle, label: 'Поддержка', href: 'https://t.me/gvmbt158' },
 ]
 
 const LEGAL_LINKS = [

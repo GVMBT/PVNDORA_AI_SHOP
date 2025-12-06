@@ -1,8 +1,8 @@
-"""Command handlers: /start, /help, /my_orders, /wishlist, /referral"""
+"""Command handlers: /start, /help, /my_orders, /wishlist, /referral, /faq, /terms, /support"""
 import asyncio
 
 from aiogram import Router, Bot
-from aiogram.types import Message
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from aiogram.filters import Command, CommandStart
 from aiogram.enums import ParseMode
 
@@ -51,9 +51,77 @@ async def cmd_start(message: Message, db_user: User, bot: Bot):
 
 @router.message(Command("help"))
 async def cmd_help(message: Message, db_user: User):
-    """Handle /help command"""
+    """Handle /help command with quick access buttons"""
     text = get_text("help", db_user.language_code)
-    await message.answer(text, parse_mode=ParseMode.HTML)
+    
+    # Get localized button texts
+    faq_text = get_text("faq.title", db_user.language_code, default="FAQ")
+    terms_text = get_text("terms.title", db_user.language_code, default="Условия")
+    support_text = get_text("contacts.support", db_user.language_code, default="Поддержка")
+    
+    # Add keyboard with quick access buttons
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text=f"❓ {faq_text}",
+                web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=faq")
+            ),
+            InlineKeyboardButton(
+                text=f"📄 {terms_text}",
+                web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=terms")
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=f"🆘 {support_text}",
+                web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=contacts")
+            )
+        ]
+    ])
+    
+    await message.answer(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+
+
+@router.message(Command("faq"))
+async def cmd_faq(message: Message, db_user: User):
+    """Handle /faq command - open FAQ page"""
+    text = get_text("faq.title", db_user.language_code, default="FAQ")
+    btn_text = get_text("btn_open_faq", db_user.language_code, default="📖 Открыть FAQ")
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(
+            text=btn_text,
+            web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=faq")
+        )
+    ]])
+    await message.answer(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+
+
+@router.message(Command("terms"))
+async def cmd_terms(message: Message, db_user: User):
+    """Handle /terms command - open Terms of Service page"""
+    text = get_text("terms.title", db_user.language_code, default="Пользовательское соглашение")
+    btn_text = get_text("btn_open_terms", db_user.language_code, default="📄 Открыть условия")
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(
+            text=btn_text,
+            web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=terms")
+        )
+    ]])
+    await message.answer(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+
+
+@router.message(Command("support"))
+async def cmd_support(message: Message, db_user: User):
+    """Handle /support command - open support/contacts page"""
+    text = get_text("contacts.supportDescription", db_user.language_code, default="Поддержка клиентов")
+    btn_text = get_text("btn_open_support", db_user.language_code, default="🆘 Открыть поддержку")
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(
+            text=btn_text,
+            web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=contacts")
+        )
+    ]])
+    await message.answer(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
 
 
 @router.message(Command("my_orders"))

@@ -45,15 +45,19 @@ export default function ContactsPage({ onBack }) {
             </div>
             <div>
               <h3 className="font-semibold text-lg mb-1">{t('contacts.support')}</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                {t('contacts.contactHint') || "Chat with our AI assistant directly"}
+              <p className="text-sm text-muted-foreground mb-2">
+                {t('contacts.contactHint') || "Напишите нам в Telegram"}
               </p>
-              <Button 
-                onClick={() => window.Telegram?.WebApp?.close()}
-                className="w-full min-w-[200px]"
+              <a
+                href="https://t.me/gvmbt158"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
               >
-                {t('contacts.contactBot')}
-              </Button>
+                <Button className="w-full min-w-[200px]">
+                  @gvmbt158
+                </Button>
+              </a>
             </div>
           </CardContent>
         </Card>
