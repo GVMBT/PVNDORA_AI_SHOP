@@ -177,13 +177,17 @@ class PaymentService:
         # user_id обязателен для 1Plat API (без эвристик)
         if user_id is None:
             raise ValueError("user_id обязателен для создания платежа")
+        try:
+            user_id_int = int(str(user_id))
+        except Exception:
+            raise ValueError("user_id должен быть числом (используйте telegram_id)")
         
         api_url = f"{base_url}/api/merchant/order/create/by-api"
         amount_kopecks = int(float(amount) * 100)
         
         payload = {
             "merchant_order_id": order_id,
-            "user_id": int(user_id),
+            "user_id": user_id_int,
             "amount": amount_kopecks,
             "method": method,
         }

@@ -11,9 +11,9 @@ import { useTelegram } from './useTelegram'
  */
 export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSuccess }) {
   const { getProduct, loading: productLoading } = useProducts()
-  const { createOrder, createOrderFromCart } = useOrders()
+  const { createOrderFromCart } = useOrders()
   const { checkPromo, loading: promoLoading } = usePromo()
-  const { getCart, updateCartItem, removeCartItem, applyCartPromo, removeCartPromo, loading: cartLoading } = useCart()
+  const { getCart, addToCart, updateCartItem, removeCartItem, applyCartPromo, removeCartPromo, loading: cartLoading } = useCart()
   const { t, formatPrice } = useLocale()
   const { setBackButton, setMainButton, hapticFeedback, showAlert } = useTelegram()
 
@@ -147,18 +147,18 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
       hapticFeedback('impact', 'medium')
       setMainButton({ isLoading: true })
 
-      let result
-      if (isCartMode) {
-        result = await createOrderFromCart(
-          promoResult?.is_valid ? promoCode : null
-        )
-      } else {
-        result = await createOrder(
-          productId,
-          quantity,
-          promoResult?.is_valid ? promoCode : null
-        )
+      // Всегда идём через корзину: если в режиме товара, сначала положим в корзину
+      if (!isCartMode && productId) {
+        await addToCart(productId, quantity)
       }
+
+      if (promoResult?.is_valid && promoCode) {
+        await applyCartPromo(promoCode)
+      }
+
+      const result = await createOrderFromCart(
+        promoResult?.is_valid ? promoCode : null
+      )
 
       hapticFeedback('notification', 'success')
 
@@ -185,7 +185,8 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
       setMainButton({ isLoading: false })
     }
   }, [
-    createOrder,
+    addToCart,
+    applyCartPromo,
     createOrderFromCart,
     hapticFeedback,
     isCartMode,

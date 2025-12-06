@@ -52,7 +52,7 @@ class AIConsultant:
         self,
         user_id: str,
         user_message: str,
-        language: str = "en",
+        language: str = "ru",
         progress_callback=None
     ) -> StructuredAIResponse:
         """
@@ -158,7 +158,7 @@ class AIConsultant:
         self,
         user_id: str,
         voice_data: bytes,
-        language: str = "en"
+        language: str = "ru"
     ) -> StructuredAIResponse:
         """
         Get AI response for a voice message.

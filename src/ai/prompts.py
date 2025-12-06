@@ -139,6 +139,11 @@ def format_product_catalog(products: list) -> str:
     if not products:
         return "No products available."
     
+    def fmt_price(p):
+        currency = getattr(p, "currency", "RUB") or "RUB"
+        symbol = "₽" if currency.upper() == "RUB" else currency.upper()
+        return f"{p.price}{symbol}"
+    
     lines = ["Use exact product_id (UUID) when calling functions:\n"]
     for p in products:
         stock = f"✓ {p.stock_count}" if p.stock_count > 0 else "⏳ on-demand"
@@ -146,6 +151,6 @@ def format_product_catalog(products: list) -> str:
         if p.stock_count == 0:
             hours = getattr(p, 'fulfillment_time_hours', 48)
             fulfillment = f" ({hours}h)"
-        lines.append(f"• {p.name} | ID: {p.id} | {p.price}₽ | {stock}{fulfillment}")
+        lines.append(f"• {p.name} | ID: {p.id} | {fmt_price(p)} | {stock}{fulfillment}")
     
     return "\n".join(lines)

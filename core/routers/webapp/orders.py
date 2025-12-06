@@ -171,7 +171,7 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         payment_url = await payment_service.create_payment(
             order_id=order.id, amount=total_amount, product_name=product_names,
             method=payment_method, user_email=f"{user.id}@telegram.user",
-            user_id=db_user.id
+            user_id=user.id  # Telegram user id (numeric) for gateway
         )
     except Exception as e:
         print(f"Payment creation failed for cart order {order.id}: {e}")
@@ -192,9 +192,9 @@ async def _create_single_order(db, db_user, user, request: CreateOrderRequest, p
     """
     Create order for single product.
     
-    Uses create_order_with_availability_check RPC function which:
-    - If product is in stock → creates instant order
-    - If product is not in stock → creates prepaid order automatically
+    Теперь весь поток идёт через корзину: добавляем товар в корзину
+    (учитывая доступный сток) и оформляем заказ как cart checkout,
+    чтобы не было рассинхрона с предзаказами/instant.
     """
     if not request.product_id:
         raise HTTPException(status_code=400, detail="product_id is required")
@@ -220,91 +220,30 @@ async def _create_single_order(db, db_user, user, request: CreateOrderRequest, p
             detail="Product is coming soon. Please use waitlist to be notified when available."
         )
     
-    # active или out_of_stock - можно заказать (RPC функция обработает)
+    # active или out_of_stock - можно заказать
     quantity = request.quantity or 1
     
-    # Если пользователь хочет >1, переводим в корзину с уже готовым сплитом instant/prepaid
-    if quantity > 1:
-        from core.cart import get_cart_manager
-        cart_manager = get_cart_manager()
-        
-        available_stock = await db.get_available_stock_count(request.product_id)
-        await cart_manager.add_item(
-            user_telegram_id=user.id,
-            product_id=request.product_id,
-            product_name=product.name,
-            quantity=quantity,
-            available_stock=available_stock,
-            unit_price=product.price,
-            discount_percent=0.0
-        )
-        # Ресет используемого флага: идём через cart checkout
-        return await _create_cart_order(db, db_user, user, payment_service, payment_method)
+    from core.cart import get_cart_manager
+    cart_manager = get_cart_manager()
     
-    # Use RPC function that automatically handles instant vs prepaid
-    # RPC функция принимает только active и out_of_stock
-    try:
-        order_result = await db.create_order_with_availability_check(
-            product_id=request.product_id,
-            user_telegram_id=user.id
-        )
-    except Exception as e:
-        error_msg = str(e)
-        if "not found or unavailable" in error_msg.lower():
-            raise HTTPException(
-                status_code=400,
-                detail="Product is not available for ordering. Status must be active or out_of_stock."
-            )
-        print(f"Error creating order: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to create order: {str(e)}")
+    # Добавляем в корзину (учитывая сток для разбиения instant/prepaid внутри cart_manager)
+    available_stock = await db.get_available_stock_count(request.product_id)
+    await cart_manager.add_item(
+        user_telegram_id=user.id,
+        product_id=request.product_id,
+        product_name=product.name,
+        quantity=quantity,
+        available_stock=available_stock,
+        unit_price=product.price,
+        discount_percent=0.0
+    )
     
-    order_id = order_result["order_id"]
-    order_type = order_result["order_type"]  # "instant" or "prepaid"
-    
-    # Get the created order to get full details (amount, original_price, discount_percent)
-    order = await db.get_order_by_id(order_id)
-    if not order:
-        raise HTTPException(status_code=500, detail="Order created but not found")
-    
-    # Get prices from order (RPC function already calculated discount for instant orders)
-    amount = float(order.amount)
-    original_price = float(order.original_price) if order.original_price else amount
-    discount_percent = order.discount_percent or 0
-    
-    # Apply promo code discount if provided (additional discount on top of stock discount)
+    # Применяем промокод к корзине, если передан
     if request.promo_code:
         promo = await db.validate_promo_code(request.promo_code)
-        if promo:
-            promo_discount = promo["discount_percent"]
-            # Apply promo discount on top of existing discount
-            # Calculate from original_price
-            total_discount = max(discount_percent, promo_discount)
-            amount = original_price * (1 - total_discount / 100)
-            discount_percent = total_discount
-            # TODO: Update order amount and discount_percent in DB if promo applied
+        if not promo:
+            raise HTTPException(status_code=400, detail="Invalid or expired promo code")
+        await cart_manager.apply_promo_code(user.id, request.promo_code, promo["discount_percent"])
     
-    # Prepare product name for payment
-    product_name = product.name
-    if order_type == "prepaid":
-        fulfillment_deadline = order_result.get("fulfillment_deadline")
-        if fulfillment_deadline:
-            # Add prepaid info to product name
-            product_name = f"{product.name} (под заказ)"
-    
-    try:
-        payment_url = await payment_service.create_payment(
-            order_id=order_id, amount=amount, product_name=product_name,
-            method=payment_method, user_email=f"{user.id}@telegram.user",
-            user_id=db_user.id
-        )
-    except Exception as e:
-        print(f"Payment creation failed for order {order_id}: {e}")
-        raise HTTPException(status_code=502, detail="Payment service unavailable")
-    
-    if request.promo_code:
-        await db.use_promo_code(request.promo_code)
-    
-    return OrderResponse(
-        order_id=order_id, amount=amount, original_price=original_price,
-        discount_percent=discount_percent, payment_url=payment_url, payment_method=payment_method
-    )
+    # Выполняем checkout по корзине (один заказ на содержимое корзины)
+    return await _create_cart_order(db, db_user, user, payment_service, payment_method)

@@ -36,7 +36,10 @@ export default function CatalogPage({ onProductClick, onGoCart }) {
     loadProducts()
     getCart()
       .then((data) => {
-        if (data && Array.isArray(data.items)) setCartCount(data.items.length)
+        if (data && Array.isArray(data.items)) {
+          const totalQty = data.items.reduce((sum, item) => sum + (item.quantity || 0), 0)
+          setCartCount(totalQty)
+        }
       })
       .catch(() => {})
   }, [loadProducts, getCart])
@@ -60,10 +63,14 @@ export default function CatalogPage({ onProductClick, onGoCart }) {
       const cart = await addToCart(product.id, 1)
       // Refresh cart cache/count
       if (cart && Array.isArray(cart.items)) {
-        setCartCount(cart.items.length)
+        const totalQty = cart.items.reduce((sum, item) => sum + (item.quantity || 0), 0)
+        setCartCount(totalQty)
       } else {
         const data = await getCart().catch(() => null)
-        if (data && Array.isArray(data.items)) setCartCount(data.items.length)
+        if (data && Array.isArray(data.items)) {
+          const totalQty = data.items.reduce((sum, item) => sum + (item.quantity || 0), 0)
+          setCartCount(totalQty)
+        }
       }
       showToast({ type: 'success', message: t('product.addedToCart') || 'Added to cart' })
     } catch (err) {
@@ -168,7 +175,7 @@ export default function CatalogPage({ onProductClick, onGoCart }) {
               setFilter(value)
             }}
           >
-            <TabsList className="flex gap-2 bg-background/70 backdrop-blur-xl p-1.5 rounded-2xl border border-white/10 shadow-md min-w-max">
+            <TabsList className="flex gap-2 p-1.5 rounded-2xl min-w-max">
               {categories.map((cat) => {
                 const Icon = cat.icon
                 return (
