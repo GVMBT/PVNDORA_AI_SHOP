@@ -101,7 +101,18 @@ class PaymentService:
         return "Ошибка при создании платежа. Попробуйте через минуту или выберите другой способ оплаты."
 
     async def list_payment_methods(self) -> Dict[str, Any]:
-        """Получить актуальные методы оплаты с 1Plat."""
+        """
+        Получить актуальные методы оплаты с 1Plat.
+        
+        Возвращает структуру для фронтенда:
+        {
+            "systems": [
+                {"system_group": "card", "name": "Банковская карта"},
+                {"system_group": "sbp", "name": "СБП"},
+                ...
+            ]
+        }
+        """
         shop_id, secret, base_url = self._validate_config()
         api_url = f"{base_url}/api/merchant/payments/methods/by-api"
         client = await self._get_http_client()
@@ -111,9 +122,93 @@ class PaymentService:
             "x-shop": shop_id,
             "x-secret": secret,
         }
-        resp = await client.get(api_url, headers=headers)
-        resp.raise_for_status()
-        return resp.json()
+        try:
+            resp = await client.get(api_url, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+            
+            # Логируем ответ для отладки
+            logger.info("1Plat payment methods response: %s", data)
+            
+            # Нормализуем ответ для фронтенда
+            # 1Plat может возвращать разные структуры, обрабатываем основные варианты
+            systems = []
+            
+            # Вариант 1: data.systems (если уже в нужном формате)
+            if isinstance(data, dict) and "systems" in data:
+                systems = data["systems"]
+            # Вариант 2: data - массив систем
+            elif isinstance(data, list):
+                systems = data
+            # Вариант 3: data.data или data.result
+            elif isinstance(data, dict):
+                systems = data.get("data") or data.get("result") or data.get("systems") or []
+            
+            # Маппим на поддерживаемые методы
+            # 1Plat может возвращать: card, sbp, qr, crypto или другие названия
+            method_mapping = {
+                "card": "card",
+                "cards": "card",
+                "bank_card": "card",
+                "sbp": "sbp",
+                "fast_payment": "sbp",
+                "qr": "qr",
+                "qrcode": "qr",
+                "crypto": "crypto",
+                "cryptocurrency": "crypto",
+            }
+            
+            normalized_systems = []
+            seen_methods = set()
+            
+            for system in systems:
+                # Извлекаем system_group из разных возможных полей
+                system_group = None
+                if isinstance(system, dict):
+                    system_group = (
+                        system.get("system_group") or 
+                        system.get("method") or 
+                        system.get("type") or
+                        system.get("id")
+                    )
+                elif isinstance(system, str):
+                    system_group = system
+                
+                if system_group:
+                    # Нормализуем название метода
+                    normalized = method_mapping.get(str(system_group).lower(), str(system_group).lower())
+                    
+                    # Проверяем, что метод поддерживается
+                    if normalized in {"card", "sbp", "qr", "crypto"} and normalized not in seen_methods:
+                        normalized_systems.append({
+                            "system_group": normalized,
+                            "name": system.get("name") if isinstance(system, dict) else normalized.upper()
+                        })
+                        seen_methods.add(normalized)
+            
+            # Если ничего не получилось - возвращаем дефолтные методы
+            if not normalized_systems:
+                logger.warning("Could not parse 1Plat payment methods, using defaults")
+                normalized_systems = [
+                    {"system_group": "card", "name": "Банковская карта"},
+                    {"system_group": "sbp", "name": "СБП"},
+                    {"system_group": "qr", "name": "QR-код"},
+                    {"system_group": "crypto", "name": "Криптовалюта"},
+                ]
+            
+            return {"systems": normalized_systems}
+            
+        except Exception as e:
+            logger.error("Failed to fetch 1Plat payment methods: %s", e)
+            # Возвращаем дефолтные методы при ошибке
+            return {
+                "systems": [
+                    {"system_group": "card", "name": "Банковская карта"},
+                    {"system_group": "sbp", "name": "СБП"},
+                    {"system_group": "qr", "name": "QR-код"},
+                    {"system_group": "crypto", "name": "Криптовалюта"},
+                ]
+            }
 
     async def _save_payment_reference(self, order_id: str, pid_value: str) -> None:
         """Сохранить payment_id/guid в заказ (best-effort)."""
