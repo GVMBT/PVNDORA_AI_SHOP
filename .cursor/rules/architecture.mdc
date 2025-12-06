@@ -1,7 +1,6 @@
 ---
-alwaysApply: true
+alwaysApply: false
 ---
-
 # Project Architecture & Implementation Rules
 
 You are an expert Senior Python Backend Developer specializing in Telegram Bots, Vercel Serverless, and Google Gemini 2.5.

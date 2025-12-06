@@ -167,11 +167,15 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
     if len(order_items) > 3:
         product_names += f" и еще {len(order_items) - 3}"
     
-    payment_url = await payment_service.create_payment(
-        order_id=order.id, amount=total_amount, product_name=product_names,
-        method=payment_method, user_email=f"{user.id}@telegram.user",
-        user_id=db_user.id
-    )
+    try:
+        payment_url = await payment_service.create_payment(
+            order_id=order.id, amount=total_amount, product_name=product_names,
+            method=payment_method, user_email=f"{user.id}@telegram.user",
+            user_id=db_user.id
+        )
+    except Exception as e:
+        print(f"Payment creation failed for cart order {order.id}: {e}")
+        raise HTTPException(status_code=502, detail="Payment service unavailable")
     
     if cart.promo_code:
         await db.use_promo_code(cart.promo_code)
@@ -287,11 +291,15 @@ async def _create_single_order(db, db_user, user, request: CreateOrderRequest, p
             # Add prepaid info to product name
             product_name = f"{product.name} (под заказ)"
     
-    payment_url = await payment_service.create_payment(
-        order_id=order_id, amount=amount, product_name=product_name,
-        method=payment_method, user_email=f"{user.id}@telegram.user",
-        user_id=db_user.id
-    )
+    try:
+        payment_url = await payment_service.create_payment(
+            order_id=order_id, amount=amount, product_name=product_name,
+            method=payment_method, user_email=f"{user.id}@telegram.user",
+            user_id=db_user.id
+        )
+    except Exception as e:
+        print(f"Payment creation failed for order {order_id}: {e}")
+        raise HTTPException(status_code=502, detail="Payment service unavailable")
     
     if request.promo_code:
         await db.use_promo_code(request.promo_code)

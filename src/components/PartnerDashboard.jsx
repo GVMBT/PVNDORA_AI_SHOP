@@ -76,6 +76,7 @@ export default function PartnerDashboard({ profile, referralLink, onWithdraw, on
         mode: newMode ? 'discount' : 'commission',
         discount_percent: newMode ? 15 : 0
       })
+      await loadDashboard()
       
       hapticFeedback('notification', 'success')
       showPopup({
@@ -199,7 +200,7 @@ export default function PartnerDashboard({ profile, referralLink, onWithdraw, on
       </Card>
       
       {/* Partner Mode Switch */}
-      <Card className="border-dashed overflow-hidden">
+      <Card className="border-dashed overflow-visible">
         <CardContent className="p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">

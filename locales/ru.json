@@ -18,6 +18,7 @@
   },
   "nav": {
     "catalog": "Каталог",
+    "cart": "Корзина",
     "orders": "Заказы",
     "leaderboard": "Рейтинг",
     "profile": "Профиль"

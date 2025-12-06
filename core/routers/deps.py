@@ -70,3 +70,14 @@ def get_queue_publisher():
     from core.queue import publish_to_worker, WorkerEndpoints
     return publish_to_worker, WorkerEndpoints
 
+
+# ==================== SHUTDOWN HELPERS ====================
+async def shutdown_services():
+    """Cleanly close singleton services (http clients, etc.)."""
+    global _payment_service
+    if _payment_service is not None:
+        try:
+            await _payment_service.aclose()
+        finally:
+            _payment_service = None
+

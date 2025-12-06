@@ -281,10 +281,10 @@ async def handle_add_to_waitlist(
         
         # coming_soon - можно добавить в waitlist
         if product_status == 'coming_soon':
-            await db.add_to_waitlist(user_id, product_name)
-            return {
-                "success": True,
-                "product_name": product_name,
+        await db.add_to_waitlist(user_id, product_name)
+        return {
+            "success": True,
+            "product_name": product_name,
                 "message": f"Added to waitlist for {product_name}. You will be notified when it becomes available."
             }
         

@@ -55,6 +55,7 @@
   },
   "nav": {
     "catalog": "Catalogue",
+    "cart": "Panier",
     "orders": "Commandes",
     "leaderboard": "Classement",
     "faq": "FAQ",

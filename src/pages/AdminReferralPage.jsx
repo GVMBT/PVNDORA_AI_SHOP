@@ -637,33 +637,33 @@ export default function AdminReferralPage({ onBack }) {
             
             {crmView === 'partners' ? (
               <>
-                {/* Partner Type Filter */}
-                <div className="flex gap-2">
-                  <Button
-                    variant={partnerType === 'all' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPartnerType('all')}
-                    className="flex-1"
-                  >
-                    Все
-                  </Button>
-                  <Button
-                    variant={partnerType === 'business' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPartnerType('business')}
-                    className="flex-1 gap-1"
-                  >
-                    <Star className="h-3 w-3" /> VIP
-                  </Button>
-                  <Button
-                    variant={partnerType === 'referral' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPartnerType('referral')}
-                    className="flex-1"
-                  >
-                    Программа
-                  </Button>
-                </div>
+            {/* Partner Type Filter */}
+            <div className="flex gap-2">
+              <Button
+                variant={partnerType === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setPartnerType('all')}
+                className="flex-1"
+              >
+                Все
+              </Button>
+              <Button
+                variant={partnerType === 'business' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setPartnerType('business')}
+                className="flex-1 gap-1"
+              >
+                <Star className="h-3 w-3" /> VIP
+              </Button>
+              <Button
+                variant={partnerType === 'referral' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setPartnerType('referral')}
+                className="flex-1"
+              >
+                Программа
+              </Button>
+            </div>
             
             {/* Search and Add */}
             <div className="flex gap-2">
@@ -682,10 +682,10 @@ export default function AdminReferralPage({ onBack }) {
                   VIP
                 </Button>
               )}
-                </div>
-                
-                {/* Sort Options */}
-                <div className="flex gap-2 overflow-x-auto pb-2">
+            </div>
+            
+            {/* Sort Options */}
+            <div className="flex gap-2 overflow-x-auto pb-2">
               {[
                 { value: 'referral_revenue', label: 'Оборот' },
                 { value: 'total_earned', label: 'Заработок' },
@@ -712,16 +712,16 @@ export default function AdminReferralPage({ onBack }) {
                   )}
                 </Button>
               ))}
-                </div>
-                
-                {/* Partners Table */}
+            </div>
+            
+            {/* Partners Table */}
+            <div className="space-y-2">
+              {loadingPartners ? (
                 <div className="space-y-2">
-                  {loadingPartners ? (
-                    <div className="space-y-2">
-                      <Skeleton className="h-32 w-full rounded-xl" />
-                      <Skeleton className="h-32 w-full rounded-xl" />
-                    </div>
-                  ) : (
+                  <Skeleton className="h-32 w-full rounded-xl" />
+                  <Skeleton className="h-32 w-full rounded-xl" />
+                </div>
+              ) : (
                 <>
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-muted-foreground">
@@ -859,8 +859,8 @@ export default function AdminReferralPage({ onBack }) {
                     </div>
                   )}
                 </>
-                  )}
-                </div>
+              )}
+            </div>
               </>
             ) : (
               <div className="text-center py-8 text-muted-foreground">

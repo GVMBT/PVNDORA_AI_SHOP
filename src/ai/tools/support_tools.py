@@ -4,6 +4,10 @@ from typing import Dict, Any
 
 from .helpers import create_error_response
 
+MAX_OPEN_REFUNDS_PER_USER = 3
+ALLOWED_REFUND_STATUSES = {"pending", "paid", "delivered", "fulfilled", "completed"}
+FORBIDDEN_REFUND_STATUSES = {"refund_pending", "refunded", "cancelled", "rejected", "failed"}
+
 
 async def handle_create_support_ticket(
     arguments: Dict[str, Any],
@@ -79,6 +83,23 @@ async def handle_request_refund(
     
     if order.refund_requested:
         return {"success": False, "reason": "Refund already requested"}
+    
+    status_lower = (order.status or "").lower()
+    if status_lower in FORBIDDEN_REFUND_STATUSES:
+        return {"success": False, "reason": f"Refund not allowed for status '{order.status}'"}
+    if ALLOWED_REFUND_STATUSES and status_lower and status_lower not in ALLOWED_REFUND_STATUSES:
+        return {"success": False, "reason": f"Refund not allowed for status '{order.status}'"}
+    
+    try:
+        # Check quota of open refunds per user
+        def _count_open():
+            result = db.client.table("orders").select("id", count="exact").eq("user_id", user_id).eq("refund_requested", True).execute()
+            return result.count or 0
+        open_refunds = await asyncio.to_thread(_count_open)
+        if open_refunds >= MAX_OPEN_REFUNDS_PER_USER:
+            return {"success": False, "reason": "Refund request limit reached"}
+    except Exception as e:
+        return create_error_response(e, "Failed to validate refund limits.")
     
     try:
         # Create ticket first

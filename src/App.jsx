@@ -233,6 +233,7 @@ export default function App() {
         return (
           <CatalogPage 
             onProductClick={(id) => navigateTo('product', id)}
+            onGoCart={() => navigateTo('checkout')}
           />
         )
     }

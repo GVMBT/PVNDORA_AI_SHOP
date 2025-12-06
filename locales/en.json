@@ -20,6 +20,7 @@
 
   "nav": {
     "catalog": "Catalog",
+    "cart": "Cart",
     "orders": "Orders",
     "leaderboard": "Leaderboard",
     "profile": "Profile"

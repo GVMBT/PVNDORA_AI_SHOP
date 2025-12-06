@@ -1,7 +1,6 @@
 ---
-alwaysApply: true
+alwaysApply: false
 ---
-
 # Development Workflow & Quality Rules
 
 ## CRITICAL: Mode Detection & Read-Only Enforcement

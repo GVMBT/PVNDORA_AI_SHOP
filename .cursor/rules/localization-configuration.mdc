@@ -1,7 +1,6 @@
 ---
-alwaysApply: true
+alwaysApply: false
 ---
-
 # Localization & Configuration Rules
 
 ## Strict Separation of Concerns

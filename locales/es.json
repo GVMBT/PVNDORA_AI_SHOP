@@ -55,6 +55,7 @@
   },
   "nav": {
     "catalog": "Catálogo",
+    "cart": "Carrito",
     "orders": "Pedidos",
     "leaderboard": "Ranking",
     "faq": "FAQ",

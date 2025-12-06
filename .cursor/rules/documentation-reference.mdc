@@ -1,8 +1,7 @@
 ---
-alwaysApply: true
 description: How to use project documentation and when to reference it
+alwaysApply: false
 ---
-
 # Documentation Reference Guide
 
 ## When to Use Documentation

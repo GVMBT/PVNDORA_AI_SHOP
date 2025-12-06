@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { useProducts } from '../hooks/useApi'
+import { useProducts, useCart } from '../hooks/useApi'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
 import StarRating from '../components/StarRating'
@@ -19,7 +19,7 @@ import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Skeleton } from '../components/ui/skeleton'
 import { Card, CardContent } from '../components/ui/card'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion as Motion, AnimatePresence } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { HeaderBar } from '../components/ui/header-bar'
 
@@ -44,11 +44,13 @@ function getGradient(str) {
 
 export default function ProductPage({ productId, onBack, onCheckout }) {
   const { getProduct, loading, error } = useProducts()
+  const { addToCart, getCart } = useCart()
   const { t, formatPrice } = useLocale()
-  const { setBackButton, hapticFeedback } = useTelegram()
+  const { setBackButton, hapticFeedback, showPopup } = useTelegram()
   
   const [product, setProduct] = useState(null)
   const [socialProof, setSocialProof] = useState(null)
+  const [toast, setToast] = useState(null)
   
   useEffect(() => {
     loadProduct()
@@ -84,6 +86,27 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
   const handleBuy = () => {
     hapticFeedback('impact', 'medium')
     onCheckout()
+  }
+
+  const handleAddToCart = async () => {
+    if (!product) return
+    const status = product?.status || 'active'
+    if (!['active', 'out_of_stock'].includes(status)) {
+      showPopup({ title: '❌', message: t('product.notAvailable') || 'Product not available', buttons: [{ type: 'ok' }] })
+      return
+    }
+    try {
+      hapticFeedback('impact', 'light')
+      const cart = await addToCart(product.id, 1)
+      if (!cart || !Array.isArray(cart.items)) {
+        await getCart().catch(() => null)
+      }
+      setToast({ type: 'success', message: t('product.addedToCart') || 'Added to cart' })
+      setTimeout(() => setToast(null), 2000)
+    } catch (err) {
+      setToast({ type: 'error', message: err.message || t('common.error') })
+      setTimeout(() => setToast(null), 2500)
+    }
   }
 
   const gradientClass = useMemo(() => getGradient(product?.name), [product?.name])
@@ -132,11 +155,27 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
     warranty_days = 0,
     duration_days = null,
     instructions = null,
-    currency = 'USD'
+    currency = 'USD',
+    status = 'active'
   } = product || {}
   
   const hasDiscount = discount_percent > 0
   const isInStock = available_count > 0
+  const isOrderable = status === 'active' || status === 'out_of_stock'
+  const statusLabel = status === 'discontinued'
+    ? t('product.discontinued') || 'Недоступно'
+    : status === 'coming_soon'
+      ? t('product.comingSoon') || 'Скоро'
+      : isInStock
+        ? t('product.inStock')
+        : t('product.preorder')
+  const statusTone = status === 'discontinued'
+    ? 'text-destructive'
+    : status === 'coming_soon'
+      ? 'text-amber-400'
+      : isInStock
+        ? 'text-emerald-400'
+        : 'text-primary'
   
   return (
     <div className="pb-32 bg-background min-h-screen">
@@ -149,7 +188,7 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
 
         {/* Hero Content */}
         <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background via-background/80 to-transparent pt-20">
-           <motion.div 
+          <Motion.div 
              initial={{ opacity: 0, y: 20 }}
              animate={{ opacity: 1, y: 0 }}
              className="space-y-2"
@@ -167,13 +206,13 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
             <h1 className="text-3xl font-black leading-tight tracking-tight text-foreground">
               {name}
             </h1>
-           </motion.div>
+           </Motion.div>
         </div>
       </div>
 
       <div className="px-4 -mt-2 space-y-8 relative z-10">
         {/* Price Section */}
-        <motion.div 
+        <Motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -190,6 +229,18 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
                     {formatPrice(msrp, currency)}
                   </span>
                 )}
+             </div>
+             <div className="mt-2 text-xs flex items-center gap-2">
+               <span className={cn("font-semibold flex items-center gap-1", statusTone)}>
+                 {status === 'discontinued' && <ShieldCheck className="w-3 h-3" />}
+                 {statusLabel}
+               </span>
+               {isInStock && <span className="text-muted-foreground">{t('product.instantDelivery')}</span>}
+               {!isInStock && isOrderable && (
+                 <span className="text-muted-foreground">
+                   {t('product.preorderDescription') || 'Выдача после пополнения'}
+                 </span>
+               )}
              </div>
           </div>
           
@@ -212,22 +263,22 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
           ) : (
             <Badge variant="destructive">{t('product.outOfStock')}</Badge>
           )}
-        </motion.div>
+        </Motion.div>
 
         {/* Description */}
-        <motion.div 
+        <Motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
           className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground"
         >
           {description}
-        </motion.div>
+        </Motion.div>
 
         {/* Key Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
           {warranty_days > 0 && (
-            <motion.div 
+            <Motion.div 
               whileHover={{ scale: 1.02 }}
               className="bg-secondary/20 border border-white/5 p-4 rounded-2xl flex flex-col items-center text-center gap-2"
             >
@@ -238,11 +289,11 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('product.warranty')}</p>
                 <p className="font-bold text-lg text-foreground">{warranty_days}d</p>
               </div>
-            </motion.div>
+            </Motion.div>
           )}
           
           {duration_days > 0 && (
-             <motion.div 
+             <Motion.div 
               whileHover={{ scale: 1.02 }}
               className="bg-secondary/20 border border-white/5 p-4 rounded-2xl flex flex-col items-center text-center gap-2"
             >
@@ -253,11 +304,11 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('product.duration')}</p>
                 <p className="font-bold text-lg text-foreground">{duration_days}d</p>
               </div>
-            </motion.div>
+             </Motion.div>
           )}
 
            {socialProof?.sales_count > 0 && (
-             <motion.div 
+             <Motion.div 
               whileHover={{ scale: 1.02 }}
               className="bg-secondary/20 border border-white/5 p-4 rounded-2xl flex flex-col items-center text-center gap-2 col-span-2"
             >
@@ -268,7 +319,7 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
                 <span className="font-bold text-lg text-foreground">{socialProof.sales_count}+</span>
                 <span className="text-sm text-muted-foreground">{t('product.sold')}</span>
               </div>
-            </motion.div>
+             </Motion.div>
           )}
         </div>
 
@@ -298,7 +349,7 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
              
              <div className="space-y-3">
               {socialProof.recent_reviews.slice(0, 3).map((review, index) => (
-                <motion.div 
+                <Motion.div 
                   key={index} 
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -310,39 +361,65 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
                     <StarRating rating={review.rating} size="xs" />
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed italic">"{review.text}"</p>
-                </motion.div>
+                </Motion.div>
               ))}
              </div>
           </div>
         )}
       </div>
       
-      {/* Floating Action Button (raised above bottom nav) */}
-      <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-4 right-4 z-40">
+      {/* Floating Action Buttons */}
+      <div className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] left-4 right-4 z-40">
         <div className="absolute inset-0 bg-background/50 blur-xl -z-10 rounded-full transform scale-y-50 translate-y-4" />
-        <Button
-          onClick={handleBuy}
-          disabled={!isInStock && !can_fulfill_on_demand}
-          className={cn(
-            "w-full h-14 text-lg font-bold rounded-2xl shadow-lg transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]",
-            isInStock || can_fulfill_on_demand
-              ? "bg-gradient-to-r from-primary via-emerald-400 to-primary text-black hover:brightness-[1.05]"
-              : "bg-secondary text-muted-foreground hover:bg-secondary"
-          )}
-        >
-          {isInStock ? (
-            <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5 fill-current" />
-              {t('product.buyNow')}
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5" />
-              {can_fulfill_on_demand ? t('product.preorder') : t('product.notifyMe')}
-            </div>
-          )}
-        </Button>
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            variant="secondary"
+            onClick={handleAddToCart}
+            disabled={!isOrderable}
+            className="h-14 w-full rounded-2xl shadow-md border border-white/10"
+          >
+            🛒 {t('product.addToCart') || 'Add to cart'}
+          </Button>
+          <Button
+            onClick={handleBuy}
+            disabled={!isOrderable && !can_fulfill_on_demand}
+            className={cn(
+              "w-full h-14 text-lg font-bold rounded-2xl shadow-lg transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]",
+              (isInStock || can_fulfill_on_demand)
+                ? "bg-gradient-to-r from-primary via-emerald-400 to-primary text-black hover:brightness-[1.05]"
+                : "bg-secondary text-muted-foreground hover:bg-secondary"
+            )}
+          >
+            {isInStock ? (
+              <div className="flex items-center gap-2">
+                <Zap className="w-5 h-5 fill-current" />
+                {t('product.buyNow')}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                {can_fulfill_on_demand ? t('product.preorder') : t('product.notifyMe')}
+              </div>
+            )}
+          </Button>
+        </div>
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50">
+          <div
+            className={`px-4 py-3 rounded-xl shadow-lg text-sm font-semibold backdrop-blur flex items-center gap-2 ${
+              toast.type === 'success'
+                ? 'bg-primary text-black'
+                : 'bg-destructive text-white'
+            }`}
+          >
+            <span>{toast.type === 'success' ? '✅' : '⚠️'}</span>
+            {toast.message}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

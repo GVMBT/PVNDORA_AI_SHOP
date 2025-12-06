@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useProducts, useCart } from '../hooks/useApi'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
@@ -10,48 +10,74 @@ import { Skeleton } from '../components/ui/skeleton'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs'
 
-export default function CatalogPage({ onProductClick }) {
+export default function CatalogPage({ onProductClick, onGoCart }) {
   const { getProducts, loading, error } = useProducts()
   const { addToCart, getCart } = useCart()
   const { t } = useLocale()
-  const { hapticFeedback, showAlert } = useTelegram()
+  const { hapticFeedback } = useTelegram()
   
   const [products, setProducts] = useState([])
   const [filter, setFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [toast, setToast] = useState(null)
+  const [cartCount, setCartCount] = useState(0)
+  const toastTimeoutRef = useRef(null)
   
-  useEffect(() => {
-    loadProducts()
-  }, [])
-  
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     try {
       const data = await getProducts()
       setProducts(data.products || [])
     } catch (err) {
       console.error('Failed to load products:', err)
     }
-  }
+  }, [getProducts])
+
+  useEffect(() => {
+    loadProducts()
+    getCart()
+      .then((data) => {
+        if (data && Array.isArray(data.items)) setCartCount(data.items.length)
+      })
+      .catch(() => {})
+  }, [loadProducts, getCart])
   
   const handleProductClick = (id) => {
     hapticFeedback('light')
     onProductClick(id)
   }
 
+  const showToast = (toastValue, duration = 2000) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current)
+    }
+    setToast(toastValue)
+    toastTimeoutRef.current = setTimeout(() => setToast(null), duration)
+  }
+
   const handleAddToCart = async (product) => {
     try {
       hapticFeedback('impact', 'light')
-      await addToCart(product.id, 1)
-      // Refresh cart cache (optional, but keeps totals in checkout mode)
-      await getCart()
-      setToast({ type: 'success', message: t('product.addedToCart') || 'Added to cart' })
-      setTimeout(() => setToast(null), 2000)
+      const cart = await addToCart(product.id, 1)
+      // Refresh cart cache/count
+      if (cart && Array.isArray(cart.items)) {
+        setCartCount(cart.items.length)
+      } else {
+        const data = await getCart().catch(() => null)
+        if (data && Array.isArray(data.items)) setCartCount(data.items.length)
+      }
+      showToast({ type: 'success', message: t('product.addedToCart') || 'Added to cart' })
     } catch (err) {
-      setToast({ type: 'error', message: err.message || t('common.error') })
-      setTimeout(() => setToast(null), 2500)
+      showToast({ type: 'error', message: err.message || t('common.error') }, 2500)
     }
   }
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current)
+      }
+    }
+  }, [])
   
   // Filter products
   const filteredProducts = products.filter(p => {
@@ -135,36 +161,34 @@ export default function CatalogPage({ onProductClick }) {
         
         {/* Categories */}
         <div className="overflow-x-auto -mx-4 px-4 no-scrollbar">
-          <div className="bg-background/70 backdrop-blur-xl p-2 rounded-2xl border border-white/10 shadow-lg min-w-max">
-            <Tabs
-              value={filter}
-              onValueChange={(value) => {
-                hapticFeedback('selection')
-                setFilter(value)
-              }}
-            >
-              <TabsList className="flex gap-2 bg-transparent p-0 border-0 shadow-none">
-                {categories.map((cat) => {
-                  const Icon = cat.icon
-                  return (
-                    <TabsTrigger
-                      key={cat.id}
-                      value={cat.id}
-                      className={`
-                        px-4 py-2 h-auto rounded-full text-sm font-semibold whitespace-nowrap border flex items-center gap-2
-                        data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary data-[state=active]:shadow-[0_10px_30px_rgba(0,245,212,0.25)]
-                        data-[state=inactive]:bg-white/5 data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-white/10
-                        transition-all
-                      `}
-                    >
-                      {Icon && <Icon className="h-4 w-4" />}
-                      {cat.label}
-                    </TabsTrigger>
-                  )
-                })}
-              </TabsList>
-            </Tabs>
-          </div>
+          <Tabs
+            value={filter}
+            onValueChange={(value) => {
+              hapticFeedback('selection')
+              setFilter(value)
+            }}
+          >
+            <TabsList className="flex gap-2 bg-background/70 backdrop-blur-xl p-1.5 rounded-2xl border border-white/10 shadow-md min-w-max">
+              {categories.map((cat) => {
+                const Icon = cat.icon
+                return (
+                  <TabsTrigger
+                    key={cat.id}
+                    value={cat.id}
+                    className={`
+                      px-4 py-2 h-auto rounded-full text-sm font-semibold whitespace-nowrap border flex items-center gap-2
+                      data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary data-[state=active]:shadow-[0_10px_30px_rgba(0,245,212,0.25)]
+                      data-[state=inactive]:bg-white/5 data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-white/10
+                      transition-all
+                    `}
+                  >
+                    {Icon && <Icon className="h-4 w-4" />}
+                    {cat.label}
+                  </TabsTrigger>
+                )
+              })}
+            </TabsList>
+          </Tabs>
         </div>
         
         {/* Product Grid */}
@@ -305,14 +329,27 @@ export default function CatalogPage({ onProductClick }) {
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
           <div
-            className={`px-4 py-3 rounded-xl shadow-lg text-sm font-semibold backdrop-blur ${
+            className={`px-4 py-3 rounded-xl shadow-lg text-sm font-semibold backdrop-blur flex items-center gap-2 ${
               toast.type === 'success'
-                ? 'bg-emerald-500/90 text-white'
-                : 'bg-destructive/90 text-white'
+                ? 'bg-primary text-black'
+                : 'bg-destructive text-white'
             }`}
           >
+            <span>{toast.type === 'success' ? '✅' : '⚠️'}</span>
             {toast.message}
           </div>
+        </div>
+      )}
+
+      {/* Floating Cart Button */}
+      {cartCount > 0 && (
+        <div className="fixed bottom-24 right-4 z-40">
+          <Button
+            className="rounded-full shadow-lg bg-primary text-black hover:bg-primary/90 px-4 py-3"
+            onClick={() => onGoCart && onGoCart()}
+          >
+            🛒 {t('nav.cart') || 'Cart'} ({cartCount})
+          </Button>
         </div>
       )}
     </div>

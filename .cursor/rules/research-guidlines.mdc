@@ -1,8 +1,7 @@
 ---
-alwaysApply: true
 description: Exa/Ref research guidelines (prioritize Exa; minimal Ref usage)
+alwaysApply: false
 ---
-
 # Research Guidelines (Exa + Ref MCP)
 
 This rule outlines how to use Exa and Ref for research. It emphasizes starting with Exa for code-context and only moving to Ref for documentation verification when needed.

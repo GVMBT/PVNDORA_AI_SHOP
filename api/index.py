@@ -109,6 +109,11 @@ async def lifespan(app: FastAPI):
     # Startup
     yield
     # Shutdown
+    try:
+        from core.routers.deps import shutdown_services
+        await shutdown_services()
+    except Exception as e:
+        print(f"WARNING: failed to shutdown services cleanly: {e}")
     if bot:
         await bot.session.close()
 

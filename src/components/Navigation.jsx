@@ -1,11 +1,12 @@
 import React from 'react'
 import { useLocale } from '../hooks/useLocale'
-import { ShoppingBag, Package, Trophy, User, Shield } from 'lucide-react'
+import { ShoppingBag, Package, Trophy, User, Shield, ShoppingCart } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { motion } from 'framer-motion'
 
 const navItems = [
   { id: 'catalog', icon: ShoppingBag, labelKey: 'nav.catalog' },
+  { id: 'checkout', icon: ShoppingCart, labelKey: 'nav.cart' },
   { id: 'orders', icon: Package, labelKey: 'nav.orders' },
   { id: 'leaderboard', icon: Trophy, labelKey: 'nav.leaderboard' },
   { id: 'profile', icon: User, labelKey: 'nav.profile' }

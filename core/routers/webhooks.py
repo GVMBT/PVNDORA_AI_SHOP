@@ -29,7 +29,7 @@ async def onplat_webhook(request: Request):
     try:
         # Get raw body for potential signature verification from headers
         raw_body = await request.body()
-        
+            
         # Try to parse as JSON first
         data = None
         try:

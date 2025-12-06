@@ -1,7 +1,6 @@
 ---
-alwaysApply: true
+alwaysApply: false
 ---
-
 # Vercel Platform Limits & Telegram Mini App Constraints
 
 **Context:** PVNDORA — Telegram Mini App (TMA) on Vercel.  
