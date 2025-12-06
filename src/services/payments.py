@@ -319,6 +319,19 @@ class PaymentService:
         - Base URL: https://1plat.cash
         - Authentication: x-shop (Shop ID) and x-secret (Secret Key) in headers
         - Обязательные поля: merchant_order_id, user_id, amount, method
+        
+        ВАЖНО: Поле method ОБЯЗАТЕЛЬНО для Host2Host.
+        Если method не передан, платеж создается в статусе черновика (draft).
+        
+        Response структура зависит от метода:
+        - card/sbp: payment.note содержит pan, bank, fio
+        - qr: payment.note содержит qr, qr_img
+        - crypto: payment.note содержит address, amount_in_currency, amount_rub, course
+        
+        Response всегда содержит:
+        - url: https://pay.1plat.cash/pay/{guid} (или можно построить из guid)
+        - guid: уникальный идентификатор платежа
+        - payment: объект с информацией о платеже
         """
         shop_id, secret, base_url = self._validate_config()
         method = self._normalize_method(method_override)
@@ -334,11 +347,14 @@ class PaymentService:
         api_url = f"{base_url}/api/merchant/order/create/by-api"
         amount_kopecks = int(float(amount) * 100)
         
+        # Согласно документации 1Plat:
+        # Для создания платежа Host2Host обязательно нужно передать поле method.
+        # Если данное поле не передавать, то запрос отдаст платеж в статусе черновика.
         payload = {
             "merchant_order_id": order_id,
             "user_id": user_id_int,
             "amount": amount_kopecks,
-            "method": method,
+            "method": method,  # ОБЯЗАТЕЛЬНО для Host2Host (card, sbp, qr, crypto)
         }
         email_value = self._prepare_email(user_email, user_id)
         if email_value:
@@ -366,21 +382,50 @@ class PaymentService:
                 user_message = self._translate_1plat_error(error_msg)
                 raise ValueError(user_message)
             
-            logger.info("1Plat payment created for order %s", order_id)
+            logger.info("1Plat payment created for order %s, method=%s", order_id, method)
             
+            # Извлекаем payment_url из response
+            # Согласно документации: response.url или можно построить из guid
             payment_url = data.get("url", "")
             if not payment_url:
                 guid = data.get("guid", "")
                 if guid:
+                    # Формируем URL согласно документации: https://pay.1plat.cash/pay/{guid}
                     payment_url = f"https://pay.1plat.cash/pay/{guid}"
                 else:
                     logger.error("Payment URL not found in 1Plat response keys=%s", list(data.keys()))
                     raise ValueError(f"Payment URL not found in 1Plat response. Response: {data}")
             
+            # Извлекаем информацию о платеже для логирования и сохранения
             payment_info = data.get("payment", {})
             payment_id = payment_info.get("id") or data.get("payment_id")
             guid = data.get("guid", "")
             
+            # Логируем payment.note для отладки (содержит реквизиты/QR/крипто-адрес)
+            payment_note = payment_info.get("note", {})
+            if payment_note:
+                # Логируем структуру note без чувствительных данных
+                note_keys = list(payment_note.keys())
+                logger.info("1Plat payment note structure for order %s: %s", order_id, note_keys)
+                # Для отладки можно логировать тип метода из note
+                if "pan" in payment_note:
+                    logger.debug("Payment method: card/sbp (has pan)")
+                elif "qr" in payment_note or "qr_img" in payment_note:
+                    logger.debug("Payment method: qr (has qr)")
+                elif "address" in payment_note:
+                    logger.debug("Payment method: crypto (has address)")
+            
+            # Проверяем статус платежа
+            payment_status = payment_info.get("status")
+            if payment_status is not None:
+                # Статус 0 = pending (ожидает оплаты) - это нормально
+                # Если статус черновика - значит method не был передан
+                if payment_status == -1:  # Черновик (draft)
+                    logger.warning("1Plat payment created in draft status for order %s. Method may not have been passed correctly.", order_id)
+                else:
+                    logger.info("1Plat payment status for order %s: %s", order_id, payment_status)
+            
+            # Сохраняем payment_id или guid для связи с заказом
             if payment_id or guid:
                 pid_value = payment_id or guid
                 await self._save_payment_reference(order_id, pid_value)
