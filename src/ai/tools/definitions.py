@@ -237,13 +237,13 @@ TOOLS = [
     },
     {
         "name": "get_faq_answer",
-        "description": "Get answer from FAQ for common questions.",
+        "description": "Get answer from FAQ for common questions. Use this when user asks about FAQ, help, how things work, guarantees, delivery, payment methods, refunds, or general questions about the service. If answer is found, provide it. If not found, direct user to FAQ page in catalog or /faq command.",
         "parameters": {
             "type": "object",
             "properties": {
                 "question": {
                     "type": "string",
-                    "description": "User's question to find in FAQ"
+                    "description": "User's question to find in FAQ. Can be a full question or keywords like 'guarantee', 'delivery', 'refund', 'payment', etc."
                 }
             },
             "required": ["question"]
