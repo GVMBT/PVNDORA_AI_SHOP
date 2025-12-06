@@ -167,36 +167,34 @@ export default function CatalogPage({ onProductClick, onGoCart }) {
         </div>
         
         {/* Categories */}
-        <div className="overflow-x-auto -mx-4 px-4 no-scrollbar">
-          <Tabs
-            value={filter}
-            onValueChange={(value) => {
-              hapticFeedback('selection')
-              setFilter(value)
-            }}
-          >
-            <TabsList className="gap-2 p-1.5 rounded-2xl">
-              {categories.map((cat) => {
-                const Icon = cat.icon
-                return (
-                  <TabsTrigger
-                    key={cat.id}
-                    value={cat.id}
-                    className={`
-                      px-4 py-2 h-auto rounded-full text-sm font-semibold whitespace-nowrap border flex items-center gap-2
-                      data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary data-[state=active]:shadow-[0_10px_30px_rgba(0,245,212,0.25)]
-                      data-[state=inactive]:bg-white/5 data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-white/10
-                      transition-all
-                    `}
-                  >
-                    {Icon && <Icon className="h-4 w-4" />}
-                    {cat.label}
-                  </TabsTrigger>
-                )
-              })}
-            </TabsList>
-          </Tabs>
-        </div>
+        <Tabs
+          value={filter}
+          onValueChange={(value) => {
+            hapticFeedback('selection')
+            setFilter(value)
+          }}
+        >
+          <TabsList className="flex w-full overflow-x-auto no-scrollbar gap-2 p-1.5 rounded-2xl bg-background/60 backdrop-blur border border-white/10">
+            {categories.map((cat) => {
+              const Icon = cat.icon
+              return (
+                <TabsTrigger
+                  key={cat.id}
+                  value={cat.id}
+                  className={`
+                    px-4 py-2 h-auto rounded-full text-sm font-semibold whitespace-nowrap border flex items-center gap-2
+                    data-[state=active]:bg-primary data-[state=active]:text-black data-[state=active]:border-primary data-[state=active]:shadow-[0_10px_30px_rgba(0,245,212,0.25)]
+                    data-[state=inactive]:bg-white/5 data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-white/10
+                    transition-all
+                  `}
+                >
+                  {Icon && <Icon className="h-4 w-4" />}
+                  {cat.label}
+                </TabsTrigger>
+              )
+            })}
+          </TabsList>
+        </Tabs>
         
         {/* Product Grid */}
         {loading ? (
