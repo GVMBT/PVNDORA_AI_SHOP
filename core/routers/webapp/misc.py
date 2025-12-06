@@ -17,18 +17,21 @@ router = APIRouter(tags=["webapp-misc"])
 
 @router.get("/faq")
 async def get_webapp_faq(language_code: str = "en", user=Depends(verify_telegram_auth)):
-    """Get FAQ entries grouped by category."""
+    """Get FAQ entries for the specified language."""
     db = get_database()
     faq_entries = await db.get_faq(language_code)
     
-    categories = {}
+    # Return flat list with all fields needed by frontend
+    faq_list = []
     for entry in faq_entries:
-        category = entry.get("category", "general")
-        if category not in categories:
-            categories[category] = []
-        categories[category].append({"question": entry["question"], "answer": entry["answer"]})
+        faq_list.append({
+            "id": entry.get("id"),
+            "question": entry.get("question"),
+            "answer": entry.get("answer"),
+            "category": entry.get("category", "general")
+        })
     
-    return {"categories": categories, "total": len(faq_entries)}
+    return {"faq": faq_list, "total": len(faq_list)}
 
 
 @router.post("/promo/check")

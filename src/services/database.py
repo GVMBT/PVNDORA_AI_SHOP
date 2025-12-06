@@ -274,12 +274,12 @@ class Database:
     
     async def get_faq(self, language_code: str = "en") -> List[Dict]:
         """Get FAQ entries for language."""
-        result = self.client.table("faq").select("question,answer,category").eq(
+        result = self.client.table("faq").select("id,question,answer,category").eq(
             "language_code", language_code
         ).eq("is_active", True).order("order_index").execute()
         
         if not result.data and language_code != "en":
-            result = self.client.table("faq").select("question,answer,category").eq(
+            result = self.client.table("faq").select("id,question,answer,category").eq(
                 "language_code", "en"
             ).eq("is_active", True).order("order_index").execute()
         
