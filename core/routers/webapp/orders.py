@@ -5,6 +5,7 @@ Order creation and history endpoints.
 """
 import os
 import asyncio
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, HTTPException, Depends
 
@@ -167,6 +168,57 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
             "original_price": original_price, "discount_percent": discount_percent
         })
     
+    # Cooldown: не бомбим 1Plat, если недавно создавали платеж
+    cooldown_seconds = 90
+    redis = None
+    try:
+        from core.db import get_redis
+        redis = get_redis()  # async client
+        cooldown_key = f"pay:cooldown:{user.id}"
+        if redis:
+            existing = await redis.get(cooldown_key)
+            if existing:
+                raise HTTPException(
+                    status_code=429,
+                    detail="Подождите ~1 минуту перед повторным созданием платежа"
+                )
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Не блокируем по ошибке Redis, просто логируем
+        print(f"Warning: cooldown check failed: {e}")
+
+    # Не создаём новый заказ, если есть свежий pending (дубликаты)
+    try:
+        result = await asyncio.to_thread(
+            lambda: db.client.table("orders")
+            .select("*")
+            .eq("user_id", db_user.id)
+            .eq("status", "pending")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if result.data:
+            row = result.data[0]
+            created_at = row.get("created_at")
+            if created_at:
+                try:
+                    created_dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                    if datetime.now(timezone.utc) - created_dt < timedelta(seconds=cooldown_seconds):
+                        raise HTTPException(
+                            status_code=429,
+                            detail="Заказ уже создаётся, попробуйте через минуту"
+                        )
+                except HTTPException:
+                    raise
+                except Exception:
+                    pass
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Warning: pending order check failed: {e}")
+
     first_item = order_items[0]
     order = await db.create_order(
         user_id=db_user.id, product_id=first_item["product_id"],
@@ -198,6 +250,17 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
             user_email=f"{user.id}@telegram.user",
             user_id=user.id  # Telegram user id (numeric) for gateway
         )
+        if redis:
+            try:
+                await redis.set(f"pay:cooldown:{user.id}", "1", ex=cooldown_seconds)
+            except Exception as e:
+                print(f"Warning: failed to set cooldown key: {e}")
+    except HTTPException:
+        # Уже обработано выше
+        raise
+    except ValueError as e:
+        print(f"Payment creation failed for cart order {order.id}: {e}")
+        raise HTTPException(status_code=429, detail=str(e))
     except Exception as e:
         print(f"Payment creation failed for cart order {order.id}: {e}")
         raise HTTPException(status_code=502, detail="Payment service unavailable")
