@@ -82,18 +82,31 @@ async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_t
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Determine payment method - only 1Plat is supported
-    # 1Plat использует x-shop (ONEPLAT_SHOP_ID) и x-secret (ONEPLAT_SECRET_KEY)
-    onplat_configured = bool(
-        (os.environ.get("ONEPLAT_SHOP_ID") or os.environ.get("ONEPLAT_MERCHANT_ID")) and
-        os.environ.get("ONEPLAT_SECRET_KEY")
-    )
+    # Determine payment gateway - support both 1Plat and Freekassa
+    payment_gateway = request.payment_gateway or os.environ.get("DEFAULT_PAYMENT_GATEWAY", "1plat")
     
-    if not onplat_configured:
-        raise HTTPException(
-            status_code=500,
-            detail="Payment service not configured. Please configure 1Plat credentials."
+    # Check if requested gateway is configured
+    if payment_gateway == "freekassa":
+        freekassa_configured = bool(
+            os.environ.get("FREEKASSA_MERCHANT_ID") and
+            os.environ.get("FREEKASSA_SECRET_WORD_1") and
+            os.environ.get("FREEKASSA_SECRET_WORD_2")
         )
+        if not freekassa_configured:
+            raise HTTPException(
+                status_code=500,
+                detail="Freekassa не настроен. Настройте FREEKASSA_MERCHANT_ID, FREEKASSA_SECRET_WORD_1, FREEKASSA_SECRET_WORD_2"
+            )
+    else:  # Default to 1Plat
+        onplat_configured = bool(
+            (os.environ.get("ONEPLAT_SHOP_ID") or os.environ.get("ONEPLAT_MERCHANT_ID")) and
+            os.environ.get("ONEPLAT_SECRET_KEY")
+        )
+        if not onplat_configured:
+            raise HTTPException(
+                status_code=500,
+                detail="Payment service not configured. Please configure 1Plat credentials."
+            )
     
     payment_method = request.payment_method or "card"
     
@@ -101,10 +114,10 @@ async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_t
     
     # Cart-based order
     if request.use_cart or (not request.product_id):
-        return await _create_cart_order(db, db_user, user, payment_service, payment_method)
+        return await _create_cart_order(db, db_user, user, payment_service, payment_method, payment_gateway)
     
     # Single product order
-    return await _create_single_order(db, db_user, user, request, payment_service, payment_method)
+    return await _create_single_order(db, db_user, user, request, payment_service, payment_method, payment_gateway)
 
 
 @router.get("/payments/methods")
@@ -175,18 +188,22 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         from core.db import get_redis
         redis = get_redis()  # async client
         cooldown_key = f"pay:cooldown:{user.id}"
-        if redis:
-            existing = await redis.get(cooldown_key)
-            if existing:
-                raise HTTPException(
-                    status_code=429,
-                    detail="Подождите ~1 минуту перед повторным созданием платежа"
-                )
+        existing = await redis.get(cooldown_key)
+        if existing:
+            raise HTTPException(
+                status_code=429,
+                detail="Подождите ~1 минуту перед повторным созданием платежа"
+            )
     except HTTPException:
         raise
+    except (ValueError, AttributeError) as e:
+        # Redis не настроен или недоступен - используем fallback через БД
+        print(f"Warning: Redis unavailable, using DB fallback for cooldown: {e}")
+        redis = None
     except Exception as e:
-        # Не блокируем по ошибке Redis, просто логируем
-        print(f"Warning: cooldown check failed: {e}")
+        # Другие ошибки Redis - используем fallback через БД
+        print(f"Warning: Redis error, using DB fallback for cooldown: {e}")
+        redis = None
 
     # Не создаём новый заказ, если есть свежий pending (дубликаты)
     try:
@@ -246,7 +263,7 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
     try:
         payment_url = await payment_service.create_payment(
             order_id=order.id, amount=payable_amount, product_name=product_names,
-            method="1plat", payment_method=payment_method,
+            method=payment_gateway, payment_method=payment_method,
             user_email=f"{user.id}@telegram.user",
             user_id=user.id  # Telegram user id (numeric) for gateway
         )
@@ -276,7 +293,7 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
     )
 
 
-async def _create_single_order(db, db_user, user, request: CreateOrderRequest, payment_service, payment_method: str) -> OrderResponse:
+async def _create_single_order(db, db_user, user, request: CreateOrderRequest, payment_service, payment_method: str, payment_gateway: str = "1plat") -> OrderResponse:
     """
     Create order for single product.
     
@@ -334,4 +351,4 @@ async def _create_single_order(db, db_user, user, request: CreateOrderRequest, p
         await cart_manager.apply_promo_code(user.id, request.promo_code, promo["discount_percent"])
     
     # Выполняем checkout по корзине (один заказ на содержимое корзины)
-    return await _create_cart_order(db, db_user, user, payment_service, payment_method)
+    return await _create_cart_order(db, db_user, user, payment_service, payment_method, payment_gateway)

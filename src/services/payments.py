@@ -24,6 +24,12 @@ class PaymentService:
         self.onplat_api_key = os.environ.get("ONEPLAT_API_KEY", "")
         self.onplat_merchant_id = os.environ.get("ONEPLAT_MERCHANT_ID", "")
         
+        # Freekassa credentials
+        self.freekassa_merchant_id = os.environ.get("FREEKASSA_MERCHANT_ID", "")
+        self.freekassa_secret_word_1 = os.environ.get("FREEKASSA_SECRET_WORD_1", "")
+        self.freekassa_secret_word_2 = os.environ.get("FREEKASSA_SECRET_WORD_2", "")
+        self.freekassa_api_url = os.environ.get("FREEKASSA_API_URL", "https://pay.freekassa.ru")
+        
         # Webhook URLs
         self.base_url = os.environ.get("WEBAPP_URL", "https://pvndora.app")
         
@@ -68,6 +74,31 @@ class PaymentService:
         if user_email and "@" in user_email:
             return user_email
         return ""
+    
+    @staticmethod
+    def _translate_1plat_error(error_msg: str) -> str:
+        """Преобразует технические сообщения 1Plat в понятные для пользователя."""
+        error_lower = error_msg.lower()
+        
+        # Известные ошибки и их переводы
+        translations = {
+            "не удалось получить реквизиты": "Не удалось получить реквизиты для оплаты. Попробуйте через минуту или выберите другой способ оплаты.",
+            "подождите минуту": "Подождите минуту перед повторным созданием платежа.",
+            "rate limit": "Слишком много запросов. Подождите минуту и попробуйте снова.",
+            "too many requests": "Слишком много запросов. Подождите минуту и попробуйте снова.",
+        }
+        
+        # Ищем совпадение в сообщении
+        for key, translation in translations.items():
+            if key in error_lower:
+                return translation
+        
+        # Если это известная ошибка о реквизитах, но без точного совпадения
+        if "реквизит" in error_lower or "details" in error_lower:
+            return "Не удалось получить реквизиты для оплаты. Попробуйте через минуту или выберите другой способ оплаты."
+        
+        # Для остальных ошибок возвращаем общее сообщение
+        return "Ошибка при создании платежа. Попробуйте через минуту или выберите другой способ оплаты."
 
     async def list_payment_methods(self) -> Dict[str, Any]:
         """Получить актуальные методы оплаты с 1Plat."""
@@ -163,7 +194,15 @@ class PaymentService:
                 user_email=user_email,
                 method_override=payment_method,
             )
-        raise ValueError(f"Unknown payment method: {method}. Only '1plat' is supported.")
+        elif method == "freekassa":
+            return await self._create_freekassa_payment(
+                order_id=order_id,
+                amount=amount,
+                product_name=product_name,
+                currency=currency,
+                user_email=user_email,
+            )
+        raise ValueError(f"Unknown payment method: {method}. Supported: '1plat', 'freekassa'.")
     
     # ==================== 1PLAT ====================
     
@@ -228,7 +267,9 @@ class PaymentService:
             if not data.get("success"):
                 error_msg = data.get("error") or data.get("message") or "Unknown error"
                 logger.error("1Plat API error for order %s: %s", order_id, error_msg)
-                raise ValueError(f"1Plat API error: {error_msg}")
+                # Преобразуем технические сообщения в понятные для пользователя
+                user_message = self._translate_1plat_error(error_msg)
+                raise ValueError(user_message)
             
             logger.info("1Plat payment created for order %s", order_id)
             
@@ -258,7 +299,9 @@ class PaymentService:
             except Exception:
                 error_detail = e.response.text[:200]
             logger.error("1Plat API error %s: %s", e.response.status_code, error_detail)
-            raise ValueError(f"1Plat API error: {error_detail or 'Unknown error'}")
+            # Преобразуем технические сообщения в понятные для пользователя
+            user_message = self._translate_1plat_error(error_detail or 'Unknown error')
+            raise ValueError(user_message)
         except httpx.RequestError as e:
             logger.error("1Plat network error: %s", e)
             raise ValueError(f"Failed to connect to 1Plat API: {str(e)}")
@@ -434,6 +477,124 @@ class PaymentService:
                 
         except Exception as e:
             logger.exception("1Plat webhook verification error")
+            return {"success": False, "error": str(e)}
+    
+    # ==================== FREEKASSA ====================
+    
+    def _validate_freekassa_config(self) -> Tuple[str, str, str]:
+        """Проверка обязательных настроек Freekassa и возврат merchant_id, secret_word_1, api_url."""
+        merchant_id = self.freekassa_merchant_id or ""
+        secret_word_1 = self.freekassa_secret_word_1 or ""
+        api_url = self.freekassa_api_url.rstrip("/")
+        
+        if not merchant_id:
+            raise ValueError("Freekassa Merchant ID (FREEKASSA_MERCHANT_ID) не настроен")
+        if not secret_word_1:
+            raise ValueError("Freekassa Secret Word 1 (FREEKASSA_SECRET_WORD_1) не настроен")
+        return merchant_id, secret_word_1, api_url
+    
+    async def _create_freekassa_payment(
+        self,
+        order_id: str,
+        amount: float,
+        product_name: str,
+        currency: str = "RUB",
+        user_email: str = "",
+    ) -> str:
+        """
+        Create Freekassa payment URL.
+        
+        Based on Freekassa API documentation:
+        - Payment URL: https://pay.freekassa.ru/?m={MERCHANT_ID}&oa={AMOUNT}&o={MERCHANT_ORDER_ID}&s={SIGN}&us_field1={optional}
+        - Signature: md5(MERCHANT_ID:AMOUNT:SECRET_WORD_1:MERCHANT_ORDER_ID)
+        """
+        merchant_id, secret_word_1, api_url = self._validate_freekassa_config()
+        
+        # Amount in rubles (Freekassa expects rubles)
+        amount_rub = float(amount)
+        
+        # Generate signature: md5(MERCHANT_ID:AMOUNT:SECRET_WORD_1:MERCHANT_ORDER_ID)
+        sign_string = f"{merchant_id}:{amount_rub}:{secret_word_1}:{order_id}"
+        signature = hashlib.md5(sign_string.encode("utf-8")).hexdigest()
+        
+        # Build payment URL
+        params = {
+            "m": merchant_id,
+            "oa": str(amount_rub),
+            "o": order_id,
+            "s": signature,
+        }
+        
+        # Optional fields
+        if user_email:
+            params["us_field1"] = user_email
+        
+        # Build query string
+        query_string = "&".join([f"{k}={v}" for k, v in params.items()])
+        payment_url = f"{api_url}/?{query_string}"
+        
+        logger.info("Freekassa payment URL created for order %s", order_id)
+        return payment_url
+    
+    async def verify_freekassa_webhook(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Verify Freekassa webhook signature and extract order info.
+        
+        Webhook parameters:
+        - MERCHANT_ID: Merchant ID
+        - AMOUNT: Payment amount
+        - MERCHANT_ORDER_ID: Order ID
+        - SIGN: Signature (md5(MERCHANT_ID:AMOUNT:SECRET_WORD_2:MERCHANT_ORDER_ID))
+        - intid: Internal transaction ID
+        - P_EMAIL: User email (optional)
+        - CUR_ID: Currency ID (optional)
+        
+        Returns:
+            {"success": bool, "order_id": str, "amount": float, "currency": str, "error": str}
+        """
+        try:
+            merchant_id = str(data.get("MERCHANT_ID", "")).strip()
+            amount_str = str(data.get("AMOUNT", "")).strip()
+            order_id = str(data.get("MERCHANT_ORDER_ID", "")).strip()
+            received_sign = str(data.get("SIGN", "")).strip().lower()
+            
+            if not merchant_id or not amount_str or not order_id or not received_sign:
+                logger.error("Freekassa webhook: Missing required fields")
+                return {"success": False, "error": "Missing required fields"}
+            
+            # Validate merchant ID matches
+            expected_merchant_id = self.freekassa_merchant_id
+            if merchant_id != expected_merchant_id:
+                logger.error("Freekassa webhook: Merchant ID mismatch. Expected %s, got %s", expected_merchant_id, merchant_id)
+                return {"success": False, "error": "Invalid merchant ID"}
+            
+            # Verify signature using SECRET_WORD_2 (for webhooks)
+            # Signature: md5(MERCHANT_ID:AMOUNT:SECRET_WORD_2:MERCHANT_ORDER_ID)
+            secret_word_2 = self.freekassa_secret_word_2 or ""
+            if not secret_word_2:
+                logger.error("Freekassa webhook: SECRET_WORD_2 not configured")
+                return {"success": False, "error": "SECRET_WORD_2 not configured"}
+            
+            sign_string = f"{merchant_id}:{amount_str}:{secret_word_2}:{order_id}"
+            expected_sign = hashlib.md5(sign_string.encode("utf-8")).hexdigest().lower()
+            
+            if not hmac.compare_digest(received_sign, expected_sign):
+                logger.error("Freekassa webhook: Signature verification failed for order %s", order_id)
+                return {"success": False, "error": "Invalid signature"}
+            
+            amount = float(amount_str)
+            currency = data.get("CUR_ID", "RUB")  # Default to RUB
+            
+            logger.info("Freekassa webhook verified successfully for order %s, amount %s", order_id, amount)
+            return {
+                "success": True,
+                "order_id": order_id,
+                "amount": amount,
+                "currency": str(currency)
+            }
+                
+        except Exception as e:
+            logger.exception("Freekassa webhook verification error")
             return {"success": False, "error": str(e)}
     
     # ==================== REFUNDS ====================

@@ -31,6 +31,7 @@ class CreateOrderRequest(BaseModel):
     promo_code: str | None = None
     use_cart: bool = False
     payment_method: str | None = None  # card, sbp, qr, crypto
+    payment_gateway: str | None = None  # 1plat, freekassa
 
 
 class OrderResponse(BaseModel):

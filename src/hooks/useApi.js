@@ -48,7 +48,18 @@ export function useApi() {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.detail || errorData.error || `HTTP ${response.status}`)
+        let errorMessage = errorData.detail || errorData.error || `HTTP ${response.status}`
+        
+        // Улучшаем сообщения для 429 (Too Many Requests)
+        if (response.status === 429) {
+          // Убираем технические префиксы из сообщений
+          errorMessage = errorMessage.replace(/^1Plat API error:\s*/i, '')
+          if (!errorMessage || errorMessage === `HTTP ${response.status}`) {
+            errorMessage = 'Слишком много запросов. Подождите минуту и попробуйте снова.'
+          }
+        }
+        
+        throw new Error(errorMessage)
       }
       
       const data = await response.json()
