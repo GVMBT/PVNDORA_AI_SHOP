@@ -85,7 +85,9 @@ async def cmd_help(message: Message, db_user: User):
 @router.message(Command("faq"))
 async def cmd_faq(message: Message, db_user: User):
     """Handle /faq command - open FAQ page"""
-    text = get_text("faq.title", db_user.language_code, default="FAQ")
+    title = get_text("faq.title", db_user.language_code, default="FAQ")
+    subtitle = get_text("faq.subtitle", db_user.language_code, default="Часто задаваемые вопросы")
+    text = f"<b>{title}</b>\n\n{subtitle}"
     btn_text = get_text("btn_open_faq", db_user.language_code, default="📖 Открыть FAQ")
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[
         InlineKeyboardButton(
@@ -99,7 +101,9 @@ async def cmd_faq(message: Message, db_user: User):
 @router.message(Command("terms"))
 async def cmd_terms(message: Message, db_user: User):
     """Handle /terms command - open Terms of Service page"""
-    text = get_text("terms.title", db_user.language_code, default="Пользовательское соглашение")
+    title = get_text("terms.title", db_user.language_code, default="Пользовательское соглашение")
+    subtitle = get_text("terms.subtitle", db_user.language_code, default="Условия использования сервиса")
+    text = f"<b>{title}</b>\n\n{subtitle}"
     btn_text = get_text("btn_open_terms", db_user.language_code, default="📄 Открыть условия")
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[
         InlineKeyboardButton(
@@ -113,7 +117,9 @@ async def cmd_terms(message: Message, db_user: User):
 @router.message(Command("support"))
 async def cmd_support(message: Message, db_user: User):
     """Handle /support command - open support/contacts page"""
-    text = get_text("contacts.supportDescription", db_user.language_code, default="Поддержка клиентов")
+    title = get_text("contacts.title", db_user.language_code, default="Поддержка")
+    subtitle = get_text("contacts.supportDescription", db_user.language_code, default="Свяжитесь с нами для получения помощи")
+    text = f"<b>{title}</b>\n\n{subtitle}"
     btn_text = get_text("btn_open_support", db_user.language_code, default="🆘 Открыть поддержку")
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[
         InlineKeyboardButton(

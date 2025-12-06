@@ -7,6 +7,7 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { Skeleton } from '../components/ui/skeleton'
 import { cn } from '../lib/utils'
+import { TextWithLinks } from '../components/TextWithLinks'
 
 export default function FAQPage({ onBack, onNavigate }) {
   const { getFAQ, loading, error } = useFAQ()
@@ -31,7 +32,9 @@ export default function FAQPage({ onBack, onNavigate }) {
   
   const loadFAQ = async () => {
     try {
-      const data = await getFAQ(locale)
+      // Ensure we use the correct locale (ru for Russian, not en)
+      const faqLocale = locale === 'ru' ? 'ru' : (locale || 'en')
+      const data = await getFAQ(faqLocale)
       setFaqItems(data.faq || [])
     } catch (err) {
       console.error('Failed to load FAQ:', err)
@@ -114,7 +117,7 @@ export default function FAQPage({ onBack, onNavigate }) {
                         </div>
                         {expandedId === item.id && (
                           <div className="mt-3 pt-3 border-t border-border/50 text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap animate-in slide-in-from-top-2 fade-in duration-200">
-                            {item.answer}
+                            <TextWithLinks text={item.answer} />
                           </div>
                         )}
                       </CardContent>

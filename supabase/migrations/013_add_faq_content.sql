@@ -12,7 +12,7 @@ INSERT INTO faq (question, answer, category, language_code, priority, is_active)
 'general', 'ru', 9, true),
 
 ('Безопасно ли покупать у вас?', 
-'Да, все платежи обрабатываются через защищённые платёжные шлюзы. Мы не храним данные ваших карт. Все товары проверяются перед продажей и имеют гарантию валидности.', 
+'Да, все платежи обрабатываются через защищённые платёжные системы. Мы не храним данные ваших карт. Все товары проверяются перед продажей и имеют гарантию валидности.', 
 'general', 'ru', 8, true),
 
 ('Какие способы оплаты доступны?', 
@@ -62,7 +62,7 @@ INSERT INTO faq (question, answer, category, language_code, priority, is_active)
 'general', 'en', 9, true),
 
 ('Is it safe to buy from you?', 
-'Yes, all payments are processed through secure payment gateways (1Plat, Freekassa). We do not store your card data. All products are verified before sale and have a validity guarantee.', 
+'Yes, all payments are processed through secure payment systems. We do not store your card data. All products are verified before sale and have a validity guarantee.', 
 'general', 'en', 8, true),
 
 ('What payment methods are available?', 

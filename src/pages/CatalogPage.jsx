@@ -3,7 +3,7 @@ import { useProducts, useCart } from '../hooks/useApi'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
 import ProductCard from '../components/ProductCard'
-import { Search, SlidersHorizontal, Sparkles, Brain, Paintbrush, Code, Zap, CheckCircle2, Shield, FileText, MessageCircle, HelpCircle, RefreshCw, CreditCard, Lock } from 'lucide-react'
+import { Search, SlidersHorizontal, Sparkles, Brain, Paintbrush, Code, Zap, CheckCircle2, Shield, FileText, MessageCircle, HelpCircle } from 'lucide-react'
 import { Input } from '../components/ui/input'
 import { Button } from '../components/ui/button'
 import { Skeleton } from '../components/ui/skeleton'
@@ -375,33 +375,6 @@ export default function CatalogPage({ onProductClick, onGoCart, onNavigate }) {
               >
                 <FileText className="h-3.5 w-3.5 mr-1.5" />
                 {t('terms.title')}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs"
-                onClick={() => onNavigate('privacy')}
-              >
-                <Lock className="h-3.5 w-3.5 mr-1.5" />
-                {t('legal.privacy')}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs"
-                onClick={() => onNavigate('refund')}
-              >
-                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                {t('legal.refund')}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs"
-                onClick={() => onNavigate('payment')}
-              >
-                <CreditCard className="h-3.5 w-3.5 mr-1.5" />
-                {t('legal.payment')}
               </Button>
               <Button
                 variant="ghost"

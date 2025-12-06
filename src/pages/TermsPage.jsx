@@ -4,6 +4,7 @@ import { useTelegram } from '../hooks/useTelegram'
 import { ArrowLeft, FileText, Scale, UserCheck, RefreshCw } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
+import { TextWithLinks } from '../components/TextWithLinks'
 
 export default function TermsPage({ onBack }) {
   const { t } = useLocale()
@@ -56,7 +57,7 @@ export default function TermsPage({ onBack }) {
                   </h3>
                 </div>
                 <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed pl-12">
-                  {t(`terms.${section.id}Text`)}
+                  <TextWithLinks text={t(`terms.${section.id}Text`)} />
                 </div>
               </CardContent>
             </Card>

@@ -64,17 +64,18 @@ def _load_translations(lang: str) -> Dict[str, str]:
         return {}
 
 
-def get_text(key: str, lang: str = DEFAULT_LANGUAGE, **kwargs) -> str:
+def get_text(key: str, lang: str = DEFAULT_LANGUAGE, default: Optional[str] = None, **kwargs) -> str:
     """
     Get translated text by key.
     
     Args:
-        key: Translation key (e.g., "welcome", "btn_buy")
+        key: Translation key (e.g., "welcome", "btn_buy", "faq.title")
         lang: Language code (e.g., "ru", "en")
+        default: Default value if key not found (instead of returning key)
         **kwargs: Variables to format into the string
         
     Returns:
-        Translated string or key if not found
+        Translated string or key/default if not found
     """
     # Normalize language code (take first part: "ru-RU" -> "ru")
     lang = lang.split("-")[0].lower() if lang else DEFAULT_LANGUAGE
@@ -84,16 +85,39 @@ def get_text(key: str, lang: str = DEFAULT_LANGUAGE, **kwargs) -> str:
         lang = DEFAULT_LANGUAGE
     
     translations = _load_translations(lang)
-    text = translations.get(key)
+    
+    # Support nested keys with dot notation (e.g., "faq.title")
+    text = None
+    if "." in key:
+        keys = key.split(".")
+        value = translations
+        try:
+            for k in keys:
+                value = value[k]
+            text = value
+        except (KeyError, TypeError):
+            text = None
+    else:
+        text = translations.get(key)
     
     # Fallback to English if key not found
     if text is None and lang != DEFAULT_LANGUAGE:
         translations = _load_translations(DEFAULT_LANGUAGE)
-        text = translations.get(key)
+        if "." in key:
+            keys = key.split(".")
+            value = translations
+            try:
+                for k in keys:
+                    value = value[k]
+                text = value
+            except (KeyError, TypeError):
+                text = None
+        else:
+            text = translations.get(key)
     
-    # Return key if still not found
+    # Return default or key if still not found
     if text is None:
-        return key
+        return default if default is not None else key
     
     # Format with kwargs if provided
     if kwargs:
