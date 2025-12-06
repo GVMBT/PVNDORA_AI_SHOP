@@ -7,6 +7,7 @@
     { "source": "/api/((?!og/|cron/).*)", "destination": "/api/index.py" },
     { "source": "/webhook/(.*)", "destination": "/api/index.py" },
     { "source": "/1plat.txt", "destination": "/1plat.txt" },
+    { "source": "/f7f45338-a334-44be-84d7-d15c3770bc97.txt", "destination": "/f7f45338-a334-44be-84d7-d15c3770bc97.txt" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "functions": {

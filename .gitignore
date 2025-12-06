@@ -96,7 +96,7 @@ $RECYCLE.BIN/
 *.txt
 !locales/*.txt
 !public/1plat.txt
-!f7f45338-a334-44be-84d7-d15c3770bc97.txt
+!public/f7f45338-a334-44be-84d7-d15c3770bc97.txt
 research/
 notes/
 TODO.md
