@@ -15,7 +15,7 @@ create table products (
   name text not null,
   description text,
   price numeric not null,
-  type text not null check (type in ('student', 'trial', 'shared', 'key')),
+  type text not null check (type in ('ai', 'design', 'dev', 'music')),
   fulfillment_type text default 'auto' check (fulfillment_type in ('auto', 'manual')),
   instructions text, -- AI Context
   supplier_id uuid references suppliers(id),

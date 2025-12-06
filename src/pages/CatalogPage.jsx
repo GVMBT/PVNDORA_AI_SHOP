@@ -3,7 +3,7 @@ import { useProducts, useCart } from '../hooks/useApi'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
 import ProductCard from '../components/ProductCard'
-import { Search, SlidersHorizontal, Sparkles, Brain, Paintbrush, Code, Shield, Zap, CheckCircle2 } from 'lucide-react'
+import { Search, SlidersHorizontal, Sparkles, Brain, Paintbrush, Code, Zap, CheckCircle2 } from 'lucide-react'
 import { Input } from '../components/ui/input'
 import { Button } from '../components/ui/button'
 import { Skeleton } from '../components/ui/skeleton'
@@ -86,6 +86,33 @@ export default function CatalogPage({ onProductClick, onGoCart }) {
     }
   }, [])
   
+  // Build categories dynamically based on product types
+  const productTypes = Array.from(new Set(products.map((p) => p.type).filter(Boolean)))
+  const typeOrder = ['ai', 'design', 'dev', 'music']
+  const typeIconMap = {
+    ai: Brain,
+    design: Paintbrush,
+    dev: Code,
+    music: Sparkles
+  }
+  const typeLabelMap = {
+    ai: t('catalog.category.ai') || t('catalog.category.aiSolutions'),
+    design: t('catalog.category.design') || t('catalog.category.designTools'),
+    dev: t('catalog.category.dev') || t('catalog.category.developerAccess'),
+    music: t('catalog.category.music') || 'Музыка'
+  }
+
+  const categories = [
+    { id: 'all', label: t('catalog.all'), icon: null },
+    ...typeOrder
+      .filter((type) => productTypes.includes(type))
+      .map((type) => ({
+        id: type,
+        label: typeLabelMap[type],
+        icon: typeIconMap[type] || null,
+      })),
+  ]
+
   // Filter products
   const filteredProducts = products.filter(p => {
     const matchesType = filter === 'all' || p.type === filter
@@ -93,13 +120,6 @@ export default function CatalogPage({ onProductClick, onGoCart }) {
                          (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()))
     return matchesType && matchesSearch
   })
-  
-  const categories = [
-    { id: 'all', label: t('catalog.all'), icon: null },
-    { id: 'ai_solutions', label: t('catalog.category.aiSolutions'), icon: Brain },
-    { id: 'design_tools', label: t('catalog.category.designTools'), icon: Paintbrush },
-    { id: 'developer_access', label: t('catalog.category.developerAccess'), icon: Code }
-  ]
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -174,7 +194,7 @@ export default function CatalogPage({ onProductClick, onGoCart }) {
             setFilter(value)
           }}
         >
-          <TabsList className="flex w-full overflow-x-auto no-scrollbar gap-2 p-1.5 rounded-2xl bg-background/60 backdrop-blur border border-white/10">
+          <TabsList className="flex overflow-x-auto no-scrollbar gap-2 px-1.5">
             {categories.map((cat) => {
               const Icon = cat.icon
               return (

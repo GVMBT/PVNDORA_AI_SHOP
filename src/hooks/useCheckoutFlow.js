@@ -161,7 +161,7 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
       const result = await createOrderFromCart(
         promoResult?.is_valid ? promoCode : null,
         paymentMethod
-      )
+        )
 
       hapticFeedback('notification', 'success')
 

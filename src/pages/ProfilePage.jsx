@@ -63,7 +63,7 @@ export default function ProfilePage({ onBack }) {
       />
     )
   }
-
+  
   if (loading && !profile) {
     return (
       <div className="p-4 space-y-4">

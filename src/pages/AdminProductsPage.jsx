@@ -21,7 +21,7 @@ export default function AdminProductsPage({ onBack }) {
     name: '',
     description: '',
     price: '',
-    type: 'shared',
+    type: 'ai',
     fulfillment_time_hours: 48,
     warranty_hours: 24,
     instructions: '',
@@ -78,7 +78,7 @@ export default function AdminProductsPage({ onBack }) {
       name: '',
       description: '',
       price: '',
-      type: 'shared',
+      type: 'ai',
       fulfillment_time_hours: 48,
       warranty_hours: 24,
       instructions: '',
@@ -93,7 +93,7 @@ export default function AdminProductsPage({ onBack }) {
       name: product.name || '',
       description: product.description || '',
       price: product.price || '',
-      type: product.type || 'shared',
+      type: product.type || 'ai',
       fulfillment_time_hours: product.fulfillment_time_hours || 48,
       warranty_hours: product.warranty_hours || 24,
       instructions: product.instructions || '',
@@ -165,10 +165,10 @@ export default function AdminProductsPage({ onBack }) {
               onChange={(e) => setFormData({...formData, type: e.target.value})}
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <option value="shared">Личный</option>
-              <option value="student">Student</option>
-              <option value="trial">Trial</option>
-              <option value="key">API Key</option>
+              <option value="ai">AI (LLM)</option>
+              <option value="design">Дизайн</option>
+              <option value="dev">Разработка</option>
+              <option value="music">Музыка/аудио</option>
             </select>
           </div>
 
