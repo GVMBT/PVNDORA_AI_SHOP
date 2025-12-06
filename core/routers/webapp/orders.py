@@ -276,8 +276,11 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         # Уже обработано выше
         raise
     except ValueError as e:
-        print(f"Payment creation failed for cart order {order.id}: {e}")
-        raise HTTPException(status_code=429, detail=str(e))
+        error_msg = str(e)
+        print(f"Payment creation failed for cart order {order.id}: {error_msg}")
+        # Логируем детали для отладки
+        print(f"Payment gateway: {payment_gateway}, payment method: {payment_method}, order_id: {order.id}, amount: {payable_amount}")
+        raise HTTPException(status_code=429, detail=error_msg)
     except Exception as e:
         print(f"Payment creation failed for cart order {order.id}: {e}")
         raise HTTPException(status_code=502, detail="Payment service unavailable")

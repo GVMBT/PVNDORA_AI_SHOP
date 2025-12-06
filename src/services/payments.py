@@ -369,9 +369,16 @@ class PaymentService:
             "x-secret": secret,
         }
         
+        # Логируем запрос для отладки (без секретного ключа)
+        logger.info("1Plat payment creation request for order %s: method=%s, amount=%s kopecks, user_id=%s", 
+                   order_id, method, amount_kopecks, user_id_int)
+        logger.debug("1Plat API URL: %s", api_url)
+        logger.debug("1Plat payload (without secret): %s", {k: v for k, v in payload.items()})
+        
         client = await self._get_http_client()
         try:
             response = await client.post(api_url, headers=headers, json=payload)
+            logger.info("1Plat API response status: %s for order %s", response.status_code, order_id)
             response.raise_for_status()
             data = response.json()
             
@@ -433,12 +440,16 @@ class PaymentService:
             return payment_url
         
         except httpx.HTTPStatusError as e:
+            # Логируем полный ответ для отладки
             try:
                 error_data = e.response.json()
                 error_detail = error_data.get("message") or error_data.get("error") or str(error_data)
+                logger.error("1Plat API error %s for order %s, method=%s. Full response: %s", 
+                           e.response.status_code, order_id, method, error_data)
             except Exception:
                 error_detail = e.response.text[:200]
-            logger.error("1Plat API error %s: %s", e.response.status_code, error_detail)
+                logger.error("1Plat API error %s for order %s, method=%s. Response text: %s", 
+                           e.response.status_code, order_id, method, error_detail)
             # Преобразуем технические сообщения в понятные для пользователя
             user_message = self._translate_1plat_error(error_detail or 'Unknown error')
             raise ValueError(user_message)
