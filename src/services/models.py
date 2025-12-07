@@ -89,3 +89,20 @@ class Order(BaseModel):
     order_type: Optional[str] = "instant"
     fulfillment_deadline: Optional[datetime] = None
 
+
+class OrderItem(BaseModel):
+    """Order item model (per-product in order)."""
+    id: str
+    order_id: str
+    product_id: str
+    stock_item_id: Optional[str] = None
+    quantity: int = 1
+    status: str = "pending"
+    fulfillment_type: str = "instant"  # instant | preorder
+    delivery_content: Optional[str] = None
+    delivery_instructions: Optional[str] = None
+    price: Optional[float] = None
+    discount_percent: int = 0
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None

@@ -133,6 +133,9 @@ export default function OrdersPage({ onBack }) {
     show: { opacity: 1, y: 0 }
   }
   
+  const deliveredStates = new Set(['delivered','fulfilled','completed','ready'])
+  const waitingStates = new Set(['prepaid','fulfilling'])
+  
   return (
     <div className="min-h-screen pb-20 bg-background relative">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/5 via-background to-background pointer-events-none" />
@@ -278,6 +281,64 @@ export default function OrdersPage({ onBack }) {
                                   </Button>
                                 )}
                               </div>
+                           )}
+
+                           {/* Items list */}
+                           {order.items && Array.isArray(order.items) && order.items.length > 0 && (
+                             <div className="mt-4 space-y-2">
+                               <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                                 {t('orders.items') || 'Позиции заказа'}
+                               </p>
+                               <div className="space-y-2">
+                                 {order.items.map((it) => {
+                                   const itStatus = statusConfig[it.status] || statusConfig.pending
+                                   const showContent = deliveredStates.has(it.status) && it.delivery_content
+                                   return (
+                                     <div key={it.id} className="rounded-xl border border-border/40 bg-background/40 p-3">
+                                       <div className="flex items-start justify-between gap-2">
+                                         <div className="flex-1">
+                                           <p className="font-medium text-sm text-foreground">{it.product_name}</p>
+                                           <div className={`inline-flex items-center gap-1 px-2 py-1 mt-1 rounded-full text-[11px] font-semibold ${itStatus.bg} ${itStatus.color} ${itStatus.border}`}>
+                                             <itStatus.icon className="h-3 w-3" />
+                                             <span>{t(itStatus.labelKey) || it.status}</span>
+                                           </div>
+                                         </div>
+                                         {showContent && (
+                                           <Button
+                                             variant="ghost"
+                                             size="sm"
+                                             className="h-8 w-8 p-0"
+                                             onClick={() => {
+                                               navigator.clipboard?.writeText(it.delivery_content)
+                                               hapticFeedback('impact', 'light')
+                                             }}
+                                           >
+                                             <Copy className="h-4 w-4" />
+                                           </Button>
+                                         )}
+                                       </div>
+                                       {showContent && (
+                                         <div className="mt-2 bg-muted/30 border border-border/40 rounded-lg p-2">
+                                           <pre className="whitespace-pre-wrap break-words text-sm font-mono text-foreground">
+                                             {it.delivery_content}
+                                           </pre>
+                                           {it.delivery_instructions && (
+                                             <p className="text-xs text-muted-foreground mt-1">
+                                               {it.delivery_instructions}
+                                             </p>
+                                           )}
+                                         </div>
+                                       )}
+                                       {!showContent && waitingStates.has(it.status) && (
+                                         <p className="text-xs text-muted-foreground mt-2">
+                                           {t('orders.waitingStock') || 'Ожидает поставки'}
+                                         </p>
+                                       )}
+                                     </div>
+                                   )
+                                 })}
+                               </div>
+                             </div>
                            )}
 
                            {/* Delivery content for delivered orders */}

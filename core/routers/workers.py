@@ -14,6 +14,144 @@ from core.routers.deps import verify_qstash, get_notification_service
 router = APIRouter(prefix="/api/workers", tags=["workers"])
 
 
+async def _deliver_items_for_order(db, notification_service, order_id: str, only_instant: bool = False):
+    """
+    Deliver order_items for given order_id.
+    - only_instant=True: выдаём только instant позиции (для первичной выдачи после оплаты)
+    - otherwise: пытаемся выдать все открытые позиции, если есть сток
+    """
+    now = datetime.now(timezone.utc)
+    items = await db.get_order_items_by_order(order_id)
+    if not items:
+        return {"delivered": 0, "waiting": 0, "note": "no_items"}
+    
+    # Load products info
+    product_ids = list({it.get("product_id") for it in items if it.get("product_id")})
+    products_map = {}
+    try:
+        if product_ids:
+            prod_res = await asyncio.to_thread(
+                lambda: db.client.table("products").select("id,name,instructions").in_("id", product_ids).execute()
+            )
+            products_map = {p["id"]: p for p in (prod_res.data or [])}
+    except Exception as e:
+        print(f"deliver-goods: failed to load products for order {order_id}: {e}")
+    
+    delivered_lines = []
+    delivered_count = 0
+    waiting_count = 0
+    
+    for it in items:
+        status = str(it.get("status") or "").lower()
+        if status in {"delivered", "fulfilled", "completed", "ready", "refund_pending", "replacement_pending", "failed"}:
+            continue
+        if only_instant and str(it.get("fulfillment_type") or "instant") != "instant":
+            continue
+        
+        product_id = it.get("product_id")
+        prod = products_map.get(product_id, {})
+        prod_name = prod.get("name", "Product")
+        
+        # Try to allocate stock
+        try:
+            stock_res = await asyncio.to_thread(
+                lambda: db.client.table("stock_items")
+                .select("id,content")
+                .eq("product_id", product_id)
+                .eq("status", "available")
+                .limit(1)
+                .execute()
+            )
+            stock = stock_res.data[0] if stock_res.data else None
+        except Exception as e:
+            print(f"deliver-goods: stock query failed for order {order_id}, product {product_id}: {e}")
+            stock = None
+        
+        if stock:
+            # Reserve/sell stock
+            try:
+                await asyncio.to_thread(
+                    lambda: db.client.table("stock_items").update({
+                        "status": "sold",
+                        "is_sold": True,
+                        "reserved_at": now.isoformat(),
+                        "sold_at": now.isoformat()
+                    }).eq("id", stock["id"]).execute()
+                )
+            except Exception as e:
+                print(f"deliver-goods: failed to mark stock sold {stock['id']}: {e}")
+                continue
+            
+            # Update item as delivered
+            instructions = it.get("delivery_instructions") or prod.get("instructions") or ""
+            try:
+                await asyncio.to_thread(
+                    lambda: db.client.table("order_items").update({
+                        "status": "delivered",
+                        "stock_item_id": stock["id"],
+                        "delivery_content": stock.get("content"),
+                        "delivery_instructions": instructions,
+                        "delivered_at": now.isoformat(),
+                        "updated_at": now.isoformat()
+                    }).eq("id", it.get("id")).execute()
+                )
+                delivered_count += 1
+                delivered_lines.append(f"{prod_name}:\n{stock.get('content', '')}")
+            except Exception as e:
+                print(f"deliver-goods: failed to update order_item {it.get('id')}: {e}")
+        else:
+            # No stock yet - mark as prepaid/fulfilling
+            waiting_count += 1
+            try:
+                await asyncio.to_thread(
+                    lambda: db.client.table("order_items").update({
+                        "status": "prepaid" if status == "pending" else status,
+                        "updated_at": now.isoformat()
+                    }).eq("id", it.get("id")).execute()
+                )
+            except Exception as e:
+                print(f"deliver-goods: failed to mark waiting for item {it.get('id')}: {e}")
+    
+    # Update order status summary
+    try:
+        order_status = None
+        if delivered_count and waiting_count == 0:
+            order_status = "delivered"
+        elif delivered_count and waiting_count > 0:
+            order_status = "partial"
+        elif delivered_count == 0 and waiting_count > 0:
+            order_status = "prepaid"
+        
+        if order_status:
+            update_payload = {"status": order_status, "updated_at": now.isoformat()}
+            if order_status == "delivered":
+                update_payload["delivered_at"] = now.isoformat()
+            await asyncio.to_thread(
+                lambda: db.client.table("orders").update(update_payload).eq("id", order_id).execute()
+            )
+    except Exception as e:
+        print(f"deliver-goods: failed to update order status {order_id}: {e}")
+    
+    # Notify user once with aggregated content
+    try:
+        if delivered_lines:
+            order = await asyncio.to_thread(
+                lambda: db.client.table("orders").select("user_telegram_id").eq("id", order_id).single().execute()
+            )
+            telegram_id = order.data.get("user_telegram_id") if order and order.data else None
+            if telegram_id:
+                content_block = "\n\n".join(delivered_lines)
+                await notification_service.send_delivery(
+                    telegram_id=telegram_id,
+                    product_name=f"Заказ {order_id}",
+                    content=content_block
+                )
+    except Exception as e:
+        print(f"deliver-goods: failed to notify for order {order_id}: {e}")
+    
+    return {"delivered": delivered_count, "waiting": waiting_count}
+
+
 @router.post("/deliver-goods")
 async def worker_deliver_goods(request: Request):
     """
@@ -29,38 +167,8 @@ async def worker_deliver_goods(request: Request):
     db = get_database()
     notification_service = get_notification_service()
     
-    # Complete purchase via RPC
-    result = db.client.rpc("complete_purchase", {"p_order_id": order_id}).execute()
-    
-    if result.data and result.data[0].get("success"):
-        content = result.data[0].get("content")
-        instructions = result.data[0].get("instructions") or result.data[0].get("note") or ""
-        
-        # Get order details
-        order = db.client.table("orders").select(
-            "id, user_telegram_id, products(name)"
-        ).eq("id", order_id).single().execute()
-        
-        # Persist delivery content for frontend (only on success)
-        if content:
-            try:
-                db.client.table("orders").update({
-                    "delivery_content": content,
-                    "delivery_instructions": instructions
-                }).eq("id", order_id).execute()
-            except Exception as e:
-                print(f"Failed to persist delivery content for order {order_id}: {e}")
-        
-        if order.data:
-            await notification_service.send_delivery(
-                telegram_id=order.data["user_telegram_id"],
-                product_name=order.data.get("products", {}).get("name", "Product"),
-                content=content
-            )
-        
-        return {"success": True, "order_id": order_id}
-    
-    return {"error": "Failed to complete purchase", "order_id": order_id}
+    result = await _deliver_items_for_order(db, notification_service, order_id, only_instant=True)
+    return {"success": True, "order_id": order_id, **result}
 
 
 @router.post("/calculate-referral")
@@ -146,6 +254,39 @@ async def worker_calculate_referral(request: Request):
         "new_level": new_level,
         "bonuses": bonus_result.data if bonus_result.data else {}
     }
+
+
+@router.post("/deliver-batch")
+async def worker_deliver_batch(request: Request):
+    """
+    QStash Worker: Try to deliver all waiting items (pending/prepaid/fulfilling), any fulfillment_type.
+    Useful for автоаллоцирования при пополнении стока.
+    """
+    data = await verify_qstash(request)
+    
+    db = get_database()
+    notification_service = get_notification_service()
+    
+    # Найти открытые позиции
+    try:
+        open_items = await asyncio.to_thread(
+            lambda: db.client.table("order_items")
+            .select("order_id")
+            .in_("status", ["pending", "prepaid", "fulfilling"])
+            .order("created_at")
+            .limit(200)
+            .execute()
+        )
+        order_ids = list({row["order_id"] for row in (open_items.data or [])})
+    except Exception as e:
+        return {"error": f"failed to query open items: {e}"}
+    
+    results = []
+    for oid in order_ids:
+        res = await _deliver_items_for_order(db, notification_service, oid, only_instant=False)
+        results.append({"order_id": oid, **res})
+    
+    return {"processed": len(order_ids), "results": results}
 
 
 @router.post("/notify-supplier")

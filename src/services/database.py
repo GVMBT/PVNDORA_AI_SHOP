@@ -187,6 +187,30 @@ class Database:
     
     async def get_expiring_orders(self, days_before: int = 3) -> List[Order]:
         return await self._orders.get_expiring(days_before)
+
+    # ==================== ORDER ITEMS ====================
+    async def create_order_items(self, items: List[dict]) -> List[dict]:
+        """Batch insert order_items."""
+        if not items:
+            return []
+        result = await asyncio.to_thread(
+            lambda: self.client.table("order_items").insert(items).execute()
+        )
+        return result.data or []
+
+    async def get_order_items_by_order(self, order_id: str) -> List[dict]:
+        result = await asyncio.to_thread(
+            lambda: self.client.table("order_items").select("*").eq("order_id", order_id).execute()
+        )
+        return result.data or []
+
+    async def get_order_items_by_orders(self, order_ids: List[str]) -> List[dict]:
+        if not order_ids:
+            return []
+        result = await asyncio.to_thread(
+            lambda: self.client.table("order_items").select("*").in_("order_id", order_ids).execute()
+        )
+        return result.data or []
     
     # ==================== CHAT HISTORY (delegated) ====================
     

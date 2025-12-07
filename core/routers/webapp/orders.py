@@ -77,6 +77,46 @@ async def get_webapp_orders(user=Depends(verify_telegram_auth)):
         print(f"Warning: Currency service unavailable: {e}, using USD")
     
     orders = await db.get_user_orders(db_user.id, limit=50)
+    order_ids = [o.id for o in orders]
+    
+    # Fetch order_items in bulk
+    items_data = await db.get_order_items_by_orders(order_ids)
+    products_map = {}
+    try:
+        product_ids = list({item["product_id"] for item in items_data})
+        if product_ids:
+            prod_res = await asyncio.to_thread(
+                lambda: db.client.table("products").select("id,name,instructions,price").in_("id", product_ids).execute()
+            )
+            products_map = {p["id"]: p for p in (prod_res.data or [])}
+    except Exception as e:
+        print(f"Warning: failed to load products map for order items: {e}")
+    
+    from collections import defaultdict
+    items_by_order = defaultdict(list)
+    for it in items_data:
+        pid = it.get("product_id")
+        prod = products_map.get(pid, {})
+        status_lower = str(it.get("status", "")).lower()
+        delivered_states = {"delivered", "fulfilled", "completed", "ready"}
+        item_payload = {
+            "id": it.get("id"),
+            "product_id": pid,
+            "product_name": prod.get("name", "Unknown Product"),
+            "status": status_lower,
+            "fulfillment_type": it.get("fulfillment_type"),
+            "created_at": it.get("created_at"),
+            "delivered_at": it.get("delivered_at"),
+        }
+        if status_lower in delivered_states:
+            if it.get("delivery_content"):
+                item_payload["delivery_content"] = it.get("delivery_content")
+            # instructions: prefer item-specific, fallback to product instructions
+            if it.get("delivery_instructions"):
+                item_payload["delivery_instructions"] = it.get("delivery_instructions")
+            elif prod.get("instructions"):
+                item_payload["delivery_instructions"] = prod.get("instructions")
+        items_by_order[it.get("order_id")].append(item_payload)
     
     result = []
     for o in orders:
@@ -107,6 +147,9 @@ async def get_webapp_orders(user=Depends(verify_telegram_auth)):
             "expires_at": o.expires_at.isoformat() if o.expires_at else None,
             "warranty_until": o.warranty_until.isoformat() if hasattr(o, 'warranty_until') and o.warranty_until else None
         }
+        # attach items if present
+        if items_by_order.get(o.id):
+            order_item["items"] = items_by_order.get(o.id)
         # Include payment_url for pending orders so user can retry payment
         if o.status == "pending" and hasattr(o, 'payment_url') and o.payment_url:
             order_item["payment_url"] = o.payment_url
@@ -455,7 +498,7 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
     
     order = await db.create_order(
         user_id=db_user.id, 
-        product_id=first_item["product_id"],
+        product_id=first_item["product_id"],  # legacy field, first product
         amount=total_amount, 
         original_price=total_original,
         discount_percent=int((1 - total_amount / total_original) * 100) if total_original > 0 else 0,
@@ -465,6 +508,38 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         expires_at=payment_expires_at,
         payment_url=payment_url
     )
+    
+    # Создаём строки order_items (по одному на штуку, для удобства частичной выдачи)
+    try:
+        items_to_insert = []
+        for oi in order_items:
+            unit_price = (oi["amount"] / oi["quantity"]) if oi["quantity"] else oi["amount"]
+            # instant (есть в наличии)
+            for _ in range(int(oi.get("instant_quantity", 0))):
+                items_to_insert.append({
+                    "order_id": order.id,
+                    "product_id": oi["product_id"],
+                    "quantity": 1,
+                    "status": "pending",
+                    "fulfillment_type": "instant",
+                    "price": unit_price,
+                    "discount_percent": int(oi.get("discount_percent", 0)),
+                })
+            # preorder (нет в наличии)
+            for _ in range(int(oi.get("prepaid_quantity", 0))):
+                items_to_insert.append({
+                    "order_id": order.id,
+                    "product_id": oi["product_id"],
+                    "quantity": 1,
+                    "status": "prepaid",
+                    "fulfillment_type": "preorder",
+                    "price": unit_price,
+                    "discount_percent": int(oi.get("discount_percent", 0)),
+                })
+        if items_to_insert:
+            await db.create_order_items(items_to_insert)
+    except Exception as e:
+        print(f"Warning: failed to create order_items for order {order.id}: {e}")
     
     # Обновляем order_id в платёжке (если поддерживается) или сохраняем маппинг
     # Сохраняем temp_order_id -> real_order_id маппинг в заказе
