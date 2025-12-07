@@ -826,13 +826,19 @@ class PaymentService:
         else:
             payload["user_code"] = str(order_id)
         
-        # Payment method (card, sbp, crypta, etc.)
+        # Payment method (card, card_azn, skinpay, yandexmoney, crypta, sbp, clever, sbp_qr)
         if payment_method:
             method_map = {
                 "card": "card",
+                "card_azn": "card_azn",
                 "sbp": "sbp",
-                "crypto": "crypta",
+                "sbp_qr": "sbp_qr",
                 "qr": "sbp_qr",
+                "crypto": "crypta",
+                "crypta": "crypta",
+                "skinpay": "skinpay",
+                "yandexmoney": "yandexmoney",
+                "clever": "clever",
             }
             rukassa_method = method_map.get(payment_method.lower(), payment_method)
             payload["method"] = rukassa_method

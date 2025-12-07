@@ -2,6 +2,9 @@ import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CreditCard, Smartphone, QrCode, Bitcoin, Loader2, ShieldCheck, X, Check as CheckIcon } from 'lucide-react'
 import { Button } from '../ui/button'
+import cardIcon from '../../assets/icons/payments/visa-10.svg'
+import sbpIcon from '../../assets/icons/payments/sbp.svg'
+import cryptoIcon from '../../assets/icons/payments/tether-usdt-1.svg'
 
 /**
  * Диалог выбора способа оплаты.
@@ -43,10 +46,10 @@ const IconCrypto = () => (
 )
 
 const METHOD_ICONS = {
-  card: IconCard,
-  sbp: IconSBP,
-  sbp_qr: IconSBPQR,
-  crypto: IconCrypto,
+  card: () => <img src={cardIcon} alt="Card" className="h-5" />,
+  sbp: () => <img src={sbpIcon} alt="SBP" className="h-5" />,
+  sbp_qr: () => <img src={sbpIcon} alt="SBP QR" className="h-5" />,
+  crypto: () => <img src={cryptoIcon} alt="Crypto" className="h-5" />,
 }
 
 export function PaymentMethodDialog({ 
@@ -66,12 +69,14 @@ export function PaymentMethodDialog({
 
   if (!open) return null
 
-  const methods = availableMethods?.length ? availableMethods : [
+  const allowed = ['card', 'sbp', 'sbp_qr', 'crypto']
+  const methodsRaw = availableMethods?.length ? availableMethods : [
     { system_group: 'card', name: 'Банковская карта', icon: '💳' },
     { system_group: 'sbp', name: 'СБП', icon: '🏦' },
     { system_group: 'sbp_qr', name: 'QR-код СБП', icon: '📱' },
     { system_group: 'crypto', name: 'Криптовалюта', icon: '₿' },
   ]
+  const methods = methodsRaw.filter((m) => allowed.includes((typeof m === 'string' ? m : m.system_group) || ''))
 
   const handleConfirm = () => {
     onConfirm(selectedMethod)
