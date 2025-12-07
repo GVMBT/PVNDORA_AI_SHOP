@@ -34,11 +34,22 @@ async def worker_deliver_goods(request: Request):
     
     if result.data and result.data[0].get("success"):
         content = result.data[0].get("content")
+        instructions = result.data[0].get("instructions") or result.data[0].get("note") or ""
         
         # Get order details
         order = db.client.table("orders").select(
-            "user_telegram_id, products(name)"
+            "id, user_telegram_id, products(name)"
         ).eq("id", order_id).single().execute()
+        
+        # Persist delivery content for frontend (only on success)
+        if content:
+            try:
+                db.client.table("orders").update({
+                    "delivery_content": content,
+                    "delivery_instructions": instructions
+                }).eq("id", order_id).execute()
+            except Exception as e:
+                print(f"Failed to persist delivery content for order {order_id}: {e}")
         
         if order.data:
             await notification_service.send_delivery(

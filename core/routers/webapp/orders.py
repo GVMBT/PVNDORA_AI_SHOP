@@ -110,6 +110,13 @@ async def get_webapp_orders(user=Depends(verify_telegram_auth)):
         # Include payment_url for pending orders so user can retry payment
         if o.status == "pending" and hasattr(o, 'payment_url') and o.payment_url:
             order_item["payment_url"] = o.payment_url
+        
+        # Include delivery content only for delivered/fulfilled/ready/completed
+        if str(o.status).lower() in {"delivered", "fulfilled", "completed", "ready"}:
+            if getattr(o, "delivery_content", None):
+                order_item["delivery_content"] = o.delivery_content
+            if getattr(o, "delivery_instructions", None):
+                order_item["delivery_instructions"] = o.delivery_instructions
         result.append(order_item)
     
     return {"orders": result, "count": len(result), "currency": currency}

@@ -1177,6 +1177,12 @@ class PaymentService:
         
         # Build callback URL
         callback_url = f"{self.base_url}/api/webhook/crystalpay"
+        # Build redirect URL: t.me deeplink back to Mini App + fallback to web result page
+        bot_username = os.environ.get("BOT_USERNAME", "pvndora_ai_bot")
+        deeplink = f"https://t.me/{bot_username}?startapp=payresult_{order_id}"
+        fallback_result = f"{self.base_url}/payment/result?order_id={order_id}"
+        # Prefer deeplink; CrystalPay will follow redirect_url after payment
+        redirect_url = deeplink or fallback_result
         
         # API request payload (JSON)
         # lifetime = 15 минут для синхронизации с резервом товара
@@ -1190,7 +1196,7 @@ class PaymentService:
             "description": product_name[:200] if product_name else "Оплата заказа",
             "extra": order_id,  # сохраняем order_id для callback
             "callback_url": callback_url,
-            "redirect_url": f"{self.base_url}/payment/result?order_id={order_id}",
+            "redirect_url": redirect_url,
         }
         
         headers = {

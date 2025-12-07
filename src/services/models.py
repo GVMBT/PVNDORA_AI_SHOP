@@ -84,6 +84,8 @@ class Order(BaseModel):
     user_telegram_id: Optional[int] = None
     payment_id: Optional[str] = None
     payment_url: Optional[str] = None
+    delivery_content: Optional[str] = None
+    delivery_instructions: Optional[str] = None
     order_type: Optional[str] = "instant"
     fulfillment_deadline: Optional[datetime] = None
 

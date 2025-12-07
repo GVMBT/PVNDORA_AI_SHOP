@@ -279,6 +279,38 @@ export default function OrdersPage({ onBack }) {
                                 )}
                               </div>
                            )}
+
+                           {/* Delivery content for delivered orders */}
+                           {['delivered', 'ready', 'fulfilled', 'completed'].includes(order.status) && order.delivery_content && (
+                             <div className="mt-4 space-y-2">
+                               <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                                 {t('orders.delivery') || 'Доступ'}
+                               </p>
+                               <div className="bg-muted/30 border border-border/50 rounded-xl p-3">
+                                 <div className="flex justify-between items-start gap-2">
+                                   <pre className="whitespace-pre-wrap break-words text-sm font-mono text-foreground flex-1">
+                                     {order.delivery_content}
+                                   </pre>
+                                   <Button
+                                     variant="ghost"
+                                     size="sm"
+                                     className="h-8 w-8 p-0"
+                                     onClick={() => {
+                                       navigator.clipboard?.writeText(order.delivery_content)
+                                       hapticFeedback('impact', 'light')
+                                     }}
+                                   >
+                                     <Copy className="h-4 w-4" />
+                                   </Button>
+                                 </div>
+                                 {order.delivery_instructions && (
+                                   <p className="text-xs text-muted-foreground mt-2">
+                                     {order.delivery_instructions}
+                                   </p>
+                                 )}
+                               </div>
+                             </div>
+                           )}
                         </div>
                       </CardContent>
                     </Card>
