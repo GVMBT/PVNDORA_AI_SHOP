@@ -119,15 +119,16 @@ export function PaymentMethodDialog({
           onClick={onClose}
         />
         
-        {/* Dialog */}
+        {/* Dialog - поднят выше навигации */}
         <motion.div
           initial={{ opacity: 0, y: 100, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 100, scale: 0.95 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="fixed bottom-0 left-0 right-0 z-50 max-h-[90vh] overflow-hidden"
+          className="fixed left-0 right-0 z-50 max-h-[85vh] overflow-hidden"
+          style={{ bottom: '70px' }}
         >
-          <div className="bg-background rounded-t-3xl border-t border-border/50 shadow-2xl">
+          <div className="bg-background rounded-3xl border border-border/50 shadow-2xl mx-2">
             {/* Handle bar */}
             <div className="flex justify-center pt-3 pb-2">
               <div className="w-12 h-1.5 bg-muted-foreground/30 rounded-full" />
@@ -136,16 +137,13 @@ export function PaymentMethodDialog({
             {/* Close button */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 rounded-full bg-muted/50 hover:bg-muted transition-colors"
+              className="absolute top-4 right-4 p-2 rounded-full bg-muted/50 hover:bg-muted transition-colors z-10"
             >
               <X className="w-5 h-5 text-muted-foreground" />
             </button>
             
             {/* Content with scroll + sticky CTA for desktop/mini-app */}
-            <div
-              className="px-5 pt-2 pb-2 flex flex-col max-h-[82vh] overflow-hidden"
-              style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
-            >
+            <div className="px-5 pt-2 pb-4 flex flex-col max-h-[75vh] overflow-hidden">
               <div className="flex-1 min-h-0 overflow-y-auto pr-1">
                 {/* Header */}
                 <div className="text-center mb-6">
@@ -235,11 +233,8 @@ export function PaymentMethodDialog({
                 </div>
               </div>
 
-              {/* Sticky CTA */}
-              <div
-                className="sticky bottom-0 bg-background pt-3 pb-4 border-t border-border/60"
-                style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
-              >
+              {/* CTA */}
+              <div className="pt-3 pb-2">
                 <Button
                   onClick={handleConfirm}
                   disabled={isLoading}

@@ -335,6 +335,39 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
     except Exception as e:
         print(f"Warning: currency conversion failed, using raw amount: {e}")
     
+    # Если Rukassa: попытаться отменить предыдущий незавершённый платёж (антифрод)
+    if payment_gateway == "rukassa":
+        try:
+            result = await asyncio.to_thread(
+                lambda: db.client.table("orders")
+                .select("id,payment_id,status")
+                .eq("user_id", db_user.id)
+                .eq("status", "pending")
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+            if result.data:
+                prev = result.data[0]
+                prev_payment_id = prev.get("payment_id")
+                if prev_payment_id:
+                    cancel_res = await payment_service.revoke_rukassa_payment(prev_payment_id)
+                    if cancel_res.get("success") and cancel_res.get("status") == "CANCEL":
+                        try:
+                            await asyncio.to_thread(
+                                lambda: db.client.table("orders")
+                                .update({"status": "cancelled"})
+                                .eq("id", prev.get("id"))
+                                .execute()
+                            )
+                        except Exception as e:
+                            print(f"Warning: failed to mark order {prev.get('id')} cancelled: {e}")
+                    else:
+                        # если revoke не удался, просто логируем; это не должно блокировать создание
+                        print(f"Rukassa revoke skipped: {cancel_res}")
+        except Exception as e:
+            print(f"Warning: revoke previous Rukassa payment failed: {e}")
+
     # ============================================================
     # ВАЖНО: Сначала проверяем платёжку, потом создаём заказ!
     # ============================================================
@@ -387,7 +420,8 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         amount=total_amount, 
         original_price=total_original,
         discount_percent=int((1 - total_amount / total_original) * 100) if total_original > 0 else 0,
-        payment_method=payment_method
+        payment_method=payment_method,
+        user_telegram_id=user.id  # Telegram ID для webhook доставки
     )
     
     # Обновляем order_id в платёжке (если поддерживается) или сохраняем маппинг

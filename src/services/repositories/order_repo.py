@@ -15,7 +15,8 @@ class OrderRepository(BaseRepository):
         amount: float,
         original_price: Optional[float] = None,
         discount_percent: int = 0,
-        payment_method: str = "1plat"
+        payment_method: str = "1plat",
+        user_telegram_id: Optional[int] = None
     ) -> Order:
         """Create new order."""
         data = {
@@ -27,6 +28,8 @@ class OrderRepository(BaseRepository):
             "status": "pending",
             "payment_method": payment_method
         }
+        if user_telegram_id:
+            data["user_telegram_id"] = user_telegram_id
         result = self.client.table("orders").insert(data).execute()
         return Order(**result.data[0])
     

@@ -313,6 +313,78 @@ class PaymentService:
                 payment_method=payment_method,
             )
         raise ValueError(f"Unknown payment method: {method}. Supported: '1plat', 'freekassa', 'rukassa'.")
+
+    # ==================== RUKASSA HELPERS ====================
+
+    async def _rukassa_get_pay_info(self, payment_order_id: str) -> Dict[str, Any]:
+        """
+        Получить информацию о платеже Rukassa по нашему order_id (который мы передавали в create).
+        Возвращает dict ответа API или кидает ValueError.
+        """
+        shop_id, token, api_url = self._validate_rukassa_config()
+        payload = {
+            "shop_id": int(shop_id),
+            "token": token,
+            "order_id": payment_order_id,
+        }
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+        }
+        client = await self._get_http_client()
+        try:
+            response = await client.post(
+                f"{api_url}/getPayInfo",
+                headers=headers,
+                data=payload
+            )
+            response.raise_for_status()
+            data = response.json()
+            logger.debug("Rukassa getPayInfo response for order_id=%s: %s", payment_order_id, data)
+            if data.get("error"):
+                msg = data.get("message") or f"Error code: {data.get('error')}"
+                raise ValueError(msg)
+            return data
+        except Exception as e:
+            raise ValueError(f"Rukassa getPayInfo failed: {e}")
+
+    async def revoke_rukassa_payment(self, payment_order_id: str) -> Dict[str, Any]:
+        """
+        Отменяет незавершённый платеж Rukassa по нашему order_id, если он в статусе WAIT.
+        Возвращает {success: bool, status: str, message: str}
+        """
+        try:
+            info = await self._rukassa_get_pay_info(payment_order_id)
+            status = str(info.get("status") or "").upper()
+            payment_id_real = info.get("id")
+            if status == "CANCEL":
+                return {"success": True, "status": "CANCEL", "message": "Already cancelled"}
+            if status == "PAID":
+                return {"success": False, "status": "PAID", "message": "Payment already paid"}
+            if not payment_id_real:
+                return {"success": False, "status": status, "message": "Rukassa id not found"}
+
+            # Только для WAIT пытаемся отменить
+            shop_id, token, api_url = self._validate_rukassa_config()
+            payload = {
+                "shop_id": int(shop_id),
+                "token": token,
+                "id": payment_id_real,
+            }
+            headers = {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Accept": "application/json",
+            }
+            client = await self._get_http_client()
+            resp = await client.post(f"{api_url}/revoke", headers=headers, data=payload)
+            resp.raise_for_status()
+            data = resp.json()
+            if data.get("error"):
+                msg = data.get("message") or f"Error code: {data.get('error')}"
+                return {"success": False, "status": status, "message": msg}
+            return {"success": True, "status": "CANCEL", "message": "Revoked"}
+        except Exception as e:
+            return {"success": False, "status": "ERROR", "message": str(e)}
     
     # ==================== 1PLAT ====================
     

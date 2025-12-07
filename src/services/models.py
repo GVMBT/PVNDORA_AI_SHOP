@@ -80,4 +80,8 @@ class Order(BaseModel):
     warranty_until: Optional[datetime] = None
     refund_requested: bool = False
     created_at: Optional[datetime] = None
+    user_telegram_id: Optional[int] = None
+    payment_id: Optional[str] = None
+    order_type: Optional[str] = "instant"
+    fulfillment_deadline: Optional[datetime] = None
 
