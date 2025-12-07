@@ -23,7 +23,14 @@ async def get_order_status(order_id: str, user=Depends(verify_telegram_auth)):
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        # Авто-создание пользователя, если он впервые
+        db_user = await db.create_user(
+            telegram_id=user.id,
+            username=getattr(user, "username", None),
+            first_name=getattr(user, "first_name", None),
+            language_code=getattr(user, "language_code", "ru"),
+            referrer_telegram_id=None
+        )
     
     order = await db.get_order_by_id(order_id)
     if not order:
