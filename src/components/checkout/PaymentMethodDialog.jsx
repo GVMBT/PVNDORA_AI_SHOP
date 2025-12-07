@@ -165,7 +165,7 @@ export function PaymentMethodDialog({
                         ${disabled ? 'opacity-50 cursor-not-allowed bg-muted/40 border-border' : isSelected ? 'border-primary ring-1 ring-primary/50 bg-primary/5' : 'border-border hover:border-primary/40'}
                         flex items-center justify-between gap-3
                       `}
-                    >
+                        >
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${disabled ? 'bg-muted text-muted-foreground' : isSelected ? 'bg-primary/10' : 'bg-muted'}`}>
                           <IconComponent />
@@ -175,7 +175,7 @@ export function PaymentMethodDialog({
                           <span className="text-xs text-muted-foreground">
                             {methodId === 'sbp_qr' ? 'QR СБП' : methodId === 'sbp' ? 'Приложение банка' : methodId === 'crypto' ? 'USDT / ₿' : ''}
                             {minAmount ? ` • от ${minAmount.toLocaleString('ru-RU')} ₽` : ''}
-                          </span>
+                        </span>
                         </div>
                       </div>
                       <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${disabled ? 'border-muted-foreground/30' : isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
