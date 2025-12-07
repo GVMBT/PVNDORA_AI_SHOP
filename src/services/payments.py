@@ -1188,6 +1188,9 @@ class PaymentService:
         test_mode = os.environ.get("CRYSTALPAY_TEST_MODE", "false").lower() == "true"
         required_method = "TEST" if test_mode else None
         
+        # Description: CrystalPay limit 64 chars
+        safe_description = (product_name or f"Order {order_id}")[:60]
+        
         # API request payload (JSON)
         # lifetime = 15 минут для синхронизации с резервом товара
         payload = {
@@ -1197,7 +1200,7 @@ class PaymentService:
             "type": "purchase",  # purchase для покупки товара, topup для пополнения
             "lifetime": 15,  # время жизни инвойса в минутах (синхронизировано с резервом)
             "currency": currency or "RUB",
-            "description": product_name[:200] if product_name else "Оплата заказа",
+            "description": safe_description,
             "extra": order_id,  # сохраняем order_id для callback
             "callback_url": callback_url,
             "redirect_url": redirect_url,
