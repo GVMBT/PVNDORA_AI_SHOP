@@ -170,19 +170,33 @@ async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_t
 
 @router.get("/payments/methods")
 async def get_payment_methods(user=Depends(verify_telegram_auth)):
-    """Get available payment methods based on configured gateway."""
+    """Get available payment methods based on configured gateway.
+    
+    Returns methods with their status (enabled/disabled).
+    Disabled methods are read from RUKASSA_DISABLED_METHODS env (comma-separated).
+    Example: RUKASSA_DISABLED_METHODS=sbp_qr,clever
+    """
     gateway = os.environ.get("DEFAULT_PAYMENT_GATEWAY", "rukassa")
     
     # Rukassa methods (https://lk.rukassa.io)
     if gateway == "rukassa":
-        return {
-            "systems": [
-                {"system_group": "card", "name": "Карта", "icon": "💳"},
-                {"system_group": "sbp", "name": "СБП", "icon": "🏦"},
-                {"system_group": "sbp_qr", "name": "QR-код", "icon": "📱"},
-                {"system_group": "crypto", "name": "Крипто", "icon": "₿"},
-            ]
-        }
+        # Read disabled methods from env (comma-separated list)
+        disabled_methods_str = os.environ.get("RUKASSA_DISABLED_METHODS", "")
+        disabled_methods = set(m.strip().lower() for m in disabled_methods_str.split(",") if m.strip())
+        
+        # Base methods with min amounts (from Rukassa settings)
+        methods = [
+            {"system_group": "card", "name": "Карта", "icon": "💳", "min_amount": 1000},
+            {"system_group": "sbp", "name": "СБП", "icon": "🏦", "min_amount": 1000},
+            {"system_group": "sbp_qr", "name": "QR-код СБП", "icon": "📱", "min_amount": 10},
+            {"system_group": "crypto", "name": "Криптовалюта", "icon": "₿", "min_amount": 50},
+        ]
+        
+        # Add enabled/disabled status
+        for method in methods:
+            method["enabled"] = method["system_group"] not in disabled_methods
+        
+        return {"systems": methods}
     
     # Fallback to 1Plat methods
     payment_service = get_payment_service()
@@ -194,8 +208,8 @@ async def get_payment_methods(user=Depends(verify_telegram_auth)):
         # Return default methods on error
         return {
             "systems": [
-                {"system_group": "card", "name": "Карта", "icon": "💳"},
-                {"system_group": "sbp", "name": "СБП", "icon": "🏦"},
+                {"system_group": "card", "name": "Карта", "icon": "💳", "enabled": True, "min_amount": 0},
+                {"system_group": "sbp", "name": "СБП", "icon": "🏦", "enabled": True, "min_amount": 0},
             ]
         }
 

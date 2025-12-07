@@ -52,12 +52,12 @@ const METHOD_ICONS = {
   crypto: () => <img src={cryptoIcon} alt="Crypto" className="h-5" />,
 }
 
-// Минимальные суммы по методам (Rukassa пороги)
-const MIN_BY_METHOD = {
+// Минимальные суммы по методам - fallback если API не вернул
+const MIN_BY_METHOD_FALLBACK = {
   card: 1000,
   sbp: 1000,
   sbp_qr: 10,
-  crypto: 50, // если Rukassa ставит другой порог — поправим при необходимости
+  crypto: 50,
 }
 
 export function PaymentMethodDialog({ 
@@ -71,20 +71,37 @@ export function PaymentMethodDialog({
   isLoading,
   t 
 }) {
-  const [selectedMethod, setSelectedMethod] = useState(
-    availableMethods?.[0]?.system_group || 'card'
-  )
-
-  if (!open) return null
-
   const allowed = ['card', 'sbp', 'sbp_qr', 'crypto']
   const methodsRaw = availableMethods?.length ? availableMethods : [
-    { system_group: 'card', name: 'Банковская карта', icon: '💳' },
-    { system_group: 'sbp', name: 'СБП', icon: '🏦' },
-    { system_group: 'sbp_qr', name: 'QR-код СБП', icon: '📱' },
-    { system_group: 'crypto', name: 'Криптовалюта', icon: '₿' },
+    { system_group: 'card', name: 'Банковская карта', icon: '💳', enabled: true, min_amount: 1000 },
+    { system_group: 'sbp', name: 'СБП', icon: '🏦', enabled: true, min_amount: 1000 },
+    { system_group: 'sbp_qr', name: 'QR-код СБП', icon: '📱', enabled: true, min_amount: 10 },
+    { system_group: 'crypto', name: 'Криптовалюта', icon: '₿', enabled: true, min_amount: 50 },
   ]
   const methods = methodsRaw.filter((m) => allowed.includes((typeof m === 'string' ? m : m.system_group) || ''))
+  
+  // Find first enabled method that user can afford
+  const getDefaultMethod = () => {
+    for (const m of methods) {
+      const methodId = typeof m === 'string' ? m : m.system_group
+      const isEnabled = typeof m === 'object' ? (m.enabled !== false) : true
+      const minAmount = typeof m === 'object' && m.min_amount ? m.min_amount : MIN_BY_METHOD_FALLBACK[methodId] || 0
+      if (isEnabled && total >= minAmount) {
+        return methodId
+      }
+    }
+    // Fallback to first enabled method even if can't afford
+    for (const m of methods) {
+      const methodId = typeof m === 'string' ? m : m.system_group
+      const isEnabled = typeof m === 'object' ? (m.enabled !== false) : true
+      if (isEnabled) return methodId
+    }
+    return 'card'
+  }
+  
+  const [selectedMethod, setSelectedMethod] = useState(getDefaultMethod)
+
+  if (!open) return null
 
   const handleConfirm = () => {
     onConfirm(selectedMethod)
@@ -144,11 +161,26 @@ export function PaymentMethodDialog({
                   const methodName = typeof method === 'string' ? method.toUpperCase() : method.name
                   const IconComponent = METHOD_ICONS[methodId] || CreditCard
                   const isSelected = selectedMethod === methodId
-                  const minAmount = MIN_BY_METHOD[methodId] || 0
-                  const disabled = total < minAmount
+                  
+                  // Check if method is enabled from API (defaults to true if not specified)
+                  const isEnabled = typeof method === 'object' ? (method.enabled !== false) : true
+                  
+                  // Min amount from API or fallback
+                  const minAmount = typeof method === 'object' && method.min_amount 
+                    ? method.min_amount 
+                    : MIN_BY_METHOD_FALLBACK[methodId] || 0
+                  
+                  // Method is disabled if: explicitly disabled by API OR total is below min
+                  const disabledByApi = !isEnabled
+                  const disabledByAmount = total < minAmount
+                  const disabled = disabledByApi || disabledByAmount
 
                   const handleClick = () => {
-                    if (disabled) {
+                    if (disabledByApi) {
+                      window.alert(`Метод "${methodName}" временно недоступен. Выберите другой способ оплаты.`)
+                      return
+                    }
+                    if (disabledByAmount) {
                       window.alert(`Недоступно для суммы ${total.toLocaleString('ru-RU')} ₽. Минимум для метода ${methodName} — ${minAmount.toLocaleString('ru-RU')} ₽`)
                       return
                     }
@@ -165,17 +197,20 @@ export function PaymentMethodDialog({
                         ${disabled ? 'opacity-50 cursor-not-allowed bg-muted/40 border-border' : isSelected ? 'border-primary ring-1 ring-primary/50 bg-primary/5' : 'border-border hover:border-primary/40'}
                         flex items-center justify-between gap-3
                       `}
-                        >
+                    >
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${disabled ? 'bg-muted text-muted-foreground' : isSelected ? 'bg-primary/10' : 'bg-muted'}`}>
                           <IconComponent />
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-medium text-sm text-foreground">{methodName}</span>
+                          <span className="font-medium text-sm text-foreground">
+                            {methodName}
+                            {disabledByApi && <span className="ml-2 text-xs text-red-500">(недоступен)</span>}
+                          </span>
                           <span className="text-xs text-muted-foreground">
                             {methodId === 'sbp_qr' ? 'QR СБП' : methodId === 'sbp' ? 'Приложение банка' : methodId === 'crypto' ? 'USDT / ₿' : ''}
-                            {minAmount ? ` • от ${minAmount.toLocaleString('ru-RU')} ₽` : ''}
-                        </span>
+                            {minAmount && !disabledByApi ? ` • от ${minAmount.toLocaleString('ru-RU')} ₽` : ''}
+                          </span>
                         </div>
                       </div>
                       <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${disabled ? 'border-muted-foreground/30' : isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
