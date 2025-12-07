@@ -354,9 +354,9 @@ class PaymentService:
         # user_id обязателен для 1Plat API (без эвристик)
         if user_id is None:
             raise ValueError("user_id обязателен для создания платежа")
-            try:
+        try:
             user_id_int = int(str(user_id))
-            except Exception:
+        except Exception:
             raise ValueError("user_id должен быть числом (используйте telegram_id)")
         
         api_url = f"{base_url}/api/merchant/order/create/by-api"
@@ -1102,8 +1102,8 @@ class PaymentService:
                 }).eq("id", order_id).execute()
             )
             
-        return {
-            "success": True,
+            return {
+                "success": True,
                 "method": "manual",
                 "amount": float(amount),
                 "message": "Refund queued for manual processing"

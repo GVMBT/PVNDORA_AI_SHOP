@@ -132,15 +132,15 @@ async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_t
                 detail="Rukassa не настроен. Настройте RUKASSA_SHOP_ID, RUKASSA_TOKEN"
             )
     else:  # Default to 1Plat
-    onplat_configured = bool(
-        (os.environ.get("ONEPLAT_SHOP_ID") or os.environ.get("ONEPLAT_MERCHANT_ID")) and
-        os.environ.get("ONEPLAT_SECRET_KEY")
-    )
-    if not onplat_configured:
-        raise HTTPException(
-            status_code=500,
-            detail="Payment service not configured. Please configure 1Plat credentials."
+        onplat_configured = bool(
+            (os.environ.get("ONEPLAT_SHOP_ID") or os.environ.get("ONEPLAT_MERCHANT_ID")) and
+            os.environ.get("ONEPLAT_SECRET_KEY")
         )
+        if not onplat_configured:
+            raise HTTPException(
+                status_code=500,
+                detail="Payment service not configured. Please configure 1Plat credentials."
+            )
     
     payment_method = request.payment_method or "card"
     
@@ -385,20 +385,20 @@ async def _create_single_order(db, db_user, user, request: CreateOrderRequest, p
     # active или out_of_stock - можно заказать
     quantity = request.quantity or 1
     
-        from core.cart import get_cart_manager
-        cart_manager = get_cart_manager()
+    from core.cart import get_cart_manager
+    cart_manager = get_cart_manager()
         
     # Добавляем в корзину (учитывая сток для разбиения instant/prepaid внутри cart_manager)
-        available_stock = await db.get_available_stock_count(request.product_id)
-        await cart_manager.add_item(
-            user_telegram_id=user.id,
-            product_id=request.product_id,
-            product_name=product.name,
-            quantity=quantity,
-            available_stock=available_stock,
-            unit_price=product.price,
-            discount_percent=0.0
-        )
+    available_stock = await db.get_available_stock_count(request.product_id)
+    await cart_manager.add_item(
+        user_telegram_id=user.id,
+        product_id=request.product_id,
+        product_name=product.name,
+        quantity=quantity,
+        available_stock=available_stock,
+        unit_price=product.price,
+        discount_percent=0.0
+    )
     
     # Применяем промокод к корзине, если передан
     if request.promo_code:
