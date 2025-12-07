@@ -1184,6 +1184,10 @@ class PaymentService:
         # Prefer deeplink; CrystalPay will follow redirect_url after payment
         redirect_url = deeplink or fallback_result
         
+        # TEST mode: force test method to avoid real charges in sandbox
+        test_mode = os.environ.get("CRYSTALPAY_TEST_MODE", "false").lower() == "true"
+        required_method = "TEST" if test_mode else None
+        
         # API request payload (JSON)
         # lifetime = 15 минут для синхронизации с резервом товара
         payload = {
@@ -1198,6 +1202,8 @@ class PaymentService:
             "callback_url": callback_url,
             "redirect_url": redirect_url,
         }
+        if required_method:
+            payload["required_method"] = required_method
         
         headers = {
             "Content-Type": "application/json",
