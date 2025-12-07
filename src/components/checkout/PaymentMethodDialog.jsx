@@ -142,8 +142,11 @@ export function PaymentMethodDialog({
             </button>
             
             {/* Content with scroll + sticky CTA for desktop/mini-app */}
-            <div className="px-5 pt-2 pb-4 flex flex-col max-h-[80vh]">
-              <div className="flex-1 overflow-y-auto pr-1">
+            <div
+              className="px-5 pt-2 pb-2 flex flex-col max-h-[82vh] overflow-hidden"
+              style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
+            >
+              <div className="flex-1 min-h-0 overflow-y-auto pr-1">
                 {/* Header */}
                 <div className="text-center mb-6">
                   <h2 className="text-xl font-bold mb-1">
@@ -233,7 +236,10 @@ export function PaymentMethodDialog({
               </div>
 
               {/* Sticky CTA */}
-              <div className="sticky bottom-0 bg-background pt-3 pb-2 border-t border-border/60">
+              <div
+                className="sticky bottom-0 bg-background pt-3 pb-4 border-t border-border/60"
+                style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
+              >
                 <Button
                   onClick={handleConfirm}
                   disabled={isLoading}
