@@ -40,6 +40,8 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
     formatPrice,
     t,
     availableMethods,
+    selectedGateway,
+    setSelectedGateway,
   } = useCheckoutFlow({ productId, initialQuantity, onBack, onSuccess })
 
   if (productLoading || cartLoading) {
@@ -139,6 +141,8 @@ export default function CheckoutPage({ productId, initialQuantity = 1, onBack, o
         open={showPaymentDialog}
         onClose={() => setShowPaymentDialog(false)}
         availableMethods={availableMethods}
+        selectedGateway={selectedGateway}
+        onGatewayChange={setSelectedGateway}
         total={total}
         currency={currency}
         formatPrice={formatPrice}

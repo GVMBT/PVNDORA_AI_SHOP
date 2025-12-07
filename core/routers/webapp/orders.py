@@ -7,7 +7,7 @@ import os
 import asyncio
 from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 
 from src.services.database import get_database
 from core.auth import verify_telegram_auth
@@ -145,6 +145,17 @@ async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_t
                 status_code=500,
                 detail="Rukassa не настроен. Настройте RUKASSA_SHOP_ID, RUKASSA_TOKEN"
             )
+    elif payment_gateway == "crystalpay":
+        crystalpay_configured = bool(
+            os.environ.get("CRYSTALPAY_LOGIN") and
+            os.environ.get("CRYSTALPAY_SECRET") and
+            os.environ.get("CRYSTALPAY_SALT")
+        )
+        if not crystalpay_configured:
+            raise HTTPException(
+                status_code=500,
+                detail="CrystalPay не настроен. Настройте CRYSTALPAY_LOGIN, CRYSTALPAY_SECRET, CRYSTALPAY_SALT"
+            )
     else:  # Default to 1Plat
         onplat_configured = bool(
             (os.environ.get("ONEPLAT_SHOP_ID") or os.environ.get("ONEPLAT_MERCHANT_ID")) and
@@ -169,17 +180,20 @@ async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_t
 
 
 @router.get("/payments/methods")
-async def get_payment_methods(user=Depends(verify_telegram_auth)):
+async def get_payment_methods(
+    user=Depends(verify_telegram_auth),
+    gateway: str = Query(None, description="Payment gateway override (rukassa|crystalpay|1plat|freekassa)"),
+):
     """Get available payment methods based on configured gateway.
     
     Returns methods with their status (enabled/disabled).
     Disabled methods are read from RUKASSA_DISABLED_METHODS env (comma-separated).
     Example: RUKASSA_DISABLED_METHODS=sbp_qr,clever
     """
-    gateway = os.environ.get("DEFAULT_PAYMENT_GATEWAY", "rukassa")
+    selected_gateway = (gateway or os.environ.get("DEFAULT_PAYMENT_GATEWAY", "rukassa")).lower()
     
     # Rukassa methods (https://lk.rukassa.io)
-    if gateway == "rukassa":
+    if selected_gateway == "rukassa":
         # Read disabled methods from env (comma-separated list)
         disabled_methods_str = os.environ.get("RUKASSA_DISABLED_METHODS", "")
         disabled_methods = set(m.strip().lower() for m in disabled_methods_str.split(",") if m.strip())
@@ -196,6 +210,17 @@ async def get_payment_methods(user=Depends(verify_telegram_auth)):
         for method in methods:
             method["enabled"] = method["system_group"] not in disabled_methods
         
+        return {"systems": methods}
+    
+    # CrystalPay methods
+    elif selected_gateway == "crystalpay":
+        # CrystalPay accepts all methods generally, but we can restrict if needed
+        # Assuming all main methods are available via their single payment page
+        methods = [
+            {"system_group": "card", "name": "Банковская карта", "icon": "💳", "enabled": True, "min_amount": 100},
+            {"system_group": "sbp", "name": "СБП", "icon": "🏦", "enabled": True, "min_amount": 100},
+            {"system_group": "crypto", "name": "Криптовалюта", "icon": "₿", "enabled": True, "min_amount": 50},
+        ]
         return {"systems": methods}
     
     # Fallback to 1Plat methods

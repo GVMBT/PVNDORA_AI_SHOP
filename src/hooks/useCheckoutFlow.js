@@ -24,6 +24,7 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
   const [quantity, setQuantity] = useState(initialQuantity)
   const [error, setError] = useState(null)
   const [availableMethods, setAvailableMethods] = useState([])
+  const [selectedGateway, setSelectedGateway] = useState('rukassa')
   const isCartMode = !productId
 
   const loadProduct = useCallback(async () => {
@@ -158,7 +159,8 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
 
       const result = await createOrderFromCart(
         promoResult?.is_valid ? promoCode : null,
-        selectedPaymentMethod
+        selectedPaymentMethod || 'card',
+        selectedGateway
       )
 
       hapticFeedback('notification', 'success')
@@ -205,6 +207,7 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
     promoResult,
     quantity,
     showAlert,
+    selectedGateway,
     t
   ])
 
@@ -214,18 +217,17 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
     } else {
       loadCart()
     }
-    // load payment methods
-    getPaymentMethods()
+    // load payment methods for selected gateway
+    getPaymentMethods(selectedGateway)
       .then((data) => {
         if (data && Array.isArray(data.systems)) {
           // Keep full method objects for icons/names
           setAvailableMethods(data.systems)
         } else {
-          // Default Rukassa methods
+          // Default methods fallback
           setAvailableMethods([
             { system_group: 'card', name: 'Банковская карта', icon: '💳' },
             { system_group: 'sbp', name: 'СБП', icon: '🏦' },
-            { system_group: 'sbp_qr', name: 'QR-код СБП', icon: '📱' },
             { system_group: 'crypto', name: 'Криптовалюта', icon: '₿' },
           ])
         }
@@ -243,7 +245,7 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
     return () => {
       setBackButton({ isVisible: false })
     }
-  }, [productId, loadProduct, loadCart, onBack, setBackButton, getPaymentMethods])
+  }, [productId, loadProduct, loadCart, onBack, setBackButton, getPaymentMethods, selectedGateway])
 
   const total = calculateTotal()
   const currency = product?.currency || cart?.currency || 'USD'
@@ -290,6 +292,8 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
     formatPrice,
     t,
     availableMethods,
+    selectedGateway,
+    setSelectedGateway,
   }
 }
 

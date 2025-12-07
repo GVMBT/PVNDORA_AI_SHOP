@@ -317,4 +317,138 @@ async def rukassa_webhook(request: Request):
         return Response(content=f"ERROR {str(e)}", status_code=500)
 
 
+# ==================== CRYSTALPAY WEBHOOK ====================
+
+@router.post("/api/webhook/crystalpay")
+@router.post("/webhook/crystalpay")
+async def crystalpay_webhook(request: Request):
+    """
+    Handle CrystalPay payment webhook.
+    
+    CrystalPay sends POST with JSON:
+    - id: Invoice ID
+    - signature: sha1(id + ':' + salt)
+    - state: payed, notpayed, processing, cancelled
+    - extra: Our order_id (stored during invoice creation)
+    - amount, rub_amount, currency, etc.
+    
+    Must return HTTP 200 on success.
+    
+    Docs: https://docs.crystalpay.io/callback/invoice-uvedomleniya
+    """
+    try:
+        # Parse JSON body
+        raw_body = await request.body()
+        try:
+            data = json.loads(raw_body.decode('utf-8'))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            print("CrystalPay webhook: Could not parse JSON body")
+            return JSONResponse(
+                {"error": "Could not parse JSON"},
+                status_code=400
+            )
+        
+        if not data:
+            print("CrystalPay webhook: Empty request body")
+            return JSONResponse(
+                {"error": "Empty request body"},
+                status_code=400
+            )
+        
+        # Log webhook receipt
+        invoice_id = data.get("id") or "unknown"
+        state = data.get("state") or "unknown"
+        order_id = data.get("extra") or "unknown"
+        print(f"CrystalPay webhook: invoice={invoice_id}, state={state}, order_id={order_id}")
+        
+        payment_service = get_payment_service()
+        result = await payment_service.verify_crystalpay_webhook(data)
+        
+        if result["success"]:
+            real_order_id = result["order_id"]
+            
+            print(f"CrystalPay webhook verified for order: {real_order_id}")
+            
+            # Find real order by payment_id field (maps invoice_id -> real order)
+            from src.services.database import get_database
+            db = get_database()
+            
+            try:
+                import asyncio
+                # Try lookup by payment_id (invoice_id saved during creation)
+                lookup_result = await asyncio.to_thread(
+                    lambda: db.client.table("orders")
+                    .select("id")
+                    .eq("payment_id", invoice_id)
+                    .limit(1)
+                    .execute()
+                )
+                if lookup_result.data:
+                    real_order_id = lookup_result.data[0]["id"]
+                    print(f"CrystalPay webhook: mapped invoice {invoice_id} -> order {real_order_id}")
+                else:
+                    # Fallback: try direct lookup by order_id from extra
+                    direct_result = await asyncio.to_thread(
+                        lambda: db.client.table("orders")
+                        .select("id")
+                        .eq("id", order_id)
+                        .limit(1)
+                        .execute()
+                    )
+                    if direct_result.data:
+                        real_order_id = direct_result.data[0]["id"]
+                        print(f"CrystalPay webhook: direct order lookup for {real_order_id}")
+                    else:
+                        print(f"CrystalPay webhook: Order not found for invoice {invoice_id}, extra {order_id}")
+                        return JSONResponse(
+                            {"error": "Order not found"},
+                            status_code=404
+                        )
+            except Exception as e:
+                print(f"CrystalPay webhook: Order lookup error: {e}")
+                # Continue with order_id from extra as fallback
+            
+            print(f"CrystalPay webhook processing delivery for order: {real_order_id}")
+            
+            publish_to_worker, WorkerEndpoints = get_queue_publisher()
+            
+            # Guaranteed delivery via QStash
+            await publish_to_worker(
+                endpoint=WorkerEndpoints.DELIVER_GOODS,
+                body={"order_id": real_order_id},
+                retries=5,
+                deduplication_id=f"deliver-{real_order_id}"
+            )
+            
+            # Calculate referral bonus
+            await publish_to_worker(
+                endpoint=WorkerEndpoints.CALCULATE_REFERRAL,
+                body={"order_id": real_order_id},
+                retries=3,
+                deduplication_id=f"referral-{real_order_id}"
+            )
+            
+            # CrystalPay expects HTTP 200 response
+            return JSONResponse({"ok": True}, status_code=200)
+        
+        # Log verification failure
+        error_msg = result.get("error", "Unknown error")
+        print(f"CrystalPay webhook failed: {error_msg}")
+        
+        return JSONResponse(
+            {"error": error_msg},
+            status_code=400
+        )
+        
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"CrystalPay webhook error: {e}")
+        print(f"Traceback: {error_trace}")
+        return JSONResponse(
+            {"error": str(e)},
+            status_code=500
+        )
+
+
 

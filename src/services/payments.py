@@ -35,6 +35,12 @@ class PaymentService:
         self.rukassa_token = os.environ.get("RUKASSA_TOKEN", "")
         self.rukassa_api_url = os.environ.get("RUKASSA_API_URL", "https://lk.rukassa.io/api/v1")
         
+        # CrystalPay credentials (docs.crystalpay.io)
+        self.crystalpay_login = os.environ.get("CRYSTALPAY_LOGIN", "")
+        self.crystalpay_secret = os.environ.get("CRYSTALPAY_SECRET", "")
+        self.crystalpay_salt = os.environ.get("CRYSTALPAY_SALT", "")
+        self.crystalpay_api_url = os.environ.get("CRYSTALPAY_API_URL", "https://api.crystalpay.io/v3")
+        
         # Webhook URLs
         self.base_url = os.environ.get("WEBAPP_URL", "https://pvndora.app")
         
@@ -312,7 +318,15 @@ class PaymentService:
                 user_id=user_id,
                 payment_method=payment_method,
             )
-        raise ValueError(f"Unknown payment method: {method}. Supported: '1plat', 'freekassa', 'rukassa'.")
+        elif method == "crystalpay":
+            return await self._create_crystalpay_payment(
+                order_id=order_id,
+                amount=amount,
+                product_name=product_name,
+                currency=currency,
+                user_id=user_id,
+            )
+        raise ValueError(f"Unknown payment method: {method}. Supported: '1plat', 'freekassa', 'rukassa', 'crystalpay'.")
 
     # ==================== RUKASSA HELPERS ====================
 
@@ -1120,6 +1134,241 @@ class PaymentService:
         except Exception as e:
             logger.exception("Rukassa webhook verification error")
             return {"success": False, "error": str(e)}
+    
+    # ==================== CRYSTALPAY (docs.crystalpay.io) ====================
+    
+    def _validate_crystalpay_config(self) -> Tuple[str, str, str, str]:
+        """Проверка обязательных настроек CrystalPay и возврат login, secret, salt, api_url."""
+        login = self.crystalpay_login or ""
+        secret = self.crystalpay_secret or ""
+        salt = self.crystalpay_salt or ""
+        api_url = self.crystalpay_api_url.rstrip("/")
+        
+        if not login:
+            raise ValueError("CrystalPay Login (CRYSTALPAY_LOGIN) не настроен")
+        if not secret:
+            raise ValueError("CrystalPay Secret (CRYSTALPAY_SECRET) не настроен")
+        if not salt:
+            raise ValueError("CrystalPay Salt (CRYSTALPAY_SALT) не настроен")
+        return login, secret, salt, api_url
+    
+    async def _create_crystalpay_payment(
+        self,
+        order_id: str,
+        amount: float,
+        product_name: str,
+        currency: str = "RUB",
+        user_id: int = None,
+    ) -> str:
+        """
+        Create CrystalPay invoice via API.
+        
+        Based on CrystalPay API documentation (docs.crystalpay.io/v3):
+        - Endpoint: POST /invoice/create/
+        - Required: auth_login, auth_secret, amount, type, lifetime
+        - Optional: currency, required_method, description, extra, redirect_url, callback_url
+        
+        Response: id, url, rub_amount, currency, amount, type
+        """
+        login, secret, salt, api_url = self._validate_crystalpay_config()
+        
+        # Amount in rubles (CrystalPay expects float)
+        amount_rub = float(amount)
+        
+        # Build callback URL
+        callback_url = f"{self.base_url}/api/webhook/crystalpay"
+        
+        # API request payload (JSON)
+        payload = {
+            "auth_login": login,
+            "auth_secret": secret,
+            "amount": amount_rub,
+            "type": "purchase",  # purchase для покупки товара, topup для пополнения
+            "lifetime": 60,  # время жизни инвойса в минутах (1 час)
+            "currency": currency or "RUB",
+            "description": product_name[:200] if product_name else "Оплата заказа",
+            "extra": order_id,  # сохраняем order_id для callback
+            "callback_url": callback_url,
+            "redirect_url": f"{self.base_url}/payment/result?order_id={order_id}",
+        }
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        
+        logger.info("CrystalPay payment creation for order %s: amount=%s %s", 
+                   order_id, amount_rub, currency)
+        
+        client = await self._get_http_client()
+        try:
+            response = await client.post(
+                f"{api_url}/invoice/create/",
+                headers=headers,
+                json=payload
+            )
+            logger.info("CrystalPay API response status: %s for order %s", response.status_code, order_id)
+            
+            data = response.json()
+            logger.debug("CrystalPay API response: %s", data)
+            
+            # Check for errors
+            if data.get("error"):
+                errors = data.get("errors", [])
+                error_msg = ", ".join(errors) if errors else "Unknown error"
+                logger.error("CrystalPay API error for order %s: %s", order_id, error_msg)
+                raise ValueError(f"CrystalPay error: {error_msg}")
+            
+            # Extract payment data from response
+            invoice_id = data.get("id")
+            payment_url = data.get("url")
+            
+            if not payment_url:
+                logger.error("CrystalPay: URL not in response. Keys: %s", list(data.keys()))
+                raise ValueError("Payment URL not found in CrystalPay response")
+            
+            # Save payment reference (invoice_id)
+            if invoice_id:
+                await self._save_payment_reference(order_id, str(invoice_id))
+            
+            logger.info("CrystalPay payment created: order=%s, invoice_id=%s", order_id, invoice_id)
+            return payment_url
+            
+        except httpx.HTTPStatusError as e:
+            try:
+                error_data = e.response.json()
+                error_detail = ", ".join(error_data.get("errors", [])) or str(error_data)
+            except Exception:
+                error_detail = e.response.text[:200]
+            logger.error("CrystalPay API error %s for order %s: %s", e.response.status_code, order_id, error_detail)
+            raise ValueError(f"CrystalPay API error: {error_detail}")
+        except httpx.RequestError as e:
+            logger.error("CrystalPay network error: %s", e)
+            raise ValueError(f"Failed to connect to CrystalPay API: {str(e)}")
+    
+    async def verify_crystalpay_webhook(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Verify CrystalPay webhook signature and extract order info.
+        
+        CrystalPay callback format (POST JSON):
+        - signature: sha1(id + ':' + salt)
+        - id: Invoice ID
+        - state: payed, notpayed, processing, cancelled, etc.
+        - extra: Our order_id (passed during creation)
+        - amount, rub_amount, currency, etc.
+        
+        Returns:
+            {"success": bool, "order_id": str, "amount": float, "currency": str, "error": str}
+        """
+        try:
+            # Extract required fields
+            invoice_id = str(data.get("id", "")).strip()
+            received_signature = str(data.get("signature", "")).strip().lower()
+            state = str(data.get("state", "")).strip().lower()
+            order_id = str(data.get("extra", "")).strip()  # Our order_id stored in extra
+            
+            # Amount handling
+            amount_str = str(data.get("amount", "0")).strip()
+            rub_amount_str = str(data.get("rub_amount", "0")).strip()
+            currency = str(data.get("currency", "RUB")).strip().upper()
+            
+            # Log webhook data
+            logger.info("CrystalPay webhook: id=%s, state=%s, order_id=%s, amount=%s %s", 
+                       invoice_id, state, order_id, amount_str, currency)
+            
+            if not invoice_id:
+                logger.error("CrystalPay webhook: invoice id not found")
+                return {"success": False, "error": "invoice id not found"}
+            
+            # If order_id not in extra, try to lookup by invoice_id in our DB
+            if not order_id:
+                found_order_id, _ = await self._lookup_order_id(invoice_id, None)
+                if found_order_id:
+                    order_id = found_order_id
+                else:
+                    logger.error("CrystalPay webhook: order_id not found in extra or DB")
+                    return {"success": False, "error": "order_id not found"}
+            
+            # Verify signature: sha1(id + ':' + salt)
+            salt = self.crystalpay_salt or ""
+            if received_signature and salt:
+                sign_string = f"{invoice_id}:{salt}"
+                expected_signature = hashlib.sha1(sign_string.encode()).hexdigest().lower()
+                
+                if not hmac.compare_digest(received_signature, expected_signature):
+                    logger.error("CrystalPay webhook: Signature mismatch for invoice %s", invoice_id)
+                    logger.debug("CrystalPay signature: received=%s, expected=%s", received_signature, expected_signature)
+                    return {"success": False, "error": "Invalid signature"}
+                
+                logger.info("CrystalPay webhook: Signature verified for invoice %s", invoice_id)
+            elif not received_signature:
+                logger.warning("CrystalPay webhook: No signature provided for invoice %s", invoice_id)
+            
+            # Check payment state - "payed" means successful
+            if state != "payed":
+                logger.warning("CrystalPay webhook: Payment state '%s' for order %s", state, order_id)
+                return {"success": False, "error": f"Payment not successful. State: {state}"}
+            
+            # Parse amounts
+            try:
+                amount = float(amount_str) if amount_str else 0.0
+                rub_amount = float(rub_amount_str) if rub_amount_str else amount
+            except (ValueError, TypeError):
+                amount = 0.0
+                rub_amount = 0.0
+            
+            logger.info("CrystalPay webhook verified: order=%s, amount=%s %s, rub_amount=%s", 
+                       order_id, amount, currency, rub_amount)
+            return {
+                "success": True,
+                "order_id": order_id,
+                "amount": amount,
+                "rub_amount": rub_amount,
+                "currency": currency,
+                "invoice_id": invoice_id
+            }
+                
+        except Exception as e:
+            logger.exception("CrystalPay webhook verification error")
+            return {"success": False, "error": str(e)}
+    
+    async def get_crystalpay_invoice_info(self, invoice_id: str) -> Dict[str, Any]:
+        """
+        Get CrystalPay invoice info by ID.
+        
+        Useful for checking payment status manually.
+        """
+        login, secret, salt, api_url = self._validate_crystalpay_config()
+        
+        payload = {
+            "auth_login": login,
+            "auth_secret": secret,
+            "id": invoice_id,
+        }
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        
+        client = await self._get_http_client()
+        try:
+            response = await client.post(
+                f"{api_url}/invoice/info/",
+                headers=headers,
+                json=payload
+            )
+            data = response.json()
+            
+            if data.get("error"):
+                errors = data.get("errors", [])
+                error_msg = ", ".join(errors) if errors else "Unknown error"
+                raise ValueError(f"CrystalPay error: {error_msg}")
+            
+            return data
+        except Exception as e:
+            logger.error("CrystalPay get invoice info error: %s", e)
+            raise
     
     # ==================== REFUNDS ====================
     
