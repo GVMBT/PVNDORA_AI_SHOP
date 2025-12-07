@@ -52,6 +52,14 @@ const METHOD_ICONS = {
   crypto: () => <img src={cryptoIcon} alt="Crypto" className="h-5" />,
 }
 
+// Минимальные суммы по методам (Rukassa пороги)
+const MIN_BY_METHOD = {
+  card: 1000,
+  sbp: 1000,
+  sbp_qr: 10,
+  crypto: 50, // если Rukassa ставит другой порог — поправим при необходимости
+}
+
 export function PaymentMethodDialog({ 
   open, 
   onClose, 
@@ -136,31 +144,42 @@ export function PaymentMethodDialog({
                   const methodName = typeof method === 'string' ? method.toUpperCase() : method.name
                   const IconComponent = METHOD_ICONS[methodId] || CreditCard
                   const isSelected = selectedMethod === methodId
+                  const minAmount = MIN_BY_METHOD[methodId] || 0
+                  const disabled = total < minAmount
+
+                  const handleClick = () => {
+                    if (disabled) {
+                      window.alert(`Недоступно для суммы ${total.toLocaleString('ru-RU')} ₽. Минимум для метода ${methodName} — ${minAmount.toLocaleString('ru-RU')} ₽`)
+                      return
+                    }
+                    setSelectedMethod(methodId)
+                  }
 
                   return (
                     <motion.button
                       key={methodId}
-                      onClick={() => setSelectedMethod(methodId)}
-                      whileTap={{ scale: 0.99 }}
+                      onClick={handleClick}
+                      whileTap={disabled ? undefined : { scale: 0.99 }}
                       className={`
                         w-full rounded-2xl border p-4 text-left transition-all duration-150
-                        ${isSelected ? 'border-primary ring-1 ring-primary/50 bg-primary/5' : 'border-border hover:border-primary/40'}
+                        ${disabled ? 'opacity-50 cursor-not-allowed bg-muted/40 border-border' : isSelected ? 'border-primary ring-1 ring-primary/50 bg-primary/5' : 'border-border hover:border-primary/40'}
                         flex items-center justify-between gap-3
                       `}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isSelected ? 'bg-primary/10' : 'bg-muted'}`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${disabled ? 'bg-muted text-muted-foreground' : isSelected ? 'bg-primary/10' : 'bg-muted'}`}>
                           <IconComponent />
                         </div>
                         <div className="flex flex-col">
                           <span className="font-medium text-sm text-foreground">{methodName}</span>
                           <span className="text-xs text-muted-foreground">
                             {methodId === 'sbp_qr' ? 'QR СБП' : methodId === 'sbp' ? 'Приложение банка' : methodId === 'crypto' ? 'USDT / ₿' : ''}
+                            {minAmount ? ` • от ${minAmount.toLocaleString('ru-RU')} ₽` : ''}
                           </span>
                         </div>
                       </div>
-                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                        {isSelected && <CheckIcon className="w-3 h-3 text-primary-foreground" strokeWidth={3} />}
+                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${disabled ? 'border-muted-foreground/30' : isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                        {isSelected && !disabled && <CheckIcon className="w-3 h-3 text-primary-foreground" strokeWidth={3} />}
                       </div>
                     </motion.button>
                   )
