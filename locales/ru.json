@@ -96,13 +96,14 @@
     "leaveReview": "Отзыв",
     "unknownProduct": "Неизвестный товар",
     "status": {
-      "pending": "Ожидает",
+      "pending": "Ожидает оплаты",
       "prepaid": "Оплачен",
       "fulfilling": "Готовится",
       "ready": "Готов",
       "delivered": "Доставлен",
       "refunded": "Возврат",
       "cancelled": "Отменён",
+      "expired": "Просрочен",
       "failed": "Ошибка"
     }
   },

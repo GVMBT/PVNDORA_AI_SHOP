@@ -94,7 +94,7 @@ async def get_webapp_orders(user=Depends(verify_telegram_auth)):
             except Exception as e:
                 print(f"Warning: Failed to convert order prices: {e}")
         
-        result.append({
+        order_item = {
             "id": o.id, "product_id": o.product_id,
             "product_name": product.name if product else "Unknown Product",
             "amount": amount_converted, 
@@ -106,7 +106,11 @@ async def get_webapp_orders(user=Depends(verify_telegram_auth)):
             "delivered_at": o.delivered_at.isoformat() if hasattr(o, 'delivered_at') and o.delivered_at else None,
             "expires_at": o.expires_at.isoformat() if o.expires_at else None,
             "warranty_until": o.warranty_until.isoformat() if hasattr(o, 'warranty_until') and o.warranty_until else None
-        })
+        }
+        # Include payment_url for pending orders so user can retry payment
+        if o.status == "pending" and hasattr(o, 'payment_url') and o.payment_url:
+            order_item["payment_url"] = o.payment_url
+        result.append(order_item)
     
     return {"orders": result, "count": len(result), "currency": currency}
 

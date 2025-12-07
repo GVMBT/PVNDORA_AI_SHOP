@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useOrders } from '../hooks/useApi'
 import { useLocale } from '../hooks/useLocale'
 import { useTelegram } from '../hooks/useTelegram'
-import { ArrowLeft, Clock, CreditCard, Package, CheckCircle, RotateCcw, XCircle, AlertTriangle, Repeat, Star, ExternalLink, Copy } from 'lucide-react'
+import { ArrowLeft, Clock, CreditCard, Package, CheckCircle, RotateCcw, XCircle, AlertTriangle, Repeat, Star, ExternalLink, Copy, Timer } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent } from '../components/ui/card'
@@ -10,6 +10,69 @@ import { Skeleton } from '../components/ui/skeleton'
 import { motion } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { HeaderBar } from '../components/ui/header-bar'
+
+// Countdown timer component for pending orders
+function PaymentCountdown({ expiresAt }) {
+  const [timeLeft, setTimeLeft] = useState(null)
+  
+  useEffect(() => {
+    if (!expiresAt) return
+    
+    const calculateTimeLeft = () => {
+      const now = new Date()
+      const expiry = new Date(expiresAt)
+      const diff = expiry - now
+      
+      if (diff <= 0) {
+        return { expired: true, minutes: 0, seconds: 0 }
+      }
+      
+      const minutes = Math.floor(diff / 60000)
+      const seconds = Math.floor((diff % 60000) / 1000)
+      return { expired: false, minutes, seconds }
+    }
+    
+    setTimeLeft(calculateTimeLeft())
+    
+    const interval = setInterval(() => {
+      const newTimeLeft = calculateTimeLeft()
+      setTimeLeft(newTimeLeft)
+      if (newTimeLeft.expired) {
+        clearInterval(interval)
+      }
+    }, 1000)
+    
+    return () => clearInterval(interval)
+  }, [expiresAt])
+  
+  if (!timeLeft) return null
+  
+  if (timeLeft.expired) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-destructive bg-destructive/10 p-2 rounded-lg border border-destructive/20">
+        <XCircle className="h-4 w-4" />
+        <span className="font-medium">Время на оплату истекло</span>
+      </div>
+    )
+  }
+  
+  const isUrgent = timeLeft.minutes < 5
+  
+  return (
+    <div className={cn(
+      "flex items-center gap-2 text-xs p-2 rounded-lg border",
+      isUrgent 
+        ? "text-destructive bg-destructive/10 border-destructive/20 animate-pulse" 
+        : "text-amber-500 bg-amber-500/10 border-amber-500/20"
+    )}>
+      <Timer className="h-4 w-4" />
+      <span className="font-mono font-bold">
+        {String(timeLeft.minutes).padStart(2, '0')}:{String(timeLeft.seconds).padStart(2, '0')}
+      </span>
+      <span className="font-medium">на оплату</span>
+    </div>
+  )
+}
 
 const statusConfig = {
   pending: { icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/20', labelKey: 'orders.status.pending' },
@@ -19,6 +82,7 @@ const statusConfig = {
   delivered: { icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', labelKey: 'orders.status.delivered' },
   refunded: { icon: RotateCcw, color: 'text-muted-foreground', bg: 'bg-secondary', border: 'border-border', labelKey: 'orders.status.refunded' },
   cancelled: { icon: XCircle, color: 'text-destructive', bg: 'bg-destructive/10', border: 'border-destructive/20', labelKey: 'orders.status.cancelled' },
+  expired: { icon: XCircle, color: 'text-muted-foreground', bg: 'bg-secondary', border: 'border-border', labelKey: 'orders.status.expired' },
   failed: { icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10', border: 'border-destructive/20', labelKey: 'orders.status.failed' }
 }
 
@@ -191,12 +255,29 @@ export default function OrdersPage({ onBack }) {
                               </div>
                            )}
                            
-                           {/* Pay Button if Pending */}
-                           {order.status === 'pending' && order.payment_url && (
-                              <Button className="w-full bg-primary text-black hover:bg-primary/90 font-bold" onClick={() => window.open(order.payment_url, '_blank')}>
-                                {t('checkout.pay')}
-                                <ExternalLink className="h-4 w-4 ml-2" />
-                              </Button>
+                           {/* Payment Timer and Button for Pending Orders */}
+                           {order.status === 'pending' && (
+                              <div className="space-y-3">
+                                {order.expires_at && (
+                                  <PaymentCountdown expiresAt={order.expires_at} />
+                                )}
+                                {order.payment_url && (
+                                  <Button 
+                                    className="w-full bg-primary text-black hover:bg-primary/90 font-bold" 
+                                    onClick={() => {
+                                      hapticFeedback('impact', 'medium')
+                                      if (window.Telegram?.WebApp?.openLink) {
+                                        window.Telegram.WebApp.openLink(order.payment_url)
+                                      } else {
+                                        window.open(order.payment_url, '_blank')
+                                      }
+                                    }}
+                                  >
+                                    {t('checkout.pay') || 'Оплатить'}
+                                    <ExternalLink className="h-4 w-4 ml-2" />
+                                  </Button>
+                                )}
+                              </div>
                            )}
                         </div>
                       </CardContent>

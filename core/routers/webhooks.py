@@ -248,29 +248,32 @@ async def rukassa_webhook(request: Request):
             db = get_database()
             
             real_order_id = payment_order_id  # Default fallback
+            order_data = None
             try:
                 import asyncio
                 lookup_result = await asyncio.to_thread(
                     lambda: db.client.table("orders")
-                    .select("id")
+                    .select("*")
                     .eq("payment_id", payment_order_id)
                     .limit(1)
                     .execute()
                 )
                 if lookup_result.data:
-                    real_order_id = lookup_result.data[0]["id"]
+                    order_data = lookup_result.data[0]
+                    real_order_id = order_data["id"]
                     print(f"Rukassa webhook: mapped payment_id {payment_order_id} -> order_id {real_order_id}")
                 else:
                     # Fallback: try direct lookup (backward compatibility)
                     direct_result = await asyncio.to_thread(
                         lambda: db.client.table("orders")
-                        .select("id")
+                        .select("*")
                         .eq("id", payment_order_id)
                         .limit(1)
                         .execute()
                     )
                     if direct_result.data:
-                        real_order_id = direct_result.data[0]["id"]
+                        order_data = direct_result.data[0]
+                        real_order_id = order_data["id"]
                         print(f"Rukassa webhook: direct order lookup succeeded for {real_order_id}")
                     else:
                         print(f"Rukassa webhook: Order not found for payment_id {payment_order_id}")
@@ -278,6 +281,68 @@ async def rukassa_webhook(request: Request):
             except Exception as e:
                 print(f"Rukassa webhook: Order lookup error: {e}")
                 # Continue with payment_order_id as fallback
+            
+            # Handle edge case: payment came after order expired/cancelled
+            order_status = order_data.get("status", "pending") if order_data else "pending"
+            if order_status in ("expired", "cancelled"):
+                print(f"Rukassa webhook: Order {real_order_id} was {order_status}, attempting recovery")
+                
+                # Check if product is still available
+                product_id = order_data.get("product_id") if order_data else None
+                can_fulfill = False
+                
+                if product_id:
+                    try:
+                        stock_check = await asyncio.to_thread(
+                            lambda: db.client.table("stock_items")
+                            .select("id")
+                            .eq("product_id", product_id)
+                            .eq("status", "available")
+                            .limit(1)
+                            .execute()
+                        )
+                        can_fulfill = bool(stock_check.data)
+                    except Exception as e:
+                        print(f"Rukassa webhook: Stock check error: {e}")
+                
+                if can_fulfill:
+                    # Restore order and proceed with delivery
+                    print(f"Rukassa webhook: Restoring order {real_order_id} - stock available")
+                    await asyncio.to_thread(
+                        lambda: db.client.table("orders")
+                        .update({"status": "pending", "notes": "Restored after late payment"})
+                        .eq("id", real_order_id)
+                        .execute()
+                    )
+                else:
+                    # No stock - credit to user balance or create refund ticket
+                    print(f"Rukassa webhook: Order {real_order_id} - no stock, creating refund ticket")
+                    user_id = order_data.get("user_id") if order_data else None
+                    amount = result.get("amount", 0)
+                    
+                    if user_id:
+                        try:
+                            await asyncio.to_thread(
+                                lambda: db.client.table("tickets").insert({
+                                    "user_id": user_id,
+                                    "order_id": real_order_id,
+                                    "issue_type": "refund",
+                                    "description": f"Late payment after order expired. Amount: {amount}. Stock unavailable.",
+                                    "status": "open"
+                                }).execute()
+                            )
+                            # Mark order as needing refund
+                            await asyncio.to_thread(
+                                lambda: db.client.table("orders")
+                                .update({"status": "refund_pending", "refund_requested": True, "notes": "Late payment - stock unavailable"})
+                                .eq("id", real_order_id)
+                                .execute()
+                            )
+                        except Exception as e:
+                            print(f"Rukassa webhook: Failed to create refund ticket: {e}")
+                    
+                    # Still return OK to acknowledge webhook
+                    return Response(content="OK", status_code=200)
             
             print(f"Rukassa webhook processing delivery for order: {real_order_id}")
             
