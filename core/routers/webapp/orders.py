@@ -439,6 +439,9 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         )
     
     # Платёж успешно создан - теперь создаём заказ в БД
+    # Время жизни заказа = 15 минут (синхронизировано с lifetime инвойса)
+    payment_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+    
     order = await db.create_order(
         user_id=db_user.id, 
         product_id=first_item["product_id"],
@@ -446,7 +449,10 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         original_price=total_original,
         discount_percent=int((1 - total_amount / total_original) * 100) if total_original > 0 else 0,
         payment_method=payment_method,
-        user_telegram_id=user.id  # Telegram ID для webhook доставки
+        payment_gateway=payment_gateway,
+        user_telegram_id=user.id,  # Telegram ID для webhook доставки
+        expires_at=payment_expires_at,
+        payment_url=payment_url
     )
     
     # Обновляем order_id в платёжке (если поддерживается) или сохраняем маппинг

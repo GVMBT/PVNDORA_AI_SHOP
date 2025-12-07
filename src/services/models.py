@@ -75,6 +75,7 @@ class Order(BaseModel):
     discount_percent: int = 0
     status: str = "pending"
     payment_method: Optional[str] = None
+    payment_gateway: Optional[str] = None
     expires_at: Optional[datetime] = None
     delivered_at: Optional[datetime] = None
     warranty_until: Optional[datetime] = None
@@ -82,6 +83,7 @@ class Order(BaseModel):
     created_at: Optional[datetime] = None
     user_telegram_id: Optional[int] = None
     payment_id: Optional[str] = None
+    payment_url: Optional[str] = None
     order_type: Optional[str] = "instant"
     fulfillment_deadline: Optional[datetime] = None
 

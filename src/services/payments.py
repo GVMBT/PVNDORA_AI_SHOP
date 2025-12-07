@@ -1179,12 +1179,13 @@ class PaymentService:
         callback_url = f"{self.base_url}/api/webhook/crystalpay"
         
         # API request payload (JSON)
+        # lifetime = 15 минут для синхронизации с резервом товара
         payload = {
             "auth_login": login,
             "auth_secret": secret,
             "amount": amount_rub,
             "type": "purchase",  # purchase для покупки товара, topup для пополнения
-            "lifetime": 60,  # время жизни инвойса в минутах (1 час)
+            "lifetime": 15,  # время жизни инвойса в минутах (синхронизировано с резервом)
             "currency": currency or "RUB",
             "description": product_name[:200] if product_name else "Оплата заказа",
             "extra": order_id,  # сохраняем order_id для callback

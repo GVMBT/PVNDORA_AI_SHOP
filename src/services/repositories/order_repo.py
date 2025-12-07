@@ -15,10 +15,13 @@ class OrderRepository(BaseRepository):
         amount: float,
         original_price: Optional[float] = None,
         discount_percent: int = 0,
-        payment_method: str = "1plat",
-        user_telegram_id: Optional[int] = None
+        payment_method: str = "card",
+        payment_gateway: str = "rukassa",
+        user_telegram_id: Optional[int] = None,
+        expires_at: Optional[datetime] = None,
+        payment_url: Optional[str] = None
     ) -> Order:
-        """Create new order."""
+        """Create new order with payment expiration."""
         data = {
             "user_id": user_id,
             "product_id": product_id,
@@ -26,10 +29,15 @@ class OrderRepository(BaseRepository):
             "original_price": original_price or amount,
             "discount_percent": discount_percent,
             "status": "pending",
-            "payment_method": payment_method
+            "payment_method": payment_method,
+            "payment_gateway": payment_gateway
         }
         if user_telegram_id:
             data["user_telegram_id"] = user_telegram_id
+        if expires_at:
+            data["expires_at"] = expires_at.isoformat()
+        if payment_url:
+            data["payment_url"] = payment_url
         result = self.client.table("orders").insert(data).execute()
         return Order(**result.data[0])
     
@@ -77,9 +85,18 @@ class OrderRepository(BaseRepository):
         return [Order(**o) for o in result.data]
     
     async def get_pending_expired(self) -> List[Order]:
-        """Get pending orders older than 1 hour."""
-        cutoff = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
-        result = self.client.table("orders").select("*").eq("status", "pending").lt(
+        """Get pending orders that have expired (expires_at < now)."""
+        now = datetime.now(timezone.utc).isoformat()
+        # Get orders where expires_at is set and has passed
+        result = self.client.table("orders").select("*").eq("status", "pending").not_.is_("expires_at", "null").lt(
+            "expires_at", now
+        ).execute()
+        return [Order(**o) for o in result.data]
+    
+    async def get_pending_stale(self, minutes: int = 60) -> List[Order]:
+        """Get pending orders older than N minutes (fallback for orders without expires_at)."""
+        cutoff = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
+        result = self.client.table("orders").select("*").eq("status", "pending").is_("expires_at", "null").lt(
             "created_at", cutoff
         ).execute()
         return [Order(**o) for o in result.data]

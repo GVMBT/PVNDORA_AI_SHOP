@@ -121,10 +121,16 @@ class Database:
         amount: float,
         original_price: Optional[float] = None,
         discount_percent: int = 0,
-        payment_method: str = "1plat",
-        user_telegram_id: Optional[int] = None
+        payment_method: str = "card",
+        payment_gateway: str = "rukassa",
+        user_telegram_id: Optional[int] = None,
+        expires_at: Optional[datetime] = None,
+        payment_url: Optional[str] = None
     ) -> Order:
-        return await self._orders.create(user_id, product_id, amount, original_price, discount_percent, payment_method, user_telegram_id)
+        return await self._orders.create(
+            user_id, product_id, amount, original_price, discount_percent,
+            payment_method, payment_gateway, user_telegram_id, expires_at, payment_url
+        )
     
     async def create_order_with_availability_check(
         self,
