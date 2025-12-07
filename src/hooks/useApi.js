@@ -47,22 +47,48 @@ export function useApi() {
       })
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        let errorMessage = errorData.detail || errorData.error || `HTTP ${response.status}`
+        let errorMessage = `HTTP ${response.status}`
         
-        // Улучшаем сообщения для 429 (Too Many Requests)
+        // Пытаемся получить детали ошибки из JSON
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.detail || errorData.error || errorData.message || errorMessage
+        } catch {
+          // Если не JSON - пытаемся прочитать как текст
+          try {
+            const textError = await response.text()
+            if (textError && textError.length < 200) {
+              errorMessage = textError
+            }
+          } catch {
+            // Ignore
+          }
+        }
+        
+        // Улучшаем сообщения по коду статуса
         if (response.status === 429) {
-          // Убираем технические префиксы из сообщений
-          errorMessage = errorMessage.replace(/^1Plat API error:\s*/i, '')
+          errorMessage = errorMessage.replace(/^(1Plat|Rukassa) API error:\s*/i, '')
           if (!errorMessage || errorMessage === `HTTP ${response.status}`) {
             errorMessage = 'Слишком много запросов. Подождите минуту и попробуйте снова.'
           }
+        } else if (response.status === 502 || response.status === 503) {
+          errorMessage = 'Платёжная система временно недоступна. Попробуйте позже.'
+        } else if (response.status === 400) {
+          // Оставляем сообщение как есть, оно уже понятное
         }
         
         throw new Error(errorMessage)
       }
       
-      const data = await response.json()
+      // Пытаемся распарсить JSON ответ
+      let data
+      try {
+        data = await response.json()
+      } catch {
+        // Если ответ не JSON - возвращаем пустой объект
+        console.warn('API returned non-JSON response')
+        data = {}
+      }
       setLoading(false)
       return data
     } catch (err) {

@@ -239,26 +239,64 @@ async def rukassa_webhook(request: Request):
         result = await payment_service.verify_rukassa_webhook(data, signature=signature)
         
         if result["success"]:
-            order_id = result["order_id"]
+            payment_order_id = result["order_id"]  # This is the temp UUID we sent to Rukassa
             
-            print(f"Rukassa webhook verified for order: {order_id}")
+            print(f"Rukassa webhook verified for payment_id: {payment_order_id}")
+            
+            # Find real order by payment_id field (maps temp_order_id -> real order)
+            from src.services.database import get_database
+            db = get_database()
+            
+            real_order_id = payment_order_id  # Default fallback
+            try:
+                import asyncio
+                lookup_result = await asyncio.to_thread(
+                    lambda: db.client.table("orders")
+                    .select("id")
+                    .eq("payment_id", payment_order_id)
+                    .limit(1)
+                    .execute()
+                )
+                if lookup_result.data:
+                    real_order_id = lookup_result.data[0]["id"]
+                    print(f"Rukassa webhook: mapped payment_id {payment_order_id} -> order_id {real_order_id}")
+                else:
+                    # Fallback: try direct lookup (backward compatibility)
+                    direct_result = await asyncio.to_thread(
+                        lambda: db.client.table("orders")
+                        .select("id")
+                        .eq("id", payment_order_id)
+                        .limit(1)
+                        .execute()
+                    )
+                    if direct_result.data:
+                        real_order_id = direct_result.data[0]["id"]
+                        print(f"Rukassa webhook: direct order lookup succeeded for {real_order_id}")
+                    else:
+                        print(f"Rukassa webhook: Order not found for payment_id {payment_order_id}")
+                        return Response(content="ERROR ORDER NOT FOUND", status_code=404)
+            except Exception as e:
+                print(f"Rukassa webhook: Order lookup error: {e}")
+                # Continue with payment_order_id as fallback
+            
+            print(f"Rukassa webhook processing delivery for order: {real_order_id}")
             
             publish_to_worker, WorkerEndpoints = get_queue_publisher()
             
             # Guaranteed delivery via QStash
             await publish_to_worker(
                 endpoint=WorkerEndpoints.DELIVER_GOODS,
-                body={"order_id": order_id},
+                body={"order_id": real_order_id},
                 retries=5,
-                deduplication_id=f"deliver-{order_id}"
+                deduplication_id=f"deliver-{real_order_id}"
             )
             
             # Calculate referral bonus
             await publish_to_worker(
                 endpoint=WorkerEndpoints.CALCULATE_REFERRAL,
-                body={"order_id": order_id},
+                body={"order_id": real_order_id},
                 retries=3,
-                deduplication_id=f"referral-{order_id}"
+                deduplication_id=f"referral-{real_order_id}"
             )
             
             # Rukassa expects 'OK' response

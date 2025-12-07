@@ -874,7 +874,30 @@ class PaymentService:
                 error_code = data.get("error")
                 error_msg = data.get("message") or f"Error code: {error_code}"
                 logger.error("Rukassa API error for order %s: code=%s, msg=%s", order_id, error_code, error_msg)
-                raise ValueError(f"Rukassa: {error_msg}")
+                
+                # Перевод кодов ошибок Rukassa в понятные сообщения
+                error_messages = {
+                    "300": "Платёжная система заморожена. Обратитесь в поддержку Rukassa.",
+                    "client is frozen": "Платёжная система заморожена. Обратитесь в поддержку.",
+                    "method not available": "Выбранный способ оплаты недоступен.",
+                    "method is disabled": "Выбранный способ оплаты отключен.",
+                    "insufficient balance": "Недостаточный баланс на счёте магазина.",
+                    "invalid amount": "Неверная сумма платежа.",
+                    "invalid token": "Ошибка авторизации платёжной системы.",
+                }
+                
+                # Ищем подходящее сообщение
+                user_message = None
+                error_lower = (str(error_code) + " " + str(error_msg)).lower()
+                for key, msg in error_messages.items():
+                    if key.lower() in error_lower:
+                        user_message = msg
+                        break
+                
+                if not user_message:
+                    user_message = f"Ошибка платёжной системы: {error_msg}"
+                
+                raise ValueError(user_message)
             
             # Extract payment data from response
             payment_id = data.get("id")

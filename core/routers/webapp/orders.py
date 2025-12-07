@@ -319,13 +319,6 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         print(f"Warning: pending order check failed: {e}")
     
     first_item = order_items[0]
-    order = await db.create_order(
-        user_id=db_user.id, product_id=first_item["product_id"],
-        amount=total_amount, original_price=total_original,
-        discount_percent=int((1 - total_amount / total_original) * 100) if total_original > 0 else 0,
-        payment_method=payment_method
-    )
-    
     product_names = ", ".join([item["product_name"] for item in order_items[:3]])
     if len(order_items) > 3:
         product_names += f" и еще {len(order_items) - 3}"
@@ -342,31 +335,81 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
     except Exception as e:
         print(f"Warning: currency conversion failed, using raw amount: {e}")
     
+    # ============================================================
+    # ВАЖНО: Сначала проверяем платёжку, потом создаём заказ!
+    # ============================================================
+    
+    # Генерируем временный order_id для платёжки (UUID)
+    import uuid
+    temp_order_id = str(uuid.uuid4())
+    
+    # Пытаемся создать платёж БЕЗ сохранения заказа в БД
+    payment_url = None
     try:
         payment_url = await payment_service.create_payment(
-            order_id=order.id, amount=payable_amount, product_name=product_names,
-            method=payment_gateway, payment_method=payment_method,
+            order_id=temp_order_id, 
+            amount=payable_amount, 
+            product_name=product_names,
+            method=payment_gateway, 
+            payment_method=payment_method,
             user_email=f"{user.id}@telegram.user",
-            user_id=user.id  # Telegram user id (numeric) for gateway
+            user_id=user.id
         )
-        if redis:
-            try:
-                await redis.set(f"pay:cooldown:{user.id}", "1", ex=cooldown_seconds)
-            except Exception as e:
-                print(f"Warning: failed to set cooldown key: {e}")
-    except HTTPException:
-        # Уже обработано выше
-        raise
     except ValueError as e:
         error_msg = str(e)
-        print(f"Payment creation failed for cart order {order.id}: {error_msg}")
-        # Логируем детали для отладки
-        print(f"Payment gateway: {payment_gateway}, payment method: {payment_method}, order_id: {order.id}, amount: {payable_amount}")
-        raise HTTPException(status_code=429, detail=error_msg)
+        print(f"Payment creation failed (pre-order): {error_msg}")
+        print(f"Payment gateway: {payment_gateway}, payment method: {payment_method}, amount: {payable_amount}")
+        
+        # Понятные сообщения для пользователя
+        if "frozen" in error_msg.lower() or "заморожен" in error_msg.lower():
+            raise HTTPException(
+                status_code=503, 
+                detail="Платёжная система временно недоступна. Попробуйте позже или обратитесь в поддержку."
+            )
+        elif "disabled" in error_msg.lower() or "недоступен" in error_msg.lower():
+            raise HTTPException(
+                status_code=400, 
+                detail="Выбранный способ оплаты временно недоступен. Попробуйте другой."
+            )
+        else:
+            raise HTTPException(status_code=400, detail=error_msg)
     except Exception as e:
-        print(f"Payment creation failed for cart order {order.id}: {e}")
-        raise HTTPException(status_code=502, detail="Payment service unavailable")
+        print(f"Payment creation failed (pre-order): {e}")
+        raise HTTPException(
+            status_code=502, 
+            detail="Платёжная система недоступна. Попробуйте позже."
+        )
     
+    # Платёж успешно создан - теперь создаём заказ в БД
+    order = await db.create_order(
+        user_id=db_user.id, 
+        product_id=first_item["product_id"],
+        amount=total_amount, 
+        original_price=total_original,
+        discount_percent=int((1 - total_amount / total_original) * 100) if total_original > 0 else 0,
+        payment_method=payment_method
+    )
+    
+    # Обновляем order_id в платёжке (если поддерживается) или сохраняем маппинг
+    # Сохраняем temp_order_id -> real_order_id маппинг в заказе
+    try:
+        await asyncio.to_thread(
+            lambda: db.client.table("orders")
+            .update({"payment_id": temp_order_id})
+            .eq("id", order.id)
+            .execute()
+        )
+    except Exception as e:
+        print(f"Warning: failed to save payment_id mapping: {e}")
+    
+    # Устанавливаем cooldown
+    if redis:
+        try:
+            await redis.set(f"pay:cooldown:{user.id}", "1", ex=cooldown_seconds)
+        except Exception as e:
+            print(f"Warning: failed to set cooldown key: {e}")
+    
+    # Применяем промокод и очищаем корзину
     if cart.promo_code:
         await db.use_promo_code(cart.promo_code)
     await cart_manager.clear_cart(user.id)
