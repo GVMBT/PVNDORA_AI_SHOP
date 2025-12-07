@@ -141,118 +141,120 @@ export function PaymentMethodDialog({
               <X className="w-5 h-5 text-muted-foreground" />
             </button>
             
-            {/* Content */}
-            {/* Add bottom padding so nav не перекрывает CTA */}
-            <div className="px-5 pb-24 pt-2">
-              {/* Header */}
-              <div className="text-center mb-6">
-                <h2 className="text-xl font-bold mb-1">
-                  {t?.('checkout.selectPaymentMethod') || 'Способ оплаты'}
-                </h2>
-                <p className="text-muted-foreground text-sm">
-                  {t?.('checkout.selectPaymentMethodDesc') || 'Выберите удобный способ оплаты'}
-                </p>
-              </div>
+            {/* Content with scroll + sticky CTA for desktop/mini-app */}
+            <div className="px-5 pt-2 pb-4 flex flex-col max-h-[80vh]">
+              <div className="flex-1 overflow-y-auto pr-1">
+                {/* Header */}
+                <div className="text-center mb-6">
+                  <h2 className="text-xl font-bold mb-1">
+                    {t?.('checkout.selectPaymentMethod') || 'Способ оплаты'}
+                  </h2>
+                  <p className="text-muted-foreground text-sm">
+                    {t?.('checkout.selectPaymentMethodDesc') || 'Выберите удобный способ оплаты'}
+                  </p>
+                </div>
 
-              {/* Payment methods list (компактный, без радуги) */}
-              <div className="space-y-2 mb-6">
-                {methods.map((method) => {
-                  const methodId = typeof method === 'string' ? method : method.system_group
-                  const methodName = typeof method === 'string' ? method.toUpperCase() : method.name
-                  const IconComponent = METHOD_ICONS[methodId] || CreditCard
-                  const isSelected = selectedMethod === methodId
-                  
-                  // Check if method is enabled from API (defaults to true if not specified)
-                  const isEnabled = typeof method === 'object' ? (method.enabled !== false) : true
-                  
-                  // Min amount from API or fallback
-                  const minAmount = typeof method === 'object' && method.min_amount 
-                    ? method.min_amount 
-                    : MIN_BY_METHOD_FALLBACK[methodId] || 0
-                  
-                  // Method is disabled if: explicitly disabled by API OR total is below min
-                  const disabledByApi = !isEnabled
-                  const disabledByAmount = total < minAmount
-                  const disabled = disabledByApi || disabledByAmount
+                {/* Payment methods list (компактный, без радуги) */}
+                <div className="space-y-2 mb-6">
+                  {methods.map((method) => {
+                    const methodId = typeof method === 'string' ? method : method.system_group
+                    const methodName = typeof method === 'string' ? method.toUpperCase() : method.name
+                    const IconComponent = METHOD_ICONS[methodId] || CreditCard
+                    const isSelected = selectedMethod === methodId
+                    
+                    // Check if method is enabled from API (defaults to true if not specified)
+                    const isEnabled = typeof method === 'object' ? (method.enabled !== false) : true
+                    
+                    // Min amount from API or fallback
+                    const minAmount = typeof method === 'object' && method.min_amount 
+                      ? method.min_amount 
+                      : MIN_BY_METHOD_FALLBACK[methodId] || 0
+                    
+                    // Method is disabled if: explicitly disabled by API OR total is below min
+                    const disabledByApi = !isEnabled
+                    const disabledByAmount = total < minAmount
+                    const disabled = disabledByApi || disabledByAmount
 
-                  const handleClick = () => {
-                    if (disabledByApi) {
-                      window.alert(`Метод "${methodName}" временно недоступен. Выберите другой способ оплаты.`)
-                      return
+                    const handleClick = () => {
+                      if (disabledByApi) {
+                        window.alert(`Метод "${methodName}" временно недоступен. Выберите другой способ оплаты.`)
+                        return
+                      }
+                      if (disabledByAmount) {
+                        window.alert(`Недоступно для суммы ${total.toLocaleString('ru-RU')} ₽. Минимум для метода ${methodName} — ${minAmount.toLocaleString('ru-RU')} ₽`)
+                        return
+                      }
+                      setSelectedMethod(methodId)
                     }
-                    if (disabledByAmount) {
-                      window.alert(`Недоступно для суммы ${total.toLocaleString('ru-RU')} ₽. Минимум для метода ${methodName} — ${minAmount.toLocaleString('ru-RU')} ₽`)
-                      return
-                    }
-                    setSelectedMethod(methodId)
-                  }
 
-                  return (
-                    <motion.button
-                      key={methodId}
-                      onClick={handleClick}
-                      whileTap={disabled ? undefined : { scale: 0.99 }}
-                      className={`
-                        w-full rounded-2xl border p-4 text-left transition-all duration-150
-                        ${disabled ? 'opacity-50 cursor-not-allowed bg-muted/40 border-border' : isSelected ? 'border-primary ring-1 ring-primary/50 bg-primary/5' : 'border-border hover:border-primary/40'}
-                        flex items-center justify-between gap-3
-                      `}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${disabled ? 'bg-muted text-muted-foreground' : isSelected ? 'bg-primary/10' : 'bg-muted'}`}>
-                          <IconComponent />
+                    return (
+                      <motion.button
+                        key={methodId}
+                        onClick={handleClick}
+                        whileTap={disabled ? undefined : { scale: 0.99 }}
+                        className={`
+                          w-full rounded-2xl border p-4 text-left transition-all duration-150
+                          ${disabled ? 'opacity-50 cursor-not-allowed bg-muted/40 border-border' : isSelected ? 'border-primary ring-1 ring-primary/50 bg-primary/5' : 'border-border hover:border-primary/40'}
+                          flex items-center justify-between gap-3
+                        `}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${disabled ? 'bg-muted text-muted-foreground' : isSelected ? 'bg-primary/10' : 'bg-muted'}`}>
+                            <IconComponent />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-sm text-foreground">
+                              {methodName}
+                              {disabledByApi && <span className="ml-2 text-xs text-red-500">(недоступен)</span>}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {methodId === 'sbp_qr' ? 'QR СБП' : methodId === 'sbp' ? 'Приложение банка' : methodId === 'crypto' ? 'USDT / ₿' : ''}
+                              {minAmount && !disabledByApi ? ` • от ${minAmount.toLocaleString('ru-RU')} ₽` : ''}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="font-medium text-sm text-foreground">
-                            {methodName}
-                            {disabledByApi && <span className="ml-2 text-xs text-red-500">(недоступен)</span>}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {methodId === 'sbp_qr' ? 'QR СБП' : methodId === 'sbp' ? 'Приложение банка' : methodId === 'crypto' ? 'USDT / ₿' : ''}
-                            {minAmount && !disabledByApi ? ` • от ${minAmount.toLocaleString('ru-RU')} ₽` : ''}
-                          </span>
+                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${disabled ? 'border-muted-foreground/30' : isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                          {isSelected && !disabled && <CheckIcon className="w-3 h-3 text-primary-foreground" strokeWidth={3} />}
                         </div>
-                      </div>
-                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${disabled ? 'border-muted-foreground/30' : isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                        {isSelected && !disabled && <CheckIcon className="w-3 h-3 text-primary-foreground" strokeWidth={3} />}
-                      </div>
-                    </motion.button>
-                  )
-                })}
-              </div>
+                      </motion.button>
+                    )
+                  })}
+                </div>
 
-              {/* Total */}
-              <div className="bg-muted/30 rounded-2xl p-4 mb-6">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">{t?.('checkout.total') || 'Итого'}</span>
-                  <span className="text-2xl font-bold text-primary font-mono">
-                    {formatPrice?.(total, currency) || `${total} ${currency}`}
-                  </span>
+                {/* Total */}
+                <div className="bg-muted/30 rounded-2xl p-4 mb-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">{t?.('checkout.total') || 'Итого'}</span>
+                    <span className="text-2xl font-bold text-primary font-mono">
+                      {formatPrice?.(total, currency) || `${total} ${currency}`}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* Pay button */}
-              <Button
-                onClick={handleConfirm}
-                disabled={isLoading}
-                className="w-full h-14 text-lg font-semibold rounded-2xl"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    {t?.('common.loading') || 'Обработка...'}
-                  </>
-                ) : (
-                  <>
-                    {t?.('checkout.pay') || 'Оплатить'} {formatPrice?.(total, currency) || `${total} ${currency}`}
-                  </>
-                )}
-              </Button>
+              {/* Sticky CTA */}
+              <div className="sticky bottom-0 bg-background pt-3 pb-2 border-t border-border/60">
+                <Button
+                  onClick={handleConfirm}
+                  disabled={isLoading}
+                  className="w-full h-14 text-lg font-semibold rounded-2xl"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      {t?.('common.loading') || 'Обработка...'}
+                    </>
+                  ) : (
+                    <>
+                      {t?.('checkout.pay') || 'Оплатить'} {formatPrice?.(total, currency) || `${total} ${currency}`}
+                    </>
+                  )}
+                </Button>
 
-              {/* Security note */}
-              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-4">
-                <ShieldCheck className="w-4 h-4" />
-                <span>{t?.('checkout.securePayment') || 'Безопасная оплата'}</span>
+                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-3">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>{t?.('checkout.securePayment') || 'Безопасная оплата'}</span>
+                </div>
               </div>
             </div>
           </div>
