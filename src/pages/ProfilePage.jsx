@@ -88,6 +88,19 @@ export default function ProfilePage({ onBack }) {
   const isPartner = profile?.is_partner || referralProgram?.is_partner
   const effectiveLevel = referralProgram?.effective_level || 0
 
+  // Fallback UI when error and нет профиля (чтобы не падать в рендере)
+  if (!loading && error && !profile) {
+    return (
+      <div className="p-4 space-y-4">
+        <HeaderBar title={t('profile.title')} onBack={onBack} />
+        <div className="p-4 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive">
+          {error}
+        </div>
+        <Button onClick={() => window.location.reload()}>{t('common.retry') || 'Повторить'}</Button>
+      </div>
+    )
+  }
+
   const fetchNetwork = useCallback(async (level, reset = false) => {
     if (networkLoading) return
     if (effectiveLevel < level) {
