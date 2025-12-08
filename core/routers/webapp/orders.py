@@ -194,6 +194,83 @@ async def get_order_status(
     }
 
 
+@router.post("/orders/{order_id}/verify-payment")
+async def verify_and_deliver_order(
+    order_id: str,
+    user=Depends(verify_telegram_auth)
+):
+    """
+    Verify payment status via CrystalPay API and trigger delivery if paid.
+    
+    This is a FALLBACK endpoint for cases when webhook doesn't arrive.
+    User must own the order.
+    """
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    order = await db.get_order_by_id(order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    if order.user_id != db_user.id:
+        raise HTTPException(status_code=403, detail="Order does not belong to user")
+    
+    # Only process pending orders
+    if order.status not in ("pending", "awaiting_payment"):
+        return {"status": order.status, "message": "Order is not in pending state"}
+    
+    # Check if CrystalPay (by payment_gateway)
+    payment_gateway = getattr(order, "payment_gateway", None)
+    if payment_gateway != "crystalpay":
+        return {"status": order.status, "message": "Manual verification only supported for CrystalPay"}
+    
+    # Get invoice_id from payment_id field
+    invoice_id = getattr(order, "payment_id", None)
+    if not invoice_id:
+        return {"status": order.status, "message": "No payment_id found for order"}
+    
+    # Query CrystalPay API for invoice status
+    try:
+        payment_service = get_payment_service()
+        invoice_info = await payment_service.get_crystalpay_invoice_info(invoice_id)
+        
+        state = invoice_info.get("state", "unknown")
+        logger.info(f"CrystalPay invoice {invoice_id} state: {state}")
+        
+        if state != "payed":
+            return {
+                "status": order.status,
+                "invoice_state": state,
+                "message": f"Invoice not paid yet. State: {state}"
+            }
+        
+        # Invoice is paid! Trigger delivery
+        logger.info(f"Manual delivery trigger for order {order_id}")
+        
+        from core.routers.workers import _deliver_items_for_order
+        from core.routers.deps import get_notification_service
+        notification_service = get_notification_service()
+        
+        delivery_result = await _deliver_items_for_order(db, notification_service, order_id, only_instant=True)
+        
+        return {
+            "status": "processed",
+            "invoice_state": state,
+            "delivery": delivery_result,
+            "message": "Payment verified and delivery triggered"
+        }
+        
+    except Exception as e:
+        logger.error(f"Manual payment verification failed for {order_id}: {e}")
+        return {
+            "status": order.status,
+            "error": str(e),
+            "message": "Failed to verify payment"
+        }
+
+
 @router.get("/orders")
 async def get_webapp_orders(user=Depends(verify_telegram_auth)):
     """Get user's order history with currency conversion."""
