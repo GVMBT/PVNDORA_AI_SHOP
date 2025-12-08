@@ -180,8 +180,10 @@ async def get_order_status(
         if order.user_id != db_user.id:
             raise HTTPException(status_code=403, detail="Order does not belong to user")
     else:
-        # Anonymous polling: require correct payment_id
-        if not payment_id or payment_id != order.payment_id:
+        # Anonymous polling:
+        # - if payment_id is provided, must match
+        # - if payment_id is absent, allow read-only status (no sensitive data)
+        if payment_id and payment_id != order.payment_id:
             raise HTTPException(status_code=401, detail="Unauthorized status check")
 
     return {
