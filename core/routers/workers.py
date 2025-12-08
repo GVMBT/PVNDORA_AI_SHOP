@@ -54,11 +54,12 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
         prod_name = prod.get("name", "Product")
         
         # Try to allocate stock
+        # IMPORTANT: Use default args to capture loop variables (closure bug fix)
         try:
             stock_res = await asyncio.to_thread(
-                lambda: db.client.table("stock_items")
+                lambda pid=product_id: db.client.table("stock_items")
                 .select("id,content")
-                .eq("product_id", product_id)
+                .eq("product_id", pid)
                 .eq("status", "available")
                 .limit(1)
                 .execute()
@@ -70,48 +71,55 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
         
         if stock:
             # Reserve/sell stock
+            stock_id = stock["id"]
+            stock_content = stock.get("content", "")
             try:
                 await asyncio.to_thread(
-                    lambda: db.client.table("stock_items").update({
+                    lambda sid=stock_id, ts=now.isoformat(): db.client.table("stock_items").update({
                         "status": "sold",
                         "is_sold": True,
-                        "reserved_at": now.isoformat(),
-                        "sold_at": now.isoformat()
-                    }).eq("id", stock["id"]).execute()
+                        "reserved_at": ts,
+                        "sold_at": ts
+                    }).eq("id", sid).execute()
                 )
             except Exception as e:
-                print(f"deliver-goods: failed to mark stock sold {stock['id']}: {e}")
+                print(f"deliver-goods: failed to mark stock sold {stock_id}: {e}")
                 continue
             
             # Update item as delivered
+            item_id = it.get("id")
             instructions = it.get("delivery_instructions") or prod.get("instructions") or ""
             try:
                 await asyncio.to_thread(
-                    lambda: db.client.table("order_items").update({
-                        "status": "delivered",
-                        "stock_item_id": stock["id"],
-                        "delivery_content": stock.get("content"),
-                        "delivery_instructions": instructions,
-                        "delivered_at": now.isoformat(),
-                        "updated_at": now.isoformat()
-                    }).eq("id", it.get("id")).execute()
+                    lambda iid=item_id, sid=stock_id, content=stock_content, instr=instructions, ts=now.isoformat(): 
+                        db.client.table("order_items").update({
+                            "status": "delivered",
+                            "stock_item_id": sid,
+                            "delivery_content": content,
+                            "delivery_instructions": instr,
+                            "delivered_at": ts,
+                            "updated_at": ts
+                        }).eq("id", iid).execute()
                 )
                 delivered_count += 1
-                delivered_lines.append(f"{prod_name}:\n{stock.get('content', '')}")
+                delivered_lines.append(f"{prod_name}:\n{stock_content}")
             except Exception as e:
-                print(f"deliver-goods: failed to update order_item {it.get('id')}: {e}")
+                print(f"deliver-goods: failed to update order_item {item_id}: {e}")
         else:
             # No stock yet - mark as prepaid/fulfilling
             waiting_count += 1
+            item_id = it.get("id")
+            new_status = "prepaid" if status == "pending" else status
             try:
                 await asyncio.to_thread(
-                    lambda: db.client.table("order_items").update({
-                        "status": "prepaid" if status == "pending" else status,
-                        "updated_at": now.isoformat()
-                    }).eq("id", it.get("id")).execute()
+                    lambda iid=item_id, st=new_status, ts=now.isoformat(): 
+                        db.client.table("order_items").update({
+                            "status": st,
+                            "updated_at": ts
+                        }).eq("id", iid).execute()
                 )
             except Exception as e:
-                print(f"deliver-goods: failed to mark waiting for item {it.get('id')}: {e}")
+                print(f"deliver-goods: failed to mark waiting for item {item_id}: {e}")
     
     # Update order status summary
     try:
