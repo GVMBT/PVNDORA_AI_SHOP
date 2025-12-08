@@ -528,7 +528,7 @@ export default function OrdersPage({ onBack }) {
                                      ) : (
                                        <>
                                          <ChevronDown className="h-4 w-4 mr-1" />
-                                         {t('orders.showMore') || `Ещё ${itemsList.length - 2} позиций`}
+                                     {t('orders.showMore', { count: itemsList.length - 2 }) || `Ещё ${itemsList.length - 2} позиций`}
                                        </>
                                      )}
                                    </Button>
