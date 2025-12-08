@@ -9,7 +9,7 @@ Tasks:
 4. Release stuck stock reservations
 """
 from datetime import datetime, timezone, timedelta
-from fastapi import Request
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import os
 import asyncio
@@ -17,9 +17,15 @@ import asyncio
 # Verify cron secret to prevent unauthorized access
 CRON_SECRET = os.environ.get("CRON_SECRET", "")
 
+# ASGI app (only export app to Vercel, avoid 'handler' symbol)
+app = FastAPI()
 
-async def handler(request: Request):
-    # Verify the request is from Vercel Cron
+
+@app.get("/api/cron/daily_cleanup")
+async def daily_cleanup_entrypoint(request: Request):
+    """
+    Vercel Cron entrypoint for daily cleanup tasks.
+    """
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
@@ -81,4 +87,3 @@ async def handler(request: Request):
         results["error"] = str(e)
     
     return JSONResponse(results)
-

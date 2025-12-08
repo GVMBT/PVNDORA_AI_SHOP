@@ -272,8 +272,12 @@ async def verify_and_deliver_order(
 
 
 @router.get("/orders")
-async def get_webapp_orders(user=Depends(verify_telegram_auth)):
-    """Get user's order history with currency conversion."""
+async def get_webapp_orders(
+    user=Depends(verify_telegram_auth),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    """Get user's order history with currency conversion and pagination."""
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
@@ -299,7 +303,7 @@ async def get_webapp_orders(user=Depends(verify_telegram_auth)):
     except Exception as e:
         logger.warning(f"Currency service unavailable: {e}, using USD")
     
-    orders = await db.get_user_orders(db_user.id, limit=50)
+    orders = await db.get_user_orders(db_user.id, limit=limit, offset=offset)
     order_ids = [o.id for o in orders]
     
     # Fetch order_items in bulk

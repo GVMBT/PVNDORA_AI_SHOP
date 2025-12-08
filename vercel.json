@@ -37,6 +37,10 @@
     {
       "path": "/api/cron/auto_alloc",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/refund_expired_prepaid",
+      "schedule": "0 * * * *"
     }
   ]
 }

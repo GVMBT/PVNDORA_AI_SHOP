@@ -8,7 +8,7 @@ Tasks:
 3. Notify about expiring subscriptions
 """
 from datetime import datetime, timezone, timedelta
-from fastapi import Request
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import os
 import asyncio
@@ -17,9 +17,15 @@ CRON_SECRET = os.environ.get("CRON_SECRET", "")
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 BOT_USERNAME = "pvndora_ai_bot"
 
+# ASGI app (only export app to Vercel, avoid 'handler' symbol)
+app = FastAPI()
 
-async def handler(request: Request):
-    # Verify the request is from Vercel Cron
+
+@app.get("/api/cron/reengagement")
+async def reengagement_entrypoint(request: Request):
+    """
+    Vercel Cron entrypoint for re-engagement notifications.
+    """
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
         return JSONResponse({"error": "Unauthorized"}, status_code=401)

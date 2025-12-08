@@ -165,7 +165,15 @@ export function useProducts() {
 export function useOrders() {
   const { get, post, loading, error } = useApi()
   
-  const getOrders = useCallback(() => get('/orders'), [get])
+  // Support pagination: { limit, offset }
+  const getOrders = useCallback(({ limit, offset } = {}) => {
+    const params = new URLSearchParams()
+    if (limit) params.append('limit', limit)
+    if (offset) params.append('offset', offset)
+    const qs = params.toString()
+    return get(`/orders${qs ? `?${qs}` : ''}`)
+  }, [get])
+  
   const getPaymentMethods = useCallback((gateway) => get(`/payments/methods${gateway ? `?gateway=${gateway}` : ''}`), [get])
   
   const createOrder = useCallback((productId, quantity = 1, promoCode = null, paymentMethod = 'card', paymentGateway = null) => 

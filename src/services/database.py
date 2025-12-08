@@ -184,8 +184,8 @@ class Database:
     ) -> None:
         await self.orders_domain.update_status(order_id, status, stock_item_id, expires_at)
     
-    async def get_user_orders(self, user_id: str, limit: int = 10) -> List[Order]:
-        return await self.orders_domain.get_by_user(user_id, limit)
+    async def get_user_orders(self, user_id: str, limit: int = 10, offset: int = 0) -> List[Order]:
+        return await self.orders_domain.get_by_user(user_id, limit, offset)
     
     async def get_expiring_orders(self, days_before: int = 3) -> List[Order]:
         return await self.orders_domain.get_expiring(days_before)

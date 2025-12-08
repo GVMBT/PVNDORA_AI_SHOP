@@ -78,6 +78,20 @@ export default function CatalogPage({ onProductClick, onGoCart, onNavigate }) {
     }
   }
 
+  // "Buy now" = add to cart + go to checkout
+  const handleBuyNow = async (product) => {
+    try {
+      hapticFeedback('impact', 'medium')
+      await addToCart(product.id, 1)
+      // Navigate to checkout (cart mode)
+      if (onGoCart) {
+        onGoCart()
+      }
+    } catch (err) {
+      showToast({ type: 'error', message: err.message || t('common.error') }, 2500)
+    }
+  }
+
   useEffect(() => {
     return () => {
       if (toastTimeoutRef.current) {
@@ -267,6 +281,7 @@ export default function CatalogPage({ onProductClick, onGoCart, onNavigate }) {
                     socialProof={product.social_proof}
                     onClick={handleProductClick}
                     onAddToCart={handleAddToCart}
+                    onBuyNow={handleBuyNow}
                   />
                 </motion.div>
               ))}

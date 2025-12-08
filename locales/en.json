@@ -96,6 +96,20 @@
     "buyAgain": "Buy Again",
     "leaveReview": "Review",
     "unknownProduct": "Unknown Product",
+    "items": "Order Items",
+    "waitingStock": "Awaiting stock",
+    "delivery": "Access",
+    "showMore": "Show {count} more",
+    "showLess": "Show less",
+    "licenseExpires": "License expires",
+    "fulfillmentGuarantee": "Guaranteed delivery:",
+    "fulfillmentExpired": "Awaiting refund",
+    "orRefund": "or refund",
+    "tabs": {
+      "all": "All",
+      "active": "Active",
+      "completed": "Completed"
+    },
     "status": {
       "pending": "Pending",
       "prepaid": "Paid",
@@ -104,6 +118,7 @@
       "delivered": "Delivered",
       "refunded": "Refunded",
       "cancelled": "Cancelled",
+      "expired": "Expired",
       "failed": "Failed"
     }
   },

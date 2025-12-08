@@ -65,12 +65,16 @@ class OrderRepository(BaseRepository):
         
         self.client.table("orders").update(data).eq("id", order_id).execute()
     
-    async def get_by_user(self, user_id: str, limit: int = 10) -> List[Order]:
-        """Get user's orders."""
-        result = self.client.table("orders").select("*").eq(
+    async def get_by_user(self, user_id: str, limit: int = 10, offset: int = 0) -> List[Order]:
+        """Get user's orders with pagination."""
+        query = self.client.table("orders").select("*").eq(
             "user_id", user_id
-        ).order("created_at", desc=True).limit(limit).execute()
+        ).order("created_at", desc=True).limit(limit)
         
+        if offset > 0:
+            query = query.range(offset, offset + limit - 1)
+        
+        result = query.execute()
         return [Order(**o) for o in result.data]
     
     async def get_expiring(self, days_before: int = 3) -> List[Order]:

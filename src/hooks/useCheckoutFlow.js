@@ -24,7 +24,7 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
   const [quantity, setQuantity] = useState(initialQuantity)
   const [error, setError] = useState(null)
   const [availableMethods, setAvailableMethods] = useState([])
-  const [selectedGateway, setSelectedGateway] = useState('rukassa')
+  const [selectedGateway, setSelectedGateway] = useState('crystalpay')
   const isCartMode = !productId
 
   const loadProduct = useCallback(async () => {

@@ -26,7 +26,7 @@ function getTexture(str) {
   return TEXTURES[index];
 }
 
-export default function ProductCard({ product, socialProof, onClick, onAddToCart }) {
+export default function ProductCard({ product, socialProof, onClick, onAddToCart, onBuyNow }) {
   const { formatPrice, t } = useLocale()
   
   const {
@@ -158,7 +158,13 @@ export default function ProductCard({ product, socialProof, onClick, onAddToCart
               className="flex-1"
               onClick={(e) => {
                 e.stopPropagation()
-                onClick(id)
+                // If onBuyNow provided, use it (add to cart + go to checkout)
+                // Otherwise fall back to onClick (open product page)
+                if (onBuyNow) {
+                  onBuyNow(product)
+                } else {
+                  onClick(id)
+                }
               }}
             >
               {t('product.buyNow') || 'Buy now'}

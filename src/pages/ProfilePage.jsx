@@ -55,15 +55,7 @@ export default function ProfilePage({ onBack }) {
     }
   }
   
-  if ((error === 'unauthorized' || !user?.id) && !profile) {
-    return (
-      <LoginPage
-        onLogin={() => window.location.reload()}
-        botUsername="pvndora_ai_bot"
-      />
-    )
-  }
-  
+  // Show skeleton while loading - avoid flashing LoginPage
   if (loading && !profile) {
     return (
       <div className="p-4 space-y-4">
@@ -71,6 +63,16 @@ export default function ProfilePage({ onBack }) {
         <Skeleton className="h-32 w-full rounded-2xl" />
         <Skeleton className="h-64 w-full rounded-2xl" />
       </div>
+    )
+  }
+  
+  // Only show login if explicitly unauthorized AND not loading
+  if ((error === 'unauthorized' || !user?.id) && !profile && !loading) {
+    return (
+      <LoginPage
+        onLogin={() => window.location.reload()}
+        botUsername="pvndora_ai_bot"
+      />
     )
   }
   

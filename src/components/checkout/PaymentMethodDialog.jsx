@@ -26,7 +26,7 @@ export function PaymentMethodDialog({
     { id: 'rukassa', name: 'Rukassa' },
     { id: 'crystalpay', name: 'CrystalPay' },
   ],
-  selectedGateway = 'rukassa',
+  selectedGateway = 'crystalpay',
   onGatewayChange,
 }) {
   const allowed = ['card', 'sbp', 'sbp_qr', 'crypto']

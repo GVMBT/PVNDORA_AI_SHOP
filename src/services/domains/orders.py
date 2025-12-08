@@ -53,8 +53,8 @@ class OrdersDomain:
     ) -> None:
         await self.repo.update_status(order_id, status, stock_item_id, expires_at)
 
-    async def get_by_user(self, user_id: str, limit: int = 10) -> List[Order]:
-        return await self.repo.get_by_user(user_id, limit)
+    async def get_by_user(self, user_id: str, limit: int = 10, offset: int = 0) -> List[Order]:
+        return await self.repo.get_by_user(user_id, limit, offset)
 
     async def get_expiring(self, days_before: int = 3) -> List[Order]:
         return await self.repo.get_expiring(days_before)
