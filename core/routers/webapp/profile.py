@@ -240,6 +240,9 @@ async def get_referral_network(user=Depends(verify_telegram_auth), level: int = 
         enriched_referrals = []
         for ref in referrals_data:
             ref_id = ref["id"]
+            if ref_id == db_user.id:
+                # Skip self in case of cyclic/incorrect referrer assignment
+                continue
             
             # Count orders
             orders_result = await asyncio.to_thread(
