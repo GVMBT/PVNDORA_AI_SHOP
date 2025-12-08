@@ -31,11 +31,11 @@
       "schedule": "0 12 * * *"
     },
     {
-      "path": "/api/cron/expire-orders",
+      "path": "/api/cron/expire_orders",
       "schedule": "*/5 * * * *"
     },
     {
-      "path": "/api/cron/auto-alloc",
+      "path": "/api/cron/auto_alloc",
       "schedule": "*/10 * * * *"
     }
   ]
