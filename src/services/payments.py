@@ -1218,6 +1218,14 @@ class PaymentService:
         
         logger.info("CrystalPay payment creation for order %s: amount=%s %s", 
                    order_id, amount_rub, currency)
+        logger.debug(
+            "CrystalPay payload: order=%s redirect_url=%s callback_url=%s currency=%s required_method=%s",
+            order_id,
+            redirect_url,
+            callback_url,
+            currency,
+            required_method or "auto"
+        )
         
         client = await self._get_http_client()
         try:
