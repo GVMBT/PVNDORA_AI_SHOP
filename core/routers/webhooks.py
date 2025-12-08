@@ -438,9 +438,13 @@ async def crystalpay_webhook(request: Request):
     
     Docs: https://docs.crystalpay.io/callback/invoice-uvedomleniya
     """
+    # FIRST LINE: Log that we received ANY request
+    print(f"CrystalPay webhook RECEIVED: method={request.method}, url={request.url}")
+    
     try:
         # Parse JSON body
         raw_body = await request.body()
+        print(f"CrystalPay webhook raw body length: {len(raw_body)}")
         try:
             data = json.loads(raw_body.decode('utf-8'))
         except (json.JSONDecodeError, UnicodeDecodeError):
@@ -465,6 +469,7 @@ async def crystalpay_webhook(request: Request):
         
         payment_service = get_payment_service()
         result = await payment_service.verify_crystalpay_webhook(data)
+        print(f"CrystalPay webhook verify result: {result}")
         
         if result["success"]:
             real_order_id = result["order_id"]
