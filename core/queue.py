@@ -23,7 +23,8 @@ QSTASH_TOKEN = os.environ.get("QSTASH_TOKEN", "")
 QSTASH_URL = os.environ.get("QSTASH_URL", "https://qstash.upstash.io")
 QSTASH_CURRENT_SIGNING_KEY = os.environ.get("QSTASH_CURRENT_SIGNING_KEY", "")
 QSTASH_NEXT_SIGNING_KEY = os.environ.get("QSTASH_NEXT_SIGNING_KEY", "")
-VERCEL_URL = os.environ.get("VERCEL_URL", "")
+WEBAPP_URL = os.environ.get("WEBAPP_URL", "")
+BASE_URL = os.environ.get("BASE_URL", "")
 
 
 # Singleton QStash client
@@ -51,29 +52,21 @@ def get_qstash():
 def get_base_url() -> str:
     """Get base URL for worker endpoints.
     
-    IMPORTANT: Use fixed production URL (WEBAPP_URL or BASE_URL) instead of VERCEL_URL!
-    VERCEL_URL changes with each deployment and points to preview URL,
-    which breaks QStash workers that get published during one deployment
-    but execute during another.
+    IMPORTANT: Use fixed production URL (WEBAPP_URL or BASE_URL).
+    Vercel preview URLs change with each deployment, which breaks QStash
+    workers that get published during one deployment but execute during
+    another.
     """
-    # Priority: WEBAPP_URL (production) > BASE_URL > VERCEL_URL (fallback)
-    webapp_url = os.environ.get("WEBAPP_URL", "")
-    if webapp_url:
-        if webapp_url.startswith("http"):
-            return webapp_url.rstrip("/")
-        return f"https://{webapp_url}"
+    # Priority: WEBAPP_URL (production) > BASE_URL
+    if WEBAPP_URL:
+        if WEBAPP_URL.startswith("http"):
+            return WEBAPP_URL.rstrip("/")
+        return f"https://{WEBAPP_URL}"
     
-    base_url = os.environ.get("BASE_URL", "")
-    if base_url:
-        if base_url.startswith("http"):
-            return base_url.rstrip("/")
-        return f"https://{base_url}"
-    
-    # Last resort: VERCEL_URL (preview URL - not ideal for workers)
-    if VERCEL_URL:
-        if VERCEL_URL.startswith("http"):
-            return VERCEL_URL
-        return f"https://{VERCEL_URL}"
+    if BASE_URL:
+        if BASE_URL.startswith("http"):
+            return BASE_URL.rstrip("/")
+        return f"https://{BASE_URL}"
     
     # Local development fallback
     return "http://localhost:8000"

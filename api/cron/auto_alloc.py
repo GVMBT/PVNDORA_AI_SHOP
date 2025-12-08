@@ -8,7 +8,7 @@ Tasks:
 """
 import os
 import asyncio
-from fastapi import Request
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from datetime import datetime, timezone
 
@@ -53,4 +53,16 @@ async def handler(request: Request):
         "processed": len(order_ids),
         "results": results
     })
+
+
+# --- ASGI wrapper to avoid Vercel handler autodetect issues ---
+app = FastAPI()
+
+
+@app.get("/api/cron/auto_alloc")
+async def auto_alloc_entrypoint(request: Request):
+    """
+    Vercel Cron entrypoint. Delegates to handler().
+    """
+    return await handler(request)
 

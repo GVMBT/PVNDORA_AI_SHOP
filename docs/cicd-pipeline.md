@@ -179,7 +179,7 @@ jobs:
           python scripts/setup_bot.py
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          VERCEL_URL: ${{ secrets.VERCEL_URL }}
+          WEBAPP_URL: ${{ secrets.WEBAPP_URL }}
 ```
 
 ## Quality Gates
@@ -327,7 +327,7 @@ async def setup_bot():
         await bot.set_my_short_description(config["short_description"], language_code=lang)
     
     # Установка webhook
-    webhook_url = f"{os.getenv('VERCEL_URL')}/api/webhook/telegram"
+    webhook_url = f"{os.getenv('WEBAPP_URL')}/api/webhook/telegram"
     await bot.set_webhook(webhook_url)
     
     await bot.session.close()

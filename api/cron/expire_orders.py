@@ -8,7 +8,7 @@ Tasks:
 3. Handle stale orders without expires_at (fallback: older than 60 min)
 """
 from datetime import datetime, timezone, timedelta
-from fastapi import Request
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import os
 import asyncio
@@ -100,4 +100,16 @@ async def handler(request: Request):
         results["error"] = str(e)
     
     return JSONResponse(results)
+
+
+# --- ASGI wrapper to avoid Vercel handler autodetect issues ---
+app = FastAPI()
+
+
+@app.get("/api/cron/expire_orders")
+async def expire_orders_entrypoint(request: Request):
+    """
+    Vercel Cron entrypoint. Delegates to handler().
+    """
+    return await handler(request)
 
