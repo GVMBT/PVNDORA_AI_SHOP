@@ -168,17 +168,17 @@ async def get_order_status(
         raise HTTPException(status_code=404, detail="Order not found")
 
     if user:
-    db_user = await db.get_user_by_telegram_id(user.id)
-    if not db_user:
-        db_user = await db.create_user(
-            telegram_id=user.id,
-            username=getattr(user, "username", None),
-            first_name=getattr(user, "first_name", None),
-            language_code=getattr(user, "language_code", "ru"),
-            referrer_telegram_id=None
-        )
-    if order.user_id != db_user.id:
-        raise HTTPException(status_code=403, detail="Order does not belong to user")
+        db_user = await db.get_user_by_telegram_id(user.id)
+        if not db_user:
+            db_user = await db.create_user(
+                telegram_id=user.id,
+                username=getattr(user, "username", None),
+                first_name=getattr(user, "first_name", None),
+                language_code=getattr(user, "language_code", "ru"),
+                referrer_telegram_id=None
+            )
+        if order.user_id != db_user.id:
+            raise HTTPException(status_code=403, detail="Order does not belong to user")
     else:
         # Anonymous polling:
         # - if payment_id is provided, must match
