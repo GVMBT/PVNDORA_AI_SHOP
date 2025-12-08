@@ -145,6 +145,149 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
     return {"success": True, "message": "Withdrawal request submitted"}
 
 
+@router.get("/referral/network")
+async def get_referral_network(user=Depends(verify_telegram_auth), level: int = 1, limit: int = 50, offset: int = 0):
+    """
+    Get user's referral network (tree of referrals).
+    
+    Args:
+        level: 1, 2, or 3 - which level of referrals to fetch
+        limit: max number of referrals to return
+        offset: pagination offset
+    
+    Returns:
+        List of referrals with their stats (purchases, earnings generated)
+    """
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if level not in [1, 2, 3]:
+        raise HTTPException(status_code=400, detail="Level must be 1, 2, or 3")
+    
+    try:
+        if level == 1:
+            # Direct referrals
+            referrals_result = await asyncio.to_thread(
+                lambda: db.client.table("users")
+                .select("id, telegram_id, username, first_name, created_at, referral_program_unlocked")
+                .eq("referrer_id", db_user.id)
+                .order("created_at", desc=True)
+                .range(offset, offset + limit - 1)
+                .execute()
+            )
+        elif level == 2:
+            # Level 2: referrals of my referrals
+            # First get my direct referral IDs
+            direct_refs = await asyncio.to_thread(
+                lambda: db.client.table("users")
+                .select("id")
+                .eq("referrer_id", db_user.id)
+                .execute()
+            )
+            direct_ref_ids = [r["id"] for r in (direct_refs.data or [])]
+            
+            if not direct_ref_ids:
+                return {"referrals": [], "total": 0, "level": level}
+            
+            referrals_result = await asyncio.to_thread(
+                lambda: db.client.table("users")
+                .select("id, telegram_id, username, first_name, created_at, referral_program_unlocked, referrer_id")
+                .in_("referrer_id", direct_ref_ids)
+                .order("created_at", desc=True)
+                .range(offset, offset + limit - 1)
+                .execute()
+            )
+        else:  # level == 3
+            # Level 3: referrals of level 2
+            # Get level 1 IDs
+            l1_refs = await asyncio.to_thread(
+                lambda: db.client.table("users")
+                .select("id")
+                .eq("referrer_id", db_user.id)
+                .execute()
+            )
+            l1_ids = [r["id"] for r in (l1_refs.data or [])]
+            
+            if not l1_ids:
+                return {"referrals": [], "total": 0, "level": level}
+            
+            # Get level 2 IDs
+            l2_refs = await asyncio.to_thread(
+                lambda: db.client.table("users")
+                .select("id")
+                .in_("referrer_id", l1_ids)
+                .execute()
+            )
+            l2_ids = [r["id"] for r in (l2_refs.data or [])]
+            
+            if not l2_ids:
+                return {"referrals": [], "total": 0, "level": level}
+            
+            referrals_result = await asyncio.to_thread(
+                lambda: db.client.table("users")
+                .select("id, telegram_id, username, first_name, created_at, referral_program_unlocked, referrer_id")
+                .in_("referrer_id", l2_ids)
+                .order("created_at", desc=True)
+                .range(offset, offset + limit - 1)
+                .execute()
+            )
+        
+        referrals_data = referrals_result.data or []
+        
+        # For each referral, get their order count and earnings they generated for the user
+        enriched_referrals = []
+        for ref in referrals_data:
+            ref_id = ref["id"]
+            
+            # Count orders
+            orders_result = await asyncio.to_thread(
+                lambda rid=ref_id: db.client.table("orders")
+                .select("id", count="exact")
+                .eq("user_id", rid)
+                .in_("status", ["delivered", "completed", "ready"])
+                .execute()
+            )
+            order_count = orders_result.count or 0
+            
+            # Get earnings generated (bonuses to the current user from this referral)
+            earnings_result = await asyncio.to_thread(
+                lambda rid=ref_id: db.client.table("referral_bonuses")
+                .select("amount")
+                .eq("referrer_id", db_user.id)
+                .eq("from_user_id", rid)
+                .eq("eligible", True)
+                .execute()
+            )
+            earnings = sum(float(b.get("amount", 0)) for b in (earnings_result.data or []))
+            
+            enriched_referrals.append({
+                "id": ref_id,
+                "telegram_id": ref.get("telegram_id"),
+                "username": ref.get("username"),
+                "first_name": ref.get("first_name"),
+                "created_at": ref.get("created_at"),
+                "is_active": ref.get("referral_program_unlocked", False),
+                "order_count": order_count,
+                "earnings_generated": round(earnings, 2),
+            })
+        
+        return {
+            "referrals": enriched_referrals,
+            "total": len(enriched_referrals),
+            "level": level,
+            "offset": offset,
+            "limit": limit
+        }
+        
+    except Exception as e:
+        print(f"ERROR: Failed to get referral network: {e}")
+        import traceback
+        print(f"ERROR: Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="Failed to load referral network")
+
+
 def _build_default_referral_program(threshold2: float, threshold3: float, comm1: float, comm2: float, comm3: float) -> dict:
     """Build default referral program data."""
     return {

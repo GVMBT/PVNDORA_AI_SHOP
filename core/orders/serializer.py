@@ -65,6 +65,7 @@ def build_item_payload(
         "fulfillment_type": item_data.get("fulfillment_type"),
         "created_at": item_data.get("created_at"),
         "delivered_at": item_data.get("delivered_at"),
+        "expires_at": item_data.get("expires_at"),  # License expiration for this specific item
     }
     
     # Include delivery content only for delivered states

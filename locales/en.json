@@ -82,7 +82,8 @@
     "addedToCart": "Added to cart",
     "notFound": "Product not found",
     "instantDelivery": "Instant Delivery",
-    "fulfillmentTime": "Fulfillment Time"
+    "fulfillmentTime": "Fulfillment Time",
+    "attachments": "Downloads"
   },
 
   "orders": {

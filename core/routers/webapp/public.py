@@ -79,6 +79,9 @@ async def get_webapp_product(
         "recent_reviews": social_proof_data.get("recent_reviews", [])
     }
     
+    # Get instruction files (JSON array of {name, url, description})
+    instruction_files = getattr(product, 'instruction_files', None) or []
+    
     return {
         "product": {
             "id": product.id, "name": product.name, "description": product.description,
@@ -93,6 +96,7 @@ async def get_webapp_product(
             "can_fulfill_on_demand": product.status == 'active',
             "fulfillment_time_hours": fulfillment_time_hours if product.status == 'active' else None,
             "type": product.type, "instructions": product.instructions,
+            "instruction_files": instruction_files,
             "rating": rating_info.get("average", 0), "reviews_count": rating_info.get("count", 0)
         },
         "social_proof": social_proof

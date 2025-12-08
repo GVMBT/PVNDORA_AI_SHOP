@@ -5,7 +5,7 @@ Guaranteed delivery workers for critical operations.
 All workers verify QStash request signature.
 """
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Request
 
 from src.services.database import get_database
@@ -92,17 +92,29 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
             # Update item as delivered
             item_id = it.get("id")
             instructions = it.get("delivery_instructions") or prod.get("instructions") or ""
+            
+            # Calculate expires_at from product.duration_days
+            duration_days = prod.get("duration_days")
+            expires_at_str = None
+            if duration_days and duration_days > 0:
+                expires_at = now + timedelta(days=duration_days)
+                expires_at_str = expires_at.isoformat()
+            
             try:
+                update_data = {
+                    "status": "delivered",
+                    "stock_item_id": sid,
+                    "delivery_content": content,
+                    "delivery_instructions": instr,
+                    "delivered_at": ts,
+                    "updated_at": ts
+                }
+                if expires_at_str:
+                    update_data["expires_at"] = expires_at_str
+                
                 await asyncio.to_thread(
-                    lambda iid=item_id, sid=stock_id, content=stock_content, instr=instructions, ts=now.isoformat(): 
-                        db.client.table("order_items").update({
-                            "status": "delivered",
-                            "stock_item_id": sid,
-                            "delivery_content": content,
-                            "delivery_instructions": instr,
-                            "delivered_at": ts,
-                            "updated_at": ts
-                        }).eq("id", iid).execute()
+                    lambda iid=item_id, data=update_data: 
+                        db.client.table("order_items").update(data).eq("id", iid).execute()
                 )
                 delivered_count += 1
                 delivered_lines.append(f"{prod_name}:\n{stock_content}")

@@ -155,6 +155,7 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
     warranty_days = 0,
     duration_days = null,
     instructions = null,
+    instruction_files = [],
     currency = 'USD',
     status = 'active'
   } = product || {}
@@ -332,6 +333,41 @@ export default function ProductPage({ productId, onBack, onCheckout }) {
             </h3>
             <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
               {instructions}
+            </div>
+          </div>
+        )}
+
+        {/* Instruction Files (scripts, configs, etc.) */}
+        {instruction_files && instruction_files.length > 0 && (
+          <div className="bg-secondary/10 rounded-2xl p-5 border border-white/5">
+            <h3 className="font-bold flex items-center gap-2 mb-3 text-foreground">
+              <FileText className="h-4 w-4 text-primary" />
+              {t('product.attachments') || 'Файлы'}
+            </h3>
+            <div className="space-y-2">
+              {instruction_files.map((file, index) => (
+                <a
+                  key={index}
+                  href={file.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-3 bg-background/50 rounded-xl border border-white/5 hover:border-primary/30 transition-colors group"
+                >
+                  <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-foreground truncate group-hover:text-primary transition-colors">
+                      {file.name}
+                    </p>
+                    {file.description && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {file.description}
+                      </p>
+                    )}
+                  </div>
+                </a>
+              ))}
             </div>
           </div>
         )}

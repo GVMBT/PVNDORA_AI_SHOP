@@ -494,6 +494,12 @@ export default function OrdersPage({ onBack }) {
                                                  {it.delivery_instructions}
                                                </p>
                                              )}
+                                             {it.expires_at && (
+                                               <div className="flex items-center gap-1.5 text-xs text-amber-500 mt-2">
+                                                 <Clock className="h-3 w-3" />
+                                                 <span>{t('orders.licenseExpires') || 'Лицензия до'}: {formatDate(it.expires_at)}</span>
+                                               </div>
+                                             )}
                                            </div>
                                          )}
                                          {!showContent && waitingStates.has(it.status) && (
