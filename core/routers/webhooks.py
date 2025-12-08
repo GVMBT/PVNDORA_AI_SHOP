@@ -64,19 +64,32 @@ async def onplat_webhook(request: Request):
             
             publish_to_worker, WorkerEndpoints = get_queue_publisher()
             
-            # Guaranteed delivery via QStash (max 3 retries on Free tier)
-            await publish_to_worker(
+            # Try QStash first, fallback to direct delivery if it fails
+            delivery_result = await publish_to_worker(
                 endpoint=WorkerEndpoints.DELIVER_GOODS,
                 body={"order_id": order_id},
-                retries=3,
+                retries=2,
                 deduplication_id=f"deliver-{order_id}"
             )
             
-            # Calculate referral bonus
+            # FALLBACK: If QStash failed, deliver directly
+            if not delivery_result.get("queued"):
+                print(f"1Plat webhook: QStash failed, executing direct delivery for {order_id}")
+                try:
+                    from src.services.database import get_database
+                    from core.routers.workers import _deliver_items_for_order
+                    from core.routers.deps import get_notification_service
+                    db = get_database()
+                    notification_service = get_notification_service()
+                    await _deliver_items_for_order(db, notification_service, order_id, only_instant=True)
+                except Exception as fallback_err:
+                    print(f"1Plat webhook: Direct delivery failed: {fallback_err}")
+            
+            # Calculate referral bonus (non-critical)
             await publish_to_worker(
                 endpoint=WorkerEndpoints.CALCULATE_REFERRAL,
                 body={"order_id": order_id},
-                retries=3,
+                retries=2,
                 deduplication_id=f"referral-{order_id}"
             )
             
@@ -148,19 +161,32 @@ async def freekassa_webhook(request: Request):
             
             publish_to_worker, WorkerEndpoints = get_queue_publisher()
             
-            # Guaranteed delivery via QStash (max 3 retries on Free tier)
-            await publish_to_worker(
+            # Try QStash first, fallback to direct delivery if it fails
+            delivery_result = await publish_to_worker(
                 endpoint=WorkerEndpoints.DELIVER_GOODS,
                 body={"order_id": order_id},
-                retries=3,
+                retries=2,
                 deduplication_id=f"deliver-{order_id}"
             )
             
-            # Calculate referral bonus
+            # FALLBACK: If QStash failed, deliver directly
+            if not delivery_result.get("queued"):
+                print(f"Freekassa webhook: QStash failed, executing direct delivery for {order_id}")
+                try:
+                    from src.services.database import get_database
+                    from core.routers.workers import _deliver_items_for_order
+                    from core.routers.deps import get_notification_service
+                    db = get_database()
+                    notification_service = get_notification_service()
+                    await _deliver_items_for_order(db, notification_service, order_id, only_instant=True)
+                except Exception as fallback_err:
+                    print(f"Freekassa webhook: Direct delivery failed: {fallback_err}")
+            
+            # Calculate referral bonus (non-critical)
             await publish_to_worker(
                 endpoint=WorkerEndpoints.CALCULATE_REFERRAL,
                 body={"order_id": order_id},
-                retries=3,
+                retries=2,
                 deduplication_id=f"referral-{order_id}"
             )
             
@@ -348,19 +374,30 @@ async def rukassa_webhook(request: Request):
             
             publish_to_worker, WorkerEndpoints = get_queue_publisher()
             
-            # Guaranteed delivery via QStash
-            await publish_to_worker(
+            # Try QStash first, fallback to direct delivery if it fails
+            delivery_result = await publish_to_worker(
                 endpoint=WorkerEndpoints.DELIVER_GOODS,
                 body={"order_id": real_order_id},
-                retries=5,
+                retries=2,
                 deduplication_id=f"deliver-{real_order_id}"
             )
             
-            # Calculate referral bonus
+            # FALLBACK: If QStash failed, deliver directly
+            if not delivery_result.get("queued"):
+                print(f"Rukassa webhook: QStash failed, executing direct delivery for {real_order_id}")
+                try:
+                    from core.routers.workers import _deliver_items_for_order
+                    from core.routers.deps import get_notification_service
+                    notification_service = get_notification_service()
+                    await _deliver_items_for_order(db, notification_service, real_order_id, only_instant=True)
+                except Exception as fallback_err:
+                    print(f"Rukassa webhook: Direct delivery failed: {fallback_err}")
+            
+            # Calculate referral bonus (non-critical)
             await publish_to_worker(
                 endpoint=WorkerEndpoints.CALCULATE_REFERRAL,
                 body={"order_id": real_order_id},
-                retries=3,
+                retries=2,
                 deduplication_id=f"referral-{real_order_id}"
             )
             
@@ -542,19 +579,31 @@ async def crystalpay_webhook(request: Request):
             
             publish_to_worker, WorkerEndpoints = get_queue_publisher()
             
-            # Guaranteed delivery via QStash
-            await publish_to_worker(
+            # Try QStash first, fallback to direct delivery if it fails
+            delivery_result = await publish_to_worker(
                 endpoint=WorkerEndpoints.DELIVER_GOODS,
                 body={"order_id": real_order_id},
-                retries=5,
+                retries=2,
                 deduplication_id=f"deliver-{real_order_id}"
             )
             
-            # Calculate referral bonus
+            # FALLBACK: If QStash failed, deliver directly
+            if not delivery_result.get("queued"):
+                print(f"CrystalPay webhook: QStash failed, executing direct delivery for {real_order_id}")
+                try:
+                    from core.routers.workers import _deliver_items_for_order
+                    from core.routers.deps import get_notification_service
+                    notification_service = get_notification_service()
+                    fallback_result = await _deliver_items_for_order(db, notification_service, real_order_id, only_instant=True)
+                    print(f"CrystalPay webhook: Direct delivery completed: {fallback_result}")
+                except Exception as fallback_err:
+                    print(f"CrystalPay webhook: Direct delivery failed: {fallback_err}")
+            
+            # Calculate referral bonus (non-critical, ignore failures)
             await publish_to_worker(
                 endpoint=WorkerEndpoints.CALCULATE_REFERRAL,
                 body={"order_id": real_order_id},
-                retries=3,
+                retries=2,
                 deduplication_id=f"referral-{real_order_id}"
             )
             

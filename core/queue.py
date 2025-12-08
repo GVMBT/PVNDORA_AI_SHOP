@@ -96,18 +96,22 @@ async def publish_to_worker(
     if deduplication_id:
         headers["Upstash-Deduplication-Id"] = deduplication_id
     
+    # Cap retries at 2 for Free tier safety (limit is 3, but be conservative)
+    safe_retries = min(retries, 2)
+    
     try:
         result = qstash.message.publish_json(
             url=url,
             body=body,
-            retries=retries,
+            retries=safe_retries,
             delay=f"{delay}s" if delay else None,
             headers=headers if headers else None
         )
-        return {"message_id": result.message_id}
+        return {"message_id": result.message_id, "queued": True}
     except Exception as e:
-        # Surface QStash errors explicitly to caller (webhooks/workers)
-        raise HTTPException(status_code=502, detail=f"QStash publish failed: {e}")
+        # Log error but don't raise - let caller handle fallback
+        print(f"QStash publish failed: {e}")
+        return {"message_id": None, "queued": False, "error": str(e)}
 
 
 async def publish_to_queue(
