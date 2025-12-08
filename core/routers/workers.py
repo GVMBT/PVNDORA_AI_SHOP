@@ -253,20 +253,32 @@ async def worker_calculate_referral(request: Request):
         }
     
     # Use new function that checks level unlock status
-    bonus_result = db.client.rpc("process_referral_bonus", {
-        "p_buyer_id": user_id,
-        "p_order_id": order_id,
-        "p_order_amount": amount
-    }).execute()
-    
-    return {
-        "success": True,
-        "turnover": turnover_data,
-        "first_unlock": not was_unlocked,
-        "level_up": level_up,
-        "new_level": new_level,
-        "bonuses": bonus_result.data if bonus_result.data else {}
-    }
+    try:
+        bonus_result = db.client.rpc("process_referral_bonus", {
+            "p_buyer_id": user_id,
+            "p_order_id": order_id,
+            "p_order_amount": amount
+        }).execute()
+        bonuses = bonus_result.data if bonus_result.data else {}
+        return {
+            "success": True,
+            "turnover": turnover_data,
+            "first_unlock": not was_unlocked,
+            "level_up": level_up,
+            "new_level": new_level,
+            "bonuses": bonuses
+        }
+    except Exception as e:
+        # If referral program not unlocked or percent is null, skip bonus and continue
+        print(f"Referral bonus failed for order {order_id}: {e}")
+        return {
+            "success": True,
+            "turnover": turnover_data,
+            "first_unlock": not was_unlocked,
+            "level_up": level_up,
+            "new_level": new_level,
+            "bonuses": "skipped_due_to_error"
+        }
 
 
 @router.post("/deliver-batch")
