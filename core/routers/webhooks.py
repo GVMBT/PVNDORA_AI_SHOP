@@ -423,7 +423,7 @@ async def crystalpay_webhook(request: Request):
         # Log webhook receipt
         invoice_id = data.get("id") or "unknown"
         state = data.get("state") or "unknown"
-        order_id = data.get("extra") or "unknown"
+        order_id = data.get("extra") or "unknown"  # we pass real order_id in extra
         print(f"CrystalPay webhook: invoice={invoice_id}, state={state}, order_id={order_id}")
         
         payment_service = get_payment_service()
@@ -454,7 +454,7 @@ async def crystalpay_webhook(request: Request):
                     real_order_id = order_data["id"]
                     print(f"CrystalPay webhook: mapped invoice {invoice_id} -> order {real_order_id}")
                 else:
-                    # Fallback: try direct lookup by order_id from extra
+                    # Fallback: try direct lookup by order_id from extra (real order_id)
                     direct_result = await asyncio.to_thread(
                         lambda: db.client.table("orders")
                         .select("*")

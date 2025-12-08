@@ -1,7 +1,10 @@
 """Database Models - Pydantic models for all entities."""
+from decimal import Decimal
 from datetime import datetime
-from typing import Optional
-from pydantic import BaseModel
+from typing import Optional, Union, Any
+from pydantic import BaseModel, field_validator
+
+from src.services.money import to_decimal as _to_decimal
 
 
 class User(BaseModel):
@@ -11,15 +14,15 @@ class User(BaseModel):
     username: Optional[str] = None
     first_name: Optional[str] = None
     language_code: str = "en"
-    balance: float = 0
+    balance: Decimal = Decimal("0")
     referrer_id: Optional[str] = None
     personal_ref_percent: int = 20
     is_admin: bool = False
     is_banned: bool = False
     warnings_count: int = 0
     do_not_disturb: bool = False
-    total_saved: float = 0
-    total_referral_earnings: float = 0
+    total_saved: Decimal = Decimal("0")
+    total_referral_earnings: Decimal = Decimal("0")
     last_activity_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     # Partner/Referral fields
@@ -28,11 +31,16 @@ class User(BaseModel):
     partner_mode: str = "commission"  # commission | discount
     partner_discount_percent: int = 0
     referral_program_unlocked: bool = False
-    turnover_usd: float = 0
-    total_purchases_amount: float = 0
+    turnover_usd: Decimal = Decimal("0")
+    total_purchases_amount: Decimal = Decimal("0")
     
     class Config:
         extra = "ignore"  # Ignore unknown fields from DB
+    
+    @field_validator("balance", "total_saved", "total_referral_earnings", "turnover_usd", "total_purchases_amount", mode="before")
+    @classmethod
+    def convert_to_decimal(cls, v):
+        return _to_decimal(v)
 
 
 class Product(BaseModel):
@@ -40,7 +48,7 @@ class Product(BaseModel):
     id: str
     name: str
     description: Optional[str] = None
-    price: float
+    price: Decimal
     type: str  # student, trial, shared, key
     status: str = "active"
     warranty_hours: int = 24
@@ -51,6 +59,11 @@ class Product(BaseModel):
     fulfillment_time_hours: int = 48
     requires_prepayment: bool = False
     prepayment_percent: int = 100
+    
+    @field_validator("price", mode="before")
+    @classmethod
+    def convert_price_to_decimal(cls, v):
+        return _to_decimal(v)
 
 
 class StockItem(BaseModel):
@@ -70,8 +83,8 @@ class Order(BaseModel):
     user_id: str
     product_id: str
     stock_item_id: Optional[str] = None
-    amount: float
-    original_price: Optional[float] = None
+    amount: Decimal
+    original_price: Optional[Decimal] = None
     discount_percent: int = 0
     status: str = "pending"
     payment_method: Optional[str] = None
@@ -88,6 +101,11 @@ class Order(BaseModel):
     delivery_instructions: Optional[str] = None
     order_type: Optional[str] = "instant"
     fulfillment_deadline: Optional[datetime] = None
+    
+    @field_validator("amount", "original_price", mode="before")
+    @classmethod
+    def convert_amount_to_decimal(cls, v):
+        return _to_decimal(v) if v is not None else None
 
 
 class OrderItem(BaseModel):
@@ -101,8 +119,13 @@ class OrderItem(BaseModel):
     fulfillment_type: str = "instant"  # instant | preorder
     delivery_content: Optional[str] = None
     delivery_instructions: Optional[str] = None
-    price: Optional[float] = None
+    price: Optional[Decimal] = None
     discount_percent: int = 0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     delivered_at: Optional[datetime] = None
+    
+    @field_validator("price", mode="before")
+    @classmethod
+    def convert_item_price_to_decimal(cls, v):
+        return _to_decimal(v) if v is not None else None

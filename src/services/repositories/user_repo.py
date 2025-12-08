@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from .base import BaseRepository
 from src.services.models import User
+from src.services.money import to_decimal, to_float
 
 
 class UserRepository(BaseRepository):
@@ -52,7 +53,7 @@ class UserRepository(BaseRepository):
         """Add amount to balance (can be negative)."""
         user = self.client.table("users").select("balance").eq("id", user_id).execute()
         if user.data:
-            new_balance = float(user.data[0]["balance"] or 0) + amount
+            new_balance = to_float(to_decimal(user.data[0]["balance"] or 0) + to_decimal(amount))
             self.client.table("users").update({"balance": new_balance}).eq("id", user_id).execute()
     
     async def ban(self, telegram_id: int, ban: bool = True) -> None:

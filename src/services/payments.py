@@ -4,9 +4,12 @@ import hashlib
 import hmac
 import logging
 import os
-from typing import Any, Dict, Optional, Tuple
+from decimal import Decimal
+from typing import Any, Dict, Optional, Tuple, Union
 
 import httpx
+
+from src.services.money import to_decimal, to_kopecks, from_kopecks, to_float
 
 logger = logging.getLogger(__name__)
 
@@ -446,7 +449,7 @@ class PaymentService:
             raise ValueError("user_id должен быть числом (используйте telegram_id)")
         
         api_url = f"{base_url}/api/merchant/order/create/by-api"
-        amount_kopecks = int(float(amount) * 100)
+        amount_kopecks = to_kopecks(amount)
         
         # Согласно документации 1Plat:
         # Для создания платежа Host2Host обязательно нужно передать поле method.
@@ -596,7 +599,7 @@ class PaymentService:
             
             raw_amount = data.get("amount") or data.get("amount_to_shop") or data.get("amount_to_pay") or 0
             try:
-                amount = float(raw_amount) / 100.0
+                amount = to_float(from_kopecks(int(raw_amount)))
             except (ValueError, TypeError):
                 amount = 0.0
             
@@ -621,7 +624,7 @@ class PaymentService:
                             payment = info_data.get("payment", {})
                             order_id = payment.get("merchant_order_id") or payment.get("order_id") or guid
                             if not amount and payment.get("amount"):
-                                amount = float(payment.get("amount")) / 100.0
+                                amount = to_float(from_kopecks(int(payment.get("amount"))))
                             if payment.get("currency") and isinstance(payment.get("currency"), str):
                                 currency = payment.get("currency").upper()
                             logger.info("1Plat: Found payment info by guid %s", guid)
@@ -763,7 +766,7 @@ class PaymentService:
         merchant_id, secret_word_1, api_url = self._validate_freekassa_config()
         
         # Amount in rubles (Freekassa expects rubles)
-        amount_rub = float(amount)
+        amount_rub = to_float(amount)
         
         # Generate signature: md5(MERCHANT_ID:AMOUNT:SECRET_WORD_1:MERCHANT_ORDER_ID)
         sign_string = f"{merchant_id}:{amount_rub}:{secret_word_1}:{order_id}"
@@ -834,7 +837,7 @@ class PaymentService:
                 logger.error("Freekassa webhook: Signature verification failed for order %s", order_id)
                 return {"success": False, "error": "Invalid signature"}
             
-            amount = float(amount_str)
+            amount = to_float(amount_str)
             currency = data.get("CUR_ID", "RUB")  # Default to RUB
             
             logger.info("Freekassa webhook verified successfully for order %s, amount %s", order_id, amount)
@@ -886,7 +889,7 @@ class PaymentService:
         shop_id, token, api_url = self._validate_rukassa_config()
         
         # Amount in rubles (float)
-        amount_rub = float(amount)
+        amount_rub = to_float(amount)
         
         # Data object to pass with webhook callback
         callback_data = {
@@ -1098,8 +1101,8 @@ class PaymentService:
             
             # Parse amounts
             try:
-                amount = float(amount_str) if amount_str else 0.0
-                in_amount = float(in_amount_str) if in_amount_str else amount
+                amount = to_float(amount_str) if amount_str else 0.0
+                in_amount = to_float(in_amount_str) if in_amount_str else amount
             except (ValueError, TypeError):
                 amount = 0.0
                 in_amount = 0.0
@@ -1173,7 +1176,7 @@ class PaymentService:
         login, secret, salt, api_url = self._validate_crystalpay_config()
         
         # Amount in rubles (CrystalPay expects float)
-        amount_rub = float(amount)
+        amount_rub = to_float(amount)
         
         # Build callback URL
         callback_url = f"{self.base_url}/api/webhook/crystalpay"
@@ -1243,12 +1246,12 @@ class PaymentService:
                 logger.error("CrystalPay: URL not in response. Keys: %s", list(data.keys()))
                 raise ValueError("Payment URL not found in CrystalPay response")
             
-            # Save payment reference (invoice_id)
-            if invoice_id:
-                await self._save_payment_reference(order_id, str(invoice_id))
-            
-            logger.info("CrystalPay payment created: order=%s, invoice_id=%s", order_id, invoice_id)
-            return payment_url
+        logger.info("CrystalPay payment created: order=%s, invoice_id=%s", order_id, invoice_id)
+        return {
+            "payment_url": payment_url,
+            "url": payment_url,
+            "invoice_id": invoice_id,
+        }
             
         except httpx.HTTPStatusError as e:
             try:
@@ -1327,8 +1330,8 @@ class PaymentService:
             
             # Parse amounts
             try:
-                amount = float(amount_str) if amount_str else 0.0
-                rub_amount = float(rub_amount_str) if rub_amount_str else amount
+                amount = to_float(amount_str) if amount_str else 0.0
+                rub_amount = to_float(rub_amount_str) if rub_amount_str else amount
             except (ValueError, TypeError):
                 amount = 0.0
                 rub_amount = 0.0
@@ -1428,12 +1431,12 @@ class PaymentService:
             if status_lower in forbidden_statuses or (status_lower and allowed_statuses and status_lower not in allowed_statuses):
                 return {"success": False, "error": f"Refund not allowed for status '{order.status}'"}
             
-            order_amount = float(getattr(order, "amount", 0) or 0)
-            if amount > order_amount:
+            order_amount = to_float(getattr(order, "amount", 0) or 0)
+            if to_float(amount) > order_amount:
                 return {"success": False, "error": "amount exceeds order total"}
             
             if getattr(order, "refund_requested", False):
-                return {"success": True, "method": "manual", "amount": float(amount), "message": "Refund already requested"}
+                return {"success": True, "method": "manual", "amount": to_float(amount), "message": "Refund already requested"}
             
             user_id = getattr(order, "user_id", None)
             if user_id:
@@ -1465,7 +1468,7 @@ class PaymentService:
             return {
                 "success": True,
                 "method": "manual",
-                "amount": float(amount),
+                "amount": to_float(amount),
                 "message": "Refund queued for manual processing"
             }
         except Exception as e:

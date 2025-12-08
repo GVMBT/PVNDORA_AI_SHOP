@@ -3,9 +3,12 @@ Currency Conversion Service
 
 Handles currency conversion based on user language and caches exchange rates.
 """
-from typing import Dict, Optional
+from decimal import Decimal, ROUND_HALF_UP
+from typing import Dict, Optional, Union
 import os
 from datetime import datetime, timedelta
+
+from src.services.money import to_decimal, to_float, round_money
 
 # Language to Currency mapping
 LANGUAGE_TO_CURRENCY: Dict[str, str] = {
@@ -153,7 +156,7 @@ class CurrencyService:
     
     async def convert_price(
         self, 
-        price_usd: float, 
+        price_usd: Union[float, Decimal, str, int], 
         target_currency: str,
         round_to_int: bool = False
     ) -> float:
@@ -161,36 +164,39 @@ class CurrencyService:
         Convert price from USD to target currency.
         
         Args:
-            price_usd: Price in USD
+            price_usd: Price in USD (any numeric type)
             target_currency: Target currency code
             round_to_int: If True, round to integer (for RUB, UAH, etc.)
             
         Returns:
-            Converted price
+            Converted price as float (for JSON serialization)
         """
+        decimal_price = to_decimal(price_usd)
+        
         if target_currency == "USD":
-            return price_usd
+            return to_float(decimal_price)
         
         rate = await self.get_exchange_rate(target_currency)
-        converted = price_usd * rate
+        converted = decimal_price * to_decimal(rate)
         
-        # Round based on currency
-        if round_to_int or target_currency in ["RUB", "UAH", "TRY", "INR"]:
-            return round(converted)
-        else:
-            return round(converted, 2)
+        # Round based on currency using Decimal quantize
+        should_round_int = round_to_int or target_currency in ["RUB", "UAH", "TRY", "INR"]
+        rounded = round_money(converted, to_int=should_round_int)
+        return to_float(rounded)
     
-    def format_price(self, price: float, currency: str) -> str:
+    def format_price(self, price: Union[float, Decimal, str, int], currency: str) -> str:
         """
         Format price with currency symbol.
         
         Args:
-            price: Price value
+            price: Price value (any numeric type)
             currency: Currency code
             
         Returns:
             Formatted price string
         """
+        decimal_price = to_decimal(price)
+        
         symbols = {
             "USD": "$",
             "RUB": "₽",
@@ -205,9 +211,9 @@ class CurrencyService:
         
         # Format number
         if currency in ["RUB", "UAH", "TRY", "INR"]:
-            formatted = f"{int(price):,}"
+            formatted = f"{int(round_money(decimal_price, to_int=True)):,}"
         else:
-            formatted = f"{price:,.2f}"
+            formatted = f"{to_float(round_money(decimal_price)):,.2f}"
         
         # Place symbol based on currency
         if currency in ["USD", "EUR", "GBP"]:

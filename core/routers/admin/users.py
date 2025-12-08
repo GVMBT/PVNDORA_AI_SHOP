@@ -8,6 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
 
 from src.services.database import get_database
+from src.services.money import to_float
 from core.auth import verify_admin
 
 router = APIRouter(tags=["admin-users"])
@@ -93,15 +94,15 @@ async def admin_get_users_crm(
                 "is_admin": u.get("is_admin", False),
                 "is_banned": u.get("is_banned", False),
                 "is_partner": u.get("is_partner", False),
-                "balance": float(u.get("balance", 0)),
-                "total_referral_earnings": float(u.get("total_referral_earnings", 0)),
-                "total_saved": float(u.get("total_saved", 0)),
+                "balance": to_float(u.get("balance", 0)),
+                "total_referral_earnings": to_float(u.get("total_referral_earnings", 0)),
+                "total_saved": to_float(u.get("total_saved", 0)),
                 "warnings_count": u.get("warnings_count", 0),
                 "do_not_disturb": u.get("do_not_disturb", False),
                 "last_activity_at": u.get("last_activity_at"),
                 "referral_program_unlocked": u.get("referral_program_unlocked", False),
-                "turnover_usd": float(u.get("turnover_usd", 0)),
-                "total_purchases_amount": float(u.get("total_purchases_amount", 0)),
+                "turnover_usd": to_float(u.get("turnover_usd", 0)),
+                "total_purchases_amount": to_float(u.get("total_purchases_amount", 0)),
                 
                 # Orders metrics
                 "total_orders": u.get("total_orders", 0),
@@ -110,8 +111,8 @@ async def admin_get_users_crm(
                 "paid_orders": u.get("paid_orders", 0),
                 "refunded_orders": u.get("refunded_orders", 0),
                 "refund_requests": u.get("refund_requests", 0),
-                "total_spent": float(u.get("total_spent", 0)),
-                "total_refunded": float(u.get("total_refunded", 0)),
+                "total_spent": to_float(u.get("total_spent", 0)),
+                "total_refunded": to_float(u.get("total_refunded", 0)),
                 
                 # Tickets metrics
                 "total_tickets": u.get("total_tickets", 0),

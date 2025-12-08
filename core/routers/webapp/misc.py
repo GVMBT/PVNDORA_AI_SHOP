@@ -9,6 +9,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Depends
 
 from src.services.database import get_database
+from src.services.money import to_float
 from core.auth import verify_telegram_auth
 from .models import PromoCheckRequest, WebAppReviewRequest
 
@@ -87,9 +88,9 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
         raise HTTPException(status_code=500, detail="Failed to create review")
     
     review_id = result.data[0]["id"]
-    cashback_amount = float(order.amount) * 0.05
+    cashback_amount = to_float(order.amount) * 0.05
     await asyncio.to_thread(
-        lambda: db.client.table("users").update({"balance": db_user.balance + cashback_amount}).eq("id", db_user.id).execute()
+        lambda: db.client.table("users").update({"balance": to_float(db_user.balance) + cashback_amount}).eq("id", db_user.id).execute()
     )
     await asyncio.to_thread(
         lambda: db.client.table("reviews").update({"cashback_given": True}).eq("id", review_id).execute()
@@ -97,7 +98,7 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
     
     return {
         "success": True, "review_id": review_id, "cashback_awarded": round(cashback_amount, 2),
-        "new_balance": round(float(db_user.balance) + cashback_amount, 2)
+        "new_balance": round(to_float(db_user.balance) + cashback_amount, 2)
     }
 
 
@@ -126,8 +127,8 @@ async def get_webapp_leaderboard(period: str = "all", user=Depends(verify_telegr
             uid = order.get("user_id")
             if not uid:
                 continue
-            orig = float(order.get("original_price") or order.get("amount") or 0)
-            paid = float(order.get("amount") or 0)
+            orig = to_float(order.get("original_price") or order.get("amount") or 0)
+            paid = to_float(order.get("amount") or 0)
             saved = max(0, orig - paid)
             
             if uid not in user_savings:

@@ -7,6 +7,7 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 
 from src.services.database import User, get_database
+from src.services.money import to_float
 from src.i18n import get_text
 from src.bot.keyboards import get_product_keyboard
 from src.bot.states import TicketStates, ReviewStates
@@ -146,7 +147,7 @@ async def _submit_review(callback: CallbackQuery, order_id: str, rating: int, te
     try:
         from core.queue import publish_to_worker, WorkerEndpoints
         await publish_to_worker(endpoint=WorkerEndpoints.PROCESS_REVIEW_CASHBACK, body={
-            "user_telegram_id": db_user.telegram_id, "order_id": order_id, "order_amount": float(order.amount)
+            "user_telegram_id": db_user.telegram_id, "order_id": order_id, "order_amount": to_float(order.amount)
         })
     except Exception as e:
         print(f"WARNING: Failed to trigger cashback worker: {e}")
@@ -167,7 +168,7 @@ async def _submit_review_from_message(message: Message, order_id: str, rating: i
     try:
         from core.queue import publish_to_worker, WorkerEndpoints
         await publish_to_worker(endpoint=WorkerEndpoints.PROCESS_REVIEW_CASHBACK, body={
-            "user_telegram_id": db_user.telegram_id, "order_id": order_id, "order_amount": float(order.amount)
+            "user_telegram_id": db_user.telegram_id, "order_id": order_id, "order_amount": to_float(order.amount)
         })
     except Exception as e:
         print(f"WARNING: Failed to trigger cashback worker: {e}")

@@ -4,11 +4,12 @@ QStash Workers Router
 Guaranteed delivery workers for critical operations.
 All workers verify QStash request signature.
 """
-
+import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, Request
 
 from src.services.database import get_database
+from src.services.money import to_decimal, to_float
 from core.routers.deps import verify_qstash, get_notification_service
 
 router = APIRouter(prefix="/api/workers", tags=["workers"])
@@ -200,7 +201,7 @@ async def worker_calculate_referral(request: Request):
         return {"error": "Order not found"}
     
     user_id = order.data.get("user_id")
-    amount = float(order.data["amount"])
+    amount = to_float(order.data["amount"])
     telegram_id = order.data.get("user_telegram_id")
     was_unlocked = order.data.get("users", {}).get("referral_program_unlocked", False)
     
@@ -347,7 +348,7 @@ async def worker_process_refund(request: Request):
     if order.data["status"] not in ["prepaid", "completed", "delivered"]:
         return {"skipped": True, "reason": f"Order status is {order.data['status']}, cannot refund"}
     
-    amount = float(order.data["amount"])
+    amount = to_float(order.data["amount"])
     user_id = order.data["user_id"]
     
     # 1. Rollback turnover and revoke referral bonuses
@@ -416,7 +417,7 @@ async def worker_process_review_cashback(request: Request):
         return {"error": "Order not found"}
     
     # Calculate 5% cashback
-    cashback = float(order["amount"]) * 0.05
+    cashback = to_float(order["amount"]) * 0.05
     
     # Add to user balance
     db.client.rpc("add_to_user_balance", {

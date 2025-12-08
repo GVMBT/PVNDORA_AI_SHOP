@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
 
 from src.services.database import get_database
+from src.services.money import to_float
 from core.auth import verify_admin
 from .models import ReferralSettingsRequest, SetPartnerRequest, ReviewApplicationRequest
 
@@ -289,7 +290,7 @@ async def admin_get_referral_metrics_detailed(admin=Depends(verify_admin)):
     pending_by_level = {"level1": 0, "level2": 0, "level3": 0}
     for bonus in (pending_bonuses.data or []):
         level_key = f"level{bonus.get('level', 1)}"
-        pending_by_level[level_key] += float(bonus.get("amount", 0))
+        pending_by_level[level_key] += to_float(bonus.get("amount", 0))
     
     return {
         "overview": {
@@ -298,9 +299,9 @@ async def admin_get_referral_metrics_detailed(admin=Depends(verify_admin)):
             "level1_users": metrics.get("level1_users", 0),
             "level2_users": metrics.get("level2_users", 0),
             "level3_users": metrics.get("level3_users", 0),
-            "total_paid_bonuses": float(metrics.get("total_paid_bonuses", 0)),
-            "total_revoked_bonuses": float(metrics.get("total_revoked_bonuses", 0)),
-            "total_network_turnover_usd": float(metrics.get("total_network_turnover_usd", 0))
+            "total_paid_bonuses": to_float(metrics.get("total_paid_bonuses", 0)),
+            "total_revoked_bonuses": to_float(metrics.get("total_revoked_bonuses", 0)),
+            "total_network_turnover_usd": to_float(metrics.get("total_network_turnover_usd", 0))
         },
         "pending_by_level": pending_by_level,
         "top_earners": top_earners.data or [],

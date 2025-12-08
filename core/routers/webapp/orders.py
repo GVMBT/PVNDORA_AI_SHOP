@@ -5,14 +5,138 @@ Order creation and history endpoints.
 """
 import os
 import asyncio
+import logging
+from decimal import Decimal
 from datetime import datetime, timezone, timedelta
+from typing import Dict, Any, Tuple, List, Optional
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 
 from src.services.database import get_database
+from src.services.money import to_decimal, to_float, round_money, multiply, subtract, divide, to_kopecks
 from core.auth import verify_telegram_auth
 from core.routers.deps import get_payment_service
+from core.payments import (
+    validate_gateway_config, 
+    normalize_gateway, 
+    DELIVERED_STATES,
+    OrderStatus,
+    GATEWAY_CURRENCY,
+)
+from core.orders import build_order_payload, build_item_payload, convert_order_prices
 from .models import CreateOrderRequest, OrderResponse, ConfirmPaymentRequest
+
+logger = logging.getLogger(__name__)
+
+
+# ==================== PAYMENT HELPERS ====================
+
+async def create_payment_wrapper(
+    payment_service,
+    order_id: str,
+    amount: Decimal,
+    product_name: str,
+    gateway: str,
+    payment_method: str,
+    user_email: str,
+    user_id: int,
+    currency: str = "RUB",
+) -> Dict[str, Any]:
+    """
+    Unified payment creation wrapper for all gateways.
+    
+    Converts amount to appropriate format for each gateway:
+    - 1Plat: kopecks (integer minor units)
+    - Others: float rubles
+    
+    Returns: {"payment_url": str, "invoice_id": str|None}
+    """
+    gateway = normalize_gateway(gateway)
+    
+    # Convert amount based on gateway requirements and currency
+    if gateway == "1plat":
+        payment_amount = to_kopecks(amount)  # minor units
+    elif currency == "RUB":
+        # Rounding to 2 decimals for RUB unless gateway requires ints (current gateways accept decimals)
+        payment_amount = to_float(round_money(amount))
+    else:
+        # For USD/EUR/etc. keep 2 decimals
+        payment_amount = to_float(round_money(amount))
+    
+    pay_result = await payment_service.create_payment(
+        order_id=order_id,
+        amount=payment_amount,
+        product_name=product_name,
+        method=gateway,
+        payment_method=payment_method,
+        user_email=user_email,
+        user_id=user_id,
+        currency=currency
+    )
+    
+    if isinstance(pay_result, dict):
+        return {
+            "payment_url": pay_result.get("url") or pay_result.get("payment_url"),
+            "invoice_id": pay_result.get("invoice_id")
+        }
+    return {"payment_url": pay_result, "invoice_id": None}
+
+
+async def persist_order(
+    db,
+    user_id: str,
+    product_id: str,
+    amount: Decimal,
+    original_price: Decimal,
+    discount_percent: int,
+    payment_method: str,
+    payment_gateway: str,
+    user_telegram_id: int,
+    expires_at: datetime
+):
+    """Create order record in database."""
+    return await db.create_order(
+        user_id=user_id,
+        product_id=product_id,
+        amount=amount,
+        original_price=original_price,
+        discount_percent=discount_percent,
+        payment_method=payment_method,
+        payment_gateway=payment_gateway,
+        user_telegram_id=user_telegram_id,
+        expires_at=expires_at
+    )
+
+
+async def persist_order_items(db, order_id: str, order_items: List[Dict[str, Any]]) -> None:
+    """Create order_items records for partial fulfillment."""
+    items_to_insert = []
+    for oi in order_items:
+        unit_price = divide(to_decimal(oi["amount"]), oi["quantity"]) if oi["quantity"] else to_decimal(oi["amount"])
+        # instant (есть в наличии)
+        for _ in range(int(oi.get("instant_quantity", 0))):
+            items_to_insert.append({
+                "order_id": order_id,
+                "product_id": oi["product_id"],
+                "quantity": 1,
+                "status": "pending",
+                "fulfillment_type": "instant",
+                "price": unit_price,
+                "discount_percent": int(oi.get("discount_percent", 0)),
+            })
+        # preorder (нет в наличии)
+        for _ in range(int(oi.get("prepaid_quantity", 0))):
+            items_to_insert.append({
+                "order_id": order_id,
+                "product_id": oi["product_id"],
+                "quantity": 1,
+                "status": "prepaid",
+                "fulfillment_type": "preorder",
+                "price": unit_price,
+                "discount_percent": int(oi.get("discount_percent", 0)),
+            })
+    if items_to_insert:
+        await db.create_order_items(items_to_insert)
 
 router = APIRouter(tags=["webapp-orders"])
 
@@ -74,93 +198,64 @@ async def get_webapp_orders(user=Depends(verify_telegram_auth)):
         currency_service = get_currency_service(redis)
         currency = currency_service.get_user_currency(db_user.language_code or user.language_code)
     except Exception as e:
-        print(f"Warning: Currency service unavailable: {e}, using USD")
+        logger.warning(f"Currency service unavailable: {e}, using USD")
     
     orders = await db.get_user_orders(db_user.id, limit=50)
     order_ids = [o.id for o in orders]
     
     # Fetch order_items in bulk
     items_data = await db.get_order_items_by_orders(order_ids)
+    # Collect product ids from both orders (legacy product_id) and items
+    product_ids = set()
+    for o in orders:
+        if o.product_id:
+            product_ids.add(o.product_id)
+    for it in items_data:
+        if it.get("product_id"):
+            product_ids.add(it["product_id"])
+    
     products_map = {}
     try:
-        product_ids = list({item["product_id"] for item in items_data})
         if product_ids:
             prod_res = await asyncio.to_thread(
-                lambda: db.client.table("products").select("id,name,instructions,price").in_("id", product_ids).execute()
+                lambda: db.client.table("products").select("id,name,instructions,price").in_("id", list(product_ids)).execute()
             )
             products_map = {p["id"]: p for p in (prod_res.data or [])}
     except Exception as e:
-        print(f"Warning: failed to load products map for order items: {e}")
+        logger.warning(f"Failed to load products map: {e}")
     
+    # Build items by order using helper
     from collections import defaultdict
     items_by_order = defaultdict(list)
     for it in items_data:
         pid = it.get("product_id")
         prod = products_map.get(pid, {})
-        status_lower = str(it.get("status", "")).lower()
-        delivered_states = {"delivered", "fulfilled", "completed", "ready"}
-        item_payload = {
-            "id": it.get("id"),
-            "product_id": pid,
-            "product_name": prod.get("name", "Unknown Product"),
-            "status": status_lower,
-            "fulfillment_type": it.get("fulfillment_type"),
-            "created_at": it.get("created_at"),
-            "delivered_at": it.get("delivered_at"),
-        }
-        if status_lower in delivered_states:
-            if it.get("delivery_content"):
-                item_payload["delivery_content"] = it.get("delivery_content")
-            # instructions: prefer item-specific, fallback to product instructions
-            if it.get("delivery_instructions"):
-                item_payload["delivery_instructions"] = it.get("delivery_instructions")
-            elif prod.get("instructions"):
-                item_payload["delivery_instructions"] = prod.get("instructions")
+        item_payload = build_item_payload(it, prod)
         items_by_order[it.get("order_id")].append(item_payload)
     
+    # Build order payloads using helper
     result = []
     for o in orders:
-        product = await db.get_product_by_id(o.product_id)
+        product = products_map.get(o.product_id, {})
         
-        # Convert prices from USD to user currency
-        amount_converted = float(o.amount)
-        original_price_converted = float(o.original_price) if o.original_price else None
+        # Convert prices
+        amount_converted, original_price_converted = await convert_order_prices(
+            to_decimal(o.amount),
+            to_decimal(o.original_price) if o.original_price else None,
+            currency,
+            currency_service
+        )
         
-        if currency_service and currency != "USD":
-            try:
-                amount_converted = await currency_service.convert_price(float(o.amount), currency, round_to_int=True)
-                if original_price_converted:
-                    original_price_converted = await currency_service.convert_price(float(o.original_price), currency, round_to_int=True)
-            except Exception as e:
-                print(f"Warning: Failed to convert order prices: {e}")
-        
-        order_item = {
-            "id": o.id, "product_id": o.product_id,
-            "product_name": product.name if product else "Unknown Product",
-            "amount": amount_converted, 
-            "original_price": original_price_converted,
-            "discount_percent": o.discount_percent, "status": o.status,
-            "order_type": getattr(o, 'order_type', 'instant'),
-            "currency": currency,
-            "created_at": o.created_at.isoformat() if o.created_at else None,
-            "delivered_at": o.delivered_at.isoformat() if hasattr(o, 'delivered_at') and o.delivered_at else None,
-            "expires_at": o.expires_at.isoformat() if o.expires_at else None,
-            "warranty_until": o.warranty_until.isoformat() if hasattr(o, 'warranty_until') and o.warranty_until else None
-        }
-        # attach items if present
-        if items_by_order.get(o.id):
-            order_item["items"] = items_by_order.get(o.id)
-        # Include payment_url for pending orders so user can retry payment
-        if o.status == "pending" and hasattr(o, 'payment_url') and o.payment_url:
-            order_item["payment_url"] = o.payment_url
-        
-        # Include delivery content only for delivered/fulfilled/ready/completed
-        if str(o.status).lower() in {"delivered", "fulfilled", "completed", "ready"}:
-            if getattr(o, "delivery_content", None):
-                order_item["delivery_content"] = o.delivery_content
-            if getattr(o, "delivery_instructions", None):
-                order_item["delivery_instructions"] = o.delivery_instructions
-        result.append(order_item)
+        # Build order payload
+        order_payload = build_order_payload(
+            order=o,
+            product=product,
+            amount_converted=amount_converted,
+            original_price_converted=original_price_converted,
+            currency=currency,
+            items=items_by_order.get(o.id)
+        )
+        result.append(order_payload)
     
     return {"orders": result, "count": len(result), "currency": currency}
 
@@ -174,52 +269,10 @@ async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_t
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Determine payment gateway - support 1Plat, Freekassa, and Rukassa
+    # Determine payment gateway - support 1Plat, Freekassa, Rukassa, CrystalPay
     payment_gateway = request.payment_gateway or os.environ.get("DEFAULT_PAYMENT_GATEWAY", "rukassa")
-    
-    # Check if requested gateway is configured
-    if payment_gateway == "freekassa":
-        freekassa_configured = bool(
-            os.environ.get("FREEKASSA_MERCHANT_ID") and
-            os.environ.get("FREEKASSA_SECRET_WORD_1") and
-            os.environ.get("FREEKASSA_SECRET_WORD_2")
-        )
-        if not freekassa_configured:
-            raise HTTPException(
-                status_code=500,
-                detail="Freekassa не настроен. Настройте FREEKASSA_MERCHANT_ID, FREEKASSA_SECRET_WORD_1, FREEKASSA_SECRET_WORD_2"
-            )
-    elif payment_gateway == "rukassa":
-        rukassa_configured = bool(
-            os.environ.get("RUKASSA_SHOP_ID") and
-            os.environ.get("RUKASSA_TOKEN")
-        )
-        if not rukassa_configured:
-            raise HTTPException(
-                status_code=500,
-                detail="Rukassa не настроен. Настройте RUKASSA_SHOP_ID, RUKASSA_TOKEN"
-            )
-    elif payment_gateway == "crystalpay":
-        crystalpay_configured = bool(
-            os.environ.get("CRYSTALPAY_LOGIN") and
-            os.environ.get("CRYSTALPAY_SECRET") and
-            os.environ.get("CRYSTALPAY_SALT")
-        )
-        if not crystalpay_configured:
-            raise HTTPException(
-                status_code=500,
-                detail="CrystalPay не настроен. Настройте CRYSTALPAY_LOGIN, CRYSTALPAY_SECRET, CRYSTALPAY_SALT"
-            )
-    else:  # Default to 1Plat
-        onplat_configured = bool(
-            (os.environ.get("ONEPLAT_SHOP_ID") or os.environ.get("ONEPLAT_MERCHANT_ID")) and
-            os.environ.get("ONEPLAT_SECRET_KEY")
-        )
-        if not onplat_configured:
-            raise HTTPException(
-                status_code=500,
-                detail="Payment service not configured. Please configure 1Plat credentials."
-            )
+    # Normalize + validate gateway configuration
+    payment_gateway = validate_gateway_config(payment_gateway)
     
     payment_method = request.payment_method or "card"
     
@@ -283,7 +336,7 @@ async def get_payment_methods(
         data = await payment_service.list_payment_methods()
         return data
     except Exception as e:
-        print(f"Failed to fetch payment methods: {e}")
+        logger.warning(f"Failed to fetch payment methods: {e}")
         # Return default methods on error
         return {
             "systems": [
@@ -302,117 +355,138 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
     if not cart or not cart.items:
         raise HTTPException(status_code=400, detail="Cart is empty")
     
-    total_amount, total_original = 0.0, 0.0
-    order_items = []
+    # Helpers
+    async def validate_cart_items(cart_items) -> Tuple[Decimal, Decimal, List[Dict[str, Any]]]:
+        """Validate cart items, calculate totals using Decimal, handle stock deficits."""
+        total_amount = Decimal("0")
+        total_original = Decimal("0")
+        prepared_items = []
+        
+        for item in cart_items:
+            product = await db.get_product_by_id(item.product_id)
+            if not product:
+                raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
+            
+            # Check instant availability
+            instant_q = item.instant_quantity
+            if instant_q > 0:
+                available_stock = await db.get_available_stock_count(item.product_id)
+                if available_stock < instant_q:
+                    logger.warning(f"Stock changed for {product.name}. Requested {instant_q}, available {available_stock}")
+                    # Convert deficit to prepaid
+                    deficit = instant_q - available_stock
+                    item.instant_quantity = max(0, available_stock)
+                    item.prepaid_quantity += max(0, deficit)
+            
+            # Use Decimal for all price calculations
+            product_price = to_decimal(product.price)
+            original_price = multiply(product_price, item.quantity)
+            
+            discount_percent = item.discount_percent
+            if cart.promo_code and cart.promo_discount_percent > 0:
+                discount_percent = max(discount_percent, cart.promo_discount_percent)
+            
+            # Validate discount is in reasonable range
+            discount_percent = max(0, min(100, discount_percent))
+            
+            # Calculate discount: original * (1 - discount/100)
+            discount_multiplier = subtract(Decimal("1"), divide(to_decimal(discount_percent), Decimal("100")))
+            final_price = round_money(multiply(original_price, discount_multiplier))
+            
+            total_amount += final_price
+            total_original += original_price
+            
+            prepared_items.append({
+                "product_id": item.product_id,
+                "product_name": product.name,
+                "quantity": item.quantity, 
+                "instant_quantity": item.instant_quantity,
+                "prepaid_quantity": item.prepaid_quantity,
+                "amount": final_price,
+                "original_price": original_price,
+                "discount_percent": discount_percent
+            })
+        return total_amount, total_original, prepared_items
     
-    for item in cart.items:
-        product = await db.get_product_by_id(item.product_id)
-        if not product:
-            raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
+    async def enforce_cooldown():
+        cooldown_seconds = 90
+        cooldown_redis = None
+        try:
+            from core.db import get_redis
+            cooldown_redis = get_redis()  # async client
+            cooldown_key = f"pay:cooldown:{user.id}"
+            existing = await cooldown_redis.get(cooldown_key)
+            if existing:
+                raise HTTPException(
+                    status_code=429,
+                    detail="Подождите ~1 минуту перед повторным созданием платежа"
+                )
+        except HTTPException:
+            raise
+        except (ValueError, AttributeError) as e:
+            logger.warning(f"Redis unavailable, using DB fallback for cooldown: {e}")
+            cooldown_redis = None
+        except Exception as e:
+            logger.warning(f"Redis error, using DB fallback for cooldown: {e}")
+            cooldown_redis = None
         
-        # Cart already splits items into instant_quantity and prepaid_quantity
-        # We need to create orders for both types
-        # For now, we'll create one order per item (can be optimized to create separate orders for instant/prepaid)
-        
-        # Check if instant items are still available (stock might have changed)
-        if item.instant_quantity > 0:
-            available_stock = await db.get_available_stock_count(item.product_id)
-            if available_stock < item.instant_quantity:
-                # Stock changed - update cart split or create prepaid order
-                # For simplicity, convert to prepaid if stock insufficient
-                print(f"Warning: Stock changed for {product.name}. Requested {item.instant_quantity}, available {available_stock}")
-                # Continue with prepaid for unavailable items
-                # TODO: Better handling - update cart or create mixed order
-        
-        original_price = product.price * item.quantity
-        discount_percent = item.discount_percent
-        if cart.promo_code and cart.promo_discount_percent > 0:
-            discount_percent = max(discount_percent, cart.promo_discount_percent)
-        
-        final_price = original_price * (1 - discount_percent / 100)
-        total_amount += final_price
-        total_original += original_price
-        
-        order_items.append({
-            "product_id": item.product_id, "product_name": product.name,
-            "quantity": item.quantity, 
-            "instant_quantity": item.instant_quantity,
-            "prepaid_quantity": item.prepaid_quantity,
-            "amount": final_price,
-            "original_price": original_price, "discount_percent": discount_percent
-        })
-    
-    # Cooldown: не бомбим 1Plat, если недавно создавали платеж
-    cooldown_seconds = 90
-    redis = None
-    try:
-        from core.db import get_redis
-        redis = get_redis()  # async client
-        cooldown_key = f"pay:cooldown:{user.id}"
-        existing = await redis.get(cooldown_key)
-        if existing:
-            raise HTTPException(
-                status_code=429,
-                detail="Подождите ~1 минуту перед повторным созданием платежа"
+        try:
+            result = await asyncio.to_thread(
+                lambda: db.client.table("orders")
+                .select("*")
+                .eq("user_id", db_user.id)
+                .eq("status", "pending")
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()
             )
-    except HTTPException:
-        raise
-    except (ValueError, AttributeError) as e:
-        # Redis не настроен или недоступен - используем fallback через БД
-        print(f"Warning: Redis unavailable, using DB fallback for cooldown: {e}")
-        redis = None
-    except Exception as e:
-        # Другие ошибки Redis - используем fallback через БД
-        print(f"Warning: Redis error, using DB fallback for cooldown: {e}")
-        redis = None
-
-    # Не создаём новый заказ, если есть свежий pending (дубликаты)
-    try:
-        result = await asyncio.to_thread(
-            lambda: db.client.table("orders")
-            .select("*")
-            .eq("user_id", db_user.id)
-            .eq("status", "pending")
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
-        )
-        if result.data:
-            row = result.data[0]
-            created_at = row.get("created_at")
-            if created_at:
-                try:
-                    created_dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-                    if datetime.now(timezone.utc) - created_dt < timedelta(seconds=cooldown_seconds):
-                        raise HTTPException(
-                            status_code=429,
-                            detail="Заказ уже создаётся, попробуйте через минуту"
-                        )
-                except HTTPException:
-                    raise
-                except Exception:
-                    pass
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Warning: pending order check failed: {e}")
+            if result.data:
+                row = result.data[0]
+                created_at = row.get("created_at")
+                if created_at:
+                    try:
+                        created_dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                        if datetime.now(timezone.utc) - created_dt < timedelta(seconds=cooldown_seconds):
+                            raise HTTPException(
+                                status_code=429,
+                                detail="Заказ уже создаётся, попробуйте через минуту"
+                            )
+                    except HTTPException:
+                        raise
+                    except Exception:
+                        pass
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.warning(f"Pending order check failed: {e}")
+        return cooldown_redis, cooldown_seconds
+    
+    # Prepare items and totals
+    total_amount, total_original, order_items = await validate_cart_items(cart.items)
+    
+    # Cooldown checks
+    cooldown_redis, cooldown_seconds = await enforce_cooldown()
     
     first_item = order_items[0]
     product_names = ", ".join([item["product_name"] for item in order_items[:3]])
     if len(order_items) > 3:
         product_names += f" и еще {len(order_items) - 3}"
     
-    # Конвертация суммы в RUB для платёжного шлюза
-    payable_amount = total_amount
+    # Определяем валюту шлюза
+    gateway_currency = GATEWAY_CURRENCY.get(payment_gateway, "RUB")
+    
+    # Конвертация суммы в валюту шлюза
+    payable_amount = to_decimal(total_amount)
     try:
         from core.db import get_redis
         from src.services.currency import get_currency_service
-        redis = get_redis()
-        currency_service = get_currency_service(redis)
-        user_currency = currency_service.get_user_currency(db_user.language_code or user.language_code)
-        payable_amount = await currency_service.convert_price(float(total_amount), "RUB", round_to_int=True)
+        currency_redis = get_redis()
+        currency_service = get_currency_service(currency_redis)
+        # Конвертация из базовой валюты (USD) в валюту шлюза
+        if gateway_currency != "USD":
+            payable_amount = to_decimal(await currency_service.convert_price(total_amount, gateway_currency, round_to_int=True))
     except Exception as e:
-        print(f"Warning: currency conversion failed, using raw amount: {e}")
+        logger.warning(f"Currency conversion failed, using raw amount: {e}")
     
     # Если Rukassa: попытаться отменить предыдущий незавершённый платёж (антифрод)
     if payment_gateway == "rukassa":
@@ -440,37 +514,62 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
                                 .execute()
                             )
                         except Exception as e:
-                            print(f"Warning: failed to mark order {prev.get('id')} cancelled: {e}")
+                            logger.warning(f"Failed to mark order {prev.get('id')} cancelled: {e}")
                     else:
                         # если revoke не удался, просто логируем; это не должно блокировать создание
-                        print(f"Rukassa revoke skipped: {cancel_res}")
+                        logger.info(f"Rukassa revoke skipped: {cancel_res}")
         except Exception as e:
-            print(f"Warning: revoke previous Rukassa payment failed: {e}")
+            logger.warning(f"Revoke previous Rukassa payment failed: {e}")
 
     # ============================================================
-    # ВАЖНО: Сначала проверяем платёжку, потом создаём заказ!
+    # Создаём заказ в БД ПЕРЕД обращением к платёжке
     # ============================================================
     
-    # Генерируем временный order_id для платёжки (UUID)
-    import uuid
-    temp_order_id = str(uuid.uuid4())
+    # Calculate discount percent using Decimal (safe: clamped to 0-100)
+    discount_pct = 0
+    if total_original > 0:
+        # (1 - amount/original) * 100, clamped to [0, 100]
+        discount_ratio = subtract(Decimal("1"), divide(total_amount, total_original))
+        discount_pct = max(0, min(100, int(round_money(multiply(discount_ratio, Decimal("100")), to_int=True))))
     
-    # Пытаемся создать платёж БЕЗ сохранения заказа в БД
+    # Создаём заказ в БД (реальный order_id) ДО обращения к платёжке
+    payment_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+    order = await persist_order(
+        db=db,
+        user_id=db_user.id, 
+        product_id=first_item["product_id"],  # legacy field, first product
+        amount=total_amount, 
+        original_price=total_original,
+        discount_percent=discount_pct,
+        payment_method=payment_method,
+        payment_gateway=payment_gateway,
+        user_telegram_id=user.id,  # Telegram ID для webhook доставки
+        expires_at=payment_expires_at
+    )
+    
+    # Пытаемся создать платёж уже с реальным order.id
     payment_url = None
+    invoice_id = None
     try:
-        payment_url = await payment_service.create_payment(
-            order_id=temp_order_id, 
+        pay_result = await create_payment_wrapper(
+            payment_service=payment_service,
+            order_id=order.id, 
             amount=payable_amount, 
             product_name=product_names,
-            method=payment_gateway, 
+            gateway=payment_gateway, 
             payment_method=payment_method,
             user_email=f"{user.id}@telegram.user",
-            user_id=user.id
+            user_id=user.id,
+            currency=gateway_currency,
         )
+        payment_url = pay_result.get("payment_url")
+        invoice_id = pay_result.get("invoice_id")
     except ValueError as e:
+        # Откатываем заказ, если платеж не создан
+        await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())
         error_msg = str(e)
-        print(f"Payment creation failed (pre-order): {error_msg}")
-        print(f"Payment gateway: {payment_gateway}, payment method: {payment_method}, amount: {payable_amount}")
+        logger.error(f"Payment creation failed: {error_msg}")
+        logger.error(f"Payment gateway: {payment_gateway}, method: {payment_method}, amount: {payable_amount}")
         
         # Понятные сообщения для пользователя
         if "frozen" in error_msg.lower() or "заморожен" in error_msg.lower():
@@ -486,79 +585,46 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         else:
             raise HTTPException(status_code=400, detail=error_msg)
     except Exception as e:
-        print(f"Payment creation failed (pre-order): {e}")
+        await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())
+        logger.error(f"Payment creation failed: {e}")
         raise HTTPException(
             status_code=502, 
             detail="Платёжная система недоступна. Попробуйте позже."
         )
     
-    # Платёж успешно создан - теперь создаём заказ в БД
-    # Время жизни заказа = 15 минут (синхронизировано с lifetime инвойса)
-    payment_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
-    
-    order = await db.create_order(
-        user_id=db_user.id, 
-        product_id=first_item["product_id"],  # legacy field, first product
-        amount=total_amount, 
-        original_price=total_original,
-        discount_percent=int((1 - total_amount / total_original) * 100) if total_original > 0 else 0,
-        payment_method=payment_method,
-        payment_gateway=payment_gateway,
-        user_telegram_id=user.id,  # Telegram ID для webhook доставки
-        expires_at=payment_expires_at,
-        payment_url=payment_url
-    )
+    # Сохраняем payment_url и invoice_id в заказ
+    try:
+        update_payload = {"payment_url": payment_url}
+        if invoice_id:
+            update_payload["payment_id"] = str(invoice_id)
+        await asyncio.to_thread(
+            lambda: db.client.table("orders").update(update_payload).eq("id", order.id).execute()
+        )
+    except Exception as e:
+        logger.warning(f"Failed to save payment info for order {order.id}: {e}")
     
     # Создаём строки order_items (по одному на штуку, для удобства частичной выдачи)
     try:
-        items_to_insert = []
-        for oi in order_items:
-            unit_price = (oi["amount"] / oi["quantity"]) if oi["quantity"] else oi["amount"]
-            # instant (есть в наличии)
-            for _ in range(int(oi.get("instant_quantity", 0))):
-                items_to_insert.append({
-                    "order_id": order.id,
-                    "product_id": oi["product_id"],
-                    "quantity": 1,
-                    "status": "pending",
-                    "fulfillment_type": "instant",
-                    "price": unit_price,
-                    "discount_percent": int(oi.get("discount_percent", 0)),
-                })
-            # preorder (нет в наличии)
-            for _ in range(int(oi.get("prepaid_quantity", 0))):
-                items_to_insert.append({
-                    "order_id": order.id,
-                    "product_id": oi["product_id"],
-                    "quantity": 1,
-                    "status": "prepaid",
-                    "fulfillment_type": "preorder",
-                    "price": unit_price,
-                    "discount_percent": int(oi.get("discount_percent", 0)),
-                })
-        if items_to_insert:
-            await db.create_order_items(items_to_insert)
+        await persist_order_items(db, order.id, order_items)
     except Exception as e:
-        print(f"Warning: failed to create order_items for order {order.id}: {e}")
-    
-    # Обновляем order_id в платёжке (если поддерживается) или сохраняем маппинг
-    # Сохраняем temp_order_id -> real_order_id маппинг в заказе
-    try:
-        await asyncio.to_thread(
-            lambda: db.client.table("orders")
-            .update({"payment_id": temp_order_id})
-            .eq("id", order.id)
-            .execute()
-        )
-    except Exception as e:
-        print(f"Warning: failed to save payment_id mapping: {e}")
+        # Critical: order without items is invalid - mark as error status
+        logger.error(f"Failed to create order_items for order {order.id}: {e}")
+        try:
+            await asyncio.to_thread(
+                lambda: db.client.table("orders").update({
+                    "status": OrderStatus.ERROR.value,
+                    "notes": f"Failed to create order items: {str(e)[:200]}"
+                }).eq("id", order.id).execute()
+            )
+        except Exception as rollback_err:
+            logger.error(f"Failed to mark order {order.id} as error: {rollback_err}")
     
     # Устанавливаем cooldown
-    if redis:
+    if cooldown_redis:
         try:
-            await redis.set(f"pay:cooldown:{user.id}", "1", ex=cooldown_seconds)
+            await cooldown_redis.set(f"pay:cooldown:{user.id}", "1", ex=cooldown_seconds)
         except Exception as e:
-            print(f"Warning: failed to set cooldown key: {e}")
+            logger.warning(f"Failed to set cooldown key: {e}")
     
     # Применяем промокод и очищаем корзину
     if cart.promo_code:
@@ -566,9 +632,12 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
     await cart_manager.clear_cart(user.id)
     
     return OrderResponse(
-        order_id=order.id, amount=total_amount, original_price=total_original,
-        discount_percent=int((1 - total_amount / total_original) * 100) if total_original > 0 else 0,
-        payment_url=payment_url, payment_method=payment_method
+        order_id=order.id, 
+        amount=to_float(total_amount), 
+        original_price=to_float(total_original),
+        discount_percent=discount_pct,
+        payment_url=payment_url, 
+        payment_method=payment_method
     )
 
 

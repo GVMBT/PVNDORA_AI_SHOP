@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from src.services.database import get_database
+from src.services.money import to_float
 from core.auth import verify_telegram_auth
 from .models import PartnerApplicationRequest
 
@@ -72,7 +73,7 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
                 ).eq("user_id", rid).eq("status", "completed").execute()
             )
             orders = orders_result.data or []
-            total_spent = sum(float(o.get("amount", 0)) for o in orders)
+            total_spent = sum(to_float(o.get("amount", 0)) for o in orders)
             
             referrals.append({
                 "telegram_id": ref.get("telegram_id"),
@@ -102,7 +103,7 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
         daily_earnings = defaultdict(float)
         for bonus in (earnings_result.data or []):
             day = bonus.get("created_at", "")[:10]  # YYYY-MM-DD
-            daily_earnings[day] += float(bonus.get("amount", 0))
+            daily_earnings[day] += to_float(bonus.get("amount", 0))
         
         earnings_history = [
             {"date": day, "amount": amount} 

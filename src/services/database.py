@@ -25,6 +25,8 @@ from src.services.repositories import (
     StockRepository,
     ChatRepository,
 )
+# Domain services
+from src.services.domains import UsersDomain, ProductsDomain, StockDomain, OrdersDomain, ChatDomain
 
 
 class Database:
@@ -43,16 +45,23 @@ class Database:
         self.client: Client = create_client(url, key)
         
         # Initialize repositories
-        self._users = UserRepository(self.client)
-        self._products = ProductRepository(self.client)
-        self._orders = OrderRepository(self.client)
-        self._stock = StockRepository(self.client)
-        self._chat = ChatRepository(self.client)
+        self._users_repo = UserRepository(self.client)
+        self._products_repo = ProductRepository(self.client)
+        self._orders_repo = OrderRepository(self.client)
+        self._stock_repo = StockRepository(self.client)
+        self._chat_repo = ChatRepository(self.client)
+
+        # Domains
+        self.users_domain = UsersDomain(self._users_repo)
+        self.products_domain = ProductsDomain(self._products_repo)
+        self.stock_domain = StockDomain(self._stock_repo)
+        self.orders_domain = OrdersDomain(self._orders_repo, self.client)
+        self.chat_domain = ChatDomain(self._chat_repo)
     
     # ==================== USER OPERATIONS (delegated) ====================
     
     async def get_user_by_telegram_id(self, telegram_id: int) -> Optional[User]:
-        return await self._users.get_by_telegram_id(telegram_id)
+        return await self.users_domain.get_by_telegram_id(telegram_id)
     
     async def create_user(
         self,
@@ -62,55 +71,56 @@ class Database:
         language_code: str = "en",
         referrer_telegram_id: Optional[int] = None
     ) -> User:
-        referrer_id = None
-        if referrer_telegram_id:
-            referrer = await self._users.get_by_telegram_id(referrer_telegram_id)
-            if referrer:
-                referrer_id = referrer.id
-        return await self._users.create(telegram_id, username, first_name, language_code, referrer_id)
+        return await self.users_domain.create_user(
+            telegram_id,
+            username,
+            first_name,
+            language_code,
+            referrer_telegram_id,
+        )
     
     async def update_user_language(self, telegram_id: int, language_code: str) -> None:
-        await self._users.update_language(telegram_id, language_code)
+        await self.users_domain.update_language(telegram_id, language_code)
     
     async def update_user_activity(self, telegram_id: int) -> None:
-        await self._users.update_activity(telegram_id)
+        await self.users_domain.update_activity(telegram_id)
     
     async def update_user_balance(self, user_id: str, amount: float) -> None:
-        await self._users.update_balance(user_id, amount)
+        await self.users_domain.update_balance(user_id, amount)
     
     async def ban_user(self, telegram_id: int, ban: bool = True) -> None:
-        await self._users.ban(telegram_id, ban)
+        await self.users_domain.ban(telegram_id, ban)
     
     async def add_warning(self, telegram_id: int) -> int:
-        return await self._users.add_warning(telegram_id)
+        return await self.users_domain.add_warning(telegram_id)
     
     # ==================== PRODUCT OPERATIONS (delegated) ====================
     
     async def get_products(self, status: str = "active") -> List[Product]:
-        return await self._products.get_all(status)
+        return await self.products_domain.get_all(status)
     
     async def get_product_by_id(self, product_id: str) -> Optional[Product]:
-        return await self._products.get_by_id(product_id)
+        return await self.products_domain.get_by_id(product_id)
     
     async def search_products(self, query: str) -> List[Product]:
-        return await self._products.search(query)
+        return await self.products_domain.search(query)
     
     async def get_product_rating(self, product_id: str) -> Dict[str, Any]:
-        return await self._products.get_rating(product_id)
+        return await self.products_domain.get_rating(product_id)
     
     # ==================== STOCK OPERATIONS (delegated) ====================
     
     async def get_available_stock_item(self, product_id: str) -> Optional[StockItem]:
-        return await self._stock.get_available(product_id)
+        return await self.stock_domain.get_available(product_id)
     
     async def get_available_stock_count(self, product_id: str) -> int:
-        return await self._stock.get_available_count(product_id)
+        return await self.stock_domain.get_available_count(product_id)
     
     async def reserve_stock_item(self, stock_item_id: str) -> bool:
-        return await self._stock.reserve(stock_item_id)
+        return await self.stock_domain.reserve(stock_item_id)
     
     async def calculate_discount(self, stock_item: StockItem, product: Product) -> int:
-        return await self._stock.calculate_discount(stock_item, product)
+        return await self.stock_domain.calculate_discount(stock_item, product)
     
     # ==================== ORDER OPERATIONS (delegated) ====================
     
@@ -127,9 +137,17 @@ class Database:
         expires_at: Optional[datetime] = None,
         payment_url: Optional[str] = None
     ) -> Order:
-        return await self._orders.create(
-            user_id, product_id, amount, original_price, discount_percent,
-            payment_method, payment_gateway, user_telegram_id, expires_at, payment_url
+        return await self.orders_domain.create(
+            user_id=user_id,
+            product_id=product_id,
+            amount=amount,
+            original_price=original_price,
+            discount_percent=discount_percent,
+            payment_method=payment_method,
+            payment_gateway=payment_gateway,
+            user_telegram_id=user_telegram_id,
+            expires_at=expires_at,
+            payment_url=payment_url,
         )
     
     async def create_order_with_availability_check(
@@ -151,27 +169,10 @@ class Database:
         Returns:
             Dict with order_id, order_type, status, stock_item_id, amount, fulfillment_deadline
         """
-        import asyncio
-        
-        def _call_rpc():
-            result = self.client.rpc(
-                "create_order_with_availability_check",
-                {
-                    "p_product_id": product_id,
-                    "p_user_telegram_id": user_telegram_id
-                }
-            ).execute()
-            
-            if not result.data:
-                raise ValueError("Failed to create order")
-            
-            return result.data[0]
-        
-        # Execute sync RPC call in thread pool
-        return await asyncio.to_thread(_call_rpc)
+        return await self.orders_domain.create_with_availability_check(product_id, user_telegram_id)
     
     async def get_order_by_id(self, order_id: str) -> Optional[Order]:
-        return await self._orders.get_by_id(order_id)
+        return await self.orders_domain.get_by_id(order_id)
     
     async def update_order_status(
         self,
@@ -180,45 +181,47 @@ class Database:
         stock_item_id: Optional[str] = None,
         expires_at: Optional[datetime] = None
     ) -> None:
-        await self._orders.update_status(order_id, status, stock_item_id, expires_at)
+        await self.orders_domain.update_status(order_id, status, stock_item_id, expires_at)
     
     async def get_user_orders(self, user_id: str, limit: int = 10) -> List[Order]:
-        return await self._orders.get_by_user(user_id, limit)
+        return await self.orders_domain.get_by_user(user_id, limit)
     
     async def get_expiring_orders(self, days_before: int = 3) -> List[Order]:
-        return await self._orders.get_expiring(days_before)
+        return await self.orders_domain.get_expiring(days_before)
 
     # ==================== ORDER ITEMS ====================
     async def create_order_items(self, items: List[dict]) -> List[dict]:
         """Batch insert order_items."""
-        if not items:
-            return []
-        result = await asyncio.to_thread(
-            lambda: self.client.table("order_items").insert(items).execute()
-        )
-        return result.data or []
+        return await self.orders_domain.create_order_items(items)
 
     async def get_order_items_by_order(self, order_id: str) -> List[dict]:
-        result = await asyncio.to_thread(
-            lambda: self.client.table("order_items").select("*").eq("order_id", order_id).execute()
-        )
-        return result.data or []
+        return await self.orders_domain.get_order_items_by_order(order_id)
 
     async def get_order_items_by_orders(self, order_ids: List[str]) -> List[dict]:
-        if not order_ids:
-            return []
-        result = await asyncio.to_thread(
-            lambda: self.client.table("order_items").select("*").in_("order_id", order_ids).execute()
-        )
-        return result.data or []
+        return await self.orders_domain.get_order_items_by_orders(order_ids)
     
     # ==================== CHAT HISTORY (delegated) ====================
     
     async def save_chat_message(self, user_id: str, role: str, message: str) -> None:
-        await self._chat.save_message(user_id, role, message)
+        await self.chat_domain.save_message(user_id, role, message)
     
     async def get_chat_history(self, user_id: str, limit: int = 20) -> List[Dict[str, str]]:
-        return await self._chat.get_history(user_id, limit)
+        return await self.chat_domain.get_history(user_id, limit)
+
+    async def create_ticket(self, user_id: str, subject: str, message: str, order_id: Optional[str] = None) -> Dict[str, Any]:
+        return await self.chat_domain.create_ticket(user_id, subject, message, order_id)
+
+    async def get_ticket(self, ticket_id: str) -> Optional[Dict[str, Any]]:
+        return await self.chat_domain.get_ticket(ticket_id)
+
+    async def get_user_tickets(self, user_id: str) -> List[Dict[str, Any]]:
+        return await self.chat_domain.get_user_tickets(user_id)
+
+    async def update_ticket_status(self, ticket_id: str, status: str) -> None:
+        await self.chat_domain.update_ticket_status(ticket_id, status)
+
+    async def add_ticket_message(self, ticket_id: str, sender: str, message: str) -> None:
+        await self.chat_domain.add_ticket_message(ticket_id, sender, message)
     
     # ==================== WAITLIST & WISHLIST (kept in main class) ====================
     
