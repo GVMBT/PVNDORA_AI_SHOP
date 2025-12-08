@@ -14,6 +14,7 @@ import { useLocale } from '../hooks/useLocale'
 export default function PaymentResultPage({ 
   isSuccess: propIsSuccess = null, 
   orderId: propOrderId = null,
+  paymentId: propPaymentId = null,
   onNavigate,
   onBack 
 }) {
@@ -33,6 +34,16 @@ export default function PaymentResultPage({
       return null
     }
   }, [propOrderId])
+
+  const paymentId = useMemo(() => {
+    if (propPaymentId) return propPaymentId
+    try {
+      const params = new URLSearchParams(window.location.search)
+      return params.get('payment_id') || null
+    } catch {
+      return null
+    }
+  }, [propPaymentId])
   
   const derivedSuccess = useMemo(() => {
     if (propIsSuccess !== null) return propIsSuccess
@@ -64,7 +75,8 @@ export default function PaymentResultPage({
     const fetchStatus = async () => {
       setLoadingStatus(true)
       try {
-        const res = await fetch(`/api/webapp/orders/${orderId}/status`)
+        const qs = paymentId ? `?payment_id=${encodeURIComponent(paymentId)}` : ''
+        const res = await fetch(`/api/webapp/orders/${orderId}/status${qs}`)
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json()
         if (cancelled) return
@@ -92,7 +104,7 @@ export default function PaymentResultPage({
       cancelled = true
       if (timer) clearTimeout(timer)
     }
-  }, [orderId, propIsSuccess])
+  }, [orderId, propIsSuccess, paymentId])
   
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 p-4">

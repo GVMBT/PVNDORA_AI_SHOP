@@ -68,6 +68,10 @@ export default function App() {
     const urlParams = new URLSearchParams(window.location.search)
     return urlParams.get('order_id') || null
   })
+  const [paymentPaymentId, setPaymentPaymentId] = useState(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    return urlParams.get('payment_id') || null
+  })
   
   // Check for existing web session
   useEffect(() => {
@@ -151,9 +155,15 @@ export default function App() {
         setCurrentPage(startapp)
       } else if (startapp.startsWith('payresult_')) {
         // Payment result redirect from CrystalPay/Rukassa
-        // Format: payresult_{order_id}
-        const orderId = startapp.replace('payresult_', '')
-        setPaymentOrderId(orderId)
+        // Supported formats:
+        // payresult_{order_id}
+        // payresult_{order_id}_{payment_id}
+        const payload = startapp.replace('payresult_', '')
+        const parts = payload.split('_')
+        const orderId = parts[0]
+        const payId = parts[1] || null
+        setPaymentOrderId(orderId || null)
+        setPaymentPaymentId(payId || null)
         setCurrentPage('payment_result')
       }
     }
@@ -271,6 +281,7 @@ export default function App() {
         return (
           <PaymentResultPage 
             orderId={paymentOrderId}
+            paymentId={paymentPaymentId}
             onNavigate={navigateTo}
             onBack={() => navigateTo('checkout')}
           />

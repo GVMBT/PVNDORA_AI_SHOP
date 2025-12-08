@@ -117,7 +117,8 @@ export default function PaymentFormPage({
     const checkStatus = async () => {
       try {
         setCheckingStatus(true)
-        const response = await fetch(`/api/webapp/orders/${paymentData.orderId}/status`)
+        const qs = paymentData.paymentId ? `?payment_id=${encodeURIComponent(paymentData.paymentId)}` : ''
+        const response = await fetch(`/api/webapp/orders/${paymentData.orderId}/status${qs}`)
         
         if (response.ok) {
           const data = await response.json()
