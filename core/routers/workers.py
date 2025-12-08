@@ -21,8 +21,10 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
     - only_instant=True: выдаём только instant позиции (для первичной выдачи после оплаты)
     - otherwise: пытаемся выдать все открытые позиции, если есть сток
     """
+    print(f"deliver-goods: starting for order {order_id}, only_instant={only_instant}")
     now = datetime.now(timezone.utc)
     items = await db.get_order_items_by_order(order_id)
+    print(f"deliver-goods: found {len(items) if items else 0} items for order {order_id}")
     if not items:
         return {"delivered": 0, "waiting": 0, "note": "no_items"}
     
@@ -73,6 +75,7 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
             # Reserve/sell stock
             stock_id = stock["id"]
             stock_content = stock.get("content", "")
+            print(f"deliver-goods: allocating stock {stock_id} for product {product_id}")
             try:
                 await asyncio.to_thread(
                     lambda sid=stock_id, ts=now.isoformat(): db.client.table("stock_items").update({
@@ -107,6 +110,7 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
                 print(f"deliver-goods: failed to update order_item {item_id}: {e}")
         else:
             # No stock yet - mark as prepaid/fulfilling
+            print(f"deliver-goods: NO stock available for product {product_id}, marking as waiting")
             waiting_count += 1
             item_id = it.get("id")
             new_status = "prepaid" if status == "pending" else status

@@ -589,7 +589,7 @@ async def crystalpay_webhook(request: Request):
             
             # FALLBACK: If QStash failed, deliver directly
             if not delivery_result.get("queued"):
-                print(f"CrystalPay webhook: QStash failed, executing direct delivery for {real_order_id}")
+                print(f"CrystalPay webhook: QStash failed (error={delivery_result.get('error')}), executing direct delivery for {real_order_id}")
                 try:
                     from core.routers.workers import _deliver_items_for_order
                     from core.routers.deps import get_notification_service
@@ -597,7 +597,14 @@ async def crystalpay_webhook(request: Request):
                     fallback_result = await _deliver_items_for_order(db, notification_service, real_order_id, only_instant=True)
                     print(f"CrystalPay webhook: Direct delivery completed: {fallback_result}")
                 except Exception as fallback_err:
-                    print(f"CrystalPay webhook: Direct delivery failed: {fallback_err}")
+                    import traceback
+                    print(f"CrystalPay webhook: Direct delivery FAILED for {real_order_id}: {fallback_err}")
+                    print(f"CrystalPay webhook: Traceback: {traceback.format_exc()}")
+                    # Return 500 to signal CrystalPay to retry
+                    return JSONResponse(
+                        {"error": f"Delivery failed: {str(fallback_err)[:100]}"},
+                        status_code=500
+                    )
             
             # Calculate referral bonus (non-critical, ignore failures)
             await publish_to_worker(
