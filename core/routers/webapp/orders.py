@@ -10,7 +10,7 @@ from decimal import Decimal
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Tuple, List, Optional
 
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Header
 
 from src.services.database import get_database
 from src.services.money import to_decimal, to_float, round_money, multiply, subtract, divide, to_kopecks
@@ -142,28 +142,48 @@ router = APIRouter(tags=["webapp-orders"])
 
 
 @router.get("/orders/{order_id}/status")
-async def get_order_status(order_id: str, user=Depends(verify_telegram_auth)):
-    """Get order status by ID (for payment polling)."""
+async def get_order_status(
+    order_id: str,
+    payment_id: Optional[str] = Query(None),
+    authorization: str = Header(None, alias="Authorization"),
+    x_init_data: str = Header(None, alias="X-Init-Data"),
+):
+    """
+    Get order status by ID (for payment polling).
+
+    - Приходит из PaymentResultPage (WebApp) с Telegram initData
+    - Приходит из payresult_ deeplink (браузер) без Telegram — тогда проверяем payment_id
+    """
     db = get_database()
-    db_user = await db.get_user_by_telegram_id(user.id)
-    if not db_user:
-        # Авто-создание пользователя, если он впервые
-        db_user = await db.create_user(
-            telegram_id=user.id,
-            username=getattr(user, "username", None),
-            first_name=getattr(user, "first_name", None),
-            language_code=getattr(user, "language_code", "ru"),
-            referrer_telegram_id=None
-        )
-    
+
+    # Try auth; if fails, continue as anonymous
+    user = None
+    try:
+        user = await verify_telegram_auth(authorization=authorization, x_init_data=x_init_data)
+    except Exception:
+        user = None
+
     order = await db.get_order_by_id(order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    
-    # Verify ownership
-    if order.user_id != db_user.id:
-        raise HTTPException(status_code=403, detail="Order does not belong to user")
-    
+
+    if user:
+        db_user = await db.get_user_by_telegram_id(user.id)
+        if not db_user:
+            db_user = await db.create_user(
+                telegram_id=user.id,
+                username=getattr(user, "username", None),
+                first_name=getattr(user, "first_name", None),
+                language_code=getattr(user, "language_code", "ru"),
+                referrer_telegram_id=None
+            )
+        if order.user_id != db_user.id:
+            raise HTTPException(status_code=403, detail="Order does not belong to user")
+    else:
+        # Anonymous polling: require correct payment_id
+        if not payment_id or payment_id != order.payment_id:
+            raise HTTPException(status_code=401, detail="Unauthorized status check")
+
     return {
         "order_id": order.id,
         "status": order.status,
