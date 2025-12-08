@@ -69,6 +69,7 @@ export default function ProfilePage({ onBack }) {
     if (networkLoading) return
     if (effectiveLevel < level) {
       setNetworkError(t('profile.network.locked') || 'Level locked')
+      setNetworkHasMore((prev) => ({ ...prev, [level]: false }))
       return
     }
     setNetworkLoading(true)
@@ -85,8 +86,14 @@ export default function ProfilePage({ onBack }) {
         ...prev,
         [level]: items.length === 20,
       }))
+      if (!items.length && !reset) {
+        // no more data, stop loading
+        setNetworkHasMore((prev) => ({ ...prev, [level]: false }))
+      }
     } catch (e) {
+      console.error('referral network load failed', e)
       setNetworkError(e.message || 'Failed to load network')
+      setNetworkHasMore((prev) => ({ ...prev, [level]: false }))
     } finally {
       setNetworkLoading(false)
     }
@@ -222,6 +229,11 @@ export default function ProfilePage({ onBack }) {
           >
             {t('profile.network.loadMore') || 'Показать ещё'}
           </Button>
+        )}
+        {networkLoading && list.length > 0 && (
+          <div className="text-xs text-muted-foreground text-center py-1">
+            {t('common.loading') || 'Загрузка...'}
+          </div>
         )}
       </div>
     )
