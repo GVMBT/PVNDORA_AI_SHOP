@@ -63,7 +63,7 @@ def get_base_url() -> str:
 async def publish_to_worker(
     endpoint: str,
     body: dict,
-    retries: int = 3,
+    retries: int = 0,
     delay: Optional[int] = None,
     deduplication_id: Optional[str] = None
 ) -> dict:
@@ -96,16 +96,18 @@ async def publish_to_worker(
     if deduplication_id:
         headers["Upstash-Deduplication-Id"] = deduplication_id
     
-    # Publish message
-    result = qstash.message.publish_json(
-        url=url,
-        body=body,
-        retries=retries,
-        delay=f"{delay}s" if delay else None,
-        headers=headers if headers else None
-    )
-    
-    return {"message_id": result.message_id}
+    try:
+        result = qstash.message.publish_json(
+            url=url,
+            body=body,
+            retries=retries,
+            delay=f"{delay}s" if delay else None,
+            headers=headers if headers else None
+        )
+        return {"message_id": result.message_id}
+    except Exception as e:
+        # Surface QStash errors explicitly to caller (webhooks/workers)
+        raise HTTPException(status_code=502, detail=f"QStash publish failed: {e}")
 
 
 async def publish_to_queue(
