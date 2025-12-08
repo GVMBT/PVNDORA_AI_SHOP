@@ -98,8 +98,8 @@ async def persist_order(
     return await db.create_order(
         user_id=user_id,
         product_id=product_id,
-        amount=amount,
-        original_price=original_price,
+        amount=to_float(amount),
+        original_price=to_float(original_price),
         discount_percent=discount_percent,
         payment_method=payment_method,
         payment_gateway=payment_gateway,
@@ -121,7 +121,7 @@ async def persist_order_items(db, order_id: str, order_items: List[Dict[str, Any
                 "quantity": 1,
                 "status": "pending",
                 "fulfillment_type": "instant",
-                "price": unit_price,
+                "price": to_float(unit_price),
                 "discount_percent": int(oi.get("discount_percent", 0)),
             })
         # preorder (нет в наличии)
@@ -132,7 +132,7 @@ async def persist_order_items(db, order_id: str, order_items: List[Dict[str, Any
                 "quantity": 1,
                 "status": "prepaid",
                 "fulfillment_type": "preorder",
-                "price": unit_price,
+                "price": to_float(unit_price),
                 "discount_percent": int(oi.get("discount_percent", 0)),
             })
     if items_to_insert:

@@ -12,13 +12,15 @@
   ],
   "functions": {
     "api/index.py": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "runtime": "python3.12"
     },
     "api/og/referral.js": {
       "maxDuration": 30
     },
     "api/cron/*.py": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "runtime": "python3.12"
     }
   },
   "crons": [
