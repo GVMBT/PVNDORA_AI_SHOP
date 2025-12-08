@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import PartnerDashboard from '../components/PartnerDashboard'
 import { CreditCard, Smartphone, Bitcoin, Wallet, Trophy } from 'lucide-react'
 import { Button } from '../components/ui/button'
@@ -12,7 +12,7 @@ import BalanceCard from '../components/profile/BalanceCard'
 import ReferralStatsGrid from '../components/profile/ReferralStatsGrid'
 import CopyReferralLink from '../components/profile/CopyReferralLink'
 import WithdrawDialog from '../components/profile/WithdrawDialog'
-import { useTelegram } from '../hooks/useTelegram'
+// import { useTelegram } from '../hooks/useTelegram'
 import LoginPage from './LoginPage'
 import { useApi } from '../hooks/useApi'
 
@@ -26,8 +26,6 @@ export default function ProfilePage({ onBack }) {
     currency,
     referralStats,
     referralProgram,
-    bonusHistory,
-    withdrawals,
     withdrawDialog,
     setWithdrawDialog,
     shareLoading,
@@ -45,7 +43,7 @@ export default function ProfilePage({ onBack }) {
     t,
     user,
   } = useProfileData({ onBack })
-  const { openTelegramLink } = useTelegram()
+  // openTelegramLink not used here; keep hook for future? remove to avoid lint
   const { request } = useApi()
 
   // Referral network state
@@ -64,42 +62,8 @@ export default function ProfilePage({ onBack }) {
     }
   }
   
-  // Show skeleton while loading - avoid flashing LoginPage
-  if (loading && !profile) {
-    return (
-      <div className="p-4 space-y-4">
-        <Skeleton className="h-48 w-full rounded-3xl" />
-        <Skeleton className="h-32 w-full rounded-2xl" />
-        <Skeleton className="h-64 w-full rounded-2xl" />
-      </div>
-    )
-  }
-  
-  // Only show login if explicitly unauthorized AND not loading
-  if ((error === 'unauthorized' || !user?.id) && !profile && !loading) {
-    return (
-      <LoginPage
-        onLogin={() => window.location.reload()}
-        botUsername="pvndora_ai_bot"
-      />
-    )
-  }
-  
   const isPartner = profile?.is_partner || referralProgram?.is_partner
   const effectiveLevel = referralProgram?.effective_level || 0
-
-  // Fallback UI when error and нет профиля (чтобы не падать в рендере)
-  if (!loading && error && !profile) {
-    return (
-      <div className="p-4 space-y-4">
-        <HeaderBar title={t('profile.title')} onBack={onBack} />
-        <div className="p-4 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive">
-          {error}
-        </div>
-        <Button onClick={() => window.location.reload()}>{t('common.retry') || 'Повторить'}</Button>
-      </div>
-    )
-  }
 
   const fetchNetwork = useCallback(async (level, reset = false) => {
     if (networkLoading) return
@@ -141,6 +105,37 @@ export default function ProfilePage({ onBack }) {
       fetchNetwork(level, true)
     }
   }
+
+  // Fallback views (no hooks below this point)
+  let fallback = null
+  if (loading && !profile) {
+    fallback = (
+      <div className="p-4 space-y-4">
+        <Skeleton className="h-48 w-full rounded-3xl" />
+        <Skeleton className="h-32 w-full rounded-2xl" />
+        <Skeleton className="h-64 w-full rounded-2xl" />
+      </div>
+    )
+  } else if ((error === 'unauthorized' || !user?.id) && !profile && !loading) {
+    fallback = (
+      <LoginPage
+        onLogin={() => window.location.reload()}
+        botUsername="pvndora_ai_bot"
+      />
+    )
+  } else if (!loading && error && !profile) {
+    fallback = (
+      <div className="p-4 space-y-4">
+        <HeaderBar title={t('profile.title')} onBack={onBack} />
+        <div className="p-4 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive">
+          {error}
+        </div>
+        <Button onClick={() => window.location.reload()}>{t('common.retry') || 'Повторить'}</Button>
+      </div>
+    )
+  }
+
+  if (fallback) return fallback
 
   const NetworkList = ({ level }) => {
     const list = networkData[level] || []
