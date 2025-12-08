@@ -3,7 +3,7 @@ import { motion as Motion, AnimatePresence } from 'framer-motion'
 import { CreditCard, Smartphone, QrCode, Bitcoin, Loader2, ShieldCheck, X, Check as CheckIcon } from 'lucide-react'
 import { Button } from '../ui/button'
 import { PaymentMethodList } from './PaymentMethodList'
-import { IconCard, IconSBP, IconSBPQR, IconCrypto, MIN_BY_METHOD_FALLBACK } from './payment-method-icons'
+import { IconCard, IconSBP, IconSBPQR, IconCrypto, MIN_BY_METHOD_FALLBACK } from './payment-method-icons.jsx'
 
 /**
  * Диалог выбора способа оплаты.

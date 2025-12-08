@@ -1,3 +1,4 @@
+import React from 'react'
 import cardIcon from '../../assets/icons/payments/visa-10.svg'
 import sbpIcon from '../../assets/icons/payments/sbp.svg'
 import cryptoIcon from '../../assets/icons/payments/tether-usdt-1.svg'

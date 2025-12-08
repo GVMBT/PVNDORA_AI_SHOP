@@ -1,6 +1,6 @@
 import React from 'react'
 import { CreditCard } from 'lucide-react'
-import { METHOD_ICONS, MIN_BY_METHOD_FALLBACK } from './payment-method-icons'
+import { METHOD_ICONS, MIN_BY_METHOD_FALLBACK } from './payment-method-icons.jsx'
 
 export function PaymentMethodList({ methods, selectedMethod, onSelect, total }) {
   return (
