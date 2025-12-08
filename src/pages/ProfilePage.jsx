@@ -239,12 +239,38 @@ export default function ProfilePage({ onBack }) {
         <UserInfo user={user} isPartner={isPartner} />
 
         {isPartner ? (
-          <PartnerDashboard 
-            profile={profile}
-            referralLink={`https://t.me/pvndora_ai_bot?start=ref_${user?.id}`}
-            onWithdraw={() => setWithdrawDialog(true)}
-            onShare={handleShare}
-          />
+          <>
+            <PartnerDashboard 
+              profile={profile}
+              referralLink={`https://t.me/pvndora_ai_bot?start=ref_${user?.id}`}
+              onWithdraw={() => setWithdrawDialog(true)}
+              onShare={handleShare}
+            />
+            {/* Referral Network for partners too */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <h2 className="font-bold flex items-center gap-2">
+                  {t('profile.network.title') || 'Моя сеть'}
+                </h2>
+                <div className="flex gap-2">
+                  {[1, 2, 3].map((lvl) => (
+                    <Button
+                      key={lvl}
+                      variant={networkTab === lvl ? 'default' : 'outline'}
+                      size="sm"
+                      disabled={effectiveLevel < lvl}
+                      onClick={() => handleTabChange(lvl)}
+                      className="text-xs"
+                    >
+                      {t('profile.network.level', { level: lvl }) || `L${lvl}`}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <NetworkList level={networkTab} />
+            </div>
+          </>
         ) : (
           <>
             <BalanceCard
