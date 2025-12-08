@@ -64,11 +64,11 @@ async def onplat_webhook(request: Request):
             
             publish_to_worker, WorkerEndpoints = get_queue_publisher()
             
-            # Guaranteed delivery via QStash
+            # Guaranteed delivery via QStash (max 3 retries on Free tier)
             await publish_to_worker(
                 endpoint=WorkerEndpoints.DELIVER_GOODS,
                 body={"order_id": order_id},
-                retries=5,
+                retries=3,
                 deduplication_id=f"deliver-{order_id}"
             )
             
@@ -148,11 +148,11 @@ async def freekassa_webhook(request: Request):
             
             publish_to_worker, WorkerEndpoints = get_queue_publisher()
             
-            # Guaranteed delivery via QStash
+            # Guaranteed delivery via QStash (max 3 retries on Free tier)
             await publish_to_worker(
                 endpoint=WorkerEndpoints.DELIVER_GOODS,
                 body={"order_id": order_id},
-                retries=5,
+                retries=3,
                 deduplication_id=f"deliver-{order_id}"
             )
             

@@ -149,6 +149,12 @@ export default function App() {
         setCurrentPage('admin')
       } else if (startapp.startsWith('admin_')) {
         setCurrentPage(startapp)
+      } else if (startapp.startsWith('payresult_')) {
+        // Payment result redirect from CrystalPay/Rukassa
+        // Format: payresult_{order_id}
+        const orderId = startapp.replace('payresult_', '')
+        setPaymentOrderId(orderId)
+        setCurrentPage('payment_result')
       }
     }
   }, [params])
@@ -257,6 +263,16 @@ export default function App() {
           <PaymentFormPage 
             onNavigate={navigateTo}
             onBack={() => navigateTo('catalog')}
+          />
+        )
+      case 'payment_result':
+        // Payment redirect from gateway (CrystalPay, Rukassa)
+        // Polls order status and shows success/fail based on order status
+        return (
+          <PaymentResultPage 
+            orderId={paymentOrderId}
+            onNavigate={navigateTo}
+            onBack={() => navigateTo('checkout')}
           />
         )
       case 'checkout':
