@@ -49,9 +49,14 @@ export default function ProfilePage({ onBack }) {
   // Referral network state
   const [networkTab, setNetworkTab] = useState(1)
   const [networkData, setNetworkData] = useState({ 1: [], 2: [], 3: [] })
+  const [networkFetched, setNetworkFetched] = useState({ 1: false, 2: false, 3: false })
   const [networkLoading, setNetworkLoading] = useState(false)
   const [networkHasMore, setNetworkHasMore] = useState({ 1: true, 2: true, 3: true })
   const [networkError, setNetworkError] = useState(null)
+  const networkDataRef = React.useRef(networkData)
+  useEffect(() => {
+    networkDataRef.current = networkData
+  }, [networkData])
   
   const getMethodIcon = (method) => {
     switch (method) {
@@ -70,12 +75,14 @@ export default function ProfilePage({ onBack }) {
     if (effectiveLevel < level) {
       setNetworkError(t('profile.network.locked') || 'Level locked')
       setNetworkHasMore((prev) => ({ ...prev, [level]: false }))
+      setNetworkFetched((prev) => ({ ...prev, [level]: true }))
       return
     }
     setNetworkLoading(true)
     setNetworkError(null)
     try {
-      const offset = reset ? 0 : (networkData[level]?.length || 0)
+      const prevData = networkDataRef.current
+      const offset = reset ? 0 : (prevData[level]?.length || 0)
       const data = await request(`/referral/network?level=${level}&limit=20&offset=${offset}`)
       const items = data?.referrals || []
       setNetworkData((prev) => ({
@@ -86,29 +93,30 @@ export default function ProfilePage({ onBack }) {
         ...prev,
         [level]: items.length === 20,
       }))
-      if (!items.length && !reset) {
-        // no more data, stop loading
+      if (!items.length) {
         setNetworkHasMore((prev) => ({ ...prev, [level]: false }))
       }
+      setNetworkFetched((prev) => ({ ...prev, [level]: true }))
     } catch (e) {
       console.error('referral network load failed', e)
       setNetworkError(e.message || 'Failed to load network')
       setNetworkHasMore((prev) => ({ ...prev, [level]: false }))
+      setNetworkFetched((prev) => ({ ...prev, [level]: true }))
     } finally {
       setNetworkLoading(false)
     }
-  }, [effectiveLevel, networkData, networkLoading, request, t])
+  }, [effectiveLevel, request, t, networkLoading])
 
-  // Initial fetch for level 1 if unlocked
+  // Initial fetch for level 1 if unlocked (once)
   useEffect(() => {
-    if (effectiveLevel >= 1) {
+    if (effectiveLevel >= 1 && !networkFetched[1]) {
       fetchNetwork(1, true)
     }
-  }, [effectiveLevel, fetchNetwork])
+  }, [effectiveLevel, fetchNetwork, networkFetched])
 
   const handleTabChange = (level) => {
     setNetworkTab(level)
-    if (networkData[level]?.length === 0 && effectiveLevel >= level) {
+    if (!networkFetched[level] && effectiveLevel >= level) {
       fetchNetwork(level, true)
     }
   }
