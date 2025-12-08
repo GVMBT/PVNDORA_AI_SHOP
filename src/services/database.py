@@ -10,6 +10,7 @@ Usage:
     user = await db.get_user_by_telegram_id(123)
 """
 import os
+import asyncio
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from supabase import create_client, Client
