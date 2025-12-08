@@ -1318,16 +1318,23 @@ class PaymentService:
             
             # Verify signature: sha1(id + ':' + salt)
             salt = self.crystalpay_salt or ""
+            logger.info("CrystalPay webhook: salt_configured=%s, signature_received=%s", 
+                       bool(salt), bool(received_signature))
+            
             if received_signature and salt:
                 sign_string = f"{invoice_id}:{salt}"
                 expected_signature = hashlib.sha1(sign_string.encode()).hexdigest().lower()
                 
                 if not hmac.compare_digest(received_signature, expected_signature):
                     logger.error("CrystalPay webhook: Signature mismatch for invoice %s", invoice_id)
-                    logger.debug("CrystalPay signature: received=%s, expected=%s", received_signature, expected_signature)
+                    logger.error("CrystalPay signature: received=%s, expected=%s (first 8 chars)", 
+                               received_signature[:8] if received_signature else "none",
+                               expected_signature[:8] if expected_signature else "none")
                     return {"success": False, "error": "Invalid signature"}
                 
                 logger.info("CrystalPay webhook: Signature verified for invoice %s", invoice_id)
+            elif received_signature and not salt:
+                logger.warning("CrystalPay webhook: Signature provided but CRYSTALPAY_SALT not configured! Skipping verification.")
             elif not received_signature:
                 logger.warning("CrystalPay webhook: No signature provided for invoice %s", invoice_id)
             
