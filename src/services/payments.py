@@ -1246,13 +1246,13 @@ class PaymentService:
                 logger.error("CrystalPay: URL not in response. Keys: %s", list(data.keys()))
                 raise ValueError("Payment URL not found in CrystalPay response")
             
-        logger.info("CrystalPay payment created: order=%s, invoice_id=%s", order_id, invoice_id)
-        return {
-            "payment_url": payment_url,
-            "url": payment_url,
-            "invoice_id": invoice_id,
-        }
-            
+            logger.info("CrystalPay payment created: order=%s, invoice_id=%s", order_id, invoice_id)
+            return {
+                "payment_url": payment_url,
+                "url": payment_url,
+                "invoice_id": invoice_id,
+            }
+        
         except httpx.HTTPStatusError as e:
             try:
                 error_data = e.response.json()

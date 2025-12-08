@@ -17,7 +17,7 @@ export default defineConfig({
     minify: 'esbuild',
     // Removed manualChunks to prevent build errors when dependencies are removed
     // Vite will automatically optimize chunks
-    chunkSizeWarningLimit: 600
+    chunkSizeWarningLimit: 2000
   },
   esbuild: {
     drop: ['console', 'debugger']
