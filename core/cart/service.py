@@ -90,9 +90,9 @@ class CartManager:
             raise ValueError("quantity must be a positive integer")
         if not isinstance(available_stock, int) or available_stock < 0:
             raise ValueError("available_stock must be a non-negative integer")
-        if not isinstance(unit_price, (int, float)) or unit_price < 0:
+        if not isinstance(unit_price, (int, float, Decimal)) or unit_price < 0:
             raise ValueError("unit_price must be a non-negative number")
-        if not isinstance(discount_percent, (int, float)) or discount_percent < 0 or discount_percent > 100:
+        if not isinstance(discount_percent, (int, float, Decimal)) or discount_percent < 0 or discount_percent > 100:
             raise ValueError("discount_percent must be between 0 and 100")
         
         cart = await self.get_cart(user_telegram_id)
