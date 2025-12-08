@@ -399,6 +399,18 @@
     "maxLevelReached": "Максимальный уровень достигнут!",
     "unlockAt": "Откроется при",
     "unlockOnPurchase": "Откроется при покупке",
-    "pendingRewards": "Награды ожидают"
+    "pendingRewards": "Награды ожидают",
+    "network": {
+      "title": "Моя сеть",
+      "level": "Уровень {level}",
+      "locked": "Уровень не открыт",
+      "empty": "Пока нет рефералов",
+      "loadMore": "Показать ещё",
+      "contact": "Написать",
+      "orders": "Заказов",
+      "earned": "Заработано для вас",
+      "active": "Активен",
+      "inactive": "Не активен"
+    }
   }
 }

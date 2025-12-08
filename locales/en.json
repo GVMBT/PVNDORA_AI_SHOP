@@ -376,6 +376,18 @@
     "maxLevelReached": "Maximum level reached!",
     "unlockAt": "Unlock at",
     "unlockOnPurchase": "Unlock on first purchase",
-    "pendingRewards": "Rewards pending"
+    "pendingRewards": "Rewards pending",
+    "network": {
+      "title": "My Network",
+      "level": "Level {level}",
+      "locked": "Level is locked",
+      "empty": "No referrals yet",
+      "loadMore": "Load more",
+      "contact": "Message",
+      "orders": "Orders",
+      "earned": "Earned for you",
+      "active": "Active",
+      "inactive": "Inactive"
+    }
   }
 }
