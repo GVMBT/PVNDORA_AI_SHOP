@@ -165,41 +165,41 @@ async def publish_to_queue(
     return {"message_id": result.message_id}
 
 
-def verify_qstash_signature(body: bytes, signature: str) -> bool:
+def verify_qstash_signature(body: bytes, signature: str, url: str = "") -> bool:
     """
-    Verify QStash webhook signature.
+    Verify QStash webhook signature using QStash Receiver.
     
     Args:
         body: Raw request body bytes
         signature: Signature from Upstash-Signature header
+        url: The full URL that received the request
     
     Returns:
         True if signature is valid
     """
     if not QSTASH_CURRENT_SIGNING_KEY:
         # Skip verification in development
+        print("QStash: No signing key configured, skipping verification")
         return True
     
-    # Try current signing key
-    expected = hmac.new(
-        QSTASH_CURRENT_SIGNING_KEY.encode(),
-        body,
-        hashlib.sha256
-    ).hexdigest()
-    
-    if hmac.compare_digest(expected, signature):
+    try:
+        from qstash import Receiver
+        
+        receiver = Receiver(
+            current_signing_key=QSTASH_CURRENT_SIGNING_KEY,
+            next_signing_key=QSTASH_NEXT_SIGNING_KEY or None,
+        )
+        
+        # Verify signature (QStash uses JWT which includes URL)
+        receiver.verify(
+            body=body.decode('utf-8') if isinstance(body, bytes) else body,
+            signature=signature,
+            url=url,
+        )
         return True
-    
-    # Try next signing key (for key rotation)
-    if QSTASH_NEXT_SIGNING_KEY:
-        expected_next = hmac.new(
-            QSTASH_NEXT_SIGNING_KEY.encode(),
-            body,
-            hashlib.sha256
-        ).hexdigest()
-        return hmac.compare_digest(expected_next, signature)
-    
-    return False
+    except Exception as e:
+        print(f"QStash signature verification failed: {e}")
+        return False
 
 
 async def verify_qstash_request(request: Request) -> dict:
@@ -217,7 +217,11 @@ async def verify_qstash_request(request: Request) -> dict:
     signature = request.headers.get("Upstash-Signature", "")
     body = await request.body()
     
-    if not verify_qstash_signature(body, signature):
+    # Build full URL for verification (QStash JWT includes URL)
+    url = str(request.url)
+    
+    if not verify_qstash_signature(body, signature, url):
+        print(f"QStash verification failed for URL: {url}")
         raise HTTPException(status_code=401, detail="Invalid QStash signature")
     
     import json
