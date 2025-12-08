@@ -101,11 +101,12 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
                 expires_at_str = expires_at.isoformat()
             
             try:
+                ts = now.isoformat()
                 update_data = {
                     "status": "delivered",
-                    "stock_item_id": sid,
-                    "delivery_content": content,
-                    "delivery_instructions": instr,
+                    "stock_item_id": stock_id,
+                    "delivery_content": stock_content,
+                    "delivery_instructions": instructions,
                     "delivered_at": ts,
                     "updated_at": ts
                 }
