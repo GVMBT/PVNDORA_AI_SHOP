@@ -14,8 +14,15 @@ from datetime import datetime, timezone
 
 CRON_SECRET = os.environ.get("CRON_SECRET", "")
 
+# ASGI app (only export app to Vercel, avoid 'handler' symbol)
+app = FastAPI()
 
-async def handler(request: Request):
+
+@app.get("/api/cron/auto_alloc")
+async def auto_alloc_entrypoint(request: Request):
+    """
+    Vercel Cron entrypoint.
+    """
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
@@ -53,16 +60,4 @@ async def handler(request: Request):
         "processed": len(order_ids),
         "results": results
     })
-
-
-# --- ASGI wrapper to avoid Vercel handler autodetect issues ---
-app = FastAPI()
-
-
-@app.get("/api/cron/auto_alloc")
-async def auto_alloc_entrypoint(request: Request):
-    """
-    Vercel Cron entrypoint. Delegates to handler().
-    """
-    return await handler(request)
 

@@ -16,8 +16,15 @@ import asyncio
 # Verify cron secret to prevent unauthorized access
 CRON_SECRET = os.environ.get("CRON_SECRET", "")
 
+# ASGI app (only export app to Vercel, avoid 'handler' symbol)
+app = FastAPI()
 
-async def handler(request: Request):
+
+@app.get("/api/cron/expire_orders")
+async def expire_orders_entrypoint(request: Request):
+    """
+    Vercel Cron entrypoint.
+    """
     # Verify the request is from Vercel Cron
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
@@ -100,16 +107,4 @@ async def handler(request: Request):
         results["error"] = str(e)
     
     return JSONResponse(results)
-
-
-# --- ASGI wrapper to avoid Vercel handler autodetect issues ---
-app = FastAPI()
-
-
-@app.get("/api/cron/expire_orders")
-async def expire_orders_entrypoint(request: Request):
-    """
-    Vercel Cron entrypoint. Delegates to handler().
-    """
-    return await handler(request)
 
