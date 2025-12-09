@@ -332,7 +332,7 @@ export default function ProfilePage({ onBack }) {
               referralSlot={<CopyReferralLink userId={user?.id} t={t} onCopy={handleCopyLink} />}
             />
 
-            <ReferralStatsGrid referralStats={referralStats} currency={currency} formatPrice={formatPrice} />
+            <ReferralStatsGrid referralStats={referralStats} currency={currency} formatPrice={formatPrice} t={t} />
 
             {/* Gamification Levels */}
             <div className="space-y-4">

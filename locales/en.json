@@ -329,7 +329,7 @@
     "invite": "Invite",
     "minWithdrawalNote": "Minimum withdrawal: {min}",
     "yourReferralLink": "Your referral link",
-    "referralNetwork": "Referral Network",
+    "referralNetwork": "Referral Program",
     "level1": "Level 1",
     "level2": "Level 2",
     "level3": "Level 3",
@@ -388,6 +388,11 @@
       "earned": "Earned for you",
       "active": "Active",
       "inactive": "Inactive"
+    },
+    "stats": {
+      "users": "Users",
+      "conv": "Conv.",
+      "avg": "Avg."
     }
   }
 }
