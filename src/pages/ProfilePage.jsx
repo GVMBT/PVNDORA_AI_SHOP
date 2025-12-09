@@ -14,6 +14,7 @@ import CopyReferralLink from '../components/profile/CopyReferralLink'
 import WithdrawDialog from '../components/profile/WithdrawDialog'
 import LoginPage from './LoginPage'
 import { useApi } from '../hooks/useApi'
+import { useOrders } from '../hooks/useApi'
 
 const WITHDRAWAL_MIN = 500
 
@@ -25,6 +26,8 @@ export default function ProfilePage({ onBack }) {
     currency,
     referralStats,
     referralProgram,
+    bonusHistory,
+    withdrawals,
     withdrawDialog,
     setWithdrawDialog,
     shareLoading,
@@ -44,6 +47,7 @@ export default function ProfilePage({ onBack }) {
   } = useProfileData({ onBack })
   // openTelegramLink not used here; keep hook for future? remove to avoid lint
   const { request } = useApi()
+  const { getOrders } = useOrders()
 
   // Referral network state
   const [networkTab, setNetworkTab] = useState(1)
@@ -53,6 +57,14 @@ export default function ProfilePage({ onBack }) {
   const [networkHasMore, setNetworkHasMore] = useState({ 1: true, 2: true, 3: true })
   const [networkError, setNetworkError] = useState(null)
   const networkDataRef = React.useRef(networkData)
+
+  // Billing (history) state
+  const [billingTab, setBillingTab] = useState('balance') // balance | bonuses | orders | withdrawals
+  const [ordersList, setOrdersList] = useState([])
+  const [ordersOffset, setOrdersOffset] = useState(0)
+  const [ordersHasMore, setOrdersHasMore] = useState(true)
+  const [ordersLoading, setOrdersLoading] = useState(false)
+  const [ordersError, setOrdersError] = useState(null)
   useEffect(() => {
     networkDataRef.current = networkData
   }, [networkData])
@@ -68,6 +80,39 @@ export default function ProfilePage({ onBack }) {
   
   const isPartner = profile?.is_partner || referralProgram?.is_partner
   const effectiveLevel = referralProgram?.effective_level || 0
+
+  const formatDate = (value) => {
+    if (!value) return ''
+    try {
+      return new Date(value).toLocaleString()
+    } catch (e) {
+      return value
+    }
+  }
+
+  const loadOrders = useCallback(
+    async (reset = false) => {
+      if (ordersLoading) return
+      setOrdersLoading(true)
+      setOrdersError(null)
+      try {
+        const limit = 10
+        const offset = reset ? 0 : ordersOffset
+        const res = await getOrders({ limit, offset })
+        const items = res?.orders || []
+        setOrdersList((prev) => (reset ? items : [...prev, ...items]))
+        setOrdersOffset(reset ? items.length : offset + items.length)
+        setOrdersHasMore(items.length === limit)
+      } catch (e) {
+        console.error('orders load failed', e)
+        setOrdersError(e.message || 'Failed to load orders')
+        setOrdersHasMore(false)
+      } finally {
+        setOrdersLoading(false)
+      }
+    },
+    [getOrders, ordersLoading, ordersOffset]
+  )
 
   const fetchNetwork = useCallback(async (level, reset = false) => {
     if (networkLoading) return
@@ -120,6 +165,13 @@ export default function ProfilePage({ onBack }) {
     }
   }
 
+  // Lazy load orders when billing tab is opened
+  useEffect(() => {
+    if (billingTab === 'orders' && ordersList.length === 0 && !ordersLoading) {
+      loadOrders(true)
+    }
+  }, [billingTab, loadOrders, ordersList.length, ordersLoading])
+
   // Fallback views (no hooks below this point)
   let fallback = null
   if (loading && !profile) {
@@ -150,6 +202,170 @@ export default function ProfilePage({ onBack }) {
   }
 
   if (fallback) return fallback
+
+  const ReferralInfo = () => {
+    const level2Threshold = referralProgram?.thresholds_usd?.level2 || 250
+    const level3Threshold = referralProgram?.thresholds_usd?.level3 || 1000
+    const c1 = referralProgram?.commissions_percent?.level1 || 20
+    const c2 = referralProgram?.commissions_percent?.level2 || 10
+    const c3 = referralProgram?.commissions_percent?.level3 || 5
+    return (
+      <div className="p-3 rounded-2xl border border-border/60 bg-card/40 space-y-1">
+        <div className="text-sm font-semibold">{t('profile.referralInfo.title') || 'Как работает программа'}</div>
+        <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+          <li>{t('profile.referralInfo.how', { l1: c1, l2: c2, l3: c3 })}</li>
+          <li>{t('profile.referralInfo.unlock', { l2: level2Threshold, l3: level3Threshold })}</li>
+          <li>{t('profile.referralInfo.payouts')}</li>
+        </ul>
+      </div>
+    )
+  }
+
+  const BillingSection = () => {
+    const tabs = [
+      { key: 'balance', label: t('profile.billing.balanceTab') || 'Баланс' },
+      { key: 'bonuses', label: t('profile.billing.bonusesTab') || 'Бонусы' },
+      { key: 'orders', label: t('profile.billing.ordersTab') || 'Заказы' },
+      { key: 'withdrawals', label: t('profile.billing.withdrawalsTab') || 'Выводы' },
+    ]
+
+    const renderBalance = () => (
+      <div className="grid grid-cols-1 gap-2">
+        <div className="p-3 rounded-2xl border border-border/60 bg-card/40 flex justify-between items-center">
+          <div className="text-sm text-muted-foreground">{t('profile.billing.currentBalance') || 'Баланс'}</div>
+          <div className="text-base font-semibold">{formatPrice(profile?.balance || 0, currency)}</div>
+        </div>
+        <div className="p-3 rounded-2xl border border-border/60 bg-card/40 flex justify-between items-center">
+          <div className="text-sm text-muted-foreground">{t('profile.billing.totalReferral') || 'Заработано рефералкой'}</div>
+          <div className="text-base font-semibold">{formatPrice(profile?.total_referral_earnings || 0, currency)}</div>
+        </div>
+        <div className="p-3 rounded-2xl border border-border/60 bg-card/40 flex justify-between items-center">
+          <div className="text-sm text-muted-foreground">{t('profile.billing.totalSaved') || 'Сэкономлено'}</div>
+          <div className="text-base font-semibold">{formatPrice(profile?.total_saved || 0, currency)}</div>
+        </div>
+      </div>
+    )
+
+    const renderBonuses = () => {
+      const items = bonusHistory || []
+      if (!items.length) {
+        return <div className="text-sm text-muted-foreground p-3 border border-dashed border-border/60 rounded-xl">{t('profile.billing.emptyBonuses') || 'Пока нет бонусов'}</div>
+      }
+      return (
+        <div className="space-y-2">
+          {items.map((b) => (
+            <div key={b.id || `${b.order_id}-${b.created_at}`} className="p-3 rounded-2xl border border-border/60 bg-card/40 flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold">
+                  {t('profile.billing.bonusFrom', { level: b.level || b.level_name || 'L1' })}
+                </div>
+                <div className="text-xs text-muted-foreground">{formatDate(b.created_at)}</div>
+              </div>
+              <div className="text-base font-semibold text-green-500">+{formatPrice(b.amount || b.value || 0, currency)}</div>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    const renderWithdrawals = () => {
+      const items = withdrawals || []
+      if (!items.length) {
+        return <div className="text-sm text-muted-foreground p-3 border border-dashed border-border/60 rounded-xl">{t('profile.billing.emptyWithdrawals') || 'Пока нет заявок'}</div>
+      }
+      return (
+        <div className="space-y-2">
+          {items.map((w) => (
+            <div key={w.id || w.created_at} className="p-3 rounded-2xl border border-border/60 bg-card/40 space-y-1">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold">{formatPrice(w.amount || 0, currency)}</div>
+                <Badge variant="outline" className="text-[10px]">
+                  {w.status || 'pending'}
+                </Badge>
+              </div>
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                {getMethodIcon(w.payment_method)}
+                <span>{w.payment_method || 'card'}</span>
+              </div>
+              <div className="text-xs text-muted-foreground">{formatDate(w.created_at)}</div>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    const renderOrders = () => {
+      if (ordersError) {
+        return <div className="text-sm text-destructive p-3 border border-destructive/40 rounded-xl">{ordersError}</div>
+      }
+      if (ordersLoading && ordersList.length === 0) {
+        return <div className="space-y-2"><Skeleton className="h-16 w-full rounded-xl" /><Skeleton className="h-16 w-full rounded-xl" /></div>
+      }
+      if (ordersList.length === 0) {
+        return <div className="text-sm text-muted-foreground p-3 border border-dashed border-border/60 rounded-xl">{t('profile.billing.emptyOrders') || 'Пока нет заказов'}</div>
+      }
+      return (
+        <div className="space-y-2">
+          {ordersList.map((o) => (
+            <div key={o.id} className="p-3 rounded-2xl border border-border/60 bg-card/40 space-y-1">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold">{formatPrice(o.amount || 0, currency)}</div>
+                <Badge variant="outline" className="text-[10px]">
+                  {o.status}
+                </Badge>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {o.products?.name || o.product_name || t('profile.billing.order') || 'Заказ'} • {formatDate(o.created_at)}
+              </div>
+            </div>
+          ))}
+          {ordersHasMore && (
+            <Button variant="outline" size="sm" className="w-full" disabled={ordersLoading} onClick={() => loadOrders(false)}>
+              {t('profile.network.loadMore') || 'Показать ещё'}
+            </Button>
+          )}
+          {ordersLoading && ordersList.length > 0 && (
+            <div className="text-xs text-muted-foreground text-center py-1">
+              {t('common.loading') || 'Загрузка...'}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    const renderTabContent = () => {
+      switch (billingTab) {
+        case 'bonuses': return renderBonuses()
+        case 'orders': return renderOrders()
+        case 'withdrawals': return renderWithdrawals()
+        case 'balance':
+        default:
+          return renderBalance()
+      }
+    }
+
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="font-bold">{t('profile.billing.title') || 'Биллинг'}</h2>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {tabs.map((tab) => (
+            <Button
+              key={tab.key}
+              variant={billingTab === tab.key ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setBillingTab(tab.key)}
+              className="text-xs"
+            >
+              {tab.label}
+            </Button>
+          ))}
+        </div>
+        {renderTabContent()}
+      </div>
+    )
+  }
 
   const NetworkList = ({ level }) => {
     const list = networkData[level] || []
@@ -292,8 +508,20 @@ export default function ProfilePage({ onBack }) {
               <CopyReferralLink userId={user?.id} t={t} onCopy={handleCopyLink} />
             </div>
 
-            {/* Stats for partners */}
-            <ReferralStatsGrid referralStats={referralStats} currency={currency} formatPrice={formatPrice} t={t} />
+            {/* Referral Program info + metrics */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <h2 className="font-bold flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-yellow-500" />
+                  {t('profile.referralNetwork')}
+                </h2>
+                <Badge variant="outline" className="bg-secondary/30 border-0">
+                  {isPartner ? 'VIP' : `Level ${referralProgram?.effective_level || 1}`}
+                </Badge>
+              </div>
+              <ReferralInfo />
+              <ReferralStatsGrid referralStats={referralStats} currency={currency} formatPrice={formatPrice} t={t} />
+            </div>
 
             {/* Referral Network for partners */}
             <div className="space-y-3">
@@ -335,7 +563,8 @@ export default function ProfilePage({ onBack }) {
               referralSlot={<CopyReferralLink userId={user?.id} t={t} onCopy={handleCopyLink} />}
             />
 
-            <ReferralStatsGrid referralStats={referralStats} currency={currency} formatPrice={formatPrice} t={t} />
+            {/* Referral program info */}
+            <ReferralInfo />
 
             {/* Gamification Levels */}
             <div className="space-y-4">
@@ -390,6 +619,9 @@ export default function ProfilePage({ onBack }) {
                </div>
             </div>
 
+            {/* Metrics under referral program */}
+            <ReferralStatsGrid referralStats={referralStats} currency={currency} formatPrice={formatPrice} t={t} />
+
             {/* Referral Network */}
             <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
@@ -416,6 +648,9 @@ export default function ProfilePage({ onBack }) {
             </div>
           </>
         )}
+
+        {/* Billing embedded in profile */}
+        <BillingSection />
       </div>
 
       <WithdrawDialog

@@ -398,6 +398,27 @@
       "networkTotal": "Total network",
       "networkL2": "Level 2",
       "networkL3": "Level 3"
+    },
+    "referralInfo": {
+      "title": "How the referral program works",
+      "how": "Bonuses: L1 {l1}%, L2 {l2}%, L3 {l3}%",
+      "unlock": "Unlock: L1 on first purchase, L2 at ${l2}, L3 at ${l3} turnover",
+      "payouts": "Payouts: bonuses go to your in-app balance"
+    },
+    "billing": {
+      "title": "Billing",
+      "balanceTab": "Balance",
+      "bonusesTab": "Bonuses",
+      "ordersTab": "Orders",
+      "withdrawalsTab": "Withdrawals",
+      "currentBalance": "Current balance",
+      "totalReferral": "Referral earnings",
+      "totalSaved": "Saved on purchases",
+      "emptyBonuses": "No bonuses yet",
+      "emptyWithdrawals": "No withdrawal requests yet",
+      "emptyOrders": "No orders yet",
+      "bonusFrom": "Bonus ({level})",
+      "order": "Order"
     }
   }
 }

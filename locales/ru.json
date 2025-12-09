@@ -421,6 +421,27 @@
       "networkTotal": "Всего в сети",
       "networkL2": "Уровень 2",
       "networkL3": "Уровень 3"
+    },
+    "referralInfo": {
+      "title": "Как работает реферальная программа",
+      "how": "Бонусы: L1 {l1}%, L2 {l2}%, L3 {l3}%",
+      "unlock": "Открытие: L1 с первой покупки, L2 с оборота ${l2}, L3 с оборота ${l3}",
+      "payouts": "Выплаты: бонусы идут на внутренний баланс"
+    },
+    "billing": {
+      "title": "Биллинг",
+      "balanceTab": "Баланс",
+      "bonusesTab": "Бонусы",
+      "ordersTab": "Заказы",
+      "withdrawalsTab": "Выводы",
+      "currentBalance": "Текущий баланс",
+      "totalReferral": "Заработано рефералкой",
+      "totalSaved": "Сэкономлено на покупках",
+      "emptyBonuses": "Пока нет бонусов",
+      "emptyWithdrawals": "Пока нет заявок",
+      "emptyOrders": "Пока нет заказов",
+      "bonusFrom": "Бонус ({level})",
+      "order": "Заказ"
     }
   }
 }
