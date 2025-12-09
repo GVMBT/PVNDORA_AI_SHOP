@@ -163,6 +163,8 @@ async def get_referral_network(user=Depends(verify_telegram_auth), level: int = 
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
+    user_id = db_user.id
+    
     if level not in [1, 2, 3]:
         raise HTTPException(status_code=400, detail="Level must be 1, 2, or 3")
     
@@ -172,18 +174,17 @@ async def get_referral_network(user=Depends(verify_telegram_auth), level: int = 
             referrals_result = await asyncio.to_thread(
                 lambda: db.client.table("users")
                 .select("id, telegram_id, username, first_name, created_at, referral_program_unlocked")
-                .eq("referrer_id", db_user.id)
+                .eq("referrer_id", user_id)
                 .order("created_at", desc=True)
                 .range(offset, offset + limit - 1)
                 .execute()
             )
         elif level == 2:
             # Level 2: referrals of my referrals
-            # First get my direct referral IDs
             direct_refs = await asyncio.to_thread(
                 lambda: db.client.table("users")
                 .select("id")
-                .eq("referrer_id", db_user.id)
+                .eq("referrer_id", user_id)
                 .execute()
             )
             direct_ref_ids = [r["id"] for r in (direct_refs.data or [])]
@@ -201,11 +202,10 @@ async def get_referral_network(user=Depends(verify_telegram_auth), level: int = 
             )
         else:  # level == 3
             # Level 3: referrals of level 2
-            # Get level 1 IDs
             l1_refs = await asyncio.to_thread(
                 lambda: db.client.table("users")
                 .select("id")
-                .eq("referrer_id", db_user.id)
+                .eq("referrer_id", user_id)
                 .execute()
             )
             l1_ids = [r["id"] for r in (l1_refs.data or [])]
@@ -213,7 +213,6 @@ async def get_referral_network(user=Depends(verify_telegram_auth), level: int = 
             if not l1_ids:
                 return {"referrals": [], "total": 0, "level": level}
             
-            # Get level 2 IDs
             l2_refs = await asyncio.to_thread(
                 lambda: db.client.table("users")
                 .select("id")
@@ -236,12 +235,12 @@ async def get_referral_network(user=Depends(verify_telegram_auth), level: int = 
         
         referrals_data = referrals_result.data or []
         
-        # Deduplicate and drop self to avoid cycles
+        # Deduplicate and drop self to avoid cycles; avoid any ref that is ancestor/child of self_id == db_user.id
         seen_ids = set()
         enriched_referrals = []
         for ref in referrals_data:
             ref_id = ref.get("id")
-            if not ref_id or ref_id == db_user.id:
+            if not ref_id or ref_id == user_id:
                 continue
             if ref_id in seen_ids:
                 continue
