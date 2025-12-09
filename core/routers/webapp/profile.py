@@ -236,13 +236,16 @@ async def get_referral_network(user=Depends(verify_telegram_auth), level: int = 
         
         referrals_data = referrals_result.data or []
         
-        # For each referral, get their order count and earnings they generated for the user
+        # Deduplicate and drop self to avoid cycles
+        seen_ids = set()
         enriched_referrals = []
         for ref in referrals_data:
-            ref_id = ref["id"]
-            if ref_id == db_user.id:
-                # Skip self in case of cyclic/incorrect referrer assignment
+            ref_id = ref.get("id")
+            if not ref_id or ref_id == db_user.id:
                 continue
+            if ref_id in seen_ids:
+                continue
+            seen_ids.add(ref_id)
             
             # Count orders
             orders_result = await asyncio.to_thread(
