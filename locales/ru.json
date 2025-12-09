@@ -413,9 +413,14 @@
       "inactive": "Не активен"
     },
     "stats": {
-      "users": "Юзеры",
-      "conv": "Конв.",
-      "avg": "Средний чек"
+      "l1Title": "Прямые (L1)",
+      "l1Users": "Прямые (L1)",
+      "l1Active": "Активные L1",
+      "l1Earnings": "Заработок L1",
+      "networkTitle": "Вся сеть (L1–L3)",
+      "networkTotal": "Всего в сети",
+      "networkL2": "Уровень 2",
+      "networkL3": "Уровень 3"
     }
   }
 }

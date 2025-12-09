@@ -390,9 +390,14 @@
       "inactive": "Inactive"
     },
     "stats": {
-      "users": "Users",
-      "conv": "Conv.",
-      "avg": "Avg."
+      "l1Title": "Direct referrals (L1)",
+      "l1Users": "Direct (L1)",
+      "l1Active": "Active L1",
+      "l1Earnings": "Earnings L1",
+      "networkTitle": "Network (L1-L3)",
+      "networkTotal": "Total network",
+      "networkL2": "Level 2",
+      "networkL3": "Level 3"
     }
   }
 }

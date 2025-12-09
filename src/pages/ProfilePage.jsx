@@ -292,6 +292,9 @@ export default function ProfilePage({ onBack }) {
               <CopyReferralLink userId={user?.id} t={t} onCopy={handleCopyLink} />
             </div>
 
+            {/* Stats for partners */}
+            <ReferralStatsGrid referralStats={referralStats} currency={currency} formatPrice={formatPrice} t={t} />
+
             {/* Referral Network for partners */}
             <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
