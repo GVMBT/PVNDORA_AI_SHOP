@@ -319,37 +319,7 @@ export default function ProfilePage({ onBack }) {
           </>
         ) : (
           <>
-            {/* Hero block for regular user with referral link inline */}
-            <div className="bg-card/60 border border-border/50 rounded-3xl p-4 space-y-3 shadow-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-                    {t('profile.title')}
-                  </p>
-                  <h2 className="text-xl font-bold flex items-center gap-2">
-                    {t('profile.referralNetwork')}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    {t('profile.level')}: {referralProgram?.effective_level || 1}
-                  </p>
-                </div>
-                <Badge variant="outline" className="bg-secondary/30 border-0">
-                  {`Level ${referralProgram?.effective_level || 1}`}
-                </Badge>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="secondary" className="w-full" onClick={() => setWithdrawDialog(true)}>
-                  {t('profile.withdraw')}
-                </Button>
-                <Button className="w-full" onClick={handleShare}>
-                  {t('profile.invite')}
-                </Button>
-              </div>
-
-              <CopyReferralLink userId={user?.id} t={t} onCopy={handleCopyLink} />
-            </div>
-
+            {/* Single colored card with balance + actions + referral link */}
             <BalanceCard
               balance={profile?.balance || 0}
               currency={currency}
@@ -359,6 +329,7 @@ export default function ProfilePage({ onBack }) {
               onShare={handleShare}
               shareLoading={shareLoading}
               minWithdrawal={WITHDRAWAL_MIN}
+              referralSlot={<CopyReferralLink userId={user?.id} t={t} onCopy={handleCopyLink} />}
             />
 
             <ReferralStatsGrid referralStats={referralStats} currency={currency} formatPrice={formatPrice} />

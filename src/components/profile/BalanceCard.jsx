@@ -14,6 +14,7 @@ export function BalanceCard({
   onShare,
   shareLoading,
   minWithdrawal = 500,
+  referralSlot = null,
 }) {
   const disabled = balance < minWithdrawal
 
@@ -51,6 +52,12 @@ export function BalanceCard({
             {t('profile.invite')}
           </Button>
         </div>
+
+        {referralSlot && (
+          <div className="mt-4">
+            {referralSlot}
+          </div>
+        )}
 
         {disabled && (
           <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground opacity-70">
