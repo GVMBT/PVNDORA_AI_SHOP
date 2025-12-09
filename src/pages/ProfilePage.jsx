@@ -12,7 +12,6 @@ import BalanceCard from '../components/profile/BalanceCard'
 import ReferralStatsGrid from '../components/profile/ReferralStatsGrid'
 import CopyReferralLink from '../components/profile/CopyReferralLink'
 import WithdrawDialog from '../components/profile/WithdrawDialog'
-// import { useTelegram } from '../hooks/useTelegram'
 import LoginPage from './LoginPage'
 import { useApi } from '../hooks/useApi'
 
@@ -260,13 +259,40 @@ export default function ProfilePage({ onBack }) {
 
         {isPartner ? (
           <>
-            <PartnerDashboard 
-              profile={profile}
-              referralLink={`https://t.me/pvndora_ai_bot?start=ref_${user?.id}`}
-              onWithdraw={() => setWithdrawDialog(true)}
-              onShare={handleShare}
-            />
-            {/* Referral Network for partners too */}
+            {/* Hero / Partner block with referral link embedded */}
+            <div className="bg-card/60 border border-border/50 rounded-3xl p-4 space-y-3 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                    {t('profile.title')}
+                  </p>
+                  <h2 className="text-xl font-bold flex items-center gap-2">
+                    Partner Dashboard
+                    {isPartner && <Badge variant="secondary" className="text-[10px]">VIP</Badge>}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {t('profile.level')}: {referralProgram?.effective_level || 1} • {t('profile.referralNetwork')}
+                  </p>
+                </div>
+                <Badge variant="outline" className="bg-secondary/30 border-0">
+                  {isPartner ? 'VIP' : `Level ${referralProgram?.effective_level || 1}`}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="secondary" className="w-full" onClick={() => setWithdrawDialog(true)}>
+                  {t('profile.withdraw')}
+                </Button>
+                <Button className="w-full" onClick={handleShare}>
+                  {t('profile.invite')}
+                </Button>
+              </div>
+
+              {/* Referral link inline */}
+              <CopyReferralLink userId={user?.id} t={t} onCopy={handleCopyLink} />
+            </div>
+
+            {/* Referral Network for partners */}
             <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
                 <h2 className="font-bold flex items-center gap-2">
@@ -293,6 +319,37 @@ export default function ProfilePage({ onBack }) {
           </>
         ) : (
           <>
+            {/* Hero block for regular user with referral link inline */}
+            <div className="bg-card/60 border border-border/50 rounded-3xl p-4 space-y-3 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                    {t('profile.title')}
+                  </p>
+                  <h2 className="text-xl font-bold flex items-center gap-2">
+                    {t('profile.referralNetwork')}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {t('profile.level')}: {referralProgram?.effective_level || 1}
+                  </p>
+                </div>
+                <Badge variant="outline" className="bg-secondary/30 border-0">
+                  {`Level ${referralProgram?.effective_level || 1}`}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="secondary" className="w-full" onClick={() => setWithdrawDialog(true)}>
+                  {t('profile.withdraw')}
+                </Button>
+                <Button className="w-full" onClick={handleShare}>
+                  {t('profile.invite')}
+                </Button>
+              </div>
+
+              <CopyReferralLink userId={user?.id} t={t} onCopy={handleCopyLink} />
+            </div>
+
             <BalanceCard
               balance={profile?.balance || 0}
               currency={currency}
@@ -358,8 +415,6 @@ export default function ProfilePage({ onBack }) {
                   />
                </div>
             </div>
-            
-            <CopyReferralLink userId={user?.id} t={t} onCopy={handleCopyLink} />
 
             {/* Referral Network */}
             <div className="space-y-3">
