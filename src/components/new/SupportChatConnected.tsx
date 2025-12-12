@@ -1,13 +1,14 @@
 /**
  * SupportChatConnected
  * 
- * Connected version of SupportChat that uses real ticket API.
+ * AI-powered support chat using Gemini consultant.
+ * The AI can answer questions, help with purchases, and create support tickets.
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Terminal, MessageSquare, ChevronDown, Activity, RefreshCw } from 'lucide-react';
+import { Send, ChevronDown, Activity, RefreshCw, Trash2, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSupportTyped } from '../../hooks/useApiTyped';
+import { useAIChatTyped } from '../../hooks/useApiTyped';
 
 interface SupportChatConnectedProps {
   isOpen: boolean;
@@ -21,8 +22,14 @@ interface DisplayMessage {
   text: string;
   sender: 'user' | 'agent' | 'system';
   timestamp: string;
+  action?: string;
   ticketId?: string;
 }
+
+const INITIAL_MESSAGES: DisplayMessage[] = [
+  { id: 'sys-1', text: "Connecting to AI support channel...", sender: 'system', timestamp: 'SYSTEM' },
+  { id: 'sys-2', text: "AI Agent online. Ask me anything about products, orders, or get support.", sender: 'system', timestamp: 'SYSTEM' },
+];
 
 const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({ 
   isOpen, 
@@ -30,65 +37,35 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
   onHaptic, 
   raiseOnMobile = false 
 }) => {
-  const { tickets, getTickets, createTicket, loading } = useSupportTyped();
-  const [messages, setMessages] = useState<DisplayMessage[]>([
-    { id: 'sys-1', text: "Connecting to secure support channel...", sender: 'system', timestamp: 'SYSTEM' },
-    { id: 'sys-2', text: "Connection established. Type your message below.", sender: 'system', timestamp: 'SYSTEM' },
-  ]);
+  const { sendMessage, getHistory, clearHistory, loading } = useAIChatTyped();
+  const [messages, setMessages] = useState<DisplayMessage[]>(INITIAL_MESSAGES);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const hasLoadedTickets = useRef(false);
+  const hasLoadedHistory = useRef(false);
 
-  // Load existing tickets on first open
+  // Load chat history on first open
   useEffect(() => {
-    if (isOpen && !hasLoadedTickets.current) {
-      hasLoadedTickets.current = true;
-      loadTickets();
+    if (isOpen && !hasLoadedHistory.current) {
+      hasLoadedHistory.current = true;
+      loadHistory();
     }
   }, [isOpen]);
 
-  const loadTickets = useCallback(async () => {
-    const fetchedTickets = await getTickets();
-    if (fetchedTickets.length > 0) {
-      // Convert tickets to messages
-      const ticketMessages: DisplayMessage[] = fetchedTickets.flatMap(ticket => {
-        const msgs: DisplayMessage[] = [];
-        // User message
-        msgs.push({
-          id: `ticket-${ticket.id}-user`,
-          text: ticket.message,
-          sender: 'user',
-          timestamp: new Date(ticket.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          ticketId: ticket.id,
-        });
-        // Admin reply if exists
-        if (ticket.admin_reply) {
-          msgs.push({
-            id: `ticket-${ticket.id}-admin`,
-            text: ticket.admin_reply,
-            sender: 'agent',
-            timestamp: 'SUPPORT',
-            ticketId: ticket.id,
-          });
-        } else if (ticket.status === 'open') {
-          msgs.push({
-            id: `ticket-${ticket.id}-pending`,
-            text: `Ticket #${ticket.id.substring(0, 8)} is being processed...`,
-            sender: 'system',
-            timestamp: 'PENDING',
-            ticketId: ticket.id,
-          });
-        }
-        return msgs;
-      });
+  const loadHistory = useCallback(async () => {
+    const history = await getHistory(20);
+    if (history.length > 0) {
+      // Convert history to display messages
+      const historyMessages: DisplayMessage[] = history.map((msg, idx) => ({
+        id: `history-${idx}`,
+        text: msg.content,
+        sender: msg.role === 'user' ? 'user' : 'agent',
+        timestamp: msg.timestamp || (msg.role === 'user' ? 'YOU' : 'AI'),
+      }));
       
-      setMessages(prev => [
-        ...prev.filter(m => m.sender === 'system' && !m.ticketId),
-        ...ticketMessages,
-      ]);
+      setMessages([...INITIAL_MESSAGES, ...historyMessages]);
     }
-  }, [getTickets]);
+  }, [getHistory]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -98,7 +75,7 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
   }, [messages, isTyping, isOpen]);
 
   const handleSend = async () => {
-    if (!inputValue.trim() || loading) return;
+    if (!inputValue.trim() || loading || isTyping) return;
     if (onHaptic) onHaptic();
 
     const userMsg: DisplayMessage = {
@@ -114,22 +91,54 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
     setIsTyping(true);
 
     try {
-      const result = await createTicket(messageText, 'general');
+      const response = await sendMessage(messageText);
       
-      const agentMsg: DisplayMessage = {
-        id: `agent-${Date.now()}`,
-        text: result.success 
-          ? `Ticket created successfully. ID: #${result.ticket_id?.substring(0, 8)}. Our team will respond soon.`
-          : 'Failed to create ticket. Please try again.',
-        sender: 'agent',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        ticketId: result.ticket_id,
-      };
-      setMessages(prev => [...prev, agentMsg]);
+      if (response) {
+        const agentMsg: DisplayMessage = {
+          id: `agent-${Date.now()}`,
+          text: response.reply_text,
+          sender: 'agent',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          action: response.action,
+          ticketId: response.ticket_id,
+        };
+        setMessages(prev => [...prev, agentMsg]);
+        
+        // If ticket was created, show system message
+        if (response.ticket_id) {
+          const ticketMsg: DisplayMessage = {
+            id: `ticket-${Date.now()}`,
+            text: `Support ticket created: #${response.ticket_id.substring(0, 8)}`,
+            sender: 'system',
+            timestamp: 'TICKET',
+          };
+          setMessages(prev => [...prev, ticketMsg]);
+        }
+        
+        // If action requires payment, show system message
+        if (response.action === 'offer_payment' && response.total_amount) {
+          const paymentMsg: DisplayMessage = {
+            id: `payment-${Date.now()}`,
+            text: `Ready for checkout: ${response.total_amount}₽`,
+            sender: 'system',
+            timestamp: 'CHECKOUT',
+          };
+          setMessages(prev => [...prev, paymentMsg]);
+        }
+      } else {
+        // Error response
+        const errorMsg: DisplayMessage = {
+          id: `error-${Date.now()}`,
+          text: 'Connection error. Please try again.',
+          sender: 'system',
+          timestamp: 'ERROR'
+        };
+        setMessages(prev => [...prev, errorMsg]);
+      }
     } catch (err) {
       const errorMsg: DisplayMessage = {
         id: `error-${Date.now()}`,
-        text: 'Connection error. Please check your network and try again.',
+        text: 'Failed to reach AI. Check your connection.',
         sender: 'system',
         timestamp: 'ERROR'
       };
@@ -153,7 +162,15 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
 
   const handleRefresh = () => {
     if (onHaptic) onHaptic();
-    loadTickets();
+    loadHistory();
+  };
+
+  const handleClear = async () => {
+    if (onHaptic) onHaptic();
+    const success = await clearHistory();
+    if (success) {
+      setMessages(INITIAL_MESSAGES);
+    }
   };
 
   return (
@@ -193,20 +210,27 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
               <div className="p-3 border-b border-pandora-cyan/20 bg-gradient-to-r from-pandora-cyan/10 to-transparent flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-pandora-cyan/20 flex items-center justify-center">
-                    <Terminal size={16} className="text-pandora-cyan" />
+                    <Sparkles size={16} className="text-pandora-cyan" />
                   </div>
                   <div>
-                    <h3 className="font-display font-bold text-sm text-white tracking-wide">SUPPORT_CHANNEL</h3>
+                    <h3 className="font-display font-bold text-sm text-white tracking-wide">AI_ASSISTANT</h3>
                     <p className="text-[10px] font-mono text-pandora-cyan flex items-center gap-1">
-                      <Activity size={10} className="animate-pulse" /> SECURE_LINE
+                      <Activity size={10} className="animate-pulse" /> GEMINI_ONLINE
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button 
+                    onClick={handleClear}
+                    className="p-1 hover:bg-white/10 rounded transition-colors"
+                    title="Clear history"
+                  >
+                    <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
+                  </button>
+                  <button 
                     onClick={handleRefresh}
                     className="p-1 hover:bg-white/10 rounded transition-colors"
-                    title="Refresh tickets"
+                    title="Refresh history"
                   >
                     <RefreshCw size={14} className={`text-gray-400 hover:text-pandora-cyan ${loading ? 'animate-spin' : ''}`} />
                   </button>
@@ -232,11 +256,22 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
                           ? 'bg-white/5 border border-white/10 text-gray-500 italic'
                           : 'bg-white/5 border border-white/10 text-gray-300'
                     }`}>
-                      <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                      {/* Render HTML safely for agent messages */}
+                      {msg.sender === 'agent' ? (
+                        <p 
+                          className="leading-relaxed whitespace-pre-wrap"
+                          dangerouslySetInnerHTML={{ __html: msg.text }}
+                        />
+                      ) : (
+                        <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                      )}
                       <span className={`block text-[9px] mt-1 ${
                         msg.sender === 'user' ? 'text-pandora-cyan/50 text-right' : 'text-gray-600'
                       }`}>
                         {msg.timestamp}
+                        {msg.action && msg.action !== 'none' && (
+                          <span className="ml-2 text-yellow-500">[{msg.action}]</span>
+                        )}
                       </span>
                     </div>
                   </motion.div>
@@ -249,7 +284,10 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
                     className="flex justify-start"
                   >
                     <div className="bg-white/5 border border-white/10 p-2.5 text-xs font-mono text-gray-500">
-                      <span className="animate-pulse">Processing request...</span>
+                      <span className="flex items-center gap-2">
+                        <Sparkles size={12} className="animate-pulse text-pandora-cyan" />
+                        AI is thinking...
+                      </span>
                     </div>
                   </motion.div>
                 )}
@@ -263,20 +301,20 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Describe your issue..."
-                    disabled={loading}
+                    placeholder="Ask anything..."
+                    disabled={loading || isTyping}
                     className="flex-1 bg-white/5 border border-white/10 text-white text-xs font-mono p-2.5 focus:outline-none focus:border-pandora-cyan/50 placeholder:text-gray-600 disabled:opacity-50"
                   />
                   <button 
                     onClick={handleSend}
-                    disabled={!inputValue.trim() || loading}
+                    disabled={!inputValue.trim() || loading || isTyping}
                     className="p-2.5 bg-pandora-cyan/20 border border-pandora-cyan/50 text-pandora-cyan hover:bg-pandora-cyan hover:text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Send size={16} />
                   </button>
                 </div>
                 <p className="text-[9px] text-gray-600 mt-2 font-mono">
-                  Messages create support tickets. Response within 24h.
+                  AI powered by Gemini. Can help with products, orders & support.
                 </p>
               </div>
             </motion.div>
@@ -300,17 +338,12 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
               : 'bg-[#0a0a0a] border border-pandora-cyan/50 text-pandora-cyan group-hover:bg-pandora-cyan/20 group-hover:shadow-[0_0_15px_rgba(0,255,255,0.3)]'
             }
           `}>
-            <MessageSquare size={20} className={isOpen ? '' : 'group-hover:scale-110 transition-transform'} />
+            <Sparkles size={20} className={isOpen ? '' : 'group-hover:scale-110 transition-transform'} />
           </div>
-          
-          {/* Notification Dot */}
-          {tickets.some(t => t.status === 'open' && t.admin_reply) && !isOpen && (
-            <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-[#050505]" />
-          )}
           
           {/* HUD Label */}
           <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[8px] font-mono text-pandora-cyan whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-            SYSTEM_ONLINE
+            AI_ASSISTANT
           </span>
         </button>
       </div>
@@ -319,4 +352,3 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
 };
 
 export default SupportChatConnected;
-

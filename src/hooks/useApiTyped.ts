@@ -351,3 +351,67 @@ export function useSupportTyped() {
 
   return { tickets, getTickets, createTicket, getTicket, loading, error };
 }
+
+/**
+ * AI Chat response interface
+ */
+interface AIChatResponse {
+  reply_text: string;
+  action: string;
+  thought?: string;
+  ticket_id?: string;
+  product_id?: string;
+  total_amount?: number;
+}
+
+/**
+ * Chat history item interface
+ */
+interface ChatHistoryItem {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp?: string;
+}
+
+/**
+ * Hook for AI chat (powered by Gemini)
+ */
+export function useAIChatTyped() {
+  const { get, post, del, loading, error } = useApi();
+  const [history, setHistory] = useState<ChatHistoryItem[]>([]);
+
+  const sendMessage = useCallback(async (message: string): Promise<AIChatResponse | null> => {
+    try {
+      const response: AIChatResponse = await post('/ai/chat', { message });
+      return response;
+    } catch (err) {
+      console.error('Failed to send AI message:', err);
+      return null;
+    }
+  }, [post]);
+
+  const getHistory = useCallback(async (limit: number = 20): Promise<ChatHistoryItem[]> => {
+    try {
+      const response = await get(`/ai/history?limit=${limit}`);
+      const messages = response.messages || [];
+      setHistory(messages);
+      return messages;
+    } catch (err) {
+      console.error('Failed to get chat history:', err);
+      return [];
+    }
+  }, [get]);
+
+  const clearHistory = useCallback(async (): Promise<boolean> => {
+    try {
+      await del('/ai/history');
+      setHistory([]);
+      return true;
+    } catch (err) {
+      console.error('Failed to clear chat history:', err);
+      return false;
+    }
+  }, [del]);
+
+  return { history, sendMessage, getHistory, clearHistory, loading, error };
+}

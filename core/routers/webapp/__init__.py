@@ -13,6 +13,7 @@ from .partner import router as partner_router
 from .orders import router as orders_router
 from .cart import router as cart_router
 from .misc import router as misc_router
+from .ai_chat import router as ai_chat_router
 
 # Create main router with prefix
 router = APIRouter(prefix="/api/webapp", tags=["webapp"])
@@ -25,6 +26,7 @@ router.include_router(partner_router)
 router.include_router(orders_router)
 router.include_router(cart_router)
 router.include_router(misc_router)
+router.include_router(ai_chat_router)
 
 # Export for backward compatibility
 __all__ = ["router"]
