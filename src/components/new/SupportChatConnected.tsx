@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, ChevronDown, Activity, RefreshCw, Trash2, Sparkles } from 'lucide-react';
+import { Send, Terminal, MessageSquare, ChevronDown, Activity, RefreshCw, Trash2, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAIChatTyped } from '../../hooks/useApiTyped';
 
@@ -209,14 +209,15 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
               {/* Header */}
               <div className="p-3 border-b border-pandora-cyan/20 bg-gradient-to-r from-pandora-cyan/10 to-transparent flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-pandora-cyan/20 flex items-center justify-center">
-                    <Sparkles size={16} className="text-pandora-cyan" />
+                  <div className="w-8 h-8 bg-black/50 border border-pandora-cyan/30 flex items-center justify-center rounded-sm">
+                    <Terminal size={14} className="text-pandora-cyan" />
                   </div>
                   <div>
-                    <h3 className="font-display font-bold text-sm text-white tracking-wide">AI_ASSISTANT</h3>
-                    <p className="text-[10px] font-mono text-pandora-cyan flex items-center gap-1">
-                      <Activity size={10} className="animate-pulse" /> GEMINI_ONLINE
-                    </p>
+                    <div className="font-mono font-bold text-[10px] tracking-widest text-white">UPLINK_SECURE</div>
+                    <div className="font-mono text-[9px] text-pandora-cyan flex items-center gap-1">
+                      <span className="w-1 h-1 bg-green-500 rounded-full animate-pulse" />
+                      CHANNEL_OPEN
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -321,30 +322,44 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
           )}
         </AnimatePresence>
 
-        {/* Toggle Button */}
+        {/* Toggle Button (HUD widget style) */}
         <button 
           onClick={toggleChat}
-          className="pointer-events-auto relative w-16 h-16 group"
+          className="pointer-events-auto relative w-16 h-16 md:w-20 md:h-20 flex items-center justify-center group"
         >
-          {/* Outer HUD Ring */}
-          <div className="absolute inset-0 rounded-full border-2 border-dashed border-pandora-cyan/30 hud-spin" />
-          <div className="absolute inset-1 rounded-full border border-pandora-cyan/20 hud-spin-rev" />
-          
-          {/* Core Button */}
-          <div className={`
-            absolute inset-2 clip-hexagon flex items-center justify-center transition-all duration-300
-            ${isOpen 
-              ? 'bg-pandora-cyan text-black shadow-[0_0_20px_#00FFFF]' 
-              : 'bg-[#0a0a0a] border border-pandora-cyan/50 text-pandora-cyan group-hover:bg-pandora-cyan/20 group-hover:shadow-[0_0_15px_rgba(0,255,255,0.3)]'
-            }
-          `}>
-            <Sparkles size={20} className={isOpen ? '' : 'group-hover:scale-110 transition-transform'} />
+          {/* Status label (desktop) */}
+          <motion.div 
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="absolute right-full mr-6 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-3 pointer-events-none"
+          >
+            <div className="bg-black/80 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-sm shadow-xl">
+              <div className="text-[10px] font-bold text-pandora-cyan font-mono tracking-widest whitespace-nowrap flex items-center gap-2">
+                <Activity size={10} className="animate-pulse" />
+                SYSTEM_ONLINE
+              </div>
+            </div>
+            <div className="w-6 h-px bg-gradient-to-r from-white/20 to-pandora-cyan/50" />
+          </motion.div>
+
+          {/* Rings */}
+          <div className="absolute inset-0 rounded-full border border-dashed border-white/20 hud-spin" />
+          <div className="absolute inset-1 rounded-full border border-t-transparent border-l-transparent border-pandora-cyan/30 hud-spin-rev" />
+          <div className="absolute inset-2 bg-pandora-cyan/5 rounded-full blur-md animate-pulse" />
+
+          {/* Hexagon core with chat icon */}
+          <div className="relative z-10 w-10 h-10 md:w-12 md:h-12 bg-[#0a0a0a] flex items-center justify-center clip-hexagon group-hover:bg-pandora-cyan transition-colors duration-300 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+            <MessageSquare 
+              size={20} 
+              className="text-pandora-cyan group-hover:text-black transition-colors duration-300 relative z-20" 
+            />
           </div>
-          
-          {/* HUD Label */}
-          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[8px] font-mono text-pandora-cyan whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-            AI_ASSISTANT
-          </span>
+
+          {/* Notification Dot (always on to match original) */}
+          <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-black z-20 shadow-[0_0_10px_red] animate-bounce">
+            <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-75" />
+          </div>
         </button>
       </div>
     </>
