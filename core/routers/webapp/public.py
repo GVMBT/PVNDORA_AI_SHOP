@@ -97,7 +97,10 @@ async def get_webapp_product(
             "fulfillment_time_hours": fulfillment_time_hours if product.status == 'active' else None,
             "type": product.type, "instructions": product.instructions,
             "instruction_files": instruction_files,
-            "rating": rating_info.get("average", 0), "reviews_count": rating_info.get("count", 0)
+            "rating": rating_info.get("average", 0), "reviews_count": rating_info.get("count", 0),
+            "categories": getattr(product, 'categories', []) or [],
+            "status": product.status,
+            "sales_count": social_proof_data.get("sales_count", 0),
         },
         "social_proof": social_proof
     }
@@ -187,6 +190,8 @@ async def get_webapp_products(
             "rating": rating_info.get("average", 0), 
             "reviews_count": rating_info.get("count", 0),
             "sales_count": sales_count,
+            "categories": getattr(p, 'categories', []) or [],
+            "status": p.status,
         })
     
     return {"products": result, "count": len(result)}

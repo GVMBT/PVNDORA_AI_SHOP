@@ -4,8 +4,26 @@
  * Transforms API product data into component-friendly format.
  */
 
-import type { APIProduct, APIProductDetailed, APIProductResponse } from '../types/api';
-import type { CatalogProduct, ProductDetailData, ProductReview, ProductFile } from '../types/component';
+import type { APIProduct, APIProductDetailed, APIProductResponse, ProductStatus } from '../types/api';
+import type { CatalogProduct, ProductDetailData, ProductReview, ProductFile, ProductAvailability } from '../types/component';
+
+/**
+ * Derive availability status from API data
+ */
+function deriveAvailability(apiProduct: APIProduct): ProductAvailability {
+  // Check API status first
+  if (apiProduct.status === 'discontinued') return 'discontinued';
+  if (apiProduct.status === 'coming_soon') return 'coming_soon';
+  
+  // Then check stock
+  if (apiProduct.available_count > 0) return 'available';
+  
+  // Out of stock but can fulfill on demand
+  if (apiProduct.can_fulfill_on_demand) return 'on_demand';
+  
+  // Default to discontinued if nothing else matches
+  return 'discontinued';
+}
 
 /**
  * Adapt a single API product to CatalogProduct format
@@ -14,7 +32,9 @@ export function adaptProduct(apiProduct: APIProduct): CatalogProduct {
   return {
     id: apiProduct.id,
     name: apiProduct.name,
+    // Legacy single category kept for compatibility; prefer categories[]
     category: apiProduct.type === 'shared' ? 'Shared' : 'Personal',
+    categories: apiProduct.categories || [],
     price: apiProduct.final_price,
     msrp: apiProduct.msrp || apiProduct.original_price,
     description: apiProduct.description || '',
@@ -26,10 +46,11 @@ export function adaptProduct(apiProduct: APIProduct): CatalogProduct {
     stock: apiProduct.available_count,
     fulfillment: apiProduct.fulfillment_time_hours || 0,
     sold: apiProduct.sales_count,
-    vpn: false, // API does not expose this; default false for now
     video: undefined,
     sku: `MOD-${apiProduct.id.substring(0, 4).toUpperCase()}`,
     version: '2.0',
+    status: deriveAvailability(apiProduct),
+    can_fulfill_on_demand: apiProduct.can_fulfill_on_demand,
   };
 }
 

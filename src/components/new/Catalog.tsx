@@ -3,173 +3,22 @@ import React, { useState, useMemo } from 'react';
 import { Search, ShoppingCart, ArrowUpRight, Zap, List, Grid, ChevronDown, Check, Cpu, HardDrive, Disc, Activity, Lock, ScanLine, Crosshair, Binary, Box, Database, Server } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// --- MOCK DATA ---
-const PRODUCTS = [
-  { 
-    id: 1, 
-    name: 'Nano Banana Pro', 
-    category: 'Text', 
-    price: 299,
-    msrp: 500,
-    description: 'Get full access to GPT-4 Turbo via decentralized nodes. Includes priority queue handling, zero-logging policy, and direct API access.',
-    warranty: 720, // Hours
-    duration: 30, // Days
-    instructions: "1. Download the portable client.\n2. Use the provided session token.\n3. Connect via USA VPN node.",
-    image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=800&auto=format&fit=crop', 
-    popular: true, 
-    stock: 12,
-    fulfillment: 0,
-    sold: 1542,
-    vpn: true,
-    video: "https://youtube.com/watch?v=dQw4w9WgXcQ",
-    sku: "NANO-BP-01",
-    version: "v4.2.1"
-  },
-  { 
-    id: 2, 
-    name: 'Veo 3.1', 
-    category: 'Video', 
-    price: 450, 
-    msrp: 800,
-    description: 'High-fidelity video generation model. Supports 1080p rendering and prompt-to-video capabilities.',
-    warranty: 168,
-    duration: 30,
-    instructions: "1. Access the web portal.\n2. Login with email:pass.\n3. Do not change profile settings.",
-    image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop', 
-    popular: true, 
-    stock: 0,
-    fulfillment: 0,
-    sold: 890,
-    vpn: false,
-    sku: "VEO-VID-X",
-    version: "v3.1.0"
-  },
-  { 
-    id: 3, 
-    name: 'Claude Max', 
-    category: 'Text', 
-    price: 350, 
-    msrp: 600,
-    description: 'Large context window model (200k tokens). Ideal for code analysis and book summarization.',
-    warranty: 720,
-    duration: 30,
-    instructions: "Wait for email invite (approx 24h). Click the link to activate your workspace.",
-    image: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=800&auto=format&fit=crop', 
-    popular: false, 
-    stock: 5,
-    fulfillment: 24,
-    sold: 430,
-    vpn: true,
-    sku: "CLD-MX-200",
-    version: "v2.1"
-  },
-  { 
-    id: 4, 
-    name: 'GitHub Copilot', 
-    category: 'Code', 
-    price: 190, 
-    msrp: 1000,
-    description: 'AI pair programmer. Autocomplete-style suggestions for code.',
-    warranty: 720,
-    duration: 30,
-    instructions: "Login with the provided GitHub credentials.",
-    image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=800&auto=format&fit=crop', 
-    popular: false, 
-    stock: 8,
-    fulfillment: 0,
-    sold: 1200,
-    vpn: false,
-    sku: "GIT-CP-V2",
-    version: "ENT-Edition"
-  },
-  { 
-    id: 5, 
-    name: 'Runway Gen-2', 
-    category: 'Video', 
-    price: 600, 
-    msrp: 1200,
-    description: 'Text-to-video synthesis. Create realistic videos from text descriptions.',
-    warranty: 168,
-    duration: 30,
-    instructions: "Redeem the promo code in your account settings.",
-    image: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=800&auto=format&fit=crop', 
-    popular: false, 
-    stock: 0,
-    fulfillment: 0,
-    sold: 210,
-    vpn: true,
-    sku: "RW-G2-GEN",
-    version: "v2.0"
-  },
-  { 
-    id: 6, 
-    name: 'Jasper AI', 
-    category: 'Text', 
-    price: 250, 
-    msrp: 400,
-    description: 'AI copywriter for marketing, blog posts, and social media.',
-    warranty: 720,
-    duration: 30,
-    instructions: "Login to the shared team account.",
-    image: 'https://images.unsplash.com/photo-1516110833967-0b5716ca1387?q=80&w=800&auto=format&fit=crop', 
-    popular: false, 
-    stock: 20,
-    fulfillment: 0,
-    sold: 650,
-    vpn: false,
-    sku: "JSP-CP-BIZ",
-    version: "Pro"
-  },
-  { 
-    id: 7, 
-    name: 'Leonardo AI', 
-    category: 'Image', 
-    price: 320, 
-    msrp: 500,
-    description: 'Create production-quality visual assets for your projects.',
-    warranty: 720,
-    duration: 30,
-    instructions: "Use the cookie method to access the pro features.",
-    image: 'https://images.unsplash.com/photo-1633167606204-071160196276?q=80&w=800&auto=format&fit=crop', 
-    popular: false, 
-    stock: 3,
-    fulfillment: 0,
-    sold: 45,
-    vpn: true,
-    sku: "LEO-ART-01",
-    version: "v.XL"
-  },
-  { 
-    id: 8, 
-    name: 'ElevenLabs', 
-    category: 'Audio', 
-    price: 210, 
-    msrp: 400,
-    description: 'The most realistic AI text-to-speech and voice cloning software.',
-    warranty: 720,
-    duration: 30,
-    instructions: "API key will be sent to your dashboard.",
-    image: 'https://images.unsplash.com/photo-1558486012-81714731dca7?q=80&w=800&auto=format&fit=crop', 
-    popular: true, 
-    stock: 0,
-    fulfillment: 0,
-    sold: 890,
-    vpn: false,
-    sku: "EL-VOC-SYN",
-    version: "Voice-Gen-1"
-  },
-];
-
 const CATEGORIES = ['All', 'Text', 'Image', 'Video', 'Code', 'Audio'];
+const AVAILABILITY_FILTERS = ['All', 'Available', 'On Demand', 'Discontinued'] as const;
+type AvailabilityFilter = typeof AVAILABILITY_FILTERS[number];
 
 type SortOption = 'popular' | 'price_asc' | 'price_desc';
 type ViewMode = 'grid' | 'list';
+
+// Product availability status (derived from API)
+type ProductAvailability = 'available' | 'on_demand' | 'discontinued' | 'coming_soon';
 
 // Type for product data (matches CatalogProduct from types/component)
 interface ProductData {
   id: string | number;
   name: string;
   category: string;
+  categories?: string[];
   price: number;
   msrp?: number;
   description: string;
@@ -181,10 +30,11 @@ interface ProductData {
   stock: number;
   fulfillment: number;
   sold: number;
-  vpn: boolean;
   video?: string;
   sku: string;
   version?: string;
+  status?: ProductAvailability;
+  can_fulfill_on_demand?: boolean;
 }
 
 interface CatalogProps {
@@ -208,18 +58,41 @@ const HexStream = () => {
 const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProduct, onAddToCart, onHaptic }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
+  const [activeAvailability, setActiveAvailability] = useState<AvailabilityFilter>('All');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortBy, setSortBy] = useState<SortOption>('popular');
   const [isSortOpen, setIsSortOpen] = useState(false);
+  const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
 
-  // Use provided products or fallback to mock data
-  const productsData = propProducts || PRODUCTS;
+  // Use provided products or empty array (no mock data fallback)
+  const productsData = propProducts || [];
+
+  // Helper to derive availability from product data
+  const getProductAvailability = (product: ProductData): ProductAvailability => {
+    if (product.status) return product.status;
+    // Fallback logic for products without status
+    if (product.stock > 0) return 'available';
+    if (product.can_fulfill_on_demand || product.fulfillment > 0) return 'on_demand';
+    return 'discontinued';
+  };
 
   const filteredProducts = useMemo(() => {
     let result = productsData.filter(product => {
+      // Search filter
       const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
-      return matchesSearch && matchesCategory;
+      
+      // Category filter
+      const categories = product.categories || [product.category].filter(Boolean);
+      const matchesCategory = activeCategory === 'All' || categories.some(c => c.toLowerCase() === activeCategory.toLowerCase());
+      
+      // Availability filter
+      const availability = getProductAvailability(product);
+      let matchesAvailability = activeAvailability === 'All';
+      if (activeAvailability === 'Available') matchesAvailability = availability === 'available';
+      if (activeAvailability === 'On Demand') matchesAvailability = availability === 'on_demand';
+      if (activeAvailability === 'Discontinued') matchesAvailability = availability === 'discontinued' || availability === 'coming_soon';
+      
+      return matchesSearch && matchesCategory && matchesAvailability;
     });
 
     // Sorting Logic
@@ -231,7 +104,7 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
     });
 
     return result;
-  }, [productsData, searchQuery, activeCategory, sortBy]);
+  }, [productsData, searchQuery, activeCategory, activeAvailability, sortBy]);
 
   const handleCategoryChange = (cat: string) => {
       if (onHaptic) onHaptic('light');
@@ -289,16 +162,59 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
             </div>
 
             <div className="flex gap-4">
+                {/* Availability Filter Dropdown */}
+                <div className="relative">
+                    <button 
+                        onClick={() => { if(onHaptic) onHaptic('light'); setIsAvailabilityOpen(!isAvailabilityOpen); setIsSortOpen(false); }}
+                        className="h-full px-4 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm min-w-[140px] justify-between"
+                    >
+                        <span className="uppercase text-[10px] tracking-wider">
+                            {activeAvailability === 'All' && 'STATUS: ALL'}
+                            {activeAvailability === 'Available' && 'STATUS: ACTIVE'}
+                            {activeAvailability === 'On Demand' && 'STATUS: ON_DEMAND'}
+                            {activeAvailability === 'Discontinued' && 'STATUS: OFFLINE'}
+                        </span>
+                        <ChevronDown size={14} className={`transition-transform ${isAvailabilityOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    <AnimatePresence>
+                        {isAvailabilityOpen && (
+                            <motion.div 
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="absolute top-full left-0 right-0 mt-2 bg-[#0a0a0a] border border-white/20 z-50 shadow-xl shadow-black/80"
+                            >
+                                {[
+                                    { label: 'ALL_NODES', value: 'All', color: 'text-gray-400' },
+                                    { label: 'ONLINE', value: 'Available', color: 'text-green-400' },
+                                    { label: 'ON_DEMAND', value: 'On Demand', color: 'text-yellow-400' },
+                                    { label: 'OFFLINE', value: 'Discontinued', color: 'text-red-400' }
+                                ].map((option) => (
+                                    <button
+                                        key={option.value}
+                                        onClick={() => { if(onHaptic) onHaptic('light'); setActiveAvailability(option.value as AvailabilityFilter); setIsAvailabilityOpen(false); }}
+                                        className="w-full text-left px-4 py-2 text-[10px] uppercase font-mono hover:bg-white/10 hover:text-pandora-cyan flex items-center justify-between"
+                                    >
+                                        <span className={option.color}>{option.label}</span>
+                                        {activeAvailability === option.value && <Check size={12} className="text-pandora-cyan" />}
+                                    </button>
+                                ))}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+
                 {/* Sort Dropdown */}
                 <div className="relative">
                     <button 
-                        onClick={() => { if(onHaptic) onHaptic('light'); setIsSortOpen(!isSortOpen); }}
+                        onClick={() => { if(onHaptic) onHaptic('light'); setIsSortOpen(!isSortOpen); setIsAvailabilityOpen(false); }}
                         className="h-full px-4 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm min-w-[160px] justify-between"
                     >
                         <span className="uppercase text-[10px] tracking-wider">
-                            {sortBy === 'popular' && 'FILTER: POPULAR'}
-                            {sortBy === 'price_asc' && 'FILTER: COST ASC'}
-                            {sortBy === 'price_desc' && 'FILTER: COST DESC'}
+                            {sortBy === 'popular' && 'SORT: POPULAR'}
+                            {sortBy === 'price_asc' && 'SORT: COST ASC'}
+                            {sortBy === 'price_desc' && 'SORT: COST DESC'}
                         </span>
                         <ChevronDown size={14} className={`transition-transform ${isSortOpen ? 'rotate-180' : ''}`} />
                     </button>
@@ -398,10 +314,21 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                             {/* Technical Header */}
                             <div className="flex justify-between items-center px-4 py-2 border-b border-white/5 bg-white/[0.02] relative z-20">
                                 <span className="text-[9px] font-mono text-gray-500">{product.sku}</span>
-                                <div className="flex items-center gap-2">
-                                    <div className={`w-1.5 h-1.5 rounded-full ${product.stock > 0 ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-                                    <span className={`text-[9px] font-mono uppercase ${product.stock > 0 ? 'text-green-500' : 'text-red-500'}`}>{product.stock > 0 ? 'AVAILABLE' : 'DEPLETED'}</span>
-                                </div>
+                                {(() => {
+                                    const avail = getProductAvailability(product);
+                                    const statusConfig = {
+                                        available: { color: 'bg-green-500', textColor: 'text-green-500', label: 'AVAILABLE', pulse: true },
+                                        on_demand: { color: 'bg-yellow-500', textColor: 'text-yellow-500', label: 'ON_DEMAND', pulse: true },
+                                        discontinued: { color: 'bg-red-500', textColor: 'text-red-500', label: 'OFFLINE', pulse: false },
+                                        coming_soon: { color: 'bg-blue-500', textColor: 'text-blue-500', label: 'STANDBY', pulse: true },
+                                    }[avail];
+                                    return (
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${statusConfig.color} ${statusConfig.pulse ? 'animate-pulse' : ''}`} />
+                                            <span className={`text-[9px] font-mono uppercase ${statusConfig.textColor}`}>{statusConfig.label}</span>
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
                             {/* Image & Holographic Grid Section */}
@@ -527,10 +454,21 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
 
                             <div className="flex items-center gap-8 md:gap-12 pr-4">
                                 <div className="hidden md:flex flex-col items-end">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-1.5 h-1.5 rounded-full ${product.stock > 0 ? 'bg-green-500' : 'bg-red-500'}`} />
-                                        <span className="text-[10px] font-mono text-gray-400">{product.stock > 0 ? `QTY: ${product.stock}` : 'OUT_OF_STOCK'}</span>
-                                    </div>
+                                    {(() => {
+                                        const avail = getProductAvailability(product);
+                                        const cfg = {
+                                            available: { color: 'bg-green-500', text: `QTY: ${product.stock}`, textColor: 'text-gray-400' },
+                                            on_demand: { color: 'bg-yellow-500', text: 'ON_DEMAND', textColor: 'text-yellow-400' },
+                                            discontinued: { color: 'bg-red-500', text: 'OFFLINE', textColor: 'text-red-400' },
+                                            coming_soon: { color: 'bg-blue-500', text: 'STANDBY', textColor: 'text-blue-400' },
+                                        }[avail];
+                                        return (
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-1.5 h-1.5 rounded-full ${cfg.color}`} />
+                                                <span className={`text-[10px] font-mono ${cfg.textColor}`}>{cfg.text}</span>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
 
                                 <div className="flex items-center gap-4 min-w-[100px] justify-end">

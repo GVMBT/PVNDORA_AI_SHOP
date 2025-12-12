@@ -61,6 +61,10 @@ class Product(BaseModel):
     fulfillment_time_hours: int = 48
     requires_prepayment: bool = False
     prepayment_percent: int = 100
+    categories: list[str] = []  # text, video, image, code, audio
+    msrp: Optional[Decimal] = None
+    duration_days: Optional[int] = None
+    instruction_files: Optional[list] = None
     
     @field_validator("price", mode="before")
     @classmethod

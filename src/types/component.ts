@@ -7,10 +7,13 @@
 
 // ==================== CATALOG / PRODUCTS ====================
 
+export type ProductAvailability = 'available' | 'on_demand' | 'discontinued' | 'coming_soon';
+
 export interface CatalogProduct {
   id: string;
   name: string;
-  category: string;
+  categories?: string[]; // text/video/image/code/audio...
+  category: string;      // legacy single category (kept for compatibility)
   price: number;
   msrp?: number;
   description: string;
@@ -22,10 +25,11 @@ export interface CatalogProduct {
   stock: number;
   fulfillment: number; // hours for preorder, 0 for instant
   sold: number; // sales_count
-  vpn: boolean;
   video?: string;
   sku: string;
   version?: string;
+  status: ProductAvailability; // derived from API status + stock
+  can_fulfill_on_demand: boolean;
 }
 
 export interface ProductDetailData extends CatalogProduct {

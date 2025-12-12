@@ -43,11 +43,13 @@ export interface APIProduct {
   can_fulfill_on_demand: boolean;
   fulfillment_time_hours?: number;
   type: ProductType;
+  status: ProductStatus;
   instructions?: string;
   instruction_files?: Array<{ name: string; url: string; description?: string }>;
   rating: number;
   reviews_count: number;
   sales_count: number;
+  categories?: string[]; // e.g. ["text","code"]
 }
 
 export interface APIProductDetailed extends APIProduct {
