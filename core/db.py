@@ -8,18 +8,65 @@ Provides singleton instances of:
 """
 
 import os
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from supabase import create_client, Client
 from supabase._async.client import AsyncClient, create_client as acreate_client
+
+# For type-checkers only
+if TYPE_CHECKING:  # pragma: no cover
+    from upstash_redis import Redis as RedisType  # type: ignore
+    from upstash_redis.asyncio import Redis as AsyncRedisType  # type: ignore
+else:
+    RedisType = object
+    AsyncRedisType = object
+
 try:
-    from upstash_redis import Redis
-    from upstash_redis.asyncio import Redis as AsyncRedis
+    from upstash_redis import Redis  # type: ignore
+    from upstash_redis.asyncio import Redis as AsyncRedis  # type: ignore
 except ImportError:
-    # Runtime fallback: allow app to start even if dependency not present
+    # Runtime fallback: lightweight REST client (get/set/delete) for Upstash
     Redis = None  # type: ignore
     AsyncRedis = None  # type: ignore
-    print("WARNING: upstash_redis not installed. Redis cache will be disabled.")
+    print("WARNING: upstash_redis not installed. Falling back to lightweight REST client.")
+    import httpx
+
+    class AsyncRedisFallback:
+        """Minimal async Redis client using Upstash REST (get/set/delete only)."""
+
+        def __init__(self, url: str, token: str):
+            self.url = url.rstrip("/")
+            self.token = token
+            self._client: httpx.AsyncClient | None = None
+
+        @property
+        def client(self) -> httpx.AsyncClient:
+            if self._client is None:
+                self._client = httpx.AsyncClient(base_url=self.url, headers={"Authorization": f"Bearer {self.token}"})
+            return self._client
+
+        async def get(self, key: str):
+            resp = await self.client.get(f"/get/{key}")
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("result")
+
+        async def set(self, key: str, value: str, ex: int | None = None):
+            params = {}
+            if ex is not None:
+                params["EX"] = ex
+            resp = await self.client.post(f"/set/{key}/{value}", params=params)
+            resp.raise_for_status()
+            return True
+
+        async def delete(self, key: str):
+            resp = await self.client.delete(f"/del/{key}")
+            resp.raise_for_status()
+            return True
+
+    # Use fallback for both sync/async interfaces
+    AsyncRedis = AsyncRedisFallback  # type: ignore
+    Redis = AsyncRedisFallback  # type: ignore
 
 
 # Environment variables (Upstash uses REST_URL and REST_TOKEN)
