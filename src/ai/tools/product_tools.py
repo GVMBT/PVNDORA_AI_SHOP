@@ -279,14 +279,14 @@ async def handle_add_to_waitlist(
                 "reason": "Product is discontinued and no longer available. Waitlist is not available."
             }
         
-        # coming_soon - можно добавить в waitlist
-        if product_status == 'coming_soon':
+    # coming_soon - можно добавить в waitlist
+    if product_status == 'coming_soon':
         await db.add_to_waitlist(user_id, product_name)
         return {
             "success": True,
             "product_name": product_name,
-                "message": f"Added to waitlist for {product_name}. You will be notified when it becomes available."
-            }
+            "message": f"Added to waitlist for {product_name}. You will be notified when it becomes available."
+        }
         
         # active или out_of_stock - можно заказать, waitlist не нужен
         return {
