@@ -59,6 +59,10 @@ except ImportError:
             resp.raise_for_status()
             return True
 
+        async def setex(self, key: str, seconds: int, value: str):
+            """SET with expiration in seconds."""
+            return await self.set(key, value, ex=seconds)
+
         async def delete(self, key: str):
             resp = await self.client.delete(f"/del/{key}")
             resp.raise_for_status()
