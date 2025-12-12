@@ -12,8 +12,14 @@ from typing import Optional
 
 from supabase import create_client, Client
 from supabase._async.client import AsyncClient, create_client as acreate_client
-from upstash_redis import Redis
-from upstash_redis.asyncio import Redis as AsyncRedis
+try:
+    from upstash_redis import Redis
+    from upstash_redis.asyncio import Redis as AsyncRedis
+except ImportError:
+    # Runtime fallback: allow app to start even if dependency not present
+    Redis = None  # type: ignore
+    AsyncRedis = None  # type: ignore
+    print("WARNING: upstash_redis not installed. Redis cache will be disabled.")
 
 
 # Environment variables (Upstash uses REST_URL and REST_TOKEN)
@@ -82,6 +88,8 @@ def get_redis() -> AsyncRedis:
     if _redis_client is None:
         if not UPSTASH_REDIS_REST_URL or not UPSTASH_REDIS_REST_TOKEN:
             raise ValueError("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set")
+        if AsyncRedis is None:
+            raise ImportError("upstash_redis is not installed in the runtime environment")
         _redis_client = AsyncRedis(url=UPSTASH_REDIS_REST_URL, token=UPSTASH_REDIS_REST_TOKEN)
     
     return _redis_client
@@ -97,6 +105,8 @@ def get_redis_sync() -> Redis:
     if _sync_redis_client is None:
         if not UPSTASH_REDIS_REST_URL or not UPSTASH_REDIS_REST_TOKEN:
             raise ValueError("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set")
+        if Redis is None:
+            raise ImportError("upstash_redis is not installed in the runtime environment")
         _sync_redis_client = Redis(url=UPSTASH_REDIS_REST_URL, token=UPSTASH_REDIS_REST_TOKEN)
     
     return _sync_redis_client
