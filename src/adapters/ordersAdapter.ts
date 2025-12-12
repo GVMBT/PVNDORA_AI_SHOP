@@ -73,12 +73,16 @@ function formatOrderDate(dateString: string): string {
  * Adapt a single API order item
  */
 function adaptOrderItem(item: APIOrderItem): OrderItem {
+  // Get credentials from delivery_content (backend) or credentials (alias)
+  const credentials = item.delivery_content || item.credentials || null;
+  
   return {
     id: item.id,
     name: item.product_name,
     type: item.fulfillment_type === 'instant' ? 'instant' : 'preorder',
     status: mapOrderItemStatus(item.status),
-    credentials: item.credentials || null,
+    credentials: credentials,
+    instructions: item.delivery_instructions || null,
     expiry: item.expires_at ? new Date(item.expires_at).toLocaleDateString('ru-RU') : null,
     hasReview: item.has_review ?? false,
     estimatedDelivery: item.fulfillment_type === 'preorder' ? '24H' : null,

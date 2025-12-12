@@ -82,14 +82,19 @@ export interface APIOrderItem {
   id: UUID;
   product_id: UUID;
   product_name: string;
-  quantity: number;
-  price: number;
-  discount_percent: number;
+  quantity?: number;
+  price?: number;
+  discount_percent?: number;
   status: OrderStatus;
   fulfillment_type: 'instant' | 'preorder';
+  // Delivery data (from backend)
+  delivery_content?: string;  // The account credentials/key
+  delivery_instructions?: string;  // Instructions for using the product
+  // Aliases for compatibility
   credentials?: string;
   expires_at?: string;
-  instructions?: string;
+  delivered_at?: string;
+  created_at?: string;
   has_review?: boolean;
 }
 

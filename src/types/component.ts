@@ -63,7 +63,8 @@ export interface OrderItem {
   name: string;
   type: 'instant' | 'preorder';
   status: OrderItemStatus;
-  credentials?: string | null;
+  credentials?: string | null;  // The delivered account/key data
+  instructions?: string | null; // Instructions for using the product
   expiry?: string | null;
   hasReview: boolean;
   estimatedDelivery?: string | null;

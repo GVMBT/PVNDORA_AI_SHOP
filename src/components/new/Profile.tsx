@@ -198,11 +198,12 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
   
   // Use provided profile or fallback to mock
   const user = propProfile || MOCK_USER;
-  const networkTree = propProfile?.networkTree.length ? propProfile.networkTree : NETWORK_TREE;
-  const billingLogs = propProfile?.billingLogs.length ? propProfile.billingLogs : BILLING_LOGS;
+  const networkTree = propProfile?.networkTree?.length ? propProfile.networkTree : NETWORK_TREE;
+  const billingLogs = propProfile?.billingLogs?.length ? propProfile.billingLogs : BILLING_LOGS;
   
-  const selectedReferral = NETWORK_TREE.find(n => n.id === selectedReferralId);
-  const displayedNodes = NETWORK_TREE.filter((n: any) => n.line === networkLine);
+  // Use networkTree (which may be from API or mock) instead of hardcoded NETWORK_TREE
+  const selectedReferral = networkTree.find((n: any) => n.id === selectedReferralId);
+  const displayedNodes = networkTree.filter((n: any) => (n as any).line === networkLine || !('line' in n));
 
   // Logic for Career Progress - use profile data if available
   const currentTurnover = propProfile?.career.currentTurnover ?? user.stats.turnover;
