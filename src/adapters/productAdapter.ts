@@ -41,7 +41,7 @@ export function adaptProduct(apiProduct: APIProduct): CatalogProduct {
     warranty: apiProduct.warranty_days * 24, // days to hours
     duration: apiProduct.duration_days,
     instructions: apiProduct.instructions || '',
-    image: `https://picsum.photos/seed/${apiProduct.id.substring(0, 8)}/800/600`,
+    image: apiProduct.image_url || '/noise.png',
     popular: apiProduct.sales_count > 50,
     stock: apiProduct.available_count,
     fulfillment: apiProduct.fulfillment_time_hours || 0,

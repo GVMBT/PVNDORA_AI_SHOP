@@ -65,6 +65,7 @@ class Product(BaseModel):
     msrp: Optional[Decimal] = None
     duration_days: Optional[int] = None
     instruction_files: Optional[list] = None
+    image_url: Optional[str] = None
     
     @field_validator("price", mode="before")
     @classmethod

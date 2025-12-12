@@ -29,6 +29,7 @@ export interface APIProduct {
   id: UUID;
   name: string;
   description: string;
+  image_url?: string;
   original_price: number;
   price: number;
   price_usd: number;

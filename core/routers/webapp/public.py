@@ -101,6 +101,7 @@ async def get_webapp_product(
             "categories": getattr(product, 'categories', []) or [],
             "status": product.status,
             "sales_count": social_proof_data.get("sales_count", 0),
+            "image_url": getattr(product, 'image_url', None),
         },
         "social_proof": social_proof
     }
@@ -192,6 +193,7 @@ async def get_webapp_products(
             "sales_count": sales_count,
             "categories": getattr(p, 'categories', []) or [],
             "status": p.status,
+            "image_url": getattr(p, 'image_url', None),
         })
     
     return {"products": result, "count": len(result)}
