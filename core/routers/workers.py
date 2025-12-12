@@ -28,13 +28,13 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
     if not items:
         return {"delivered": 0, "waiting": 0, "note": "no_items"}
     
-    # Load products info
+    # Load products info (including duration_days for license expiration)
     product_ids = list({it.get("product_id") for it in items if it.get("product_id")})
     products_map = {}
     try:
         if product_ids:
             prod_res = await asyncio.to_thread(
-                lambda: db.client.table("products").select("id,name,instructions").in_("id", product_ids).execute()
+                lambda: db.client.table("products").select("id,name,instructions,duration_days").in_("id", product_ids).execute()
             )
             products_map = {p["id"]: p for p in (prod_res.data or [])}
     except Exception as e:

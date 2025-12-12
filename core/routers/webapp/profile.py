@@ -57,7 +57,9 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     referral_stats = {
         "level1_count": 0, "level2_count": 0, "level3_count": 0,
         "level1_earnings": 0, "level2_earnings": 0, "level3_earnings": 0,
-        "active_referrals": 0
+        "active_referrals": 0,
+        "click_count": 0,
+        "conversion_rate": 0,
     }
     referral_program = _build_default_referral_program(THRESHOLD_LEVEL2, THRESHOLD_LEVEL3, COMMISSION_LEVEL1, COMMISSION_LEVEL2, COMMISSION_LEVEL3)
     
@@ -318,6 +320,11 @@ def _build_default_referral_program(threshold2: float, threshold3: float, comm1:
 
 def _build_referral_data(s: dict, threshold2: float, threshold3: float, comm1: float, comm2: float, comm3: float) -> tuple:
     """Build referral stats and program data from extended stats."""
+    # Calculate conversion rate (referrals / clicks * 100)
+    click_count = s.get("click_count", 0) or 0
+    total_referrals = (s.get("level1_count", 0) or 0)
+    conversion_rate = round((total_referrals / click_count * 100), 1) if click_count > 0 else 0
+    
     referral_stats = {
         "level1_count": s.get("level1_count", 0),
         "level2_count": s.get("level2_count", 0),
@@ -326,6 +333,8 @@ def _build_referral_data(s: dict, threshold2: float, threshold3: float, comm1: f
         "level2_earnings": float(s.get("level2_earnings") or 0),
         "level3_earnings": float(s.get("level3_earnings") or 0),
         "active_referrals": s.get("active_referrals_count", 0),
+        "click_count": click_count,
+        "conversion_rate": conversion_rate,
     }
     
     # Core program data from view

@@ -450,12 +450,16 @@ export default function ProfilePage({ onBack }) {
              </div>
 
              <div className="grid grid-cols-2 gap-3">
-               <Button variant="secondary" className="w-full h-10" onClick={() => setWithdrawDialog(true)}>
+               <Button variant="secondary" className="w-full h-10" onClick={() => setWithdrawDialog(true)} disabled={(profile?.balance || 0) < WITHDRAWAL_MIN}>
                  {t('profile.withdraw')}
                </Button>
                <Button className="w-full h-10" onClick={handleShare}>
                  {t('profile.invite')}
                </Button>
+             </div>
+             
+             <div className="text-xs text-center text-muted-foreground">
+               {t('profile.minWithdrawalNote', { min: formatPrice(WITHDRAWAL_MIN, currency) })}
              </div>
              
              <div className="pt-2 border-t border-border/40">

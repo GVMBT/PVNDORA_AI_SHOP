@@ -1,0 +1,291 @@
+/**
+ * PVNDORA Typed API Hooks
+ * 
+ * Type-safe API hooks with automatic data transformation.
+ * These hooks wrap useApi and apply adapters for component consumption.
+ */
+
+import { useState, useCallback } from 'react';
+import { useApi } from './useApi';
+import type {
+  APIProductsResponse,
+  APIProductResponse,
+  APIOrdersResponse,
+  APIProfileResponse,
+  APILeaderboardResponse,
+  APICartResponse,
+  APICreateOrderRequest,
+  APICreateOrderResponse,
+} from '../types/api';
+import type {
+  CatalogProduct,
+  ProductDetailData,
+  Order,
+  ProfileData,
+  LeaderboardUser,
+  CartData,
+} from '../types/component';
+import {
+  adaptProduct,
+  adaptProductList,
+  adaptProductDetail,
+  adaptOrders,
+  adaptProfile,
+  adaptLeaderboard,
+  adaptCart,
+} from '../adapters';
+
+/**
+ * Get browser/Telegram language code
+ */
+function getLanguageCode(): string {
+  const tgLang = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
+  const browserLang = navigator.language?.split('-')[0];
+  return tgLang || browserLang || 'en';
+}
+
+/**
+ * Hook for fetching products with type safety
+ */
+export function useProductsTyped() {
+  const { get, loading, error } = useApi();
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
+
+  const getProducts = useCallback(async (category?: string): Promise<CatalogProduct[]> => {
+    const lang = getLanguageCode();
+    const params = new URLSearchParams();
+    if (category) params.append('category', category);
+    params.append('language_code', lang);
+    
+    try {
+      const response: APIProductsResponse = await get(`/products?${params.toString()}`);
+      const adapted = adaptProductList(response.products);
+      setProducts(adapted);
+      return adapted;
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+      return [];
+    }
+  }, [get]);
+
+  const getProduct = useCallback(async (id: string): Promise<ProductDetailData | null> => {
+    const lang = getLanguageCode();
+    try {
+      const response: APIProductResponse = await get(`/products/${id}?language_code=${lang}`);
+      return adaptProductDetail(response);
+    } catch (err) {
+      console.error(`Failed to fetch product ${id}:`, err);
+      return null;
+    }
+  }, [get]);
+
+  return { products, getProducts, getProduct, loading, error };
+}
+
+/**
+ * Hook for fetching orders with type safety
+ */
+export function useOrdersTyped() {
+  const { get, post, loading, error } = useApi();
+  const [orders, setOrders] = useState<Order[]>([]);
+
+  const getOrders = useCallback(async (params?: { limit?: number; offset?: number }): Promise<Order[]> => {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    const qs = searchParams.toString();
+    
+    try {
+      const response: APIOrdersResponse = await get(`/orders${qs ? `?${qs}` : ''}`);
+      const adapted = adaptOrders(response);
+      setOrders(adapted);
+      return adapted;
+    } catch (err) {
+      console.error('Failed to fetch orders:', err);
+      return [];
+    }
+  }, [get]);
+
+  const createOrder = useCallback(async (request: APICreateOrderRequest): Promise<APICreateOrderResponse | null> => {
+    try {
+      return await post('/orders', request);
+    } catch (err) {
+      console.error('Failed to create order:', err);
+      return null;
+    }
+  }, [post]);
+
+  return { orders, getOrders, createOrder, loading, error };
+}
+
+/**
+ * Hook for fetching profile with type safety
+ */
+export function useProfileTyped() {
+  const { get, post, loading, error } = useApi();
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+
+  const getProfile = useCallback(async (): Promise<ProfileData | null> => {
+    try {
+      const response: APIProfileResponse = await get('/profile');
+      const telegramUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
+      const adapted = adaptProfile(response, telegramUser);
+      setProfile(adapted);
+      return adapted;
+    } catch (err) {
+      console.error('Failed to fetch profile:', err);
+      return null;
+    }
+  }, [get]);
+
+  const requestWithdrawal = useCallback(async (
+    amount: number,
+    method: string,
+    details: string
+  ): Promise<{ success: boolean; message: string }> => {
+    try {
+      return await post('/profile/withdraw', { amount, method, details });
+    } catch (err) {
+      console.error('Failed to request withdrawal:', err);
+      throw err;
+    }
+  }, [post]);
+
+  const createShareLink = useCallback(async (): Promise<{ prepared_message_id: string }> => {
+    try {
+      return await post('/referral/share-link', {});
+    } catch (err) {
+      console.error('Failed to create share link:', err);
+      throw err;
+    }
+  }, [post]);
+
+  return { profile, getProfile, requestWithdrawal, createShareLink, loading, error };
+}
+
+/**
+ * Hook for fetching leaderboard with type safety
+ */
+export function useLeaderboardTyped() {
+  const { get, loading, error } = useApi();
+  const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
+
+  const getLeaderboard = useCallback(async (): Promise<LeaderboardUser[]> => {
+    try {
+      const response: APILeaderboardResponse = await get('/leaderboard');
+      const telegramUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
+      const adapted = adaptLeaderboard(response, telegramUser?.id?.toString());
+      setLeaderboard(adapted);
+      return adapted;
+    } catch (err) {
+      console.error('Failed to fetch leaderboard:', err);
+      return [];
+    }
+  }, [get]);
+
+  return { leaderboard, getLeaderboard, loading, error };
+}
+
+/**
+ * Hook for cart operations with type safety
+ */
+export function useCartTyped() {
+  const { get, post, patch, del, loading, error } = useApi();
+  const [cart, setCart] = useState<CartData | null>(null);
+
+  const getCart = useCallback(async (): Promise<CartData | null> => {
+    try {
+      const response: APICartResponse = await get('/cart');
+      const adapted = adaptCart(response);
+      setCart(adapted);
+      return adapted;
+    } catch (err) {
+      console.error('Failed to fetch cart:', err);
+      return null;
+    }
+  }, [get]);
+
+  const addToCart = useCallback(async (productId: string, quantity = 1) => {
+    try {
+      await post('/cart/add', { product_id: productId, quantity });
+      return getCart(); // Refresh cart
+    } catch (err) {
+      console.error('Failed to add to cart:', err);
+      throw err;
+    }
+  }, [post, getCart]);
+
+  const updateCartItem = useCallback(async (productId: string, quantity: number) => {
+    try {
+      await patch('/cart/item', { product_id: productId, quantity });
+      return getCart();
+    } catch (err) {
+      console.error('Failed to update cart item:', err);
+      throw err;
+    }
+  }, [patch, getCart]);
+
+  const removeCartItem = useCallback(async (productId: string) => {
+    try {
+      await del(`/cart/item?product_id=${encodeURIComponent(productId)}`);
+      return getCart();
+    } catch (err) {
+      console.error('Failed to remove cart item:', err);
+      throw err;
+    }
+  }, [del, getCart]);
+
+  const applyPromo = useCallback(async (code: string) => {
+    try {
+      await post('/cart/promo/apply', { code });
+      return getCart();
+    } catch (err) {
+      console.error('Failed to apply promo:', err);
+      throw err;
+    }
+  }, [post, getCart]);
+
+  const removePromo = useCallback(async () => {
+    try {
+      await post('/cart/promo/remove', {});
+      return getCart();
+    } catch (err) {
+      console.error('Failed to remove promo:', err);
+      throw err;
+    }
+  }, [post, getCart]);
+
+  return {
+    cart,
+    getCart,
+    addToCart,
+    updateCartItem,
+    removeCartItem,
+    applyPromo,
+    removePromo,
+    loading,
+    error,
+  };
+}
+
+/**
+ * Hook for reviews
+ */
+export function useReviewsTyped() {
+  const { post, loading, error } = useApi();
+
+  const submitReview = useCallback(async (
+    orderId: string,
+    rating: number,
+    text?: string
+  ): Promise<{ success: boolean; review_id?: string }> => {
+    try {
+      return await post('/reviews', { order_id: orderId, rating, text });
+    } catch (err) {
+      console.error('Failed to submit review:', err);
+      throw err;
+    }
+  }, [post]);
+
+  return { submitReview, loading, error };
+}

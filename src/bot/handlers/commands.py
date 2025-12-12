@@ -32,13 +32,22 @@ async def cmd_start(message: Message, db_user: User, bot: Bot):
                     referral_id = int(part.replace("ref_", ""))
                     referrer = await db.get_user_by_telegram_id(referral_id)
                     if referrer and referrer.id != db_user.id:
+                        # Track referral click (increment referrer's click count)
                         await asyncio.to_thread(
-                            lambda: db.client.table("users").update({
-                                "referrer_id": referrer.id
-                            }).eq("id", db_user.id).execute()
+                            lambda: db.client.rpc("increment_referral_click", {
+                                "referrer_user_id": referrer.id
+                            }).execute()
                         )
-                except Exception:
-                    pass
+                        
+                        # Set referrer for new user if not already set
+                        if not db_user.referrer_id:
+                            await asyncio.to_thread(
+                                lambda: db.client.table("users").update({
+                                    "referrer_id": referrer.id
+                                }).eq("id", db_user.id).execute()
+                            )
+                except Exception as e:
+                    print(f"Warning: Failed to process referral: {e}")
     
     onboarding_text = get_text(
         "welcome" if is_new_user else "welcome_back",

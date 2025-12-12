@@ -327,14 +327,28 @@ async def get_webapp_orders(
     except Exception as e:
         logger.warning(f"Failed to load products map: {e}")
     
+    # Fetch reviews for orders (to determine has_review)
+    reviews_by_order = {}
+    try:
+        if order_ids:
+            reviews_res = await asyncio.to_thread(
+                lambda: db.client.table("reviews").select("order_id").in_("order_id", order_ids).execute()
+            )
+            for r in (reviews_res.data or []):
+                reviews_by_order[r["order_id"]] = True
+    except Exception as e:
+        logger.warning(f"Failed to load reviews: {e}")
+    
     # Build items by order using helper
     from collections import defaultdict
     items_by_order = defaultdict(list)
     for it in items_data:
         pid = it.get("product_id")
         prod = products_map.get(pid, {})
-        item_payload = build_item_payload(it, prod)
-        items_by_order[it.get("order_id")].append(item_payload)
+        order_id = it.get("order_id")
+        has_review = reviews_by_order.get(order_id, False)
+        item_payload = build_item_payload(it, prod, has_review=has_review)
+        items_by_order[order_id].append(item_payload)
     
     # Build order payloads using helper
     result = []

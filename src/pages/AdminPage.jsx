@@ -22,7 +22,7 @@ export default function AdminPage({ onNavigate }) {
   // Grouped sections for better organization
   const sectionGroups = [
     {
-      title: '📦 Каталог',
+      title: 'Каталог',
       description: 'Товары и остатки',
       sections: [
         { id: 'products', icon: Package, label: 'Товары', desc: 'Каталог и цены' },
@@ -30,7 +30,7 @@ export default function AdminPage({ onNavigate }) {
       ]
     },
     {
-      title: '💰 Продажи',
+      title: 'Продажи',
       description: 'Заказы и аналитика',
       sections: [
         { id: 'orders', icon: ShoppingCart, label: 'Заказы', desc: 'Управление заказами' },
@@ -38,7 +38,7 @@ export default function AdminPage({ onNavigate }) {
       ]
     },
     {
-      title: '👥 Партнёры',
+      title: 'Партнёры',
       description: 'Реферальная система',
       badge: 'ROI',
       sections: [
@@ -46,7 +46,7 @@ export default function AdminPage({ onNavigate }) {
       ]
     },
     {
-      title: '🎧 Поддержка',
+      title: 'Поддержка',
       description: 'Обращения и FAQ',
       sections: [
         { id: 'tickets', icon: MessageSquare, label: 'Тикеты', desc: 'Обращения клиентов' },

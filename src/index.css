@@ -1,4 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -61,4 +63,57 @@
 /* Glassmorphism Utilities */
 .glass {
     @apply bg-background/60 backdrop-blur-lg border border-white/10;
+}
+
+/* ============================================
+   PVNDORA NEW DESIGN UTILITIES
+   ============================================ */
+
+/* Custom Scrollbar (Pandora Theme) */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #050505;
+}
+::-webkit-scrollbar-thumb {
+    background: #1a1a1a;
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #00FFFF;
+}
+
+/* Scrollbar Hide Class */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Text Shadow Glow Effect */
+.text-shadow-glow {
+    text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+}
+
+/* Clip Path Polygon (for CTA buttons) */
+.clip-path-polygon {
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+}
+
+/* Perspective for 3D effects */
+.perspective-1000 {
+    perspective: 1000px;
+}
+
+/* Transform Style */
+.transform-style-3d {
+    transform-style: preserve-3d;
+}
+
+/* Safe area padding for mobile */
+.pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0);
 }

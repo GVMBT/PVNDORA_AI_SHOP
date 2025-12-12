@@ -43,7 +43,8 @@ async def convert_order_prices(
 
 def build_item_payload(
     item_data: Dict[str, Any],
-    product: Dict[str, Any]
+    product: Dict[str, Any],
+    has_review: bool = False
 ) -> Dict[str, Any]:
     """
     Build order item payload for API response.
@@ -51,6 +52,7 @@ def build_item_payload(
     Args:
         item_data: Raw item data from database
         product: Product data from products map
+        has_review: Whether this order has a review submitted
         
     Returns:
         Formatted item payload dict
@@ -66,6 +68,7 @@ def build_item_payload(
         "created_at": item_data.get("created_at"),
         "delivered_at": item_data.get("delivered_at"),
         "expires_at": item_data.get("expires_at"),  # License expiration for this specific item
+        "has_review": has_review,
     }
     
     # Include delivery content only for delivered states

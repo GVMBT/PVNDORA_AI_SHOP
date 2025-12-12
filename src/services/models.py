@@ -33,6 +33,8 @@ class User(BaseModel):
     referral_program_unlocked: bool = False
     turnover_usd: Decimal = Decimal("0")
     total_purchases_amount: Decimal = Decimal("0")
+    # Referral click tracking
+    referral_clicks: int = 0
     
     class Config:
         extra = "ignore"  # Ignore unknown fields from DB
