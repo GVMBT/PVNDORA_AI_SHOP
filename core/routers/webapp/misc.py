@@ -1,12 +1,14 @@
 """
 WebApp Misc Router
 
-Promo codes, reviews, leaderboard, and FAQ endpoints.
+Promo codes, reviews, leaderboard, FAQ, and support ticket endpoints.
 """
 import asyncio
 from datetime import datetime, timezone, timedelta
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
 
 from src.services.database import get_database
 from src.services.money import to_float
@@ -14,6 +16,18 @@ from core.auth import verify_telegram_auth
 from .models import PromoCheckRequest, WebAppReviewRequest
 
 router = APIRouter(tags=["webapp-misc"])
+
+
+# --- Support Ticket Models ---
+class CreateTicketRequest(BaseModel):
+    message: str
+    order_id: Optional[str] = None
+    issue_type: str = "general"  # general, payment, delivery, refund, other
+
+
+class TicketMessageRequest(BaseModel):
+    ticket_id: str
+    message: str
 
 
 @router.get("/faq")
@@ -194,4 +208,110 @@ async def get_webapp_leaderboard(period: str = "all", user=Depends(verify_telegr
     return {
         "leaderboard": leaderboard, "user_rank": user_rank, "user_saved": user_saved,
         "total_users": total_users, "improved_today": improved_today
+    }
+
+
+# ==================== SUPPORT TICKETS ====================
+
+@router.get("/support/tickets")
+async def get_user_tickets(user=Depends(verify_telegram_auth)):
+    """Get current user's support tickets."""
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    result = await asyncio.to_thread(
+        lambda: db.client.table("tickets")
+        .select("id, status, issue_type, description, admin_comment, created_at, order_id")
+        .eq("user_id", db_user.id)
+        .order("created_at", desc=True)
+        .limit(20)
+        .execute()
+    )
+    
+    tickets = []
+    for t in (result.data or []):
+        tickets.append({
+            "id": t["id"],
+            "status": t["status"],
+            "issue_type": t.get("issue_type", "general"),
+            "message": t.get("description", ""),
+            "admin_reply": t.get("admin_comment"),
+            "order_id": t.get("order_id"),
+            "created_at": t["created_at"],
+        })
+    
+    return {"tickets": tickets, "count": len(tickets)}
+
+
+@router.post("/support/tickets")
+async def create_user_ticket(request: CreateTicketRequest, user=Depends(verify_telegram_auth)):
+    """Create a new support ticket."""
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if len(request.message.strip()) < 10:
+        raise HTTPException(status_code=400, detail="Message too short (min 10 characters)")
+    
+    # Validate order_id if provided
+    if request.order_id:
+        order = await db.get_order_by_id(request.order_id)
+        if not order or order.user_id != db_user.id:
+            raise HTTPException(status_code=400, detail="Invalid order ID")
+    
+    result = await asyncio.to_thread(
+        lambda: db.client.table("tickets").insert({
+            "user_id": db_user.id,
+            "order_id": request.order_id,
+            "issue_type": request.issue_type,
+            "description": request.message.strip(),
+            "status": "open",
+        }).execute()
+    )
+    
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Failed to create ticket")
+    
+    ticket = result.data[0]
+    return {
+        "success": True,
+        "ticket_id": ticket["id"],
+        "message": "Ticket created successfully. Our team will respond soon."
+    }
+
+
+@router.get("/support/tickets/{ticket_id}")
+async def get_user_ticket(ticket_id: str, user=Depends(verify_telegram_auth)):
+    """Get specific ticket details."""
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    result = await asyncio.to_thread(
+        lambda: db.client.table("tickets")
+        .select("*")
+        .eq("id", ticket_id)
+        .eq("user_id", db_user.id)
+        .single()
+        .execute()
+    )
+    
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    
+    t = result.data
+    return {
+        "ticket": {
+            "id": t["id"],
+            "status": t["status"],
+            "issue_type": t.get("issue_type", "general"),
+            "message": t.get("description", ""),
+            "admin_reply": t.get("admin_comment"),
+            "order_id": t.get("order_id"),
+            "created_at": t["created_at"],
+        }
     }

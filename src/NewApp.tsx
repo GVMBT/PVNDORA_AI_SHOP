@@ -16,7 +16,7 @@ import {
   Footer,
   Navbar,
   Legal,
-  SupportChat,
+  SupportChatConnected,
   CommandPalette,
   AdminPanel,
   CatalogConnected,
@@ -29,6 +29,9 @@ import {
 
 // Types
 import type { CatalogProduct } from './types/component';
+
+// Hooks for data fetching
+import { useProductsTyped, useCartTyped } from './hooks/useApiTyped';
 
 // --- AUDIO ENGINE (Web Audio API) ---
 class AudioEngine {
@@ -118,7 +121,6 @@ type ViewType = 'home' | 'orders' | 'profile' | 'leaderboard' | 'legal' | 'admin
 
 function NewApp() {
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
-  const [cart, setCart] = useState<CatalogProduct[]>([]);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isSupportWidgetOpen, setIsSupportWidgetOpen] = useState(false);
   const [isCmdOpen, setIsCmdOpen] = useState(false);
@@ -129,6 +131,18 @@ function NewApp() {
 
   // Toast State
   const [toasts, setToasts] = useState<Toast[]>([]);
+
+  // Products for CommandPalette (fetched once)
+  const { products: allProducts, getProducts } = useProductsTyped();
+  
+  // Cart from backend
+  const { cart, getCart, addToCart, removeCartItem } = useCartTyped();
+
+  // Fetch products and cart on mount
+  useEffect(() => {
+    getProducts();
+    getCart();
+  }, [getProducts, getCart]);
 
   // Initialize Audio on first interaction
   useEffect(() => {
@@ -213,25 +227,24 @@ function NewApp() {
     setSelectedProduct(null);
   };
 
-  // Cart operations
-  const handleAddToCart = (product: CatalogProduct, quantity: number = 1) => {
-    setCart(prevCart => {
-      const existingItem = prevCart.find(p => p.id === product.id);
-      if (existingItem) {
-        showToast(`QUANTITY INCREASED: +${quantity}`, 'success');
-        return prevCart.map(p => 
-          p.id === product.id ? { ...p, quantity: ((p as any).quantity || 1) + quantity } : p
-        );
-      } else {
-        showToast(`MODULE [${product.name}] MOUNTED`, 'success');
-        return [...prevCart, { ...product, quantity } as any];
-      }
-    });
+  // Cart operations - using backend API
+  const handleAddToCart = async (product: CatalogProduct, quantity: number = 1) => {
+    try {
+      await addToCart(String(product.id), quantity);
+      showToast(`MODULE [${product.name}] MOUNTED`, 'success');
+    } catch (err) {
+      console.error('Failed to add to cart:', err);
+      showToast('Failed to add item to cart', 'error');
+    }
   };
 
-  const handleRemoveFromCart = (productId: string | number) => {
+  const handleRemoveFromCart = async (productId: string | number) => {
     handleFeedback('medium');
-    setCart(cart.filter(item => item.id !== productId));
+    try {
+      await removeCartItem(String(productId));
+    } catch (err) {
+      console.error('Failed to remove from cart:', err);
+    }
   };
 
   const handleOpenCart = () => {
@@ -240,7 +253,8 @@ function NewApp() {
   };
 
   const handleCheckoutSuccess = () => {
-    setCart([]);
+    // Refresh cart from backend (should be empty after successful order)
+    getCart();
     setIsCheckoutOpen(false);
     setCurrentView('orders');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -329,7 +343,7 @@ function NewApp() {
       {currentView !== 'admin' && (
           <Navbar 
             showMobile={!selectedProduct} 
-            cartCount={cart.length} 
+            cartCount={cart?.items?.length || 0} 
             onOpenCart={handleOpenCart}
             onNavigateHome={() => navigate('home')}
             onNavigateOrders={() => navigate('orders')}
@@ -402,30 +416,21 @@ function NewApp() {
         isOpen={isCmdOpen} 
         onClose={() => setIsCmdOpen(false)} 
         onNavigate={handleUniversalNavigate}
-        products={[]} 
+        products={allProducts} 
       />
 
       {/* --- CHECKOUT MODAL --- */}
       <AnimatePresence>
         {isCheckoutOpen && (
           <CheckoutModalConnected 
-            cart={cart.map(p => ({
-              id: String(p.id),
-              name: p.name,
-              category: p.category,
-              price: p.price,
-              quantity: (p as any).quantity || 1,
-              image: p.image,
-            }))} 
             onClose={() => { handleFeedback('light'); setIsCheckoutOpen(false); }} 
-            onRemoveItem={(productId) => handleRemoveFromCart(productId)}
             onSuccess={handleCheckoutSuccess}
           />
         )}
       </AnimatePresence>
 
       {/* --- PERSISTENT SUPPORT WIDGET --- */}
-      <SupportChat 
+      <SupportChatConnected 
         isOpen={isSupportWidgetOpen} 
         onToggle={(val) => setIsSupportWidgetOpen(val)} 
         onHaptic={() => handleFeedback('light')} 

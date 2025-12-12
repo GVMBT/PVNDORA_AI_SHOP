@@ -289,3 +289,65 @@ export function useReviewsTyped() {
 
   return { submitReview, loading, error };
 }
+
+/**
+ * Support ticket interface
+ */
+interface SupportTicket {
+  id: string;
+  status: 'open' | 'approved' | 'rejected' | 'closed';
+  issue_type: string;
+  message: string;
+  admin_reply?: string;
+  order_id?: string;
+  created_at: string;
+}
+
+/**
+ * Hook for support tickets
+ */
+export function useSupportTyped() {
+  const { get, post, loading, error } = useApi();
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+
+  const getTickets = useCallback(async (): Promise<SupportTicket[]> => {
+    try {
+      const response = await get('/support/tickets');
+      const data = response.tickets || [];
+      setTickets(data);
+      return data;
+    } catch (err) {
+      console.error('Failed to fetch tickets:', err);
+      return [];
+    }
+  }, [get]);
+
+  const createTicket = useCallback(async (
+    message: string,
+    issueType: string = 'general',
+    orderId?: string
+  ): Promise<{ success: boolean; ticket_id?: string; message?: string }> => {
+    try {
+      return await post('/support/tickets', {
+        message,
+        issue_type: issueType,
+        order_id: orderId,
+      });
+    } catch (err) {
+      console.error('Failed to create ticket:', err);
+      throw err;
+    }
+  }, [post]);
+
+  const getTicket = useCallback(async (ticketId: string): Promise<SupportTicket | null> => {
+    try {
+      const response = await get(`/support/tickets/${ticketId}`);
+      return response.ticket || null;
+    } catch (err) {
+      console.error(`Failed to fetch ticket ${ticketId}:`, err);
+      return null;
+    }
+  }, [get]);
+
+  return { tickets, getTickets, createTicket, getTicket, loading, error };
+}

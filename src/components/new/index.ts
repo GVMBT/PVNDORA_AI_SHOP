@@ -32,3 +32,4 @@ export { default as OrdersConnected } from './OrdersConnected';
 export { default as ProfileConnected } from './ProfileConnected';
 export { default as LeaderboardConnected } from './LeaderboardConnected';
 export { default as CheckoutModalConnected } from './CheckoutModalConnected';
+export { default as SupportChatConnected } from './SupportChatConnected';
