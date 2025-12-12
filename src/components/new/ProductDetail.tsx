@@ -6,59 +6,22 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion';
 
+import type { ProductDetailData, ProductFile, ProductReview, CatalogProduct } from '../../types/component';
+
 interface ProductDetailProps {
-  product: any;
+  product: ProductDetailData;
   onBack: () => void;
-  onAddToCart: (product: any, quantity: number) => void;
-  onProductSelect?: (product: any) => void;
+  onAddToCart: (product: CatalogProduct, quantity: number) => void;
+  onProductSelect?: (product: CatalogProduct) => void;
   isInCart: boolean;
   onHaptic?: (type?: 'light' | 'medium' | 'success') => void;
 }
-
-// --- MOCK FILES PAYLOAD (Simulated based on product type) ---
-const getMockFiles = (category: string) => {
-    if (category === 'Text' || category === 'Code') {
-        return [
-            { name: "auth_token.json", size: "2KB", type: "key" },
-            { name: "connection_config.yaml", size: "4KB", type: "config" },
-            { name: "readme_setup.md", size: "12KB", type: "doc" }
-        ];
-    } else if (category === 'Video' || category === 'Image') {
-        return [
-            { name: "login_credentials.txt", size: "1KB", type: "key" },
-            { name: "proxy_list.txt", size: "5KB", type: "net" },
-            { name: "assets_guide.pdf", size: "2.4MB", type: "doc" }
-        ];
-    } else {
-        return [{ name: "license_key.txt", size: "1KB", type: "key" }];
-    }
-};
-
-// --- MOCK REVIEWS ---
-const MOCK_REVIEWS = [
-    { id: 1, user: "@neon_runner", rating: 5, date: "2h ago", text: "Instant delivery. Token works perfectly with the new API endpoint. 10/10", verified: true },
-    { id: 2, user: "@crypto_whale", rating: 5, date: "5h ago", text: "Verified node. Low latency connection confirmed.", verified: true },
-    { id: 3, user: "@anon_x", rating: 4, date: "1d ago", text: "Works good but needs VPN for US servers.", verified: true },
-    { id: 4, user: "@ai_artist", rating: 5, date: "2d ago", text: "Stable uptime so far. Best price on the market.", verified: true }
-];
-
-// --- ALL PRODUCTS MOCK (Simulating Database for Cross-sell) ---
-const ALL_PRODUCTS = [
-  { id: 1, name: 'Nano Banana Pro', category: 'Text', price: 299, image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=800&auto=format&fit=crop', sku: "NANO-BP-01", stock: 12 },
-  { id: 2, name: 'Veo 3.1', category: 'Video', price: 450, image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop', sku: "VEO-VID-X", stock: 0 },
-  { id: 3, name: 'Claude Max', category: 'Text', price: 350, image: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=800&auto=format&fit=crop', sku: "CLD-MX-200", stock: 5 },
-  { id: 4, name: 'GitHub Copilot', category: 'Code', price: 190, image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=800&auto=format&fit=crop', sku: "GIT-CP-V2", stock: 8 },
-  { id: 5, name: 'Runway Gen-2', category: 'Video', price: 600, image: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=800&auto=format&fit=crop', sku: "RW-G2-GEN", stock: 0 },
-  { id: 6, name: 'Jasper AI', category: 'Text', price: 250, image: 'https://images.unsplash.com/photo-1516110833967-0b5716ca1387?q=80&w=800&auto=format&fit=crop', sku: "JSP-CP-BIZ", stock: 20 },
-  { id: 7, name: 'Leonardo AI', category: 'Image', price: 320, image: 'https://images.unsplash.com/photo-1633167606204-071160196276?q=80&w=800&auto=format&fit=crop', sku: "LEO-ART-01", stock: 3 },
-  { id: 8, name: 'ElevenLabs', category: 'Audio', price: 210, image: 'https://images.unsplash.com/photo-1558486012-81714731dca7?q=80&w=800&auto=format&fit=crop', sku: "EL-VOC-SYN", stock: 0 },
-];
 
 const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToCart, isInCart, onHaptic, onProductSelect }) => {
   const [activeTab, setActiveTab] = useState<'specs' | 'files' | 'manifest'>('specs');
   const [systemCheck, setSystemCheck] = useState(0); 
   const [quantity, setQuantity] = useState(1);
-  const files = getMockFiles(product.category);
+  const files = product.files || [];
 
   // Micro-interaction states
   const [isAllocating, setIsAllocating] = useState(false);
@@ -109,6 +72,31 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
       if(onHaptic) onHaptic('light');
   }
 
+  // --- DERIVED AVAILABILITY STATES ---
+  const hasStock = product.stock > 0;
+  const isPreorder = !hasStock && product.fulfillment > 0;
+  const isDisabled = !hasStock && !isPreorder;
+
+  const accessProtocol = hasStock ? 'DIRECT_ACCESS' : isPreorder ? 'ON_DEMAND' : 'DISCONTINUED';
+  const deliveryLabel = hasStock 
+    ? 'INSTANT_DEPLOY' 
+    : isPreorder 
+      ? `ALLOCATION_QUEUE ~${product.fulfillment}H` 
+      : 'UNAVAILABLE';
+
+  const nodeStatus = hasStock ? 'OPERATIONAL' : isPreorder ? 'STANDBY' : 'DISABLED';
+  const nodeStatusColor = hasStock ? 'text-green-500' : isPreorder ? 'text-yellow-500' : 'text-red-500';
+  const statusDotColor = hasStock ? 'bg-green-500' : isPreorder ? 'bg-yellow-500' : 'bg-red-500';
+  const statusText = hasStock ? 'GRID_ONLINE' : isPreorder ? 'RESOURCE_QUEUE' : 'OFFLINE';
+
+  const warrantyLabel = product.warranty > 0
+    ? (product.warranty % 24 === 0 ? `${product.warranty / 24} DAYS` : `${product.warranty} HOURS`)
+    : 'UNSPECIFIED';
+
+  const durationLabel = product.duration && product.duration > 0
+    ? `${product.duration} DAYS`
+    : 'UNBOUNDED';
+
   // --- MICRO-INTERACTION: ADD TO CART ---
   const handleMountModule = () => {
       if (isAllocating || isSuccess) return;
@@ -129,11 +117,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
       }, 800);
   };
 
-  // --- CROSS-SELL LOGIC ---
-  const relatedProducts = ALL_PRODUCTS
-      .filter(p => p.id !== product.id) // Exclude current
-      .sort(() => 0.5 - Math.random()) // Randomize
-      .slice(0, 3); // Take 3
+  // --- CROSS-SELL LOGIC (uses provided relatedProducts from API/connected layer) ---
+  const relatedProducts = (product.relatedProducts || [])
+      .filter(p => p.id !== product.id)
+      .slice(0, 3);
 
   const rotateX = useTransform(mouseY, [-0.5, 0.5], [10, -10]);
   const rotateY = useTransform(mouseX, [-0.5, 0.5], [-10, 10]);
@@ -236,9 +223,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                         <div className="text-[9px] font-mono text-gray-500 uppercase tracking-widest mb-1">Module_Identifier</div>
                         <div className="text-lg font-mono text-white font-bold">{product.sku}</div>
                         <div className="mt-auto flex items-center gap-2">
-                            <div className={`w-1.5 h-1.5 rounded-full ${product.stock > 0 ? 'bg-green-500' : 'bg-red-500'}`} />
-                            <span className={`text-[9px] font-mono uppercase ${product.stock > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                {product.stock > 0 ? 'GRID_ONLINE' : 'OFFLINE'}
+                            <div className={`w-1.5 h-1.5 rounded-full ${statusDotColor}`} />
+                            <span className={`text-[9px] font-mono uppercase ${nodeStatusColor}`}>
+                                {statusText}
                             </span>
                         </div>
                     </div>
@@ -283,12 +270,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                                 initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}
                                 className="font-mono text-xs space-y-0"
                             >
-                                <SpecRow label="PROTOCOL" value={product.vpn ? "VPN_TUNNEL_REQ" : "DIRECT_ACCESS"} valueColor={product.vpn ? "text-orange-500" : "text-green-500"} />
-                                <SpecRow label="WARRANTY" value={`${product.warranty} HOURS`} valueColor="text-pandora-cyan" />
-                                <SpecRow label="DURATION" value={`${product.duration} DAYS`} />
-                                <SpecRow label="DELIVERY" value={product.fulfillment > 0 ? "MANUAL_PROCESSING" : "INSTANT_AUTO"} valueColor={product.fulfillment > 0 ? "text-yellow-500" : "text-green-500"} />
-                                <SpecRow label="ENCRYPTION" value="AES-256-GCM" />
-                                <SpecRow label="NODE_STATUS" value={product.stock > 0 ? "OPERATIONAL" : "DEPLETED"} valueColor={product.stock > 0 ? "text-green-500" : "text-red-500"} />
+                                <SpecRow label="ACCESS_PROTOCOL" value={accessProtocol} valueColor={nodeStatusColor} />
+                                <SpecRow label="UPTIME_ASSURANCE" value={warrantyLabel} valueColor="text-pandora-cyan" />
+                                <SpecRow label="SESSION_DURATION" value={durationLabel} />
+                                <SpecRow label="DEPLOY_MODE" value={deliveryLabel} valueColor={nodeStatusColor} />
+                                <SpecRow label="SECURE_UPLINK" value="AES-256-GCM" />
+                                <SpecRow label="NODE_STATUS" value={nodeStatus} valueColor={nodeStatusColor} />
                             </motion.div>
                         )}
 
@@ -300,6 +287,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                                 className="space-y-2"
                             >
                                 <div className="text-[10px] font-mono text-gray-500 mb-2 uppercase">Files included in payload:</div>
+                                {files.length === 0 && (
+                                  <div className="text-[10px] text-gray-600 font-mono uppercase">No attached payload</div>
+                                )}
                                 {files.map((file, i) => (
                                     <div key={i} className="flex items-center justify-between bg-[#0e0e0e] border border-white/10 p-3 hover:border-pandora-cyan/30 transition-colors">
                                         <div className="flex items-center gap-3">
@@ -308,10 +298,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                                                 {file.type === 'doc' && <FileText size={14} className="text-blue-500" />}
                                                 {file.type === 'config' && <Terminal size={14} className="text-gray-400" />}
                                                 {file.type === 'net' && <Globe size={14} className="text-green-500" />}
+                                                {!file.type && <Lock size={14} className="text-gray-500" />}
                                             </div>
                                             <div>
                                                 <div className="text-xs font-bold text-white">{file.name}</div>
-                                                <div className="text-[9px] text-gray-600 font-mono uppercase">{file.type} FILE // {file.size}</div>
+                                                <div className="text-[9px] text-gray-600 font-mono uppercase">{file.type || 'doc'} FILE // {file.size}</div>
                                             </div>
                                         </div>
                                         <div className="text-gray-600">
@@ -357,21 +348,21 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                     <div className="text-[10px] font-mono text-gray-500 uppercase flex items-center gap-3">
                         <span>User Logs</span>
                         <span className="text-pandora-cyan">● Live Feed</span>
-                        <span>{MOCK_REVIEWS.length} Signals Detected</span>
+                        <span>{(product.reviews || []).length} Signals Detected</span>
                     </div>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {MOCK_REVIEWS.map((review, i) => (
-                    <div key={review.id} className="bg-black/40 border border-white/10 p-5 relative group overflow-hidden hover:border-white/30 transition-all">
+                {(product.reviews || []).map((review, i) => (
+                    <div key={review.id || i} className="bg-black/40 border border-white/10 p-5 relative group overflow-hidden hover:border-white/30 transition-all">
                         {/* Scanline for log effect */}
                         <div className="absolute top-0 left-0 w-full h-[1px] bg-pandora-cyan/30 opacity-0 group-hover:opacity-100 transition-opacity" />
                         
                         <div className="flex justify-between items-start mb-3">
                             <div className="flex items-center gap-3">
-                                <div className="font-mono text-xs font-bold text-pandora-cyan bg-pandora-cyan/10 px-2 py-0.5 border border-pandora-cyan/20">
-                                    NO_ID_{review.user.replace('@', '')}
+                                <div className="font-mono text-xs font-bold text-pandora-cyan bg-pandora-cyan/10 px-2 py-0.5 border border-pandora-cyan/20 truncate max-w-[150px]">
+                                    {review.user || 'ANON'}
                                 </div>
                                 {review.verified && (
                                     <span className="flex items-center gap-1 text-[9px] text-green-500 font-mono border border-green-900 bg-green-900/10 px-1.5 py-0.5 rounded-sm">
@@ -408,8 +399,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                  <div className="text-[9px] font-mono text-pandora-cyan">AI_RECOMMENDATION_ENGINE</div>
              </div>
 
-             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                 {relatedProducts.map(rel => (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                 {(product.relatedProducts || []).map(rel => (
                      <div 
                         key={rel.id} 
                         onClick={() => onProductSelect && onProductSelect(rel)}
@@ -459,10 +450,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                 {/* BUY BUTTON (Right) - WITH MICRO-INTERACTION */}
                 <button 
                     onClick={handleMountModule}
-                    disabled={product.stock <= 0 || isAllocating || isSuccess}
+                    disabled={isDisabled || isAllocating || isSuccess}
                     className={`
                         flex-1 font-display font-bold uppercase tracking-widest transition-all flex items-center justify-between px-6 rounded-sm group relative overflow-hidden
-                        ${product.stock <= 0 
+                        ${isDisabled 
                             ? 'bg-gray-800 text-gray-400 cursor-not-allowed' 
                             : isSuccess
                                 ? 'bg-green-500 text-black'
@@ -477,9 +468,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                          </div>
                     )}
 
-                    {product.stock <= 0 ? (
+                    {isDisabled ? (
                         <>
-                            <span className="flex items-center gap-2"><Lock size={18} /> OUT OF STOCK</span>
+                            <span className="flex items-center gap-2"><Lock size={18} /> DISABLED</span>
                             <span>--</span>
                         </>
                     ) : (
@@ -491,7 +482,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                                     className="flex items-center gap-3 w-full justify-center"
                                 >
                                     <Loader2 size={20} className="animate-spin" />
-                                    <span>ALLOCATING RESOURCES...</span>
+                                    <span>{isPreorder ? 'ALLOCATING QUEUE...' : 'ALLOCATING RESOURCES...'}</span>
                                 </motion.div>
                             ) : isSuccess ? (
                                 <motion.div
@@ -510,7 +501,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                                 >
                                     <span className="flex items-center gap-3 text-sm md:text-base group-hover:translate-x-1 transition-transform">
                                         <Plus size={20} className="hidden sm:block" />
-                                        MOUNT MODULE
+                                        {isPreorder ? 'QUEUE ALLOCATION' : 'MOUNT MODULE'}
                                     </span>
                                     <span className="font-mono text-lg md:text-xl font-bold border-l border-black/20 pl-4 ml-4">
                                         {product.price * quantity} ₽

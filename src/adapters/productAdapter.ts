@@ -26,7 +26,7 @@ export function adaptProduct(apiProduct: APIProduct): CatalogProduct {
     stock: apiProduct.available_count,
     fulfillment: apiProduct.fulfillment_time_hours || 0,
     sold: apiProduct.sales_count,
-    vpn: false, // Not tracked in API currently
+    vpn: false, // API does not expose this; default false for now
     video: undefined,
     sku: `MOD-${apiProduct.id.substring(0, 4).toUpperCase()}`,
     version: '2.0',
@@ -47,7 +47,7 @@ export function adaptProductDetail(response: APIProductResponse): ProductDetailD
   const { product, social_proof } = response;
   const baseProduct = adaptProduct(product);
   
-  // Adapt reviews from social_proof
+  // Adapt reviews from social_proof (real data only)
   const reviews: ProductReview[] = (social_proof.recent_reviews || []).map((r, idx) => ({
     id: idx + 1,
     user: `@user_${Math.random().toString(36).substring(2, 8)}`,
@@ -57,32 +57,19 @@ export function adaptProductDetail(response: APIProductResponse): ProductDetailD
     verified: true,
   }));
   
-  // Generate files based on product type
-  const files = generateMockFiles(product.type);
+  // Use instruction_files from API when available
+  const files: ProductFile[] = (product.instruction_files || []).map((f, idx) => ({
+    name: f.name || `payload_${idx + 1}`,
+    size: '—',
+    type: 'doc',
+  }));
   
   return {
     ...baseProduct,
     reviews,
     files,
-    relatedProducts: [], // Will be populated separately
+    relatedProducts: [], // populated in connected component
   };
-}
-
-/**
- * Generate mock files based on product type
- */
-function generateMockFiles(productType: string): ProductFile[] {
-  if (productType === 'personal') {
-    return [
-      { name: 'auth_token.json', size: '2KB', type: 'key' },
-      { name: 'connection_config.yaml', size: '4KB', type: 'config' },
-      { name: 'readme_setup.md', size: '12KB', type: 'doc' },
-    ];
-  }
-  return [
-    { name: 'credentials.txt', size: '1KB', type: 'key' },
-    { name: 'usage_guide.pdf', size: '2.4MB', type: 'doc' },
-  ];
 }
 
 /**
