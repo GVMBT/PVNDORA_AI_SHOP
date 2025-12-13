@@ -1,36 +1,71 @@
-"""Web session utilities (in-memory)."""
-import secrets
+"""Web session utilities (stateless, HMAC-signed)."""
+import json
+import os
+import hmac
+import base64
+import hashlib
 from datetime import datetime, timezone, timedelta
-from typing import Dict, Optional
+from typing import Optional
 
-_web_sessions: Dict[str, dict] = {}
+
+def _get_secret() -> str:
+    # Dedicated secret if present, otherwise fall back to TELEGRAM_TOKEN
+    return os.environ.get("WEB_SESSION_SECRET") or os.environ.get("TELEGRAM_TOKEN", "")
+
+
+def _b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("utf-8")
+
+
+def _b64url_decode(data: str) -> bytes:
+    padding = "=" * (-len(data) % 4)
+    return base64.urlsafe_b64decode(data + padding)
 
 
 def create_web_session(user_id: str, telegram_id: int, username: str, is_admin: bool) -> str:
-    """Create a new web session and return the token."""
-    session_token = secrets.token_urlsafe(32)
-    _web_sessions[session_token] = {
+    """
+    Create a stateless HMAC-signed session token.
+    Structure: base64url(payload).base64url(signature)
+    """
+    secret = _get_secret()
+    if not secret:
+        raise RuntimeError("WEB_SESSION_SECRET or TELEGRAM_TOKEN is required for web sessions")
+
+    now = datetime.now(timezone.utc)
+    payload = {
         "user_id": str(user_id),
         "telegram_id": telegram_id,
         "username": username,
         "is_admin": is_admin,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(days=7)).timestamp()),
     }
-    return session_token
+    payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    payload_b64 = _b64url_encode(payload_bytes)
+    sig = hmac.new(secret.encode("utf-8"), payload_b64.encode("utf-8"), hashlib.sha256).digest()
+    sig_b64 = _b64url_encode(sig)
+    return f"{payload_b64}.{sig_b64}"
 
 
 def verify_web_session_token(token: str) -> Optional[dict]:
-    """Verify a web session token and return session data."""
-    session = _web_sessions.get(token)
-    if not session:
+    """Verify HMAC-signed session token and return payload if valid and not expired."""
+    secret = _get_secret()
+    if not secret or not token or "." not in token:
         return None
-    
-    # Check expiration
-    expires_at = datetime.fromisoformat(session["expires_at"])
-    if datetime.now(timezone.utc) > expires_at:
-        del _web_sessions[token]
+
+    try:
+        payload_b64, sig_b64 = token.split(".", 1)
+        expected_sig = hmac.new(secret.encode("utf-8"), payload_b64.encode("utf-8"), hashlib.sha256).digest()
+        if not hmac.compare_digest(expected_sig, _b64url_decode(sig_b64)):
+            return None
+
+        payload = json.loads(_b64url_decode(payload_b64))
+        exp_ts = payload.get("exp")
+        if not exp_ts:
+            return None
+        if datetime.now(timezone.utc).timestamp() > float(exp_ts):
+            return None
+        return payload
+    except Exception:
         return None
-    
-    return session
 
