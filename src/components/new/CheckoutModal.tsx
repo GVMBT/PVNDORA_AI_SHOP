@@ -26,13 +26,41 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
   loading: externalLoading = false,
   error: externalError = null,
 }) => {
+  console.log('[CheckoutModal] ===== COMPONENT RENDER START =====');
+  console.log('[CheckoutModal] Props received:', {
+    cart,
+    cartType: typeof cart,
+    cartIsArray: Array.isArray(cart),
+    cartLength: cart?.length,
+    userBalance,
+    loading: externalLoading,
+    error: externalError,
+  });
+
   const [step, setStep] = useState<'cart' | 'payment' | 'processing' | 'success'>('cart');
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>('crystalpay');
   const [logs, setLogs] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // Updated Total Logic to include Quantity
-  const total = cart.reduce((acc, item) => acc + (item.price * (item.quantity || 1)), 0);
+  // Updated Total Logic to include Quantity - with safety checks
+  let total = 0;
+  try {
+    if (!cart) {
+      console.error('[CheckoutModal] cart is null/undefined');
+    } else if (!Array.isArray(cart)) {
+      console.error('[CheckoutModal] cart is not an array:', typeof cart, cart);
+    } else {
+      total = cart.reduce((acc, item) => {
+        const price = item?.price || 0;
+        const quantity = item?.quantity || 1;
+        return acc + (price * quantity);
+      }, 0);
+      console.log('[CheckoutModal] Calculated total:', total);
+    }
+  } catch (err) {
+    console.error('[CheckoutModal] Error calculating total:', err);
+    total = 0;
+  }
 
   // --- HACKING SIMULATION LOGIC ---
   const simulateLogs = (method: PaymentMethod) => {
