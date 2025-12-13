@@ -20,8 +20,39 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
     Deliver order_items for given order_id.
     - only_instant=True: выдаём только instant позиции (для первичной выдачи после оплаты)
     - otherwise: пытаемся выдать все открытые позиции, если есть сток
+    
+    CRITICAL: This function should ONLY be called AFTER payment is confirmed via webhook.
+    Orders with status 'pending' should NOT be processed - payment is not confirmed yet.
     """
     print(f"deliver-goods: starting for order {order_id}, only_instant={only_instant}")
+    
+    # CRITICAL CHECK: Verify order status - must be paid/prepaid, NOT pending
+    try:
+        order_check = await asyncio.to_thread(
+            lambda: db.client.table("orders")
+            .select("status, payment_method")
+            .eq("id", order_id)
+            .single()
+            .execute()
+        )
+        if order_check.data:
+            order_status = order_check.data.get("status", "").lower()
+            payment_method = order_check.data.get("payment_method", "")
+            
+            # If order is still pending, payment is NOT confirmed - DO NOT process
+            if order_status == "pending":
+                print(f"deliver-goods: Order {order_id} is still PENDING - payment not confirmed. Skipping delivery.")
+                return {"delivered": 0, "waiting": 0, "note": "payment_not_confirmed", "error": "Order payment not confirmed yet"}
+            
+            # For balance payments, status should be 'paid' (set during order creation)
+            # For external payments, status should be 'prepaid' or 'paid' (set by webhook)
+            if order_status not in ("paid", "prepaid", "partial", "delivered"):
+                print(f"deliver-goods: Order {order_id} has invalid status '{order_status}' for delivery. Skipping.")
+                return {"delivered": 0, "waiting": 0, "note": "invalid_status", "error": f"Order status '{order_status}' is not valid for delivery"}
+    except Exception as e:
+        print(f"deliver-goods: Failed to check order status for {order_id}: {e}")
+        # Continue with delivery attempt, but log the error
+    
     now = datetime.now(timezone.utc)
     items = await db.get_order_items_by_order(order_id)
     print(f"deliver-goods: found {len(items) if items else 0} items for order {order_id}")
@@ -121,38 +152,40 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
             except Exception as e:
                 print(f"deliver-goods: failed to update order_item {item_id}: {e}")
         else:
-            # No stock yet - mark as prepaid/fulfilling
-            print(f"deliver-goods: NO stock available for product {product_id}, marking as waiting")
+            # No stock yet - keep current status (don't change to prepaid here)
+            # Status should already be 'prepaid' if payment was confirmed and stock unavailable
+            # If status is 'pending', it means payment is not confirmed - don't change it
+            print(f"deliver-goods: NO stock available for product {product_id}, keeping current status")
             waiting_count += 1
             item_id = it.get("id")
-            new_status = "prepaid" if status == "pending" else status
+            # Don't change status - keep it as is (should be 'prepaid' if payment confirmed, 'pending' if not)
+            # Only update timestamp to track that we checked
             try:
                 await asyncio.to_thread(
-                    lambda iid=item_id, st=new_status, ts=now.isoformat(): 
+                    lambda iid=item_id, ts=now.isoformat(): 
                         db.client.table("order_items").update({
-                            "status": st,
                             "updated_at": ts
                         }).eq("id", iid).execute()
                 )
             except Exception as e:
-                print(f"deliver-goods: failed to mark waiting for item {item_id}: {e}")
+                print(f"deliver-goods: failed to update timestamp for item {item_id}: {e}")
     
-    # Update order status summary
+    # Update order status summary using centralized service
     try:
-        order_status = None
-        if delivered_count and waiting_count == 0:
-            order_status = "delivered"
-        elif delivered_count and waiting_count > 0:
-            order_status = "partial"
-        elif delivered_count == 0 and waiting_count > 0:
-            order_status = "prepaid"
-        
-        if order_status:
-            update_payload = {"status": order_status, "updated_at": now.isoformat()}
-            if order_status == "delivered":
-                update_payload["delivered_at"] = now.isoformat()
+        from core.orders.status_service import OrderStatusService
+        status_service = OrderStatusService(db)
+        new_status = await status_service.update_delivery_status(
+            order_id=order_id,
+            delivered_count=delivered_count,
+            waiting_count=waiting_count
+        )
+        if new_status == "delivered":
+            # Update delivered_at timestamp
             await asyncio.to_thread(
-                lambda: db.client.table("orders").update(update_payload).eq("id", order_id).execute()
+                lambda: db.client.table("orders")
+                .update({"delivered_at": now.isoformat()})
+                .eq("id", order_id)
+                .execute()
             )
     except Exception as e:
         print(f"deliver-goods: failed to update order status {order_id}: {e}")

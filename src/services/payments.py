@@ -277,6 +277,7 @@ class PaymentService:
         currency: str = "RUB",
         user_id: int = None,
         payment_method: str = "card",
+        is_telegram_miniapp: bool = True,
     ) -> str:
         """
         Create payment and return payment URL.
@@ -328,6 +329,7 @@ class PaymentService:
                 product_name=product_name,
                 currency=currency,
                 user_id=user_id,
+                is_telegram_miniapp=is_telegram_miniapp,
             )
         raise ValueError(f"Unknown payment method: {method}. Supported: '1plat', 'freekassa', 'rukassa', 'crystalpay'.")
 
@@ -1162,6 +1164,7 @@ class PaymentService:
         product_name: str,
         currency: str = "RUB",
         user_id: int = None,
+        is_telegram_miniapp: bool = True,
     ) -> str:
         """
         Create CrystalPay invoice via API.
@@ -1180,12 +1183,14 @@ class PaymentService:
         
         # Build callback URL
         callback_url = f"{self.base_url}/api/webhook/crystalpay"
-        # Build redirect URL: t.me deeplink back to Mini App + fallback to web result page
-        bot_username = os.environ.get("BOT_USERNAME", "pvndora_ai_bot")
-        deeplink = f"https://t.me/{bot_username}?startapp=payresult_{order_id}"
-        fallback_result = f"{self.base_url}/payment/result?order_id={order_id}"
-        # Prefer deeplink; CrystalPay will follow redirect_url after payment
-        redirect_url = deeplink or fallback_result
+        # Build redirect URL based on source:
+        # - If from Telegram Mini App: use t.me deeplink to return to Mini App
+        # - If from external browser: use web result page to stay in browser
+        if is_telegram_miniapp:
+            bot_username = os.environ.get("BOT_USERNAME", "pvndora_ai_bot")
+            redirect_url = f"https://t.me/{bot_username}?startapp=payresult_{order_id}"
+        else:
+            redirect_url = f"{self.base_url}/payment/result?order_id={order_id}"
         
         # TEST mode: force test method to avoid real charges in sandbox
         test_mode = os.environ.get("CRYSTALPAY_TEST_MODE", "false").lower() == "true"

@@ -59,8 +59,28 @@ async def onplat_webhook(request: Request):
         
         if result["success"]:
             order_id = result["order_id"]
+            payment_id = result.get("payment_id") or result.get("invoice_id")
             
             print(f"1Plat webhook verified successfully for order: {order_id}")
+            
+            # CRITICAL: Mark payment as confirmed using centralized service
+            from src.services.database import get_database
+            db = get_database()
+            try:
+                from core.orders.status_service import OrderStatusService
+                status_service = OrderStatusService(db)
+                final_status = await status_service.mark_payment_confirmed(
+                    order_id=order_id,
+                    payment_id=payment_id,
+                    check_stock=True
+                )
+                print(f"1Plat webhook: Payment confirmed for order {order_id}, status set to '{final_status}'")
+            except Exception as e:
+                print(f"1Plat webhook: Failed to mark payment confirmed: {e}")
+                return JSONResponse(
+                    {"ok": False, "error": f"Failed to confirm payment: {str(e)}"},
+                    status_code=500
+                )
             
             publish_to_worker, WorkerEndpoints = get_queue_publisher()
             
@@ -156,8 +176,28 @@ async def freekassa_webhook(request: Request):
         
         if result["success"]:
             order_id = result["order_id"]
+            payment_id = result.get("payment_id")
             
             print(f"Freekassa webhook verified successfully for order: {order_id}")
+            
+            # CRITICAL: Mark payment as confirmed using centralized service
+            from src.services.database import get_database
+            db = get_database()
+            try:
+                from core.orders.status_service import OrderStatusService
+                status_service = OrderStatusService(db)
+                final_status = await status_service.mark_payment_confirmed(
+                    order_id=order_id,
+                    payment_id=payment_id,
+                    check_stock=True
+                )
+                print(f"Freekassa webhook: Payment confirmed for order {order_id}, status set to '{final_status}'")
+            except Exception as e:
+                print(f"Freekassa webhook: Failed to mark payment confirmed: {e}")
+                return JSONResponse(
+                    {"error": f"Failed to confirm payment: {str(e)}"},
+                    status_code=500
+                )
             
             publish_to_worker, WorkerEndpoints = get_queue_publisher()
             
@@ -372,6 +412,20 @@ async def rukassa_webhook(request: Request):
             
             print(f"Rukassa webhook processing delivery for order: {real_order_id}")
             
+            # CRITICAL: Mark payment as confirmed using centralized service
+            try:
+                from core.orders.status_service import OrderStatusService
+                status_service = OrderStatusService(db)
+                final_status = await status_service.mark_payment_confirmed(
+                    order_id=real_order_id,
+                    payment_id=payment_order_id,
+                    check_stock=True
+                )
+                print(f"Rukassa webhook: Payment confirmed for order {real_order_id}, status set to '{final_status}'")
+            except Exception as e:
+                print(f"Rukassa webhook: Failed to mark payment confirmed: {e}")
+                return Response(content=f"ERROR Failed to confirm payment: {str(e)}", status_code=500)
+            
             publish_to_worker, WorkerEndpoints = get_queue_publisher()
             
             # Try QStash first, fallback to direct delivery if it fails
@@ -581,6 +635,25 @@ async def crystalpay_webhook(request: Request):
                     return JSONResponse({"ok": True, "note": "refund_pending"}, status_code=200)
             
             print(f"CrystalPay webhook processing delivery for order: {real_order_id}")
+            
+            # CRITICAL: Mark payment as confirmed using centralized service
+            # This ensures proper status transition and stock checking
+            try:
+                from core.orders.status_service import OrderStatusService
+                status_service = OrderStatusService(db)
+                final_status = await status_service.mark_payment_confirmed(
+                    order_id=real_order_id,
+                    payment_id=invoice_id,
+                    check_stock=True
+                )
+                print(f"CrystalPay webhook: Payment confirmed for order {real_order_id}, status set to '{final_status}'")
+            except Exception as e:
+                print(f"CrystalPay webhook: Failed to mark payment confirmed: {e}")
+                # Don't continue if payment confirmation failed
+                return JSONResponse(
+                    {"error": f"Failed to confirm payment: {str(e)}"},
+                    status_code=500
+                )
             
             publish_to_worker, WorkerEndpoints = get_queue_publisher()
             

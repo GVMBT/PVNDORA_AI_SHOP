@@ -79,6 +79,7 @@ export interface Order {
   total: number;
   status: OrderStatus;
   items: OrderItem[];
+  payment_url?: string | null; // Payment URL for pending/prepaid orders
 }
 
 // ==================== PROFILE ====================

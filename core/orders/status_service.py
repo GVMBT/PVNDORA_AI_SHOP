@@ -1,0 +1,261 @@
+"""
+Order Status Management Service
+
+Centralized service for managing order status transitions.
+Ensures status changes only happen after payment confirmation.
+"""
+import logging
+from datetime import datetime, timezone
+from typing import Optional, Dict, Any, List
+import asyncio
+
+from core.payments.constants import OrderStatus, DELIVERED_STATES
+
+logger = logging.getLogger(__name__)
+
+
+class OrderStatusService:
+    """Centralized service for order status management."""
+    
+    def __init__(self, db):
+        self.db = db
+    
+    async def get_order_status(self, order_id: str) -> Optional[str]:
+        """Get current order status."""
+        try:
+            result = await asyncio.to_thread(
+                lambda: self.db.client.table("orders")
+                .select("status")
+                .eq("id", order_id)
+                .single()
+                .execute()
+            )
+            if result.data:
+                return result.data.get("status")
+        except Exception as e:
+            logger.error(f"Failed to get order status for {order_id}: {e}")
+        return None
+    
+    async def can_transition_to(self, order_id: str, target_status: str) -> tuple[bool, Optional[str]]:
+        """
+        Check if order can transition to target status.
+        
+        Returns:
+            (can_transition, reason_if_not)
+        """
+        current_status = await self.get_order_status(order_id)
+        if not current_status:
+            return False, "Order not found"
+        
+        current_status = current_status.lower()
+        target_status = target_status.lower()
+        
+        # Status transition rules
+        transitions = {
+            "pending": ["paid", "prepaid", "cancelled", "expired"],
+            "paid": ["delivered", "partial", "prepaid", "refunded"],
+            "prepaid": ["fulfilling", "ready", "delivered", "refunded", "failed"],
+            "fulfilling": ["ready", "delivered", "failed", "refunded"],
+            "ready": ["delivered"],
+            "partial": ["delivered"],
+            "delivered": [],  # Final state
+            "cancelled": [],  # Final state
+            "expired": ["cancelled", "refunded"],
+            "refunded": [],  # Final state
+            "failed": ["refunded"],
+        }
+        
+        allowed = transitions.get(current_status, [])
+        if target_status not in allowed:
+            return False, f"Cannot transition from '{current_status}' to '{target_status}'. Allowed: {allowed}"
+        
+        return True, None
+    
+    async def update_status(
+        self, 
+        order_id: str, 
+        new_status: str, 
+        reason: Optional[str] = None,
+        check_transition: bool = True
+    ) -> bool:
+        """
+        Update order status with validation.
+        
+        Args:
+            order_id: Order ID
+            new_status: Target status
+            reason: Optional reason for status change
+            check_transition: Whether to validate transition rules
+            
+        Returns:
+            True if updated, False otherwise
+        """
+        if check_transition:
+            can_transition, reason_msg = await self.can_transition_to(order_id, new_status)
+            if not can_transition:
+                logger.warning(f"Cannot update order {order_id} status: {reason_msg}")
+                return False
+        
+        try:
+            update_data = {
+                "status": new_status,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+            if reason:
+                update_data["notes"] = reason
+            
+            await asyncio.to_thread(
+                lambda: self.db.client.table("orders")
+                .update(update_data)
+                .eq("id", order_id)
+                .execute()
+            )
+            logger.info(f"Updated order {order_id} status to '{new_status}'")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to update order {order_id} status: {e}")
+            return False
+    
+    async def mark_payment_confirmed(
+        self, 
+        order_id: str, 
+        payment_id: Optional[str] = None,
+        check_stock: bool = True
+    ) -> str:
+        """
+        Mark order as payment confirmed.
+        
+        IDEMPOTENT: If order is already paid/prepaid, returns current status without changes.
+        
+        Determines correct status based on:
+        - Stock availability (if check_stock=True)
+        - Order type (instant vs prepaid)
+        
+        Returns:
+            Final status set ('paid' or 'prepaid')
+        """
+        # Get order info
+        try:
+            order_result = await asyncio.to_thread(
+                lambda: self.db.client.table("orders")
+                .select("status, order_type, payment_method")
+                .eq("id", order_id)
+                .single()
+                .execute()
+            )
+            if not order_result.data:
+                raise ValueError(f"Order {order_id} not found")
+            
+            current_status = order_result.data.get("status", "").lower()
+            order_type = order_result.data.get("order_type", "instant")
+            payment_method = order_result.data.get("payment_method", "")
+            
+            # IDEMPOTENCY: If already paid/prepaid/delivered, return current status
+            if current_status in ("paid", "prepaid", "delivered", "partial"):
+                logger.info(f"Order {order_id} already in status '{current_status}' (idempotency check), skipping")
+                return current_status
+            
+            # Balance payments are always 'paid' (already deducted)
+            if payment_method == "balance":
+                await self.update_status(order_id, "paid", "Balance payment confirmed", check_transition=False)
+                return "paid"
+            
+            # For external payments, check stock availability
+            if check_stock:
+                has_stock = await self._check_stock_availability(order_id)
+                final_status = "paid" if has_stock else "prepaid"
+            else:
+                # If not checking stock, default to 'prepaid' for safety
+                final_status = "prepaid"
+            
+            # Update payment_id if provided
+            if payment_id:
+                try:
+                    await asyncio.to_thread(
+                        lambda: self.db.client.table("orders")
+                        .update({"payment_id": payment_id})
+                        .eq("id", order_id)
+                        .execute()
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to update payment_id for {order_id}: {e}")
+            
+            await self.update_status(order_id, final_status, "Payment confirmed via webhook", check_transition=False)
+            return final_status
+            
+        except Exception as e:
+            logger.error(f"Failed to mark payment confirmed for {order_id}: {e}")
+            raise
+    
+    async def _check_stock_availability(self, order_id: str) -> bool:
+        """Check if order has available stock for instant delivery."""
+        try:
+            # Get order items
+            items_result = await asyncio.to_thread(
+                lambda: self.db.client.table("order_items")
+                .select("product_id, fulfillment_type")
+                .eq("order_id", order_id)
+                .execute()
+            )
+            
+            if not items_result.data:
+                return False
+            
+            # Check if any instant item has stock
+            for item in items_result.data:
+                if item.get("fulfillment_type") == "instant":
+                    product_id = item.get("product_id")
+                    stock_check = await asyncio.to_thread(
+                        lambda pid=product_id: self.db.client.table("stock_items")
+                        .select("id")
+                        .eq("product_id", pid)
+                        .eq("status", "available")
+                        .limit(1)
+                        .execute()
+                    )
+                    if stock_check.data:
+                        return True
+            
+            return False
+        except Exception as e:
+            logger.error(f"Failed to check stock availability for {order_id}: {e}")
+            return False
+    
+    async def update_delivery_status(
+        self, 
+        order_id: str,
+        delivered_count: int,
+        waiting_count: int
+    ) -> Optional[str]:
+        """
+        Update order status based on delivery results.
+        
+        Args:
+            order_id: Order ID
+            delivered_count: Number of items delivered
+            waiting_count: Number of items waiting for stock
+            
+        Returns:
+            New status or None if no change
+        """
+        current_status = await self.get_order_status(order_id)
+        if not current_status:
+            return None
+        
+        # Only update if payment is confirmed
+        if current_status.lower() == "pending":
+            logger.warning(f"Order {order_id} is still pending - cannot update delivery status")
+            return None
+        
+        new_status = None
+        if delivered_count > 0 and waiting_count == 0:
+            new_status = "delivered"
+        elif delivered_count > 0 and waiting_count > 0:
+            new_status = "partial"
+        # Don't set to 'prepaid' here - should already be set by payment confirmation
+        
+        if new_status and new_status != current_status.lower():
+            await self.update_status(order_id, new_status, f"Delivery: {delivered_count} delivered, {waiting_count} waiting")
+            return new_status
+        
+        return None

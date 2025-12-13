@@ -25,6 +25,7 @@ interface OrderData {
   total: number;
   status: 'paid' | 'processing' | 'refunded';
   items: OrderItemData[];
+  payment_url?: string | null; // Payment URL for pending/prepaid orders
 }
 
 interface OrdersProps {
@@ -305,6 +306,34 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
                                     <span className="font-display font-bold text-white">{order.total} ₽</span>
                                 </div>
                             </div>
+
+                            {/* Payment Button for Pending/Prepaid Orders */}
+                            {order.status === 'processing' && order.payment_url && (
+                                <div className="p-4 bg-orange-500/10 border-t border-orange-500/20">
+                                    <div className="flex items-center justify-between">
+                                        <div className="text-[10px] font-mono text-orange-400">
+                                            <span className="flex items-center gap-2">
+                                                <Clock size={12} />
+                                                PAYMENT_REQUIRED
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                // Check if in Telegram Mini App
+                                                const tg = (window as any).Telegram?.WebApp;
+                                                if (tg) {
+                                                    tg.openLink(order.payment_url!);
+                                                } else {
+                                                    window.location.href = order.payment_url!;
+                                                }
+                                            }}
+                                            className="px-4 py-2 bg-pandora-cyan text-black font-mono text-xs font-bold uppercase hover:bg-pandora-cyan/80 transition-colors"
+                                        >
+                                            PAY_NOW
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Items Content */}
                             <div className="p-5 space-y-6">

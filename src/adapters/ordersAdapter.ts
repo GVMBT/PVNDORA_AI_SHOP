@@ -9,16 +9,30 @@ import type { Order, OrderItem, OrderStatus, OrderItemStatus } from '../types/co
 
 /**
  * Map API order status to component status
+ * 
+ * IMPORTANT: After refactoring, status meanings:
+ * - 'pending': Order created, payment NOT confirmed yet
+ * - 'prepaid': Payment CONFIRMED, but stock unavailable (waiting for stock)
+ * - 'paid': Payment CONFIRMED, stock available (will be delivered)
+ * - 'partial': Some items delivered, some waiting
+ * - 'delivered': All items delivered
  */
 function mapOrderStatus(apiStatus: string): OrderStatus {
   switch (apiStatus) {
     case 'delivered':
     case 'completed':
     case 'ready':
+      return 'paid'; // Completed orders
     case 'paid':
-      return 'paid';
-    case 'pending':
+    case 'partial':
+      return 'paid'; // Paid orders (partial = some items delivered)
     case 'prepaid':
+      // prepaid = payment confirmed, but stock unavailable
+      // Should show as 'processing' but with different message
+      return 'processing';
+    case 'pending':
+      // pending = payment NOT confirmed yet
+      return 'processing';
     case 'fulfilling':
     case 'payment_pending':
     case 'awaiting_payment':
@@ -106,6 +120,7 @@ export function adaptOrder(apiOrder: APIOrder): Order {
       total: apiOrder.amount_display || apiOrder.amount,
       status: mapOrderStatus(apiOrder.status),
       items: apiOrder.items.map(adaptOrderItem),
+      payment_url: apiOrder.payment_url || null, // Include payment_url for pending/prepaid orders
     };
   }
   
@@ -128,6 +143,7 @@ export function adaptOrder(apiOrder: APIOrder): Order {
       deadline: null,
       reason: null,
     }],
+    payment_url: apiOrder.payment_url || null, // Include payment_url for pending/prepaid orders
   };
 }
 

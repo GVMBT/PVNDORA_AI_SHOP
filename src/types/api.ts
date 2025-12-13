@@ -11,6 +11,8 @@ export type UUID = string;
 export type OrderStatus = 
   | 'pending' 
   | 'prepaid' 
+  | 'paid'
+  | 'partial'
   | 'fulfilling' 
   | 'ready' 
   | 'delivered' 

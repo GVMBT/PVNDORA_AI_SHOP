@@ -41,6 +41,7 @@ async def create_payment_wrapper(
     user_email: str,
     user_id: int,
     currency: str = "RUB",
+    is_telegram_miniapp: bool = True,
 ) -> Dict[str, Any]:
     """
     Unified payment creation wrapper for all gateways.
@@ -71,7 +72,8 @@ async def create_payment_wrapper(
         payment_method=payment_method,
         user_email=user_email,
         user_id=user_id,
-        currency=currency
+        currency=currency,
+        is_telegram_miniapp=is_telegram_miniapp,
     )
     
     if isinstance(pay_result, dict):
@@ -247,8 +249,46 @@ async def verify_and_deliver_order(
                 "message": f"Invoice not paid yet. State: {state}"
             }
         
-        # Invoice is paid! Trigger delivery
+        # Invoice is paid! Update order status first, then trigger delivery
         logger.info(f"Manual delivery trigger for order {order_id}")
+        
+        # Check stock availability to determine status
+        try:
+            order_items_check = await asyncio.to_thread(
+                lambda: db.client.table("order_items")
+                .select("id, fulfillment_type, product_id")
+                .eq("order_id", order_id)
+                .execute()
+            )
+            
+            has_stock = False
+            if order_items_check.data:
+                for item in order_items_check.data:
+                    if item.get("fulfillment_type") == "instant":
+                        product_id = item.get("product_id")
+                        stock_check = await asyncio.to_thread(
+                            lambda pid=product_id: db.client.table("stock_items")
+                            .select("id")
+                            .eq("product_id", pid)
+                            .eq("status", "available")
+                            .limit(1)
+                            .execute()
+                        )
+                        if stock_check.data:
+                            has_stock = True
+                            break
+            
+            # Update order status using centralized service
+            from core.orders.status_service import OrderStatusService
+            status_service = OrderStatusService(db)
+            final_status = await status_service.mark_payment_confirmed(
+                order_id=order_id,
+                payment_id=None,  # Manual verification, no payment_id update
+                check_stock=has_stock
+            )
+            logger.info(f"Updated order {order_id} status to '{final_status}' (has_stock={has_stock})")
+        except Exception as e:
+            logger.warning(f"Failed to update order status before delivery: {e}")
         
         from core.routers.workers import _deliver_items_for_order
         from core.routers.deps import get_notification_service
@@ -382,7 +422,12 @@ async def get_webapp_orders(
 
 
 @router.post("/orders")
-async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_telegram_auth)):
+async def create_webapp_order(
+    request: CreateOrderRequest, 
+    user=Depends(verify_telegram_auth),
+    x_init_data: str = Header(None, alias="X-Init-Data"),
+    user_agent: str = Header(None, alias="User-Agent")
+):
     """Create new order from Mini App. Supports both single product and cart-based orders."""
     db = get_database()
     
@@ -401,14 +446,25 @@ async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_t
     else:
         payment_gateway = None  # Not used for balance payments
     
+    # Determine if user is in Telegram Mini App or external browser
+    # If X-Init-Data is present, user is in Telegram Mini App
+    # Otherwise, user is in external browser
+    is_telegram_miniapp = bool(x_init_data)
+    
     payment_service = get_payment_service()
     
     # Cart-based order
     if request.use_cart or (not request.product_id):
-        return await _create_cart_order(db, db_user, user, payment_service, payment_method, payment_gateway)
+        return await _create_cart_order(
+            db, db_user, user, payment_service, payment_method, payment_gateway, 
+            is_telegram_miniapp=is_telegram_miniapp
+        )
     
     # Single product order
-    return await _create_single_order(db, db_user, user, request, payment_service, payment_method, payment_gateway)
+    return await _create_single_order(
+        db, db_user, user, request, payment_service, payment_method, payment_gateway,
+        is_telegram_miniapp=is_telegram_miniapp
+    )
 
 
 @router.get("/payments/methods")
@@ -471,7 +527,10 @@ async def get_payment_methods(
         }
 
 
-async def _create_cart_order(db, db_user, user, payment_service, payment_method: str, payment_gateway: str = "rukassa") -> OrderResponse:
+async def _create_cart_order(
+    db, db_user, user, payment_service, payment_method: str, payment_gateway: str = "rukassa",
+    is_telegram_miniapp: bool = True
+) -> OrderResponse:
     """Create order from cart items."""
     from core.cart import get_cart_manager
     cart_manager = get_cart_manager()
@@ -609,9 +668,15 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         currency_service = get_currency_service(currency_redis)
         # Конвертация из базовой валюты (USD) в валюту шлюза
         if gateway_currency != "USD":
-            payable_amount = to_decimal(await currency_service.convert_price(total_amount, gateway_currency, round_to_int=True))
+            original_amount_usd = to_float(total_amount)
+            converted_amount = await currency_service.convert_price(total_amount, gateway_currency, round_to_int=True)
+            payable_amount = to_decimal(converted_amount)
+            logger.info(f"Currency conversion for order: {original_amount_usd} USD -> {to_float(payable_amount)} {gateway_currency}")
+        else:
+            logger.info(f"No currency conversion needed: {to_float(total_amount)} USD")
     except Exception as e:
         logger.warning(f"Currency conversion failed, using raw amount: {e}")
+        logger.warning(f"Amount in USD: {to_float(total_amount)}, Gateway currency: {gateway_currency}")
     
     # Если Rukassa: попытаться отменить предыдущий незавершённый платёж (антифрод)
     if payment_gateway == "rukassa":
@@ -717,13 +782,22 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
                 detail="Ошибка списания с баланса. Попробуйте позже."
             )
         
-        # Обновляем статус заказа на "paid" (оплачен)
+        # Обновляем статус заказа на "paid" (оплачен) через централизованный сервис
         try:
+            from core.orders.status_service import OrderStatusService
+            status_service = OrderStatusService(db)
+            await status_service.update_status(
+                order_id=order.id,
+                new_status="paid",
+                reason="Balance payment confirmed",
+                check_transition=False
+            )
+            # Update payment_id separately
             await asyncio.to_thread(
-                lambda: db.client.table("orders").update({
-                    "status": "paid",
-                    "payment_id": f"balance-{order.id}"
-                }).eq("id", order.id).execute()
+                lambda: db.client.table("orders")
+                .update({"payment_id": f"balance-{order.id}"})
+                .eq("id", order.id)
+                .execute()
             )
         except Exception as e:
             logger.warning(f"Failed to update order status to paid for {order.id}: {e}")
@@ -795,6 +869,7 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
             user_email=f"{user.id}@telegram.user",
             user_id=user.id,
             currency=gateway_currency,
+            is_telegram_miniapp=is_telegram_miniapp,
         )
         payment_url = pay_result.get("payment_url")
         invoice_id = pay_result.get("invoice_id")
