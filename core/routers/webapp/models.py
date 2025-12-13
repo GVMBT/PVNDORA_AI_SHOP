@@ -39,7 +39,7 @@ class OrderResponse(BaseModel):
     amount: float
     original_price: float
     discount_percent: int
-    payment_url: str
+    payment_url: Optional[str] = None  # None for balance payments, URL for external gateways
     payment_method: str
 
 

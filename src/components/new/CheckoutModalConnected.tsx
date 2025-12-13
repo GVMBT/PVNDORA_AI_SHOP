@@ -62,7 +62,7 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
     try {
       // Map component payment method to API format
       const paymentMethod = method === 'internal' ? 'balance' : 'card';
-      const paymentGateway = method === 'crystalpay' ? 'crystalpay' : (method === 'rukassa' ? 'rukassa' : undefined);
+      const paymentGateway = method === 'crystalpay' ? 'crystalpay' : undefined;
       
       const response = await createOrder({
         use_cart: true,
@@ -71,17 +71,29 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
       });
       
       if (response) {
-        // For external payment, redirect to payment URL
+        // For external payment (CrystalPay), redirect IMMEDIATELY
         if (response.payment_url && method !== 'internal') {
+          console.log('[Checkout] Redirecting to CrystalPay:', response.payment_url);
           // In Telegram WebApp, use openLink
           const tg = (window as any).Telegram?.WebApp;
           if (tg?.openLink) {
-            tg.openLink(response.payment_url);
+            // Close modal before redirect
+            onClose();
+            // Small delay to let modal close animation start
+            setTimeout(() => {
+              tg.openLink(response.payment_url);
+            }, 100);
+            // Return null to prevent success screen
+            return null;
           } else {
-            window.open(response.payment_url, '_blank');
+            // Fallback: redirect directly (this will close modal automatically)
+            window.location.href = response.payment_url;
+            return null;
           }
         }
         
+        // For internal (balance) payment, return response to show success
+        console.log('[Checkout] Balance payment completed, showing success');
         return response;
       }
       return null;

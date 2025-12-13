@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CreditCard, Bitcoin, ShieldCheck, ChevronRight, Cpu, CheckCircle, Trash2, Globe, Lock, Server, Wallet, Zap } from 'lucide-react';
 
-export type PaymentMethod = 'rukassa' | 'crystalpay' | 'internal';
+export type PaymentMethod = 'crystalpay' | 'internal';
 
 interface CheckoutModalProps {
   cart: any[];
@@ -27,7 +27,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
   error: externalError = null,
 }) => {
   const [step, setStep] = useState<'cart' | 'payment' | 'processing' | 'success'>('cart');
-  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>('rukassa');
+  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>('crystalpay');
   const [logs, setLogs] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,14 +38,6 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const simulateLogs = (method: PaymentMethod) => {
     const commonLogs = ["> INITIALIZING_SECURE_CHANNEL", "> HANDSHAKE_PROTOCOL_V4"];
     
-    const rukassaLogs = [
-      "> H2H_CONNECTION: ESTABLISHED",
-      "> ENCRYPTING_SESSION_DATA [AES-256]",
-      "> VERIFYING_SECURE_TOKEN...",
-      "> FIAT_GATEWAY_RESPONSE: 200 OK",
-      "> TRANSACTION_HASH_GENERATED"
-    ];
-
     const crystalLogs = [
       "> RESOLVING_CRYSTAL_NODE...",
       "> GENERATING_INVOICE_ID",
@@ -63,8 +55,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
     ];
 
     let currentLogs = [...commonLogs];
-    let targetLogs = rukassaLogs;
-    if (method === 'crystalpay') targetLogs = crystalLogs;
+    let targetLogs = crystalLogs;
     if (method === 'internal') targetLogs = internalLogs;
 
     setLogs(currentLogs);
@@ -91,14 +82,15 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
     if (onPay) {
       try {
         const result = await onPay(selectedPayment);
-        // For external payment (rukassa/crystalpay), they handle redirect
-        // For internal payment, result is immediate
-        if (result) {
-          // Short delay to show the animation
+        // For external payment (CrystalPay), redirect happens in handlePay, result is null
+        // For internal payment (balance), result contains order info, show success
+        if (result && selectedPayment === 'internal') {
+          // Short delay to show the animation for balance payment
           setTimeout(() => {
             setStep('success');
-          }, 2500);
+          }, 2000);
         }
+        // If result is null, external redirect happened - modal will be closed by handlePay
       } catch (err: any) {
         setError(err.message || 'PAYMENT_FAILED');
         setStep('payment');
@@ -235,7 +227,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                     </div>
                                 )}
 
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     
                                     {/* Option 1: Internal Balance */}
                                     <button 
@@ -256,26 +248,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                         )}
                                     </button>
 
-                                    {/* Option 2: RuKassa (H2H) */}
-                                    <button 
-                                        onClick={() => setSelectedPayment('rukassa')}
-                                        className={`relative p-4 border flex flex-col items-center text-center gap-3 transition-all overflow-hidden group ${selectedPayment === 'rukassa' ? 'border-pandora-cyan bg-pandora-cyan/5' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
-                                    >
-                                        <div className={`p-2 rounded-full ${selectedPayment === 'rukassa' ? 'bg-pandora-cyan text-black' : 'bg-black text-gray-400'}`}>
-                                            <CreditCard size={20} />
-                                        </div>
-                                        <div>
-                                            <div className="text-xs font-bold text-white uppercase mb-1">Bank Card</div>
-                                            <div className="text-[10px] text-gray-500 font-mono">H2H Transfer</div>
-                                        </div>
-                                        {selectedPayment === 'rukassa' && (
-                                            <div className="absolute top-1 right-1">
-                                                <div className="w-1.5 h-1.5 bg-pandora-cyan rounded-full animate-pulse" />
-                                            </div>
-                                        )}
-                                    </button>
-
-                                    {/* Option 3: CrystalPay (Redirect) */}
+                                    {/* Option 2: CrystalPay (Redirect) */}
                                     <button 
                                         onClick={() => setSelectedPayment('crystalpay')}
                                         className={`relative p-4 border flex flex-col items-center text-center gap-3 transition-all overflow-hidden group ${selectedPayment === 'crystalpay' ? 'border-purple-500 bg-purple-500/5' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
@@ -313,23 +286,6 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                     </div>
                                 )}
 
-                                {selectedPayment === 'rukassa' && (
-                                    <div className="space-y-4">
-                                        <div className="flex justify-between text-[10px] font-mono text-gray-500 mb-2">
-                                            <span>SECURE_INPUT_TERMINAL</span>
-                                            <span className="flex items-center gap-1 text-green-500"><Lock size={10} /> ENCRYPTED</span>
-                                        </div>
-                                        <div className="relative group">
-                                            <input type="text" placeholder="0000 0000 0000 0000" className="w-full bg-black border border-white/20 p-4 text-base font-mono text-white focus:border-pandora-cyan outline-none transition-colors tracking-widest" />
-                                            <CreditCard size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 group-focus-within:text-pandora-cyan" />
-                                        </div>
-                                        <div className="flex gap-4">
-                                            <input type="text" placeholder="MM/YY" className="w-1/2 bg-black border border-white/20 p-4 text-base font-mono text-white focus:border-pandora-cyan outline-none transition-colors text-center" />
-                                            <input type="text" placeholder="CVC" className="w-1/2 bg-black border border-white/20 p-4 text-base font-mono text-white focus:border-pandora-cyan outline-none transition-colors text-center" />
-                                        </div>
-                                    </div>
-                                )}
-
                                 {selectedPayment === 'crystalpay' && (
                                     <div className="text-center py-4">
                                         <div className="w-16 h-16 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-purple-500/30 animate-pulse">
@@ -347,12 +303,12 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                 onClick={handlePay}
                                 className={`
                                     w-full text-black font-bold py-4 hover:bg-white transition-all uppercase tracking-widest flex items-center justify-center gap-3 relative overflow-hidden
-                                    ${selectedPayment === 'rukassa' ? 'bg-pandora-cyan' : selectedPayment === 'internal' ? 'bg-green-500' : 'bg-purple-500 text-white hover:text-purple-500'}
+                                    ${selectedPayment === 'internal' ? 'bg-green-500' : 'bg-purple-500 text-white hover:text-purple-500'}
                                 `}
                             >
                                 <span className="relative z-10 flex items-center gap-2">
                                     <ShieldCheck size={18} />
-                                    {selectedPayment === 'internal' ? `CONFIRM DEBIT (${total} ₽)` : selectedPayment === 'rukassa' ? `INITIATE H2H TRANSFER (${total} ₽)` : `OPEN GATEWAY (${total} ₽)`}
+                                    {selectedPayment === 'internal' ? `CONFIRM DEBIT (${total} ₽)` : `OPEN GATEWAY (${total} ₽)`}
                                 </span>
                                 {/* Hover Glitch */}
                                 <div className="absolute inset-0 bg-white mix-blend-overlay opacity-0 hover:opacity-20 transition-opacity" />
@@ -369,9 +325,9 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         >
                             {/* Central Spinner / Loader */}
                             <div className="relative mb-8">
-                                <div className={`w-20 h-20 border-4 border-t-transparent rounded-full animate-spin ${selectedPayment === 'rukassa' ? 'border-pandora-cyan/30 border-t-pandora-cyan' : selectedPayment === 'internal' ? 'border-green-500/30 border-t-green-500' : 'border-purple-500/30 border-t-purple-500'}`} />
+                                <div className={`w-20 h-20 border-4 border-t-transparent rounded-full animate-spin ${selectedPayment === 'internal' ? 'border-green-500/30 border-t-green-500' : 'border-purple-500/30 border-t-purple-500'}`} />
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                    <Cpu size={24} className={`animate-pulse ${selectedPayment === 'rukassa' ? 'text-pandora-cyan' : selectedPayment === 'internal' ? 'text-green-500' : 'text-purple-500'}`} />
+                                    <Cpu size={24} className={`animate-pulse ${selectedPayment === 'internal' ? 'text-green-500' : 'text-purple-500'}`} />
                                 </div>
                             </div>
 
@@ -381,7 +337,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                     initial={{ width: "0%" }}
                                     animate={{ width: "100%" }}
                                     transition={{ duration: 4.5, ease: "linear" }}
-                                    className={`h-full relative ${selectedPayment === 'rukassa' ? 'bg-pandora-cyan shadow-[0_0_10px_#00FFFF]' : selectedPayment === 'internal' ? 'bg-green-500 shadow-[0_0_10px_#00FF00]' : 'bg-purple-500 shadow-[0_0_10px_#a855f7]'}`}
+                                    className={`h-full relative ${selectedPayment === 'internal' ? 'bg-green-500 shadow-[0_0_10px_#00FF00]' : 'bg-purple-500 shadow-[0_0_10px_#a855f7]'}`}
                                 >
                                     <div className="absolute top-0 right-0 w-20 h-full bg-gradient-to-l from-white/50 to-transparent" />
                                 </motion.div>
@@ -396,7 +352,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                         animate={{ opacity: 1, x: 0 }}
                                         className={`mb-1 ${log.includes('ERROR') ? 'text-red-500' : 'text-gray-400'}`}
                                     >
-                                        <span className={selectedPayment === 'rukassa' ? 'text-pandora-cyan' : selectedPayment === 'internal' ? 'text-green-500' : 'text-purple-500'}>{log.split(':')[0]}</span>
+                                        <span className={selectedPayment === 'internal' ? 'text-green-500' : 'text-purple-500'}>{log.split(':')[0]}</span>
                                         {log.includes(':') && <span className="text-gray-300">:{log.split(':')[1]}</span>}
                                     </motion.div>
                                 ))}
