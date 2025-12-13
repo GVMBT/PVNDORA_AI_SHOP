@@ -124,8 +124,8 @@ const MOCK_ORDERS = [
 ];
 
 const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSupport, onSubmitReview }) => {
-  // Use provided orders or fallback to mock data
-  const ordersData = propOrders || MOCK_ORDERS;
+  // Use provided orders - NO MOCK fallback
+  const ordersData = propOrders || [];
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'log'>('all');
   const [copiedId, setCopiedId] = useState<number | string | null>(null);
   const [revealedKeys, setRevealedKeys] = useState<(number | string)[]>([]);
@@ -201,6 +201,37 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
     if (activeTab === 'log') return order.status === 'paid' || order.status === 'refunded';
     return true;
   });
+
+  // Empty state when no orders
+  if (ordersState.length === 0) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="min-h-screen text-white pt-24 pb-32 px-4 md:px-8 md:pl-28 relative"
+      >
+        <div className="max-w-6xl mx-auto">
+          <button onClick={onBack} className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-8 transition-colors">
+            <ArrowLeft size={12} /> RETURN_TO_BASE
+          </button>
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <Package size={64} className="text-gray-700 mb-6" />
+            <h2 className="text-2xl font-bold text-white mb-2">NO ORDERS YET</h2>
+            <p className="text-gray-500 font-mono text-sm max-w-md">
+              Your order history is empty. Complete a purchase to see your transactions here.
+            </p>
+            <button 
+              onClick={onBack}
+              className="mt-8 px-6 py-3 bg-pandora-cyan/10 border border-pandora-cyan text-pandora-cyan font-mono text-sm uppercase hover:bg-pandora-cyan/20 transition-colors"
+            >
+              Browse Catalog
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div 
