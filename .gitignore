@@ -50,7 +50,9 @@ out/
 .tern-port
 .vscode-test/
 *.code-workspace
-assets
+
+# Assets / screenshots (IDE-generated)
+assets/
 # Build outputs
 *.log
 
