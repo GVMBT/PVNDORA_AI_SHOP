@@ -74,6 +74,8 @@ interface ProfileProps {
   onCopyLink?: () => void;
   onShare?: () => void;
   shareLoading?: boolean;
+  onWithdraw?: () => void;
+  onTopUp?: () => void;
 }
 
 // --- UTILITY: DECRYPTED TEXT ANIMATION ---
@@ -187,7 +189,7 @@ const BILLING_LOGS = [
 
 // --- MAIN COMPONENT ---
 
-const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHaptic, onAdminEnter, onCopyLink, onShare: onShareProp, shareLoading }) => {
+const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHaptic, onAdminEnter, onCopyLink, onShare: onShareProp, shareLoading, onWithdraw, onTopUp }) => {
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'network' | 'logs'>('network');
   const [networkLine, setNetworkLine] = useState<1 | 2 | 3>(1);
@@ -353,10 +355,16 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 mt-auto">
-                        <button className="bg-white/5 border border-white/10 hover:border-pandora-cyan text-white hover:text-pandora-cyan font-bold py-3 text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 rounded-sm">
+                        <button 
+                            onClick={() => { if(onHaptic) onHaptic('light'); if(onTopUp) onTopUp(); }}
+                            className="bg-white/5 border border-white/10 hover:border-pandora-cyan text-white hover:text-pandora-cyan font-bold py-3 text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 rounded-sm"
+                        >
                             <Plus size={14} /> Top Up
                         </button>
-                        <button className="bg-pandora-cyan text-black font-bold py-3 text-xs uppercase tracking-wider hover:bg-white transition-colors flex items-center justify-center gap-2 rounded-sm shadow-[0_0_15px_rgba(0,255,255,0.2)]">
+                        <button 
+                            onClick={() => { if(onHaptic) onHaptic('medium'); if(onWithdraw) onWithdraw(); }}
+                            className="bg-pandora-cyan text-black font-bold py-3 text-xs uppercase tracking-wider hover:bg-white transition-colors flex items-center justify-center gap-2 rounded-sm shadow-[0_0_15px_rgba(0,255,255,0.2)]"
+                        >
                             <ArrowUpRight size={14} /> Withdraw
                         </button>
                     </div>

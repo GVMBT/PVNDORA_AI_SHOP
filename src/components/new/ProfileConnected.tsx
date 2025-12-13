@@ -21,10 +21,11 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   onHaptic,
   onAdminEnter,
 }) => {
-  const { profile, getProfile, createShareLink, loading, error } = useProfileTyped();
-  const { hapticFeedback, showPopup } = useTelegram();
+  const { profile, getProfile, requestWithdrawal, createShareLink, loading, error } = useProfileTyped();
+  const { hapticFeedback, showPopup, showConfirm } = useTelegram();
   const [isInitialized, setIsInitialized] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -78,6 +79,67 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     }
   }, [onHaptic, createShareLink, handleCopyLink]);
 
+  const handleWithdraw = useCallback(async () => {
+    const tg = (window as any).Telegram?.WebApp;
+    const balance = profile?.balance || 0;
+    
+    if (balance < 500) {
+      showPopup?.({
+        title: '⚠️',
+        message: 'Минимальная сумма вывода: 500₽',
+        buttons: [{ type: 'ok' }],
+      });
+      return;
+    }
+    
+    // Show confirmation popup
+    if (tg?.showPopup) {
+      tg.showPopup({
+        title: 'Вывод средств',
+        message: `Доступно к выводу: ${balance}₽\n\nОтправьте запрос на вывод?`,
+        buttons: [
+          { id: 'cancel', type: 'cancel' },
+          { id: 'confirm', type: 'default', text: 'Вывести' },
+        ],
+      }, async (buttonId: string) => {
+        if (buttonId === 'confirm') {
+          setWithdrawLoading(true);
+          try {
+            await requestWithdrawal(balance, 'card', '');
+            hapticFeedback?.('notification', 'success');
+            showPopup?.({
+              title: '✅',
+              message: 'Запрос на вывод создан! Мы свяжемся с вами для уточнения реквизитов.',
+              buttons: [{ type: 'ok' }],
+            });
+            await getProfile(); // Refresh profile
+          } catch (err) {
+            hapticFeedback?.('notification', 'error');
+            showPopup?.({
+              title: '❌',
+              message: 'Не удалось создать запрос. Попробуйте позже.',
+              buttons: [{ type: 'ok' }],
+            });
+          } finally {
+            setWithdrawLoading(false);
+          }
+        }
+      });
+    }
+  }, [profile?.balance, requestWithdrawal, getProfile, hapticFeedback, showPopup]);
+
+  const handleTopUp = useCallback(() => {
+    // TopUp would redirect to payment - for now show info
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.showPopup) {
+      tg.showPopup({
+        title: '💰 Пополнение',
+        message: 'Баланс пополняется автоматически при получении реферальных бонусов.\n\nДля ручного пополнения обратитесь в поддержку.',
+        buttons: [{ type: 'ok' }],
+      });
+    }
+  }, []);
+
   // Loading state
   if (!isInitialized || loading) {
     return (
@@ -120,6 +182,8 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       onCopyLink={handleCopyLink}
       onShare={handleShare}
       shareLoading={shareLoading}
+      onWithdraw={handleWithdraw}
+      onTopUp={handleTopUp}
     />
   );
 };
