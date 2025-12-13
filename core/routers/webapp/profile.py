@@ -3,9 +3,12 @@ WebApp Profile Router
 
 User profile and referral program endpoints.
 """
+import os
 import asyncio
 from datetime import datetime, timezone, timedelta
+from typing import Optional
 
+import httpx
 from fastapi import APIRouter, HTTPException, Depends
 
 from src.services.database import get_database
@@ -15,6 +18,47 @@ from .models import WithdrawalRequest
 router = APIRouter(tags=["webapp-profile"])
 
 
+async def _fetch_telegram_photo_url(telegram_id: int) -> Optional[str]:
+    """
+    Fetch user's Telegram profile photo via Bot API.
+    Returns direct file URL or None if not available.
+    """
+    bot_token = os.environ.get("TELEGRAM_TOKEN")
+    if not bot_token:
+        return None
+    
+    api_base = f"https://api.telegram.org/bot{bot_token}"
+    file_base = f"https://api.telegram.org/file/bot{bot_token}"
+    
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(
+                f"{api_base}/getUserProfilePhotos",
+                params={"user_id": telegram_id, "limit": 1},
+            )
+            data = resp.json()
+            if not data.get("ok"):
+                return None
+            photos = data.get("result", {}).get("photos", [])
+            if not photos:
+                return None
+            largest = photos[0][-1] if photos[0] else None
+            if not largest or not largest.get("file_id"):
+                return None
+            file_id = largest["file_id"]
+            
+            file_resp = await client.get(f"{api_base}/getFile", params={"file_id": file_id})
+            file_data = file_resp.json()
+            if not file_data.get("ok"):
+                return None
+            file_path = file_data.get("result", {}).get("file_path")
+            if not file_path:
+                return None
+            return f"{file_base}/{file_path}"
+    except Exception:
+        return None
+
+
 @router.get("/profile")
 async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     """Get user profile with referral stats, balance, and history."""
@@ -22,6 +66,16 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    # If photo missing, try to fetch once from Telegram Bot API
+    if not getattr(db_user, "photo_url", None):
+        photo_url = await _fetch_telegram_photo_url(user.id)
+        if photo_url:
+            try:
+                await db.update_user_photo(user.id, photo_url)
+                db_user.photo_url = photo_url
+            except Exception as e:
+                print(f"Warning: Failed to update user photo: {e}")
     
     # Parallel database queries for better performance
     async def fetch_settings():
