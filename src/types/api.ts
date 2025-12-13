@@ -154,6 +154,7 @@ export interface APIProfile {
   first_name?: string;
   username?: string;
   telegram_id?: number;
+  photo_url?: string;
 }
 
 export interface APIReferralProgram {
@@ -234,6 +235,7 @@ export interface APIReferralNode {
   is_active: boolean;
   order_count: number;
   earnings_generated: number;
+  photo_url?: string;
 }
 
 export interface APIReferralNetworkResponse {

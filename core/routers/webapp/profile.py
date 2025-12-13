@@ -214,6 +214,7 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
             "first_name": db_user.first_name,
             "username": db_user.username,
             "telegram_id": db_user.telegram_id,
+            "photo_url": getattr(db_user, 'photo_url', None),
         },
         "referral_program": referral_program,
         "referral_stats": referral_stats,
@@ -283,7 +284,7 @@ async def get_referral_network(user=Depends(verify_telegram_auth), level: int = 
             # Direct referrals
             referrals_result = await asyncio.to_thread(
                 lambda: db.client.table("users")
-                .select("id, telegram_id, username, first_name, created_at, referral_program_unlocked")
+                .select("id, telegram_id, username, first_name, created_at, referral_program_unlocked, photo_url")
                 .eq("referrer_id", user_id)
                 .order("created_at", desc=True)
                 .range(offset, offset + limit - 1)
@@ -304,7 +305,7 @@ async def get_referral_network(user=Depends(verify_telegram_auth), level: int = 
             
             referrals_result = await asyncio.to_thread(
                 lambda: db.client.table("users")
-                .select("id, telegram_id, username, first_name, created_at, referral_program_unlocked, referrer_id")
+                .select("id, telegram_id, username, first_name, created_at, referral_program_unlocked, referrer_id, photo_url")
                 .in_("referrer_id", direct_ref_ids)
                 .order("created_at", desc=True)
                 .range(offset, offset + limit - 1)
@@ -336,7 +337,7 @@ async def get_referral_network(user=Depends(verify_telegram_auth), level: int = 
             
             referrals_result = await asyncio.to_thread(
                 lambda: db.client.table("users")
-                .select("id, telegram_id, username, first_name, created_at, referral_program_unlocked, referrer_id")
+                .select("id, telegram_id, username, first_name, created_at, referral_program_unlocked, referrer_id, photo_url")
                 .in_("referrer_id", l2_ids)
                 .order("created_at", desc=True)
                 .range(offset, offset + limit - 1)
@@ -386,6 +387,7 @@ async def get_referral_network(user=Depends(verify_telegram_auth), level: int = 
                 "is_active": ref.get("referral_program_unlocked", False),
                 "order_count": order_count,
                 "earnings_generated": round(earnings, 2),
+                "photo_url": ref.get("photo_url"),
             })
         
         return {

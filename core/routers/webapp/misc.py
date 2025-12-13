@@ -132,7 +132,7 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
     if date_filter:
         orders_result = await asyncio.to_thread(
             lambda: db.client.table("orders").select(
-                "user_id,amount,original_price,users(telegram_id,username,first_name)"
+                "user_id,amount,original_price,users(telegram_id,username,first_name,photo_url)"
             ).eq("status", "completed").gte("created_at", date_filter).execute()
         )
         
@@ -151,6 +151,7 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
                     "telegram_id": user_data.get("telegram_id"),
                     "username": user_data.get("username"),
                     "first_name": user_data.get("first_name"),
+                    "photo_url": user_data.get("photo_url"),
                     "total_saved": 0
                 }
             user_savings[uid]["total_saved"] += saved

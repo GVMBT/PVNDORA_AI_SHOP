@@ -107,6 +107,7 @@ export interface NetworkNode {
   lastActive?: string;
   invitedBy?: string | null;
   activityData?: number[];
+  photoUrl?: string;
 }
 
 export interface BillingLog {
@@ -146,6 +147,7 @@ export interface ProfileData {
   networkTree: NetworkNode[];
   billingLogs: BillingLog[];
   currency: string;
+  photoUrl?: string;
 }
 
 // ==================== LEADERBOARD ====================

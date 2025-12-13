@@ -25,6 +25,7 @@ interface NetworkNodeData {
   status: 'active' | 'inactive' | string;
   earned: number;
   ordersCount: number;
+  photoUrl?: string;
 }
 
 interface BillingLogData {
@@ -64,6 +65,7 @@ interface ProfileDataProp {
   networkTree: NetworkNodeData[];
   billingLogs: BillingLogData[];
   currency: string;
+  photoUrl?: string;
 }
 
 interface ProfileProps {
@@ -302,7 +304,11 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
             <div className="flex items-center gap-6">
                 <div className="relative group">
                     <div className="w-20 h-20 bg-black border border-white/20 flex items-center justify-center relative overflow-hidden rounded-sm">
-                         <User size={40} className="text-gray-400 relative z-10" />
+                         {user.photoUrl ? (
+                           <img src={user.photoUrl} alt={user.name} className="w-full h-full object-cover relative z-10" />
+                         ) : (
+                           <User size={40} className="text-gray-400 relative z-10" />
+                         )}
                          <div className="absolute inset-0 bg-gradient-to-tr from-pandora-cyan/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                          <div className="absolute top-0 w-full h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
                     </div>
@@ -568,8 +574,14 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
                                     >
                                         <div className="flex justify-between items-center">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 bg-white/5 flex items-center justify-center rounded-sm">
-                                                    {node.status === 'VIP' ? <Crown size={14} className="text-yellow-500" /> : <User size={14} className="text-gray-400" />}
+                                                <div className="w-8 h-8 bg-white/5 flex items-center justify-center rounded-sm overflow-hidden">
+                                                    {node.photoUrl ? (
+                                                      <img src={node.photoUrl} alt={node.handle} className="w-full h-full object-cover" />
+                                                    ) : node.status === 'VIP' ? (
+                                                      <Crown size={14} className="text-yellow-500" />
+                                                    ) : (
+                                                      <User size={14} className="text-gray-400" />
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <div className="flex items-center gap-2">
@@ -659,7 +671,11 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
                         <div className="flex gap-4 items-center">
                             <div className="w-20 h-20 bg-black border border-white/20 p-1 relative">
                                 <div className="w-full h-full bg-gray-900 flex items-center justify-center overflow-hidden">
-                                     <User size={32} className="text-gray-600" />
+                                     {selectedReferral.photoUrl ? (
+                                       <img src={selectedReferral.photoUrl} alt={selectedReferral.handle} className="w-full h-full object-cover" />
+                                     ) : (
+                                       <User size={32} className="text-gray-600" />
+                                     )}
                                 </div>
                                 <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-pandora-cyan" />
                                 <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-pandora-cyan" />

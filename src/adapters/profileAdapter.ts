@@ -113,6 +113,11 @@ export function adaptProfile(
   const username = telegramUser?.username || profile.username;
   const telegramId = telegramUser?.id || profile.telegram_id;
   
+  // Photo URL: prefer telegramUser (from initData), fallback to DB-stored, fallback to UI Avatars
+  const photoUrl = telegramUser?.photo_url 
+    || profile.photo_url 
+    || `https://ui-avatars.com/api/?name=${encodeURIComponent(firstName)}&background=0d1117&color=00ffff&size=160&font-size=0.4&bold=true`;
+  
   return {
     name: firstName,
     handle: username ? `@${username}` : `UID-${telegramId || Date.now()}`,
@@ -138,6 +143,7 @@ export function adaptProfile(
     networkTree: [], // Populated via adaptReferralNetwork call
     billingLogs,
     currency: profile.currency,
+    photoUrl,
   };
 }
 
@@ -160,9 +166,14 @@ export function adaptReferralNetwork(
     if (node.earnings_generated >= 500) status = 'VIP';
     else if (node.order_count === 0) status = 'SLEEP';
     
+    // Photo URL with fallback to UI Avatars
+    const nodeName = node.first_name || node.username || `User ${node.telegram_id}`;
+    const photoUrl = node.photo_url 
+      || `https://ui-avatars.com/api/?name=${encodeURIComponent(nodeName)}&background=0d1117&color=00ffff&size=80&font-size=0.4&bold=true`;
+    
     return {
       id: node.id,
-      name: node.first_name || node.username || `User ${node.telegram_id}`,
+      name: nodeName,
       handle: node.username ? `@${node.username}` : `ID:${node.telegram_id}`,
       status,
       earned: node.earnings_generated,
@@ -176,6 +187,7 @@ export function adaptReferralNetwork(
       lastActive: formatTimeAgo(node.created_at),
       invitedBy: null, // Set by parent context if needed
       activityData: generateMockActivity(node.order_count),
+      photoUrl,
     };
   };
   

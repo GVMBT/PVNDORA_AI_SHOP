@@ -35,11 +35,15 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
 
   const handleRemoveItem = useCallback(async (productId: string) => {
     try {
-      await removeCartItem(productId);
+      const updatedCart = await removeCartItem(productId);
+      // If cart becomes empty after removing item, close the modal
+      if (!updatedCart || !updatedCart.items || updatedCart.items.length === 0) {
+        onClose();
+      }
     } catch (err) {
       console.error('Failed to remove item:', err);
     }
-  }, [removeCartItem]);
+  }, [removeCartItem, onClose]);
 
   const handlePay = useCallback(async (method: PaymentMethod) => {
     try {
