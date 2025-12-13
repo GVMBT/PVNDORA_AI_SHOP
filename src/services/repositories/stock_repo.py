@@ -12,7 +12,7 @@ class StockRepository(BaseRepository):
         """Get first available stock item (oldest first)."""
         result = self.client.table("stock_items").select("*").eq(
             "product_id", product_id
-        ).eq("is_sold", False).order("created_at").limit(1).execute()
+        ).eq("status", "available").order("created_at").limit(1).execute()
         
         return StockItem(**result.data[0]) if result.data else None
     
@@ -20,15 +20,15 @@ class StockRepository(BaseRepository):
         """Get count of available stock items."""
         result = self.client.table("stock_items").select("id", count="exact").eq(
             "product_id", product_id
-        ).eq("is_sold", False).execute()
+        ).eq("status", "available").execute()
         
         return result.count or 0
     
     async def reserve(self, stock_item_id: str) -> bool:
         """Mark stock item as sold (atomic)."""
-        result = self.client.table("stock_items").update({"is_sold": True}).eq(
+        result = self.client.table("stock_items").update({"status": "sold"}).eq(
             "id", stock_item_id
-        ).eq("is_sold", False).execute()
+        ).eq("status", "available").execute()
         
         return len(result.data) > 0
     
@@ -81,7 +81,7 @@ class StockRepository(BaseRepository):
         """Get all stock items for product."""
         query = self.client.table("stock_items").select("*").eq("product_id", product_id)
         if not include_sold:
-            query = query.eq("is_sold", False)
+            query = query.eq("status", "available")
         result = query.order("created_at", desc=True).execute()
         return [StockItem(**s) for s in result.data]
 

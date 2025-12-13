@@ -80,7 +80,6 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
                 await asyncio.to_thread(
                     lambda sid=stock_id, ts=now.isoformat(): db.client.table("stock_items").update({
                         "status": "sold",
-                        "is_sold": True,
                         "reserved_at": ts,
                         "sold_at": ts
                     }).eq("id", sid).execute()

@@ -100,10 +100,14 @@ async def submit_review(request: SubmitReviewRequest, user=Depends(verify_telegr
     if existing.data:
         raise HTTPException(status_code=400, detail="Review already submitted")
     
+    # Get product_id from order_items (source of truth)
+    order_items = await db.get_order_items_by_order(request.order_id)
+    product_id = order_items[0].get("product_id") if order_items else None
+    
     await db.create_review(
         user_id=db_user.id,
         order_id=request.order_id,
-        product_id=order.product_id,
+        product_id=product_id,
         rating=request.rating,
         text=request.text
     )

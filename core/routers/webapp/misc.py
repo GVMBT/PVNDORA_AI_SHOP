@@ -82,7 +82,7 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
         raise HTTPException(status_code=404, detail="Order not found")
     if order.user_id != db_user.id:
         raise HTTPException(status_code=403, detail="Order does not belong to user")
-    if order.status not in ["completed", "delivered"]:
+    if order.status not in ["completed", "delivered", "partial"]:
         raise HTTPException(status_code=400, detail="Can only review completed orders")
     
     existing = await asyncio.to_thread(
@@ -91,9 +91,16 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
     if existing.data:
         raise HTTPException(status_code=400, detail="Order already reviewed")
     
+    # Get product_id from order_items (source of truth)
+    order_items = await db.get_order_items_by_order(request.order_id)
+    product_id = order_items[0].get("product_id") if order_items else None
+    
+    if not product_id:
+        raise HTTPException(status_code=400, detail="Order has no products")
+    
     result = await asyncio.to_thread(
         lambda: db.client.table("reviews").insert({
-            "user_id": db_user.id, "order_id": request.order_id, "product_id": order.product_id,
+            "user_id": db_user.id, "order_id": request.order_id, "product_id": product_id,
             "rating": request.rating, "text": request.text, "cashback_given": False
         }).execute()
     )

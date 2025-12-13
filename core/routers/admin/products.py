@@ -60,7 +60,7 @@ async def admin_get_products(admin=Depends(verify_admin)):
         product_id = p["id"]
         stock_result = await asyncio.to_thread(
             lambda pid=product_id: db.client.table("stock_items").select("id", count="exact")
-                .eq("product_id", pid).eq("is_sold", False).execute()
+                .eq("product_id", pid).eq("status", "available").execute()
         )
         p["stock_count"] = getattr(stock_result, 'count', 0) or 0
         products.append(p)
@@ -104,7 +104,7 @@ async def admin_add_stock(request: AddStockRequest, admin=Depends(verify_admin))
     data = {
         "product_id": request.product_id,
         "content": request.content,
-        "is_sold": False
+        "status": "available"
     }
     
     if request.expires_at:
@@ -137,7 +137,7 @@ async def admin_add_stock_bulk(request: BulkStockRequest, admin=Depends(verify_a
         item = {
             "product_id": request.product_id,
             "content": content,
-            "is_sold": False
+            "status": "available"
         }
         if request.expires_at:
             item["expires_at"] = request.expires_at
@@ -177,7 +177,7 @@ async def admin_get_stock(
         if product_id:
             query = query.eq("product_id", product_id)
         if available_only:
-            query = query.eq("is_sold", False)
+            query = query.eq("status", "available")
         
         return query.execute()
     

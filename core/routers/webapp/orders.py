@@ -85,7 +85,7 @@ async def create_payment_wrapper(
 async def persist_order(
     db,
     user_id: str,
-    product_id: str,
+    product_id: str,  # DEPRECATED: Will be removed after migration. Use order_items instead.
     amount: Decimal,
     original_price: Decimal,
     discount_percent: int,
@@ -94,7 +94,11 @@ async def persist_order(
     user_telegram_id: int,
     expires_at: datetime
 ):
-    """Create order record in database."""
+    """Create order record in database.
+    
+    Note: product_id is deprecated and will be removed.
+    Products are now stored in order_items table.
+    """
     return await db.create_order(
         user_id=user_id,
         product_id=product_id,

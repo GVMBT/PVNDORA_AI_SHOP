@@ -142,7 +142,11 @@ async def _submit_review(callback: CallbackQuery, order_id: str, rating: int, te
         await callback.message.edit_text("❌ Заказ не найден")
         return
     
-    await db.create_review(user_id=db_user.id, order_id=order_id, product_id=order.product_id, rating=rating, text=text)
+    # Get product_id from order_items (source of truth)
+    order_items = await db.get_order_items_by_order(order_id)
+    product_id = order_items[0].get("product_id") if order_items else None
+    
+    await db.create_review(user_id=db_user.id, order_id=order_id, product_id=product_id, rating=rating, text=text)
     
     try:
         from core.queue import publish_to_worker, WorkerEndpoints
@@ -163,7 +167,11 @@ async def _submit_review_from_message(message: Message, order_id: str, rating: i
         await message.answer("❌ Заказ не найден")
         return
     
-    await db.create_review(user_id=db_user.id, order_id=order_id, product_id=order.product_id, rating=rating, text=text)
+    # Get product_id from order_items (source of truth)
+    order_items = await db.get_order_items_by_order(order_id)
+    product_id = order_items[0].get("product_id") if order_items else None
+    
+    await db.create_review(user_id=db_user.id, order_id=order_id, product_id=product_id, rating=rating, text=text)
     
     try:
         from core.queue import publish_to_worker, WorkerEndpoints
@@ -243,7 +251,11 @@ async def callback_buy_again(callback: CallbackQuery, db_user: User, bot: Bot):
         await callback.answer("❌ Заказ не найден", show_alert=True)
         return
     
-    product = await db.get_product_by_id(order.product_id)
+    # Get product from order_items (source of truth)
+    order_items = await db.get_order_items_by_order(order_id)
+    product_id = order_items[0].get("product_id") if order_items else None
+    
+    product = await db.get_product_by_id(product_id) if product_id else None
     if not product:
         await callback.answer("❌ Товар больше не доступен", show_alert=True)
         return

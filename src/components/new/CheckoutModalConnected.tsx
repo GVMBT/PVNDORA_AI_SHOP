@@ -25,52 +25,38 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   const { profile, getProfile } = useProfileTyped();
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Track if we should auto-close (cart became empty after user action)
-  const wasInitializedWithItems = React.useRef(false);
-
   useEffect(() => {
     const init = async () => {
-      await Promise.all([getCart(), getProfile()]);
+      const [freshCart] = await Promise.all([getCart(), getProfile()]);
       setIsInitialized(true);
+      
+      // CRITICAL: If cart is empty after fetch, close immediately
+      if (!freshCart || !freshCart.items || freshCart.items.length === 0) {
+        onClose();
+      }
     };
     init();
-  }, [getCart, getProfile]);
+  }, [getCart, getProfile, onClose]);
 
-  // Track if cart had items on init
+  // ALWAYS close if cart becomes empty - no exceptions
   useEffect(() => {
-    if (isInitialized && cart?.items && cart.items.length > 0) {
-      wasInitializedWithItems.current = true;
-    }
-  }, [isInitialized, cart]);
-
-  // Close modal if cart becomes empty AFTER having items (user removed last item)
-  // Don't close if cart was already empty on mount (just show empty state)
-  useEffect(() => {
-    if (isInitialized && wasInitializedWithItems.current && (!cart || !cart.items || cart.items.length === 0)) {
-      // Small delay to allow animation and prevent jarring close
-      const timer = setTimeout(() => {
-        onClose();
-      }, 100);
-      return () => clearTimeout(timer);
+    if (isInitialized && (!cart || !cart.items || cart.items.length === 0)) {
+      onClose();
     }
   }, [isInitialized, cart, onClose]);
 
   const handleRemoveItem = useCallback(async (productId: string) => {
     try {
       const updatedCart = await removeCartItem(productId);
-      // If cart becomes empty after removing item, close the modal
+      // Cart state will trigger useEffect to close if empty
+      // But also close immediately for faster UX
       if (!updatedCart || !updatedCart.items || updatedCart.items.length === 0) {
         onClose();
       }
     } catch (err) {
       console.error('Failed to remove item:', err);
-      // Even on error, re-fetch cart to check actual state
-      const freshCart = await getCart();
-      if (!freshCart || !freshCart.items || freshCart.items.length === 0) {
-        onClose();
-      }
     }
-  }, [removeCartItem, onClose, getCart]);
+  }, [removeCartItem, onClose]);
 
   const handlePay = useCallback(async (method: PaymentMethod) => {
     try {

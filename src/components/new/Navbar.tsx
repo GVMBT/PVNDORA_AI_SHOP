@@ -198,7 +198,7 @@ const Navbar: React.FC<NavbarProps> = ({
       </motion.nav>
 
       {/* === FLOATING CART BUTTON === Only show when cart has items */}
-      {/* Mobile: Bottom-right above navbar. Desktop: Right side, mid-height */}
+      {/* Mobile: Bottom-left above navbar (avoid support widget on right). Desktop: Top-right */}
       <AnimatePresence>
         {cartCount > 0 && (
           <motion.button
@@ -206,16 +206,13 @@ const Navbar: React.FC<NavbarProps> = ({
               animate={{ scale: 1, rotate: 0 }}
               exit={{ scale: 0, rotate: -180 }}
               onClick={onOpenCart}
-              className={`
-                  fixed z-[60] group
-                  bottom-20 right-4 md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:right-6
-              `}
+              className="fixed z-[110] group bottom-20 left-4 md:bottom-auto md:left-auto md:top-6 md:right-6"
           >
-              <div className="relative bg-pandora-black/90 backdrop-blur-xl border border-pandora-cyan/30 p-3 md:p-4 rounded-full md:rounded-sm shadow-[0_0_20px_rgba(0,255,255,0.15)] hover:bg-pandora-cyan hover:text-black hover:shadow-[0_0_30px_#00FFFF] transition-all duration-300">
+              <div className="relative bg-pandora-cyan text-black p-3 md:p-4 rounded-full shadow-[0_0_20px_rgba(0,255,255,0.4)] hover:bg-white hover:shadow-[0_0_30px_#FFFFFF] transition-all duration-300">
                   <ShoppingCart size={22} className="group-hover:scale-110 transition-transform" />
                   
                   {/* Count Badge */}
-                  <div className="absolute -top-1 -right-1 bg-white text-black text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)] border border-pandora-cyan">
+                  <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-[0_0_10px_red] animate-pulse">
                       {cartCount}
                   </div>
               </div>

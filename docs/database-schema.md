@@ -6,6 +6,10 @@
 - `uuid-ossp` для генерации UUID
 - `pgvector` для векторного поиска (RAG)
 
+**Архитектура заказов:**
+- `orders` — заголовок заказа (user, payment, статус)
+- `order_items` — позиции заказа (товары, delivery, stock)
+
 ## ERD Диаграмма
 
 ```
@@ -18,374 +22,300 @@
 └──────┬──────┘
        │
        │ 1:N
-       │
-┌──────▼──────┐
+       ▼
+┌─────────────┐
 │  products   │
 │─────────────│
 │ id (PK)     │
 │ name        │
 │ description │
 │ price       │
-│ type        │
-│ supplier_id │◄──┐
-│ warranty_days│  │
-│ duration_days│  │
+│ type        │ (ai|design|dev|music)
+│ supplier_id │
+│ warranty_hours│
+│ duration_days│
 │ fulfillment_time_hours│
 │ requires_prepayment│
 │ prepayment_percent│
-│ status      │   │
-└──────┬──────┘   │
-       │          │
-       │ 1:N      │
-       │          │
-┌──────▼──────┐   │
-│ stock_items │   │
-│─────────────│   │
-│ id (PK)     │   │
-│ product_id  │───┘
+│ status      │ (active|out_of_stock|discontinued|coming_soon)
+│ msrp        │
+│ categories  │
+│ image_url   │
+└──────┬──────┘
+       │
+       │ 1:N
+       ▼
+┌─────────────┐
+│ stock_items │
+│─────────────│
+│ id (PK)     │
+│ product_id  │───► products.id
 │ content     │
+│ status      │ (available|reserved|sold)
 │ expires_at  │
-│ is_sold     │
+│ discount_percent│
+│ reserved_at │
+│ sold_at     │
+│ supplier_id │
 │ created_at  │
 └─────────────┘
+
 
 ┌─────────────┐
 │   users     │
 │─────────────│
-│ telegram_id (PK) │
-│ referrer_telegram_id │◄──┐ (self-reference)
-│ balance     │   │
-│ is_admin    │   │
-└──────┬──────┘   │
-       │          │
-       │ 1:N      │
-       │          │
-┌──────▼──────┐   │
-│   orders    │   │
-│─────────────│   │
-│ id (PK)     │   │
-│ user_telegram_id │───┘
-│ product_id  │
-│ stock_item_id│
-│ amount      │
-│ original_price│
+│ id (PK)     │
+│ telegram_id │ (UNIQUE)
+│ username    │
+│ first_name  │
+│ balance     │
+│ is_admin    │
+│ referrer_id │───► users.id (self-reference)
+│ ...         │
+└──────┬──────┘
+       │
+       │ 1:N
+       ▼
+┌─────────────────┐
+│     orders      │ (Заголовок заказа)
+│─────────────────│
+│ id (PK)         │
+│ user_id         │───► users.id
+│ user_telegram_id│ (денормализация для уведомлений)
+│ amount          │ (общая сумма)
+│ original_price  │
 │ discount_percent│
-│ status      │ (pending|prepaid|fulfilling|ready|delivered|cancelled|refunded|failed)
-│ order_type  │ (instant|prepaid)
-│ fulfillment_deadline│
-│ refund_reason│
-│ refund_processed_at│
-│ expires_at  │
+│ status          │ (pending|prepaid|partial|delivered|cancelled|refunded)
+│ order_type      │ (instant|prepaid)
+│ payment_method  │
+│ payment_gateway │
+│ payment_id      │
+│ payment_url     │
+│ expires_at      │
+│ delivered_at    │
+│ warranty_until  │
+│ created_at      │
+└────────┬────────┘
+         │
+         │ 1:N
+         ▼
+┌─────────────────┐
+│  order_items    │ (Позиции заказа)
+│─────────────────│
+│ id (PK)         │
+│ order_id        │───► orders.id
+│ product_id      │───► products.id
+│ stock_item_id   │───► stock_items.id (nullable)
+│ quantity        │
+│ price           │
+│ discount_percent│
+│ status          │ (pending|prepaid|delivered|refund_pending|failed)
+│ fulfillment_type│ (instant|preorder)
+│ delivery_content│ (credentials after delivery)
+│ delivery_instructions│
+│ expires_at      │ (license expiration)
+│ delivered_at    │
+│ created_at      │
+│ updated_at      │
+└─────────────────┘
+
+
+┌─────────────┐
+│   reviews   │
+│─────────────│
+│ id (PK)     │
+│ user_id     │───► users.id
+│ order_id    │───► orders.id (UNIQUE)
+│ product_id  │───► products.id
+│ rating      │ (1-5)
+│ text        │
+│ cashback_given│
+│ created_at  │
 └─────────────┘
 
 ┌─────────────┐
 │  tickets    │
 │─────────────│
 │ id (PK)     │
-│ user_id     │
-│ order_id    │
-│ status      │
+│ user_id     │───► users.id
+│ order_id    │───► orders.id
+│ status      │ (open|approved|rejected|closed)
+│ issue_type  │
+│ description │
+│ admin_comment│
+│ created_at  │
 └─────────────┘
 ```
 
 ## SQL View: available_stock_with_discounts
 
-Критически важный View для оптимизации производительности:
+View для получения доступных товаров со скидками:
 
 ```sql
 CREATE OR REPLACE VIEW available_stock_with_discounts AS
 SELECT 
-    si.id as stock_item_id,
-    p.id as product_id,
-    p.name,
-    p.price as original_price,
+    si.id AS stock_item_id,
+    si.product_id,
+    p.name AS product_name,
+    p.price AS original_price,
+    p.msrp,
+    p.type AS product_type,
+    p.warranty_hours,
     p.duration_days,
+    si.discount_percent,
+    ROUND(p.price * (1 - COALESCE(si.discount_percent, 0) / 100), 2) AS final_price,
+    ROUND(COALESCE(p.msrp, p.price) - (p.price * (1 - COALESCE(si.discount_percent, 0) / 100)), 2) AS savings,
     si.expires_at,
-    si.created_at as stock_created_at,
-    CASE 
-        WHEN p.duration_days IS NOT NULL THEN
-            LEAST(
-                20.0,  -- Максимальная скидка 20%
-                GREATEST(
-                    0.0,
-                    (EXTRACT(EPOCH FROM (NOW() - si.created_at)) / 86400.0) / 
-                    NULLIF(p.duration_days, 0) * 100.0 * 0.5  -- Коэффициент 0.5
-                )
-            )
-        WHEN si.expires_at IS NOT NULL THEN
-            LEAST(
-                20.0,
-                GREATEST(
-                    0.0,
-                    (EXTRACT(EPOCH FROM (NOW() - si.created_at)) / 86400.0) / 
-                    NULLIF(EXTRACT(EPOCH FROM (si.expires_at - si.created_at)) / 86400.0, 0) * 100.0 * 0.5
-                )
-            )
-        ELSE 0.0
-    END as discount_percent,
-    (p.price * (1 - 
-        CASE 
-            WHEN p.duration_days IS NOT NULL THEN
-                LEAST(20.0, GREATEST(0.0, 
-                    (EXTRACT(EPOCH FROM (NOW() - si.created_at)) / 86400.0) / 
-                    NULLIF(p.duration_days, 0) * 100.0 * 0.5)) / 100.0
-            WHEN si.expires_at IS NOT NULL THEN
-                LEAST(20.0, GREATEST(0.0,
-                    (EXTRACT(EPOCH FROM (NOW() - si.created_at)) / 86400.0) / 
-                    NULLIF(EXTRACT(EPOCH FROM (si.expires_at - si.created_at)) / 86400.0, 0) * 100.0 * 0.5)) / 100.0
-            ELSE 0.0
-        END
-    )) as final_price
+    si.created_at AS stock_added_at
 FROM stock_items si
-INNER JOIN products p ON si.product_id = p.id
+JOIN products p ON si.product_id = p.id
 WHERE 
-    si.is_sold = false
+    si.status = 'available'
     AND p.status = 'active'
-    AND (
-        si.expires_at IS NULL 
-        OR si.expires_at > NOW()
-    );
+    AND (si.expires_at IS NULL OR si.expires_at > NOW());
 ```
 
-## Хранимые Процедуры (RPC)
+## SQL View: product_social_proof
 
-### 1. reserve_product_for_purchase
-
-Атомарная процедура для резервирования товара:
+View для социального доказательства (рейтинги, отзывы, продажи):
 
 ```sql
-CREATE OR REPLACE FUNCTION reserve_product_for_purchase(
-    p_product_id UUID,
-    p_user_telegram_id BIGINT,
-    p_reservation_ttl INTERVAL DEFAULT '15 minutes'
-)
-RETURNS TABLE(
-    order_id UUID,
-    stock_item_id UUID,
-    original_price NUMERIC,
-    discount_percent NUMERIC,
-    final_price NUMERIC,
-    expires_at TIMESTAMPTZ
-) AS $$
-DECLARE
-    v_stock_item_id UUID;
-    v_price NUMERIC;
-    v_discount NUMERIC;
-    v_final_price NUMERIC;
-    v_expires_at TIMESTAMPTZ;
-    v_order_id UUID;
-    v_user_id BIGINT;
-BEGIN
-    -- Получение user_id (если пользователь не существует, создается автоматически через триггер)
-    SELECT telegram_id INTO v_user_id FROM users WHERE telegram_id = p_user_telegram_id;
-    
-    IF v_user_id IS NULL THEN
-        RAISE EXCEPTION 'User not found';
-    END IF;
-    
-    -- Блокировка строки напрямую в stock_items для надежности
-    SELECT si.id, 
-           (p.price * (1 - COALESCE(v.discount_percent, 0) / 100.0)),
-           COALESCE(v.discount_percent, 0),
-           p.price,
-           si.expires_at
-    INTO v_stock_item_id, v_final_price, v_discount, v_price, v_expires_at
-    FROM stock_items si
-    INNER JOIN products p ON si.product_id = p.id
-    LEFT JOIN LATERAL (
-        SELECT discount_percent 
-        FROM available_stock_with_discounts 
-        WHERE stock_item_id = si.id
-    ) v ON true
-    WHERE si.product_id = p_product_id
-    AND si.is_sold = false
-    AND p.status = 'active'
-    AND (si.expires_at IS NULL OR si.expires_at > NOW())
-    FOR UPDATE SKIP LOCKED
-    LIMIT 1;
-    
-    IF v_stock_item_id IS NULL THEN
-        RAISE EXCEPTION 'Product not available';
-    END IF;
-    
-    -- Создание заказа со статусом pending в рамках той же транзакции
-    INSERT INTO orders (
-        user_telegram_id,
-        product_id,
-        stock_item_id,
-        amount,
-        original_price,
-        discount_percent,
-        status,
-        expires_at
-    ) VALUES (
-        p_user_telegram_id,
-        p_product_id,
-        v_stock_item_id,
-        v_final_price,
-        v_price,
-        v_discount,
-        'pending',
-        v_expires_at
-    )
-    RETURNING id INTO v_order_id;
-    
-    RETURN QUERY SELECT 
-        v_order_id,
-        v_stock_item_id,
-        v_price,
-        v_discount,
-        v_final_price,
-        v_expires_at;
-END;
-$$ LANGUAGE plpgsql;
+CREATE OR REPLACE VIEW product_social_proof AS
+SELECT 
+    p.id AS product_id,
+    p.name AS product_name,
+    COALESCE(AVG(r.rating), 0) AS avg_rating,
+    COUNT(DISTINCT r.id) AS review_count,
+    COUNT(DISTINCT CASE WHEN oi.status = 'delivered' THEN oi.id END) AS sales_count,
+    (
+        SELECT json_agg(json_build_object(
+            'rating', sub_r.rating,
+            'text', sub_r.text,
+            'created_at', sub_r.created_at,
+            'author', u.first_name
+        ) ORDER BY sub_r.created_at DESC)
+        FROM (
+            SELECT * FROM reviews 
+            WHERE product_id = p.id 
+            ORDER BY created_at DESC 
+            LIMIT 5
+        ) sub_r
+        LEFT JOIN users u ON sub_r.user_id = u.id
+    ) AS recent_reviews
+FROM products p
+LEFT JOIN reviews r ON p.id = r.product_id
+LEFT JOIN order_items oi ON p.id = oi.product_id
+WHERE p.status = 'active'
+GROUP BY p.id, p.name;
 ```
 
-### 2. complete_purchase
+## SQL View: product_metrics
 
-Атомарная процедура для завершения покупки:
+View для аналитики товаров:
 
 ```sql
-CREATE OR REPLACE FUNCTION complete_purchase(
-    p_order_id UUID,
-    p_stock_item_id UUID,
-    p_user_telegram_id BIGINT
-)
-RETURNS TABLE(
-    success BOOLEAN,
-    content TEXT,
-    expires_at TIMESTAMPTZ
-) AS $$
-DECLARE
-    v_content TEXT;
-    v_expires_at TIMESTAMPTZ;
-BEGIN
-    -- Атомарная транзакция: пометить товар как проданный и получить контент
-    UPDATE stock_items
-    SET is_sold = true
-    WHERE id = p_stock_item_id
-    AND is_sold = false
-    RETURNING content, expires_at INTO v_content, v_expires_at;
-    
-    IF v_content IS NULL THEN
-        RAISE EXCEPTION 'Stock item already sold or not found';
-    END IF;
-    
-    -- Обновление статуса заказа
-    UPDATE orders
-    SET status = 'paid',
-        stock_item_id = p_stock_item_id
-    WHERE id = p_order_id
-    AND user_telegram_id = p_user_telegram_id
-    AND status = 'pending';
-    
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Order not found or already processed';
-    END IF;
-    
-    RETURN QUERY SELECT true, v_content, v_expires_at;
-END;
-$$ LANGUAGE plpgsql;
+CREATE OR REPLACE VIEW product_metrics AS
+SELECT 
+    p.id,
+    p.name,
+    p.price,
+    p.type,
+    COUNT(DISTINCT oi.order_id) AS total_orders,
+    COUNT(DISTINCT CASE WHEN oi.status = 'delivered' THEN oi.order_id END) AS completed_orders,
+    SUM(CASE WHEN oi.status = 'delivered' THEN oi.price ELSE 0 END) AS total_revenue,
+    COUNT(DISTINCT o.user_id) AS unique_buyers,
+    AVG(CASE WHEN r.rating IS NOT NULL THEN r.rating ELSE NULL END) AS avg_rating,
+    COUNT(r.id) AS review_count,
+    (SELECT COUNT(*) FROM stock_items si WHERE si.product_id = p.id AND si.status = 'available') AS current_stock,
+    (SELECT COUNT(*) FROM wishlist w WHERE w.product_id = p.id) AS wishlist_count
+FROM products p
+LEFT JOIN order_items oi ON oi.product_id = p.id
+LEFT JOIN orders o ON oi.order_id = o.id
+LEFT JOIN reviews r ON r.product_id = p.id
+GROUP BY p.id, p.name, p.price, p.type
+ORDER BY total_revenue DESC NULLS LAST;
 ```
 
-## Векторная Коллекция (vecs)
+## Статусы
 
-### Создание Коллекции
+### stock_items.status
+| Статус | Описание |
+|--------|----------|
+| `available` | Доступен для продажи |
+| `reserved` | Зарезервирован (ожидает оплаты) |
+| `sold` | Продан |
 
-```python
-import vecs
+### orders.status
+| Статус | Описание |
+|--------|----------|
+| `pending` | Ожидает оплаты |
+| `prepaid` | Оплачен, товар под заказ |
+| `partial` | Частично выдан (часть товаров доставлена) |
+| `delivered` | Полностью выдан |
+| `cancelled` | Отменен |
+| `refunded` | Возвращен |
 
-vx = vecs.create_client(SUPABASE_CONNECTION_STRING)
+### order_items.status
+| Статус | Описание |
+|--------|----------|
+| `pending` | Ожидает оплаты/выдачи |
+| `prepaid` | Оплачен, ждет поставки |
+| `delivered` | Выдан пользователю |
+| `refund_pending` | Запрошен возврат |
+| `replacement_pending` | Запрошена замена |
+| `failed` | Ошибка выдачи |
 
-# Создание коллекции для товаров
-products_collection = vx.create_collection(
-    name="products",
-    dimension=768,  # Gemini embedding dimension
-    metric=vecs.distance.cosine
-)
-```
+## Ключевые RPC-функции
 
-### Структура Векторных Данных
-
-```python
-# Метаданные для каждого вектора
-metadata = {
-    "product_id": "uuid",
-    "name": "ChatGPT Plus",
-    "type": "shared",
-    "status": "active"
-}
-```
-
-## Геймификация: Поля для "Money Saved"
-
-**Добавление полей для расчета экономии:**
-
+### reserve_stock_item
+Атомарное резервирование товара:
 ```sql
--- Добавить поле msrp в products (если еще не добавлено)
-ALTER TABLE products ADD COLUMN IF NOT EXISTS msrp NUMERIC;
-
--- Добавить поле total_saved в users (если еще не добавлено)
-ALTER TABLE users ADD COLUMN IF NOT EXISTS total_saved NUMERIC DEFAULT 0;
-
--- Обновление total_saved при покупке
-CREATE OR REPLACE FUNCTION update_user_savings()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION reserve_stock_item(p_stock_item_id UUID)
+RETURNS BOOLEAN AS $$
 BEGIN
-    IF NEW.status = 'paid' AND OLD.status != 'paid' THEN
-        UPDATE users
-        SET total_saved = total_saved + COALESCE(
-            (SELECT msrp - NEW.amount FROM products WHERE id = NEW.product_id),
-            0
-        )
-        WHERE telegram_id = NEW.user_telegram_id;
-    END IF;
-    RETURN NEW;
+    UPDATE stock_items 
+    SET status = 'reserved', reserved_at = NOW()
+    WHERE id = p_stock_item_id AND status = 'available';
+    
+    RETURN FOUND;
 END;
 $$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trigger_update_savings
-AFTER UPDATE ON orders
-FOR EACH ROW
-WHEN (NEW.status = 'paid' AND OLD.status != 'paid')
-EXECUTE FUNCTION update_user_savings();
-```
-
-## Redis Sorted Sets для Лидербордов
-
-**Структура данных в Redis:**
-
-```python
-# Ключ для лидерборда
-LEADERBOARD_KEY = "leaderboard:money_saved"
-
-# Добавление/обновление пользователя в лидерборде
-redis.zadd(LEADERBOARD_KEY, {user_id: total_saved})
-
-# Получение топ-10
-top_users = redis.zrevrange(LEADERBOARD_KEY, 0, 9, withscores=True)
 ```
 
 ## Индексы для Производительности
 
 ```sql
--- Индексы для быстрого поиска
-CREATE INDEX idx_stock_items_product_sold ON stock_items(product_id, is_sold) WHERE is_sold = false;
-CREATE INDEX idx_orders_user_status ON orders(user_telegram_id, status);
-CREATE INDEX idx_orders_created_at ON orders(created_at);
+-- Stock items: быстрый поиск доступных
+CREATE INDEX idx_stock_items_product_status 
+    ON stock_items(product_id, status) 
+    WHERE status = 'available';
+
+-- Orders: поиск по пользователю и статусу
+CREATE INDEX idx_orders_user_status ON orders(user_id, status);
+CREATE INDEX idx_orders_created_at ON orders(created_at DESC);
+
+-- Order items: поиск по заказу
+CREATE INDEX idx_order_items_order ON order_items(order_id);
+CREATE INDEX idx_order_items_product ON order_items(product_id);
+
+-- Products: фильтрация активных
 CREATE INDEX idx_products_status ON products(status) WHERE status = 'active';
-CREATE INDEX idx_users_total_saved ON users(total_saved DESC); -- Для лидерборда
-
--- Индекс для векторного поиска (pgvector)
-CREATE INDEX idx_products_embedding ON products USING ivfflat (embedding vector_cosine_ops);
 ```
 
-## Триггеры
+## Денормализация
 
-### Триггер для уведомления о продаже
+### user_telegram_id в orders
+Поле `orders.user_telegram_id` — это денормализация `users.telegram_id` для быстрого доступа в workers без JOIN. Используется для отправки уведомлений после оплаты.
 
-```sql
--- Уведомление поставщиков обрабатывается через QStash, а не через триггеры
--- Триггер удален для обеспечения надежности через специализированную очередь
-```
+## Вспомогательные таблицы
 
+- `waitlist` — список ожидания товара
+- `wishlist` — избранные товары пользователя
+- `promo_codes` — промокоды на скидку
+- `faq` — часто задаваемые вопросы
+- `analytics_events` — события аналитики
+- `chat_history` — история чата с AI
+- `referral_bonuses` — начисленные реферальные бонусы
+- `referral_settings` — настройки реферальной программы
+- `withdrawal_requests` — запросы на вывод средств
+- `partner_applications` — заявки на партнерство

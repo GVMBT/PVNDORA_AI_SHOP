@@ -60,7 +60,7 @@ async def get_ticket(ticket_id: str, admin=Depends(verify_admin)):
     try:
         result = await asyncio.to_thread(
             lambda: db.client.table("tickets")
-            .select("*, users(username, first_name, telegram_id), orders(id, amount, status, product_id)")
+            .select("*, users(username, first_name, telegram_id), orders(id, amount, status)")
             .eq("id", ticket_id)
             .single()
             .execute()

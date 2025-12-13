@@ -80,18 +80,34 @@ class StockItem(BaseModel):
     id: str
     product_id: str
     content: str
-    is_sold: bool = False
+    status: str = "available"  # available | reserved | sold
     expires_at: Optional[datetime] = None
     supplier_id: Optional[str] = None
     created_at: Optional[datetime] = None
+    reserved_at: Optional[datetime] = None
+    sold_at: Optional[datetime] = None
+    discount_percent: Decimal = Decimal("0")
+    
+    @field_validator("discount_percent", mode="before")
+    @classmethod
+    def convert_discount_to_decimal(cls, v):
+        return _to_decimal(v) if v is not None else Decimal("0")
 
 
 class Order(BaseModel):
-    """Order model."""
+    """Order model.
+    
+    Note: product_id, stock_item_id, delivery_content, delivery_instructions
+    are deprecated. Use order_items table for this data.
+    """
     id: str
     user_id: str
-    product_id: str
-    stock_item_id: Optional[str] = None
+    # DEPRECATED fields - will be removed after migration
+    product_id: Optional[str] = None  # Use order_items instead
+    stock_item_id: Optional[str] = None  # Use order_items instead
+    delivery_content: Optional[str] = None  # Use order_items instead
+    delivery_instructions: Optional[str] = None  # Use order_items instead
+    # Active fields
     amount: Decimal
     original_price: Optional[Decimal] = None
     discount_percent: int = 0
@@ -106,10 +122,11 @@ class Order(BaseModel):
     user_telegram_id: Optional[int] = None
     payment_id: Optional[str] = None
     payment_url: Optional[str] = None
-    delivery_content: Optional[str] = None
-    delivery_instructions: Optional[str] = None
     order_type: Optional[str] = "instant"
     fulfillment_deadline: Optional[datetime] = None
+    
+    class Config:
+        extra = "ignore"  # Ignore unknown fields from DB
     
     @field_validator("amount", "original_price", mode="before")
     @classmethod

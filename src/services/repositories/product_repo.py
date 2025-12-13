@@ -13,7 +13,7 @@ class ProductRepository(BaseRepository):
         
         products = []
         for p in result.data:
-            stock = self.client.table("stock_items").select("id", count="exact").eq("product_id", p["id"]).eq("is_sold", False).execute()
+            stock = self.client.table("stock_items").select("id", count="exact").eq("product_id", p["id"]).eq("status", "available").execute()
             p["stock_count"] = stock.count or 0
             products.append(Product(**p))
         
@@ -27,7 +27,7 @@ class ProductRepository(BaseRepository):
             return None
         
         p = result.data[0]
-        stock = self.client.table("stock_items").select("id", count="exact").eq("product_id", product_id).eq("is_sold", False).execute()
+        stock = self.client.table("stock_items").select("id", count="exact").eq("product_id", product_id).eq("status", "available").execute()
         p["stock_count"] = stock.count or 0
         return Product(**p)
     
@@ -39,7 +39,7 @@ class ProductRepository(BaseRepository):
         
         products = []
         for p in result.data:
-            stock = self.client.table("stock_items").select("id", count="exact").eq("product_id", p["id"]).eq("is_sold", False).execute()
+            stock = self.client.table("stock_items").select("id", count="exact").eq("product_id", p["id"]).eq("status", "available").execute()
             p["stock_count"] = stock.count or 0
             products.append(Product(**p))
         

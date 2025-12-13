@@ -31,6 +31,9 @@ class NotificationService:
         """
         Process order fulfillment after successful payment.
         
+        DEPRECATED: Use workers._deliver_items_for_order instead.
+        This is legacy code kept for backwards compatibility.
+        
         1. Get available stock item
         2. Reserve the stock item (atomic)
         3. Send credentials to user
@@ -65,15 +68,24 @@ class NotificationService:
         user = user_result.data[0]
         language = user.get("language_code", "en")
         
+        # Get product_id from order_items (source of truth)
+        order_items = await db.get_order_items_by_order(order_id)
+        if not order_items:
+            print(f"No order items found for order: {order_id}")
+            await self._refund_to_balance(order, user, language, "No order items")
+            return False
+        
+        product_id = order_items[0].get("product_id")
+        
         # Get product
-        product = await db.get_product_by_id(order.product_id)
+        product = await db.get_product_by_id(product_id)
         if not product:
             print(f"Product not found for order: {order_id}")
             await self._refund_to_balance(order, user, language, "Product not found")
             return False
         
         # Get available stock item
-        stock_item = await db.get_available_stock_item(order.product_id)
+        stock_item = await db.get_available_stock_item(product_id)
         if not stock_item:
             print(f"No stock available for order: {order_id}")
             await self._refund_to_balance(order, user, language, "Out of stock")
@@ -86,7 +98,7 @@ class NotificationService:
             print(f"Stock item already sold, trying next: {order_id}")
             
             # Try one more time with a different item
-            stock_item = await db.get_available_stock_item(order.product_id)
+            stock_item = await db.get_available_stock_item(product_id)
             if stock_item:
                 reserved = await db.reserve_stock_item(stock_item.id)
             

@@ -151,12 +151,18 @@ async def cmd_my_orders(message: Message, db_user: User):
     
     order_lines = []
     for order in orders:
-        product = await db.get_product_by_id(order.product_id)
-        product_name = product.name if product else "Unknown"
+        # Get product name from order_items (source of truth)
+        order_items = await db.get_order_items_by_order(order.id)
+        if order_items:
+            product_id = order_items[0].get("product_id")
+            product = await db.get_product_by_id(product_id) if product_id else None
+            product_name = product.name if product else "Unknown"
+        else:
+            product_name = "Unknown"
         
         status_map = {
             "pending": "⏳", "paid": "💳", "completed": "✅",
-            "failed": "❌", "refunded": "↩️"
+            "failed": "❌", "refunded": "↩️", "delivered": "✅"
         }
         status_icon = status_map.get(order.status, "❓")
         order_lines.append(f"{status_icon} {product_name} - {order.amount}₽")
