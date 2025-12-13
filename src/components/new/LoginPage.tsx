@@ -32,6 +32,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [manualToken, setManualToken] = useState('');
 
   // Handle Telegram Login callback
   const handleTelegramAuth = useCallback(async (user: TelegramLoginData) => {
@@ -217,6 +218,38 @@ const LoginPage: React.FC<LoginPageProps> = ({
                 >
                   Авторизоваться через Telegram
                 </button>
+
+                {/* Manual token input for sandbox/webview cases */}
+                <div className="w-full space-y-2 bg-white/5 border border-white/10 p-4 text-left">
+                  <div className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">
+                    Вставьте session_token (если авторизация через Telegram блокируется)
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <input
+                      value={manualToken}
+                      onChange={(e) => setManualToken(e.target.value)}
+                      placeholder="session_token"
+                      className="w-full bg-black border border-white/20 p-2 text-sm font-mono text-white focus:border-pandora-cyan outline-none transition-colors"
+                    />
+                    <button
+                      onClick={() => {
+                        if (!manualToken.trim()) {
+                          setError('Укажите session_token');
+                          return;
+                        }
+                        localStorage.setItem('pvndora_session', manualToken.trim());
+                        if (redirectPath) {
+                          window.location.replace(redirectPath);
+                        } else {
+                          window.location.reload();
+                        }
+                      }}
+                      className="px-4 py-2 bg-pandora-cyan text-black font-mono text-xs uppercase tracking-widest hover:opacity-90 transition-opacity"
+                    >
+                      Применить токен
+                    </button>
+                  </div>
+                </div>
               </>
             )}
 
