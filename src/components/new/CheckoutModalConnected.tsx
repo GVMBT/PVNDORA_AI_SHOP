@@ -30,20 +30,10 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
     const init = async () => {
       try {
         console.log('[CheckoutModal] Initializing, fetching cart and profile...');
-        const [freshCart] = await Promise.all([getCart(), getProfile()]);
-        console.log('[CheckoutModal] Initialization complete, cart:', freshCart);
+        await Promise.all([getCart(), getProfile()]);
         
-        if (!isMounted) return; // Component was unmounted
-        
+        if (!isMounted) return;
         setIsInitialized(true);
-        
-        // CRITICAL: If cart is empty after fetch, close immediately
-        if (!freshCart || !freshCart.items || !Array.isArray(freshCart.items) || freshCart.items.length === 0) {
-          console.log('[CheckoutModal] Cart is empty after init, closing modal');
-          if (isMounted) {
-            onClose();
-          }
-        }
       } catch (err) {
         console.error('[CheckoutModal] Initialization error:', err);
         if (isMounted) {
@@ -56,26 +46,7 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [getCart, getProfile, onClose]);
-
-  // ALWAYS close if cart becomes empty - no exceptions
-  useEffect(() => {
-    let isMounted = true;
-    const isEmpty = !cart || !cart.items || !Array.isArray(cart.items) || cart.items.length === 0;
-    if (isInitialized && isEmpty) {
-      console.log('[CheckoutModal] Cart became empty, closing modal', { cart });
-      // Use setTimeout to avoid state update during render
-      setTimeout(() => {
-        if (isMounted) {
-          onClose();
-        }
-      }, 0);
-    }
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [isInitialized, cart, onClose]);
+  }, [getCart, getProfile]);
 
   const handleRemoveItem = useCallback(async (productId: string) => {
     try {
@@ -189,28 +160,24 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
     }
   }, [cart]);
 
-  // CRITICAL: Close modal immediately if cart is empty (check after mapping)
+  // Check if cart is empty and close modal if needed
   useEffect(() => {
-    let isMounted = true;
-    const isEmpty = !cart || !cart.items || !Array.isArray(cart.items) || cartItems.length === 0;
-    if (isInitialized && isEmpty) {
-      console.log('[CheckoutModal] Cart is empty, closing modal', { cart, cartItemsLength: cartItems.length });
-      // Use setTimeout to avoid state update during render
-      setTimeout(() => {
-        if (isMounted) {
-          onClose();
-        }
-      }, 0);
-    }
+    if (!isInitialized || cartLoading) return;
     
-    return () => {
-      isMounted = false;
-    };
-  }, [isInitialized, cart, cartItems.length, onClose]);
+    const isEmpty = !cart || !cart.items || !Array.isArray(cart.items) || cart.items.length === 0;
+    if (isEmpty) {
+      console.log('[CheckoutModal] Cart is empty, closing modal');
+      // Schedule close for next tick to avoid state update during render
+      const timeoutId = setTimeout(() => {
+        onClose();
+      }, 0);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isInitialized, cart, cartLoading, onClose]);
 
   // Don't render modal if cart is empty (but allow rendering during loading)
-  // IMPORTANT: Only check this AFTER initialization and loading are complete
-  const shouldRender = cart && cart.items && Array.isArray(cart.items) && cartItems.length > 0;
+  const shouldRender = isInitialized && !cartLoading && cart && cart.items && Array.isArray(cart.items) && cartItems.length > 0;
   
   console.log('[CheckoutModal] Render decision:', {
     shouldRender,
@@ -223,7 +190,6 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   });
   
   if (!shouldRender) {
-    console.log('[CheckoutModal] Not rendering - cart empty or invalid');
     return null;
   }
   
