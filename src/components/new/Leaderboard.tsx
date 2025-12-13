@@ -15,6 +15,7 @@ interface LeaderboardUserData {
   trend: 'up' | 'down' | 'same';
   status: 'ONLINE' | 'AWAY' | 'BUSY' | 'OFFLINE';
   isMe?: boolean;
+  avatarUrl?: string; // optional avatar if backend provides
 }
 
 interface LeaderboardProps {
@@ -40,16 +41,22 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ leaderboardData: propData, on
   const [filter, setFilter] = useState<'weekly' | 'all_time'>('weekly');
 
   // Use provided data or fallback to mock
-  const data = propData || LEADERBOARD_DATA;
+  const data = propData && propData.length > 0 ? propData : LEADERBOARD_DATA;
 
   const topThree = data.slice(0, 3);
-  const restList = data.slice(3, 9);
+  const restList = data.slice(3); // show all remaining, not just up to 8
   const currentUser = data.find(u => u.isMe);
 
   // Calculate efficiency percentage
   const calculateEfficiency = (market: number, saved: number) => {
+      if (!market || market <= 0) return 0;
       return Math.round((saved / market) * 100);
   };
+
+  // Aggregate totals for header stats (replace hardcoded mock)
+  const totalSavedAggregate = data.reduce((acc, u) => acc + (u.saved || 0), 0);
+  const totalMarketAggregate = data.reduce((acc, u) => acc + (u.marketSpend || 0), 0);
+  const totalEfficiency = calculateEfficiency(totalMarketAggregate, totalSavedAggregate);
 
   return (
     <motion.div 
@@ -88,7 +95,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ leaderboardData: propData, on
                             <ShieldCheck size={10} className="text-pandora-cyan" /> Total Corporate Loss
                         </div>
                         <div className="text-xl sm:text-2xl md:text-3xl font-mono font-bold text-white tracking-tight tabular-nums break-all sm:break-normal">
-                            ₽ 14,892,420<span className="text-gray-600">.00</span>
+                            ₽ {totalSavedAggregate.toLocaleString('ru-RU')}<span className="text-gray-600">{totalEfficiency ? ` // ${totalEfficiency}%` : ''}</span>
                         </div>
                     </div>
                     {/* Decorative Corner */}
@@ -231,9 +238,13 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ leaderboardData: propData, on
 
                                 {/* Identity */}
                                 <div className="col-span-10 md:col-span-4 flex items-center gap-4">
-                                    <div className="w-8 h-8 bg-white/5 rounded-sm flex items-center justify-center border border-white/10 shrink-0">
-                                        <User size={14} className="text-gray-500 group-hover:text-pandora-cyan" />
-                                    </div>
+                                <div className="w-8 h-8 bg-white/5 rounded-sm flex items-center justify-center border border-white/10 shrink-0 overflow-hidden">
+                                    {user.avatarUrl ? (
+                                      <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <User size={14} className="text-gray-500 group-hover:text-pandora-cyan" />
+                                    )}
+                                </div>
                                     <div className="min-w-0">
                                         <div className="text-sm font-bold text-white group-hover:text-pandora-cyan transition-colors flex items-center gap-2 truncate">
                                             {user.name}
