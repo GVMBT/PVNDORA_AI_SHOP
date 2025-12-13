@@ -9,6 +9,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import ProductDetail from './ProductDetail';
 import { useProductsTyped } from '../../hooks/useApiTyped';
 import { useCart } from '../../contexts/CartContext';
+import { AudioEngine } from '../../lib/AudioEngine';
 import type { CatalogProduct, ProductDetailData } from '../../types/component';
 
 interface ProductDetailConnectedProps {
@@ -35,6 +36,12 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
   const [productData, setProductData] = useState<ProductDetailData | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<CatalogProduct[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
+
+  // Play product open sound when component mounts
+  useEffect(() => {
+    AudioEngine.resume();
+    AudioEngine.productOpen();
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {

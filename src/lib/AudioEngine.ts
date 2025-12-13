@@ -1,10 +1,11 @@
 /**
  * PVNDORA Audio Engine
  * 
- * Procedural sound generation using Web Audio API.
- * Creates immersive cyberpunk atmosphere with synthesized SFX.
+ * Hybrid audio system: uses preloaded .ogg files with procedural fallback.
+ * Optimized for low latency with AudioBuffer caching.
  * 
- * NO mp3 files - all sounds are generated in real-time.
+ * Audio Worker is NOT needed for short SFX (<1s) - AudioBuffer is sufficient.
+ * For background music, use BackgroundMusic component (HTMLAudioElement).
  */
 
 type OscillatorType = 'sine' | 'square' | 'sawtooth' | 'triangle';
@@ -17,11 +18,29 @@ interface ToneConfig {
   delay?: number;
 }
 
+// Sound file mapping
+const SOUND_FILES: Record<string, string> = {
+  click: '/click-project.ogg',
+  uiShort: '/ui-short.ogg',      // open/close modals, navigation
+  uiLong: '/ui-long.ogg',         // product card open
+  decrypt: '/Dossier.ogg',
+  success: '/success.ogg',
+  error: '/error.ogg',
+  warning: '/warning.ogg',
+  notification: '/notification.ogg',
+  addToCart: '/add-to-cart.ogg',
+  transaction: '/transaction.ogg',
+};
+
 class AudioEngineClass {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private enabled: boolean = true;
   private initialized: boolean = false;
+  
+  // AudioBuffer cache for instant playback
+  private soundCache: Map<string, AudioBuffer> = new Map();
+  private loadingPromises: Map<string, Promise<AudioBuffer | null>> = new Map();
 
   /**
    * Initialize AudioContext (must be called after user interaction)
@@ -43,6 +62,9 @@ class AudioEngineClass {
       this.initialized = true;
       
       console.log('[AudioEngine] Initialized');
+      
+      // Preload critical sounds
+      this.preloadSounds();
     } catch (e) {
       console.warn('[AudioEngine] Failed to initialize:', e);
     }
@@ -74,7 +96,98 @@ class AudioEngineClass {
   }
 
   /**
-   * Play a single tone
+   * Preload critical sounds for instant playback
+   */
+  private async preloadSounds(): Promise<void> {
+    if (!this.ctx) return;
+    
+    const criticalSounds = ['click', 'uiShort', 'uiLong', 'success', 'error', 'notification'];
+    
+    // Load in parallel
+    await Promise.allSettled(
+      criticalSounds.map(key => this.loadSound(key))
+    );
+    
+    console.log(`[AudioEngine] Preloaded ${this.soundCache.size} sound(s)`);
+  }
+
+  /**
+   * Load and cache a sound file
+   */
+  private async loadSound(key: string): Promise<AudioBuffer | null> {
+    if (!this.ctx) return null;
+    
+    // Return cached if available
+    if (this.soundCache.has(key)) {
+      return this.soundCache.get(key)!;
+    }
+    
+    // Return existing promise if loading
+    if (this.loadingPromises.has(key)) {
+      return this.loadingPromises.get(key)!;
+    }
+    
+    // Start loading
+    const filePath = SOUND_FILES[key];
+    if (!filePath) {
+      console.warn(`[AudioEngine] No file mapping for sound: ${key}`);
+      return null;
+    }
+    
+    const loadPromise = (async () => {
+      try {
+        const response = await fetch(filePath);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await this.ctx!.decodeAudioData(arrayBuffer);
+        
+        // Cache the buffer
+        this.soundCache.set(key, audioBuffer);
+        this.loadingPromises.delete(key);
+        
+        console.log(`[AudioEngine] Loaded: ${key}`);
+        return audioBuffer;
+      } catch (error) {
+        console.warn(`[AudioEngine] Failed to load ${key}:`, error);
+        this.loadingPromises.delete(key);
+        return null;
+      }
+    })();
+    
+    this.loadingPromises.set(key, loadPromise);
+    return loadPromise;
+  }
+
+  /**
+   * Play a sound file from cache or load it
+   */
+  private async playSoundFile(key: string, volume: number = 1.0): Promise<void> {
+    if (!this.ctx || !this.masterGain || !this.enabled) return;
+    
+    const buffer = await this.loadSound(key);
+    if (!buffer) {
+      // Fallback to procedural generation
+      console.warn(`[AudioEngine] File not available, using procedural fallback for: ${key}`);
+      return;
+    }
+    
+    const source = this.ctx.createBufferSource();
+    const gain = this.ctx.createGain();
+    
+    source.buffer = buffer;
+    gain.gain.value = volume;
+    
+    source.connect(gain);
+    gain.connect(this.masterGain);
+    
+    source.start(0);
+  }
+
+  /**
+   * Play a single tone (procedural fallback)
    */
   private playTone(config: ToneConfig): void {
     if (!this.ctx || !this.masterGain || !this.enabled) return;
@@ -100,7 +213,7 @@ class AudioEngineClass {
   }
 
   /**
-   * Play white noise burst
+   * Play white noise burst (procedural)
    */
   private playNoise(duration: number, volume: number = 0.02, delay: number = 0): void {
     if (!this.ctx || !this.masterGain || !this.enabled) return;
@@ -133,7 +246,7 @@ class AudioEngineClass {
   }
 
   /**
-   * Play frequency sweep
+   * Play frequency sweep (procedural)
    */
   private playSweep(
     startFreq: number, 
@@ -167,7 +280,7 @@ class AudioEngineClass {
   // ============================================
 
   /**
-   * Light hover sound
+   * Light hover sound (procedural - too short for file)
    */
   hover(): void {
     this.playTone({ freq: 800, type: 'sine', duration: 0.03, volume: 0.008 });
@@ -177,51 +290,79 @@ class AudioEngineClass {
    * Button click
    */
   click(): void {
-    this.playTone({ freq: 1200, type: 'square', duration: 0.05, volume: 0.015 });
-    this.playNoise(0.03, 0.01);
+    this.playSoundFile('click', 0.5).catch(() => {
+      // Fallback to procedural
+      this.playTone({ freq: 1200, type: 'square', duration: 0.05, volume: 0.015 });
+      this.playNoise(0.03, 0.01);
+    });
   }
 
   /**
-   * Success notification (ascending arpeggio)
+   * Success notification
    */
   success(): void {
-    this.playTone({ freq: 440, type: 'sine', duration: 0.15, volume: 0.04, delay: 0 });
-    this.playTone({ freq: 554, type: 'sine', duration: 0.15, volume: 0.04, delay: 0.08 });
-    this.playTone({ freq: 659, type: 'sine', duration: 0.25, volume: 0.05, delay: 0.16 });
+    this.playSoundFile('success', 0.6).catch(() => {
+      // Fallback to procedural
+      this.playTone({ freq: 440, type: 'sine', duration: 0.15, volume: 0.04, delay: 0 });
+      this.playTone({ freq: 554, type: 'sine', duration: 0.15, volume: 0.04, delay: 0.08 });
+      this.playTone({ freq: 659, type: 'sine', duration: 0.25, volume: 0.05, delay: 0.16 });
+    });
   }
 
   /**
-   * Error notification (low rumble)
+   * Error notification
    */
   error(): void {
-    this.playTone({ freq: 150, type: 'sawtooth', duration: 0.3, volume: 0.04 });
-    this.playTone({ freq: 120, type: 'sawtooth', duration: 0.4, volume: 0.03, delay: 0.1 });
+    this.playSoundFile('error', 0.6).catch(() => {
+      // Fallback to procedural
+      this.playTone({ freq: 150, type: 'sawtooth', duration: 0.3, volume: 0.04 });
+      this.playTone({ freq: 120, type: 'sawtooth', duration: 0.4, volume: 0.03, delay: 0.1 });
+    });
   }
 
   /**
    * Warning notification
    */
   warning(): void {
-    this.playTone({ freq: 880, type: 'triangle', duration: 0.15, volume: 0.03 });
-    this.playTone({ freq: 880, type: 'triangle', duration: 0.15, volume: 0.03, delay: 0.2 });
+    this.playSoundFile('warning', 0.6).catch(() => {
+      // Fallback to procedural
+      this.playTone({ freq: 880, type: 'triangle', duration: 0.15, volume: 0.03 });
+      this.playTone({ freq: 880, type: 'triangle', duration: 0.15, volume: 0.03, delay: 0.2 });
+    });
   }
 
   /**
-   * Modal/menu open
+   * Modal/menu open (ui-short.ogg)
    */
   open(): void {
-    this.playSweep(150, 400, 0.15, 'sine', 0.03);
+    this.playSoundFile('uiShort', 0.5).catch(() => {
+      // Fallback to procedural
+      this.playSweep(150, 400, 0.15, 'sine', 0.03);
+    });
   }
 
   /**
-   * Modal/menu close
+   * Modal/menu close (ui-short.ogg)
    */
   close(): void {
-    this.playSweep(400, 150, 0.1, 'sine', 0.02);
+    this.playSoundFile('uiShort', 0.5).catch(() => {
+      // Fallback to procedural
+      this.playSweep(400, 150, 0.1, 'sine', 0.02);
+    });
   }
 
   /**
-   * System boot sequence sound
+   * Product card open (ui-long.ogg)
+   */
+  productOpen(): void {
+    this.playSoundFile('uiLong', 0.5).catch(() => {
+      // Fallback to procedural
+      this.playSweep(150, 400, 0.2, 'sine', 0.03);
+    });
+  }
+
+  /**
+   * System boot sequence sound (procedural - complex sequence)
    */
   boot(): void {
     // Power-up sweep
@@ -237,7 +378,7 @@ class AudioEngineClass {
   }
 
   /**
-   * Single typing character
+   * Single typing character (procedural - random)
    */
   type(): void {
     const freq = 2000 + Math.random() * 1000;
@@ -248,12 +389,15 @@ class AudioEngineClass {
    * Notification ping (HUD log entry)
    */
   notification(): void {
-    this.playTone({ freq: 1800, type: 'sine', duration: 0.08, volume: 0.025 });
-    this.playTone({ freq: 2400, type: 'sine', duration: 0.1, volume: 0.02, delay: 0.05 });
+    this.playSoundFile('notification', 0.5).catch(() => {
+      // Fallback to procedural
+      this.playTone({ freq: 1800, type: 'sine', duration: 0.08, volume: 0.025 });
+      this.playTone({ freq: 2400, type: 'sine', duration: 0.1, volume: 0.02, delay: 0.05 });
+    });
   }
 
   /**
-   * Scan/search sound
+   * Scan/search sound (procedural - dynamic)
    */
   scan(): void {
     this.playSweep(800, 2000, 0.2, 'sine', 0.02);
@@ -264,27 +408,32 @@ class AudioEngineClass {
    * Item added to cart
    */
   addToCart(): void {
-    this.playTone({ freq: 660, type: 'sine', duration: 0.1, volume: 0.03 });
-    this.playTone({ freq: 880, type: 'sine', duration: 0.15, volume: 0.03, delay: 0.08 });
-    this.playNoise(0.05, 0.01);
+    this.playSoundFile('addToCart', 0.6).catch(() => {
+      // Fallback to procedural
+      this.playTone({ freq: 660, type: 'sine', duration: 0.1, volume: 0.03 });
+      this.playTone({ freq: 880, type: 'sine', duration: 0.15, volume: 0.03, delay: 0.08 });
+      this.playNoise(0.05, 0.01);
+    });
   }
 
   /**
    * Transaction/purchase complete
    */
   transaction(): void {
-    // Ascending confirmation
-    [440, 554, 659, 880].forEach((freq, i) => {
-      this.playTone({ freq, type: 'sine', duration: 0.12, volume: 0.03, delay: i * 0.1 });
+    this.playSoundFile('transaction', 0.6).catch(() => {
+      // Fallback to procedural
+      [440, 554, 659, 880].forEach((freq, i) => {
+        this.playTone({ freq, type: 'sine', duration: 0.12, volume: 0.03, delay: i * 0.1 });
+      });
+      // Final chord
+      this.playTone({ freq: 440, type: 'triangle', duration: 0.5, volume: 0.02, delay: 0.4 });
+      this.playTone({ freq: 659, type: 'triangle', duration: 0.5, volume: 0.02, delay: 0.4 });
+      this.playTone({ freq: 880, type: 'triangle', duration: 0.5, volume: 0.02, delay: 0.4 });
     });
-    // Final chord
-    this.playTone({ freq: 440, type: 'triangle', duration: 0.5, volume: 0.02, delay: 0.4 });
-    this.playTone({ freq: 659, type: 'triangle', duration: 0.5, volume: 0.02, delay: 0.4 });
-    this.playTone({ freq: 880, type: 'triangle', duration: 0.5, volume: 0.02, delay: 0.4 });
   }
 
   /**
-   * Connection established
+   * Connection established (procedural - complex)
    */
   connect(): void {
     this.playNoise(0.05, 0.02);
@@ -293,7 +442,7 @@ class AudioEngineClass {
   }
 
   /**
-   * Connection lost / disconnected
+   * Connection lost / disconnected (procedural)
    */
   disconnect(): void {
     this.playSweep(600, 100, 0.3, 'sawtooth', 0.03);
@@ -301,7 +450,7 @@ class AudioEngineClass {
   }
 
   /**
-   * Glitch effect
+   * Glitch effect (procedural - random)
    */
   glitch(): void {
     const glitchCount = 3 + Math.floor(Math.random() * 4);
@@ -315,57 +464,59 @@ class AudioEngineClass {
 
   /**
    * Typewriter effect - for menu expansion, text reveal
-   * Creates a burst of mechanical key clicks
+   * Uses ui-short.ogg or procedural fallback
    */
   typewriter(charCount: number = 5): void {
+    // For typewriter, we can use ui-short.ogg or procedural
+    // Using procedural for variety
     for (let i = 0; i < charCount; i++) {
       const delay = i * 0.04;
-      // Mechanical click
       const freq = 1800 + Math.random() * 400;
       this.playTone({ freq, type: 'square', duration: 0.015, volume: 0.012, delay });
-      // Clack impact
       this.playNoise(0.008, 0.015, delay + 0.005);
     }
   }
 
   /**
    * Decrypt/Scramble effect - for data reveal, referral dossier
-   * Creates a digital scrambling sound followed by confirmation
    */
   decrypt(): void {
-    // Scrambling phase - rapid random tones
-    for (let i = 0; i < 12; i++) {
-      const freq = 800 + Math.random() * 2400;
-      const delay = i * 0.035;
-      this.playTone({ freq, type: 'square', duration: 0.02, volume: 0.015, delay });
-    }
-    // Digital noise during scramble
-    this.playNoise(0.3, 0.015);
-    
-    // Confirmation chirp at end
-    this.playTone({ freq: 1200, type: 'sine', duration: 0.08, volume: 0.02, delay: 0.4 });
-    this.playTone({ freq: 1600, type: 'sine', duration: 0.1, volume: 0.025, delay: 0.45 });
+    this.playSoundFile('decrypt', 0.6).catch(() => {
+      // Fallback to procedural
+      for (let i = 0; i < 12; i++) {
+        const freq = 800 + Math.random() * 2400;
+        const delay = i * 0.035;
+        this.playTone({ freq, type: 'square', duration: 0.02, volume: 0.015, delay });
+      }
+      this.playNoise(0.3, 0.015);
+      this.playTone({ freq: 1200, type: 'sine', duration: 0.08, volume: 0.02, delay: 0.4 });
+      this.playTone({ freq: 1600, type: 'sine', duration: 0.1, volume: 0.025, delay: 0.45 });
+    });
   }
 
   /**
    * Panel slide open - for sidebar/drawer opening
+   * Uses ui-short.ogg or procedural
    */
   panelOpen(): void {
-    // Whoosh sweep
-    this.playSweep(100, 300, 0.12, 'sine', 0.02);
-    // Mechanical latch
-    this.playTone({ freq: 400, type: 'square', duration: 0.03, volume: 0.02, delay: 0.1 });
-    this.playNoise(0.03, 0.015, 0.1);
+    this.playSoundFile('uiShort', 0.4).catch(() => {
+      // Fallback to procedural
+      this.playSweep(100, 300, 0.12, 'sine', 0.02);
+      this.playTone({ freq: 400, type: 'square', duration: 0.03, volume: 0.02, delay: 0.1 });
+      this.playNoise(0.03, 0.015, 0.1);
+    });
   }
 
   /**
    * Panel slide close - for sidebar/drawer closing
+   * Uses ui-short.ogg or procedural
    */
   panelClose(): void {
-    // Reverse whoosh
-    this.playSweep(300, 100, 0.1, 'sine', 0.02);
-    // Soft thud
-    this.playTone({ freq: 200, type: 'square', duration: 0.04, volume: 0.015 });
+    this.playSoundFile('uiShort', 0.4).catch(() => {
+      // Fallback to procedural
+      this.playSweep(300, 100, 0.1, 'sine', 0.02);
+      this.playTone({ freq: 200, type: 'square', duration: 0.04, volume: 0.015 });
+    });
   }
 }
 

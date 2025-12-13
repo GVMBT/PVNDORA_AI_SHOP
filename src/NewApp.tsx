@@ -621,7 +621,7 @@ function NewAppInner() {
       {isBooted && (
         <BackgroundMusic 
           key="background-music-persistent" // Stable key prevents remounting
-          src="/sound.flac"
+          src="/sound.ogg"
           volume={0.20}
           autoPlay={true}
           loop={true}

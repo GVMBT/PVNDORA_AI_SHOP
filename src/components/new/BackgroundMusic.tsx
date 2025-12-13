@@ -2,7 +2,7 @@
  * BackgroundMusic Component
  * 
  * Manages ambient background music for the PVNDORA app.
- * Preloads sound.flac completely before playing to avoid stuttering.
+ * Preloads sound.ogg completely before playing to avoid stuttering.
  */
 
 import React, { useEffect, useRef, useState, memo } from 'react';
@@ -17,8 +17,8 @@ interface BackgroundMusicProps {
   onLoadError?: (error: Error) => void;
 }
 
-export const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
-  src = '/sound.flac',
+const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
+  src = '/sound.ogg',
   volume = 0.20,
   autoPlay = true,
   loop = true,
@@ -195,8 +195,6 @@ export const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
         audio.addEventListener('pause', handlePause);
         audio.addEventListener('ended', handleEnded);
         audio.addEventListener('progress', handleProgress);
-        audio.addEventListener('seeking', handleSeeking);
-        audio.addEventListener('seeked', handleSeeked);
 
         // Start loading
         audio.load();
@@ -210,8 +208,6 @@ export const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
           audio.removeEventListener('pause', handlePause);
           audio.removeEventListener('ended', handleEnded);
           audio.removeEventListener('progress', handleProgress);
-          audio.removeEventListener('seeking', handleSeeking);
-          audio.removeEventListener('seeked', handleSeeked);
           audio.pause();
           audio.src = '';
           URL.revokeObjectURL(blobUrl);
