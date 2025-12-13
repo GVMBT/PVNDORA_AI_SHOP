@@ -335,38 +335,72 @@ function NewAppInner() {
       errorLabel: 'Audio stream unavailable',
       critical: false, // Not critical - app works without music
       execute: async () => {
-        // Preload background music
+        // Preload background music - FULL download via fetch first
         const musicUrl = '/sound.flac';
         const startTime = Date.now();
         
-        return new Promise((resolve, reject) => {
-          const audio = new Audio(musicUrl);
-          audio.preload = 'auto';
+        try {
+          // Step 1: Prefetch entire file via fetch (same as BackgroundMusic component)
+          console.log('[Boot] Prefetching audio file...');
+          const response = await fetch(musicUrl, { 
+            cache: 'force-cache',
+          });
           
-          const timeout = setTimeout(() => {
-            // If loading takes too long, resolve anyway (non-critical)
-            console.warn('[Boot] Music loading timeout, continuing...');
-            resolve({ loaded: false, loadTime: Date.now() - startTime });
-          }, 5000); // 5 second timeout
-          
-          audio.addEventListener('canplaythrough', () => {
-            clearTimeout(timeout);
-            const loadTime = Date.now() - startTime;
-            console.log(`[Boot] Music loaded in ${loadTime}ms`);
-            resolve({ loaded: true, loadTime });
-          }, { once: true });
-          
-          audio.addEventListener('error', (e) => {
-            clearTimeout(timeout);
-            const error = new Error(`Failed to load music: ${(e.target as HTMLAudioElement).error?.message || 'Unknown'}`);
-            console.warn('[Boot] Music load error:', error);
-            // Don't reject - music is non-critical
-            resolve({ loaded: false, error: error.message, loadTime: Date.now() - startTime });
-          }, { once: true });
-          
-          // Start loading
-          audio.load();
-        });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          // Step 2: Convert to blob to ensure full download
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const fetchTime = Date.now() - startTime;
+          console.log(`[Boot] File prefetched (${(blob.size / 1024 / 1024).toFixed(2)} MB) in ${fetchTime}ms`);
+
+          // Step 3: Create Audio element and wait for canplaythrough
+          return new Promise((resolve) => {
+            const audio = new Audio(blobUrl);
+            audio.preload = 'auto';
+            audio.crossOrigin = 'anonymous';
+            
+            const timeout = setTimeout(() => {
+              // If loading takes too long, resolve anyway (non-critical)
+              console.warn('[Boot] Music buffering timeout, continuing...');
+              URL.revokeObjectURL(blobUrl);
+              resolve({ loaded: false, loadTime: Date.now() - startTime, fetchTime });
+            }, 10000); // 10 second timeout for buffering
+            
+            audio.addEventListener('canplaythrough', () => {
+              clearTimeout(timeout);
+              const totalTime = Date.now() - startTime;
+              console.log(`[Boot] Music fully buffered in ${totalTime}ms (fetch: ${fetchTime}ms)`);
+              URL.revokeObjectURL(blobUrl);
+              resolve({ loaded: true, loadTime: totalTime, fetchTime });
+            }, { once: true });
+            
+            audio.addEventListener('error', (e) => {
+              clearTimeout(timeout);
+              const error = (e.target as HTMLAudioElement).error;
+              const errorMsg = error ? `Code ${error.code}: ${error.message}` : 'Unknown';
+              console.warn('[Boot] Music load error:', errorMsg);
+              URL.revokeObjectURL(blobUrl);
+              // Don't reject - music is non-critical
+              resolve({ loaded: false, error: errorMsg, loadTime: Date.now() - startTime, fetchTime });
+            }, { once: true });
+            
+            // Start loading
+            audio.load();
+          });
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : 'Unknown prefetch error';
+          console.warn('[Boot] Music prefetch error:', errorMsg);
+          // Don't reject - music is non-critical
+          return { 
+            loaded: false, 
+            error: errorMsg, 
+            loadTime: Date.now() - startTime,
+            fetchTime: 0
+          };
+        }
       },
     },
     {
