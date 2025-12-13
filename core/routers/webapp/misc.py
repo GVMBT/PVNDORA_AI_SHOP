@@ -179,19 +179,7 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
     
     db_user = await db.get_user_by_telegram_id(user.id)
     user_rank, user_saved = None, 0
-    
-    if db_user:
-        user_saved = float(db_user.total_saved) if hasattr(db_user, 'total_saved') and db_user.total_saved else 0
-        if user_saved > 0:
-            rank_result = await asyncio.to_thread(
-                lambda: db.client.table("users").select("id", count="exact").gt("total_saved", user_saved).execute()
-            )
-            user_rank = (rank_result.count or 0) + 1
-        else:
-            total_with_savings = await asyncio.to_thread(
-                lambda: db.client.table("users").select("id", count="exact").gt("total_saved", 0).execute()
-            )
-            user_rank = (total_with_savings.count or 0) + 1
+    user_found_in_list = False
     
     leaderboard = []
     for i, entry in enumerate(result_data):
@@ -200,14 +188,46 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
         if len(display_name) > 3:
             display_name = display_name[:3] + "***"
         
+        is_current = tg_id == user.id if tg_id else False
+        if is_current:
+            user_found_in_list = True
+            user_rank = i + 1 + offset
+            user_saved = float(entry.get("total_saved", 0))
+        
         leaderboard.append({
             "rank": i + 1 + offset,  # Account for offset in rank
             "name": display_name, 
             "total_saved": float(entry.get("total_saved", 0)),
-            "is_current_user": tg_id == user.id if tg_id else False,
+            "is_current_user": is_current,
             "telegram_id": tg_id,  # For avatar lookup
             "photo_url": entry.get("photo_url"),  # User profile photo from Telegram
         })
+    
+    # If user not in current page, calculate their actual rank
+    if not user_found_in_list and db_user:
+        user_saved = float(db_user.total_saved) if hasattr(db_user, 'total_saved') and db_user.total_saved else 0
+        if user_saved > 0:
+            rank_result = await asyncio.to_thread(
+                lambda: db.client.table("users").select("id", count="exact").gt("total_saved", user_saved).execute()
+            )
+            user_rank = (rank_result.count or 0) + 1
+        else:
+            # For users with no savings, find their position by created_at
+            # This matches the fill_result ordering
+            user_created = db_user.created_at
+            if user_created:
+                earlier_count = await asyncio.to_thread(
+                    lambda: db.client.table("users").select("id", count="exact")
+                    .eq("total_saved", 0)
+                    .lt("created_at", user_created.isoformat())
+                    .execute()
+                )
+                users_with_savings = await asyncio.to_thread(
+                    lambda: db.client.table("users").select("id", count="exact").gt("total_saved", 0).execute()
+                )
+                user_rank = (users_with_savings.count or 0) + (earlier_count.count or 0) + 1
+            else:
+                user_rank = total_users
     
     return {
         "leaderboard": leaderboard, 

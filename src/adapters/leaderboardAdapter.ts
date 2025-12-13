@@ -65,31 +65,13 @@ export function adaptLeaderboard(
   response: APILeaderboardResponse,
   _currentUserId?: string // Not needed anymore, backend sets is_current_user
 ): LeaderboardUser[] {
-  const { leaderboard, user_rank, user_saved } = response;
+  const { leaderboard } = response;
   
-  // Adapt all leaderboard entries
+  // Adapt all leaderboard entries - DO NOT add separate "YOU" entry
+  // The backend already marks the current user with is_current_user: true
+  // Adding a duplicate causes rank conflicts
   const adaptedUsers = leaderboard.map(adaptLeaderboardEntry);
   
-  // Check if current user is already in the list
-  const currentUserInList = adaptedUsers.some(u => u.isMe);
-  
-  // If current user has a rank but isn't in top list, add them
-  if (user_rank && user_saved !== undefined && !currentUserInList) {
-    const marketSpend = user_saved > 0 ? user_saved / 0.2 : 0;
-    adaptedUsers.push({
-      rank: user_rank,
-      name: 'YOU',
-      handle: '@you',
-      marketSpend: Math.round(marketSpend),
-      actualSpend: Math.round(marketSpend - user_saved),
-      saved: user_saved,
-      modules: 1,
-      trend: 'same',
-      status: 'ONLINE',
-      isMe: true,
-    });
-  }
-  
-  // Sort by rank
+  // Sort by rank to ensure proper ordering
   return adaptedUsers.sort((a, b) => a.rank - b.rank);
 }

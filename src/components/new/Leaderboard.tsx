@@ -78,9 +78,19 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
   // Use provided data or fallback to mock
   const data = propData && propData.length > 0 ? propData : LEADERBOARD_DATA;
 
+  // Extract top 3 for podium display (may have less than 3)
   const topThree = data.slice(0, 3);
-  const restList = data.slice(3); // show all remaining, not just up to 8
+  
+  // Rest of the list (excluding top 3, no duplicates)
+  const restList = data.slice(3);
+  
+  // Find current user for the sticky footer
   const currentUser = data.find(u => u.isMe);
+  
+  // Check if we have enough data for podium
+  const hasRank1 = topThree.length >= 1;
+  const hasRank2 = topThree.length >= 2;
+  const hasRank3 = topThree.length >= 3;
 
   // Calculate efficiency percentage
   const calculateEfficiency = (market: number, saved: number) => {
@@ -142,44 +152,49 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-end mb-12 md:mb-20 relative">
                 
                 {/* Rank 2 */}
+                {hasRank2 ? (
                 <div className="order-2 md:order-1 relative group">
                     <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     <div className="bg-[#0e0e0e] border border-white/10 p-6 relative overflow-hidden hover:border-pandora-cyan/30 transition-colors">
                         <div className="absolute top-0 left-0 bg-white/10 px-2 py-1 text-[10px] font-bold font-mono text-gray-300">RANK_02</div>
                         <div className="flex flex-col items-center text-center mt-4">
                             <div className="w-16 h-16 rounded-full border border-white/20 p-1 mb-3 overflow-hidden">
-                                {topThree[1]?.avatarUrl ? (
-                                  <img 
+                                <img 
                                     src={topThree[1].avatarUrl} 
                                     alt={topThree[1].name} 
                                     className="w-full h-full object-cover rounded-full"
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).style.display = 'none';
-                                      (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                                    }}
-                                  />
-                                ) : null}
-                                <div className={`w-full h-full bg-gray-800 rounded-full flex items-center justify-center ${topThree[1]?.avatarUrl ? 'hidden' : ''}`}>
-                                    <span className="font-display font-bold text-xl text-gray-500">{topThree[1]?.name[0]}</span>
-                                </div>
+                                />
                             </div>
-                            <h3 className="font-bold text-white text-lg">{topThree[1]?.name}</h3>
-                            <div className="text-xs font-mono text-pandora-cyan mb-4">{topThree[1]?.handle}</div>
+                            <h3 className="font-bold text-white text-lg">{topThree[1].name}</h3>
+                            <div className="text-xs font-mono text-pandora-cyan mb-4">{topThree[1].handle}</div>
                             
                             <div className="w-full bg-white/5 p-2 rounded-sm border border-white/5">
                                 <div className="text-[9px] text-gray-500 uppercase">Total Saved</div>
-                                <div className="text-lg font-bold text-white">₽ {((topThree[1]?.saved || 0) / 1000).toFixed(1)}k</div>
+                                <div className="text-lg font-bold text-white">₽ {(topThree[1].saved / 1000).toFixed(1)}k</div>
                             </div>
                         </div>
                     </div>
                 </div>
+                ) : (
+                <div className="order-2 md:order-1 relative">
+                    <div className="bg-[#0e0e0e] border border-white/5 p-6 opacity-30">
+                        <div className="absolute top-0 left-0 bg-white/5 px-2 py-1 text-[10px] font-bold font-mono text-gray-600">RANK_02</div>
+                        <div className="flex flex-col items-center text-center mt-4">
+                            <div className="w-16 h-16 rounded-full border border-white/10 mb-3 flex items-center justify-center">
+                                <span className="text-gray-600 text-2xl">?</span>
+                            </div>
+                            <h3 className="font-bold text-gray-600 text-lg">VACANT</h3>
+                        </div>
+                    </div>
+                </div>
+                )}
 
                 {/* Rank 1 (Center) */}
+                {hasRank1 && (
                 <div className="order-1 md:order-2 relative z-10 mt-0 md:-mt-12 mb-4 md:mb-0">
                      {/* Glow Effect */}
                     <div className="absolute inset-0 bg-pandora-cyan/20 blur-3xl -z-10" />
                     
-                    {/* Removed overflow-hidden to allow Crown to float on top */}
                     <div className="bg-[#050505] border border-pandora-cyan p-1 relative rounded-sm">
                         <div className="bg-[#0a0a0a] p-4 sm:p-8 relative">
                              {/* Crown Icon */}
@@ -192,72 +207,71 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                                     <div className="absolute inset-0 rounded-full border border-pandora-cyan animate-ping opacity-20" />
                                     <div className="w-full h-full bg-gray-900 rounded-full flex items-center justify-center overflow-hidden relative">
                                         <div className="absolute inset-0 bg-gradient-to-tr from-pandora-cyan/20 to-transparent" />
-                                        {topThree[0]?.avatarUrl ? (
-                                          <img 
+                                        <img 
                                             src={topThree[0].avatarUrl} 
                                             alt={topThree[0].name} 
                                             className="w-full h-full object-cover rounded-full relative z-10"
-                                            onError={(e) => {
-                                              (e.target as HTMLImageElement).style.display = 'none';
-                                              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                                            }}
-                                          />
-                                        ) : null}
-                                        <span className={`font-display font-bold text-3xl text-white relative z-10 ${topThree[0]?.avatarUrl ? 'hidden' : ''}`}>{topThree[0]?.name[0]}</span>
+                                        />
                                     </div>
                                     <div className="absolute bottom-0 right-0 w-6 h-6 bg-pandora-cyan rounded-full flex items-center justify-center text-black font-bold text-xs shadow-[0_0_10px_#00FFFF]">1</div>
                                 </div>
 
-                                <h3 className="font-display font-bold text-xl sm:text-2xl text-white tracking-wide">{topThree[0]?.name}</h3>
-                                <div className="text-sm font-mono text-pandora-cyan mb-6">{topThree[0]?.handle}</div>
+                                <h3 className="font-display font-bold text-xl sm:text-2xl text-white tracking-wide">{topThree[0].name}</h3>
+                                <div className="text-sm font-mono text-pandora-cyan mb-6">{topThree[0].handle}</div>
 
                                 <div className="w-full grid grid-cols-2 gap-2">
                                     <div className="bg-pandora-cyan/10 border border-pandora-cyan/30 p-2 rounded-sm overflow-hidden">
                                         <div className="text-[9px] text-pandora-cyan uppercase font-bold truncate">Saved</div>
-                                        <div className="text-base sm:text-xl font-bold text-white whitespace-normal break-all sm:break-normal leading-tight">₽ {((topThree[0]?.saved || 0) / 1000).toFixed(0)}k</div>
+                                        <div className="text-base sm:text-xl font-bold text-white whitespace-normal break-all sm:break-normal leading-tight">₽ {(topThree[0].saved / 1000).toFixed(0)}k</div>
                                     </div>
                                     <div className="bg-white/5 border border-white/10 p-2 rounded-sm overflow-hidden">
                                         <div className="text-[9px] text-gray-500 uppercase font-bold truncate">Efficiency</div>
-                                        <div className="text-base sm:text-xl font-bold text-white">{calculateEfficiency(topThree[0]?.marketSpend || 0, topThree[0]?.saved || 0)}%</div>
+                                        <div className="text-base sm:text-xl font-bold text-white">{calculateEfficiency(topThree[0].marketSpend, topThree[0].saved)}%</div>
                                     </div>
                                 </div>
                              </div>
                         </div>
                     </div>
                 </div>
+                )}
 
                 {/* Rank 3 */}
+                {hasRank3 ? (
                 <div className="order-3 md:order-3 relative group">
                     <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     <div className="bg-[#0e0e0e] border border-white/10 p-6 relative overflow-hidden hover:border-pandora-cyan/30 transition-colors">
                         <div className="absolute top-0 left-0 bg-white/10 px-2 py-1 text-[10px] font-bold font-mono text-gray-300">RANK_03</div>
                         <div className="flex flex-col items-center text-center mt-4">
                             <div className="w-16 h-16 rounded-full border border-white/20 p-1 mb-3 overflow-hidden">
-                                {topThree[2]?.avatarUrl ? (
-                                  <img 
+                                <img 
                                     src={topThree[2].avatarUrl} 
                                     alt={topThree[2].name} 
                                     className="w-full h-full object-cover rounded-full"
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).style.display = 'none';
-                                      (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                                    }}
-                                  />
-                                ) : null}
-                                <div className={`w-full h-full bg-gray-800 rounded-full flex items-center justify-center ${topThree[2]?.avatarUrl ? 'hidden' : ''}`}>
-                                    <span className="font-display font-bold text-xl text-gray-500">{topThree[2]?.name[0]}</span>
-                                </div>
+                                />
                             </div>
-                            <h3 className="font-bold text-white text-lg">{topThree[2]?.name}</h3>
-                            <div className="text-xs font-mono text-pandora-cyan mb-4">{topThree[2]?.handle}</div>
+                            <h3 className="font-bold text-white text-lg">{topThree[2].name}</h3>
+                            <div className="text-xs font-mono text-pandora-cyan mb-4">{topThree[2].handle}</div>
                             
                             <div className="w-full bg-white/5 p-2 rounded-sm border border-white/5">
                                 <div className="text-[9px] text-gray-500 uppercase">Total Saved</div>
-                                <div className="text-lg font-bold text-white">₽ {((topThree[2]?.saved || 0) / 1000).toFixed(1)}k</div>
+                                <div className="text-lg font-bold text-white">₽ {(topThree[2].saved / 1000).toFixed(1)}k</div>
                             </div>
                         </div>
                     </div>
                 </div>
+                ) : (
+                <div className="order-3 md:order-3 relative">
+                    <div className="bg-[#0e0e0e] border border-white/5 p-6 opacity-30">
+                        <div className="absolute top-0 left-0 bg-white/5 px-2 py-1 text-[10px] font-bold font-mono text-gray-600">RANK_03</div>
+                        <div className="flex flex-col items-center text-center mt-4">
+                            <div className="w-16 h-16 rounded-full border border-white/10 mb-3 flex items-center justify-center">
+                                <span className="text-gray-600 text-2xl">?</span>
+                            </div>
+                            <h3 className="font-bold text-gray-600 text-lg">VACANT</h3>
+                        </div>
+                    </div>
+                </div>
+                )}
             </div>
 
             {/* === MAIN LIST === */}
@@ -434,3 +448,5 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
 };
 
 export default Leaderboard;
+
+
