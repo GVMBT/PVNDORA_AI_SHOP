@@ -134,25 +134,47 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
     );
   }
 
-  // Convert cart data to component format
-  const cartItems: CartItem[] = cart?.items?.map(item => ({
-    id: item.id,
-    name: item.name,
-    category: item.category,
-    price: item.price,
-    quantity: item.quantity,
-    image: item.image,
-  })) || [];
+  // Convert cart data to component format (use useMemo to avoid recreating on each render)
+  const cartItems: CartItem[] = useMemo(() => {
+    if (!cart || !cart.items || !Array.isArray(cart.items)) {
+      console.log('[CheckoutModal] Cart items missing or invalid:', { cart, items: cart?.items });
+      return [];
+    }
+    try {
+      const mapped = cart.items.map(item => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        price: item.price,
+        quantity: item.quantity,
+        image: item.image,
+      }));
+      console.log('[CheckoutModal] Mapped cart items:', mapped.length, mapped);
+      return mapped;
+    } catch (err) {
+      console.error('[CheckoutModal] Error mapping cart items:', err, cart);
+      return [];
+    }
+  }, [cart]);
 
   // CRITICAL: Close modal immediately if cart is empty (check after mapping)
   useEffect(() => {
-    if (isInitialized && (!cart || !cart.items || cartItems.length === 0)) {
+    const isEmpty = !cart || !cart.items || !Array.isArray(cart.items) || cartItems.length === 0;
+    if (isInitialized && isEmpty) {
+      console.log('[CheckoutModal] Cart is empty, closing modal', { cart, cartItemsLength: cartItems.length });
       onClose();
     }
   }, [isInitialized, cart, cartItems.length, onClose]);
 
   // Don't render modal if cart is empty (but allow rendering during loading)
-  if (!cart || !cart.items || cartItems.length === 0) {
+  const shouldRender = cart && cart.items && Array.isArray(cart.items) && cartItems.length > 0;
+  if (!shouldRender) {
+    console.log('[CheckoutModal] Not rendering - cart empty or invalid', {
+      hasCart: !!cart,
+      hasItems: !!cart?.items,
+      itemsIsArray: Array.isArray(cart?.items),
+      cartItemsLength: cartItems.length
+    });
     return null;
   }
 
