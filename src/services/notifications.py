@@ -116,11 +116,11 @@ class NotificationService:
             # This is simplified - adjust based on your business logic
             expires_at = datetime.utcnow() + timedelta(hours=product.warranty_hours)
         
-        # Update order with stock item and expiration
+        # Update order with expiration
+        # Note: stock_item_id removed - stock items are linked via order_items table
         await db.update_order_status(
             order_id=order_id,
             status="completed",
-            stock_item_id=stock_item.id,
             expires_at=expires_at
         )
         

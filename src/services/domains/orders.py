@@ -18,7 +18,6 @@ class OrdersDomain:
     async def create(
         self,
         user_id: str,
-        product_id: str,
         amount: float,
         original_price: Optional[float] = None,
         discount_percent: int = 0,
@@ -28,9 +27,12 @@ class OrdersDomain:
         expires_at: Optional[datetime] = None,
         payment_url: Optional[str] = None,
     ) -> Order:
+        """Create new order.
+        
+        Note: product_id removed - products are stored in order_items table.
+        """
         return await self.repo.create(
             user_id=user_id,
-            product_id=product_id,
             amount=amount,
             original_price=original_price,
             discount_percent=discount_percent,
@@ -48,10 +50,13 @@ class OrdersDomain:
         self,
         order_id: str,
         status: str,
-        stock_item_id: Optional[str] = None,
         expires_at: Optional[datetime] = None,
     ) -> None:
-        await self.repo.update_status(order_id, status, stock_item_id, expires_at)
+        """Update order status.
+        
+        Note: stock_item_id removed - stock items are linked via order_items table.
+        """
+        await self.repo.update_status(order_id, status, expires_at)
 
     async def get_by_user(self, user_id: str, limit: int = 10, offset: int = 0) -> List[Order]:
         return await self.repo.get_by_user(user_id, limit, offset)

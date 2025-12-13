@@ -67,6 +67,11 @@ class ApplyPromoRequest(BaseModel):
 
 # ==================== PROFILE MODELS ====================
 
+class UpdatePreferencesRequest(BaseModel):
+    preferred_currency: Optional[str] = None  # RUB, USD, EUR, etc.
+    interface_language: Optional[str] = None  # ru, en, etc.
+
+
 class WithdrawalRequest(BaseModel):
     amount: float
     method: str  # card, phone, crypto

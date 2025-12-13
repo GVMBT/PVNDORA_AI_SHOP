@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException, Depends
 
 from src.services.database import get_database
 from core.auth import verify_telegram_auth
-from .models import WithdrawalRequest
+from .models import WithdrawalRequest, UpdatePreferencesRequest
 
 router = APIRouter(tags=["webapp-profile"])
 
@@ -196,7 +196,10 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
         from src.services.currency import get_currency_service
         redis = get_redis()
         currency_service = get_currency_service(redis)
-        currency = currency_service.get_user_currency(db_user.language_code if db_user and db_user.language_code else user.language_code)
+        # Use preferred_currency if set, otherwise fallback to language_code
+        user_lang = getattr(db_user, 'interface_language', None) or (db_user.language_code if db_user and db_user.language_code else user.language_code)
+        preferred_curr = getattr(db_user, 'preferred_currency', None)
+        currency = currency_service.get_user_currency(user_lang, preferred_curr)
     except Exception as e:
         print(f"Warning: Currency service unavailable: {e}, using USD")
     
@@ -254,6 +257,33 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
     )
     
     return {"success": True, "message": "Withdrawal request submitted"}
+
+
+@router.put("/profile/preferences")
+async def update_preferences(request: UpdatePreferencesRequest, user=Depends(verify_telegram_auth)):
+    """Update user preferences (currency and interface language)."""
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Validate currency if provided
+    valid_currencies = ["USD", "RUB", "EUR", "UAH", "TRY", "AED", "INR"]
+    if request.preferred_currency and request.preferred_currency.upper() not in valid_currencies:
+        raise HTTPException(status_code=400, detail=f"Invalid currency. Valid options: {', '.join(valid_currencies)}")
+    
+    # Validate language if provided
+    valid_languages = ["ru", "en", "de", "es", "fr", "tr", "ar", "hi", "uk", "be", "kk"]
+    if request.interface_language and request.interface_language.lower() not in valid_languages:
+        raise HTTPException(status_code=400, detail=f"Invalid language. Valid options: {', '.join(valid_languages)}")
+    
+    await db.update_user_preferences(
+        user.id,
+        preferred_currency=request.preferred_currency,
+        interface_language=request.interface_language
+    )
+    
+    return {"success": True, "message": "Preferences updated"}
 
 
 @router.get("/referral/network")

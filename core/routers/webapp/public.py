@@ -155,11 +155,18 @@ async def get_webapp_products(
         price_usd = float(p.price)
         msrp_usd = float(p.msrp) if hasattr(p, 'msrp') and p.msrp else None
         
-        if currency_service:
-            original_price = await currency_service.convert_price(price_usd, currency, round_to_int=True)
-            final_price_usd = price_usd * (1 - discount_percent / 100)
-            final_price = await currency_service.convert_price(final_price_usd, currency, round_to_int=True)
-            msrp = await currency_service.convert_price(msrp_usd, currency, round_to_int=True) if msrp_usd else None
+        if currency_service and currency != "USD":
+            try:
+                original_price = await currency_service.convert_price(price_usd, currency, round_to_int=True)
+                final_price_usd = price_usd * (1 - discount_percent / 100)
+                final_price = await currency_service.convert_price(final_price_usd, currency, round_to_int=True)
+                msrp = await currency_service.convert_price(msrp_usd, currency, round_to_int=True) if msrp_usd else None
+            except Exception as e:
+                print(f"Warning: Failed to convert price for product {p.id}: {e}, using USD")
+                original_price = price_usd
+                final_price = price_usd * (1 - discount_percent / 100)
+                msrp = msrp_usd
+                currency = "USD"  # Fallback to USD if conversion fails
         else:
             original_price = price_usd
             final_price = price_usd * (1 - discount_percent / 100)

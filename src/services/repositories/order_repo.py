@@ -11,7 +11,6 @@ class OrderRepository(BaseRepository):
     async def create(
         self,
         user_id: str,
-        product_id: str,
         amount: float,
         original_price: Optional[float] = None,
         discount_percent: int = 0,
@@ -21,10 +20,12 @@ class OrderRepository(BaseRepository):
         expires_at: Optional[datetime] = None,
         payment_url: Optional[str] = None
     ) -> Order:
-        """Create new order with payment expiration."""
+        """Create new order with payment expiration.
+        
+        Note: product_id removed - products are stored in order_items table.
+        """
         data = {
             "user_id": user_id,
-            "product_id": product_id,
             "amount": amount,
             "original_price": original_price or amount,
             "discount_percent": discount_percent,
@@ -38,6 +39,23 @@ class OrderRepository(BaseRepository):
             data["expires_at"] = expires_at.isoformat()
         if payment_url:
             data["payment_url"] = payment_url
+        
+        # Debug: ensure product_id is not in data
+        if "product_id" in data:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"ERROR: product_id found in order data: {data}")
+            raise ValueError("product_id should not be in order data - it was removed from orders table")
+        
+        # Remove any deprecated fields that might accidentally be in data
+        deprecated_fields = ["product_id", "stock_item_id", "delivery_content", "delivery_instructions"]
+        for field in deprecated_fields:
+            if field in data:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Removed deprecated field '{field}' from order data before insert")
+                data.pop(field, None)
+        
         result = self.client.table("orders").insert(data).execute()
         return Order(**result.data[0])
     
@@ -50,14 +68,14 @@ class OrderRepository(BaseRepository):
         self,
         order_id: str,
         status: str,
-        stock_item_id: Optional[str] = None,
         expires_at: Optional[datetime] = None
     ) -> None:
-        """Update order status and optionally assign stock item."""
+        """Update order status.
+        
+        Note: stock_item_id removed - stock items are linked via order_items table.
+        """
         data = {"status": status}
         
-        if stock_item_id:
-            data["stock_item_id"] = stock_item_id
         if expires_at:
             data["expires_at"] = expires_at.isoformat()
         if status == "completed":

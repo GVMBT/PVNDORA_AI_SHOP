@@ -85,7 +85,6 @@ async def create_payment_wrapper(
 async def persist_order(
     db,
     user_id: str,
-    product_id: str,  # DEPRECATED: Will be removed after migration. Use order_items instead.
     amount: Decimal,
     original_price: Decimal,
     discount_percent: int,
@@ -96,12 +95,10 @@ async def persist_order(
 ):
     """Create order record in database.
     
-    Note: product_id is deprecated and will be removed.
-    Products are now stored in order_items table.
+    Note: product_id removed - products are stored in order_items table.
     """
     return await db.create_order(
         user_id=user_id,
-        product_id=product_id,
         amount=to_float(amount),
         original_price=to_float(original_price),
         discount_percent=discount_percent,
@@ -303,7 +300,10 @@ async def get_webapp_orders(
         from src.services.currency import get_currency_service
         redis = get_redis()  # get_redis() is synchronous, no await needed
         currency_service = get_currency_service(redis)
-        currency = currency_service.get_user_currency(db_user.language_code or user.language_code)
+        # Use preferred_currency if set, otherwise fallback to language_code
+        user_lang = getattr(db_user, 'interface_language', None) or (db_user.language_code if db_user and db_user.language_code else user.language_code)
+        preferred_curr = getattr(db_user, 'preferred_currency', None)
+        currency = currency_service.get_user_currency(user_lang, preferred_curr)
     except Exception as e:
         logger.warning(f"Currency service unavailable: {e}, using USD")
     
@@ -662,7 +662,6 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
     order = await persist_order(
         db=db,
         user_id=db_user.id, 
-        product_id=first_item["product_id"],  # legacy field, first product
         amount=total_amount, 
         original_price=total_original,
         discount_percent=discount_pct,
@@ -799,6 +798,7 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         )
         payment_url = pay_result.get("payment_url")
         invoice_id = pay_result.get("invoice_id")
+        logger.info(f"CrystalPay payment created for order {order.id}: payment_url={payment_url[:50] if payment_url else 'None'}..., invoice_id={invoice_id}")
     except ValueError as e:
         # Откатываем заказ и order_items, если платеж не создан
         # Сначала удаляем order_items (FK constraint), потом заказ
@@ -863,7 +863,7 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         await db.use_promo_code(cart.promo_code)
     await cart_manager.clear_cart(user.id)
     
-    return OrderResponse(
+    response = OrderResponse(
         order_id=order.id, 
         amount=to_float(total_amount), 
         original_price=to_float(total_original),
@@ -871,6 +871,8 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         payment_url=payment_url, 
         payment_method=payment_method
     )
+    logger.info(f"Returning order response for {order.id}: payment_url present={bool(payment_url)}, method={payment_method}")
+    return response
 
 
 async def _create_single_order(db, db_user, user, request: CreateOrderRequest, payment_service, payment_method: str, payment_gateway: str = "rukassa") -> OrderResponse:

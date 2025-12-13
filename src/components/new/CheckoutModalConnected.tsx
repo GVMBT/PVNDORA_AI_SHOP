@@ -73,29 +73,46 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
       if (response) {
         // For external payment (CrystalPay), redirect IMMEDIATELY
         if (response.payment_url && method !== 'internal') {
-          console.log('[Checkout] Redirecting to CrystalPay:', response.payment_url);
+          console.log('[Checkout] Payment URL received:', response.payment_url);
+          console.log('[Checkout] Method:', method);
+          
           // In Telegram WebApp, use openLink
           const tg = (window as any).Telegram?.WebApp;
           if (tg?.openLink) {
-            // Close modal before redirect
-            onClose();
-            // Small delay to let modal close animation start
-            setTimeout(() => {
+            console.log('[Checkout] Using tg.openLink');
+            try {
+              // Call openLink directly - it opens external browser
               tg.openLink(response.payment_url);
-            }, 100);
-            // Return null to prevent success screen
-            return null;
+              // Don't close modal immediately - let user see the redirect
+              // Modal will be closed when user returns or by parent component
+              return null;
+            } catch (err) {
+              console.error('[Checkout] tg.openLink failed:', err);
+              // Fallback to window.location if openLink fails
+              window.location.href = response.payment_url;
+              return null;
+            }
           } else {
-            // Fallback: redirect directly (this will close modal automatically)
+            // Fallback: redirect directly if Telegram WebApp not available
+            console.log('[Checkout] Telegram WebApp not available, using window.location');
             window.location.href = response.payment_url;
             return null;
           }
         }
         
         // For internal (balance) payment, return response to show success
-        console.log('[Checkout] Balance payment completed, showing success');
-        return response;
+        if (method === 'internal') {
+          console.log('[Checkout] Balance payment completed, showing success');
+          return response;
+        }
+        
+        // If no payment_url and not internal, something went wrong
+        console.warn('[Checkout] No payment_url and not internal payment:', response);
+        throw new Error('Payment URL not received');
       }
+      
+      console.warn('[Checkout] No response from createOrder');
+      throw new Error('No response from server');
       return null;
     } catch (err) {
       console.error('Payment failed:', err);

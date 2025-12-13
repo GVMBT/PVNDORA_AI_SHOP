@@ -81,6 +81,17 @@ class UserRepository(BaseRepository):
         self.client.table("users").update(update_data).eq("telegram_id", telegram_id).execute()
         return new_count
     
+    async def update_preferences(self, telegram_id: int, preferred_currency: Optional[str] = None, interface_language: Optional[str] = None) -> None:
+        """Update user preferences for currency and interface language."""
+        update_data = {}
+        if preferred_currency is not None:
+            update_data["preferred_currency"] = preferred_currency.upper() if preferred_currency else None
+        if interface_language is not None:
+            update_data["interface_language"] = interface_language.lower() if interface_language else None
+        
+        if update_data:
+            self.client.table("users").update(update_data).eq("telegram_id", telegram_id).execute()
+    
     async def get_admins(self):
         """Get all admin users."""
         result = self.client.table("users").select("*").eq("is_admin", True).execute()

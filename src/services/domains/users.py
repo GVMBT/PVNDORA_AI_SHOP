@@ -46,4 +46,8 @@ class UsersDomain:
 
     async def add_warning(self, telegram_id: int) -> int:
         return await self.repo.add_warning(telegram_id)
+    
+    async def update_preferences(self, telegram_id: int, preferred_currency: Optional[str] = None, interface_language: Optional[str] = None) -> None:
+        """Update user preferences for currency and interface language."""
+        await self.repo.update_preferences(telegram_id, preferred_currency, interface_language)
 

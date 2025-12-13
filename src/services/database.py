@@ -83,6 +83,10 @@ class Database:
     async def update_user_language(self, telegram_id: int, language_code: str) -> None:
         await self.users_domain.update_language(telegram_id, language_code)
     
+    async def update_user_preferences(self, telegram_id: int, preferred_currency: Optional[str] = None, interface_language: Optional[str] = None) -> None:
+        """Update user preferences for currency and interface language."""
+        await self.users_domain.update_preferences(telegram_id, preferred_currency, interface_language)
+    
     async def update_user_activity(self, telegram_id: int) -> None:
         await self.users_domain.update_activity(telegram_id)
     
@@ -131,7 +135,6 @@ class Database:
     async def create_order(
         self,
         user_id: str,
-        product_id: str,
         amount: float,
         original_price: Optional[float] = None,
         discount_percent: int = 0,
@@ -141,9 +144,12 @@ class Database:
         expires_at: Optional[datetime] = None,
         payment_url: Optional[str] = None
     ) -> Order:
+        """Create new order.
+        
+        Note: product_id removed - products are stored in order_items table.
+        """
         return await self.orders_domain.create(
             user_id=user_id,
-            product_id=product_id,
             amount=amount,
             original_price=original_price,
             discount_percent=discount_percent,
@@ -182,10 +188,13 @@ class Database:
         self,
         order_id: str,
         status: str,
-        stock_item_id: Optional[str] = None,
         expires_at: Optional[datetime] = None
     ) -> None:
-        await self.orders_domain.update_status(order_id, status, stock_item_id, expires_at)
+        """Update order status.
+        
+        Note: stock_item_id removed - stock items are linked via order_items table.
+        """
+        await self.orders_domain.update_status(order_id, status, expires_at)
     
     async def get_user_orders(self, user_id: str, limit: int = 10, offset: int = 0) -> List[Order]:
         return await self.orders_domain.get_by_user(user_id, limit, offset)

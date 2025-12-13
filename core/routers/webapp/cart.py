@@ -13,7 +13,7 @@ from .models import AddToCartRequest, UpdateCartItemRequest, ApplyPromoRequest
 router = APIRouter(tags=["webapp-cart"])
 
 
-async def _format_cart_response(cart, db, user_language: str):
+async def _format_cart_response(cart, db, user_language: str, user_telegram_id: Optional[int] = None):
     """Build cart response with currency conversion."""
     from core.db import get_redis
     from src.services.currency import get_currency_service
@@ -24,7 +24,17 @@ async def _format_cart_response(cart, db, user_language: str):
     try:
         redis = get_redis()  # get_redis() is synchronous, no await needed
         currency_service = get_currency_service(redis)
-        currency = currency_service.get_user_currency(user_language)
+        
+        # Get user preferences if telegram_id provided
+        user_lang = user_language
+        preferred_curr = None
+        if user_telegram_id:
+            db_user = await db.get_user_by_telegram_id(user_telegram_id)
+            if db_user:
+                user_lang = getattr(db_user, 'interface_language', None) or user_language
+                preferred_curr = getattr(db_user, 'preferred_currency', None)
+        
+        currency = currency_service.get_user_currency(user_lang, preferred_curr)
     except Exception as e:
         print(f"Warning: Currency service unavailable: {e}, using USD")
     
@@ -123,7 +133,7 @@ async def get_webapp_cart(user=Depends(verify_telegram_auth)):
         db_user = await db.get_user_by_telegram_id(user.id)
         user_language = (db_user.language_code if db_user else None) or user.language_code
         
-        return await _format_cart_response(cart, db, user_language)
+        return await _format_cart_response(cart, db, user_language, user.id)
     except HTTPException:
         raise
     except Exception as e:

@@ -25,17 +25,8 @@ LANGUAGE_TO_CURRENCY: Dict[str, str] = {
     "kk": "RUB",      # Казахский → Рубли
 }
 
-# Default exchange rates (fallback if API unavailable)
-# Rates are relative to USD (1 USD = X currency)
-DEFAULT_RATES: Dict[str, float] = {
-    "USD": 1.0,
-    "RUB": 90.0,      # 1 USD = 90 RUB
-    "EUR": 0.92,      # 1 USD = 0.92 EUR
-    "UAH": 38.0,      # 1 USD = 38 UAH
-    "TRY": 32.0,      # 1 USD = 32 TRY
-    "AED": 3.67,      # 1 USD = 3.67 AED
-    "INR": 83.0,      # 1 USD = 83 INR
-}
+# Note: Exchange rates are fetched from exchangerate-api.com
+# No hardcoded fallback rates - always use real-time data
 
 
 class CurrencyService:
@@ -50,24 +41,34 @@ class CurrencyService:
         """
         self.redis = redis_client
         self.language_to_currency = LANGUAGE_TO_CURRENCY
-        self.default_rates = DEFAULT_RATES
     
-    def get_user_currency(self, language_code: Optional[str]) -> str:
+    def get_user_currency(self, language_code: Optional[str] = None, preferred_currency: Optional[str] = None) -> str:
         """
-        Get currency code for user's language.
+        Get currency code for user.
+        
+        Priority:
+        1. preferred_currency (if set by user)
+        2. language_code mapping (if provided)
+        3. Default to USD
         
         Args:
             language_code: User's language code (e.g., "ru", "en")
+            preferred_currency: User's preferred currency from DB (e.g., "RUB", "USD")
             
         Returns:
             Currency code (e.g., "RUB", "USD")
         """
-        if not language_code:
-            return "USD"
+        # Use preferred currency if set
+        if preferred_currency:
+            return preferred_currency.upper()
         
-        # Normalize language code (e.g., "ru-RU" -> "ru")
-        lang = language_code.split("-")[0].lower()
-        return self.language_to_currency.get(lang, "USD")
+        # Fallback to language-based currency
+        if language_code:
+            # Normalize language code (e.g., "ru-RU" -> "ru")
+            lang = language_code.split("-")[0].lower()
+            return self.language_to_currency.get(lang, "USD")
+        
+        return "USD"
     
     async def get_exchange_rate(self, target_currency: str) -> float:
         """
@@ -100,10 +101,12 @@ class CurrencyService:
                     await self._cache_rate(target_currency, rate)
                 return rate
         except Exception as e:
-            print(f"Warning: Failed to fetch exchange rate: {e}")
+            print(f"Warning: Failed to fetch exchange rate for {target_currency}: {e}")
         
-        # Fallback to default rates
-        return self.default_rates.get(target_currency, 1.0)
+        # No fallback - if API unavailable, log error and return 1.0 (USD equivalent)
+        # This will show prices in USD if conversion fails
+        print(f"ERROR: Could not get exchange rate for {target_currency}, using 1.0 (USD)")
+        return 1.0
     
     async def _get_cached_rate(self, currency: str) -> Optional[str]:
         """Get cached exchange rate from Redis."""

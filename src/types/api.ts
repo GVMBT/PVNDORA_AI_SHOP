@@ -135,7 +135,7 @@ export interface APICreateOrderResponse {
   amount: number;
   original_price: number;
   discount_percent: number;
-  payment_url: string;
+  payment_url?: string | null;  // Optional - null for balance payments, URL for external gateways
   payment_method: string;
 }
 

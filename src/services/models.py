@@ -14,6 +14,8 @@ class User(BaseModel):
     username: Optional[str] = None
     first_name: Optional[str] = None
     language_code: str = "en"
+    preferred_currency: Optional[str] = None  # User preferred currency (RUB, USD, EUR, etc.)
+    interface_language: Optional[str] = None  # User preferred interface language (ru, en, etc.)
     balance: Decimal = Decimal("0")
     referrer_id: Optional[str] = None
     personal_ref_percent: int = 20
