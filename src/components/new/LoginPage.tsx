@@ -26,7 +26,7 @@ interface LoginPageProps {
 
 const LoginPage: React.FC<LoginPageProps> = ({ 
   onLoginSuccess,
-  botUsername = 'pvndora_bot' // Default bot username
+  botUsername = 'pvndora_ai_bot' // Default bot username (from env)
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

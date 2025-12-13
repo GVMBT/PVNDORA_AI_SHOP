@@ -121,6 +121,12 @@ interface Toast {
 type ViewType = 'home' | 'orders' | 'profile' | 'leaderboard' | 'legal' | 'admin';
 
 function NewApp() {
+  // Bot username for web login widget
+  const BOT_USERNAME =
+    (import.meta as any)?.env?.VITE_BOT_USERNAME ||
+    (window as any).__BOT_USERNAME ||
+    'pvndora_ai_bot';
+
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isSupportWidgetOpen, setIsSupportWidgetOpen] = useState(false);
@@ -373,7 +379,7 @@ function NewApp() {
     return (
       <LoginPage 
         onLoginSuccess={() => setIsAuthenticated(true)}
-        botUsername="pvndora_bot"
+        botUsername={BOT_USERNAME}
       />
     );
   }
