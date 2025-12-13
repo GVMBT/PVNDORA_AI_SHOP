@@ -17,6 +17,8 @@ from .models import WithdrawalRequest
 
 router = APIRouter(tags=["webapp-profile"])
 
+PHOTO_REFRESH_TTL = 6 * 60 * 60  # 6 hours
+
 
 async def _fetch_telegram_photo_url(telegram_id: int) -> Optional[str]:
     """
@@ -59,6 +61,52 @@ async def _fetch_telegram_photo_url(telegram_id: int) -> Optional[str]:
         return None
 
 
+async def _maybe_refresh_photo(db, db_user, telegram_id: int) -> None:
+    """
+    Refresh user photo if:
+      - No photo_url stored, or
+      - TTL expired (redis gate)
+    Uses a 6h gate to avoid spamming Telegram API.
+    """
+    redis = None
+    try:
+        try:
+            from core.db import get_redis  # local import to avoid cycles
+            redis = get_redis()
+        except Exception:
+            redis = None
+        
+        gate_key = f"user:photo:refresh:{telegram_id}"
+        if redis:
+            try:
+                if await redis.get(gate_key):
+                    return
+            except Exception:
+                pass
+        
+        current_photo = getattr(db_user, "photo_url", None)
+        if current_photo:
+            # We still allow refresh (for updated TG photo) but behind gate
+            pass
+        
+        photo_url = await _fetch_telegram_photo_url(telegram_id)
+        if photo_url and photo_url != current_photo:
+            try:
+                await db.update_user_photo(telegram_id, photo_url)
+                db_user.photo_url = photo_url
+            except Exception as e:
+                print(f"Warning: Failed to update user photo: {e}")
+        
+        if redis:
+            try:
+                await redis.set(gate_key, "1", ex=PHOTO_REFRESH_TTL)
+            except Exception:
+                pass
+    except Exception as e:
+        # Non-fatal
+        print(f"Warning: photo refresh failed: {e}")
+
+
 @router.get("/profile")
 async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     """Get user profile with referral stats, balance, and history."""
@@ -67,15 +115,8 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # If photo missing, try to fetch once from Telegram Bot API
-    if not getattr(db_user, "photo_url", None):
-        photo_url = await _fetch_telegram_photo_url(user.id)
-        if photo_url:
-            try:
-                await db.update_user_photo(user.id, photo_url)
-                db_user.photo_url = photo_url
-            except Exception as e:
-                print(f"Warning: Failed to update user photo: {e}")
+    # Refresh photo (with 6h gate) to catch avatar updates or missing photos
+    await _maybe_refresh_photo(db, db_user, user.id)
     
     # Parallel database queries for better performance
     async def fetch_settings():
