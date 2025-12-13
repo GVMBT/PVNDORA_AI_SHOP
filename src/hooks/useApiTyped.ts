@@ -5,7 +5,7 @@
  * These hooks wrap useApi and apply adapters for component consumption.
  */
 
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useApi } from './useApi';
 import type {
   APIProductsResponse,
@@ -192,21 +192,50 @@ export function useLeaderboardTyped() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [currentOffset, setCurrentOffset] = useState(0);
+  // Track loaded offsets to prevent duplicate requests
+  const loadedOffsetsRef = React.useRef<Set<number>>(new Set());
 
   const getLeaderboard = useCallback(async (limit: number = 15, offset: number = 0, append: boolean = false): Promise<LeaderboardUser[]> => {
+    // Prevent duplicate requests for same offset
+    if (append && loadedOffsetsRef.current.has(offset)) {
+      console.log(`[Leaderboard] Skipping duplicate request for offset ${offset}`);
+      return [];
+    }
+    
     try {
       const response: APILeaderboardResponse = await get(`/leaderboard?limit=${limit}&offset=${offset}`);
       const telegramUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
       const adapted = adaptLeaderboard(response, telegramUser?.id?.toString());
       
+      // Mark this offset as loaded
+      loadedOffsetsRef.current.add(offset);
+      
       // Update pagination state
-      setHasMore((response as any).has_more ?? adapted.length === limit);
+      const responseHasMore = (response as any).has_more;
+      setHasMore(responseHasMore ?? adapted.length === limit);
       setCurrentOffset(offset + adapted.length);
       
-      // Append or replace
+      // Append with deduplication by rank
       if (append && offset > 0) {
-        setLeaderboard(prev => [...prev, ...adapted]);
+        setLeaderboard(prev => {
+          // Combine previous and new entries
+          const combined = [...prev, ...adapted];
+          // Deduplicate by rank - keep the first occurrence
+          const seenRanks = new Set<number>();
+          const unique = combined.filter(user => {
+            if (seenRanks.has(user.rank)) {
+              return false;
+            }
+            seenRanks.add(user.rank);
+            return true;
+          });
+          // Sort by rank
+          return unique.sort((a, b) => a.rank - b.rank);
+        });
       } else {
+        // Fresh load - reset tracking
+        loadedOffsetsRef.current.clear();
+        loadedOffsetsRef.current.add(offset);
         setLeaderboard(adapted);
       }
       
@@ -222,7 +251,15 @@ export function useLeaderboardTyped() {
     return getLeaderboard(15, currentOffset, true);
   }, [getLeaderboard, hasMore, loading, currentOffset]);
 
-  return { leaderboard, getLeaderboard, loadMore, hasMore, loading, error };
+  // Reset function for when component unmounts/remounts
+  const reset = useCallback(() => {
+    loadedOffsetsRef.current.clear();
+    setLeaderboard([]);
+    setCurrentOffset(0);
+    setHasMore(true);
+  }, []);
+
+  return { leaderboard, getLeaderboard, loadMore, hasMore, loading, error, reset };
 }
 
 /**

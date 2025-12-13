@@ -75,7 +75,31 @@ class AuthMiddleware(BaseMiddleware):
             await self._update_user_photo(db, user.id, data)
         else:
             # For existing users, update photo if they don't have one
+            # OR refresh every 6 hours to capture avatar updates
+            should_refresh = False
+            
             if not getattr(db_user, 'photo_url', None):
+                should_refresh = True
+            else:
+                # Check if photo_url is an old Telegram file link (they expire)
+                photo_url = getattr(db_user, 'photo_url', '') or ''
+                if 'api.telegram.org/file/' in photo_url:
+                    # Telegram file links can expire, refresh periodically
+                    # Check last_activity - if > 6 hours since last photo update
+                    from datetime import datetime, timezone, timedelta
+                    last_update = getattr(db_user, 'last_activity_at', None)
+                    if last_update:
+                        try:
+                            if isinstance(last_update, str):
+                                from dateutil.parser import isoparse
+                                last_update = isoparse(last_update)
+                            age = datetime.now(timezone.utc) - last_update
+                            if age > timedelta(hours=6):
+                                should_refresh = True
+                        except Exception:
+                            pass
+            
+            if should_refresh:
                 await self._update_user_photo(db, user.id, data)
         
         # Check if banned
