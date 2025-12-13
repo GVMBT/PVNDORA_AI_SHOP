@@ -27,12 +27,20 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
 
   useEffect(() => {
     const init = async () => {
-      const [freshCart] = await Promise.all([getCart(), getProfile()]);
-      setIsInitialized(true);
-      
-      // CRITICAL: If cart is empty after fetch, close immediately
-      if (!freshCart || !freshCart.items || freshCart.items.length === 0) {
-        onClose();
+      try {
+        console.log('[CheckoutModal] Initializing, fetching cart and profile...');
+        const [freshCart] = await Promise.all([getCart(), getProfile()]);
+        console.log('[CheckoutModal] Initialization complete, cart:', freshCart);
+        setIsInitialized(true);
+        
+        // CRITICAL: If cart is empty after fetch, close immediately
+        if (!freshCart || !freshCart.items || !Array.isArray(freshCart.items) || freshCart.items.length === 0) {
+          console.log('[CheckoutModal] Cart is empty after init, closing modal');
+          onClose();
+        }
+      } catch (err) {
+        console.error('[CheckoutModal] Initialization error:', err);
+        setIsInitialized(true);
       }
     };
     init();
@@ -40,7 +48,9 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
 
   // ALWAYS close if cart becomes empty - no exceptions
   useEffect(() => {
-    if (isInitialized && (!cart || !cart.items || cart.items.length === 0)) {
+    const isEmpty = !cart || !cart.items || !Array.isArray(cart.items) || cart.items.length === 0;
+    if (isInitialized && isEmpty) {
+      console.log('[CheckoutModal] Cart became empty, closing modal', { cart });
       onClose();
     }
   }, [isInitialized, cart, onClose]);
