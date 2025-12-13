@@ -8,7 +8,7 @@
  * - HUD Notifications (System Logs)
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion, useMotionValue, useMotionTemplate } from 'framer-motion';
 
 // New Connected Components
@@ -30,6 +30,7 @@ import {
   LoginPage,
   BootSequence,
   useHUD,
+  type BootTask,
 } from './components/new';
 
 // Types
@@ -41,6 +42,9 @@ import { useCart } from './contexts/CartContext';
 
 // Audio Engine (procedural sound generation)
 import { AudioEngine } from './lib/AudioEngine';
+
+// API base URL
+const API_BASE = (import.meta as any)?.env?.VITE_API_URL || '/api';
 
 type ViewType = 'home' | 'orders' | 'profile' | 'leaderboard' | 'legal' | 'admin';
 
@@ -98,45 +102,7 @@ function NewAppInner() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [mouseX, mouseY]);
 
-  // Check authentication on mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      // Persist session_token from URL query if present (using shared utility)
-      const { persistSessionTokenFromQuery } = await import('./utils/auth');
-      persistSessionTokenFromQuery();
-
-      // In Telegram WebApp context - always authenticated via initData
-      const tg = (window as any).Telegram?.WebApp;
-      if (tg?.initData) {
-        setIsAuthenticated(true);
-        return;
-      }
-      
-      // In browser - check for session token
-      const { getSessionToken, verifySessionToken, removeSessionToken } = await import('./utils/auth');
-      const sessionToken = getSessionToken();
-      if (sessionToken) {
-        // Verify token is still valid using shared utility
-        const result = await verifySessionToken(sessionToken);
-        setIsAuthenticated(result?.valid === true);
-        if (!result?.valid) {
-          removeSessionToken();
-        }
-      } else {
-        setIsAuthenticated(false);
-      }
-    };
-    
-    checkAuth();
-  }, []);
-
-  // Fetch products and cart on mount (only when authenticated)
-  useEffect(() => {
-    if (isAuthenticated) {
-      getProducts();
-      getCart();
-    }
-  }, [getProducts, getCart, isAuthenticated]);
+  // Note: Authentication and data loading is now handled by BootSequence tasks
 
   // Initialize Audio on first interaction
   useEffect(() => {
@@ -296,19 +262,116 @@ function NewAppInner() {
 
   const shouldRaiseSupport = currentView === 'leaderboard';
   
-  // Handle boot sequence completion
-  const handleBootComplete = useCallback(() => {
+  // Boot sequence tasks - these run REAL operations
+  const bootTasks: BootTask[] = useMemo(() => [
+    {
+      id: 'audio',
+      label: 'Initializing audio subsystem...',
+      successLabel: 'Audio engine: ONLINE',
+      execute: async () => {
+        AudioEngine.init();
+        await AudioEngine.resume();
+        AudioEngine.boot();
+        return true;
+      },
+    },
+    {
+      id: 'auth',
+      label: 'Verifying operator credentials...',
+      successLabel: 'Operator authenticated',
+      errorLabel: 'Authentication required',
+      critical: false, // Not critical - will show login page
+      execute: async () => {
+        // Persist session_token from URL query if present
+        const { persistSessionTokenFromQuery } = await import('./utils/auth');
+        persistSessionTokenFromQuery();
+
+        // In Telegram WebApp context - always authenticated via initData
+        const tg = (window as any).Telegram?.WebApp;
+        if (tg?.initData) {
+          return { authenticated: true, source: 'telegram' };
+        }
+        
+        // In browser - check for session token
+        const { getSessionToken, verifySessionToken, removeSessionToken } = await import('./utils/auth');
+        const sessionToken = getSessionToken();
+        if (sessionToken) {
+          const result = await verifySessionToken(sessionToken);
+          if (result?.valid) {
+            return { authenticated: true, source: 'session' };
+          }
+          removeSessionToken();
+        }
+        
+        return { authenticated: false };
+      },
+    },
+    {
+      id: 'catalog',
+      label: 'Syncing inventory database...',
+      successLabel: 'Product catalog loaded',
+      execute: async () => {
+        const products = await getProducts();
+        return { productCount: products?.length || 0 };
+      },
+    },
+    {
+      id: 'cart',
+      label: 'Loading operator payload...',
+      successLabel: 'Cart data synchronized',
+      execute: async () => {
+        const cart = await getCart();
+        return { itemCount: cart?.items?.length || 0 };
+      },
+    },
+    {
+      id: 'prefetch',
+      label: 'Caching static resources...',
+      successLabel: 'Resources cached',
+      execute: async () => {
+        // Prefetch critical images/fonts
+        const prefetchUrls = [
+          'https://grainy-gradients.vercel.app/noise.svg',
+        ];
+        await Promise.allSettled(
+          prefetchUrls.map(url => fetch(url).catch(() => null))
+        );
+        return true;
+      },
+    },
+  ], [getProducts, getCart]);
+  
+  // Handle boot sequence completion with real data
+  const handleBootComplete = useCallback((results: Record<string, any>) => {
+    console.log('[Boot] Sequence complete with results:', results);
+    
+    // Check authentication result
+    const authResult = results.auth;
+    if (authResult?.authenticated) {
+      setIsAuthenticated(true);
+    } else {
+      setIsAuthenticated(false);
+    }
+    
     setIsBooted(true);
     AudioEngine.connect();
-    hud.system('UPLINK ESTABLISHED', 'Welcome back, Operator');
+    
+    // Show welcome notification with stats
+    const productCount = results.catalog?.productCount || 0;
+    const cartCount = results.cart?.itemCount || 0;
+    
+    setTimeout(() => {
+      hud.system('UPLINK ESTABLISHED', `${productCount} modules available • ${cartCount} in payload`);
+    }, 500);
   }, [hud]);
 
   // Show Boot Sequence first (only once per session)
-  if (!isBooted && isAuthenticated !== false) {
+  if (!isBooted) {
     return (
       <BootSequence 
+        tasks={bootTasks}
         onComplete={handleBootComplete}
-        minDuration={3500}
+        minDuration={2500}
       />
     );
   }

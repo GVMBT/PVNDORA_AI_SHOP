@@ -17,7 +17,7 @@ export { default as CommandPalette } from './CommandPalette';
 export { default as Legal } from './Legal';
 
 // === SYSTEM COMPONENTS ===
-export { default as BootSequence } from './BootSequence';
+export { default as BootSequence, type BootTask } from './BootSequence';
 export { HUDProvider, useHUD, HUDIcons } from './HUDNotifications';
 
 // === DATA COMPONENTS (With Mock Data - For Development) ===

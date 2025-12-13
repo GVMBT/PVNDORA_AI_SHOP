@@ -1,68 +1,40 @@
 /**
  * PVNDORA Boot Sequence
  * 
- * Terminal-style loading screen that mimics OS boot process.
- * Hides React loading and creates immersive cyberpunk atmosphere.
+ * Terminal-style loading screen that performs REAL data preloading:
+ * - Authenticates user
+ * - Loads product catalog
+ * - Initializes audio engine
+ * - Preloads cart data
+ * - Caches critical resources
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Types for boot tasks
+export interface BootTask {
+  id: string;
+  label: string;           // Display text while loading
+  successLabel?: string;   // Display text on success
+  errorLabel?: string;     // Display text on error
+  execute: () => Promise<any>;  // Actual async work
+  critical?: boolean;      // If true, boot fails on error
+}
+
 interface BootSequenceProps {
-  onComplete: () => void;
+  onComplete: (results: Record<string, any>) => void;
+  tasks: BootTask[];
   minDuration?: number; // Minimum display time in ms
 }
 
 interface LogEntry {
-  id: number;
+  id: string;
   text: string;
   type: 'info' | 'success' | 'warning' | 'error' | 'system';
-  delay: number;
 }
 
-// Boot sequence messages - simulates system initialization
-const BOOT_LOGS: Omit<LogEntry, 'id'>[] = [
-  { text: 'PVNDORA PROTOCOL v2.7.4', type: 'system', delay: 0 },
-  { text: 'Initializing secure uplink...', type: 'info', delay: 200 },
-  { text: 'Loading cryptographic modules...', type: 'info', delay: 400 },
-  { text: 'AES-256 encryption: ACTIVE', type: 'success', delay: 600 },
-  { text: 'Establishing mesh network...', type: 'info', delay: 800 },
-  { text: 'Node discovery: 847 nodes found', type: 'success', delay: 1100 },
-  { text: 'Verifying operator credentials...', type: 'info', delay: 1400 },
-  { text: 'WARNING: Unsecured connection detected', type: 'warning', delay: 1600 },
-  { text: 'Routing through proxy layer...', type: 'info', delay: 1800 },
-  { text: 'Connection secured via TOR relay', type: 'success', delay: 2100 },
-  { text: 'Loading AI compute modules...', type: 'info', delay: 2300 },
-  { text: 'Gemini 2.5 interface: ONLINE', type: 'success', delay: 2500 },
-  { text: 'Syncing inventory database...', type: 'info', delay: 2700 },
-  { text: 'Stock availability: VERIFIED', type: 'success', delay: 2900 },
-  { text: 'SYSTEM READY', type: 'system', delay: 3200 },
-];
-
-const TypewriterText: React.FC<{ text: string; speed?: number; onComplete?: () => void }> = ({
-  text,
-  speed = 15,
-  onComplete,
-}) => {
-  const [displayText, setDisplayText] = useState('');
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  useEffect(() => {
-    if (currentIndex < text.length) {
-      const timeout = setTimeout(() => {
-        setDisplayText(prev => prev + text[currentIndex]);
-        setCurrentIndex(prev => prev + 1);
-      }, speed);
-      return () => clearTimeout(timeout);
-    } else if (onComplete) {
-      onComplete();
-    }
-  }, [currentIndex, text, speed, onComplete]);
-
-  return <span>{displayText}<span className="animate-pulse">_</span></span>;
-};
-
-const LogLine: React.FC<{ entry: LogEntry; isTyping?: boolean }> = ({ entry, isTyping }) => {
+const LogLine: React.FC<{ entry: LogEntry }> = ({ entry }) => {
   const colorMap = {
     info: 'text-gray-400',
     success: 'text-pandora-cyan',
@@ -72,7 +44,7 @@ const LogLine: React.FC<{ entry: LogEntry; isTyping?: boolean }> = ({ entry, isT
   };
 
   const prefixMap = {
-    info: '[INFO]',
+    info: '[...]',
     success: '[OK]',
     warning: '[WARN]',
     error: '[ERR]',
@@ -86,62 +58,106 @@ const LogLine: React.FC<{ entry: LogEntry; isTyping?: boolean }> = ({ entry, isT
       className={`font-mono text-xs sm:text-sm ${colorMap[entry.type]}`}
     >
       <span className="text-gray-600 mr-2">{prefixMap[entry.type]}</span>
-      {isTyping ? (
-        <TypewriterText text={entry.text} speed={10} />
-      ) : (
-        entry.text
-      )}
+      {entry.text}
     </motion.div>
   );
 };
 
 export const BootSequence: React.FC<BootSequenceProps> = ({
   onComplete,
-  minDuration = 3500,
+  tasks,
+  minDuration = 2000,
 }) => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [progress, setProgress] = useState(0);
-  const [phase, setPhase] = useState<'boot' | 'ready' | 'fadeout'>('boot');
+  const [phase, setPhase] = useState<'boot' | 'ready' | 'error' | 'fadeout'>('boot');
   const [glitchActive, setGlitchActive] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  const resultsRef = useRef<Record<string, any>>({});
+  const startTimeRef = useRef<number>(Date.now());
 
-  // Progress calculation
-  const totalDelay = useMemo(() => 
-    Math.max(...BOOT_LOGS.map(l => l.delay)) + 500, 
-    []
-  );
+  // Add log entry
+  const addLog = useCallback((id: string, text: string, type: LogEntry['type']) => {
+    setLogs(prev => [...prev, { id: `${id}-${Date.now()}`, text, type }]);
+  }, []);
 
-  // Add logs progressively
+  // Execute all boot tasks sequentially
   useEffect(() => {
-    const timers: NodeJS.Timeout[] = [];
+    let cancelled = false;
     
-    BOOT_LOGS.forEach((log, index) => {
-      const timer = setTimeout(() => {
-        setLogs(prev => [...prev, { ...log, id: index }]);
-        setProgress(((index + 1) / BOOT_LOGS.length) * 100);
-      }, log.delay);
-      timers.push(timer);
-    });
-
-    // Transition to ready phase
-    const readyTimer = setTimeout(() => {
+    const runBootSequence = async () => {
+      // Initial system messages
+      addLog('sys', 'PVNDORA PROTOCOL v2.7.4', 'system');
+      await new Promise(r => setTimeout(r, 150));
+      addLog('sys', 'Initializing secure uplink...', 'info');
+      await new Promise(r => setTimeout(r, 100));
+      
+      // Execute each task
+      for (let i = 0; i < tasks.length; i++) {
+        if (cancelled) return;
+        
+        const task = tasks[i];
+        addLog(task.id, task.label, 'info');
+        
+        try {
+          const result = await task.execute();
+          resultsRef.current[task.id] = result;
+          
+          const successText = task.successLabel || `${task.label.replace('...', '')}: COMPLETE`;
+          addLog(task.id, successText, 'success');
+          
+        } catch (error) {
+          const errorText = task.errorLabel || `${task.label.replace('...', '')}: FAILED`;
+          addLog(task.id, errorText, 'error');
+          
+          if (task.critical) {
+            setErrorMessage(`Critical error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            setPhase('error');
+            return;
+          }
+          
+          // Non-critical error - continue with warning
+          addLog(task.id, 'Continuing with degraded functionality...', 'warning');
+        }
+        
+        // Update progress
+        setProgress(((i + 1) / tasks.length) * 100);
+        
+        // Small delay between tasks for visual effect
+        await new Promise(r => setTimeout(r, 80));
+      }
+      
+      if (cancelled) return;
+      
+      // Final messages
+      await new Promise(r => setTimeout(r, 200));
+      addLog('sys', 'All systems operational', 'success');
+      addLog('sys', 'SYSTEM READY', 'system');
+      
       setPhase('ready');
-    }, totalDelay);
-    timers.push(readyTimer);
-
-    // Start fadeout
-    const fadeTimer = setTimeout(() => {
+      
+      // Calculate remaining time to meet minimum duration
+      const elapsed = Date.now() - startTimeRef.current;
+      const remainingTime = Math.max(0, minDuration - elapsed);
+      
+      // Wait for minimum duration then fade out
+      await new Promise(r => setTimeout(r, remainingTime + 500));
+      
+      if (cancelled) return;
       setPhase('fadeout');
-    }, Math.max(minDuration, totalDelay + 500));
-    timers.push(fadeTimer);
-
-    // Complete
-    const completeTimer = setTimeout(() => {
-      onComplete();
-    }, Math.max(minDuration, totalDelay + 500) + 800);
-    timers.push(completeTimer);
-
-    return () => timers.forEach(t => clearTimeout(t));
-  }, [totalDelay, minDuration, onComplete]);
+      
+      // Complete after fade animation
+      await new Promise(r => setTimeout(r, 800));
+      if (!cancelled) {
+        onComplete(resultsRef.current);
+      }
+    };
+    
+    runBootSequence();
+    
+    return () => { cancelled = true; };
+  }, [tasks, addLog, minDuration, onComplete]);
 
   // Random glitch effect
   useEffect(() => {
@@ -153,6 +169,14 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
     }, 500);
     return () => clearInterval(glitchInterval);
   }, []);
+
+  // Auto-scroll logs container
+  const logsContainerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (logsContainerRef.current) {
+      logsContainerRef.current.scrollTop = logsContainerRef.current.scrollHeight;
+    }
+  }, [logs]);
 
   return (
     <AnimatePresence>
@@ -221,22 +245,21 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
             <div className="bg-black/50 border border-gray-800 rounded-sm overflow-hidden backdrop-blur-sm">
               {/* Terminal header */}
               <div className="flex items-center gap-2 px-3 py-2 bg-gray-900/50 border-b border-gray-800">
-                <div className="w-3 h-3 rounded-full bg-red-500/50" />
-                <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
-                <div className="w-3 h-3 rounded-full bg-green-500/50" />
+                <div className={`w-3 h-3 rounded-full ${phase === 'error' ? 'bg-red-500' : 'bg-red-500/50'}`} />
+                <div className={`w-3 h-3 rounded-full ${phase === 'boot' ? 'bg-yellow-500 animate-pulse' : 'bg-yellow-500/50'}`} />
+                <div className={`w-3 h-3 rounded-full ${phase === 'ready' ? 'bg-green-500' : 'bg-green-500/50'}`} />
                 <span className="ml-2 font-mono text-[10px] text-gray-500">
                   SECURE_TERMINAL — node://pvndora.mesh
                 </span>
               </div>
 
               {/* Terminal content */}
-              <div className="p-4 h-64 overflow-y-auto scrollbar-hide space-y-1">
-                {logs.map((log, index) => (
-                  <LogLine 
-                    key={log.id} 
-                    entry={log} 
-                    isTyping={index === logs.length - 1 && phase === 'boot'}
-                  />
+              <div 
+                ref={logsContainerRef}
+                className="p-4 h-64 overflow-y-auto scrollbar-hide space-y-1"
+              >
+                {logs.map((log) => (
+                  <LogLine key={log.id} entry={log} />
                 ))}
                 
                 {phase === 'ready' && (
@@ -251,18 +274,37 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
                     </div>
                   </motion.div>
                 )}
+                
+                {phase === 'error' && errorMessage && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="mt-4 pt-4 border-t border-red-800"
+                  >
+                    <div className="text-red-500 font-mono text-sm font-bold flex items-center gap-2">
+                      <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                      BOOT FAILURE: {errorMessage}
+                    </div>
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="mt-4 px-4 py-2 bg-red-500/20 border border-red-500 text-red-500 font-mono text-xs hover:bg-red-500/30 transition-colors"
+                    >
+                      RETRY CONNECTION
+                    </button>
+                  </motion.div>
+                )}
               </div>
             </div>
 
             {/* Progress bar */}
             <div className="mt-6">
               <div className="flex justify-between font-mono text-[10px] text-gray-500 mb-2">
-                <span>LOADING PROTOCOL</span>
+                <span>{phase === 'error' ? 'BOOT FAILED' : 'LOADING PROTOCOL'}</span>
                 <span>{Math.round(progress)}%</span>
               </div>
               <div className="h-1 bg-gray-900 rounded-full overflow-hidden">
                 <motion.div
-                  className="h-full bg-gradient-to-r from-pandora-cyan/50 to-pandora-cyan"
+                  className={`h-full ${phase === 'error' ? 'bg-red-500' : 'bg-gradient-to-r from-pandora-cyan/50 to-pandora-cyan'}`}
                   initial={{ width: 0 }}
                   animate={{ width: `${progress}%` }}
                   transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -270,14 +312,16 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
               </div>
             </div>
 
-            {/* Skip hint */}
+            {/* Status hint */}
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 2 }}
+              transition={{ delay: 0.5 }}
               className="text-center font-mono text-[10px] text-gray-600 mt-6"
             >
-              {phase === 'ready' ? 'PRESS ANY KEY TO CONTINUE' : 'ESTABLISHING SECURE CONNECTION...'}
+              {phase === 'ready' && 'ENTERING SYSTEM...'}
+              {phase === 'boot' && 'ESTABLISHING SECURE CONNECTION...'}
+              {phase === 'error' && 'CONNECTION TERMINATED'}
             </motion.p>
           </motion.div>
 
