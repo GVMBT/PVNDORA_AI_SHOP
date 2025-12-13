@@ -23,15 +23,51 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Load dynamic settings from DB
-    try:
-        settings_result = await asyncio.to_thread(
-            lambda: db.client.table("referral_settings").select("*").limit(1).execute()
-        )
-        settings = settings_result.data[0] if settings_result.data and len(settings_result.data) > 0 else {}
-    except Exception as e:
-        print(f"ERROR: Failed to load referral_settings: {e}")
-        settings = {}
+    # Parallel database queries for better performance
+    async def fetch_settings():
+        try:
+            result = await asyncio.to_thread(
+                lambda: db.client.table("referral_settings").select("*").limit(1).execute()
+            )
+            return result.data[0] if result.data else {}
+        except Exception as e:
+            print(f"ERROR: Failed to load referral_settings: {e}")
+            return {}
+    
+    async def fetch_extended_stats():
+        try:
+            return await asyncio.to_thread(
+                lambda: db.client.table("referral_stats_extended").select("*").eq("user_id", db_user.id).execute()
+            )
+        except Exception as e:
+            print(f"ERROR: Failed to query referral_stats_extended: {e}")
+            return type('obj', (object,), {'data': []})()
+    
+    async def fetch_bonuses():
+        try:
+            return await asyncio.to_thread(
+                lambda: db.client.table("referral_bonuses").select("*").eq("user_id", db_user.id).eq("eligible", True).order("created_at", desc=True).limit(10).execute()
+            )
+        except Exception as e:
+            print(f"ERROR: Failed to query referral_bonuses: {e}")
+            return type('obj', (object,), {'data': []})()
+    
+    async def fetch_withdrawals():
+        try:
+            return await asyncio.to_thread(
+                lambda: db.client.table("withdrawal_requests").select("*").eq("user_id", db_user.id).order("created_at", desc=True).limit(10).execute()
+            )
+        except Exception as e:
+            print(f"ERROR: Failed to query withdrawal_requests: {e}")
+            return type('obj', (object,), {'data': []})()
+    
+    # Execute all DB queries in parallel
+    settings, extended_stats_result, bonus_result, withdrawal_result = await asyncio.gather(
+        fetch_settings(),
+        fetch_extended_stats(),
+        fetch_bonuses(),
+        fetch_withdrawals()
+    )
     
     # Level thresholds in USD (from settings)
     THRESHOLD_LEVEL2 = float(settings.get("level2_threshold_usd", 250) or 250)
@@ -41,17 +77,6 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     COMMISSION_LEVEL1 = float(settings.get("level1_commission_percent", 20) or 20)
     COMMISSION_LEVEL2 = float(settings.get("level2_commission_percent", 10) or 10)
     COMMISSION_LEVEL3 = float(settings.get("level3_commission_percent", 5) or 5)
-    
-    # Get extended referral stats from view
-    try:
-        extended_stats_result = await asyncio.to_thread(
-            lambda: db.client.table("referral_stats_extended").select("*").eq("user_id", db_user.id).execute()
-        )
-    except Exception as e:
-        print(f"ERROR: Failed to query referral_stats_extended: {e}")
-        import traceback
-        print(f"ERROR: Traceback: {traceback.format_exc()}")
-        extended_stats_result = type('obj', (object,), {'data': []})()
     
     # Initialize with default values
     referral_stats = {
@@ -69,28 +94,12 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
             s, THRESHOLD_LEVEL2, THRESHOLD_LEVEL3, COMMISSION_LEVEL1, COMMISSION_LEVEL2, COMMISSION_LEVEL3
         )
     
-    try:
-        bonus_result = await asyncio.to_thread(
-            lambda: db.client.table("referral_bonuses").select("*").eq("user_id", db_user.id).eq("eligible", True).order("created_at", desc=True).limit(10).execute()
-        )
-    except Exception as e:
-        print(f"ERROR: Failed to query referral_bonuses: {e}")
-        bonus_result = type('obj', (object,), {'data': []})()
-    
-    try:
-        withdrawal_result = await asyncio.to_thread(
-            lambda: db.client.table("withdrawal_requests").select("*").eq("user_id", db_user.id).order("created_at", desc=True).limit(10).execute()
-        )
-    except Exception as e:
-        print(f"ERROR: Failed to query withdrawal_requests: {e}")
-        withdrawal_result = type('obj', (object,), {'data': []})()
-    
     # Get currency service and determine user currency
     currency = "USD"
     try:
         from core.db import get_redis
         from src.services.currency import get_currency_service
-        redis = get_redis()  # get_redis() is synchronous, no await needed
+        redis = get_redis()
         currency_service = get_currency_service(redis)
         currency = currency_service.get_user_currency(db_user.language_code if db_user and db_user.language_code else user.language_code)
     except Exception as e:

@@ -3,6 +3,7 @@ WebApp Cart Router
 
 Shopping cart endpoints.
 """
+import asyncio
 from fastapi import APIRouter, HTTPException, Depends
 
 from src.services.database import get_database
@@ -41,8 +42,10 @@ async def _format_cart_response(cart, db, user_language: str):
     instant_total_converted = cart.instant_total
     prepaid_total_converted = cart.prepaid_total
     
-    for item in cart.items:
-        product = await db.get_product_by_id(item.product_id)
+    # Fetch all products in parallel for better performance
+    products = await asyncio.gather(*[db.get_product_by_id(item.product_id) for item in cart.items])
+    
+    for item, product in zip(cart.items, products):
         
         # Convert prices from USD to user currency
         unit_price_converted = float(item.unit_price)
