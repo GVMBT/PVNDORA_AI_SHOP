@@ -98,23 +98,23 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
     : 'UNBOUNDED';
 
   // --- MICRO-INTERACTION: ADD TO CART ---
-  const handleMountModule = () => {
+  const handleMountModule = async () => {
       if (isAllocating || isSuccess) return;
       if (onHaptic) onHaptic('medium');
       
       setIsAllocating(true);
       
-      // Simulate network request / allocation logic
-      setTimeout(() => {
-          onAddToCart(product, quantity);
-          setIsAllocating(false);
+      try {
+          // Actually add to cart (await the async operation)
+          await onAddToCart(product, quantity);
           setIsSuccess(true);
           if (onHaptic) onHaptic('success');
-          
-          setTimeout(() => {
-              setIsSuccess(false);
-          }, 2000);
-      }, 800);
+          setTimeout(() => setIsSuccess(false), 2000);
+      } catch (err) {
+          console.error('Failed to add to cart:', err);
+      } finally {
+          setIsAllocating(false);
+      }
   };
 
   // --- CROSS-SELL LOGIC (uses provided relatedProducts from API/connected layer) ---

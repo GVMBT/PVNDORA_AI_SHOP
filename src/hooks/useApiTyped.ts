@@ -246,33 +246,42 @@ export function useCartTyped() {
 
   const addToCart = useCallback(async (productId: string, quantity = 1) => {
     try {
-      await post('/cart/add', { product_id: productId, quantity });
-      return getCart(); // Refresh cart
+      // POST returns updated cart response directly
+      const response: APICartResponse = await post('/cart/add', { product_id: productId, quantity });
+      const adapted = adaptCart(response);
+      setCart(adapted);
+      return adapted;
     } catch (err) {
       console.error('Failed to add to cart:', err);
       throw err;
     }
-  }, [post, getCart]);
+  }, [post]);
 
   const updateCartItem = useCallback(async (productId: string, quantity: number) => {
     try {
-      await patch('/cart/item', { product_id: productId, quantity });
-      return getCart();
+      // PATCH returns updated cart response directly
+      const response: APICartResponse = await patch('/cart/item', { product_id: productId, quantity });
+      const adapted = adaptCart(response);
+      setCart(adapted);
+      return adapted;
     } catch (err) {
       console.error('Failed to update cart item:', err);
       throw err;
     }
-  }, [patch, getCart]);
+  }, [patch]);
 
   const removeCartItem = useCallback(async (productId: string) => {
     try {
-      await del(`/cart/item?product_id=${encodeURIComponent(productId)}`);
-      return getCart();
+      // DELETE returns updated cart response directly
+      const response: APICartResponse = await del(`/cart/item?product_id=${encodeURIComponent(productId)}`);
+      const adapted = adaptCart(response);
+      setCart(adapted);
+      return adapted;
     } catch (err) {
       console.error('Failed to remove cart item:', err);
       throw err;
     }
-  }, [del, getCart]);
+  }, [del]);
 
   const applyPromo = useCallback(async (code: string) => {
     try {

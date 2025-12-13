@@ -39,9 +39,9 @@ function adaptLeaderboardEntry(entry: APILeaderboardEntry): LeaderboardUser {
   const actualSpend = marketSpend - entry.total_saved;
   
   // Use photo_url from backend if available (saved from Telegram initData),
-  // otherwise fallback to Telegram CDN (may not work for all users due to privacy)
+  // otherwise generate avatar via UI Avatars service based on name/telegram_id
   const avatarUrl = entry.photo_url 
-    || (entry.telegram_id ? `https://t.me/i/userpic/160/${entry.telegram_id}.jpg` : undefined);
+    || `https://ui-avatars.com/api/?name=${encodeURIComponent(entry.name)}&background=0d1117&color=00ffff&size=160&font-size=0.4&bold=true`;
   
   return {
     rank: entry.rank,
