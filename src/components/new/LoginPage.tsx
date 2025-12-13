@@ -22,11 +22,13 @@ interface TelegramLoginData {
 interface LoginPageProps {
   onLoginSuccess: () => void;
   botUsername?: string;
+  redirectPath?: string;
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ 
   onLoginSuccess,
-  botUsername = 'pvndora_ai_bot' // Default bot username (from env)
+  botUsername = 'pvndora_ai_bot', // Default bot username (from env)
+  redirectPath = '/',
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -54,6 +56,10 @@ const LoginPage: React.FC<LoginPageProps> = ({
       
       // Notify parent of success
       onLoginSuccess();
+      // redirect to app root after login
+      if (redirectPath) {
+        window.location.replace(redirectPath);
+      }
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message || 'Failed to authenticate');
@@ -77,6 +83,9 @@ const LoginPage: React.FC<LoginPageProps> = ({
         .then(data => {
           if (data.valid) {
             onLoginSuccess();
+            if (redirectPath) {
+              window.location.replace(redirectPath);
+            }
           } else {
             localStorage.removeItem('pvndora_session');
           }

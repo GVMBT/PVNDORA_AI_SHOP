@@ -380,6 +380,7 @@ function NewApp() {
       <LoginPage 
         onLoginSuccess={() => setIsAuthenticated(true)}
         botUsername={BOT_USERNAME}
+        redirectPath="/"
       />
     );
   }
