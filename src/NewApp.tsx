@@ -25,6 +25,7 @@ import {
   ProfileConnected,
   LeaderboardConnected,
   CheckoutModalConnected,
+  LoginPage,
 } from './components/new';
 
 // Types
@@ -128,6 +129,9 @@ function NewApp() {
   // Navigation State
   const [currentView, setCurrentView] = useState<ViewType>('home');
   const [legalDoc, setLegalDoc] = useState('terms');
+  
+  // Authentication State (for web users)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null); // null = checking
 
   // Toast State
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -138,11 +142,51 @@ function NewApp() {
   // Cart from backend
   const { cart, getCart, addToCart, removeCartItem } = useCartTyped();
 
-  // Fetch products and cart on mount
+  // Check authentication on mount
   useEffect(() => {
-    getProducts();
-    getCart();
-  }, [getProducts, getCart]);
+    const checkAuth = () => {
+      // In Telegram WebApp context - always authenticated via initData
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg?.initData) {
+        setIsAuthenticated(true);
+        return;
+      }
+      
+      // In browser - check for session token
+      const sessionToken = localStorage.getItem('pvndora_session');
+      if (sessionToken) {
+        // Verify token is still valid
+        fetch('/api/webapp/auth/verify-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_token: sessionToken }),
+        })
+          .then(r => r.json())
+          .then(data => {
+            setIsAuthenticated(data.valid === true);
+            if (!data.valid) {
+              localStorage.removeItem('pvndora_session');
+            }
+          })
+          .catch(() => {
+            setIsAuthenticated(false);
+            localStorage.removeItem('pvndora_session');
+          });
+      } else {
+        setIsAuthenticated(false);
+      }
+    };
+    
+    checkAuth();
+  }, []);
+
+  // Fetch products and cart on mount (only when authenticated)
+  useEffect(() => {
+    if (isAuthenticated) {
+      getProducts();
+      getCart();
+    }
+  }, [getProducts, getCart, isAuthenticated]);
 
   // Initialize Audio on first interaction
   useEffect(() => {
@@ -309,6 +353,30 @@ function NewApp() {
   };
 
   const shouldRaiseSupport = currentView === 'leaderboard';
+
+  // Authentication loading state
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#050505]">
+        <div className="text-center">
+          <div className="w-16 h-16 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="font-mono text-xs text-gray-500 uppercase tracking-widest">
+            Initializing Uplink...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login page for unauthenticated web users
+  if (!isAuthenticated) {
+    return (
+      <LoginPage 
+        onLoginSuccess={() => setIsAuthenticated(true)}
+        botUsername="pvndora_bot"
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen text-white overflow-x-hidden relative selection:bg-pandora-cyan selection:text-black">

@@ -2,9 +2,10 @@
  * LeaderboardConnected
  * 
  * Connected version of Leaderboard component with real API data.
+ * Supports infinite scroll pagination.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Leaderboard from './Leaderboard';
 import { useLeaderboardTyped } from '../../hooks/useApiTyped';
 
@@ -13,19 +14,28 @@ interface LeaderboardConnectedProps {
 }
 
 const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) => {
-  const { leaderboard, getLeaderboard, loading, error } = useLeaderboardTyped();
+  const { leaderboard, getLeaderboard, loadMore, hasMore, loading, error } = useLeaderboardTyped();
   const [isInitialized, setIsInitialized] = useState(false);
+  const loadingRef = useRef(false);
 
   useEffect(() => {
     const init = async () => {
-      await getLeaderboard();
+      await getLeaderboard(15, 0, false);
       setIsInitialized(true);
     };
     init();
   }, [getLeaderboard]);
 
-  // Loading state
-  if (!isInitialized || loading) {
+  // Infinite scroll handler
+  const handleLoadMore = useCallback(async () => {
+    if (loadingRef.current || !hasMore) return;
+    loadingRef.current = true;
+    await loadMore();
+    loadingRef.current = false;
+  }, [loadMore, hasMore]);
+
+  // Loading state (initial only)
+  if (!isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -39,7 +49,7 @@ const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) =
   }
 
   // Error state
-  if (error) {
+  if (error && leaderboard.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center max-w-md">
@@ -47,7 +57,7 @@ const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) =
           <div className="font-mono text-sm text-red-400 mb-2">CONNECTION_ERROR</div>
           <p className="text-gray-500 text-sm">{error}</p>
           <button
-            onClick={() => getLeaderboard()}
+            onClick={() => getLeaderboard(15, 0, false)}
             className="mt-6 px-6 py-2 bg-white/10 border border-white/20 text-white text-xs font-mono uppercase hover:bg-white/20 transition-colors"
           >
             Retry Connection
@@ -61,6 +71,9 @@ const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) =
     <Leaderboard
       leaderboardData={leaderboard}
       onBack={onBack}
+      onLoadMore={handleLoadMore}
+      hasMore={hasMore}
+      isLoadingMore={loading && isInitialized}
     />
   );
 };

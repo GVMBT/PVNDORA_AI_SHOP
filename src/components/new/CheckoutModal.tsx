@@ -3,19 +3,29 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CreditCard, Bitcoin, ShieldCheck, ChevronRight, Cpu, CheckCircle, Trash2, Globe, Lock, Server, Wallet, Zap } from 'lucide-react';
 
+export type PaymentMethod = 'rukassa' | 'crystalpay' | 'internal';
+
 interface CheckoutModalProps {
   cart: any[];
+  userBalance?: number;
   onClose: () => void;
-  onRemoveItem: (id: number) => void;
+  onRemoveItem: (id: string | number) => void;
+  onPay?: (method: PaymentMethod) => Promise<any>;
   onSuccess: () => void;
+  loading?: boolean;
+  error?: string | null;
 }
 
-type PaymentMethod = 'rukassa' | 'crystalpay' | 'internal';
-
-// Mock User Balance for Demo
-const CURRENT_USER_BALANCE = 12500; 
-
-const CheckoutModal: React.FC<CheckoutModalProps> = ({ cart, onClose, onRemoveItem, onSuccess }) => {
+const CheckoutModal: React.FC<CheckoutModalProps> = ({ 
+  cart, 
+  userBalance = 0, 
+  onClose, 
+  onRemoveItem, 
+  onPay,
+  onSuccess,
+  loading: externalLoading = false,
+  error: externalError = null,
+}) => {
   const [step, setStep] = useState<'cart' | 'payment' | 'processing' | 'success'>('cart');
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>('rukassa');
   const [logs, setLogs] = useState<string[]>([]);
@@ -46,7 +56,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ cart, onClose, onRemoveIt
 
     const internalLogs = [
       "> CHECKING_LOCAL_WALLET_INTEGRITY...",
-      `> BALANCE_CHECK: ${CURRENT_USER_BALANCE} >= ${total} [OK]`,
+      `> BALANCE_CHECK: ${userBalance} >= ${total} [OK]`,
       "> FREEZING_ASSETS...",
       "> INTERNAL_TRANSFER_EXECUTED",
       "> LEDGER_UPDATED_SUCCESSFULLY"
@@ -67,8 +77,8 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ cart, onClose, onRemoveIt
     });
   };
 
-  const handlePay = () => {
-    if (selectedPayment === 'internal' && total > CURRENT_USER_BALANCE) {
+  const handlePay = async () => {
+    if (selectedPayment === 'internal' && total > userBalance) {
         setError("INSUFFICIENT_FUNDS_ON_INTERNAL_BALANCE");
         return;
     }
@@ -77,10 +87,28 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ cart, onClose, onRemoveIt
     setStep('processing');
     simulateLogs(selectedPayment);
 
-    // Simulate different durations/behaviors
-    setTimeout(() => {
+    // If external onPay is provided, use it
+    if (onPay) {
+      try {
+        const result = await onPay(selectedPayment);
+        // For external payment (rukassa/crystalpay), they handle redirect
+        // For internal payment, result is immediate
+        if (result) {
+          // Short delay to show the animation
+          setTimeout(() => {
+            setStep('success');
+          }, 2500);
+        }
+      } catch (err: any) {
+        setError(err.message || 'PAYMENT_FAILED');
+        setStep('payment');
+      }
+    } else {
+      // Fallback to mock behavior (demo mode)
+      setTimeout(() => {
         setStep('success');
-    }, 4500); // 4.5s duration to let the animation play out
+      }, 4500);
+    }
   };
 
   const closeSuccess = () => {
@@ -201,9 +229,9 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ cart, onClose, onRemoveIt
                                     Select Payment Node
                                 </h3>
                                 
-                                {error && (
+                                {(error || externalError) && (
                                     <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-mono flex items-center gap-2">
-                                        <ShieldCheck size={14} /> {error}
+                                        <ShieldCheck size={14} /> {error || externalError}
                                     </div>
                                 )}
 
@@ -219,7 +247,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ cart, onClose, onRemoveIt
                                         </div>
                                         <div>
                                             <div className="text-xs font-bold text-white uppercase mb-1">Internal</div>
-                                            <div className="text-[10px] text-gray-500 font-mono">Balance: {CURRENT_USER_BALANCE} ₽</div>
+                                            <div className="text-[10px] text-gray-500 font-mono">Balance: {userBalance.toLocaleString()} ₽</div>
                                         </div>
                                         {selectedPayment === 'internal' && (
                                             <div className="absolute top-1 right-1">

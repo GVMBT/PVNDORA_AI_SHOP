@@ -164,18 +164,31 @@ export function useProfileTyped() {
 }
 
 /**
- * Hook for fetching leaderboard with type safety
+ * Hook for fetching leaderboard with type safety and pagination
  */
 export function useLeaderboardTyped() {
   const { get, loading, error } = useApi();
   const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [currentOffset, setCurrentOffset] = useState(0);
 
-  const getLeaderboard = useCallback(async (): Promise<LeaderboardUser[]> => {
+  const getLeaderboard = useCallback(async (limit: number = 15, offset: number = 0, append: boolean = false): Promise<LeaderboardUser[]> => {
     try {
-      const response: APILeaderboardResponse = await get('/leaderboard');
+      const response: APILeaderboardResponse = await get(`/leaderboard?limit=${limit}&offset=${offset}`);
       const telegramUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
       const adapted = adaptLeaderboard(response, telegramUser?.id?.toString());
-      setLeaderboard(adapted);
+      
+      // Update pagination state
+      setHasMore((response as any).has_more ?? adapted.length === limit);
+      setCurrentOffset(offset + adapted.length);
+      
+      // Append or replace
+      if (append && offset > 0) {
+        setLeaderboard(prev => [...prev, ...adapted]);
+      } else {
+        setLeaderboard(adapted);
+      }
+      
       return adapted;
     } catch (err) {
       console.error('Failed to fetch leaderboard:', err);
@@ -183,7 +196,12 @@ export function useLeaderboardTyped() {
     }
   }, [get]);
 
-  return { leaderboard, getLeaderboard, loading, error };
+  const loadMore = useCallback(async () => {
+    if (!hasMore || loading) return;
+    return getLeaderboard(15, currentOffset, true);
+  }, [getLeaderboard, hasMore, loading, currentOffset]);
+
+  return { leaderboard, getLeaderboard, loadMore, hasMore, loading, error };
 }
 
 /**

@@ -117,10 +117,10 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
 
 
 @router.get("/leaderboard")
-async def get_webapp_leaderboard(period: str = "all", user=Depends(verify_telegram_auth)):
-    """Get savings leaderboard. Supports period: all, month, week"""
+async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: int = 0, user=Depends(verify_telegram_auth)):
+    """Get savings leaderboard. Supports period: all, month, week and pagination."""
     db = get_database()
-    LEADERBOARD_SIZE = 25
+    LEADERBOARD_SIZE = min(limit, 50)  # Cap at 50
     now = datetime.now(timezone.utc)
     
     date_filter = None
@@ -201,13 +201,22 @@ async def get_webapp_leaderboard(period: str = "all", user=Depends(verify_telegr
             display_name = display_name[:3] + "***"
         
         leaderboard.append({
-            "rank": i + 1, "name": display_name, "total_saved": float(entry.get("total_saved", 0)),
-            "is_current_user": tg_id == user.id if tg_id else False
+            "rank": i + 1 + offset,  # Account for offset in rank
+            "name": display_name, 
+            "total_saved": float(entry.get("total_saved", 0)),
+            "is_current_user": tg_id == user.id if tg_id else False,
+            "telegram_id": tg_id,  # For avatar lookup
         })
     
     return {
-        "leaderboard": leaderboard, "user_rank": user_rank, "user_saved": user_saved,
-        "total_users": total_users, "improved_today": improved_today
+        "leaderboard": leaderboard, 
+        "user_rank": user_rank, 
+        "user_saved": user_saved,
+        "total_users": total_users, 
+        "improved_today": improved_today,
+        "has_more": len(leaderboard) == LEADERBOARD_SIZE,  # Pagination hint
+        "offset": offset,
+        "limit": LEADERBOARD_SIZE,
     }
 
 

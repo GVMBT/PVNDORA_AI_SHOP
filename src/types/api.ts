@@ -247,6 +247,7 @@ export interface APILeaderboardEntry {
   name: string;
   total_saved: number;
   is_current_user: boolean;
+  telegram_id?: number;
 }
 
 export interface APILeaderboardResponse {

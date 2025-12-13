@@ -38,6 +38,12 @@ function adaptLeaderboardEntry(entry: APILeaderboardEntry): LeaderboardUser {
     : 0;
   const actualSpend = marketSpend - entry.total_saved;
   
+  // Try to construct Telegram avatar URL if we have telegram_id
+  // Uses Telegram's CDN - may not work for all users (privacy settings)
+  const avatarUrl = entry.telegram_id 
+    ? `https://t.me/i/userpic/160/${entry.telegram_id}.jpg`
+    : undefined;
+  
   return {
     rank: entry.rank,
     name: entry.name,
@@ -49,6 +55,7 @@ function adaptLeaderboardEntry(entry: APILeaderboardEntry): LeaderboardUser {
     trend: generateTrend(),
     status: entry.is_current_user ? 'ONLINE' : generateStatus(),
     isMe: entry.is_current_user,
+    avatarUrl,
   };
 }
 
