@@ -264,7 +264,7 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="min-h-screen text-white pt-24 pb-32 px-4 md:px-8 md:pl-28 relative"
+        className="min-h-screen text-white pt-20 md:pt-24 pb-32 px-4 md:px-8 md:pl-28 relative"
       >
         <div className="max-w-6xl mx-auto">
           <button onClick={onBack} className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-8 transition-colors">
@@ -293,7 +293,7 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="min-h-screen text-white pt-24 pb-32 px-4 md:px-8 md:pl-28 relative"
+        className="min-h-screen text-white pt-20 md:pt-24 pb-32 px-4 md:px-8 md:pl-28 relative"
     >
         <div className="max-w-7xl mx-auto relative z-10">
             

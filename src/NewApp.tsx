@@ -336,7 +336,7 @@ function NewAppInner() {
       critical: false, // Not critical - app works without music
       execute: async () => {
         // Preload background music - FULL download via fetch first
-        const musicUrl = '/sound.flac';
+        const musicUrl = '/sound.ogg';
         const startTime = Date.now();
         
         try {
@@ -357,14 +357,19 @@ function NewAppInner() {
           console.log(`[Boot] File prefetched (${(blob.size / 1024 / 1024).toFixed(2)} MB) in ${fetchTime}ms`);
 
           // Step 3: Create Audio element and wait for canplaythrough
+          // NOTE: This is ONLY for preloading check - do NOT play it!
           return new Promise((resolve) => {
             const audio = new Audio(blobUrl);
             audio.preload = 'auto';
+            audio.volume = 0; // Mute to prevent any accidental playback
             audio.crossOrigin = 'anonymous';
             
             const timeout = setTimeout(() => {
               // If loading takes too long, resolve anyway (non-critical)
               console.warn('[Boot] Music buffering timeout, continuing...');
+              // Clean up: pause and remove audio element
+              audio.pause();
+              audio.src = '';
               URL.revokeObjectURL(blobUrl);
               resolve({ loaded: false, loadTime: Date.now() - startTime, fetchTime });
             }, 10000); // 10 second timeout for buffering
@@ -382,6 +387,9 @@ function NewAppInner() {
               const error = (e.target as HTMLAudioElement).error;
               const errorMsg = error ? `Code ${error.code}: ${error.message}` : 'Unknown';
               console.warn('[Boot] Music load error:', errorMsg);
+              // Clean up: pause and remove audio element
+              audio.pause();
+              audio.src = '';
               URL.revokeObjectURL(blobUrl);
               // Don't reject - music is non-critical
               resolve({ loaded: false, error: errorMsg, loadTime: Date.now() - startTime, fetchTime });

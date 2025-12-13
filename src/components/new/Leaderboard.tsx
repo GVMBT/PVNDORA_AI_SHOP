@@ -125,7 +125,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="min-h-screen text-white pt-24 pb-32 px-4 md:px-8 md:pl-28 relative"
+        className="min-h-screen text-white pt-20 md:pt-24 pb-32 px-4 md:px-8 md:pl-28 relative"
       >
         <div className="max-w-7xl mx-auto">
           <button onClick={onBack} className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors">
@@ -148,7 +148,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="min-h-screen text-white pt-24 pb-48 md:pb-32 px-4 md:px-8 md:pl-28 relative overflow-hidden"
+      className="min-h-screen text-white pt-20 md:pt-24 pb-48 md:pb-32 px-4 md:px-8 md:pl-28 relative overflow-hidden"
     >
         {/* Ambient Glows */}
         <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-pandora-cyan/10 blur-[120px] pointer-events-none z-0" />
