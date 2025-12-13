@@ -144,6 +144,18 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
     image: item.image,
   })) || [];
 
+  // CRITICAL: Close modal immediately if cart is empty (check after mapping)
+  useEffect(() => {
+    if (isInitialized && cartItems.length === 0) {
+      onClose();
+    }
+  }, [isInitialized, cartItems.length, onClose]);
+
+  // Don't render modal if cart is empty
+  if (!cart || !cart.items || cartItems.length === 0) {
+    return null;
+  }
+
   return (
     <CheckoutModal
       cart={cartItems}
