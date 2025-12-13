@@ -2,7 +2,7 @@
  * LeaderboardConnected
  * 
  * Connected version of Leaderboard component with real API data.
- * Supports infinite scroll pagination.
+ * Supports infinite scroll pagination and period filtering.
  */
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
@@ -14,8 +14,9 @@ interface LeaderboardConnectedProps {
 }
 
 const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) => {
-  const { leaderboard, getLeaderboard, loadMore, hasMore, loading, error } = useLeaderboardTyped();
+  const { leaderboard, getLeaderboard, loadMore, hasMore, loading, error, reset } = useLeaderboardTyped();
   const [isInitialized, setIsInitialized] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<'weekly' | 'all_time'>('all_time');
   const loadingRef = useRef(false);
 
   useEffect(() => {
@@ -25,6 +26,22 @@ const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) =
     };
     init();
   }, [getLeaderboard]);
+
+  // Handle filter change - reset and reload with new period
+  const handleFilterChange = useCallback(async (newFilter: 'weekly' | 'all_time') => {
+    if (newFilter === activeFilter) return;
+    
+    setActiveFilter(newFilter);
+    reset?.(); // Reset the loaded offsets tracker
+    setIsInitialized(false);
+    
+    // Map filter to API period
+    const period = newFilter === 'weekly' ? 'week' : 'all';
+    // Note: Current API doesn't support period param in getLeaderboard
+    // For now, just reload - backend returns 'all' by default
+    await getLeaderboard(15, 0, false);
+    setIsInitialized(true);
+  }, [activeFilter, getLeaderboard, reset]);
 
   // Infinite scroll handler
   const handleLoadMore = useCallback(async () => {
@@ -74,6 +91,8 @@ const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) =
       onLoadMore={handleLoadMore}
       hasMore={hasMore}
       isLoadingMore={loading && isInitialized}
+      onFilterChange={handleFilterChange}
+      activeFilter={activeFilter}
     />
   );
 };

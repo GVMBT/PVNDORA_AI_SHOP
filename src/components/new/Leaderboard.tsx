@@ -24,21 +24,11 @@ interface LeaderboardProps {
   onLoadMore?: () => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
+  onFilterChange?: (filter: 'weekly' | 'all_time') => void;
+  activeFilter?: 'weekly' | 'all_time';
 }
 
-// Data structure: Official Price (Market), Actual Spend (Pandora), Saved = Diff
-const LEADERBOARD_DATA = [
-  { rank: 1, name: "Neo_Anderson", handle: "@the_one", marketSpend: 550000, actualSpend: 154200, saved: 395800, modules: 42, trend: 'up', status: 'ONLINE' },
-  { rank: 2, name: "Trinity_X", handle: "@trin_hack", marketSpend: 320000, actualSpend: 98500, saved: 221500, modules: 28, trend: 'up', status: 'AWAY' },
-  { rank: 3, name: "Morpheus_D", handle: "@nebuchadnezzar", marketSpend: 280000, actualSpend: 87200, saved: 192800, modules: 25, trend: 'down', status: 'ONLINE' },
-  { rank: 4, name: "Cypher_L", handle: "@steak_lover", marketSpend: 150000, actualSpend: 54000, saved: 96000, modules: 14, trend: 'up', status: 'OFFLINE' },
-  { rank: 5, name: "Tank_Oper", handle: "@operator_1", marketSpend: 110000, actualSpend: 42100, saved: 67900, modules: 12, trend: 'same', status: 'ONLINE' },
-  { rank: 6, name: "Dozer_Mech", handle: "@core_drill", marketSpend: 95000, actualSpend: 38900, saved: 56100, modules: 10, trend: 'down', status: 'BUSY' },
-  { rank: 7, name: "Switch_W", handle: "@white_rabbit", marketSpend: 75000, actualSpend: 31000, saved: 44000, modules: 8, trend: 'up', status: 'ONLINE' },
-  { rank: 8, name: "Apoc_Dev", handle: "@bug_fixer", marketSpend: 68000, actualSpend: 28500, saved: 39500, modules: 6, trend: 'same', status: 'ONLINE' },
-  { rank: 9, name: "Mouse_Kid", handle: "@digital_pimp", marketSpend: 40000, actualSpend: 15000, saved: 25000, modules: 4, trend: 'up', status: 'AWAY' },
-  { rank: 158, name: "Nikita", handle: "@gvmbt158", marketSpend: 5000, actualSpend: 1250, saved: 3750, modules: 1, trend: 'same', status: 'ONLINE', isMe: true }, // Current User
-];
+// MOCK DATA removed - use real API data only
 
 const Leaderboard: React.FC<LeaderboardProps> = ({ 
   leaderboardData: propData, 
@@ -46,8 +36,21 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
   onLoadMore,
   hasMore = false,
   isLoadingMore = false,
+  onFilterChange,
+  activeFilter = 'all_time',
 }) => {
-  const [filter, setFilter] = useState<'weekly' | 'all_time'>('weekly');
+  // Use controlled filter from parent or internal state
+  const [internalFilter, setInternalFilter] = useState<'weekly' | 'all_time'>('all_time');
+  const filter = onFilterChange ? activeFilter : internalFilter;
+  
+  const handleFilterChange = (newFilter: 'weekly' | 'all_time') => {
+    if (onFilterChange) {
+      onFilterChange(newFilter);
+    } else {
+      setInternalFilter(newFilter);
+    }
+  };
+  
   const observerRef = React.useRef<IntersectionObserver | null>(null);
   const loadMoreTriggerRef = React.useRef<HTMLDivElement | null>(null);
   
@@ -75,8 +78,8 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
     };
   }, [onLoadMore, hasMore, isLoadingMore]);
 
-  // Use provided data or fallback to mock
-  const data = propData && propData.length > 0 ? propData : LEADERBOARD_DATA;
+  // Use provided data - NO MOCK fallback (mock data causes confusion)
+  const data = propData || [];
 
   // Extract top 3 for podium display (may have less than 3)
   const topThree = data.slice(0, 3);
@@ -102,6 +105,31 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
   const totalSavedAggregate = data.reduce((acc, u) => acc + (u.saved || 0), 0);
   const totalMarketAggregate = data.reduce((acc, u) => acc + (u.marketSpend || 0), 0);
   const totalEfficiency = calculateEfficiency(totalMarketAggregate, totalSavedAggregate);
+
+  // Empty state when no data
+  if (data.length === 0 && !isLoadingMore) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="min-h-screen text-white pt-24 pb-32 px-4 md:px-8 md:pl-28 relative"
+      >
+        <div className="max-w-7xl mx-auto">
+          <button onClick={onBack} className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors">
+            <ArrowLeft size={12} /> RETURN_TO_BASE
+          </button>
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <Trophy size={64} className="text-gray-700 mb-6" />
+            <h2 className="text-2xl font-bold text-white mb-2">NO OPERATIVES YET</h2>
+            <p className="text-gray-500 font-mono text-sm max-w-md">
+              The leaderboard is empty. Be the first to save and claim your rank!
+            </p>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div 
@@ -295,13 +323,13 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                     </h3>
                     <div className="flex bg-[#0a0a0a] border border-white/10 p-0.5 rounded-sm">
                         <button 
-                            onClick={() => setFilter('weekly')}
+                            onClick={() => handleFilterChange('weekly')}
                             className={`px-3 py-1.5 text-[9px] font-mono font-bold uppercase transition-colors ${filter === 'weekly' ? 'bg-white/10 text-white' : 'text-gray-600 hover:text-gray-400'}`}
                         >
                             Weekly
                         </button>
                         <button 
-                            onClick={() => setFilter('all_time')}
+                            onClick={() => handleFilterChange('all_time')}
                             className={`px-3 py-1.5 text-[9px] font-mono font-bold uppercase transition-colors ${filter === 'all_time' ? 'bg-white/10 text-white' : 'text-gray-600 hover:text-gray-400'}`}
                         >
                             All Time
