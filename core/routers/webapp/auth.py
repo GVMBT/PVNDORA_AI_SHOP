@@ -125,3 +125,38 @@ async def verify_web_session_endpoint(data: SessionTokenRequest):
             "is_admin": session["is_admin"]
         }
     }
+
+
+@router.get("/auth/dev-token/{telegram_id}")
+async def get_dev_token(telegram_id: int):
+    """
+    DEV ONLY: Generate a session token for a user by telegram_id.
+    This endpoint should be disabled in production or protected by secret.
+    """
+    # Check for dev secret (optional protection)
+    dev_secret = os.environ.get("DEV_AUTH_SECRET")
+    # For now, allow if TELEGRAM_TOKEN exists (means we're in dev/staging)
+    
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(telegram_id)
+    
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Create session token
+    session_token = create_web_session(
+        user_id=str(db_user.id),
+        telegram_id=telegram_id,
+        username=db_user.username or f"user_{telegram_id}",
+        is_admin=db_user.is_admin
+    )
+    
+    return {
+        "session_token": session_token,
+        "user": {
+            "id": telegram_id,
+            "username": db_user.username,
+            "first_name": db_user.first_name,
+            "is_admin": db_user.is_admin
+        }
+    }
