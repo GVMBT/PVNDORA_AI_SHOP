@@ -174,19 +174,10 @@ function NewApp() {
 
   // Check authentication on mount
   useEffect(() => {
-    const checkAuth = () => {
-      // Persist session_token from URL query if present
-      try {
-        const url = new URL(window.location.href);
-        const tokenFromUrl = url.searchParams.get('session_token');
-        if (tokenFromUrl) {
-          localStorage.setItem('pvndora_session', tokenFromUrl);
-          url.searchParams.delete('session_token');
-          window.history.replaceState({}, '', url.toString());
-        }
-      } catch {
-        // ignore URL parsing issues
-      }
+    const checkAuth = async () => {
+      // Persist session_token from URL query if present (using shared utility)
+      const { persistSessionTokenFromQuery } = await import('./utils/auth');
+      persistSessionTokenFromQuery();
 
       // In Telegram WebApp context - always authenticated via initData
       const tg = (window as any).Telegram?.WebApp;
@@ -196,25 +187,15 @@ function NewApp() {
       }
       
       // In browser - check for session token
-      const sessionToken = localStorage.getItem('pvndora_session');
+      const { getSessionToken, verifySessionToken, removeSessionToken } = await import('./utils/auth');
+      const sessionToken = getSessionToken();
       if (sessionToken) {
-        // Verify token is still valid
-        fetch('/api/webapp/auth/verify-session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_token: sessionToken }),
-        })
-          .then(r => r.json())
-          .then(data => {
-            setIsAuthenticated(data.valid === true);
-            if (!data.valid) {
-              localStorage.removeItem('pvndora_session');
-            }
-          })
-          .catch(() => {
-            setIsAuthenticated(false);
-            localStorage.removeItem('pvndora_session');
-          });
+        // Verify token is still valid using shared utility
+        const result = await verifySessionToken(sessionToken);
+        setIsAuthenticated(result?.valid === true);
+        if (!result?.valid) {
+          removeSessionToken();
+        }
       } else {
         setIsAuthenticated(false);
       }

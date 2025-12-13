@@ -8,6 +8,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Zap, LogIn, Terminal, AlertTriangle, Loader2 } from 'lucide-react';
+import { verifySessionToken, saveSessionToken, removeSessionToken, getSessionToken } from '../../utils/auth';
 
 interface TelegramLoginData {
   id: number;
@@ -46,14 +47,24 @@ const LoginPage: React.FC<LoginPageProps> = ({
         body: JSON.stringify(user),
       });
       
-      const data = await response.json();
-      
+      // Check response status before parsing JSON
       if (!response.ok) {
-        throw new Error(data.detail || 'Authentication failed');
+        let errorMessage = 'Authentication failed';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorMessage;
+        } catch {
+          // If not JSON, try to get text
+          const text = await response.text();
+          errorMessage = text.substring(0, 100) || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
       
+      const data = await response.json();
+      
       // Store session token
-      localStorage.setItem('pvndora_session', data.session_token);
+      saveSessionToken(data.session_token);
       
       // Notify parent of success
       onLoginSuccess();
@@ -71,30 +82,24 @@ const LoginPage: React.FC<LoginPageProps> = ({
 
   // Inject Telegram Login Widget script
   useEffect(() => {
-    // Check if already logged in
-    const existingSession = localStorage.getItem('pvndora_session');
-    if (existingSession) {
-      // Verify session is still valid
-      fetch('/api/webapp/auth/verify-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_token: existingSession }),
-      })
-        .then(r => r.json())
-        .then(data => {
-          if (data.valid) {
-            onLoginSuccess();
-            if (redirectPath) {
-              window.location.replace(redirectPath);
-            }
-          } else {
-            localStorage.removeItem('pvndora_session');
+    const checkExistingSession = async () => {
+      // Check if already logged in
+      const existingSession = getSessionToken();
+      if (existingSession) {
+        // Verify session is still valid using shared utility
+        const data = await verifySessionToken(existingSession);
+        if (data?.valid) {
+          onLoginSuccess();
+          if (redirectPath) {
+            window.location.replace(redirectPath);
           }
-        })
-        .catch(() => {
-          localStorage.removeItem('pvndora_session');
-        });
-    }
+        } else {
+          removeSessionToken();
+        }
+      }
+    };
+    
+    checkExistingSession();
 
     // Setup global callback for Telegram Widget
     (window as any).onTelegramAuth = handleTelegramAuth;
@@ -232,16 +237,28 @@ const LoginPage: React.FC<LoginPageProps> = ({
                       className="w-full bg-black border border-white/20 p-2 text-sm font-mono text-white focus:border-pandora-cyan outline-none transition-colors"
                     />
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         if (!manualToken.trim()) {
                           setError('Укажите session_token');
                           return;
                         }
-                        localStorage.setItem('pvndora_session', manualToken.trim());
-                        if (redirectPath) {
-                          window.location.replace(redirectPath);
+                        setLoading(true);
+                        setError(null);
+                        
+                        // Verify token before saving
+                        const token = manualToken.trim();
+                        const result = await verifySessionToken(token);
+                        
+                        if (result?.valid) {
+                          saveSessionToken(token);
+                          if (redirectPath) {
+                            window.location.replace(redirectPath);
+                          } else {
+                            window.location.reload();
+                          }
                         } else {
-                          window.location.reload();
+                          setError('Неверный session_token');
+                          setLoading(false);
                         }
                       }}
                       className="px-4 py-2 bg-pandora-cyan text-black font-mono text-xs uppercase tracking-widest hover:opacity-90 transition-opacity"

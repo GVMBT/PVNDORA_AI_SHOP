@@ -3,28 +3,6 @@ import { useState, useCallback } from 'react'
 const API_BASE = '/api/webapp'
 
 /**
- * Pull session_token from URL once (for web login) and store in localStorage.
- * Works for desktop/browser flow when Telegram initData недоступен.
- */
-function persistSessionTokenFromQuery() {
-  if (typeof window === 'undefined') return null
-  try {
-    const url = new URL(window.location.href)
-    const token = url.searchParams.get('session_token')
-    if (token) {
-      window.localStorage?.setItem('pvndora_session', token)
-      // Remove token from URL to avoid leaking
-      url.searchParams.delete('session_token')
-      window.history.replaceState({}, '', url.toString())
-      return token
-    }
-  } catch {
-    /* ignore */
-  }
-  return null
-}
-
-/**
  * Hook for API calls with Telegram initData authentication
  */
 export function useApi() {
@@ -32,8 +10,21 @@ export function useApi() {
   const [error, setError] = useState(null)
   
   const getHeaders = useCallback(() => {
-    // Try to capture session_token from URL once
-    persistSessionTokenFromQuery()
+    // Try to capture session_token from URL once (using shared utility)
+    // Note: This runs synchronously in getHeaders, but persistSessionTokenFromQuery is safe to call multiple times
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href);
+        const token = url.searchParams.get('session_token');
+        if (token) {
+          window.localStorage?.setItem('pvndora_session', token);
+          url.searchParams.delete('session_token');
+          window.history.replaceState({}, '', url.toString());
+        }
+      } catch {
+        /* ignore */
+      }
+    }
 
     const headers = {
       'Content-Type': 'application/json'
