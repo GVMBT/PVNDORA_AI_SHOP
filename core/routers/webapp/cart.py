@@ -4,6 +4,7 @@ WebApp Cart Router
 Shopping cart endpoints.
 """
 import asyncio
+from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 
 from src.services.database import get_database
@@ -174,7 +175,7 @@ async def add_to_cart(request: AddToCartRequest, user=Depends(verify_telegram_au
     cart = await cart_manager.get_cart(user.id)
     db_user = await db.get_user_by_telegram_id(user.id)
     user_language = (db_user.language_code if db_user else None) or user.language_code
-    return await _format_cart_response(cart, db, user_language)
+    return await _format_cart_response(cart, db, user_language, user.id)
 
 
 @router.patch("/cart/item")
@@ -207,7 +208,7 @@ async def update_cart_item(request: UpdateCartItemRequest, user=Depends(verify_t
     cart = await cart_manager.get_cart(user.id)
     db_user = await db.get_user_by_telegram_id(user.id)
     user_language = (db_user.language_code if db_user else None) or user.language_code
-    return await _format_cart_response(cart, db, user_language)
+    return await _format_cart_response(cart, db, user_language, user.id)
 
 
 @router.delete("/cart/item")
