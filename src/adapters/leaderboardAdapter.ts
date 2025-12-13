@@ -72,6 +72,16 @@ export function adaptLeaderboard(
   // Adding a duplicate causes rank conflicts
   const adaptedUsers = leaderboard.map(adaptLeaderboardEntry);
   
+  // Deduplicate by rank (in case backend sends duplicates)
+  const seenRanks = new Set<number>();
+  const uniqueUsers = adaptedUsers.filter(user => {
+    if (seenRanks.has(user.rank)) {
+      return false;
+    }
+    seenRanks.add(user.rank);
+    return true;
+  });
+  
   // Sort by rank to ensure proper ordering
-  return adaptedUsers.sort((a, b) => a.rank - b.rank);
+  return uniqueUsers.sort((a, b) => a.rank - b.rank);
 }

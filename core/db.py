@@ -64,7 +64,8 @@ except ImportError:
             return await self.set(key, value, ex=seconds)
 
         async def delete(self, key: str):
-            resp = await self.client.delete(f"/del/{key}")
+            # Upstash REST API requires POST for DEL command, not HTTP DELETE
+            resp = await self.client.post(f"/del/{key}")
             resp.raise_for_status()
             return True
 

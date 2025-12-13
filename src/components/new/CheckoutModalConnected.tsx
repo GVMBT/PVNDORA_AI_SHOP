@@ -33,6 +33,13 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
     init();
   }, [getCart, getProfile]);
 
+  // Close modal if cart is empty after initialization
+  useEffect(() => {
+    if (isInitialized && (!cart || !cart.items || cart.items.length === 0)) {
+      onClose();
+    }
+  }, [isInitialized, cart, onClose]);
+
   const handleRemoveItem = useCallback(async (productId: string) => {
     try {
       const updatedCart = await removeCartItem(productId);

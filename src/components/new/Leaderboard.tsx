@@ -158,12 +158,16 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                     <div className="bg-[#0e0e0e] border border-white/10 p-6 relative overflow-hidden hover:border-pandora-cyan/30 transition-colors">
                         <div className="absolute top-0 left-0 bg-white/10 px-2 py-1 text-[10px] font-bold font-mono text-gray-300">RANK_02</div>
                         <div className="flex flex-col items-center text-center mt-4">
-                            <div className="w-16 h-16 rounded-full border border-white/20 p-1 mb-3 overflow-hidden">
-                                <img 
-                                    src={topThree[1].avatarUrl} 
-                                    alt={topThree[1].name} 
-                                    className="w-full h-full object-cover rounded-full"
-                                />
+                            <div className="w-16 h-16 rounded-full border border-white/20 p-1 mb-3 overflow-hidden bg-gray-900 flex items-center justify-center">
+                                {topThree[1].avatarUrl ? (
+                                    <img 
+                                        src={topThree[1].avatarUrl} 
+                                        alt={topThree[1].name} 
+                                        className="w-full h-full object-cover rounded-full"
+                                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                    />
+                                ) : null}
+                                <User size={24} className={`text-gray-500 absolute ${topThree[1].avatarUrl ? 'hidden' : ''}`} />
                             </div>
                             <h3 className="font-bold text-white text-lg">{topThree[1].name}</h3>
                             <div className="text-xs font-mono text-pandora-cyan mb-4">{topThree[1].handle}</div>
@@ -207,11 +211,15 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                                     <div className="absolute inset-0 rounded-full border border-pandora-cyan animate-ping opacity-20" />
                                     <div className="w-full h-full bg-gray-900 rounded-full flex items-center justify-center overflow-hidden relative">
                                         <div className="absolute inset-0 bg-gradient-to-tr from-pandora-cyan/20 to-transparent" />
-                                        <img 
-                                            src={topThree[0].avatarUrl} 
-                                            alt={topThree[0].name} 
-                                            className="w-full h-full object-cover rounded-full relative z-10"
-                                        />
+                                        {topThree[0].avatarUrl ? (
+                                            <img 
+                                                src={topThree[0].avatarUrl} 
+                                                alt={topThree[0].name} 
+                                                className="w-full h-full object-cover rounded-full relative z-10"
+                                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                            />
+                                        ) : null}
+                                        <Crown size={32} className={`text-pandora-cyan/50 relative z-10 ${topThree[0].avatarUrl ? 'hidden' : ''}`} />
                                     </div>
                                     <div className="absolute bottom-0 right-0 w-6 h-6 bg-pandora-cyan rounded-full flex items-center justify-center text-black font-bold text-xs shadow-[0_0_10px_#00FFFF]">1</div>
                                 </div>
@@ -242,12 +250,16 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                     <div className="bg-[#0e0e0e] border border-white/10 p-6 relative overflow-hidden hover:border-pandora-cyan/30 transition-colors">
                         <div className="absolute top-0 left-0 bg-white/10 px-2 py-1 text-[10px] font-bold font-mono text-gray-300">RANK_03</div>
                         <div className="flex flex-col items-center text-center mt-4">
-                            <div className="w-16 h-16 rounded-full border border-white/20 p-1 mb-3 overflow-hidden">
-                                <img 
-                                    src={topThree[2].avatarUrl} 
-                                    alt={topThree[2].name} 
-                                    className="w-full h-full object-cover rounded-full"
-                                />
+                            <div className="w-16 h-16 rounded-full border border-white/20 p-1 mb-3 overflow-hidden bg-gray-900 flex items-center justify-center">
+                                {topThree[2].avatarUrl ? (
+                                    <img 
+                                        src={topThree[2].avatarUrl} 
+                                        alt={topThree[2].name} 
+                                        className="w-full h-full object-cover rounded-full"
+                                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                    />
+                                ) : null}
+                                <User size={24} className={`text-gray-500 absolute ${topThree[2].avatarUrl ? 'hidden' : ''}`} />
                             </div>
                             <h3 className="font-bold text-white text-lg">{topThree[2].name}</h3>
                             <div className="text-xs font-mono text-pandora-cyan mb-4">{topThree[2].handle}</div>
