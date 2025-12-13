@@ -108,10 +108,15 @@ export function adaptProfile(
     ? parseFloat(((referral_stats.level1_count / referral_stats.click_count) * 100).toFixed(1))
     : 0;
   
+  // Use telegramUser from initData first, fallback to profile data from DB
+  const firstName = telegramUser?.first_name || profile.first_name || 'Operative';
+  const username = telegramUser?.username || profile.username;
+  const telegramId = telegramUser?.id || profile.telegram_id;
+  
   return {
-    name: telegramUser?.first_name || 'Operative',
-    handle: telegramUser?.username ? `@${telegramUser.username}` : `UID-${Date.now()}`,
-    id: `UID-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+    name: firstName,
+    handle: username ? `@${username}` : `UID-${telegramId || Date.now()}`,
+    id: telegramId ? `UID-${telegramId.toString().slice(-6)}` : `UID-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
     balance: profile.balance,
     earnedRef: profile.total_referral_earnings,
     saved: profile.total_saved,

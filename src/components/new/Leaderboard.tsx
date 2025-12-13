@@ -320,7 +320,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                                       />
                                     ) : null}
                                     <User size={14} className={`text-gray-500 group-hover:text-pandora-cyan ${user.avatarUrl ? 'hidden' : ''}`} />
-                                </div>
+                                    </div>
                                     <div className="min-w-0">
                                         <div className="text-sm font-bold text-white group-hover:text-pandora-cyan transition-colors flex items-center gap-2 truncate">
                                             {user.name}

@@ -323,10 +323,10 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                         coming_soon: { color: 'bg-blue-500', textColor: 'text-blue-500', label: 'STANDBY', pulse: true },
                                     }[avail];
                                     return (
-                                        <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2">
                                             <div className={`w-1.5 h-1.5 rounded-full ${statusConfig.color} ${statusConfig.pulse ? 'animate-pulse' : ''}`} />
                                             <span className={`text-[9px] font-mono uppercase ${statusConfig.textColor}`}>{statusConfig.label}</span>
-                                        </div>
+                                </div>
                                     );
                                 })()}
                             </div>
@@ -463,10 +463,10 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                             coming_soon: { color: 'bg-blue-500', text: 'STANDBY', textColor: 'text-blue-400' },
                                         }[avail];
                                         return (
-                                            <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2">
                                                 <div className={`w-1.5 h-1.5 rounded-full ${cfg.color}`} />
                                                 <span className={`text-[10px] font-mono ${cfg.textColor}`}>{cfg.text}</span>
-                                            </div>
+                                    </div>
                                         );
                                     })()}
                                 </div>

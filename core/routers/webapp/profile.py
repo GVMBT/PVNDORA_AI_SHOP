@@ -105,7 +105,11 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
             "created_at": db_user.created_at.isoformat() if db_user.created_at else None,
             "is_admin": db_user.is_admin or False,
             "is_partner": referral_program.get("is_partner", False),
-            "currency": currency
+            "currency": currency,
+            # User identity info (for web login where initData not available)
+            "first_name": db_user.first_name,
+            "username": db_user.username,
+            "telegram_id": db_user.telegram_id,
         },
         "referral_program": referral_program,
         "referral_stats": referral_stats,

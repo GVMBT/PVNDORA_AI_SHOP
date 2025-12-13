@@ -150,6 +150,10 @@ export interface APIProfile {
   is_admin: boolean;
   is_partner: boolean;
   currency: string;
+  // User identity (for web login where initData not available)
+  first_name?: string;
+  username?: string;
+  telegram_id?: number;
 }
 
 export interface APIReferralProgram {
