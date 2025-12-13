@@ -182,9 +182,33 @@ const LoginPage: React.FC<LoginPageProps> = ({
                 <span className="font-mono text-sm uppercase">Establishing secure connection...</span>
               </div>
             ) : (
-              <div id="telegram-login-container" className="flex justify-center min-h-[50px]">
-                {/* Telegram widget will be injected here */}
-              </div>
+              <>
+                <div id="telegram-login-container" className="flex justify-center min-h-[50px]">
+                  {/* Telegram widget will be injected here */}
+                </div>
+                <button
+                  onClick={() => {
+                    // fallback: reopen widget / open bot page if widget blocked
+                    const script = document.createElement('script');
+                    script.src = 'https://telegram.org/js/telegram-widget.js?22';
+                    script.setAttribute('data-telegram-login', botUsername);
+                    script.setAttribute('data-size', 'large');
+                    script.setAttribute('data-radius', '4');
+                    script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+                    script.setAttribute('data-request-access', 'write');
+                    script.async = true;
+                    const container = document.getElementById('telegram-login-container');
+                    if (container) {
+                      container.innerHTML = '';
+                      container.appendChild(script);
+                    }
+                    window.open(`https://t.me/${botUsername}`, '_blank');
+                  }}
+                  className="px-5 py-2 border border-pandora-cyan/60 text-pandora-cyan font-mono text-xs uppercase tracking-widest hover:bg-pandora-cyan hover:text-black transition-colors"
+                >
+                  Авторизоваться через Telegram
+                </button>
+              </>
             )}
 
             {error && (
