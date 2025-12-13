@@ -390,12 +390,16 @@ async def create_webapp_order(request: CreateOrderRequest, user=Depends(verify_t
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Determine payment gateway - support 1Plat, Freekassa, Rukassa, CrystalPay
-    payment_gateway = request.payment_gateway or os.environ.get("DEFAULT_PAYMENT_GATEWAY", "rukassa")
-    # Normalize + validate gateway configuration
-    payment_gateway = validate_gateway_config(payment_gateway)
-    
     payment_method = request.payment_method or "card"
+    
+    # Determine payment gateway - only needed for external payments
+    # For balance payments, gateway is not used
+    if payment_method != "balance":
+        payment_gateway = request.payment_gateway or os.environ.get("DEFAULT_PAYMENT_GATEWAY", "rukassa")
+        # Normalize + validate gateway configuration
+        payment_gateway = validate_gateway_config(payment_gateway)
+    else:
+        payment_gateway = None  # Not used for balance payments
     
     payment_service = get_payment_service()
     
@@ -593,8 +597,8 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
     if len(order_items) > 3:
         product_names += f" и еще {len(order_items) - 3}"
     
-    # Определяем валюту шлюза
-    gateway_currency = GATEWAY_CURRENCY.get(payment_gateway, "RUB")
+    # Определяем валюту шлюза (только для внешних платежей)
+    gateway_currency = GATEWAY_CURRENCY.get(payment_gateway or "", "RUB")
     
     # Конвертация суммы в валюту шлюза
     payable_amount = to_decimal(total_amount)
@@ -668,6 +672,116 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         expires_at=payment_expires_at
     )
     
+    # Создаём строки order_items СРАЗУ после создания заказа (нужны для balance check)
+    try:
+        await persist_order_items(db, order.id, order_items)
+    except Exception as e:
+        # Critical: order without items is invalid - delete order and fail
+        logger.error(f"Failed to create order_items for order {order.id}: {e}")
+        await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to create order items. Please try again."
+        )
+    
+    # ============================================================
+    # ОПЛАТА С БАЛАНСА: Проверка и списание ДО внешнего платежа
+    # ============================================================
+    if payment_method == "balance":
+        user_balance = to_decimal(db_user.balance) if db_user.balance else Decimal("0")
+        
+        # Проверяем достаточность баланса
+        if user_balance < payable_amount:
+            # Удаляем заказ, если баланс недостаточен
+            await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())
+            raise HTTPException(
+                status_code=400,
+                detail=f"Недостаточно средств на балансе. Доступно: {to_float(user_balance):.2f}₽, требуется: {to_float(payable_amount):.2f}₽"
+            )
+        
+        # Списание с баланса через RPC (отрицательная сумма)
+        try:
+            await asyncio.to_thread(
+                lambda: db.client.rpc("add_to_user_balance", {
+                    "p_user_id": db_user.id,
+                    "p_amount": -to_float(payable_amount),  # Отрицательная сумма = списание
+                    "p_reason": f"Payment for order {order.id}"
+                }).execute()
+            )
+            logger.info(f"Balance deducted {to_float(payable_amount):.2f} for order {order.id}")
+        except Exception as e:
+            # Откатываем заказ при ошибке списания
+            await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())
+            logger.error(f"Failed to deduct balance for order {order.id}: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Ошибка списания с баланса. Попробуйте позже."
+            )
+        
+        # Обновляем статус заказа на "paid" (оплачен)
+        try:
+            await asyncio.to_thread(
+                lambda: db.client.table("orders").update({
+                    "status": "paid",
+                    "payment_id": f"balance-{order.id}"
+                }).eq("id", order.id).execute()
+            )
+        except Exception as e:
+            logger.warning(f"Failed to update order status to paid for {order.id}: {e}")
+        
+        # Запускаем доставку через QStash (асинхронно, не блокируем ответ)
+        try:
+            from core.queue import publish_to_worker, WorkerEndpoints
+            await publish_to_worker(
+                endpoint=WorkerEndpoints.DELIVER_GOODS,
+                body={"order_id": order.id},
+                retries=2,
+                deduplication_id=f"deliver-{order.id}"
+            )
+            logger.info(f"Delivery queued for balance-paid order {order.id}")
+        except Exception as e:
+            # Если QStash недоступен, доставляем напрямую
+            logger.warning(f"QStash failed for balance order {order.id}, trying direct delivery: {e}")
+            try:
+                from core.routers.workers import _deliver_items_for_order
+                from core.routers.deps import get_notification_service
+                notification_service = get_notification_service()
+                await _deliver_items_for_order(db, notification_service, order.id, only_instant=True)
+            except Exception as direct_err:
+                logger.error(f"Direct delivery also failed for order {order.id}: {direct_err}")
+                # Не блокируем - доставка может быть повторена позже
+        
+        # Начисляем реферальные бонусы (асинхронно)
+        try:
+            from core.queue import publish_to_worker, WorkerEndpoints
+            await publish_to_worker(
+                endpoint=WorkerEndpoints.CALCULATE_REFERRAL,
+                body={"order_id": order.id},
+                retries=2,
+                deduplication_id=f"referral-{order.id}"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to queue referral bonus for order {order.id}: {e}")
+        
+        # Применяем промокод и очищаем корзину
+        if cart.promo_code:
+            await db.use_promo_code(cart.promo_code)
+        await cart_manager.clear_cart(user.id)
+        
+        # Возвращаем ответ БЕЗ payment_url (оплата уже прошла)
+        return OrderResponse(
+            order_id=order.id, 
+            amount=to_float(total_amount), 
+            original_price=to_float(total_original),
+            discount_percent=discount_pct,
+            payment_url=None,  # Нет URL - оплата уже прошла
+            payment_method=payment_method
+        )
+    
+    # ============================================================
+    # ВНЕШНИЙ ПЛАТЁЖ (CrystalPay, Rukassa и т.д.)
+    # ============================================================
+    
     # Пытаемся создать платёж уже с реальным order.id
     payment_url = None
     invoice_id = None
@@ -686,7 +800,12 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         payment_url = pay_result.get("payment_url")
         invoice_id = pay_result.get("invoice_id")
     except ValueError as e:
-        # Откатываем заказ, если платеж не создан
+        # Откатываем заказ и order_items, если платеж не создан
+        # Сначала удаляем order_items (FK constraint), потом заказ
+        try:
+            await asyncio.to_thread(lambda: db.client.table("order_items").delete().eq("order_id", order.id).execute())
+        except Exception:
+            pass
         await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())
         error_msg = str(e)
         logger.error(f"Payment creation failed: {error_msg}")
@@ -706,6 +825,11 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
         else:
             raise HTTPException(status_code=400, detail=error_msg)
     except Exception as e:
+        # Откатываем заказ и order_items при ошибке
+        try:
+            await asyncio.to_thread(lambda: db.client.table("order_items").delete().eq("order_id", order.id).execute())
+        except Exception:
+            pass
         await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())
         logger.error(f"Payment creation failed: {e}")
         raise HTTPException(
@@ -724,21 +848,8 @@ async def _create_cart_order(db, db_user, user, payment_service, payment_method:
     except Exception as e:
         logger.warning(f"Failed to save payment info for order {order.id}: {e}")
     
-    # Создаём строки order_items (по одному на штуку, для удобства частичной выдачи)
-    try:
-        await persist_order_items(db, order.id, order_items)
-    except Exception as e:
-        # Critical: order without items is invalid - mark as error status
-        logger.error(f"Failed to create order_items for order {order.id}: {e}")
-        try:
-            await asyncio.to_thread(
-                lambda: db.client.table("orders").update({
-                    "status": OrderStatus.ERROR.value,
-                    "notes": f"Failed to create order items: {str(e)[:200]}"
-                }).eq("id", order.id).execute()
-            )
-        except Exception as rollback_err:
-            logger.error(f"Failed to mark order {order.id} as error: {rollback_err}")
+    # order_items уже созданы выше (до проверки баланса/создания платежа)
+    # Здесь только устанавливаем cooldown и очищаем корзину
     
     # Устанавливаем cooldown
     if cooldown_redis:
