@@ -47,7 +47,14 @@ ERD и модель данных:
 - Управление секретами
 - Стратегия развертывания
 
-### 7. [UX, Deep Linking и Локализация](./ux-deep-linking.md)
+### 7. [Аутентификация](./AUTHENTICATION.md)
+Описание системы аутентификации:
+- Telegram Mini App authentication (initData)
+- Web Browser authentication (session tokens)
+- Общие утилиты и обработка ошибок
+- Troubleshooting
+
+### 8. [UX, Deep Linking и Локализация](./ux-deep-linking.md)
 Спецификация пользовательского опыта:
 - Разделение ответственности: Чат vs Mini App
 - Бесшовный Deep Linking (Base64url)
