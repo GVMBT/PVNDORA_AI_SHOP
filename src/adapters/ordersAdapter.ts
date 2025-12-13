@@ -5,17 +5,10 @@
  */
 
 import type { APIOrder, APIOrderItem, APIOrdersResponse } from '../types/api';
-import type { Order, OrderItem, OrderStatus, OrderItemStatus } from '../types/component';
+import type { Order, OrderItem, OrderStatus, OrderItemStatus, RawOrderStatus } from '../types/component';
 
 /**
- * Map API order status to component status
- * 
- * IMPORTANT: After refactoring, status meanings:
- * - 'pending': Order created, payment NOT confirmed yet
- * - 'prepaid': Payment CONFIRMED, but stock unavailable (waiting for stock)
- * - 'paid': Payment CONFIRMED, stock available (will be delivered)
- * - 'partial': Some items delivered, some waiting
- * - 'delivered': All items delivered
+ * Map API order status to component status (simplified for UI tabs)
  */
 function mapOrderStatus(apiStatus: string): OrderStatus {
   switch (apiStatus) {
@@ -27,12 +20,7 @@ function mapOrderStatus(apiStatus: string): OrderStatus {
     case 'partial':
       return 'paid'; // Paid orders (partial = some items delivered)
     case 'prepaid':
-      // prepaid = payment confirmed, but stock unavailable
-      // Should show as 'processing' but with different message
-      return 'processing';
     case 'pending':
-      // pending = payment NOT confirmed yet
-      return 'processing';
     case 'fulfilling':
     case 'payment_pending':
     case 'awaiting_payment':
@@ -40,10 +28,74 @@ function mapOrderStatus(apiStatus: string): OrderStatus {
     case 'cancelled':
     case 'refunded':
     case 'failed':
+    case 'expired':
       return 'refunded';
     default:
       return 'processing';
   }
+}
+
+/**
+ * Normalize raw status from API
+ */
+function normalizeRawStatus(apiStatus: string): RawOrderStatus {
+  const normalized = apiStatus.toLowerCase();
+  const validStatuses: RawOrderStatus[] = [
+    'pending', 'prepaid', 'paid', 'partial', 'delivered', 
+    'cancelled', 'refunded', 'expired', 'failed'
+  ];
+  return validStatuses.includes(normalized as RawOrderStatus) 
+    ? normalized as RawOrderStatus 
+    : 'pending';
+}
+
+/**
+ * Check if payment is confirmed based on status
+ */
+function isPaymentConfirmed(rawStatus: RawOrderStatus): boolean {
+  return ['prepaid', 'paid', 'partial', 'delivered'].includes(rawStatus);
+}
+
+/**
+ * Generate human-readable status message
+ */
+function getStatusMessage(rawStatus: RawOrderStatus): string {
+  switch (rawStatus) {
+    case 'pending':
+      return 'AWAITING_PAYMENT — Ожидается оплата';
+    case 'prepaid':
+      return 'PAYMENT_CONFIRMED — Оплачено, ожидание поступления товара';
+    case 'paid':
+      return 'PROCESSING — Оплачено, идёт подготовка к выдаче';
+    case 'partial':
+      return 'PARTIAL_DELIVERY — Часть товаров доставлена';
+    case 'delivered':
+      return 'COMPLETED — Все товары доставлены';
+    case 'cancelled':
+      return 'CANCELLED — Заказ отменён';
+    case 'refunded':
+      return 'REFUNDED — Средства возвращены';
+    case 'expired':
+      return 'EXPIRED — Срок оплаты истёк';
+    case 'failed':
+      return 'FAILED — Ошибка обработки';
+    default:
+      return 'UNKNOWN — Статус неизвестен';
+  }
+}
+
+/**
+ * Check if order can be cancelled
+ */
+function canCancelOrder(rawStatus: RawOrderStatus): boolean {
+  return ['pending'].includes(rawStatus);
+}
+
+/**
+ * Check if refund can be requested
+ */
+function canRequestRefund(rawStatus: RawOrderStatus): boolean {
+  return ['prepaid', 'paid'].includes(rawStatus);
 }
 
 /**
@@ -126,6 +178,12 @@ function adaptOrderItem(item: APIOrderItem, orderExpiresAt?: string | null): Ord
  * Adapt a single API order
  */
 export function adaptOrder(apiOrder: APIOrder): Order {
+  const rawStatus = normalizeRawStatus(apiOrder.status);
+  const paymentConfirmed = isPaymentConfirmed(rawStatus);
+  const statusMessage = getStatusMessage(rawStatus);
+  const canCancel = canCancelOrder(rawStatus);
+  const canRefund = canRequestRefund(rawStatus);
+  
   // Handle orders with items array (multi-item orders)
   if (apiOrder.items && apiOrder.items.length > 0) {
     return {
@@ -134,7 +192,12 @@ export function adaptOrder(apiOrder: APIOrder): Order {
       total: apiOrder.amount_display || apiOrder.amount,
       status: mapOrderStatus(apiOrder.status),
       items: apiOrder.items.map(item => adaptOrderItem(item, apiOrder.expires_at)),
-      payment_url: apiOrder.payment_url || null, // Include payment_url for pending/prepaid orders
+      payment_url: apiOrder.payment_url || null,
+      rawStatus,
+      paymentConfirmed,
+      statusMessage,
+      canCancel,
+      canRequestRefund: canRefund,
     };
   }
   
@@ -171,7 +234,12 @@ export function adaptOrder(apiOrder: APIOrder): Order {
       deadline: deadline,
       reason: null,
     }],
-    payment_url: apiOrder.payment_url || null, // Include payment_url for pending/prepaid orders
+    payment_url: apiOrder.payment_url || null,
+    rawStatus,
+    paymentConfirmed,
+    statusMessage,
+    canCancel,
+    canRequestRefund: canRefund,
   };
 }
 

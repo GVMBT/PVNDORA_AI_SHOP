@@ -58,6 +58,18 @@ export interface ProductReview {
 export type OrderStatus = 'paid' | 'processing' | 'refunded';
 export type OrderItemStatus = 'delivered' | 'waiting' | 'cancelled';
 
+// Raw backend status for detailed UI rendering
+export type RawOrderStatus = 
+  | 'pending'     // Not paid yet
+  | 'prepaid'     // Paid, waiting for stock
+  | 'paid'        // Paid, stock allocated
+  | 'partial'     // Some items delivered
+  | 'delivered'   // All items delivered
+  | 'cancelled'   // Cancelled
+  | 'refunded'    // Refunded
+  | 'expired'     // Payment deadline passed
+  | 'failed';     // Failed
+
 export interface OrderItem {
   id: string;
   name: string;
@@ -79,7 +91,14 @@ export interface Order {
   total: number;
   status: OrderStatus;
   items: OrderItem[];
-  payment_url?: string | null; // Payment URL for pending/prepaid orders
+  payment_url?: string | null; // Payment URL for pending orders
+  
+  // Extended status info for better UX
+  rawStatus: RawOrderStatus;       // Backend status as-is
+  paymentConfirmed: boolean;       // Is payment received?
+  statusMessage: string;           // Human-readable status explanation
+  canCancel: boolean;              // Can user cancel this order?
+  canRequestRefund: boolean;       // Can user request refund?
 }
 
 // ==================== PROFILE ====================

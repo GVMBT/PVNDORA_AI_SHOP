@@ -18,6 +18,9 @@ interface OrderItemData {
   reason?: string | null;
 }
 
+// Raw backend status for detailed UI
+type RawOrderStatus = 'pending' | 'prepaid' | 'paid' | 'partial' | 'delivered' | 'cancelled' | 'refunded' | 'expired' | 'failed';
+
 // Type for order data (matches Order from types/component)
 interface OrderData {
   id: string;
@@ -25,7 +28,14 @@ interface OrderData {
   total: number;
   status: 'paid' | 'processing' | 'refunded';
   items: OrderItemData[];
-  payment_url?: string | null; // Payment URL for pending/prepaid orders
+  payment_url?: string | null;
+  
+  // Extended status info
+  rawStatus?: RawOrderStatus;
+  paymentConfirmed?: boolean;
+  statusMessage?: string;
+  canCancel?: boolean;
+  canRequestRefund?: boolean;
 }
 
 interface OrdersProps {
@@ -61,13 +71,18 @@ const DecryptText: React.FC<{ text: string, revealed: boolean }> = ({ text, reve
     return <span className="font-mono">{display}</span>;
 }
 
-// --- MOCK ORDERS DATA ---
-const MOCK_ORDERS = [
+// --- MOCK ORDERS DATA (with extended status fields) ---
+const MOCK_ORDERS: OrderData[] = [
   {
     id: "CB8-C8D-C5",
     date: "2025-12-08 // 14:32:01",
     total: 1156,
     status: "paid",
+    rawStatus: "delivered",
+    paymentConfirmed: true,
+    statusMessage: "COMPLETED — Все товары доставлены",
+    canCancel: false,
+    canRequestRefund: false,
     items: [
       {
         id: 1,
@@ -76,7 +91,7 @@ const MOCK_ORDERS = [
         status: "delivered",
         credentials: "cursor_user3:cursor_pass3",
         expiry: "2025-12-15",
-        hasReview: false // User hasn't reviewed yet
+        hasReview: false
       },
       {
         id: 2,
@@ -84,7 +99,7 @@ const MOCK_ORDERS = [
         type: "instant",
         status: "delivered",
         credentials: "mj_user_x:discord_pass_123",
-        hasReview: true // Already reviewed
+        hasReview: true
       }
     ]
   },
@@ -93,6 +108,11 @@ const MOCK_ORDERS = [
     date: "2025-12-07 // 09:15:00",
     total: 4238,
     status: "processing",
+    rawStatus: "prepaid",
+    paymentConfirmed: true,
+    statusMessage: "PAYMENT_CONFIRMED — Оплачено, ожидание поступления товара",
+    canCancel: false,
+    canRequestRefund: true,
     items: [
       {
         id: 3,
@@ -107,10 +127,36 @@ const MOCK_ORDERS = [
     ]
   },
   {
+    id: "ABC-123-99",
+    date: "2025-12-10 // 11:30:00",
+    total: 500,
+    status: "processing",
+    rawStatus: "pending",
+    paymentConfirmed: false,
+    statusMessage: "AWAITING_PAYMENT — Ожидается оплата",
+    canCancel: true,
+    canRequestRefund: false,
+    payment_url: "https://pay.crystalpay.io/example",
+    items: [
+      {
+        id: 5,
+        name: "CHATGPT_PLUS_1M",
+        type: "instant",
+        status: "waiting",
+        hasReview: false
+      }
+    ]
+  },
+  {
     id: "FF9-E2B-11",
     date: "2025-12-01 // 18:45:22",
     total: 250,
     status: "refunded",
+    rawStatus: "refunded",
+    paymentConfirmed: false,
+    statusMessage: "REFUNDED — Средства возвращены",
+    canCancel: false,
+    canRequestRefund: false,
     items: [
       {
         id: 4,
@@ -293,33 +339,78 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
                         {/* Order Card */}
                         <div className="bg-[#080808] border border-white/10 hover:border-white/20 transition-all relative overflow-hidden">
                             
-                            {/* Card Header */}
+                            {/* Card Header - Enhanced Status Display */}
                             <div className="bg-white/5 p-3 flex justify-between items-center border-b border-white/5">
                                 <div className="flex items-center gap-4">
                                     <span className="font-mono text-xs text-pandora-cyan tracking-wider">ID: {order.id}</span>
                                     <span className="hidden sm:inline text-[10px] font-mono text-gray-600 uppercase">// {order.date}</span>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    {order.status === 'paid' && <span className="text-[10px] font-bold bg-green-500/20 text-green-400 px-2 py-0.5 border border-green-500/30">[ STATUS: OK ]</span>}
-                                    {order.status === 'processing' && <span className="text-[10px] font-bold bg-orange-500/20 text-orange-400 px-2 py-0.5 border border-orange-500/30 animate-pulse">[ STATUS: PENDING ]</span>}
-                                    {order.status === 'refunded' && <span className="text-[10px] font-bold bg-red-500/10 text-red-500 px-2 py-0.5 border border-red-500/20">[ STATUS: VOID ]</span>}
+                                    {/* Status Badge based on rawStatus for clarity */}
+                                    {order.rawStatus === 'delivered' && (
+                                      <span className="text-[10px] font-bold bg-green-500/20 text-green-400 px-2 py-0.5 border border-green-500/30">[ DELIVERED ]</span>
+                                    )}
+                                    {order.rawStatus === 'paid' && (
+                                      <span className="text-[10px] font-bold bg-blue-500/20 text-blue-400 px-2 py-0.5 border border-blue-500/30 animate-pulse">[ PROCESSING ]</span>
+                                    )}
+                                    {order.rawStatus === 'partial' && (
+                                      <span className="text-[10px] font-bold bg-yellow-500/20 text-yellow-400 px-2 py-0.5 border border-yellow-500/30">[ PARTIAL ]</span>
+                                    )}
+                                    {order.rawStatus === 'prepaid' && (
+                                      <span className="text-[10px] font-bold bg-purple-500/20 text-purple-400 px-2 py-0.5 border border-purple-500/30 animate-pulse">[ PAID • WAITING_STOCK ]</span>
+                                    )}
+                                    {order.rawStatus === 'pending' && (
+                                      <span className="text-[10px] font-bold bg-orange-500/20 text-orange-400 px-2 py-0.5 border border-orange-500/30 animate-pulse">[ UNPAID ]</span>
+                                    )}
+                                    {order.rawStatus === 'expired' && (
+                                      <span className="text-[10px] font-bold bg-gray-500/20 text-gray-400 px-2 py-0.5 border border-gray-500/30">[ EXPIRED ]</span>
+                                    )}
+                                    {(order.rawStatus === 'cancelled' || order.rawStatus === 'refunded') && (
+                                      <span className="text-[10px] font-bold bg-red-500/10 text-red-500 px-2 py-0.5 border border-red-500/20">[ {order.rawStatus?.toUpperCase()} ]</span>
+                                    )}
+                                    {order.rawStatus === 'failed' && (
+                                      <span className="text-[10px] font-bold bg-red-500/20 text-red-500 px-2 py-0.5 border border-red-500/30">[ FAILED ]</span>
+                                    )}
+                                    {/* Fallback for old data without rawStatus */}
+                                    {!order.rawStatus && order.status === 'paid' && (
+                                      <span className="text-[10px] font-bold bg-green-500/20 text-green-400 px-2 py-0.5 border border-green-500/30">[ STATUS: OK ]</span>
+                                    )}
+                                    {!order.rawStatus && order.status === 'processing' && (
+                                      <span className="text-[10px] font-bold bg-orange-500/20 text-orange-400 px-2 py-0.5 border border-orange-500/30 animate-pulse">[ STATUS: PENDING ]</span>
+                                    )}
+                                    {!order.rawStatus && order.status === 'refunded' && (
+                                      <span className="text-[10px] font-bold bg-red-500/10 text-red-500 px-2 py-0.5 border border-red-500/20">[ STATUS: VOID ]</span>
+                                    )}
                                     <span className="font-display font-bold text-white">{order.total} ₽</span>
                                 </div>
                             </div>
 
-                            {/* Payment Button for Pending/Prepaid Orders */}
-                            {order.status === 'processing' && order.payment_url && (
-                                <div className="p-4 bg-orange-500/10 border-t border-orange-500/20">
+                            {/* Status Explanation Banner */}
+                            {order.statusMessage && (
+                                <div className={`px-4 py-2 text-[10px] font-mono border-b ${
+                                  order.paymentConfirmed 
+                                    ? 'bg-green-500/5 border-green-500/20 text-green-400' 
+                                    : 'bg-orange-500/5 border-orange-500/20 text-orange-400'
+                                }`}>
+                                    <div className="flex items-center gap-2">
+                                        {order.paymentConfirmed ? <Check size={12} /> : <Clock size={12} />}
+                                        {order.statusMessage}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Payment Button - ONLY for unpaid orders */}
+                            {order.rawStatus === 'pending' && order.payment_url && (
+                                <div className="p-4 bg-orange-500/10 border-b border-orange-500/20">
                                     <div className="flex items-center justify-between">
                                         <div className="text-[10px] font-mono text-orange-400">
                                             <span className="flex items-center gap-2">
-                                                <Clock size={12} />
-                                                PAYMENT_REQUIRED
+                                                <AlertTriangle size={12} />
+                                                PAYMENT_REQUIRED — Оплатите заказ
                                             </span>
                                         </div>
                                         <button
                                             onClick={() => {
-                                                // Check if in Telegram Mini App
                                                 const tg = (window as any).Telegram?.WebApp;
                                                 if (tg) {
                                                     tg.openLink(order.payment_url!);
@@ -331,6 +422,32 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
                                         >
                                             PAY_NOW
                                         </button>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {/* Waiting for Stock Banner - for prepaid orders */}
+                            {order.rawStatus === 'prepaid' && (
+                                <div className="p-4 bg-purple-500/10 border-b border-purple-500/20">
+                                    <div className="flex items-center justify-between">
+                                        <div className="text-[11px] font-mono text-purple-400">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Check size={12} className="text-green-400" />
+                                                <span className="text-green-400">PAYMENT CONFIRMED</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-purple-300">
+                                                <Package size={12} />
+                                                Товар временно отсутствует на складе. Доставим при поступлении.
+                                            </div>
+                                        </div>
+                                        {order.canRequestRefund && onOpenSupport && (
+                                            <button
+                                                onClick={onOpenSupport}
+                                                className="px-3 py-1.5 bg-purple-500/20 border border-purple-500/30 text-purple-400 font-mono text-[10px] uppercase hover:bg-purple-500/30 transition-colors"
+                                            >
+                                                REQUEST_REFUND
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             )}
