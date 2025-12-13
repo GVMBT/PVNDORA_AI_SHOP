@@ -587,7 +587,7 @@ function NewAppInner() {
       {isBooted && (
         <BackgroundMusic 
           src="/sound.flac"
-          volume={0.12}
+          volume={0.20}
           autoPlay={true}
           loop={true}
           onLoadComplete={() => {
