@@ -209,16 +209,25 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   }, [isInitialized, cart, cartItems.length, onClose]);
 
   // Don't render modal if cart is empty (but allow rendering during loading)
+  // IMPORTANT: Only check this AFTER initialization and loading are complete
   const shouldRender = cart && cart.items && Array.isArray(cart.items) && cartItems.length > 0;
+  
+  console.log('[CheckoutModal] Render decision:', {
+    shouldRender,
+    hasCart: !!cart,
+    hasItems: !!cart?.items,
+    itemsIsArray: Array.isArray(cart?.items),
+    cartItemsLength: cartItems.length,
+    isInitialized,
+    cartLoading
+  });
+  
   if (!shouldRender) {
-    console.log('[CheckoutModal] Not rendering - cart empty or invalid', {
-      hasCart: !!cart,
-      hasItems: !!cart?.items,
-      itemsIsArray: Array.isArray(cart?.items),
-      cartItemsLength: cartItems.length
-    });
+    console.log('[CheckoutModal] Not rendering - cart empty or invalid');
     return null;
   }
+  
+  console.log('[CheckoutModal] Rendering modal with', cartItems.length, 'items');
 
   return (
     <CheckoutModal
