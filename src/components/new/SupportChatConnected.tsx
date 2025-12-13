@@ -51,20 +51,31 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasLoadedHistory = useRef(false);
   const processedContextRef = useRef<string | null>(null);
+  const contextAppliedRef = useRef(false);
   
   // Handle initial context (e.g., refund request from orders page)
+  // This should run AFTER history is loaded to avoid overwriting
   useEffect(() => {
-    if (isOpen && initialContext && initialContext.orderId) {
+    if (isOpen && initialContext && initialContext.orderId && !contextAppliedRef.current) {
       // Only process each unique context once
       const contextKey = `${initialContext.orderId}-${initialContext.reason}`;
       if (processedContextRef.current !== contextKey) {
         processedContextRef.current = contextKey;
+        contextAppliedRef.current = true;
         
-        // Set pre-filled message for refund request
+        // Set pre-filled message for refund request with better formatting
         const products = initialContext.productNames?.join(', ') || 'N/A';
-        const prefillMessage = `Запрос на возврат средств:\n• Order ID: ${initialContext.orderId}\n• Сумма: ${initialContext.orderTotal} ₽\n• Товары: ${products}\n• Причина: ${initialContext.reason || 'Товар отсутствует на складе'}`;
-        setInputValue(prefillMessage);
+        const prefillMessage = `Запрос на возврат средств:\n\n• Order ID: ${initialContext.orderId}\n• Сумма: ${initialContext.orderTotal} ₽\n• Товары: ${products}\n• Причина: ${initialContext.reason || 'Проблема с доставленным товаром'}\n\nПожалуйста, помогите с возвратом средств.`;
+        
+        // Apply after a small delay to ensure input is ready
+        setTimeout(() => {
+          setInputValue(prefillMessage);
+        }, 100);
       }
+    } else if (!initialContext) {
+      // Reset when context is cleared
+      contextAppliedRef.current = false;
+      processedContextRef.current = null;
     }
   }, [isOpen, initialContext]);
 
@@ -72,9 +83,19 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
   useEffect(() => {
     if (isOpen && !hasLoadedHistory.current) {
       hasLoadedHistory.current = true;
-      loadHistory();
+      loadHistory().then(() => {
+        // After history loads, apply context if needed (check current initialContext)
+        const currentContext = initialContext;
+        if (currentContext && currentContext.orderId && !contextAppliedRef.current) {
+          const products = currentContext.productNames?.join(', ') || 'N/A';
+          const prefillMessage = `Запрос на возврат средств:\n\n• Order ID: ${currentContext.orderId}\n• Сумма: ${currentContext.orderTotal} ₽\n• Товары: ${products}\n• Причина: ${currentContext.reason || 'Проблема с доставленным товаром'}\n\nПожалуйста, помогите с возвратом средств.`;
+          setInputValue(prefillMessage);
+          contextAppliedRef.current = true;
+          processedContextRef.current = `${currentContext.orderId}-${currentContext.reason}`;
+        }
+      });
     }
-  }, [isOpen]);
+  }, [isOpen]); // Don't include initialContext to avoid re-loading history
 
   const loadHistory = useCallback(async () => {
     const history = await getHistory(20);
@@ -112,6 +133,11 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
     setMessages(prev => [...prev, userMsg]);
     const messageText = inputValue;
     setInputValue('');
+    
+    // Clear context after sending (so it doesn't re-apply on next open)
+    contextAppliedRef.current = false;
+    processedContextRef.current = null;
+    
     setIsTyping(true);
 
     try {
@@ -181,7 +207,14 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
 
   const toggleChat = () => {
     if (onHaptic) onHaptic();
+    const willClose = isOpen;
     onToggle(!isOpen);
+    
+    // Reset context refs when closing chat
+    if (willClose) {
+      contextAppliedRef.current = false;
+      processedContextRef.current = null;
+    }
   };
 
   const handleRefresh = () => {
