@@ -19,6 +19,7 @@ export { default as Legal } from './Legal';
 // === SYSTEM COMPONENTS ===
 export { default as BootSequence, type BootTask } from './BootSequence';
 export { HUDProvider, useHUD, HUDIcons } from './HUDNotifications';
+export { default as BackgroundMusic } from './BackgroundMusic';
 
 // === DATA COMPONENTS (With Mock Data - For Development) ===
 export { default as Catalog } from './Catalog';

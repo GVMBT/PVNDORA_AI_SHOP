@@ -30,6 +30,7 @@ import {
   LoginPage,
   BootSequence,
   useHUD,
+  BackgroundMusic,
   type BootTask,
   type RefundContext,
 } from './components/new';
@@ -43,14 +44,6 @@ import { useCart } from './contexts/CartContext';
 
 // Audio Engine (procedural sound generation)
 import { AudioEngine } from './lib/AudioEngine';
-
-// Auth utilities (static import to avoid Vite warning)
-import { 
-  persistSessionTokenFromQuery, 
-  getSessionToken, 
-  verifySessionToken, 
-  removeSessionToken 
-} from './utils/auth';
 
 // API base URL
 const API_BASE = (import.meta as any)?.env?.VITE_API_URL || '/api';
@@ -79,6 +72,7 @@ function NewAppInner() {
   
   // Boot Sequence State
   const [isBooted, setIsBooted] = useState(false);
+  const [musicLoaded, setMusicLoaded] = useState(false);
   
   // HUD Notifications (replaces old toast system)
   const hud = useHUD();
@@ -114,29 +108,16 @@ function NewAppInner() {
 
   // Note: Authentication and data loading is now handled by BootSequence tasks
 
-  // Resume audio context on first user interaction (fallback if boot resume failed)
-  // Music is already started in BootSequence and should be playing after boot
-  // We try to resume immediately after boot, but if that fails due to browser policy,
-  // we'll resume on first interaction
+  // Initialize Audio on first interaction
   useEffect(() => {
-      let audioResumed = false;
-      const resumeAudio = async () => {
-          if (audioResumed) return;
-          audioResumed = true;
-          try {
-              await AudioEngine.resume();
-          } catch (e) {
-              console.warn('[NewApp] Audio resume failed:', e);
-          }
+      const initAudio = () => {
+          AudioEngine.init();
+          AudioEngine.resume();
+          window.removeEventListener('click', initAudio);
+          window.removeEventListener('keydown', initAudio);
       };
-      
-      // Try to resume on any interaction (fallback for browsers that block autoplay)
-      // Use capture phase to catch interactions early
-      const options = { once: true, capture: true };
-      window.addEventListener('click', resumeAudio, options);
-      window.addEventListener('keydown', resumeAudio, options);
-      window.addEventListener('touchstart', resumeAudio, options);
-      window.addEventListener('mousedown', resumeAudio, options);
+      window.addEventListener('click', initAudio);
+      window.addEventListener('keydown', initAudio);
       
       // CMD+K Listener
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -147,11 +128,7 @@ function NewAppInner() {
           }
       };
       window.addEventListener('keydown', handleKeyDown);
-      return () => {
-        window.removeEventListener('keydown', handleKeyDown);
-        // Cleanup: stop music when component unmounts
-        AudioEngine.stopAmbientMusic();
-      };
+      return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   // --- UNIFIED FEEDBACK HANDLER ---
@@ -299,8 +276,6 @@ function NewAppInner() {
         AudioEngine.init();
         await AudioEngine.resume();
         AudioEngine.boot();
-        // Start procedural ambient music (will be muted until user interaction due to browser policy)
-        AudioEngine.startAmbientMusicFromAnalysis();
         return true;
       },
     },
@@ -312,6 +287,7 @@ function NewAppInner() {
       critical: false, // Not critical - will show login page
       execute: async () => {
         // Persist session_token from URL query if present
+        const { persistSessionTokenFromQuery } = await import('./utils/auth');
         persistSessionTokenFromQuery();
 
         // In Telegram WebApp context - always authenticated via initData
@@ -321,6 +297,7 @@ function NewAppInner() {
         }
         
         // In browser - check for session token
+        const { getSessionToken, verifySessionToken, removeSessionToken } = await import('./utils/auth');
         const sessionToken = getSessionToken();
         if (sessionToken) {
           const result = await verifySessionToken(sessionToken);
@@ -352,6 +329,47 @@ function NewAppInner() {
       },
     },
     {
+      id: 'music',
+      label: 'Loading ambient audio stream...',
+      successLabel: 'Ambient audio: READY',
+      errorLabel: 'Audio stream unavailable',
+      critical: false, // Not critical - app works without music
+      execute: async () => {
+        // Preload background music
+        const musicUrl = '/sound.flac';
+        const startTime = Date.now();
+        
+        return new Promise((resolve, reject) => {
+          const audio = new Audio(musicUrl);
+          audio.preload = 'auto';
+          
+          const timeout = setTimeout(() => {
+            // If loading takes too long, resolve anyway (non-critical)
+            console.warn('[Boot] Music loading timeout, continuing...');
+            resolve({ loaded: false, loadTime: Date.now() - startTime });
+          }, 5000); // 5 second timeout
+          
+          audio.addEventListener('canplaythrough', () => {
+            clearTimeout(timeout);
+            const loadTime = Date.now() - startTime;
+            console.log(`[Boot] Music loaded in ${loadTime}ms`);
+            resolve({ loaded: true, loadTime });
+          }, { once: true });
+          
+          audio.addEventListener('error', (e) => {
+            clearTimeout(timeout);
+            const error = new Error(`Failed to load music: ${(e.target as HTMLAudioElement).error?.message || 'Unknown'}`);
+            console.warn('[Boot] Music load error:', error);
+            // Don't reject - music is non-critical
+            resolve({ loaded: false, error: error.message, loadTime: Date.now() - startTime });
+          }, { once: true });
+          
+          // Start loading
+          audio.load();
+        });
+      },
+    },
+    {
       id: 'prefetch',
       label: 'Caching static resources...',
       successLabel: 'Resources cached',
@@ -369,7 +387,7 @@ function NewAppInner() {
   ], [getProducts, getCart]);
   
   // Handle boot sequence completion with real data
-  const handleBootComplete = useCallback(async (results: Record<string, any>) => {
+  const handleBootComplete = useCallback((results: Record<string, any>) => {
     console.log('[Boot] Sequence complete with results:', results);
     
     // Check authentication result
@@ -380,16 +398,14 @@ function NewAppInner() {
       setIsAuthenticated(false);
     }
     
+    // Check music loading result
+    const musicResult = results.music;
+    if (musicResult?.loaded) {
+      setMusicLoaded(true);
+    }
+    
     setIsBooted(true);
     AudioEngine.connect();
-    
-    // Resume audio context immediately after boot (music is already started in boot task)
-    // This should work if BootSequence was visible/interactive
-    try {
-      await AudioEngine.resume();
-    } catch (e) {
-      console.warn('[Boot] Audio resume failed, will resume on first interaction:', e);
-    }
     
     // Show welcome notification with stats
     const productCount = results.catalog?.productCount || 0;
@@ -566,6 +582,22 @@ function NewAppInner() {
       />
 
       {/* HUD Notifications are rendered by HUDProvider */}
+      
+      {/* Background Music (only after boot completes) */}
+      {isBooted && (
+        <BackgroundMusic 
+          src="/sound.flac"
+          volume={0.12}
+          autoPlay={true}
+          loop={true}
+          onLoadComplete={() => {
+            console.log('[NewApp] Background music loaded and playing');
+          }}
+          onLoadError={(error) => {
+            console.warn('[NewApp] Background music failed to load:', error);
+          }}
+        />
+      )}
       
       {/* Subtle Grain/Scanline Effect */}
       <div className="fixed inset-0 pointer-events-none z-[100] opacity-[0.02] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] brightness-100 contrast-150" />

@@ -1187,7 +1187,7 @@ class PaymentService:
         # - If from Telegram Mini App: use t.me deeplink to return to Mini App
         # - If from external browser: use web result page to stay in browser
         if is_telegram_miniapp:
-            bot_username = os.environ.get("BOT_USERNAME", "pvndora_ai_bot")
+        bot_username = os.environ.get("BOT_USERNAME", "pvndora_ai_bot")
             redirect_url = f"https://t.me/{bot_username}?startapp=payresult_{order_id}"
         else:
             redirect_url = f"{self.base_url}/payment/result?order_id={order_id}"
