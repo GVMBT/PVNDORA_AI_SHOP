@@ -316,10 +316,19 @@ function NewApp() {
   };
 
   const handleOpenCart = () => {
-    console.log('[NewApp] handleOpenCart called');
-    handleFeedback('medium');
+    console.log('[NewApp] ========================================');
+    console.log('[NewApp] handleOpenCart CALLED');
+    console.log('[NewApp] Current isCheckoutOpen:', isCheckoutOpen);
+    console.log('[NewApp] Current cart:', cart);
+    console.log('[NewApp] Cart items count:', cart?.items?.length || 0);
+    try {
+      handleFeedback('medium');
+    } catch (err) {
+      console.error('[NewApp] Error in handleFeedback:', err);
+    }
     console.log('[NewApp] Setting isCheckoutOpen = true');
     setIsCheckoutOpen(true);
+    console.log('[NewApp] ========================================');
   };
 
   const handleCloseCheckout = useCallback(() => {
@@ -503,21 +512,25 @@ function NewApp() {
       {/* --- CHECKOUT MODAL --- */}
       <AnimatePresence>
         {(() => {
-          console.log('[NewApp] Checking checkout modal render:', {
-            isCheckoutOpen,
-            willRender: !!isCheckoutOpen,
-          });
+          console.log('[NewApp] ===== CHECKOUT MODAL RENDER CHECK =====');
+          console.log('[NewApp] isCheckoutOpen:', isCheckoutOpen);
+          console.log('[NewApp] willRender:', !!isCheckoutOpen);
           if (!isCheckoutOpen) {
             console.log('[NewApp] Checkout modal NOT rendering - isCheckoutOpen is false');
             return null;
           }
-          console.log('[NewApp] RENDERING CheckoutModalConnected');
-          return (
-            <CheckoutModalConnected 
-              onClose={handleCloseCheckout} 
-              onSuccess={handleCheckoutSuccess}
-            />
-          );
+          console.log('[NewApp] ===== RENDERING CheckoutModalConnected =====');
+          try {
+            return (
+              <CheckoutModalConnected 
+                onClose={handleCloseCheckout} 
+                onSuccess={handleCheckoutSuccess}
+              />
+            );
+          } catch (err) {
+            console.error('[NewApp] ERROR rendering CheckoutModalConnected:', err);
+            return null;
+          }
         })()}
       </AnimatePresence>
 
