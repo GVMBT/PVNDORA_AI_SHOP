@@ -4,7 +4,7 @@
  * Connected version of CheckoutModal with real cart and payment API.
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import CheckoutModal from './CheckoutModal';
 import { useOrdersTyped, useProfileTyped } from '../../hooks/useApiTyped';
 import { useCart } from '../../contexts/CartContext';
@@ -135,7 +135,7 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   }
 
   // Convert cart data to component format
-  const cartItems: CartItem[] = cart?.items.map(item => ({
+  const cartItems: CartItem[] = cart?.items?.map(item => ({
     id: item.id,
     name: item.name,
     category: item.category,
@@ -146,12 +146,12 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
 
   // CRITICAL: Close modal immediately if cart is empty (check after mapping)
   useEffect(() => {
-    if (isInitialized && cartItems.length === 0) {
+    if (isInitialized && (!cart || !cart.items || cartItems.length === 0)) {
       onClose();
     }
-  }, [isInitialized, cartItems.length, onClose]);
+  }, [isInitialized, cart, cartItems.length, onClose]);
 
-  // Don't render modal if cart is empty
+  // Don't render modal if cart is empty (but allow rendering during loading)
   if (!cart || !cart.items || cartItems.length === 0) {
     return null;
   }

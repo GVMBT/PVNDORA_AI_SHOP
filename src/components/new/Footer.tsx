@@ -149,7 +149,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) => {
                      <span className="flex items-center gap-1"><Shield size={8} /> SSL SECURE</span>
                      <span className="flex items-center gap-1"><CreditCard size={8} /> VERIFIED</span>
                  </div>
-                 <p>© 2024 PVNDORA. All Systems Operational.</p>
+                 <p>© {new Date().getFullYear()} PVNDORA. All Systems Operational.</p>
              </div>
           </div>
 
