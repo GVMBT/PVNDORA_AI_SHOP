@@ -148,6 +148,20 @@ function NewApp() {
   // Cart from backend
   const { cart, getCart, addToCart, removeCartItem } = useCartTyped();
 
+  // --- SPOTLIGHT LOGIC (must be before any early returns) ---
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  // Mouse tracking for spotlight effect
+  useEffect(() => {
+    const handleMouseMove = ({ clientX, clientY }: MouseEvent) => {
+      mouseX.set(clientX);
+      mouseY.set(clientY);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [mouseX, mouseY]);
+
   // Check authentication on mount
   useEffect(() => {
     const checkAuth = () => {
@@ -350,19 +364,6 @@ function NewApp() {
     setCurrentView('legal');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
-
-  // --- SPOTLIGHT LOGIC ---
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-
-  useEffect(() => {
-    const handleMouseMove = ({ clientX, clientY }: MouseEvent) => {
-      mouseX.set(clientX);
-      mouseY.set(clientY);
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [mouseX, mouseY]);
 
   const getActiveTab = () => {
     if (currentView === 'profile') return 'profile';
