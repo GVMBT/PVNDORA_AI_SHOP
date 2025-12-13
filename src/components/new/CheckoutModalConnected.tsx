@@ -146,6 +146,37 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
     }
   }, [createOrder]);
 
+  // Check if cart is empty and close modal if needed
+  // MOVED BEFORE CONDITIONAL RENDERS - Rules of Hooks require all hooks at top level
+  useEffect(() => {
+    console.log('[CheckoutModal] useEffect[empty-check] triggered', {
+      isInitialized,
+      cartLoading,
+      cartItems: cart?.items?.length || 0,
+    });
+    
+    if (!isInitialized || cartLoading) {
+      console.log('[CheckoutModal] Skipping empty check - not initialized or loading');
+      return;
+    }
+    
+    const isEmpty = !cart || !cart.items || !Array.isArray(cart.items) || cart.items.length === 0;
+    if (isEmpty) {
+      console.log('[CheckoutModal] Cart is empty, scheduling close');
+      const timeoutId = setTimeout(() => {
+        console.log('[CheckoutModal] Executing onClose()');
+        onClose();
+      }, 0);
+      
+      return () => {
+        console.log('[CheckoutModal] useEffect[empty-check] cleanup - clearing timeout');
+        clearTimeout(timeoutId);
+      };
+    } else {
+      console.log('[CheckoutModal] Cart is not empty, length:', cart.items.length);
+    }
+  }, [isInitialized, cartLoading, cart, onClose]);
+
   // Loading state
   console.log('[CheckoutModal] Checking loading state:', {
     isInitialized,
@@ -204,37 +235,6 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
     length: cartItems.length,
     items: cartItems,
   });
-
-  // Check if cart is empty and close modal if needed
-  // Use cart.items directly instead of cartItems to avoid dependency on computed value
-  useEffect(() => {
-    console.log('[CheckoutModal] useEffect[empty-check] triggered', {
-      isInitialized,
-      cartLoading,
-      cartItems: cart?.items?.length || 0,
-    });
-    
-    if (!isInitialized || cartLoading) {
-      console.log('[CheckoutModal] Skipping empty check - not initialized or loading');
-      return;
-    }
-    
-    const isEmpty = !cart || !cart.items || !Array.isArray(cart.items) || cart.items.length === 0;
-    if (isEmpty) {
-      console.log('[CheckoutModal] Cart is empty, scheduling close');
-      const timeoutId = setTimeout(() => {
-        console.log('[CheckoutModal] Executing onClose()');
-        onClose();
-      }, 0);
-      
-      return () => {
-        console.log('[CheckoutModal] useEffect[empty-check] cleanup - clearing timeout');
-        clearTimeout(timeoutId);
-      };
-    } else {
-      console.log('[CheckoutModal] Cart is not empty, length:', cart.items.length);
-    }
-  }, [isInitialized, cartLoading, cart, onClose]);
 
   // Don't render modal if cart is empty
   console.log('[CheckoutModal] Final render check:', {
