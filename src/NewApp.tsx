@@ -152,6 +152,15 @@ function NewApp() {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
+  // Spotlight gradient (useMotionTemplate must be called unconditionally)
+  const spotlightBackground = useMotionTemplate`
+    radial-gradient(
+      600px circle at ${mouseX}px ${mouseY}px,
+      rgba(0, 255, 255, 0.07),
+      transparent 80%
+    )
+  `;
+
   // Mouse tracking for spotlight effect
   useEffect(() => {
     const handleMouseMove = ({ clientX, clientY }: MouseEvent) => {
@@ -419,13 +428,7 @@ function NewApp() {
       <motion.div
         className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-300 mix-blend-plus-lighter"
         style={{
-          background: useMotionTemplate`
-            radial-gradient(
-              600px circle at ${mouseX}px ${mouseY}px,
-              rgba(0, 255, 255, 0.07),
-              transparent 80%
-            )
-          `,
+          background: spotlightBackground,
         }}
       />
       
