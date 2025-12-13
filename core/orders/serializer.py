@@ -128,7 +128,11 @@ def build_order_payload(
         "currency": currency,
         "created_at": order.created_at.isoformat() if order.created_at else None,
         "delivered_at": order.delivered_at.isoformat() if hasattr(order, 'delivered_at') and order.delivered_at else None,
+        # expires_at = payment deadline (relevant only for pending orders)
         "expires_at": order.expires_at.isoformat() if order.expires_at else None,
+        # fulfillment_deadline = delivery deadline (relevant for prepaid orders)
+        "fulfillment_deadline": order.fulfillment_deadline.isoformat() if hasattr(order, 'fulfillment_deadline') and order.fulfillment_deadline else None,
+        # warranty_until = warranty end date (for delivered orders)
         "warranty_until": order.warranty_until.isoformat() if hasattr(order, 'warranty_until') and order.warranty_until else None,
     }
 

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Copy, Check, Clock, AlertTriangle, Package, Terminal, Activity, Box, Star, MessageSquare, X, Send, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Copy, Check, Clock, AlertTriangle, Package, Terminal, Activity, Box, Star, MessageSquare, X, Send, Eye, EyeOff, Shield } from 'lucide-react';
 
 // Type for order item data (matches OrderItem from types/component)
 interface OrderItemData {
@@ -38,10 +38,18 @@ interface OrderData {
   canRequestRefund?: boolean;
 }
 
+// Context for refund request
+export interface RefundContext {
+  orderId: string;
+  orderTotal: number;
+  productNames: string[];
+  reason?: string;
+}
+
 interface OrdersProps {
   orders?: OrderData[];
   onBack: () => void;
-  onOpenSupport?: () => void;
+  onOpenSupport?: (context?: RefundContext) => void;
   onSubmitReview?: (orderId: string, rating: number, text?: string) => Promise<void>;
 }
 
@@ -385,8 +393,8 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
                                 </div>
                             </div>
 
-                            {/* Status Explanation Banner */}
-                            {order.statusMessage && (
+                            {/* Status Explanation Banner - hide for prepaid (has its own block below) */}
+                            {order.statusMessage && order.rawStatus !== 'prepaid' && (
                                 <div className={`px-4 py-2 text-[10px] font-mono border-b ${
                                   order.paymentConfirmed 
                                     ? 'bg-green-500/5 border-green-500/20 text-green-400' 
@@ -429,25 +437,44 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
                             {/* Waiting for Stock Banner - for prepaid orders */}
                             {order.rawStatus === 'prepaid' && (
                                 <div className="p-4 bg-purple-500/10 border-b border-purple-500/20">
+                                    <div className="text-[11px] font-mono text-purple-400">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <Check size={12} className="text-green-400" />
+                                            <span className="text-green-400">PAYMENT CONFIRMED</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-purple-300 mb-2">
+                                            <Package size={12} />
+                                            Товар временно отсутствует на складе. Доставим при поступлении.
+                                        </div>
+                                        <div className="flex items-center gap-2 text-gray-500 text-[10px]">
+                                            <Shield size={10} />
+                                            Автоматический возврат средств при превышении срока доставки
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {/* Warranty Refund Banner - for delivered orders within warranty */}
+                            {order.rawStatus === 'delivered' && order.canRequestRefund && onOpenSupport && (
+                                <div className="p-4 bg-green-500/5 border-b border-green-500/20">
                                     <div className="flex items-center justify-between">
-                                        <div className="text-[11px] font-mono text-purple-400">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <Check size={12} className="text-green-400" />
-                                                <span className="text-green-400">PAYMENT CONFIRMED</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-purple-300">
-                                                <Package size={12} />
-                                                Товар временно отсутствует на складе. Доставим при поступлении.
+                                        <div className="text-[11px] font-mono text-green-400">
+                                            <div className="flex items-center gap-2">
+                                                <Shield size={12} />
+                                                Гарантийный период активен
                                             </div>
                                         </div>
-                                        {order.canRequestRefund && onOpenSupport && (
-                                            <button
-                                                onClick={onOpenSupport}
-                                                className="px-3 py-1.5 bg-purple-500/20 border border-purple-500/30 text-purple-400 font-mono text-[10px] uppercase hover:bg-purple-500/30 transition-colors"
-                                            >
-                                                REQUEST_REFUND
-                                            </button>
-                                        )}
+                                        <button
+                                            onClick={() => onOpenSupport({
+                                                orderId: order.id,
+                                                orderTotal: order.total,
+                                                productNames: order.items.map(i => i.name),
+                                                reason: 'WARRANTY_CLAIM: Проблема с доставленным товаром'
+                                            })}
+                                            className="px-3 py-1.5 bg-green-500/20 border border-green-500/30 text-green-400 font-mono text-[10px] uppercase hover:bg-green-500/30 transition-colors"
+                                        >
+                                            REPORT_ISSUE
+                                        </button>
                                     </div>
                                 </div>
                             )}
@@ -565,7 +592,7 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
 
             {/* Footer */}
             <div className="mt-16 border-t border-white/10 pt-8 text-center">
-                 <div onClick={onOpenSupport} className="inline-flex flex-col items-center gap-2 group cursor-pointer">
+                 <div onClick={() => onOpenSupport?.()} className="inline-flex flex-col items-center gap-2 group cursor-pointer">
                     <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 group-hover:border-pandora-cyan group-hover:text-pandora-cyan transition-all">
                         <Box size={18} />
                     </div>

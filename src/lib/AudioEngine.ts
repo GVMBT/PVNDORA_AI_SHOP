@@ -312,6 +312,61 @@ class AudioEngineClass {
       this.playTone({ freq, type: 'square', duration: 0.02, volume: 0.02, delay });
     }
   }
+
+  /**
+   * Typewriter effect - for menu expansion, text reveal
+   * Creates a burst of mechanical key clicks
+   */
+  typewriter(charCount: number = 5): void {
+    for (let i = 0; i < charCount; i++) {
+      const delay = i * 0.04;
+      // Mechanical click
+      const freq = 1800 + Math.random() * 400;
+      this.playTone({ freq, type: 'square', duration: 0.015, volume: 0.012, delay });
+      // Clack impact
+      this.playNoise(0.008, 0.015, delay + 0.005);
+    }
+  }
+
+  /**
+   * Decrypt/Scramble effect - for data reveal, referral dossier
+   * Creates a digital scrambling sound followed by confirmation
+   */
+  decrypt(): void {
+    // Scrambling phase - rapid random tones
+    for (let i = 0; i < 12; i++) {
+      const freq = 800 + Math.random() * 2400;
+      const delay = i * 0.035;
+      this.playTone({ freq, type: 'square', duration: 0.02, volume: 0.015, delay });
+    }
+    // Digital noise during scramble
+    this.playNoise(0.3, 0.015);
+    
+    // Confirmation chirp at end
+    this.playTone({ freq: 1200, type: 'sine', duration: 0.08, volume: 0.02, delay: 0.4 });
+    this.playTone({ freq: 1600, type: 'sine', duration: 0.1, volume: 0.025, delay: 0.45 });
+  }
+
+  /**
+   * Panel slide open - for sidebar/drawer opening
+   */
+  panelOpen(): void {
+    // Whoosh sweep
+    this.playSweep(100, 300, 0.12, 'sine', 0.02);
+    // Mechanical latch
+    this.playTone({ freq: 400, type: 'square', duration: 0.03, volume: 0.02, delay: 0.1 });
+    this.playNoise(0.03, 0.015, 0.1);
+  }
+
+  /**
+   * Panel slide close - for sidebar/drawer closing
+   */
+  panelClose(): void {
+    // Reverse whoosh
+    this.playSweep(300, 100, 0.1, 'sine', 0.02);
+    // Soft thud
+    this.playTone({ freq: 200, type: 'square', duration: 0.04, volume: 0.015 });
+  }
 }
 
 // Singleton instance

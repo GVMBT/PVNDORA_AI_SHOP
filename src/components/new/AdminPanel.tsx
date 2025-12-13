@@ -9,8 +9,77 @@ import {
   Image as ImageIcon, Upload, Video
 } from 'lucide-react';
 
+// Product type for admin panel
+interface ProductData {
+  id: number;
+  name: string;
+  category: string;
+  description: string;
+  price: number;
+  msrp: number;
+  type: string;
+  stock: number;
+  fulfillment: number;
+  warranty: number;
+  duration: number;
+  sold: number;
+  vpn: boolean;
+  image: string;
+  video?: string;
+  instructions: string;
+}
+
+// Order type for admin panel
+interface OrderData {
+  id: string;
+  user: string;
+  product: string;
+  amount: number;
+  status: string;
+  date: string;
+  method: string;
+}
+
+// User type for admin panel
+interface UserData {
+  id: number;
+  username: string;
+  role: 'USER' | 'VIP' | 'ADMIN';
+  joinedAt: string;
+  purchases: number;
+  spent: number;
+  balance: number;
+  isBanned: boolean;
+  invites: number;
+  earned: number;
+  savings: number;
+}
+
+// Ticket type for admin panel
+interface TicketData {
+  id: string;
+  user: string;
+  subject: string;
+  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
+  createdAt: string;
+  lastMessage: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
+}
+
 interface AdminPanelProps {
   onExit: () => void;
+  // Optional data props - if not provided, will use mock data
+  products?: ProductData[];
+  orders?: OrderData[];
+  users?: UserData[];
+  tickets?: TicketData[];
+  stats?: {
+    totalRevenue: number;
+    ordersToday: number;
+    ordersWeek: number;
+    ordersMonth: number;
+    activeUsers: number;
+  };
 }
 
 type AdminView = 'dashboard' | 'catalog' | 'sales' | 'partners' | 'support';
@@ -104,10 +173,23 @@ const VIP_REQUESTS = [
 
 // --- COMPONENTS ---
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
+const AdminPanel: React.FC<AdminPanelProps> = ({ 
+  onExit,
+  products: propsProducts,
+  orders: propsOrders,
+  users: propsUsers,
+  tickets: propsTickets,
+  stats: propsStats
+}) => {
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
+  // Use props data if provided, otherwise fall back to mock data
+  const productsData = propsProducts || MOCK_PRODUCTS;
+  const ordersData = propsOrders || MOCK_ORDERS;
+  const partnersData = propsUsers || MOCK_PARTNERS;
+  const ticketsData = propsTickets || MOCK_TICKETS;
   
   // Sales State
   const [orderSearch, setOrderSearch] = useState('');

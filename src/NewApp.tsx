@@ -20,7 +20,7 @@ import {
   Legal,
   SupportChatConnected,
   CommandPalette,
-  AdminPanel,
+  AdminPanelConnected,
   CatalogConnected,
   ProductDetailConnected,
   OrdersConnected,
@@ -31,6 +31,7 @@ import {
   BootSequence,
   useHUD,
   type BootTask,
+  type RefundContext,
 } from './components/new';
 
 // Types
@@ -58,6 +59,7 @@ function NewAppInner() {
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isSupportWidgetOpen, setIsSupportWidgetOpen] = useState(false);
+  const [supportContext, setSupportContext] = useState<RefundContext | null>(null);
   const [isCmdOpen, setIsCmdOpen] = useState(false);
   
   // Navigation State
@@ -429,7 +431,7 @@ function NewAppInner() {
       <main className="w-full relative z-10">
         <AnimatePresence mode="wait">
           {currentView === 'admin' ? (
-            <AdminPanel key="admin" onExit={() => navigate('profile')} />
+            <AdminPanelConnected key="admin" onExit={() => navigate('profile')} />
           ) : currentView === 'profile' ? (
             <ProfileConnected 
               key="profile" 
@@ -441,7 +443,10 @@ function NewAppInner() {
              <OrdersConnected 
                key="orders" 
                onBack={() => navigate('home')} 
-               onOpenSupport={() => setIsSupportWidgetOpen(true)} 
+               onOpenSupport={(context) => {
+                 setSupportContext(context || null);
+                 setIsSupportWidgetOpen(true);
+               }} 
              />
           ) : currentView === 'leaderboard' ? (
              <LeaderboardConnected 
@@ -518,9 +523,13 @@ function NewAppInner() {
       {/* --- PERSISTENT SUPPORT WIDGET --- */}
       <SupportChatConnected 
         isOpen={isSupportWidgetOpen} 
-        onToggle={(val) => setIsSupportWidgetOpen(val)} 
+        onToggle={(val) => {
+          setIsSupportWidgetOpen(val);
+          if (!val) setSupportContext(null); // Clear context when closing
+        }} 
         onHaptic={() => handleFeedback('light')} 
         raiseOnMobile={shouldRaiseSupport}
+        initialContext={supportContext}
       />
 
       {/* HUD Notifications are rendered by HUDProvider */}

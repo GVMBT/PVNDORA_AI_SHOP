@@ -23,7 +23,7 @@ export { HUDProvider, useHUD, HUDIcons } from './HUDNotifications';
 // === DATA COMPONENTS (With Mock Data - For Development) ===
 export { default as Catalog } from './Catalog';
 export { default as ProductDetail } from './ProductDetail';
-export { default as Orders } from './Orders';
+export { default as Orders, type RefundContext } from './Orders';
 export { default as Profile } from './Profile';
 export { default as Leaderboard } from './Leaderboard';
 export { default as CheckoutModal } from './CheckoutModal';
@@ -38,3 +38,4 @@ export { default as LeaderboardConnected } from './LeaderboardConnected';
 export { default as CheckoutModalConnected } from './CheckoutModalConnected';
 export { default as LoginPage } from './LoginPage';
 export { default as SupportChatConnected } from './SupportChatConnected';
+export { default as AdminPanelConnected } from './AdminPanelConnected';

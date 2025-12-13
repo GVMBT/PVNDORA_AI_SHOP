@@ -15,6 +15,12 @@ interface SupportChatConnectedProps {
   onToggle: (isOpen: boolean) => void;
   onHaptic?: () => void;
   raiseOnMobile?: boolean;
+  initialContext?: {
+    orderId?: string;
+    orderTotal?: number;
+    productNames?: string[];
+    reason?: string;
+  } | null;
 }
 
 interface DisplayMessage {
@@ -35,7 +41,8 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
   isOpen, 
   onToggle, 
   onHaptic, 
-  raiseOnMobile = false 
+  raiseOnMobile = false,
+  initialContext = null
 }) => {
   const { sendMessage, getHistory, clearHistory, loading } = useAIChatTyped();
   const [messages, setMessages] = useState<DisplayMessage[]>(INITIAL_MESSAGES);
@@ -43,6 +50,23 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasLoadedHistory = useRef(false);
+  const processedContextRef = useRef<string | null>(null);
+  
+  // Handle initial context (e.g., refund request from orders page)
+  useEffect(() => {
+    if (isOpen && initialContext && initialContext.orderId) {
+      // Only process each unique context once
+      const contextKey = `${initialContext.orderId}-${initialContext.reason}`;
+      if (processedContextRef.current !== contextKey) {
+        processedContextRef.current = contextKey;
+        
+        // Set pre-filled message for refund request
+        const products = initialContext.productNames?.join(', ') || 'N/A';
+        const prefillMessage = `Запрос на возврат средств:\n• Order ID: ${initialContext.orderId}\n• Сумма: ${initialContext.orderTotal} ₽\n• Товары: ${products}\n• Причина: ${initialContext.reason || 'Товар отсутствует на складе'}`;
+        setInputValue(prefillMessage);
+      }
+    }
+  }, [isOpen, initialContext]);
 
   // Load chat history on first open
   useEffect(() => {

@@ -1,7 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingBag, Box, User, Trophy, ShoppingCart, Activity, Shield, LogOut, ChevronRight, Zap, LayoutGrid, Command } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AudioEngine } from '../../lib/AudioEngine';
 
 interface NavbarProps {
   showMobile?: boolean;
@@ -58,6 +59,18 @@ const Navbar: React.FC<NavbarProps> = ({
     onHaptic
 }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const wasHoveredRef = useRef(false);
+
+  // Play typewriter sound when sidebar expands
+  useEffect(() => {
+    if (isHovered && !wasHoveredRef.current) {
+      AudioEngine.panelOpen();
+      AudioEngine.typewriter(6);
+    } else if (!isHovered && wasHoveredRef.current) {
+      AudioEngine.panelClose();
+    }
+    wasHoveredRef.current = isHovered;
+  }, [isHovered]);
 
   const handleClick = (callback?: () => void) => {
       if (onHaptic) onHaptic();

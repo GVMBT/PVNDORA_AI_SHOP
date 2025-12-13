@@ -8,6 +8,7 @@ import {
   Plus, Crown, GitBranch, ChevronDown, ChevronUp, BarChart3, MousePointer2, Percent, Target, Wifi, Radio,
   FileCode, Hash, RefreshCw, ShieldCheck, Layers, LayoutDashboard, ToggleRight, ToggleLeft, QrCode, ArrowLeft
 } from 'lucide-react';
+import { AudioEngine } from '../../lib/AudioEngine';
 
 // Types matching types/component.ts ProfileData
 interface CareerLevelData {
@@ -262,11 +263,13 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
 
   const handleOpenDossier = (id: number) => {
       if(onHaptic) onHaptic('medium');
+      AudioEngine.decrypt(); // Play decrypt sound for dossier reveal
       setSelectedReferralId(id);
   }
 
   const handleCloseDossier = () => {
       if(onHaptic) onHaptic('light');
+      AudioEngine.panelClose();
       setSelectedReferralId(null);
   }
 

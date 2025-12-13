@@ -93,9 +93,21 @@ function canCancelOrder(rawStatus: RawOrderStatus): boolean {
 
 /**
  * Check if refund can be requested
+ * Refund is only available for DELIVERED orders within WARRANTY period
+ * For prepaid orders, refund is AUTOMATIC if delivery deadline is exceeded
  */
-function canRequestRefund(rawStatus: RawOrderStatus): boolean {
-  return ['prepaid', 'paid'].includes(rawStatus);
+function canRequestRefund(rawStatus: RawOrderStatus, warrantyUntil?: string | null): boolean {
+  // Only delivered orders can request refund (for warranty issues)
+  if (rawStatus !== 'delivered') return false;
+  
+  // Check if still within warranty period
+  if (warrantyUntil) {
+    const warrantyEnd = new Date(warrantyUntil);
+    return new Date() < warrantyEnd;
+  }
+  
+  // If no warranty info, assume 7 days from delivery
+  return true;
 }
 
 /**
@@ -136,25 +148,57 @@ function formatOrderDate(dateString: string): string {
 }
 
 /**
- * Adapt a single API order item
+ * Format date with timezone for display
  */
-function adaptOrderItem(item: APIOrderItem, orderExpiresAt?: string | null): OrderItem {
+function formatDateWithTimezone(dateString: string): string {
+  const date = new Date(dateString);
+  const tzOffset = -date.getTimezoneOffset() / 60;
+  const tzSign = tzOffset >= 0 ? '+' : '';
+  const tzString = `UTC${tzSign}${tzOffset}`;
+  
+  return date.toLocaleString('ru-RU', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).replace(',', ' //') + ` (${tzString})`;
+}
+
+/**
+ * Adapt a single API order item
+ * 
+ * @param item - Order item from API
+ * @param orderStatus - Parent order status (pending/prepaid/delivered etc)
+ * @param paymentDeadline - expires_at (only relevant for pending orders)
+ * @param deliveryDeadline - fulfillment_deadline (for prepaid orders)
+ */
+function adaptOrderItem(
+  item: APIOrderItem, 
+  orderStatus: string,
+  paymentDeadline?: string | null,
+  deliveryDeadline?: string | null
+): OrderItem {
   // Get credentials from delivery_content (backend) or credentials (alias)
   const credentials = item.delivery_content || item.credentials || null;
   
-  // Format deadline from order expires_at (payment deadline)
+  // Determine deadline based on order status
   let deadline: string | null = null;
-  if (orderExpiresAt) {
-    const deadlineDate = new Date(orderExpiresAt);
-    deadline = deadlineDate.toLocaleString('ru-RU', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }).replace(',', ' //');
+  
+  if (orderStatus === 'pending' && paymentDeadline) {
+    // For pending (unpaid) orders, show payment deadline
+    deadline = formatDateWithTimezone(paymentDeadline);
+  } else if (['prepaid', 'fulfilling', 'paid'].includes(orderStatus)) {
+    // For prepaid/processing orders, show delivery deadline
+    if (deliveryDeadline) {
+      deadline = formatDateWithTimezone(deliveryDeadline);
+    } else {
+      // No specific deadline set - show waiting message instead
+      deadline = null; // Will show "Ожидание поступления" in UI
+    }
   }
+  // For delivered/cancelled/refunded - no deadline needed
   
   return {
     id: item.id,
@@ -182,7 +226,7 @@ export function adaptOrder(apiOrder: APIOrder): Order {
   const paymentConfirmed = isPaymentConfirmed(rawStatus);
   const statusMessage = getStatusMessage(rawStatus);
   const canCancel = canCancelOrder(rawStatus);
-  const canRefund = canRequestRefund(rawStatus);
+  const canRefund = canRequestRefund(rawStatus, apiOrder.warranty_until);
   
   // Handle orders with items array (multi-item orders)
   if (apiOrder.items && apiOrder.items.length > 0) {
@@ -191,7 +235,12 @@ export function adaptOrder(apiOrder: APIOrder): Order {
       date: formatOrderDate(apiOrder.created_at),
       total: apiOrder.amount_display || apiOrder.amount,
       status: mapOrderStatus(apiOrder.status),
-      items: apiOrder.items.map(item => adaptOrderItem(item, apiOrder.expires_at)),
+      items: apiOrder.items.map(item => adaptOrderItem(
+        item, 
+        apiOrder.status,
+        apiOrder.expires_at,
+        apiOrder.fulfillment_deadline
+      )),
       payment_url: apiOrder.payment_url || null,
       rawStatus,
       paymentConfirmed,
@@ -202,19 +251,20 @@ export function adaptOrder(apiOrder: APIOrder): Order {
   }
   
   // Handle legacy single-item orders
-  // Format deadline from order expires_at (payment deadline)
+  // Determine deadline based on status
   let deadline: string | null = null;
-  if (apiOrder.expires_at) {
-    const deadlineDate = new Date(apiOrder.expires_at);
-    deadline = deadlineDate.toLocaleString('ru-RU', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }).replace(',', ' //');
+  
+  if (rawStatus === 'pending' && apiOrder.expires_at) {
+    // For pending orders, show payment deadline
+    deadline = formatDateWithTimezone(apiOrder.expires_at);
+  } else if (['prepaid', 'fulfilling', 'paid'].includes(rawStatus)) {
+    // For prepaid/processing orders, show delivery deadline if available
+    if (apiOrder.fulfillment_deadline) {
+      deadline = formatDateWithTimezone(apiOrder.fulfillment_deadline);
+    }
+    // If no fulfillment_deadline, deadline stays null (UI will show "Ожидание")
   }
+  // For delivered/cancelled/refunded - no deadline
   
   return {
     id: apiOrder.id.substring(0, 8).toUpperCase(),
@@ -227,7 +277,7 @@ export function adaptOrder(apiOrder: APIOrder): Order {
       type: 'instant',
       status: mapOrderItemStatus(apiOrder.status),
       credentials: null,
-      expiry: apiOrder.expires_at ? new Date(apiOrder.expires_at).toLocaleDateString('ru-RU') : null,
+      expiry: apiOrder.warranty_until ? new Date(apiOrder.warranty_until).toLocaleDateString('ru-RU') : null,
       hasReview: false,
       estimatedDelivery: null,
       progress: null,

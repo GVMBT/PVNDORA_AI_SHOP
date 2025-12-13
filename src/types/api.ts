@@ -110,8 +110,12 @@ export interface APIOrder {
   original_price_display?: number;
   discount_percent: number;
   status: OrderStatus;
+  order_type?: 'instant' | 'prepaid';
   created_at: string;
-  expires_at?: string;
+  expires_at?: string;           // Payment deadline (for pending orders)
+  fulfillment_deadline?: string; // Delivery deadline (for prepaid orders)
+  delivered_at?: string;         // When goods were delivered
+  warranty_until?: string;       // Warranty end date
   payment_url?: string;
   items?: APIOrderItem[];
   currency: string;

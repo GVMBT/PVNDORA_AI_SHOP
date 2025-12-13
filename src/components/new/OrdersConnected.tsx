@@ -5,13 +5,13 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import Orders from './Orders';
+import Orders, { RefundContext } from './Orders';
 import { useOrdersTyped, useReviewsTyped } from '../../hooks/useApiTyped';
 import type { Order } from '../../types/component';
 
 interface OrdersConnectedProps {
   onBack: () => void;
-  onOpenSupport?: () => void;
+  onOpenSupport?: (context?: RefundContext) => void;
 }
 
 const OrdersConnected: React.FC<OrdersConnectedProps> = ({ onBack, onOpenSupport }) => {
