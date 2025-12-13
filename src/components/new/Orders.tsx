@@ -195,10 +195,12 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
 
   const filteredOrders = ordersState.filter(order => {
     if (activeTab === 'all') return true;
-    // Active: orders that are processing or need action
-    if (activeTab === 'active') return order.status === 'processing' || order.status === 'paid' || order.status === 'pending'; 
-    // Archived: completed, delivered, refunded, cancelled - finished orders
-    if (activeTab === 'log') return ['completed', 'delivered', 'refunded', 'cancelled'].includes(order.status); 
+    // Active: orders in progress or awaiting action
+    const activeStatuses = ['pending', 'prepaid', 'fulfilling', 'ready', 'awaiting_payment', 'payment_pending', 'partial'];
+    if (activeTab === 'active') return activeStatuses.includes(order.status); 
+    // Archived: completed, delivered, refunded, cancelled, failed - finished orders
+    const archivedStatuses = ['delivered', 'fulfilled', 'completed', 'cancelled', 'refunded', 'failed', 'expired', 'error'];
+    if (activeTab === 'log') return archivedStatuses.includes(order.status); 
     return true;
   });
 

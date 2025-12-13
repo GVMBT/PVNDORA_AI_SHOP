@@ -6,7 +6,8 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import CheckoutModal from './CheckoutModal';
-import { useCartTyped, useOrdersTyped, useProfileTyped } from '../../hooks/useApiTyped';
+import { useOrdersTyped, useProfileTyped } from '../../hooks/useApiTyped';
+import { useCart } from '../../contexts/CartContext';
 import type { CartItem, PaymentMethod } from '../../types/component';
 
 interface CheckoutModalConnectedProps {
@@ -18,7 +19,8 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const { cart, getCart, removeCartItem, loading: cartLoading, error: cartError } = useCartTyped();
+  // Use global cart context - shared with NewApp
+  const { cart, getCart, removeCartItem, loading: cartLoading, error: cartError } = useCart();
   const { createOrder, loading: orderLoading, error: orderError } = useOrdersTyped();
   const { profile, getProfile } = useProfileTyped();
   const [isInitialized, setIsInitialized] = useState(false);

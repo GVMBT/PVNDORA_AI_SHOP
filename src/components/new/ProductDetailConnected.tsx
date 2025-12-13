@@ -7,7 +7,8 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import ProductDetail from './ProductDetail';
-import { useProductsTyped, useCartTyped } from '../../hooks/useApiTyped';
+import { useProductsTyped } from '../../hooks/useApiTyped';
+import { useCart } from '../../contexts/CartContext';
 import type { CatalogProduct, ProductDetailData } from '../../types/component';
 
 interface ProductDetailConnectedProps {
@@ -30,7 +31,7 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
   onHaptic,
 }) => {
   const { getProduct, getProducts, loading, error } = useProductsTyped();
-  const { addToCart } = useCartTyped();
+  const { addToCart } = useCart();
   const [productData, setProductData] = useState<ProductDetailData | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<CatalogProduct[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);

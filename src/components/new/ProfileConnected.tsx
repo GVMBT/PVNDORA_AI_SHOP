@@ -84,59 +84,69 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     const balance = profile?.balance || 0;
     
     if (balance < 500) {
-      showPopup?.({
-        title: '⚠️',
-        message: 'Минимальная сумма вывода: 500₽',
-        buttons: [{ type: 'ok' }],
-      });
+      const msg = 'Минимальная сумма вывода: 500₽';
+      if (tg?.showPopup) {
+        tg.showPopup({ title: '⚠️', message: msg, buttons: [{ type: 'ok' }] });
+      } else {
+        alert(msg);
+      }
       return;
     }
     
-    // Show confirmation popup
+    const confirmMsg = `Доступно к выводу: ${balance}₽\n\nОтправить запрос на вывод?`;
+    
+    const processWithdraw = async () => {
+      setWithdrawLoading(true);
+      try {
+        await requestWithdrawal(balance, 'card', '');
+        hapticFeedback?.('notification', 'success');
+        const successMsg = 'Запрос на вывод создан! Мы свяжемся с вами для уточнения реквизитов.';
+        if (tg?.showPopup) {
+          tg.showPopup({ title: '✅', message: successMsg, buttons: [{ type: 'ok' }] });
+        } else {
+          alert(successMsg);
+        }
+        await getProfile();
+      } catch (err) {
+        hapticFeedback?.('notification', 'error');
+        const errorMsg = 'Не удалось создать запрос. Попробуйте позже.';
+        if (tg?.showPopup) {
+          tg.showPopup({ title: '❌', message: errorMsg, buttons: [{ type: 'ok' }] });
+        } else {
+          alert(errorMsg);
+        }
+      } finally {
+        setWithdrawLoading(false);
+      }
+    };
+    
+    // Show confirmation popup (Telegram or browser)
     if (tg?.showPopup) {
       tg.showPopup({
         title: 'Вывод средств',
-        message: `Доступно к выводу: ${balance}₽\n\nОтправьте запрос на вывод?`,
+        message: confirmMsg,
         buttons: [
           { id: 'cancel', type: 'cancel' },
           { id: 'confirm', type: 'default', text: 'Вывести' },
         ],
       }, async (buttonId: string) => {
         if (buttonId === 'confirm') {
-          setWithdrawLoading(true);
-          try {
-            await requestWithdrawal(balance, 'card', '');
-            hapticFeedback?.('notification', 'success');
-            showPopup?.({
-              title: '✅',
-              message: 'Запрос на вывод создан! Мы свяжемся с вами для уточнения реквизитов.',
-              buttons: [{ type: 'ok' }],
-            });
-            await getProfile(); // Refresh profile
-          } catch (err) {
-            hapticFeedback?.('notification', 'error');
-            showPopup?.({
-              title: '❌',
-              message: 'Не удалось создать запрос. Попробуйте позже.',
-              buttons: [{ type: 'ok' }],
-            });
-          } finally {
-            setWithdrawLoading(false);
-          }
+          await processWithdraw();
         }
       });
+    } else if (window.confirm(confirmMsg)) {
+      await processWithdraw();
     }
-  }, [profile?.balance, requestWithdrawal, getProfile, hapticFeedback, showPopup]);
+  }, [profile?.balance, requestWithdrawal, getProfile, hapticFeedback]);
 
   const handleTopUp = useCallback(() => {
-    // TopUp would redirect to payment - for now show info
     const tg = (window as any).Telegram?.WebApp;
+    const msg = 'Баланс пополняется автоматически при получении реферальных бонусов.\n\nДля ручного пополнения обратитесь в поддержку.';
+    
     if (tg?.showPopup) {
-      tg.showPopup({
-        title: '💰 Пополнение',
-        message: 'Баланс пополняется автоматически при получении реферальных бонусов.\n\nДля ручного пополнения обратитесь в поддержку.',
-        buttons: [{ type: 'ok' }],
-      });
+      tg.showPopup({ title: '💰 Пополнение', message: msg, buttons: [{ type: 'ok' }] });
+    } else {
+      alert(msg);
     }
   }, []);
 

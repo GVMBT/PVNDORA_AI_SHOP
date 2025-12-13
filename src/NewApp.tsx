@@ -32,7 +32,8 @@ import {
 import type { CatalogProduct } from './types/component';
 
 // Hooks for data fetching
-import { useProductsTyped, useCartTyped } from './hooks/useApiTyped';
+import { useProductsTyped } from './hooks/useApiTyped';
+import { useCart } from './contexts/CartContext';
 
 // --- AUDIO ENGINE (Web Audio API) ---
 class AudioEngine {
@@ -145,8 +146,8 @@ function NewApp() {
   // Products for CommandPalette (fetched once)
   const { products: allProducts, getProducts } = useProductsTyped();
   
-  // Cart from backend
-  const { cart, getCart, addToCart, removeCartItem } = useCartTyped();
+  // Cart from global context (shared across all components)
+  const { cart, getCart, addToCart, removeCartItem } = useCart();
 
   // --- SPOTLIGHT LOGIC (must be before any early returns) ---
   const mouseX = useMotionValue(0);

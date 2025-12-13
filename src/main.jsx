@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import NewApp from './NewApp'
+import { CartProvider } from './contexts/CartContext'
 import './index.css'
 
 // Initialize Telegram WebApp
@@ -17,6 +18,8 @@ if (window.Telegram?.WebApp) {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <NewApp />
+    <CartProvider>
+      <NewApp />
+    </CartProvider>
   </React.StrictMode>,
 )
