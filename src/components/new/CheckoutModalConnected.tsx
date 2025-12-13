@@ -25,6 +25,9 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   const { profile, getProfile } = useProfileTyped();
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // Track if we should auto-close (cart became empty after user action)
+  const wasInitializedWithItems = React.useRef(false);
+
   useEffect(() => {
     const init = async () => {
       await Promise.all([getCart(), getProfile()]);
@@ -33,10 +36,22 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
     init();
   }, [getCart, getProfile]);
 
-  // Close modal if cart is empty after initialization
+  // Track if cart had items on init
   useEffect(() => {
-    if (isInitialized && (!cart || !cart.items || cart.items.length === 0)) {
-      onClose();
+    if (isInitialized && cart?.items && cart.items.length > 0) {
+      wasInitializedWithItems.current = true;
+    }
+  }, [isInitialized, cart]);
+
+  // Close modal if cart becomes empty AFTER having items (user removed last item)
+  // Don't close if cart was already empty on mount (just show empty state)
+  useEffect(() => {
+    if (isInitialized && wasInitializedWithItems.current && (!cart || !cart.items || cart.items.length === 0)) {
+      // Small delay to allow animation and prevent jarring close
+      const timer = setTimeout(() => {
+        onClose();
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [isInitialized, cart, onClose]);
 

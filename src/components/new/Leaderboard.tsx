@@ -51,32 +51,44 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
     }
   };
   
-  const observerRef = React.useRef<IntersectionObserver | null>(null);
   const loadMoreTriggerRef = React.useRef<HTMLDivElement | null>(null);
   
-  // Setup infinite scroll observer
+  // Track whether we can load more - use refs to avoid observer recreation
+  const canLoadMoreRef = React.useRef(hasMore && !isLoadingMore);
+  const onLoadMoreRef = React.useRef(onLoadMore);
+  
+  // Keep refs in sync
+  React.useEffect(() => {
+    canLoadMoreRef.current = hasMore && !isLoadingMore;
+  }, [hasMore, isLoadingMore]);
+  
+  React.useEffect(() => {
+    onLoadMoreRef.current = onLoadMore;
+  }, [onLoadMore]);
+  
+  // Setup infinite scroll observer - ONCE, not on every state change
   React.useEffect(() => {
     if (!onLoadMore) return;
     
-    observerRef.current = new IntersectionObserver(
+    const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
-          onLoadMore();
+        // Check refs instead of closure values to avoid stale closures
+        if (entries[0].isIntersecting && canLoadMoreRef.current && onLoadMoreRef.current) {
+          onLoadMoreRef.current();
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1, rootMargin: '100px' }
     );
     
-    if (loadMoreTriggerRef.current) {
-      observerRef.current.observe(loadMoreTriggerRef.current);
+    const element = loadMoreTriggerRef.current;
+    if (element) {
+      observer.observe(element);
     }
     
     return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
+      observer.disconnect();
     };
-  }, [onLoadMore, hasMore, isLoadingMore]);
+  }, []); // Empty deps - create observer only once
 
   // Use provided data - NO MOCK fallback (mock data causes confusion)
   const data = propData || [];
@@ -449,7 +461,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
             {currentUser && (
                 <div className="fixed bottom-16 md:bottom-0 left-0 md:left-20 right-0 z-40">
                     <div className="max-w-7xl mx-auto">
-                        <div className="bg-[#050505]/95 backdrop-blur-xl border-t border-pandora-cyan/30 md:border-t-0 md:border-x md:border-t border-pandora-cyan/30 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] md:rounded-t-sm p-4 relative overflow-hidden flex items-center justify-between group">
+                        <div className="bg-[#050505]/95 backdrop-blur-xl border-t border-pandora-cyan/30 md:border-t-0 md:border-x shadow-[0_-10px_30px_rgba(0,0,0,0.5)] md:rounded-t-sm p-4 relative overflow-hidden flex items-center justify-between group">
                             
                             {/* Animated Scanline (Subtle) */}
                             <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-pandora-cyan/50 to-transparent" />

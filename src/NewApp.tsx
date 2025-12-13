@@ -339,14 +339,19 @@ function NewApp() {
     setIsCheckoutOpen(true);
   };
 
-  const handleCheckoutSuccess = () => {
+  const handleCloseCheckout = useCallback(() => {
+    handleFeedback('light');
+    setIsCheckoutOpen(false);
+  }, [handleFeedback]);
+
+  const handleCheckoutSuccess = useCallback(() => {
     // Refresh cart from backend (should be empty after successful order)
     getCart();
     setIsCheckoutOpen(false);
     setCurrentView('orders');
     window.scrollTo({ top: 0, behavior: 'smooth' });
     showToast('TRANSACTION COMPLETE. ASSETS TRANSFERRED.', 'success');
-  }
+  }, [getCart, showToast]);
 
   // Navigation Handlers
   const navigate = (view: ViewType) => {
@@ -516,7 +521,7 @@ function NewApp() {
       <AnimatePresence>
         {isCheckoutOpen && (
           <CheckoutModalConnected 
-            onClose={() => { handleFeedback('light'); setIsCheckoutOpen(false); }} 
+            onClose={handleCloseCheckout} 
             onSuccess={handleCheckoutSuccess}
           />
         )}

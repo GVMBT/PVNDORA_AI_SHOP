@@ -202,6 +202,21 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
     total_count = await asyncio.to_thread(lambda: db.client.table("users").select("id", count="exact").execute())
     total_users = total_count.count or 0
     
+    # CRITICAL: If offset exceeds total users, return empty result
+    if offset >= total_users:
+        db_user = await db.get_user_by_telegram_id(user.id)
+        user_saved = float(db_user.total_saved) if db_user and hasattr(db_user, 'total_saved') and db_user.total_saved else 0
+        return {
+            "leaderboard": [], 
+            "user_rank": None, 
+            "user_saved": user_saved,
+            "total_users": total_users, 
+            "improved_today": 0,
+            "has_more": False,
+            "offset": offset,
+            "limit": LEADERBOARD_SIZE,
+        }
+    
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     improved_result = await asyncio.to_thread(
         lambda: db.client.table("orders").select("user_id", count="exact").eq("status", "completed").gte("created_at", today_start.isoformat()).execute()
@@ -214,6 +229,9 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
     
     leaderboard = []
     for i, entry in enumerate(result_data):
+        # Cap rank at total_users to avoid inflated ranks
+        actual_rank = min(i + 1 + offset, total_users)
+        
         tg_id = entry.get("telegram_id")
         display_name = entry.get("username") or entry.get("first_name") or (f"User{str(tg_id)[-4:]}" if tg_id else "User")
         if len(display_name) > 3:
@@ -222,11 +240,11 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
         is_current = tg_id == user.id if tg_id else False
         if is_current:
             user_found_in_list = True
-            user_rank = i + 1 + offset
+            user_rank = actual_rank
             user_saved = float(entry.get("total_saved", 0))
         
         leaderboard.append({
-            "rank": i + 1 + offset,  # Account for offset in rank
+            "rank": actual_rank,
             "name": display_name, 
             "total_saved": float(entry.get("total_saved", 0)),
             "is_current_user": is_current,
@@ -260,13 +278,18 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
             else:
                 user_rank = total_users
     
+    # Calculate has_more based on actual data availability
+    # has_more is True only if there are more users beyond current offset + returned count
+    next_offset = offset + len(leaderboard)
+    has_more = next_offset < total_users and len(leaderboard) == LEADERBOARD_SIZE
+    
     return {
         "leaderboard": leaderboard, 
         "user_rank": user_rank, 
         "user_saved": user_saved,
         "total_users": total_users, 
         "improved_today": improved_today,
-        "has_more": len(leaderboard) == LEADERBOARD_SIZE,  # Pagination hint
+        "has_more": has_more,
         "offset": offset,
         "limit": LEADERBOARD_SIZE,
     }

@@ -198,6 +198,7 @@ const Navbar: React.FC<NavbarProps> = ({
       </motion.nav>
 
       {/* === FLOATING CART BUTTON === Only show when cart has items */}
+      {/* Mobile: Bottom-right above navbar. Desktop: Right side, mid-height */}
       <AnimatePresence>
         {cartCount > 0 && (
           <motion.button
@@ -207,20 +208,16 @@ const Navbar: React.FC<NavbarProps> = ({
               onClick={onOpenCart}
               className={`
                   fixed z-[60] group
-                  top-5 right-5 md:top-8 md:right-8
+                  bottom-20 right-4 md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:right-6
               `}
           >
-              <div className="relative bg-pandora-black/90 backdrop-blur-xl border border-pandora-cyan/30 p-3 md:p-4 rounded-sm shadow-[0_0_20px_rgba(0,255,255,0.15)] hover:bg-pandora-cyan hover:text-black hover:shadow-[0_0_30px_#00FFFF] transition-all duration-300">
-                  <ShoppingCart size={24} className="group-hover:scale-110 transition-transform" />
+              <div className="relative bg-pandora-black/90 backdrop-blur-xl border border-pandora-cyan/30 p-3 md:p-4 rounded-full md:rounded-sm shadow-[0_0_20px_rgba(0,255,255,0.15)] hover:bg-pandora-cyan hover:text-black hover:shadow-[0_0_30px_#00FFFF] transition-all duration-300">
+                  <ShoppingCart size={22} className="group-hover:scale-110 transition-transform" />
                   
                   {/* Count Badge */}
-                  <div className="absolute -top-2 -right-2 bg-white text-black text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-sm shadow-[0_0_10px_rgba(255,255,255,0.5)] border border-pandora-cyan animate-pulse">
+                  <div className="absolute -top-1 -right-1 bg-white text-black text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)] border border-pandora-cyan">
                       {cartCount}
                   </div>
-                  
-                  {/* Decor Corners */}
-                  <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-white/40 group-hover:border-black/50 transition-colors" />
-                  <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-white/40 group-hover:border-black/50 transition-colors" />
               </div>
           </motion.button>
         )}
