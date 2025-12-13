@@ -151,6 +151,19 @@ function NewApp() {
   // Check authentication on mount
   useEffect(() => {
     const checkAuth = () => {
+      // Persist session_token from URL query if present
+      try {
+        const url = new URL(window.location.href);
+        const tokenFromUrl = url.searchParams.get('session_token');
+        if (tokenFromUrl) {
+          localStorage.setItem('pvndora_session', tokenFromUrl);
+          url.searchParams.delete('session_token');
+          window.history.replaceState({}, '', url.toString());
+        }
+      } catch {
+        // ignore URL parsing issues
+      }
+
       // In Telegram WebApp context - always authenticated via initData
       const tg = (window as any).Telegram?.WebApp;
       if (tg?.initData) {
