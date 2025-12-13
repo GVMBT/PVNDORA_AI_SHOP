@@ -316,7 +316,9 @@ function NewApp() {
   };
 
   const handleOpenCart = () => {
+    console.log('[NewApp] handleOpenCart called');
     handleFeedback('medium');
+    console.log('[NewApp] Setting isCheckoutOpen = true');
     setIsCheckoutOpen(true);
   };
 
@@ -500,12 +502,23 @@ function NewApp() {
 
       {/* --- CHECKOUT MODAL --- */}
       <AnimatePresence>
-        {isCheckoutOpen && (
-          <CheckoutModalConnected 
-            onClose={handleCloseCheckout} 
-            onSuccess={handleCheckoutSuccess}
-          />
-        )}
+        {(() => {
+          console.log('[NewApp] Checking checkout modal render:', {
+            isCheckoutOpen,
+            willRender: !!isCheckoutOpen,
+          });
+          if (!isCheckoutOpen) {
+            console.log('[NewApp] Checkout modal NOT rendering - isCheckoutOpen is false');
+            return null;
+          }
+          console.log('[NewApp] RENDERING CheckoutModalConnected');
+          return (
+            <CheckoutModalConnected 
+              onClose={handleCloseCheckout} 
+              onSuccess={handleCheckoutSuccess}
+            />
+          );
+        })()}
       </AnimatePresence>
 
       {/* --- PERSISTENT SUPPORT WIDGET --- */}
