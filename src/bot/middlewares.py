@@ -52,6 +52,24 @@ class AuthMiddleware(BaseMiddleware):
                 language_code=detect_language(user.language_code),
                 referrer_telegram_id=referrer_id
             )
+            
+            # Try to get and save user's profile photo from Telegram
+            try:
+                bot = data.get("bot")
+                if bot:
+                    photos = await bot.get_user_profile_photos(user_id=user.id, limit=1)
+                    if photos.total_count > 0 and photos.photos:
+                        # Get the largest available size of the first photo
+                        photo_sizes = photos.photos[0]
+                        if photo_sizes:
+                            largest_photo = photo_sizes[-1]  # Last is largest
+                            file = await bot.get_file(largest_photo.file_id)
+                            if file.file_path:
+                                photo_url = f"https://api.telegram.org/file/bot{bot.token}/{file.file_path}"
+                                await db.update_user_photo(user.id, photo_url)
+            except Exception as e:
+                # Photo fetching is non-critical, continue without it
+                pass
         
         # Check if banned
         if db_user.is_banned:

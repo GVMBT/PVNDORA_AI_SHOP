@@ -409,7 +409,10 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                         <span className="text-[9px] text-gray-600 font-mono uppercase">Credits Required</span>
                                         <div className="text-lg font-bold text-white group-hover:text-pandora-cyan transition-colors">{product.price} ₽</div>
                                     </div>
-                                    <button className="bg-white/5 hover:bg-pandora-cyan text-white hover:text-black p-2 border border-white/10 hover:border-pandora-cyan transition-all group/btn shadow-none hover:shadow-[0_0_15px_#00FFFF]">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleAddToCart(product, 1); }}
+                                        className="bg-white/5 hover:bg-pandora-cyan text-white hover:text-black p-2 border border-white/10 hover:border-pandora-cyan transition-all group/btn shadow-none hover:shadow-[0_0_15px_#00FFFF]"
+                                    >
                                         <ShoppingCart size={16} />
                                     </button>
                                 </div>
