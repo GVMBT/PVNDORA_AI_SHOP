@@ -4,25 +4,20 @@
  * Transforms API cart data into component-friendly format.
  */
 
-import type { APICart, APICartResponse } from '../types/api';
+import type { APICartResponse, APICartItem } from '../types/api';
 import type { CartData, CartItem } from '../types/component';
 
 /**
  * Adapt single cart item
  */
-function adaptCartItem(item: {
-  product_id: string;
-  product_name: string;
-  quantity: number;
-  unit_price: number;
-}): CartItem {
+function adaptCartItem(item: APICartItem): CartItem {
   return {
     id: item.product_id,
     name: item.product_name,
     category: 'Module', // Not provided in API
     price: item.unit_price,
     quantity: item.quantity,
-    image: `https://picsum.photos/seed/${item.product_id.substring(0, 8)}/200/200`,
+    image: `/noise.png`, // No images for cart items, use placeholder
   };
 }
 
@@ -30,15 +25,16 @@ function adaptCartItem(item: {
  * Adapt API cart response to component format
  */
 export function adaptCart(response: APICartResponse): CartData {
-  const { cart } = response;
+  // Response has items at root level, not inside cart
+  const items = response.items || [];
   
   return {
-    items: cart.items.map(adaptCartItem),
-    total: cart.total,
-    originalTotal: cart.original_total,
-    discountTotal: cart.discount_total,
-    promoCode: cart.promo_code,
-    promoDiscountPercent: cart.promo_discount_percent,
+    items: items.map(adaptCartItem),
+    total: response.total || 0,
+    originalTotal: response.subtotal || response.total || 0,
+    discountTotal: (response.subtotal || 0) - (response.total || 0),
+    promoCode: response.promo_code,
+    promoDiscountPercent: response.promo_discount_percent,
   };
 }
 

@@ -271,16 +271,21 @@ export interface APICartItem {
 }
 
 export interface APICart {
-  items: APICartItem[];
-  total: number;
-  original_total: number;
-  discount_total: number;
-  promo_code?: string;
-  promo_discount_percent?: number;
+  user_telegram_id?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface APICartResponse {
   cart: APICart;
+  items: APICartItem[];
+  total: number;
+  subtotal: number;
+  instant_total: number;
+  prepaid_total: number;
+  promo_code?: string;
+  promo_discount_percent?: number;
+  currency: string;
 }
 
 // ==================== PAYMENT ====================
