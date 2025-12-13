@@ -35,6 +35,9 @@ class UsersDomain:
     async def update_activity(self, telegram_id: int) -> None:
         await self.repo.update_activity(telegram_id)
 
+    async def update_photo(self, telegram_id: int, photo_url: Optional[str]) -> None:
+        await self.repo.update_photo(telegram_id, photo_url)
+
     async def update_balance(self, user_id: str, amount: float) -> None:
         await self.repo.update_balance(user_id, amount)
 

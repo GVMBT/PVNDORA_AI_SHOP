@@ -4,8 +4,8 @@
  * Transforms API profile data into component-friendly format.
  */
 
-import type { APIProfileResponse, TelegramUser } from '../types/api';
-import type { ProfileData, CareerLevel, BillingLog } from '../types/component';
+import type { APIProfileResponse, APIReferralNode, TelegramUser } from '../types/api';
+import type { ProfileData, CareerLevel, BillingLog, NetworkNode } from '../types/component';
 
 // Career level definitions
 const CAREER_LEVELS: CareerLevel[] = [
@@ -130,8 +130,79 @@ export function adaptProfile(
       nextLevel,
       progressPercent: calculateProgressPercent(referral_program.turnover_usd, currentLevel),
     },
-    networkTree: [], // Populated via separate API call
+    networkTree: [], // Populated via adaptReferralNetwork call
     billingLogs,
     currency: profile.currency,
   };
+}
+
+/**
+ * Adapt referral network data from API to component format
+ */
+export function adaptReferralNetwork(
+  level1: APIReferralNode[],
+  level2: APIReferralNode[] = [],
+  level3: APIReferralNode[] = []
+): NetworkNode[] {
+  const mapNode = (node: APIReferralNode, line: 1 | 2 | 3): NetworkNode => {
+    // Determine rank based on earnings
+    let rank = 'PROXY';
+    if (node.earnings_generated >= 1000) rank = 'ARCHITECT';
+    else if (node.earnings_generated >= 250) rank = 'OPERATOR';
+    
+    // Determine status
+    let status: 'VIP' | 'ACTIVE' | 'SLEEP' = 'ACTIVE';
+    if (node.earnings_generated >= 500) status = 'VIP';
+    else if (node.order_count === 0) status = 'SLEEP';
+    
+    return {
+      id: node.id,
+      name: node.first_name || node.username || `User ${node.telegram_id}`,
+      handle: node.username ? `@${node.username}` : `ID:${node.telegram_id}`,
+      status,
+      earned: node.earnings_generated,
+      ordersCount: node.order_count,
+      line,
+      rank,
+      volume: node.order_count * 50, // Approximate volume
+      profit: node.earnings_generated,
+      subs: 0, // Would need nested query
+      signal: node.is_active ? 80 + Math.floor(Math.random() * 20) : Math.floor(Math.random() * 30),
+      lastActive: formatTimeAgo(node.created_at),
+      invitedBy: null, // Set by parent context if needed
+      activityData: generateMockActivity(node.order_count),
+    };
+  };
+  
+  return [
+    ...level1.map(n => mapNode(n, 1)),
+    ...level2.map(n => mapNode(n, 2)),
+    ...level3.map(n => mapNode(n, 3)),
+  ];
+}
+
+/**
+ * Format a timestamp to relative time
+ */
+function formatTimeAgo(timestamp: string): string {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+}
+
+/**
+ * Generate mock activity data for chart visualization
+ */
+function generateMockActivity(orderCount: number): number[] {
+  const base = Math.min(orderCount * 10, 50);
+  return Array.from({ length: 7 }, () => 
+    Math.floor(base + Math.random() * (100 - base))
+  );
 }

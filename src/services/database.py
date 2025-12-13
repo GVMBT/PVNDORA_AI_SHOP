@@ -86,6 +86,9 @@ class Database:
     async def update_user_activity(self, telegram_id: int) -> None:
         await self.users_domain.update_activity(telegram_id)
     
+    async def update_user_photo(self, telegram_id: int, photo_url: Optional[str]) -> None:
+        await self.users_domain.update_photo(telegram_id, photo_url)
+    
     async def update_user_balance(self, user_id: str, amount: float) -> None:
         await self.users_domain.update_balance(user_id, amount)
     

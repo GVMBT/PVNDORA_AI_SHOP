@@ -88,6 +88,14 @@ async def verify_telegram_auth(
     if not user:
         raise HTTPException(status_code=401, detail="Could not extract user")
     
+    # Update user's photo_url if provided
+    if user.photo_url:
+        try:
+            db = get_database()
+            await db.update_user_photo(user.id, user.photo_url)
+        except Exception as e:
+            logger.warning(f"Failed to update user photo: {e}")
+    
     return user
 
 

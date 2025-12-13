@@ -158,13 +158,13 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
         result_data = sorted(user_savings.values(), key=lambda x: x["total_saved"], reverse=True)[:LEADERBOARD_SIZE]
     else:
         result = await asyncio.to_thread(
-            lambda: db.client.table("users").select("telegram_id,username,first_name,total_saved").gt("total_saved", 0).order("total_saved", desc=True).limit(LEADERBOARD_SIZE).execute()
+            lambda: db.client.table("users").select("telegram_id,username,first_name,total_saved,photo_url").gt("total_saved", 0).order("total_saved", desc=True).limit(LEADERBOARD_SIZE).execute()
         )
         result_data = result.data or []
         
         if len(result_data) < LEADERBOARD_SIZE:
             fill_result = await asyncio.to_thread(
-                lambda: db.client.table("users").select("telegram_id,username,first_name,total_saved").eq("total_saved", 0).order("created_at", desc=True).limit(LEADERBOARD_SIZE - len(result_data)).execute()
+                lambda: db.client.table("users").select("telegram_id,username,first_name,total_saved,photo_url").eq("total_saved", 0).order("created_at", desc=True).limit(LEADERBOARD_SIZE - len(result_data)).execute()
             )
             result_data.extend(fill_result.data or [])
     
@@ -206,6 +206,7 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
             "total_saved": float(entry.get("total_saved", 0)),
             "is_current_user": tg_id == user.id if tg_id else False,
             "telegram_id": tg_id,  # For avatar lookup
+            "photo_url": entry.get("photo_url"),  # User profile photo from Telegram
         })
     
     return {

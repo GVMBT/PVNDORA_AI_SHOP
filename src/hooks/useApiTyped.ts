@@ -16,6 +16,7 @@ import type {
   APICartResponse,
   APICreateOrderRequest,
   APICreateOrderResponse,
+  APIReferralNetworkResponse,
 } from '../types/api';
 import type {
   CatalogProduct,
@@ -31,6 +32,7 @@ import {
   adaptProductDetail,
   adaptOrders,
   adaptProfile,
+  adaptReferralNetwork,
   adaptLeaderboard,
   adaptCart,
 } from '../adapters';
@@ -130,6 +132,25 @@ export function useProfileTyped() {
       const response: APIProfileResponse = await get('/profile');
       const telegramUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
       const adapted = adaptProfile(response, telegramUser);
+      
+      // Also fetch referral network for all 3 levels
+      try {
+        const [level1Res, level2Res, level3Res] = await Promise.all([
+          get('/referral/network?level=1&limit=50'),
+          get('/referral/network?level=2&limit=50'),
+          get('/referral/network?level=3&limit=50'),
+        ]) as [APIReferralNetworkResponse, APIReferralNetworkResponse, APIReferralNetworkResponse];
+        
+        adapted.networkTree = adaptReferralNetwork(
+          level1Res.referrals || [],
+          level2Res.referrals || [],
+          level3Res.referrals || []
+        );
+      } catch (networkErr) {
+        console.warn('Failed to fetch referral network, using empty tree:', networkErr);
+        // Keep empty networkTree
+      }
+      
       setProfile(adapted);
       return adapted;
     } catch (err) {

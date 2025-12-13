@@ -49,6 +49,13 @@ class UserRepository(BaseRepository):
             "last_activity_at": datetime.now(timezone.utc).isoformat()
         }).eq("telegram_id", telegram_id).execute()
     
+    async def update_photo(self, telegram_id: int, photo_url: Optional[str]) -> None:
+        """Update user's photo URL."""
+        if photo_url:
+            self.client.table("users").update({
+                "photo_url": photo_url
+            }).eq("telegram_id", telegram_id).execute()
+    
     async def update_balance(self, user_id: str, amount: float) -> None:
         """Add amount to balance (can be negative)."""
         user = self.client.table("users").select("balance").eq("id", user_id).execute()

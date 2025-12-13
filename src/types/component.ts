@@ -92,12 +92,21 @@ export interface CareerLevel {
 }
 
 export interface NetworkNode {
-  id: string;
-  name: string;
+  id: string | number;
+  name?: string;
   handle: string;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'VIP' | 'SLEEP' | 'ACTIVE';
   earned: number;
   ordersCount: number;
+  line?: 1 | 2 | 3;
+  rank?: string;
+  volume?: number;
+  profit?: number;
+  subs?: number;
+  signal?: number;
+  lastActive?: string;
+  invitedBy?: string | null;
+  activityData?: number[];
 }
 
 export interface BillingLog {
@@ -152,6 +161,7 @@ export interface LeaderboardUser {
   trend: 'up' | 'down' | 'same';
   status: 'ONLINE' | 'AWAY' | 'BUSY';
   isMe: boolean;
+  avatarUrl?: string;
 }
 
 // ==================== CART / CHECKOUT ====================

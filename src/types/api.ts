@@ -248,6 +248,7 @@ export interface APILeaderboardEntry {
   total_saved: number;
   is_current_user: boolean;
   telegram_id?: number;
+  photo_url?: string;
 }
 
 export interface APILeaderboardResponse {

@@ -35,6 +35,8 @@ class User(BaseModel):
     total_purchases_amount: Decimal = Decimal("0")
     # Referral click tracking
     referral_clicks: int = 0
+    # Profile photo from Telegram
+    photo_url: Optional[str] = None
     
     class Config:
         extra = "ignore"  # Ignore unknown fields from DB

@@ -7,6 +7,6 @@
 
 export { adaptProduct, adaptProductList, adaptProductDetail } from './productAdapter';
 export { adaptOrders, adaptOrder } from './ordersAdapter';
-export { adaptProfile } from './profileAdapter';
+export { adaptProfile, adaptReferralNetwork } from './profileAdapter';
 export { adaptLeaderboard } from './leaderboardAdapter';
 export { adaptCart } from './cartAdapter';
