@@ -158,16 +158,46 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
         
         result_data = sorted(user_savings.values(), key=lambda x: x["total_saved"], reverse=True)[:LEADERBOARD_SIZE]
     else:
-        result = await asyncio.to_thread(
-            lambda: db.client.table("users").select("telegram_id,username,first_name,total_saved,photo_url").gt("total_saved", 0).order("total_saved", desc=True).limit(LEADERBOARD_SIZE).execute()
+        # Get users with savings (sorted by total_saved desc)
+        # Use range() for proper pagination
+        users_with_savings_count = await asyncio.to_thread(
+            lambda: db.client.table("users").select("id", count="exact").gt("total_saved", 0).execute()
         )
-        result_data = result.data or []
+        savings_count = users_with_savings_count.count or 0
         
-        if len(result_data) < LEADERBOARD_SIZE:
-            fill_result = await asyncio.to_thread(
-                lambda: db.client.table("users").select("telegram_id,username,first_name,total_saved,photo_url").eq("total_saved", 0).order("created_at", desc=True).limit(LEADERBOARD_SIZE - len(result_data)).execute()
+        if offset < savings_count:
+            # Still within users who have savings
+            result = await asyncio.to_thread(
+                lambda: db.client.table("users").select("telegram_id,username,first_name,total_saved,photo_url")
+                .gt("total_saved", 0)
+                .order("total_saved", desc=True)
+                .range(offset, offset + LEADERBOARD_SIZE - 1)
+                .execute()
             )
-            result_data.extend(fill_result.data or [])
+            result_data = result.data or []
+            
+            # If we need more to fill the page, get users with 0 savings
+            if len(result_data) < LEADERBOARD_SIZE:
+                remaining = LEADERBOARD_SIZE - len(result_data)
+                fill_result = await asyncio.to_thread(
+                    lambda: db.client.table("users").select("telegram_id,username,first_name,total_saved,photo_url")
+                    .eq("total_saved", 0)
+                    .order("created_at", desc=True)
+                    .range(0, remaining - 1)
+                    .execute()
+                )
+                result_data.extend(fill_result.data or [])
+        else:
+            # We're past all users with savings, now showing users with 0 savings
+            zero_offset = offset - savings_count
+            fill_result = await asyncio.to_thread(
+                lambda: db.client.table("users").select("telegram_id,username,first_name,total_saved,photo_url")
+                .eq("total_saved", 0)
+                .order("created_at", desc=True)
+                .range(zero_offset, zero_offset + LEADERBOARD_SIZE - 1)
+                .execute()
+            )
+            result_data = fill_result.data or []
     
     total_count = await asyncio.to_thread(lambda: db.client.table("users").select("id", count="exact").execute())
     total_users = total_count.count or 0

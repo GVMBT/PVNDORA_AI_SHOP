@@ -49,8 +49,13 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
       }
     } catch (err) {
       console.error('Failed to remove item:', err);
+      // Even on error, re-fetch cart to check actual state
+      const freshCart = await getCart();
+      if (!freshCart || !freshCart.items || freshCart.items.length === 0) {
+        onClose();
+      }
     }
-  }, [removeCartItem, onClose]);
+  }, [removeCartItem, onClose, getCart]);
 
   const handlePay = useCallback(async (method: PaymentMethod) => {
     try {

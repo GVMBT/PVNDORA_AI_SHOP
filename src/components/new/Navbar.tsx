@@ -197,33 +197,33 @@ const Navbar: React.FC<NavbarProps> = ({
         </div>
       </motion.nav>
 
-      {/* === FLOATING CART BUTTON === */}
+      {/* === FLOATING CART BUTTON === Only show when cart has items */}
       <AnimatePresence>
-        <motion.button
-            initial={{ scale: 0, rotate: 180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            exit={{ scale: 0, rotate: -180 }}
-            onClick={onOpenCart}
-            className={`
-                fixed z-[60] group
-                top-5 right-5 md:top-8 md:right-8
-            `}
-        >
-            <div className="relative bg-pandora-black/90 backdrop-blur-xl border border-pandora-cyan/30 p-3 md:p-4 rounded-sm shadow-[0_0_20px_rgba(0,255,255,0.15)] hover:bg-pandora-cyan hover:text-black hover:shadow-[0_0_30px_#00FFFF] transition-all duration-300">
-                <ShoppingCart size={24} className="group-hover:scale-110 transition-transform" />
-                
-                {/* Count Badge */}
-                {cartCount > 0 && (
-                    <div className="absolute -top-2 -right-2 bg-white text-black text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-sm shadow-[0_0_10px_rgba(255,255,255,0.5)] border border-pandora-cyan animate-pulse">
-                        {cartCount}
-                    </div>
-                )}
-                
-                {/* Decor Corners */}
-                <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-white/40 group-hover:border-black/50 transition-colors" />
-                <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-white/40 group-hover:border-black/50 transition-colors" />
-            </div>
-        </motion.button>
+        {cartCount > 0 && (
+          <motion.button
+              initial={{ scale: 0, rotate: 180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              exit={{ scale: 0, rotate: -180 }}
+              onClick={onOpenCart}
+              className={`
+                  fixed z-[60] group
+                  top-5 right-5 md:top-8 md:right-8
+              `}
+          >
+              <div className="relative bg-pandora-black/90 backdrop-blur-xl border border-pandora-cyan/30 p-3 md:p-4 rounded-sm shadow-[0_0_20px_rgba(0,255,255,0.15)] hover:bg-pandora-cyan hover:text-black hover:shadow-[0_0_30px_#00FFFF] transition-all duration-300">
+                  <ShoppingCart size={24} className="group-hover:scale-110 transition-transform" />
+                  
+                  {/* Count Badge */}
+                  <div className="absolute -top-2 -right-2 bg-white text-black text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-sm shadow-[0_0_10px_rgba(255,255,255,0.5)] border border-pandora-cyan animate-pulse">
+                      {cartCount}
+                  </div>
+                  
+                  {/* Decor Corners */}
+                  <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-white/40 group-hover:border-black/50 transition-colors" />
+                  <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-white/40 group-hover:border-black/50 transition-colors" />
+              </div>
+          </motion.button>
+        )}
       </AnimatePresence>
 
       {/* === MOBILE BOTTOM BAR === */}
