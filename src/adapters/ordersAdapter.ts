@@ -86,9 +86,23 @@ function formatOrderDate(dateString: string): string {
 /**
  * Adapt a single API order item
  */
-function adaptOrderItem(item: APIOrderItem): OrderItem {
+function adaptOrderItem(item: APIOrderItem, orderExpiresAt?: string | null): OrderItem {
   // Get credentials from delivery_content (backend) or credentials (alias)
   const credentials = item.delivery_content || item.credentials || null;
+  
+  // Format deadline from order expires_at (payment deadline)
+  let deadline: string | null = null;
+  if (orderExpiresAt) {
+    const deadlineDate = new Date(orderExpiresAt);
+    deadline = deadlineDate.toLocaleString('ru-RU', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).replace(',', ' //');
+  }
   
   return {
     id: item.id,
@@ -103,7 +117,7 @@ function adaptOrderItem(item: APIOrderItem): OrderItem {
     progress: item.fulfillment_type === 'preorder' && item.status === 'fulfilling' 
       ? Math.floor(Math.random() * 80) + 20 
       : null,
-    deadline: null,
+    deadline: deadline,
     reason: null,
   };
 }
@@ -119,12 +133,26 @@ export function adaptOrder(apiOrder: APIOrder): Order {
       date: formatOrderDate(apiOrder.created_at),
       total: apiOrder.amount_display || apiOrder.amount,
       status: mapOrderStatus(apiOrder.status),
-      items: apiOrder.items.map(adaptOrderItem),
+      items: apiOrder.items.map(item => adaptOrderItem(item, apiOrder.expires_at)),
       payment_url: apiOrder.payment_url || null, // Include payment_url for pending/prepaid orders
     };
   }
   
   // Handle legacy single-item orders
+  // Format deadline from order expires_at (payment deadline)
+  let deadline: string | null = null;
+  if (apiOrder.expires_at) {
+    const deadlineDate = new Date(apiOrder.expires_at);
+    deadline = deadlineDate.toLocaleString('ru-RU', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).replace(',', ' //');
+  }
+  
   return {
     id: apiOrder.id.substring(0, 8).toUpperCase(),
     date: formatOrderDate(apiOrder.created_at),
@@ -140,7 +168,7 @@ export function adaptOrder(apiOrder: APIOrder): Order {
       hasReview: false,
       estimatedDelivery: null,
       progress: null,
-      deadline: null,
+      deadline: deadline,
       reason: null,
     }],
     payment_url: apiOrder.payment_url || null, // Include payment_url for pending/prepaid orders

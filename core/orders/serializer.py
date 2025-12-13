@@ -145,8 +145,9 @@ def build_order_payload(
     if items:
         payload["items"] = items
     
-    # Include payment_url for pending/prepaid orders so user can retry payment or check status
-    if order.status in ("pending", "prepaid") and hasattr(order, 'payment_url') and order.payment_url:
+    # Include payment_url ONLY for pending orders (payment NOT confirmed yet)
+    # For prepaid orders, payment is ALREADY confirmed - no need for payment_url
+    if order.status == "pending" and hasattr(order, 'payment_url') and order.payment_url:
         payload["payment_url"] = order.payment_url
     
     return payload

@@ -2,12 +2,14 @@
  * PVNDORA New App - React 19 UI with Connected Components
  * 
  * This is the new frontend that uses the redesigned components with real API data.
- * Can be enabled via NEW_UI feature flag.
+ * Features:
+ * - Boot Sequence (OS-style loading)
+ * - Procedural Audio (Web Audio API)
+ * - HUD Notifications (System Logs)
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion, useMotionValue, useMotionTemplate } from 'framer-motion';
-import { Terminal, CheckCircle, AlertTriangle, Command } from 'lucide-react';
 
 // New Connected Components
 import {
@@ -26,6 +28,8 @@ import {
   LeaderboardConnected,
   CheckoutModalConnected,
   LoginPage,
+  BootSequence,
+  useHUD,
 } from './components/new';
 
 // Types
@@ -35,93 +39,12 @@ import type { CatalogProduct } from './types/component';
 import { useProductsTyped } from './hooks/useApiTyped';
 import { useCart } from './contexts/CartContext';
 
-// --- AUDIO ENGINE (Web Audio API) ---
-class AudioEngine {
-    ctx: AudioContext | null = null;
-    
-    init() {
-        if (!this.ctx && typeof window !== 'undefined') {
-            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-            this.ctx = new AudioContext();
-        }
-    }
-
-    resume() {
-        if (this.ctx && this.ctx.state === 'suspended') {
-            this.ctx.resume();
-        }
-    }
-
-    playTone(freq: number, type: OscillatorType, duration: number, vol: number = 0.05) {
-        if (!this.ctx) return;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-        
-        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
-        
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        
-        osc.start();
-        osc.stop(this.ctx.currentTime + duration);
-    }
-
-    playNoise(duration: number) {
-        if (!this.ctx) return;
-        const bufferSize = this.ctx.sampleRate * duration;
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-        }
-
-        const noise = this.ctx.createBufferSource();
-        noise.buffer = buffer;
-        const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.02, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
-        
-        noise.connect(gain);
-        gain.connect(this.ctx.destination);
-        noise.start();
-    }
-
-    // --- SFX PRESETS ---
-    hover() { this.playTone(800, 'sine', 0.03, 0.01); }
-    click() { 
-        this.playTone(1200, 'square', 0.05, 0.02); 
-        this.playNoise(0.05);
-    }
-    success() {
-        if (!this.ctx) return;
-        this.playTone(440, 'sine', 0.2);
-        setTimeout(() => this.playTone(554, 'sine', 0.2), 100);
-        setTimeout(() => this.playTone(659, 'sine', 0.4), 200);
-    }
-    error() {
-        this.playTone(150, 'sawtooth', 0.3, 0.05);
-    }
-    open() {
-        this.playTone(200, 'sine', 0.5, 0.02);
-    }
-}
-
-const audio = new AudioEngine();
-
-// --- TOAST TYPES ---
-interface Toast {
-  id: number;
-  message: string;
-  type: 'success' | 'error' | 'info';
-}
+// Audio Engine (procedural sound generation)
+import { AudioEngine } from './lib/AudioEngine';
 
 type ViewType = 'home' | 'orders' | 'profile' | 'leaderboard' | 'legal' | 'admin';
 
-function NewApp() {
+function NewAppInner() {
   // Bot username for web login widget
   const BOT_USERNAME =
     (import.meta as any)?.env?.VITE_BOT_USERNAME ||
@@ -139,9 +62,12 @@ function NewApp() {
   
   // Authentication State (for web users)
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null); // null = checking
-
-  // Toast State
-  const [toasts, setToasts] = useState<Toast[]>([]);
+  
+  // Boot Sequence State
+  const [isBooted, setIsBooted] = useState(false);
+  
+  // HUD Notifications (replaces old toast system)
+  const hud = useHUD();
 
   // Products for CommandPalette (fetched once)
   const { products: allProducts, getProducts } = useProductsTyped();
@@ -215,8 +141,8 @@ function NewApp() {
   // Initialize Audio on first interaction
   useEffect(() => {
       const initAudio = () => {
-          audio.init();
-          audio.resume();
+          AudioEngine.init();
+          AudioEngine.resume();
           window.removeEventListener('click', initAudio);
           window.removeEventListener('keydown', initAudio);
       };
@@ -228,7 +154,7 @@ function NewApp() {
           if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
               e.preventDefault();
               setIsCmdOpen(prev => !prev);
-              audio.open();
+              AudioEngine.open();
           }
       };
       window.addEventListener('keydown', handleKeyDown);
@@ -258,31 +184,18 @@ function NewApp() {
           }
       }
 
-      // 2. Audio
-      audio.resume();
+      // 2. Audio (using new AudioEngine)
+      AudioEngine.resume();
       switch (type) {
-          case 'light': audio.hover(); break;
-          case 'medium': audio.click(); break;
-          case 'heavy': audio.open(); break;
-          case 'success': audio.success(); break;
-          case 'error': audio.error(); break;
+          case 'light': AudioEngine.hover(); break;
+          case 'medium': AudioEngine.click(); break;
+          case 'heavy': AudioEngine.open(); break;
+          case 'success': AudioEngine.success(); break;
+          case 'error': AudioEngine.error(); break;
       }
   }, []);
 
-  // --- ACTIONS ---
-
-  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
-    
-    if (type === 'success') handleFeedback('success');
-    if (type === 'error') handleFeedback('error');
-    if (type === 'info') handleFeedback('medium');
-
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 3000);
-  }, [handleFeedback]);
+  // --- ACTIONS --- (HUD notifications replace old toast system)
 
   const handleProductSelect = (product: CatalogProduct) => {
     handleFeedback('medium');
@@ -299,10 +212,11 @@ function NewApp() {
   const handleAddToCart = async (product: CatalogProduct, quantity: number = 1) => {
     try {
       await addToCart(String(product.id), quantity);
-      showToast(`MODULE [${product.name}] MOUNTED`, 'success');
+      AudioEngine.addToCart();
+      hud.success('MODULE MOUNTED', `${product.name} added to payload`);
     } catch (err) {
       console.error('Failed to add to cart:', err);
-      showToast('Failed to add item to cart', 'error');
+      hud.error('MOUNT FAILED', 'Unable to add module to payload');
     }
   };
 
@@ -342,8 +256,9 @@ function NewApp() {
     setIsCheckoutOpen(false);
     setCurrentView('orders');
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    showToast('TRANSACTION COMPLETE. ASSETS TRANSFERRED.', 'success');
-  }, [getCart, showToast]);
+    AudioEngine.transaction();
+    hud.success('TRANSACTION COMPLETE', 'Assets transferred to your account');
+  }, [getCart, hud]);
 
   // Navigation Handlers
   const navigate = (view: ViewType) => {
@@ -380,18 +295,21 @@ function NewApp() {
   };
 
   const shouldRaiseSupport = currentView === 'leaderboard';
+  
+  // Handle boot sequence completion
+  const handleBootComplete = useCallback(() => {
+    setIsBooted(true);
+    AudioEngine.connect();
+    hud.system('UPLINK ESTABLISHED', 'Welcome back, Operator');
+  }, [hud]);
 
-  // Authentication loading state
-  if (isAuthenticated === null) {
+  // Show Boot Sequence first (only once per session)
+  if (!isBooted && isAuthenticated !== false) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050505]">
-        <div className="text-center">
-          <div className="w-16 h-16 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <div className="font-mono text-xs text-gray-500 uppercase tracking-widest">
-            Initializing Uplink...
-          </div>
-        </div>
-      </div>
+      <BootSequence 
+        onComplete={handleBootComplete}
+        minDuration={3500}
+      />
     );
   }
 
@@ -542,34 +460,23 @@ function NewApp() {
         raiseOnMobile={shouldRaiseSupport}
       />
 
-      {/* --- SYSTEM TOASTS --- */}
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-full max-w-sm px-4 pointer-events-none">
-        <AnimatePresence>
-            {toasts.map(toast => (
-                <motion.div
-                    key={toast.id}
-                    initial={{ opacity: 0, y: -20, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -20, scale: 0.9 }}
-                    className={`
-                        pointer-events-auto flex items-center gap-3 p-3 border font-mono text-xs shadow-[0_4px_20px_rgba(0,0,0,0.5)] backdrop-blur-md
-                        ${toast.type === 'success' ? 'bg-[#0a0a0a] border-pandora-cyan text-pandora-cyan' : ''}
-                        ${toast.type === 'error' ? 'bg-red-900/10 border-red-500 text-red-500' : ''}
-                        ${toast.type === 'info' ? 'bg-blue-900/10 border-blue-500 text-blue-400' : ''}
-                    `}
-                >
-                    {toast.type === 'success' && <CheckCircle size={16} />}
-                    {toast.type === 'error' && <AlertTriangle size={16} />}
-                    {toast.type === 'info' && <Terminal size={16} />}
-                    <span className="uppercase tracking-wide font-bold">{toast.message}</span>
-                </motion.div>
-            ))}
-        </AnimatePresence>
-      </div>
+      {/* HUD Notifications are rendered by HUDProvider */}
       
       {/* Subtle Grain/Scanline Effect */}
       <div className="fixed inset-0 pointer-events-none z-[100] opacity-[0.02] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] brightness-100 contrast-150" />
     </div>
+  );
+}
+
+// Import HUDProvider for wrapping
+import { HUDProvider } from './components/new';
+
+// Main App with HUD Provider wrapper
+function NewApp() {
+  return (
+    <HUDProvider position="top-right" maxNotifications={5} defaultDuration={4000}>
+      <NewAppInner />
+    </HUDProvider>
   );
 }
 

@@ -16,6 +16,10 @@ export { default as SupportChat } from './SupportChat';
 export { default as CommandPalette } from './CommandPalette';
 export { default as Legal } from './Legal';
 
+// === SYSTEM COMPONENTS ===
+export { default as BootSequence } from './BootSequence';
+export { HUDProvider, useHUD, HUDIcons } from './HUDNotifications';
+
 // === DATA COMPONENTS (With Mock Data - For Development) ===
 export { default as Catalog } from './Catalog';
 export { default as ProductDetail } from './ProductDetail';
