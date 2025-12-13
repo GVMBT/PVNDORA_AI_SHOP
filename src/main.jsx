@@ -1,6 +1,5 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App'
 import NewApp from './NewApp'
 import './index.css'
 
@@ -16,11 +15,8 @@ if (window.Telegram?.WebApp) {
   )
 }
 
-// Always render new UI
-const AppComponent = NewApp
-
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <AppComponent />
+    <NewApp />
   </React.StrictMode>,
 )
