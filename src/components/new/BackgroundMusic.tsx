@@ -2,7 +2,7 @@
  * BackgroundMusic Component
  * 
  * Manages ambient background music for the PVNDORA app.
- * Loads sound.flac and plays it in a loop with volume control.
+ * Preloads sound.flac completely before playing to avoid stuttering.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -19,81 +19,225 @@ interface BackgroundMusicProps {
 
 export const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
   src = '/sound.flac',
-  volume = 0.15, // Low volume for ambient music
+  volume = 0.20,
   autoPlay = true,
   loop = true,
   onLoadComplete,
   onLoadError,
 }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isPlayingRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<Error | null>(null);
   const [loadStartTime] = useState(Date.now());
+  const retryCountRef = useRef(0);
+  const maxRetries = 3;
 
-  // Initialize audio element
+  // Preload audio file completely before creating Audio element
   useEffect(() => {
-    const audio = new Audio(src);
-    audio.loop = loop;
-    audio.volume = volume;
-    audio.preload = 'auto';
-    
-    audioRef.current = audio;
+    let cancelled = false;
+    const startTime = Date.now();
 
-    // Handle loading
-    const handleCanPlay = () => {
-      setIsLoading(false);
-      const loadTime = Date.now() - loadStartTime;
-      console.log(`[BackgroundMusic] Loaded in ${loadTime}ms`);
-      onLoadComplete?.();
-      
-      if (autoPlay) {
-        audio.play().catch((err) => {
-          console.warn('[BackgroundMusic] Autoplay blocked:', err);
-          // Autoplay might be blocked - user needs to interact first
+    const loadAudio = async () => {
+      try {
+        // First: Prefetch the entire file via fetch to ensure it's fully downloaded
+        console.log('[BackgroundMusic] Prefetching audio file...');
+        const response = await fetch(src, { 
+          cache: 'force-cache',
+          // Add timeout
         });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        // Convert to blob URL for better buffering
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        if (cancelled) {
+          URL.revokeObjectURL(blobUrl);
+          return;
+        }
+
+        console.log(`[BackgroundMusic] File prefetched (${(blob.size / 1024 / 1024).toFixed(2)} MB) in ${Date.now() - startTime}ms`);
+
+        // Now create Audio element with blob URL
+        const audio = new Audio(blobUrl);
+        audio.loop = loop;
+        audio.volume = volume;
+        audio.preload = 'auto';
+        
+        // CRITICAL: Set crossOrigin to avoid CORS issues
+        audio.crossOrigin = 'anonymous';
+        
+        audioRef.current = audio;
+
+        // Wait for FULL buffering before playing
+        const handleCanPlayThrough = () => {
+          if (cancelled) return;
+          
+          setIsLoading(false);
+          const loadTime = Date.now() - startTime;
+          console.log(`[BackgroundMusic] Fully buffered and ready in ${loadTime}ms`);
+          onLoadComplete?.();
+          
+          if (autoPlay) {
+            // Small delay to ensure everything is ready
+            setTimeout(() => {
+              if (!cancelled && audioRef.current) {
+                audioRef.current.play().catch((err) => {
+                  console.warn('[BackgroundMusic] Autoplay blocked:', err);
+                });
+              }
+            }, 100);
+          }
+        };
+
+        // Handle buffering issues
+        const handleWaiting = () => {
+          console.warn('[BackgroundMusic] Buffering...');
+          // Audio is waiting for data - this shouldn't happen if fully preloaded
+        };
+
+        const handleStalled = () => {
+          console.warn('[BackgroundMusic] Stalled - retrying...');
+          if (audioRef.current && !cancelled && isPlayingRef.current) {
+            // Try to resume playback
+            setTimeout(() => {
+              if (audioRef.current && !cancelled && isPlayingRef.current) {
+                audioRef.current.play().catch(() => {});
+              }
+            }, 500);
+          }
+        };
+
+        const handleError = (e: Event) => {
+          if (cancelled) return;
+          
+          const audioError = (e.target as HTMLAudioElement).error;
+          const errorMsg = audioError 
+            ? `Code ${audioError.code}: ${audioError.message}`
+            : 'Unknown error';
+          const error = new Error(`Failed to load audio: ${errorMsg}`);
+          
+          console.error('[BackgroundMusic] Load error:', error);
+          
+          // Retry logic
+          if (retryCountRef.current < maxRetries) {
+            retryCountRef.current++;
+            console.log(`[BackgroundMusic] Retrying (${retryCountRef.current}/${maxRetries})...`);
+            setTimeout(() => {
+              if (!cancelled) {
+                loadAudio();
+              }
+            }, 1000 * retryCountRef.current);
+            return;
+          }
+          
+          setLoadError(error);
+          setIsLoading(false);
+          onLoadError?.(error);
+          URL.revokeObjectURL(blobUrl);
+        };
+
+        const handlePlay = () => {
+          if (!cancelled) {
+            isPlayingRef.current = true;
+            setIsPlaying(true);
+          }
+        };
+
+        const handlePause = () => {
+          if (!cancelled) {
+            isPlayingRef.current = false;
+            setIsPlaying(false);
+          }
+        };
+
+        const handleEnded = () => {
+          if (!cancelled) {
+            isPlayingRef.current = false;
+            setIsPlaying(false);
+          }
+        };
+
+        // Progress tracking
+        const handleProgress = () => {
+          if (audio.buffered.length > 0) {
+            const bufferedEnd = audio.buffered.end(audio.buffered.length - 1);
+            const duration = audio.duration;
+            if (duration > 0) {
+              const percent = (bufferedEnd / duration) * 100;
+              if (percent < 100) {
+                console.log(`[BackgroundMusic] Buffered: ${percent.toFixed(1)}%`);
+              }
+            }
+          }
+        };
+
+        audio.addEventListener('canplaythrough', handleCanPlayThrough, { once: true });
+        audio.addEventListener('waiting', handleWaiting);
+        audio.addEventListener('stalled', handleStalled);
+        audio.addEventListener('error', handleError);
+        audio.addEventListener('play', handlePlay);
+        audio.addEventListener('pause', handlePause);
+        audio.addEventListener('ended', handleEnded);
+        audio.addEventListener('progress', handleProgress);
+
+        // Start loading
+        audio.load();
+
+        return () => {
+          audio.removeEventListener('canplaythrough', handleCanPlayThrough);
+          audio.removeEventListener('waiting', handleWaiting);
+          audio.removeEventListener('stalled', handleStalled);
+          audio.removeEventListener('error', handleError);
+          audio.removeEventListener('play', handlePlay);
+          audio.removeEventListener('pause', handlePause);
+          audio.removeEventListener('ended', handleEnded);
+          audio.removeEventListener('progress', handleProgress);
+          audio.pause();
+          audio.src = '';
+          URL.revokeObjectURL(blobUrl);
+          audioRef.current = null;
+        };
+      } catch (error) {
+        if (cancelled) return;
+        
+        console.error('[BackgroundMusic] Prefetch error:', error);
+        
+        // Retry on fetch error
+        if (retryCountRef.current < maxRetries) {
+          retryCountRef.current++;
+          setTimeout(() => {
+            if (!cancelled) {
+              loadAudio();
+            }
+          }, 1000 * retryCountRef.current);
+          return;
+        }
+        
+        const err = error instanceof Error ? error : new Error('Unknown prefetch error');
+        setLoadError(err);
+        setIsLoading(false);
+        onLoadError?.(err);
       }
     };
 
-    const handleCanPlayThrough = () => {
-      setIsLoading(false);
-    };
-
-    const handleError = (e: ErrorEvent) => {
-      const error = new Error(`Failed to load audio: ${e.message || 'Unknown error'}`);
-      setLoadError(error);
-      setIsLoading(false);
-      onLoadError?.(error);
-      console.error('[BackgroundMusic] Load error:', error);
-    };
-
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
-    const handleEnded = () => setIsPlaying(false);
-
-    audio.addEventListener('canplay', handleCanPlay);
-    audio.addEventListener('canplaythrough', handleCanPlayThrough);
-    audio.addEventListener('error', handleError);
-    audio.addEventListener('play', handlePlay);
-    audio.addEventListener('pause', handlePause);
-    audio.addEventListener('ended', handleEnded);
-
-    // Start loading
-    audio.load();
+    loadAudio();
 
     return () => {
-      audio.removeEventListener('canplay', handleCanPlay);
-      audio.removeEventListener('canplaythrough', handleCanPlayThrough);
-      audio.removeEventListener('error', handleError);
-      audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('pause', handlePause);
-      audio.removeEventListener('ended', handleEnded);
-      audio.pause();
-      audio.src = '';
-      audioRef.current = null;
+      cancelled = true;
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+        audioRef.current = null;
+      }
     };
-  }, [src, loop, volume, autoPlay, onLoadComplete, onLoadError, loadStartTime]);
+  }, [src, loop, volume, autoPlay, onLoadComplete, onLoadError]);
 
   // Update volume when prop changes
   useEffect(() => {
@@ -122,7 +266,7 @@ export const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
   // Auto-resume on user interaction (for autoplay policies)
   useEffect(() => {
     const handleUserInteraction = () => {
-      if (audioRef.current && autoPlay && !isPlaying && !isLoading && !loadError) {
+      if (audioRef.current && autoPlay && !isPlayingRef.current && !isLoading && !loadError) {
         audioRef.current.play().catch(() => {
           // Ignore autoplay errors
         });
@@ -136,7 +280,7 @@ export const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
       window.removeEventListener('click', handleUserInteraction);
       window.removeEventListener('keydown', handleUserInteraction);
     };
-  }, [autoPlay, isPlaying, isLoading, loadError]);
+  }, [autoPlay, isLoading, loadError]);
 
   // Don't render UI if there's an error or if not needed
   if (loadError) {
