@@ -617,9 +617,10 @@ function NewAppInner() {
 
       {/* HUD Notifications are rendered by HUDProvider */}
       
-      {/* Background Music (only after boot completes) */}
+      {/* Background Music (only after boot completes, persistent across navigation) */}
       {isBooted && (
         <BackgroundMusic 
+          key="background-music-persistent" // Stable key prevents remounting
           src="/sound.flac"
           volume={0.20}
           autoPlay={true}

@@ -5,7 +5,7 @@
  * Preloads sound.flac completely before playing to avoid stuttering.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, memo } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 
 interface BackgroundMusicProps {
@@ -34,6 +34,15 @@ export const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
   const [loadStartTime] = useState(Date.now());
   const retryCountRef = useRef(0);
   const maxRetries = 3;
+  
+  // Store callbacks in refs to prevent effect re-runs
+  const onLoadCompleteRef = useRef(onLoadComplete);
+  const onLoadErrorRef = useRef(onLoadError);
+  
+  useEffect(() => {
+    onLoadCompleteRef.current = onLoadComplete;
+    onLoadErrorRef.current = onLoadError;
+  }, [onLoadComplete, onLoadError]);
 
   // Preload audio file completely before creating Audio element
   useEffect(() => {
@@ -82,7 +91,7 @@ export const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
           setIsLoading(false);
           const loadTime = Date.now() - startTime;
           console.log(`[BackgroundMusic] Fully buffered and ready in ${loadTime}ms`);
-          onLoadComplete?.();
+          onLoadCompleteRef.current?.();
           
           if (autoPlay) {
             // Small delay to ensure everything is ready
@@ -139,7 +148,7 @@ export const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
           
           setLoadError(error);
           setIsLoading(false);
-          onLoadError?.(error);
+          onLoadErrorRef.current?.(error);
           URL.revokeObjectURL(blobUrl);
         };
 
@@ -186,6 +195,8 @@ export const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
         audio.addEventListener('pause', handlePause);
         audio.addEventListener('ended', handleEnded);
         audio.addEventListener('progress', handleProgress);
+        audio.addEventListener('seeking', handleSeeking);
+        audio.addEventListener('seeked', handleSeeked);
 
         // Start loading
         audio.load();
@@ -199,6 +210,8 @@ export const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
           audio.removeEventListener('pause', handlePause);
           audio.removeEventListener('ended', handleEnded);
           audio.removeEventListener('progress', handleProgress);
+          audio.removeEventListener('seeking', handleSeeking);
+          audio.removeEventListener('seeked', handleSeeked);
           audio.pause();
           audio.src = '';
           URL.revokeObjectURL(blobUrl);
@@ -223,7 +236,7 @@ export const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
         const err = error instanceof Error ? error : new Error('Unknown prefetch error');
         setLoadError(err);
         setIsLoading(false);
-        onLoadError?.(err);
+        onLoadErrorRef.current?.(err);
       }
     };
 
@@ -237,7 +250,8 @@ export const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
         audioRef.current = null;
       }
     };
-  }, [src, loop, volume, autoPlay, onLoadComplete, onLoadError]);
+    // Only re-run if src, loop, volume, or autoPlay change - NOT callbacks
+  }, [src, loop, volume, autoPlay]);
 
   // Update volume when prop changes
   useEffect(() => {
@@ -245,6 +259,32 @@ export const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
       audioRef.current.volume = isMuted ? 0 : volume;
     }
   }, [volume, isMuted]);
+
+  // Handle page visibility - pause when hidden, resume when visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!audioRef.current) return;
+      
+      if (document.hidden) {
+        // Page is hidden - pause music
+        if (isPlayingRef.current) {
+          audioRef.current.pause();
+        }
+      } else {
+        // Page is visible - resume if was playing
+        if (isPlayingRef.current && autoPlay) {
+          audioRef.current.play().catch(() => {
+            // Ignore autoplay errors
+          });
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [autoPlay]);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
@@ -310,5 +350,8 @@ export const BackgroundMusic: React.FC<BackgroundMusicProps> = ({
     </div>
   );
 };
+
+// Memoize to prevent re-creation on navigation
+export const BackgroundMusic = memo(BackgroundMusicComponent);
 
 export default BackgroundMusic;
