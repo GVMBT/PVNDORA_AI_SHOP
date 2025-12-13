@@ -209,6 +209,7 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
   const currentTurnover = propProfile?.career.currentTurnover ?? user.stats.turnover;
   const currentLevel = propProfile?.career.currentLevel ?? (CAREER_LEVELS.find(l => currentTurnover >= l.min && currentTurnover < l.max) || CAREER_LEVELS[CAREER_LEVELS.length - 1]);
   const nextLevel = propProfile?.career.nextLevel ?? CAREER_LEVELS.find(l => l.id === currentLevel.id + 1);
+  const maxTurnover = nextLevel ? nextLevel.min : currentLevel.max;
   const progressPercent = propProfile?.career.progressPercent ?? (nextLevel 
     ? Math.min(100, Math.max(0, ((currentTurnover - currentLevel.min) / (nextLevel.min - currentLevel.min)) * 100))
     : 100);
