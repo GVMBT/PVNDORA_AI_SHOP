@@ -44,6 +44,14 @@ import { useCart } from './contexts/CartContext';
 // Audio Engine (procedural sound generation)
 import { AudioEngine } from './lib/AudioEngine';
 
+// Auth utilities (static import to avoid Vite warning)
+import { 
+  persistSessionTokenFromQuery, 
+  getSessionToken, 
+  verifySessionToken, 
+  removeSessionToken 
+} from './utils/auth';
+
 // API base URL
 const API_BASE = (import.meta as any)?.env?.VITE_API_URL || '/api';
 
@@ -106,16 +114,29 @@ function NewAppInner() {
 
   // Note: Authentication and data loading is now handled by BootSequence tasks
 
-  // Initialize Audio on first interaction
+  // Resume audio context on first user interaction (fallback if boot resume failed)
+  // Music is already started in BootSequence and should be playing after boot
+  // We try to resume immediately after boot, but if that fails due to browser policy,
+  // we'll resume on first interaction
   useEffect(() => {
-      const initAudio = () => {
-          AudioEngine.init();
-          AudioEngine.resume();
-          window.removeEventListener('click', initAudio);
-          window.removeEventListener('keydown', initAudio);
+      let audioResumed = false;
+      const resumeAudio = async () => {
+          if (audioResumed) return;
+          audioResumed = true;
+          try {
+              await AudioEngine.resume();
+          } catch (e) {
+              console.warn('[NewApp] Audio resume failed:', e);
+          }
       };
-      window.addEventListener('click', initAudio);
-      window.addEventListener('keydown', initAudio);
+      
+      // Try to resume on any interaction (fallback for browsers that block autoplay)
+      // Use capture phase to catch interactions early
+      const options = { once: true, capture: true };
+      window.addEventListener('click', resumeAudio, options);
+      window.addEventListener('keydown', resumeAudio, options);
+      window.addEventListener('touchstart', resumeAudio, options);
+      window.addEventListener('mousedown', resumeAudio, options);
       
       // CMD+K Listener
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -126,7 +147,11 @@ function NewAppInner() {
           }
       };
       window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
+      return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+        // Cleanup: stop music when component unmounts
+        AudioEngine.stopAmbientMusic();
+      };
   }, []);
 
   // --- UNIFIED FEEDBACK HANDLER ---
@@ -274,6 +299,8 @@ function NewAppInner() {
         AudioEngine.init();
         await AudioEngine.resume();
         AudioEngine.boot();
+        // Start procedural ambient music (will be muted until user interaction due to browser policy)
+        AudioEngine.startAmbientMusicFromAnalysis();
         return true;
       },
     },
@@ -285,7 +312,6 @@ function NewAppInner() {
       critical: false, // Not critical - will show login page
       execute: async () => {
         // Persist session_token from URL query if present
-        const { persistSessionTokenFromQuery } = await import('./utils/auth');
         persistSessionTokenFromQuery();
 
         // In Telegram WebApp context - always authenticated via initData
@@ -295,7 +321,6 @@ function NewAppInner() {
         }
         
         // In browser - check for session token
-        const { getSessionToken, verifySessionToken, removeSessionToken } = await import('./utils/auth');
         const sessionToken = getSessionToken();
         if (sessionToken) {
           const result = await verifySessionToken(sessionToken);
@@ -344,7 +369,7 @@ function NewAppInner() {
   ], [getProducts, getCart]);
   
   // Handle boot sequence completion with real data
-  const handleBootComplete = useCallback((results: Record<string, any>) => {
+  const handleBootComplete = useCallback(async (results: Record<string, any>) => {
     console.log('[Boot] Sequence complete with results:', results);
     
     // Check authentication result
@@ -357,6 +382,14 @@ function NewAppInner() {
     
     setIsBooted(true);
     AudioEngine.connect();
+    
+    // Resume audio context immediately after boot (music is already started in boot task)
+    // This should work if BootSequence was visible/interactive
+    try {
+      await AudioEngine.resume();
+    } catch (e) {
+      console.warn('[Boot] Audio resume failed, will resume on first interaction:', e);
+    }
     
     // Show welcome notification with stats
     const productCount = results.catalog?.productCount || 0;
