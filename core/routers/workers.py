@@ -87,19 +87,20 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
             total_delivered += 1
             continue
         
-        # CRITICAL: Skip preorder items - they should NEVER be delivered without stock
-        # Preorder items should only become instant after stock arrives AND admin updates them
+        # Determine fulfillment_type for this item
         fulfillment_type = str(it.get("fulfillment_type") or "instant")
-        if fulfillment_type == "preorder":
+        
+        # For only_instant mode (called immediately after payment):
+        # - Skip preorder items - they will be delivered later by auto_alloc when stock arrives
+        # - This is the FIRST delivery attempt, we only deliver what's immediately available
+        if only_instant and fulfillment_type == "preorder":
             waiting_count += 1
-            logger.debug(f"deliver-goods: skipping preorder item {it.get('id')} (no instant stock available)")
+            logger.debug(f"deliver-goods: skipping preorder item {it.get('id')} (only_instant=True, will be delivered by auto_alloc)")
             continue
         
-        # For only_instant mode, only process instant items (skip everything else)
-        if only_instant and fulfillment_type != "instant":
-            waiting_count += 1
-            logger.debug(f"deliver-goods: skipping non-instant item {it.get('id')} (only_instant=True)")
-            continue
+        # For auto_alloc (only_instant=False):
+        # - Try to deliver ALL items (instant AND preorder) if stock is available
+        # - This runs every 10 minutes to check if new stock arrived for preorder items
         
         product_id = it.get("product_id")
         prod = products_map.get(product_id, {})

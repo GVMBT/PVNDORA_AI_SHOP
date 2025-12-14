@@ -78,3 +78,4 @@ export const API_ENDPOINTS = {
   WEBAPP: '/api/webapp',
   ADMIN: '/api/admin',
 } as const;
+

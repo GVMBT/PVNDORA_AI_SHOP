@@ -487,3 +487,4 @@ core/ai/*, core/bot/*, core/cart/*
 - Frontend архитектура следует современным React паттернам
 
 
+
