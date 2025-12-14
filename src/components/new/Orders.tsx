@@ -64,17 +64,35 @@ const DecryptText: React.FC<{ text: string, revealed: boolean }> = ({ text, reve
             return;
         }
 
+        // Use requestAnimationFrame instead of setInterval for better performance
         let iterations = 0;
-        const interval = setInterval(() => {
-            setDisplay(text.split('').map((char, index) => {
-                if (index < iterations) return char;
-                return "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*".charAt(Math.floor(Math.random() * 40));
-            }).join(''));
-            
-            if (iterations >= text.length) clearInterval(interval);
-            iterations += 1/3; 
-        }, 30);
-        return () => clearInterval(interval);
+        let rafId: number | null = null;
+        let lastTime = performance.now();
+        const targetInterval = 30; // ms
+        
+        const animate = (currentTime: number) => {
+            const delta = currentTime - lastTime;
+            if (delta >= targetInterval) {
+                setDisplay(text.split('').map((char, index) => {
+                    if (index < iterations) return char;
+                    return "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*".charAt(Math.floor(Math.random() * 40));
+                }).join(''));
+                
+                if (iterations >= text.length) {
+                    if (rafId) cancelAnimationFrame(rafId);
+                    return;
+                }
+                iterations++;
+                lastTime = currentTime;
+            }
+            rafId = requestAnimationFrame(animate);
+        };
+        
+        rafId = requestAnimationFrame(animate);
+        
+        return () => {
+            if (rafId) cancelAnimationFrame(rafId);
+        };
     }, [revealed, text]);
 
     return <span className="font-mono">{display}</span>;

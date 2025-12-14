@@ -41,6 +41,10 @@ class AudioEngineClass {
   // AudioBuffer cache for instant playback
   private soundCache: Map<string, AudioBuffer> = new Map();
   private loadingPromises: Map<string, Promise<AudioBuffer | null>> = new Map();
+  
+  // Throttle for frequent sounds (hover, click) to prevent CPU overload
+  private lastSoundTime: Map<string, number> = new Map();
+  private readonly THROTTLE_MS = 50; // Minimum 50ms between same sound type
 
   /**
    * Initialize AudioContext (must be called after user interaction)
@@ -187,10 +191,26 @@ class AudioEngineClass {
   }
 
   /**
+   * Check if sound should be throttled (prevents CPU overload from rapid sounds)
+   */
+  private shouldThrottle(soundKey?: string): boolean {
+    if (!soundKey) return false;
+    const now = Date.now();
+    const lastTime = this.lastSoundTime.get(soundKey) || 0;
+    if (now - lastTime < this.THROTTLE_MS) {
+      return true; // Too soon, skip
+    }
+    this.lastSoundTime.set(soundKey, now);
+    return false;
+  }
+
+  /**
    * Play a single tone (procedural fallback)
    */
-  private playTone(config: ToneConfig): void {
+  private playTone(config: ToneConfig, soundKey?: string): void {
     if (!this.ctx || !this.masterGain || !this.enabled) return;
+    // Throttle frequent sounds to prevent CPU overload
+    if (this.shouldThrottle(soundKey)) return;
     
     const { freq, type, duration, volume = 0.05, delay = 0 } = config;
     const now = this.ctx.currentTime + delay;
@@ -292,7 +312,7 @@ class AudioEngineClass {
   click(): void {
     this.playSoundFile('click', 0.5).catch(() => {
       // Fallback to procedural
-      this.playTone({ freq: 1200, type: 'square', duration: 0.05, volume: 0.015 });
+      this.playTone({ freq: 1200, type: 'square', duration: 0.05, volume: 0.015 }, 'click');
       this.playNoise(0.03, 0.01);
     });
   }
