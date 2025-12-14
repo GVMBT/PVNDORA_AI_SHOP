@@ -403,24 +403,41 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                 <CheckCircle size={64} className="text-pandora-cyan relative z-10" />
                             </div>
                             
-                            <h3 className="text-2xl font-display font-bold text-white mb-2">ACCESS GRANTED</h3>
-                            <p className="text-gray-400 font-mono text-sm mb-8 max-w-xs mx-auto">
-                                Transaction verified on block <span className="text-pandora-cyan">#{Math.floor(Math.random() * 999999)}</span>. 
-                                Credentials have been dispatched to your encrypted frequency (email).
+                            <h3 className="text-2xl font-display font-bold text-white mb-2">ORDER CONFIRMED</h3>
+                            <p className="text-gray-400 font-mono text-sm mb-6 max-w-xs mx-auto">
+                                Payment processed successfully. Your order is being prepared for delivery.
                             </p>
                             
-                            <div className="w-full bg-[#0e0e0e] border border-white/10 p-4 mb-8 text-left">
-                                <div className="text-[10px] text-gray-500 font-mono mb-1">DOWNLOAD_LINK_GENERATED:</div>
-                                <div className="text-xs text-pandora-cyan underline cursor-pointer truncate">
-                                    pvndora://secure-download/{Math.random().toString(36).substr(2, 12)}
+                            <div className="w-full bg-[#0e0e0e] border border-white/10 p-4 mb-6 text-left space-y-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center">
+                                        <CheckCircle size={14} className="text-green-500" />
+                                    </div>
+                                    <div>
+                                        <div className="text-[10px] text-gray-500 font-mono">PAYMENT_STATUS</div>
+                                        <div className="text-xs text-green-500 font-bold">CONFIRMED</div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-pandora-cyan/10 border border-pandora-cyan/30 flex items-center justify-center">
+                                        <Server size={14} className="text-pandora-cyan" />
+                                    </div>
+                                    <div>
+                                        <div className="text-[10px] text-gray-500 font-mono">DELIVERY_CHANNEL</div>
+                                        <div className="text-xs text-pandora-cyan font-bold">TELEGRAM BOT + ORDERS PAGE</div>
+                                    </div>
                                 </div>
                             </div>
+                            
+                            <p className="text-[10px] text-gray-500 font-mono mb-6 max-w-xs">
+                                Instant items are delivered immediately. Preorder items will be delivered within 24-72 hours.
+                            </p>
 
                             <button 
                                 onClick={closeSuccess}
-                                className="px-8 py-3 border border-white/20 hover:bg-white hover:text-black hover:border-white transition-colors text-xs font-bold uppercase tracking-widest"
+                                className="px-8 py-3 bg-pandora-cyan text-black hover:bg-white transition-colors text-xs font-bold uppercase tracking-widest"
                             >
-                                CLOSE TERMINAL
+                                VIEW ORDERS
                             </button>
                         </motion.div>
                     )}
