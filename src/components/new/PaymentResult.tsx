@@ -364,14 +364,19 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
           {/* Actions */}
           {isComplete && (
             <div className="p-4 border-t border-white/10 space-y-3">
-              {/* Return to Bot button - ALWAYS show for external browser users */}
+              {/* Return to Bot button - Show prominently for external browser users */}
               {typeof window !== 'undefined' && !(window as any).Telegram?.WebApp && (
-                <a
-                  href={`https://t.me/${process.env.REACT_APP_BOT_USERNAME || 'pvndora_ai_bot'}`}
-                  className="block w-full py-3 bg-pandora-cyan text-black font-bold text-sm text-center hover:bg-pandora-cyan/90 transition-colors"
-                >
-                  🤖 RETURN_TO_BOT
-                </a>
+                <div className="text-center mb-4">
+                  <div className="text-xs text-gray-400 mb-2 font-mono">
+                    Payment processed! Close this tab and return to Telegram.
+                  </div>
+                  <a
+                    href={`https://t.me/${import.meta.env.VITE_BOT_USERNAME || 'pvndora_ai_bot'}`}
+                    className="block w-full py-4 bg-pandora-cyan text-black font-bold text-sm text-center hover:bg-pandora-cyan/90 transition-colors"
+                  >
+                    🤖 OPEN TELEGRAM BOT
+                  </a>
+                </div>
               )}
               
               {isSuccess && (
@@ -423,6 +428,21 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
             <span>CONNECTION_CLOSED</span>
           )}
         </div>
+        
+        {/* Browser-specific hint - show if NOT in Telegram WebApp */}
+        {typeof window !== 'undefined' && !(window as any).Telegram?.WebApp && !isComplete && (
+          <div className="mt-6 p-4 border border-dashed border-pandora-cyan/30 bg-pandora-cyan/5">
+            <div className="text-center">
+              <div className="text-xs text-pandora-cyan font-mono mb-2">
+                💡 TIP: Keep this tab open
+              </div>
+              <div className="text-[10px] text-gray-400">
+                Verification in progress. You can also return to the Telegram app - 
+                your order will be processed automatically.
+              </div>
+            </div>
+          </div>
+        )}
       </motion.div>
     </div>
   );

@@ -222,10 +222,17 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
         if (isLocalForm) {
           window.location.href = result.payment_url;
         } else {
+          // Open payment in external browser
+          // IMPORTANT: Do NOT close Mini App! We need to poll for status
           openLink(result.payment_url);
-          setTimeout(() => {
-            close();
-          }, 500);
+          
+          // Return order_id so parent can show PaymentResult with polling
+          // This keeps Mini App open while user pays in external browser
+          return { 
+            awaitingPayment: true, 
+            orderId: result.order_id,
+            paymentUrl: result.payment_url 
+          };
         }
       } else {
         await showAlert(t('checkout.orderCreated'));

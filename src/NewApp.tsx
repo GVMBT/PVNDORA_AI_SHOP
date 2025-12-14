@@ -194,6 +194,12 @@ function NewAppInner() {
     hud.success('TRANSACTION COMPLETE', 'Assets transferred to your account');
   }, [getCart, hud]);
 
+  // Handle external payment - show PaymentResult with polling in Mini App
+  const handleAwaitingPayment = useCallback((orderId: string) => {
+    setPaymentResultOrderId(orderId);
+    setCurrentView('payment-result');
+  }, []);
+
   // Command palette navigation
   const handleUniversalNavigate = useCallback((target: NavigationTarget) => {
     handleFeedback('medium');
@@ -329,7 +335,11 @@ function NewAppInner() {
       <AnimatePresence>
         {isCheckoutOpen && (
           <Suspense fallback={null}>
-            <CheckoutModalConnected onClose={handleCloseCheckout} onSuccess={handleCheckoutSuccess} />
+            <CheckoutModalConnected 
+              onClose={handleCloseCheckout} 
+              onSuccess={handleCheckoutSuccess} 
+              onAwaitingPayment={handleAwaitingPayment}
+            />
           </Suspense>
         )}
       </AnimatePresence>

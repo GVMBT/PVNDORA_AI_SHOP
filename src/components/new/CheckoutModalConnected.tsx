@@ -14,11 +14,13 @@ import type { APICreateOrderRequest } from '../../types/api';
 interface CheckoutModalConnectedProps {
   onClose: () => void;
   onSuccess: () => void;
+  onAwaitingPayment?: (orderId: string) => void;  // Called when external payment opened
 }
 
 const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   onClose,
   onSuccess,
+  onAwaitingPayment,
 }) => {
   // Use global cart context - shared with NewApp
   const { cart, getCart, removeCartItem, loading: cartLoading, error: cartError } = useCart();
@@ -87,26 +89,31 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
       const response = await createOrder(request);
       
       if (response) {
-        // For external payment (CrystalPay), redirect IMMEDIATELY
+        // For external payment (CrystalPay), open in browser and show polling screen
         if (response.payment_url && method !== 'internal') {
-          // In Telegram WebApp, use openLink
           const tgWebApp = window.Telegram?.WebApp;
+          
+          // Open payment URL in external browser
           if (tgWebApp?.openLink) {
             try {
-              // Call openLink directly - it opens external browser
               tgWebApp.openLink(response.payment_url);
-              // Don't close modal immediately - let user see the redirect
-              return null;
             } catch (err) {
-              // Fallback to window.location if openLink fails
-              window.location.href = response.payment_url;
-              return null;
+              // Fallback: open in new tab
+              window.open(response.payment_url, '_blank');
             }
           } else {
-            // Fallback: redirect directly if Telegram WebApp not available
-            window.location.href = response.payment_url;
-            return null;
+            // Fallback for non-Telegram environment
+            window.open(response.payment_url, '_blank');
           }
+          
+          // Close modal and show PaymentResult with polling
+          // This keeps Mini App open while user pays in external browser
+          if (response.order_id && onAwaitingPayment) {
+            onClose();  // Close checkout modal
+            onAwaitingPayment(response.order_id);  // Show PaymentResult
+          }
+          
+          return null;
         }
         
         // For internal (balance) payment, return response to show success
