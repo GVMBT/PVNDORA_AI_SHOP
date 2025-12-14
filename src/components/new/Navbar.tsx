@@ -86,18 +86,28 @@ const Navbar: React.FC<NavbarProps> = ({
         onMouseLeave={() => setIsHovered(false)}
         initial={{ width: 80 }}
         animate={{ width: isHovered ? 288 : 80 }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        transition={{ type: "spring", stiffness: 400, damping: 35 }}
         className="hidden md:flex fixed top-0 left-0 h-screen z-50 flex-col bg-[#050505] border-r border-white/10 overflow-hidden shadow-[10px_0_30px_rgba(0,0,0,0.5)]"
+        style={{ willChange: 'width' }}
       >
         
         {/* Logo Section */}
         <div className="h-24 flex items-center shrink-0 relative cursor-pointer" onClick={() => handleClick(onNavigateHome)}>
              {/* Unified Logo Container - fixed position, flex layout */}
-             <div className={`absolute left-0 h-full flex items-center gap-3 transition-all duration-300 ${isHovered ? 'pl-5' : 'pl-0 w-full justify-center'}`}>
-                {/* Logo Icon Container */}
-                <div className="w-10 h-10 flex items-center justify-center relative z-10 group shrink-0">
+             <motion.div 
+                className="absolute left-0 h-full flex items-center gap-3"
+                animate={{ 
+                    paddingLeft: isHovered ? 20 : 0,
+                    justifyContent: isHovered ? 'flex-start' : 'center',
+                    width: isHovered ? 'auto' : '100%'
+                }}
+                transition={{ type: "spring", stiffness: 400, damping: 35 }}
+                style={{ willChange: 'padding-left, justify-content' }}
+             >
+                {/* Logo Icon Container - always centered with nav icons when collapsed */}
+                <div className="w-10 h-10 flex items-center justify-center relative z-10 group shrink-0" style={{ willChange: 'transform' }}>
                     {/* Logo Glow (Internal Core) */}
-                    <div className="absolute inset-0 bg-pandora-cyan blur-md opacity-40 group-hover:opacity-60 transition-opacity" />
+                    <div className="absolute inset-0 bg-pandora-cyan blur-md opacity-40 group-hover:opacity-60 transition-opacity duration-200" />
                     
                     {/* PVNDORA Logo */}
                     <svg 
@@ -106,7 +116,7 @@ const Navbar: React.FC<NavbarProps> = ({
                         viewBox="0 0 195 215" 
                         fill="none" 
                         xmlns="http://www.w3.org/2000/svg"
-                        className="relative z-10 drop-shadow-[0_0_10px_rgba(0,255,255,0.3)] group-hover:drop-shadow-[0_0_15px_rgba(0,255,255,0.5)] transition-all"
+                        className="relative z-10 drop-shadow-[0_0_10px_rgba(0,255,255,0.3)] group-hover:drop-shadow-[0_0_15px_rgba(0,255,255,0.5)]"
                     >
                         <g filter={`url(#${logoId}-filter0_f)`}>
                             <path d="M173.2 63.7952C173.2 108.53 113.7 168.295 90.7 193.795C65.2 164.295 8.19995 108.53 8.19995 63.7952C8.19995 19.0601 45.4126 92.2952 90.7 92.2952C135.987 92.2952 173.2 19.0601 173.2 63.7952Z" fill="#2ED0CF" fillOpacity="0.5"/>
@@ -182,28 +192,34 @@ const Navbar: React.FC<NavbarProps> = ({
                 </div>
                 
                 {/* Text Logo (Visible on Expand) - part of the same flex container */}
-                <AnimatePresence>
+                <AnimatePresence mode="wait">
                     {isHovered && (
                         <motion.div 
-                            initial={{ opacity: 0, width: 0 }}
-                            animate={{ opacity: 1, width: 'auto' }}
-                            exit={{ opacity: 0, width: 0 }}
-                            transition={{ duration: 0.3, delay: 0.1 }}
+                            key="logo-text"
+                            initial={{ opacity: 0, width: 0, marginLeft: 0 }}
+                            animate={{ opacity: 1, width: 'auto', marginLeft: 12 }}
+                            exit={{ opacity: 0, width: 0, marginLeft: 0 }}
+                            transition={{ 
+                                width: { duration: 0.25, ease: "easeOut" },
+                                opacity: { duration: 0.2, delay: 0.05 },
+                                marginLeft: { duration: 0.25 }
+                            }}
                             className="overflow-hidden whitespace-nowrap"
+                            style={{ willChange: 'width, opacity, margin-left' }}
                         >
-                            <div className="pl-2">
+                            <div>
                                 <h1 className="font-display font-bold text-xl text-white tracking-widest h-6 flex items-center">
-                                    <Typewriter text="PVNDORA" speed={40} />
+                                    <Typewriter text="PVNDORA" speed={40} delay={150} />
                                 </h1>
                                 <div className="text-[9px] font-mono text-gray-500 tracking-widest h-4 flex items-center">
                                     <span className="text-pandora-cyan mr-1 opacity-50">&gt;</span>
-                                    <Typewriter text="MARKET_PROTOCOL_V2" delay={300} speed={20} />
+                                    <Typewriter text="MARKET_PROTOCOL_V2" delay={500} speed={20} />
                                 </div>
                             </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
-             </div>
+             </motion.div>
         </div>
 
         {/* Navigation Items */}
@@ -346,46 +362,67 @@ interface NavItemProps {
 }
 
 const NavItem: React.FC<NavItemProps> = ({ icon, label, subLabel, active, onClick, isExpanded, delay = 0 }) => (
-    <button 
+    <motion.button 
         onClick={onClick} 
         className={`
-            relative flex items-center justify-center md:justify-start h-12 md:h-14 w-full transition-all duration-300 group/item
+            relative flex items-center justify-center md:justify-start h-12 md:h-14 w-full group/item
             ${active ? 'bg-white/5' : 'hover:bg-white/5'}
-            ${!isExpanded ? 'px-0' : 'px-3'}
         `}
+        animate={{ 
+            paddingLeft: isExpanded ? 12 : 0,
+            paddingRight: isExpanded ? 16 : 0,
+            justifyContent: isExpanded ? 'flex-start' : 'center'
+        }}
+        transition={{ type: "spring", stiffness: 400, damping: 35 }}
+        style={{ willChange: 'padding-left, padding-right' }}
         title={!isExpanded ? label : undefined}
     >
         {/* Active Indicator (Left Line) */}
-        <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-pandora-cyan transition-all duration-300 rounded-r-sm ${active ? 'opacity-100' : 'opacity-0'}`} />
+        <motion.div 
+            className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-pandora-cyan rounded-r-sm"
+            animate={{ opacity: active ? 1 : 0 }}
+            transition={{ duration: 0.2 }}
+        />
 
         {/* Icon Container (Standard Rounded Square) */}
-        <div className={`flex items-center justify-center shrink-0 relative z-10 ${isExpanded ? 'w-20' : 'w-full'}`}>
+        <motion.div 
+            className="flex items-center justify-center shrink-0 relative z-10"
+            animate={{ width: isExpanded ? 80 : '100%' }}
+            transition={{ type: "spring", stiffness: 400, damping: 35 }}
+            style={{ willChange: 'width' }}
+        >
             <div 
                 className={`
-                    w-10 h-10 flex items-center justify-center transition-all duration-300 rounded-lg
+                    w-10 h-10 flex items-center justify-center rounded-lg transition-colors duration-200
                     ${active ? 'bg-pandora-cyan/20 text-pandora-cyan shadow-[0_0_10px_rgba(0,255,255,0.3)]' : 'bg-white/5 text-gray-500 group-hover/item:text-white group-hover/item:bg-white/10'}
                 `}
             >
                 {icon}
             </div>
-        </div>
+        </motion.div>
 
         {/* Text Content */}
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
             {isExpanded && (
                 <motion.div 
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ delay: delay, duration: 0.3 }}
+                    key="nav-text"
+                    initial={{ opacity: 0, x: -10, width: 0 }}
+                    animate={{ opacity: 1, x: 0, width: 'auto' }}
+                    exit={{ opacity: 0, x: -10, width: 0 }}
+                    transition={{ 
+                        delay: delay * 0.1,
+                        duration: 0.25,
+                        ease: "easeOut"
+                    }}
                     className="flex-1 pl-1 pr-4 whitespace-nowrap overflow-hidden flex justify-between items-center"
+                    style={{ willChange: 'width, opacity' }}
                 >
                     <div className="text-left">
                         <div className={`text-sm font-bold tracking-wide ${active ? 'text-white' : 'text-gray-400 group-hover/item:text-white'}`}>
                             <Typewriter text={label} delay={delay * 1000} speed={25} />
                         </div>
                         {subLabel && (
-                            <div className="text-[10px] font-mono text-gray-600 group-hover/item:text-pandora-cyan transition-colors">
+                            <div className="text-[10px] font-mono text-gray-600 group-hover/item:text-pandora-cyan transition-colors duration-200">
                                 <Typewriter text={subLabel} delay={delay * 1000 + 100} speed={15} />
                             </div>
                         )}
@@ -400,7 +437,7 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, subLabel, active, onClic
         {active && (
              <div className="absolute bottom-0 left-20 right-0 h-[1px] bg-gradient-to-r from-pandora-cyan/50 to-transparent" />
         )}
-    </button>
+    </motion.button>
 );
 
 const MobileNavItem: React.FC<NavItemProps> = ({ icon, label, active, onClick }) => (
