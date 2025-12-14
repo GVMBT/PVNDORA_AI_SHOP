@@ -7,9 +7,12 @@ import asyncio
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
 
+from core.logging import get_logger
 from src.services.database import get_database
 from src.services.money import to_float
 from core.auth import verify_admin
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["admin-users"])
 
@@ -147,9 +150,7 @@ async def admin_get_users_crm(
             "offset": offset
         }
     except Exception as e:
-        import traceback
-        print(f"ERROR: Failed to query users_extended_analytics: {e}")
-        print(f"ERROR: Traceback: {traceback.format_exc()}")
+        logger.error(f"Failed to query users_extended_analytics: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to load users.")
 
 
@@ -177,7 +178,7 @@ async def admin_ban_user(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"ERROR: Failed to ban user: {e}")
+        logger.error(f"Failed to ban user: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to update user ban status")
 
 
@@ -218,7 +219,7 @@ async def admin_update_user_balance(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"ERROR: Failed to update balance: {e}")
+        logger.error(f"Failed to update balance: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to update user balance")
 
 
@@ -246,5 +247,5 @@ async def admin_update_warnings(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"ERROR: Failed to update warnings: {e}")
+        logger.error(f"Failed to update warnings: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to update warnings")

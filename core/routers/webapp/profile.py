@@ -11,9 +11,12 @@ from typing import Optional
 import httpx
 from fastapi import APIRouter, HTTPException, Depends
 
+from core.logging import get_logger
 from src.services.database import get_database
 from core.auth import verify_telegram_auth
 from .models import WithdrawalRequest, UpdatePreferencesRequest, TopUpRequest
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["webapp-profile"])
 
@@ -126,7 +129,7 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
             )
             return result.data[0] if result.data else {}
         except Exception as e:
-            print(f"ERROR: Failed to load referral_settings: {e}")
+            logger.warning(f"Failed to load referral_settings: {e}")
             return {}
     
     async def fetch_extended_stats():
@@ -135,7 +138,7 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
                 lambda: db.client.table("referral_stats_extended").select("*").eq("user_id", db_user.id).execute()
             )
         except Exception as e:
-            print(f"ERROR: Failed to query referral_stats_extended: {e}")
+            logger.warning(f"Failed to query referral_stats_extended: {e}")
             return type('obj', (object,), {'data': []})()
     
     async def fetch_bonuses():
@@ -144,7 +147,7 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
                 lambda: db.client.table("referral_bonuses").select("*").eq("user_id", db_user.id).eq("eligible", True).order("created_at", desc=True).limit(10).execute()
             )
         except Exception as e:
-            print(f"ERROR: Failed to query referral_bonuses: {e}")
+            logger.warning(f"Failed to query referral_bonuses: {e}")
             return type('obj', (object,), {'data': []})()
     
     async def fetch_withdrawals():
@@ -153,7 +156,7 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
                 lambda: db.client.table("withdrawal_requests").select("*").eq("user_id", db_user.id).order("created_at", desc=True).limit(10).execute()
             )
         except Exception as e:
-            print(f"ERROR: Failed to query withdrawal_requests: {e}")
+            logger.warning(f"Failed to query withdrawal_requests: {e}")
             return type('obj', (object,), {'data': []})()
     
     async def fetch_balance_transactions():
@@ -168,7 +171,7 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
                 .execute()
             )
         except Exception as e:
-            print(f"ERROR: Failed to query balance_transactions: {e}")
+            logger.warning(f"Failed to query balance_transactions: {e}")
             return type('obj', (object,), {'data': []})()
     
     # Execute all DB queries in parallel
@@ -637,9 +640,7 @@ async def get_referral_network(user=Depends(verify_telegram_auth), level: int = 
         }
         
     except Exception as e:
-        print(f"ERROR: Failed to get referral network: {e}")
-        import traceback
-        print(f"ERROR: Traceback: {traceback.format_exc()}")
+        logger.error(f"Failed to get referral network: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to load referral network")
 
 

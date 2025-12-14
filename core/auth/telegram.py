@@ -76,10 +76,6 @@ async def verify_telegram_auth(
     if not init_data:
         raise HTTPException(status_code=401, detail="No authorization header")
     
-    # For development/testing - allow bypass with special token
-    if init_data == "dev_bypass" and os.environ.get("DEBUG") == "true":
-        return TelegramUser(id=339469894, first_name="Test", language_code="ru")
-    
     token = _get_telegram_token()
     if not validate_telegram_init_data(init_data, token):
         raise HTTPException(status_code=401, detail="Invalid initData signature")

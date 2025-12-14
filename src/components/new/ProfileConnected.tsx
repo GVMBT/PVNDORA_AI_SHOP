@@ -63,8 +63,8 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       // Try Telegram's shareMessage first
       const tg = (window as any).Telegram?.WebApp;
       if (tg?.shareMessage) {
-        tg.shareMessage(prepared_message_id, (success: boolean) => {
-          if (success) console.log('Shared successfully');
+        tg.shareMessage(prepared_message_id, () => {
+          // Share completed
         });
       } else if (tg?.switchInlineQuery) {
         tg.switchInlineQuery('invite', ['users', 'groups', 'channels']);

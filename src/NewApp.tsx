@@ -94,11 +94,9 @@ function NewAppInner() {
       const orderId = urlParams.get('order_id');
       const topupId = urlParams.get('topup_id');
       if (orderId) {
-        console.log('[PaymentResult] Browser redirect detected early, order:', orderId);
         return orderId;
       }
       if (topupId) {
-        console.log('[PaymentResult] Browser TOPUP redirect detected early, topup:', topupId);
         return `topup_${topupId}`;
       }
     }
@@ -115,14 +113,12 @@ function NewAppInner() {
     
     if (effectiveStartParam?.startsWith('payresult_')) {
       const orderId = effectiveStartParam.replace('payresult_', '');
-      console.log('[PaymentResult] Mini App redirect detected early, order:', orderId);
       return orderId;
     }
     
     // Handle topup redirect - navigate to profile after success
     if (effectiveStartParam?.startsWith('topup_')) {
       const topupId = effectiveStartParam.replace('topup_', '');
-      console.log('[PaymentResult] Mini App TOPUP redirect detected early, topup:', topupId);
       return `topup_${topupId}`;
     }
     
@@ -258,19 +254,8 @@ function NewAppInner() {
   };
 
   const handleOpenCart = () => {
-    console.log('[NewApp] ========================================');
-    console.log('[NewApp] handleOpenCart CALLED');
-    console.log('[NewApp] Current isCheckoutOpen:', isCheckoutOpen);
-    console.log('[NewApp] Current cart:', cart);
-    console.log('[NewApp] Cart items count:', cart?.items?.length || 0);
-    try {
-      handleFeedback('medium');
-    } catch (err) {
-      console.error('[NewApp] Error in handleFeedback:', err);
-    }
-    console.log('[NewApp] Setting isCheckoutOpen = true');
+    handleFeedback('medium');
     setIsCheckoutOpen(true);
-    console.log('[NewApp] ========================================');
   };
 
   const handleCloseCheckout = useCallback(() => {
@@ -419,7 +404,6 @@ function NewAppInner() {
         
         try {
           // Step 1: Prefetch entire file via fetch (same as BackgroundMusic component)
-          console.log('[Boot] Prefetching audio file...');
           const response = await fetch(musicUrl, { 
             cache: 'force-cache',
           });
@@ -432,7 +416,6 @@ function NewAppInner() {
           const blob = await response.blob();
           const blobUrl = URL.createObjectURL(blob);
           const fetchTime = Date.now() - startTime;
-          console.log(`[Boot] File prefetched (${(blob.size / 1024 / 1024).toFixed(2)} MB) in ${fetchTime}ms`);
 
           // Step 3: Create Audio element and wait for canplaythrough
           // NOTE: This is ONLY for preloading check - do NOT play it!
@@ -455,7 +438,6 @@ function NewAppInner() {
             audio.addEventListener('canplaythrough', () => {
               clearTimeout(timeout);
               const totalTime = Date.now() - startTime;
-              console.log(`[Boot] Music fully buffered in ${totalTime}ms (fetch: ${fetchTime}ms)`);
               URL.revokeObjectURL(blobUrl);
               resolve({ loaded: true, loadTime: totalTime, fetchTime });
             }, { once: true });
@@ -508,8 +490,6 @@ function NewAppInner() {
   
   // Handle boot sequence completion with real data
   const handleBootComplete = useCallback((results: Record<string, any>) => {
-    console.log('[Boot] Sequence complete with results:', results);
-    
     // Check authentication result
     const authResult = results.auth;
     if (authResult?.authenticated) {
@@ -734,27 +714,12 @@ function NewAppInner() {
 
       {/* --- CHECKOUT MODAL --- */}
       <AnimatePresence>
-        {(() => {
-          console.log('[NewApp] ===== CHECKOUT MODAL RENDER CHECK =====');
-          console.log('[NewApp] isCheckoutOpen:', isCheckoutOpen);
-          console.log('[NewApp] willRender:', !!isCheckoutOpen);
-          if (!isCheckoutOpen) {
-            console.log('[NewApp] Checkout modal NOT rendering - isCheckoutOpen is false');
-            return null;
-          }
-          console.log('[NewApp] ===== RENDERING CheckoutModalConnected =====');
-          try {
-            return (
-              <CheckoutModalConnected 
-                onClose={handleCloseCheckout} 
-                onSuccess={handleCheckoutSuccess}
-              />
-            );
-          } catch (err) {
-            console.error('[NewApp] ERROR rendering CheckoutModalConnected:', err);
-            return null;
-          }
-        })()}
+        {isCheckoutOpen && (
+          <CheckoutModalConnected 
+            onClose={handleCloseCheckout} 
+            onSuccess={handleCheckoutSuccess}
+          />
+        )}
       </AnimatePresence>
 
       {/* --- PERSISTENT SUPPORT WIDGET --- */}
@@ -779,12 +744,6 @@ function NewAppInner() {
           volume={0.20}
           autoPlay={true}
           loop={true}
-          onLoadComplete={() => {
-            console.log('[NewApp] Background music loaded and playing');
-          }}
-          onLoadError={(error) => {
-            console.warn('[NewApp] Background music failed to load:', error);
-          }}
         />
       )}
       

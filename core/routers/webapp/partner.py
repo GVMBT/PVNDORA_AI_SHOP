@@ -12,10 +12,13 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 
+from core.logging import get_logger
 from src.services.database import get_database
 from src.services.money import to_float
 from core.auth import verify_telegram_auth
 from .models import PartnerApplicationRequest
+
+logger = get_logger(__name__)
 
 
 class PartnerModeRequest(BaseModel):
@@ -53,7 +56,7 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
         )
         analytics = analytics_result.data[0] if analytics_result.data else {}
     except Exception as e:
-        print(f"ERROR: Failed to query partner_analytics: {e}")
+        logger.warning(f"Failed to query partner_analytics: {e}")
         analytics = {}
     
     # Get direct referrals with their purchase info
@@ -85,7 +88,7 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
                 "is_paying": len(orders) > 0
             })
     except Exception as e:
-        print(f"ERROR: Failed to query referrals: {e}")
+        logger.warning(f"Failed to query referrals: {e}")
         referrals = []
     
     # Get earnings history (last 7 days)
@@ -110,7 +113,7 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
             for day, amount in sorted(daily_earnings.items(), reverse=True)
         ]
     except Exception as e:
-        print(f"ERROR: Failed to query earnings history: {e}")
+        logger.warning(f"Failed to query earnings history: {e}")
         earnings_history = []
     
     # Get top purchased products by referrals
@@ -123,7 +126,7 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
         )
         top_products = top_products_result.data or []
     except Exception as e:
-        print(f"WARNING: get_partner_top_products RPC not available: {e}")
+        logger.warning(f"get_partner_top_products RPC not available: {e}")
         top_products = []
     
     # Calculate summary
@@ -207,7 +210,7 @@ async def set_partner_mode(request: PartnerModeRequest, user=Depends(verify_tele
     except HTTPException:
         raise
     except Exception as e:
-        print(f"ERROR: Failed to update partner mode: {e}")
+        logger.error(f"Failed to update partner mode: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to update partner mode")
 
 

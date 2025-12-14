@@ -53,10 +53,8 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
     const loadAudio = async () => {
       try {
         // First: Prefetch the entire file via fetch to ensure it's fully downloaded
-        console.log('[BackgroundMusic] Prefetching audio file...');
         const response = await fetch(src, { 
           cache: 'force-cache',
-          // Add timeout
         });
         
         if (!response.ok) {
@@ -71,8 +69,6 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
           URL.revokeObjectURL(blobUrl);
           return;
         }
-
-        console.log(`[BackgroundMusic] File prefetched (${(blob.size / 1024 / 1024).toFixed(2)} MB) in ${Date.now() - startTime}ms`);
 
         // Now create Audio element with blob URL
         const audio = new Audio(blobUrl);
@@ -90,8 +86,6 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
           if (cancelled) return;
           
           setIsLoading(false);
-          const loadTime = Date.now() - startTime;
-          console.log(`[BackgroundMusic] Fully buffered and ready in ${loadTime}ms`);
           onLoadCompleteRef.current?.();
           
           if (autoPlay) {
@@ -138,7 +132,6 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
           // Retry logic
           if (retryCountRef.current < maxRetries) {
             retryCountRef.current++;
-            console.log(`[BackgroundMusic] Retrying (${retryCountRef.current}/${maxRetries})...`);
             setTimeout(() => {
               if (!cancelled) {
                 loadAudio();
@@ -180,18 +173,9 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
           }
         };
 
-        // Progress tracking
+        // Progress tracking (silent)
         const handleProgress = () => {
-          if (audio.buffered.length > 0) {
-            const bufferedEnd = audio.buffered.end(audio.buffered.length - 1);
-            const duration = audio.duration;
-            if (duration > 0) {
-              const percent = (bufferedEnd / duration) * 100;
-              if (percent < 100) {
-                console.log(`[BackgroundMusic] Buffered: ${percent.toFixed(1)}%`);
-              }
-            }
-          }
+          // Buffering tracked internally
         };
 
         audio.addEventListener('canplaythrough', handleCanPlayThrough, { once: true });

@@ -8,10 +8,13 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Depends
 
+from core.logging import get_logger
 from src.services.database import get_database
 from src.services.money import to_float
 from core.auth import verify_admin
 from .models import ReferralSettingsRequest, SetPartnerRequest, ReviewApplicationRequest
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["admin-referral"])
 
@@ -21,13 +24,11 @@ router = APIRouter(tags=["admin-referral"])
 @router.get("/referral/settings")
 async def admin_get_referral_settings(admin=Depends(verify_admin)):
     """Get current referral program settings"""
-    print(f"DEBUG: admin_get_referral_settings called by admin: {admin.id if hasattr(admin, 'id') else admin}")
     db = get_database()
     
     result = await asyncio.to_thread(
         lambda: db.client.table("referral_settings").select("*").limit(1).execute()
     )
-    print(f"DEBUG: referral_settings result: {result.data}")
     
     if not result.data or len(result.data) == 0:
         return {
@@ -97,9 +98,7 @@ async def admin_get_referral_metrics(admin=Depends(verify_admin)):
             lambda: db.client.table("referral_program_metrics").select("*").single().execute()
         )
     except Exception as e:
-        print(f"ERROR: Failed to query referral_program_metrics: {e}")
-        import traceback
-        print(f"ERROR: Traceback: {traceback.format_exc()}")
+        logger.warning(f"Failed to query referral_program_metrics: {e}")
         stats = type('obj', (object,), {'data': None})()
     
     try:
@@ -107,9 +106,7 @@ async def admin_get_referral_metrics(admin=Depends(verify_admin)):
             lambda: db.client.table("referral_stats_extended").select("*").order("total_referral_earnings", desc=True).limit(20).execute()
         )
     except Exception as e:
-        print(f"ERROR: Failed to query referral_stats_extended: {e}")
-        import traceback
-        print(f"ERROR: Traceback: {traceback.format_exc()}")
+        logger.warning(f"Failed to query referral_stats_extended: {e}")
         top_referrers = type('obj', (object,), {'data': []})()
     
     return {
@@ -125,20 +122,15 @@ async def admin_get_referral_dashboard(admin=Depends(verify_admin)):
     """
     ROI Dashboard - key metrics for referral channel effectiveness.
     """
-    print(f"DEBUG: admin_get_referral_dashboard called by admin: {admin.id if hasattr(admin, 'id') else admin}")
     db = get_database()
     
     try:
-        print("DEBUG: Querying referral_roi_dashboard...")
         roi_result = await asyncio.to_thread(
             lambda: db.client.table("referral_roi_dashboard").select("*").execute()
         )
         roi = roi_result.data[0] if roi_result.data else {}
-        print(f"DEBUG: ROI data: {roi}")
     except Exception as e:
-        print(f"ERROR: Failed to query referral_roi_dashboard: {e}")
-        import traceback
-        print(f"ERROR: Traceback: {traceback.format_exc()}")
+        logger.warning(f"Failed to query referral_roi_dashboard: {e}")
         roi = {}
     
     try:
@@ -147,7 +139,7 @@ async def admin_get_referral_dashboard(admin=Depends(verify_admin)):
         )
         settings = settings_result.data[0] if settings_result.data else {}
     except Exception as e:
-        print(f"ERROR: Failed to query referral_settings: {e}")
+        logger.warning(f"Failed to query referral_settings: {e}")
         settings = {}
     
     return {
@@ -184,7 +176,6 @@ async def admin_get_partners_crm(
     admin=Depends(verify_admin)
 ):
     """CRM table with full partner analytics."""
-    print(f"DEBUG: admin_get_partners_crm called - sort_by={sort_by}, partner_type={partner_type}")
     db = get_database()
     
     try:
@@ -253,9 +244,7 @@ async def admin_get_partners_crm(
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        print(f"ERROR: Failed to query partner_analytics: {e}")
-        print(f"ERROR: Traceback: {traceback.format_exc()}")
+        logger.error(f"Failed to query partner_analytics: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to load partners.")
 
 
@@ -270,9 +259,7 @@ async def admin_get_referral_metrics_detailed(admin=Depends(verify_admin)):
         )
         metrics = metrics_result.data[0] if metrics_result.data else {}
     except Exception as e:
-        print(f"ERROR: Failed to query referral_program_metrics: {e}")
-        import traceback
-        print(f"ERROR: Traceback: {traceback.format_exc()}")
+        logger.warning(f"Failed to query referral_program_metrics: {e}")
         metrics = {}
     
     top_earners = await asyncio.to_thread(
@@ -338,7 +325,7 @@ async def admin_get_partners(admin=Depends(verify_admin)):
             )
             stats = stats_result.data[0] if stats_result.data else {}
         except Exception as e:
-            print(f"ERROR: Failed to query referral_stats_extended for partner {p['id']}: {e}")
+            logger.warning(f"Failed to query referral_stats_extended for partner {p['id']}: {e}")
             stats = {}
         partners.append({
             **p,

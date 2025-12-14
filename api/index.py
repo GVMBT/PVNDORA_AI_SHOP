@@ -241,12 +241,8 @@ async def set_webhook_endpoint():
 async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
     """Handle Telegram webhook updates"""
     import traceback
-    
-    print("=" * 50)
-    print("DEBUG: Telegram webhook received!")
-    print(f"DEBUG: Request method: {request.method}")
-    print(f"DEBUG: Request URL: {request.url}")
-    print("=" * 50)
+    import logging
+    logger = logging.getLogger(__name__)
     
     # IMPORTANT: Return 200 immediately to avoid 307 redirects
     # Process update in background to avoid timeout
@@ -254,10 +250,9 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
         # Get bot and dispatcher
         bot_instance = get_bot()
         dispatcher = get_dispatcher()
-        print(f"DEBUG: Bot instance: {bot_instance is not None}, Dispatcher: {dispatcher is not None}")
         
         if not bot_instance:
-            print("ERROR: Bot instance is None - TELEGRAM_TOKEN may be missing")
+            logger.error("Bot instance is None - TELEGRAM_TOKEN may be missing")
             return JSONResponse(
                 status_code=200,  # Return 200 even on error to prevent Telegram retries
                 content={"ok": False, "error": "Bot not configured"}
@@ -266,10 +261,8 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
         # Parse update
         try:
             data = await request.json()
-            update_id = data.get('update_id', 'unknown')
-            print(f"DEBUG: Received update: {update_id}")
         except Exception as e:
-            print(f"ERROR: Failed to parse JSON: {e}")
+            logger.warning(f"Failed to parse JSON: {e}")
             return JSONResponse(
                 status_code=200,  # Return 200 to prevent retries
                 content={"ok": False, "error": f"Invalid JSON: {str(e)}"}
@@ -278,10 +271,8 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
         # Validate update
         try:
             update = Update.model_validate(data, context={"bot": bot_instance})
-            print(f"DEBUG: Update validated, type: {update.event_type if hasattr(update, 'event_type') else 'unknown'}")
         except Exception as e:
-            print(f"ERROR: Failed to validate update: {e}")
-            print(f"ERROR: Traceback: {traceback.format_exc()}")
+            logger.warning(f"Failed to validate update: {e}")
             return JSONResponse(
                 status_code=200,  # Return 200 to prevent retries
                 content={"ok": False, "error": f"Invalid update: {str(e)}"}
@@ -296,16 +287,12 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
             update
         )
         
-        print(f"DEBUG: Update {update_id} queued for background processing")
-        
         # Return 200 OK immediately
         return JSONResponse(content={"ok": True})
     
     except Exception as e:
         error_msg = str(e)
-        error_trace = traceback.format_exc()
-        print(f"ERROR: Webhook exception: {error_msg}")
-        print(f"ERROR: Traceback: {error_trace}")
+        logger.error(f"Webhook exception: {error_msg}")
         # Always return 200 to prevent Telegram from retrying
         return JSONResponse(
             status_code=200,
@@ -315,15 +302,13 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
 
 async def _process_update_async(bot_instance: Bot, dispatcher: Dispatcher, update: Update):
     """Process update asynchronously"""
-    import traceback
+    import logging
+    logger = logging.getLogger(__name__)
     update_id = update.update_id if hasattr(update, 'update_id') else 'unknown'
-    print(f"DEBUG: Starting background processing of update {update_id}")
     try:
         await dispatcher.feed_update(bot_instance, update)
-        print(f"DEBUG: Update {update_id} processed successfully")
     except Exception as e:
-        print(f"ERROR: Failed to process update {update_id}: {e}")
-        print(f"ERROR: Traceback: {traceback.format_exc()}")
+        logger.error(f"Failed to process update {update_id}: {e}")
 
 
 # Products/Orders/Profile API moved to core/routers/webapp.py
@@ -436,7 +421,6 @@ async def create_referral_share_link(user = Depends(verify_telegram_auth)):
     )
     
     try:
-        print(f"DEBUG: Attempting to save prepared message for user {user.id}")
         prepared_message = await bot_instance.save_prepared_inline_message(
             user_id=user.id,
             result=photo,
@@ -444,13 +428,9 @@ async def create_referral_share_link(user = Depends(verify_telegram_auth)):
             allow_group_chats=True,
             allow_channel_chats=True
         )
-        print(f"DEBUG: Prepared message saved successfully, ID: {prepared_message.id}")
         return {"prepared_message_id": prepared_message.id}
     except Exception as e:
         error_msg = str(e)
-        error_trace = traceback.format_exc()
-        print(f"ERROR: Failed to save prepared message: {error_msg}")
-        print(f"ERROR: Traceback: {error_trace}")
         
         if "object has no attribute 'save_prepared_inline_message'" in error_msg:
              raise HTTPException(status_code=501, detail="Feature not supported by bot backend version")

@@ -9,9 +9,12 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 
+from core.logging import get_logger
 from src.services.database import get_database
 from src.ai.consultant import AIConsultant
 from core.auth import verify_telegram_auth
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["webapp-ai"])
 
@@ -115,9 +118,7 @@ async def send_chat_message(
         )
         
     except Exception as e:
-        print(f"ERROR: AI chat failed: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"AI chat failed: {e}", exc_info=True)
         
         # Return graceful error
         error_messages = {
@@ -178,6 +179,6 @@ async def clear_chat_history(user=Depends(verify_telegram_auth)):
         )
         return {"success": True, "message": "Chat history cleared"}
     except Exception as e:
-        print(f"ERROR: Failed to clear chat history: {e}")
+        logger.error(f"Failed to clear chat history: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to clear history")
 

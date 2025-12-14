@@ -244,7 +244,7 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
                 url: user.referralLink,
             });
         } catch (error) {
-            console.log('Error sharing:', error);
+            // Share cancelled or failed - silent handling
         }
     } else {
         // Fallback if native share is not supported

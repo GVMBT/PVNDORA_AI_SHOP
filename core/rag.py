@@ -8,7 +8,10 @@ Works with Supabase Connection Pooler (Transaction mode).
 import os
 from typing import Optional, List
 
+from core.logging import get_logger
 from src.services.database import get_database
+
+logger = get_logger(__name__)
 
 
 # Environment
@@ -53,9 +56,7 @@ async def get_embedding(text: str) -> List[float]:
         return []
         
     except Exception as e:
-        print(f"ERROR: Embedding generation failed: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Embedding generation failed: {e}", exc_info=True)
         return []
 
 
@@ -101,7 +102,7 @@ class ProductSearch:
         Creates/updates embedding in product_embeddings table.
         """
         if not self.is_available:
-            print(f"RAG not available: GEMINI_API_KEY={bool(GEMINI_API_KEY)}")
+            logger.warning("RAG not available: missing GEMINI_API_KEY")
             return False
         
         # Build text for embedding
@@ -117,7 +118,7 @@ class ProductSearch:
         embedding = await get_embedding(content)
         
         if not embedding:
-            print(f"ERROR: Failed to generate embedding for {name}")
+            logger.warning(f"Failed to generate embedding for {name}")
             return False
         
         try:
@@ -131,13 +132,10 @@ class ProductSearch:
                 "embedding": embedding_str
             }, on_conflict="product_id").execute()
             
-            print(f"Indexed: {name}")
             return True
             
         except Exception as e:
-            print(f"ERROR: Failed to index product {product_id}: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Failed to index product {product_id}: {e}", exc_info=True)
             return False
     
     async def search(
@@ -197,7 +195,7 @@ class ProductSearch:
             return products
             
         except Exception as e:
-            print(f"ERROR: Semantic search failed: {e}")
+            logger.error(f"Semantic search failed: {e}", exc_info=True)
             return []
     
     async def index_all_products(self) -> int:
@@ -213,10 +211,10 @@ class ProductSearch:
             ).eq("status", "active").execute()
             
             if not result.data:
-                print("No active products found")
+                logger.info("No active products found")
                 return 0
             
-            print(f"Found {len(result.data)} products to index")
+            logger.info(f"Found {len(result.data)} products to index")
             
             indexed = 0
             for product in result.data:
@@ -233,9 +231,7 @@ class ProductSearch:
             return indexed
             
         except Exception as e:
-            print(f"ERROR: Failed to index products: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Failed to index products: {e}", exc_info=True)
             return 0
     
     async def delete_product(self, product_id: str) -> bool:

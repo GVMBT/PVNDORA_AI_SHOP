@@ -7,9 +7,12 @@ import asyncio
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 
+from core.logging import get_logger
 from src.services.database import get_database
 from core.auth import verify_telegram_auth
 from .models import AddToCartRequest, UpdateCartItemRequest, ApplyPromoRequest
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["webapp-cart"])
 
@@ -138,7 +141,7 @@ async def get_webapp_cart(user=Depends(verify_telegram_auth)):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"ERROR: Failed to get cart: {e}")
+        logger.error(f"Failed to get cart: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to retrieve cart: {str(e)}")
 
 
@@ -169,7 +172,7 @@ async def add_to_cart(request: AddToCartRequest, user=Depends(verify_telegram_au
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        print(f"ERROR: Failed to add to cart: {e}")
+        logger.error(f"Failed to add to cart: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to add item to cart")
     
     cart = await cart_manager.get_cart(user.id)
@@ -202,7 +205,7 @@ async def update_cart_item(request: UpdateCartItemRequest, user=Depends(verify_t
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        print(f"ERROR: Failed to update cart item: {e}")
+        logger.error(f"Failed to update cart item: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to update cart item")
     
     cart = await cart_manager.get_cart(user.id)
@@ -222,7 +225,7 @@ async def remove_cart_item(product_id: str, user=Depends(verify_telegram_auth)):
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        print(f"ERROR: Failed to remove cart item: {e}")
+        logger.error(f"Failed to remove cart item: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to remove cart item")
     
     db = get_database()
