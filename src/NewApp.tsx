@@ -40,7 +40,7 @@ import {
 import type { CatalogProduct } from './types/component';
 
 // Hooks for data fetching
-import { useProductsTyped } from './hooks/useApiTyped';
+import { useProductsTyped, useProfileTyped } from './hooks/useApiTyped';
 import { useCart } from './contexts/CartContext';
 
 // Audio Engine (procedural sound generation)
@@ -72,15 +72,58 @@ function NewAppInner() {
   // Authentication State (for web users)
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null); // null = checking
   
-  // Boot Sequence State
-  const [isBooted, setIsBooted] = useState(false);
+  // Boot Sequence State (cached in sessionStorage to avoid re-boot on navigation)
+  const [isBooted, setIsBooted] = useState(() => {
+    // Check sessionStorage for cached boot state
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('pvndora_booted') === 'true';
+    }
+    return false;
+  });
   const [musicLoaded, setMusicLoaded] = useState(false);
+  
+  // Check for payment redirect EARLY - before boot sequence
+  // This allows PaymentResult to show immediately without waiting for boot
+  const [isPaymentRedirect, setIsPaymentRedirect] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    
+    // Check URL path for /payment/result (browser flow)
+    if (window.location.pathname === '/payment/result') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const orderId = urlParams.get('order_id');
+      if (orderId) {
+        console.log('[PaymentResult] Browser redirect detected early, order:', orderId);
+        return orderId;
+      }
+    }
+    
+    // Check Telegram startapp parameter (Mini App flow)
+    const tg = (window as any).Telegram?.WebApp;
+    const startParam = tg?.initDataUnsafe?.start_param;
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlStartapp = urlParams.get('tgWebAppStartParam') || urlParams.get('startapp');
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const hashStartapp = hashParams.get('tgWebAppStartParam');
+    
+    const effectiveStartParam = startParam || urlStartapp || hashStartapp;
+    
+    if (effectiveStartParam?.startsWith('payresult_')) {
+      const orderId = effectiveStartParam.replace('payresult_', '');
+      console.log('[PaymentResult] Mini App redirect detected early, order:', orderId);
+      return orderId;
+    }
+    
+    return null;
+  });
   
   // HUD Notifications (replaces old toast system)
   const hud = useHUD();
 
   // Products for CommandPalette (fetched once)
   const { products: allProducts, getProducts } = useProductsTyped();
+  
+  // Profile data (preloaded during boot for faster Profile page access)
+  const { profile, getProfile } = useProfileTyped();
   
   // Cart from global context (shared across all components)
   const { cart, getCart, addToCart, removeCartItem } = useCart();
@@ -331,6 +374,26 @@ function NewAppInner() {
       },
     },
     {
+      id: 'profile',
+      label: 'Fetching operator profile...',
+      successLabel: 'Profile data cached',
+      errorLabel: 'Profile unavailable',
+      critical: false, // Not critical - profile page will load its own data
+      execute: async () => {
+        try {
+          const profileData = await getProfile();
+          return { 
+            loaded: !!profileData,
+            username: profileData?.username || null,
+            balance: profileData?.balance || 0,
+          };
+        } catch (e) {
+          console.warn('[Boot] Profile fetch failed:', e);
+          return { loaded: false };
+        }
+      },
+    },
+    {
       id: 'music',
       label: 'Loading ambient audio stream...',
       successLabel: 'Ambient audio: READY',
@@ -428,7 +491,7 @@ function NewAppInner() {
         return true;
       },
     },
-  ], [getProducts, getCart]);
+  ], [getProducts, getCart, getProfile]);
   
   // Handle boot sequence completion with real data
   const handleBootComplete = useCallback((results: Record<string, any>) => {
@@ -449,6 +512,8 @@ function NewAppInner() {
     }
     
     setIsBooted(true);
+    // Cache boot state to avoid re-boot on page navigation
+    sessionStorage.setItem('pvndora_booted', 'true');
     AudioEngine.connect();
     
     // Show welcome notification with stats
@@ -460,51 +525,41 @@ function NewAppInner() {
     }, 500);
   }, [hud]);
 
-  // Handle payment result redirects (from CrystalPay)
-  // Supports both Mini App (startapp=payresult_xxx) and Browser (/payment/result?order_id=xxx)
+  // Handle payment redirect completion (clean URL after showing PaymentResult)
   useEffect(() => {
-    if (!isBooted) return; // Wait for boot to complete
-    
-    const handlePaymentRedirect = () => {
-      // Check URL path for /payment/result (browser flow)
-      if (window.location.pathname === '/payment/result') {
-        const urlParams = new URLSearchParams(window.location.search);
-        const orderId = urlParams.get('order_id');
-        if (orderId) {
-          console.log('[PaymentResult] Browser redirect detected, order:', orderId);
-          setPaymentResultOrderId(orderId);
-          setCurrentView('payment-result');
-          // Clean up URL to prevent duplicate handling on refresh
-          window.history.replaceState({}, '', '/');
-          return true;
-        }
-      }
-      
-      // Check Telegram startapp parameter (Mini App flow)
-      const tg = (window as any).Telegram?.WebApp;
-      const startParam = tg?.initDataUnsafe?.start_param;
-      
-      // Also check URL params (may contain tgWebAppStartParam or startapp)
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlStartapp = urlParams.get('tgWebAppStartParam') || urlParams.get('startapp');
-      const hashParams = new URLSearchParams(window.location.hash.slice(1));
-      const hashStartapp = hashParams.get('tgWebAppStartParam');
-      
-      const effectiveStartParam = startParam || urlStartapp || hashStartapp;
-      
-      if (effectiveStartParam?.startsWith('payresult_')) {
-        const orderId = effectiveStartParam.replace('payresult_', '');
-        console.log('[PaymentResult] Mini App redirect detected, order:', orderId);
-        setPaymentResultOrderId(orderId);
-        setCurrentView('payment-result');
-        return true;
-      }
-      
-      return false;
-    };
-    
-    handlePaymentRedirect();
-  }, [isBooted]);
+    if (isPaymentRedirect && window.location.pathname === '/payment/result') {
+      // Clean up URL to prevent duplicate handling on refresh
+      window.history.replaceState({}, '', '/');
+    }
+  }, [isPaymentRedirect]);
+
+  // PRIORITY: Show PaymentResult immediately if coming from payment redirect
+  // This bypasses boot sequence entirely for better UX
+  if (isPaymentRedirect) {
+    return (
+      <div className="min-h-screen bg-black">
+        <PaymentResult 
+          orderId={isPaymentRedirect}
+          onComplete={() => {
+            setIsPaymentRedirect(null);
+            // If not booted yet, trigger boot now
+            if (!isBooted) {
+              window.location.href = '/';
+            }
+          }}
+          onViewOrders={() => {
+            setIsPaymentRedirect(null);
+            if (isBooted) {
+              setCurrentView('orders');
+            } else {
+              // Redirect to home, boot will happen, then user can navigate
+              window.location.href = '/';
+            }
+          }}
+        />
+      </div>
+    );
+  }
 
   // Show Boot Sequence first (only once per session)
   if (!isBooted) {
