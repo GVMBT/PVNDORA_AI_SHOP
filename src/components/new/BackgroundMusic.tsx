@@ -338,21 +338,40 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
   };
 
   // Auto-resume on user interaction (for autoplay policies)
+  // IMPORTANT: do NOT use `{ once: true }` here.
+  // In Telegram Mini App, the first interaction may happen while the audio is still loading,
+  // and we must keep listening until playback actually succeeds.
   useEffect(() => {
-    const handleUserInteraction = () => {
-      if (audioRef.current && autoPlay && !isPlayingRef.current && !isLoading && !loadError) {
-        audioRef.current.play().catch(() => {
-          // Ignore autoplay errors
+    const tryPlay = () => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      if (!autoPlay) return;
+      if (isMuted) return;
+      if (loadError) return;
+      if (isPlayingRef.current) return;
+
+      audio.play()
+        .then(() => {
+          // Successful user-gesture play: mark playing and keep state consistent.
+          isPlayingRef.current = true;
+          setIsPlaying(true);
+        })
+        .catch(() => {
+          // Ignore: autoplay/user-gesture policies vary; next interaction may succeed.
         });
-      }
     };
 
-    window.addEventListener('click', handleUserInteraction, { once: true });
-    window.addEventListener('keydown', handleUserInteraction, { once: true });
+    // Telegram WebView frequently emits pointer/touch before click.
+    window.addEventListener('pointerdown', tryPlay, { passive: true });
+    window.addEventListener('touchstart', tryPlay, { passive: true });
+    window.addEventListener('click', tryPlay);
+    window.addEventListener('keydown', tryPlay);
 
     return () => {
-      window.removeEventListener('click', handleUserInteraction);
-      window.removeEventListener('keydown', handleUserInteraction);
+      window.removeEventListener('pointerdown', tryPlay);
+      window.removeEventListener('touchstart', tryPlay);
+      window.removeEventListener('click', tryPlay);
+      window.removeEventListener('keydown', tryPlay);
     };
   }, [autoPlay, isLoading, loadError]);
 

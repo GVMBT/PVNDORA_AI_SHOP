@@ -122,9 +122,15 @@ function NewAppInner() {
     const initAudio = () => {
       AudioEngine.init();
       AudioEngine.resume();
+      window.removeEventListener('pointerdown', initAudio);
+      window.removeEventListener('touchstart', initAudio);
       window.removeEventListener('click', initAudio);
       window.removeEventListener('keydown', initAudio);
     };
+    // Telegram WebView often triggers pointer/touch before click.
+    // Using multiple event types improves reliability of AudioContext unlock.
+    window.addEventListener('pointerdown', initAudio, { passive: true });
+    window.addEventListener('touchstart', initAudio, { passive: true });
     window.addEventListener('click', initAudio);
     window.addEventListener('keydown', initAudio);
     
@@ -136,7 +142,13 @@ function NewAppInner() {
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', initAudio);
+      window.removeEventListener('touchstart', initAudio);
+      window.removeEventListener('click', initAudio);
+      window.removeEventListener('keydown', initAudio);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   // Navigation handlers
