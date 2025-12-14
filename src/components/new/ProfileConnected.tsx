@@ -8,6 +8,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Profile from './Profile';
 import { useProfileTyped } from '../../hooks/useApiTyped';
 import { useTelegram } from '../../hooks/useTelegram';
+import { useCyberModal } from './CyberModal';
 import type { ProfileData } from '../../types/component';
 
 interface ProfileConnectedProps {
@@ -23,10 +24,9 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
 }) => {
   const { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, loading, error } = useProfileTyped();
   const { hapticFeedback, showPopup, showConfirm, openLink } = useTelegram();
+  const { showTopUp, showWithdraw, showAlert } = useCyberModal();
   const [isInitialized, setIsInitialized] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
-  const [withdrawLoading, setWithdrawLoading] = useState(false);
-  const [topUpLoading, setTopUpLoading] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -80,117 +80,57 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     }
   }, [onHaptic, createShareLink, handleCopyLink]);
 
-  const handleWithdraw = useCallback(async () => {
-    const tg = (window as any).Telegram?.WebApp;
-    const balance = profile?.balance || 0;
-    
-    if (balance < 500) {
-      const msg = 'Минимальная сумма вывода: 500₽';
-      if (tg?.showPopup) {
-        tg.showPopup({ title: '⚠️', message: msg, buttons: [{ type: 'ok' }] });
-      } else {
-        alert(msg);
-      }
-      return;
-    }
-    
-    const confirmMsg = `Доступно к выводу: ${balance}₽\n\nОтправить запрос на вывод?`;
-    
-    const processWithdraw = async () => {
-      setWithdrawLoading(true);
-      try {
-        await requestWithdrawal(balance, 'card', '');
-        hapticFeedback?.('notification', 'success');
-        const successMsg = 'Запрос на вывод создан! Мы свяжемся с вами для уточнения реквизитов.';
-        if (tg?.showPopup) {
-          tg.showPopup({ title: '✅', message: successMsg, buttons: [{ type: 'ok' }] });
-        } else {
-          alert(successMsg);
-        }
-        await getProfile();
-      } catch (err) {
-        hapticFeedback?.('notification', 'error');
-        const errorMsg = 'Не удалось создать запрос. Попробуйте позже.';
-        if (tg?.showPopup) {
-          tg.showPopup({ title: '❌', message: errorMsg, buttons: [{ type: 'ok' }] });
-        } else {
-          alert(errorMsg);
-        }
-      } finally {
-        setWithdrawLoading(false);
-      }
-    };
-    
-    // Show confirmation popup (Telegram or browser)
-    if (tg?.showPopup) {
-      tg.showPopup({
-        title: 'Вывод средств',
-        message: confirmMsg,
-        buttons: [
-          { id: 'cancel', type: 'cancel' },
-          { id: 'confirm', type: 'default', text: 'Вывести' },
-        ],
-      }, async (buttonId: string) => {
-        if (buttonId === 'confirm') {
-          await processWithdraw();
-        }
-      });
-    } else if (window.confirm(confirmMsg)) {
-      await processWithdraw();
-    }
-  }, [profile?.balance, requestWithdrawal, getProfile, hapticFeedback]);
-
-  const handleTopUp = useCallback(async () => {
-    const tg = (window as any).Telegram?.WebApp;
+  const handleWithdraw = useCallback(() => {
     const currency = profile?.currency || 'RUB';
-    const minAmount = currency === 'USD' ? 5 : 500;
-    const symbol = currency === 'USD' ? '$' : '₽';
+    const balance = profile?.balance || 0;
+    const minAmount = 500;
     
-    // Prompt for amount
-    const amountStr = window.prompt(
-      `💰 Пополнение баланса\n\nВведите сумму (мин. ${minAmount}${symbol}):`,
-      String(minAmount)
-    );
-    
-    if (!amountStr) return; // Cancelled
-    
-    const amount = parseFloat(amountStr);
-    if (isNaN(amount) || amount < minAmount) {
-      const errorMsg = `Минимальная сумма: ${minAmount}${symbol}`;
-      if (tg?.showPopup) {
-        tg.showPopup({ title: '❌ Ошибка', message: errorMsg, buttons: [{ type: 'ok' }] });
-      } else {
-        alert(errorMsg);
-      }
+    if (balance < minAmount) {
+      showAlert('INSUFFICIENT FUNDS', `Minimum withdrawal is ${minAmount} ${currency}`, 'warning');
       return;
     }
     
-    setTopUpLoading(true);
     if (onHaptic) onHaptic('medium');
     
-    try {
-      const result = await createTopUp(amount, currency);
-      
-      if (result.payment_url) {
-        // Open payment URL
-        if (tg?.openLink) {
-          tg.openLink(result.payment_url);
-        } else {
-          window.open(result.payment_url, '_blank');
+    showWithdraw({
+      currency,
+      balance,
+      minAmount,
+      onConfirm: async (amount: number, method: string, details: string) => {
+        await requestWithdrawal(amount, method, details);
+        hapticFeedback?.('notification', 'success');
+        showAlert('REQUEST SUBMITTED', 'Your withdrawal request has been submitted. We will process it within 24-48 hours.', 'success');
+        await getProfile();
+      },
+    });
+  }, [profile?.balance, profile?.currency, requestWithdrawal, getProfile, hapticFeedback, showWithdraw, showAlert, onHaptic]);
+
+  const handleTopUp = useCallback(() => {
+    const tg = (window as any).Telegram?.WebApp;
+    const currency = profile?.currency || 'RUB';
+    const balance = profile?.balance || 0;
+    const minAmount = currency === 'USD' ? 5 : 500;
+    
+    if (onHaptic) onHaptic('light');
+    
+    showTopUp({
+      currency,
+      balance,
+      minAmount,
+      onConfirm: async (amount: number) => {
+        const result = await createTopUp(amount, currency);
+        
+        if (result.payment_url) {
+          // Open payment URL
+          if (tg?.openLink) {
+            tg.openLink(result.payment_url);
+          } else {
+            window.open(result.payment_url, '_blank');
+          }
         }
-      }
-    } catch (e: any) {
-      console.error('Top-up failed:', e);
-      const errorMsg = e?.message || 'Не удалось создать платёж';
-      if (tg?.showPopup) {
-        tg.showPopup({ title: '❌ Ошибка', message: errorMsg, buttons: [{ type: 'ok' }] });
-      } else {
-        alert(errorMsg);
-      }
-    } finally {
-      setTopUpLoading(false);
-    }
-  }, [profile?.currency, createTopUp, onHaptic]);
+      },
+    });
+  }, [profile?.currency, profile?.balance, createTopUp, showTopUp, onHaptic]);
 
   // Loading state
   if (!isInitialized || loading) {

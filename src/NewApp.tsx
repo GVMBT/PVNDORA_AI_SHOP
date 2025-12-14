@@ -32,6 +32,7 @@ import {
   useHUD,
   BackgroundMusic,
   PaymentResult,
+  CyberModalProvider,
   type BootTask,
   type RefundContext,
 } from './components/new';
@@ -791,7 +792,9 @@ import { HUDProvider } from './components/new';
 function NewApp() {
   return (
     <HUDProvider position="top-right" maxNotifications={5} defaultDuration={4000}>
-      <NewAppInner />
+      <CyberModalProvider>
+        <NewAppInner />
+      </CyberModalProvider>
     </HUDProvider>
   );
 }
