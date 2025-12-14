@@ -6,7 +6,7 @@
  * Heavy components are lazy-loaded for better initial bundle size.
  */
 
-import React, { memo, lazy, Suspense } from 'react';
+import React, { memo, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Hero,
@@ -19,13 +19,14 @@ import {
 } from '../new';
 import type { CatalogProduct } from '../../types/component';
 import type { FeedbackType } from './useFeedback';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
 
-// Lazy load heavy components for code splitting
-const AdminPanelConnected = lazy(() => import('../new/AdminPanelConnected'));
-const LeaderboardConnected = lazy(() => import('../new/LeaderboardConnected'));
-const OrdersConnected = lazy(() => import('../new/OrdersConnected'));
-const ProfileConnected = lazy(() => import('../new/ProfileConnected'));
-const Legal = lazy(() => import('../new/Legal'));
+// Lazy load heavy components with auto-retry on chunk errors
+const AdminPanelConnected = lazyWithRetry(() => import('../new/AdminPanelConnected'));
+const LeaderboardConnected = lazyWithRetry(() => import('../new/LeaderboardConnected'));
+const OrdersConnected = lazyWithRetry(() => import('../new/OrdersConnected'));
+const ProfileConnected = lazyWithRetry(() => import('../new/ProfileConnected'));
+const Legal = lazyWithRetry(() => import('../new/Legal'));
 
 export type ViewType = 'home' | 'orders' | 'profile' | 'leaderboard' | 'legal' | 'admin' | 'payment-result';
 

@@ -7,7 +7,7 @@
  * - HUD Notifications (System Logs)
  */
 
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { AnimatePresence } from 'framer-motion';
 
 // App Components
@@ -27,9 +27,10 @@ import {
   type RefundContext,
 } from './components/new';
 
-// Lazy load heavy components for code splitting
-const CommandPalette = lazy(() => import('./components/new/CommandPalette'));
-const CheckoutModalConnected = lazy(() => import('./components/new/CheckoutModalConnected'));
+// Lazy load with auto-retry on chunk errors
+import { lazyWithRetry, clearReloadCounter } from './utils/lazyWithRetry';
+const CommandPalette = lazyWithRetry(() => import('./components/new/CommandPalette'));
+const CheckoutModalConnected = lazyWithRetry(() => import('./components/new/CheckoutModalConnected'));
 
 // Types
 import type { CatalogProduct, NavigationTarget } from './types/component';
@@ -224,6 +225,9 @@ function NewAppInner() {
     
     setIsBooted(true);
     sessionStorage.set(CACHE.BOOT_STATE_KEY, 'true');
+    
+    // Clear chunk reload counter on successful boot
+    clearReloadCounter();
     AudioEngine.connect();
     
     const productCount = results.catalog?.productCount || 0;

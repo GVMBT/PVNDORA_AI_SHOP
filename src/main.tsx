@@ -4,8 +4,12 @@ import NewApp from './NewApp';
 import { CartProvider } from './contexts/CartContext';
 import { ErrorBoundary } from './components/app';
 import { AudioEngine } from './lib/AudioEngine';
+import { setupChunkErrorHandler } from './utils/lazyWithRetry';
 import './index.css';
 import type { WebApp } from './types/telegram';
+
+// Setup global error handler for chunk load failures (stale cache after deploy)
+setupChunkErrorHandler();
 
 // Initialize Telegram WebApp
 const tgWebApp: WebApp | undefined = window.Telegram?.WebApp;

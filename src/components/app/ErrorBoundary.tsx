@@ -2,6 +2,7 @@
  * Error Boundary Component
  * 
  * Catches JavaScript errors in child component tree and displays a fallback UI.
+ * Automatically handles chunk load errors by refreshing the page.
  */
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
@@ -17,21 +18,44 @@ interface State {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
+  isChunkError: boolean;
+}
+
+// Check if error is a chunk loading error (stale cache after deploy)
+function isChunkLoadError(error: Error | null): boolean {
+  if (!error) return false;
+  const message = error.message.toLowerCase();
+  return (
+    message.includes('failed to fetch dynamically imported module') ||
+    message.includes('loading chunk') ||
+    message.includes('loading css chunk') ||
+    message.includes('dynamically imported module')
+  );
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
+    this.state = { hasError: false, error: null, errorInfo: null, isChunkError: false };
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
-    return { hasError: true, error };
+    const isChunk = isChunkLoadError(error);
+    return { hasError: true, error, isChunkError: isChunk };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     logger.componentError('ErrorBoundary', error, errorInfo);
     this.setState({ errorInfo });
+    
+    // Auto-reload on chunk errors (stale cache)
+    if (isChunkLoadError(error)) {
+      const reloadCount = parseInt(sessionStorage.getItem('pvndora_chunk_reload') || '0', 10);
+      if (reloadCount < 2) {
+        sessionStorage.setItem('pvndora_chunk_reload', String(reloadCount + 1));
+        window.location.reload();
+      }
+    }
   }
 
   handleReload = () => {
