@@ -56,35 +56,38 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
 
     const loadAudio = async () => {
       try {
-        let blobUrl: string;
-        
-        // If preloaded blob URL provided, skip fetch entirely
-        if (preloadedBlobUrl) {
-          blobUrl = preloadedBlobUrl;
+        const isTelegramWebApp = typeof window !== 'undefined' && !!(window as any).Telegram?.WebApp;
+
+        let audioSrc: string;
+
+        // In Telegram Mini App we want the earliest possible autoplay attempt.
+        // Using blob prefetch delays `play()` and increases the chance Telegram blocks it.
+        if (isTelegramWebApp) {
+          audioSrc = src;
+        } else if (preloadedBlobUrl) {
+          // If preloaded blob URL provided, skip fetch entirely
+          audioSrc = preloadedBlobUrl;
           // Don't mark as owned - boot sequence manages this URL's lifecycle
         } else {
-          // First: Prefetch the entire file via fetch to ensure it's fully downloaded
-          const response = await fetch(src, { 
-            cache: 'force-cache',
-          });
-          
+          // Prefetch for smoother playback in regular browsers
+          const response = await fetch(src, { cache: 'force-cache' });
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
 
-          // Convert to blob URL for better buffering
           const blob = await response.blob();
-          blobUrl = URL.createObjectURL(blob);
+          const blobUrl = URL.createObjectURL(blob);
           ownedBlobUrl = blobUrl; // Mark as owned so we revoke on cleanup
-          
+          audioSrc = blobUrl;
+
           if (cancelled) {
             URL.revokeObjectURL(blobUrl);
             return;
           }
         }
 
-        // Now create Audio element with blob URL
-        const audio = new Audio(blobUrl);
+        // Create Audio element
+        const audio = new Audio(audioSrc);
         audio.loop = loop;
         audio.volume = volume;
         audio.preload = 'auto';
@@ -94,23 +97,35 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
         
         audioRef.current = audio;
 
+        // Try to start automatically "like before":
+        // Start muted (allowed by autoplay policies more often), then unmute.
+        if (autoPlay) {
+          const tryAutoStart = async () => {
+            if (cancelled) return;
+            try {
+              // Silent start to satisfy autoplay restrictions
+              audio.muted = true;
+              audio.volume = 0;
+              await audio.play();
+
+              // Unmute to desired volume
+              audio.muted = false;
+              audio.volume = isMuted ? 0 : volume;
+            } catch (err) {
+              // If autoplay is blocked, we keep going (UI can still trigger later).
+              logger.warn('[BackgroundMusic] Autoplay blocked', err);
+            }
+          };
+          // Fire immediately (don't wait for canplaythrough).
+          void tryAutoStart();
+        }
+
         // Wait for FULL buffering before playing
         const handleCanPlayThrough = () => {
           if (cancelled) return;
           
           setIsLoading(false);
           onLoadCompleteRef.current?.();
-          
-          if (autoPlay) {
-            // Small delay to ensure everything is ready
-            setTimeout(() => {
-              if (!cancelled && audioRef.current) {
-                audioRef.current.play().catch((err) => {
-                  logger.warn('[BackgroundMusic] Autoplay blocked', err);
-                });
-              }
-            }, 100);
-          }
         };
 
         // Handle buffering issues

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import NewApp from './NewApp';
 import { CartProvider } from './contexts/CartContext';
 import { ErrorBoundary } from './components/app';
+import { AudioEngine } from './lib/AudioEngine';
 import './index.css';
 import type { WebApp } from './types/telegram';
 
@@ -17,6 +18,14 @@ if (tgWebApp) {
     '--tg-theme-bg-color',
     tgWebApp.themeParams.bg_color || '#0a0a0f'
   );
+}
+
+// Try to initialize audio ASAP (helps Telegram Mini App autoplay behavior)
+try {
+  AudioEngine.init();
+  void AudioEngine.resume();
+} catch {
+  // Ignore: some browsers require user gesture; app will still work.
 }
 
 const rootElement = document.getElementById('root');

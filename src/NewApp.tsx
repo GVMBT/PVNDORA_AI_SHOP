@@ -101,7 +101,6 @@ function NewAppInner() {
   const [isBooted, setIsBooted] = useState(() => {
     return sessionStorage.get(CACHE.BOOT_STATE_KEY) === 'true';
   });
-  const [musicBlobUrl, setMusicBlobUrl] = useState<string | undefined>(undefined);
   
   // Payment redirect check
   const [isPaymentRedirect, setIsPaymentRedirect] = usePaymentRedirect();
@@ -119,20 +118,10 @@ function NewAppInner() {
 
   // Initialize Audio and CMD+K
   useEffect(() => {
-    const initAudio = () => {
-      AudioEngine.init();
-      AudioEngine.resume();
-      window.removeEventListener('pointerdown', initAudio);
-      window.removeEventListener('touchstart', initAudio);
-      window.removeEventListener('click', initAudio);
-      window.removeEventListener('keydown', initAudio);
-    };
-    // Telegram WebView often triggers pointer/touch before click.
-    // Using multiple event types improves reliability of AudioContext unlock.
-    window.addEventListener('pointerdown', initAudio, { passive: true });
-    window.addEventListener('touchstart', initAudio, { passive: true });
-    window.addEventListener('click', initAudio);
-    window.addEventListener('keydown', initAudio);
+    // Initialize immediately (Telegram Mini App typically allows this right after opening).
+    // No "unlock" UX needed.
+    AudioEngine.init();
+    AudioEngine.resume();
     
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -143,10 +132,6 @@ function NewAppInner() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.removeEventListener('pointerdown', initAudio);
-      window.removeEventListener('touchstart', initAudio);
-      window.removeEventListener('click', initAudio);
-      window.removeEventListener('keydown', initAudio);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
@@ -230,11 +215,6 @@ function NewAppInner() {
   const handleBootComplete = useCallback((results: Record<string, any>) => {
     const authResult = results.auth;
     setIsAuthenticated(authResult?.authenticated || false);
-    
-    const musicResult = results.music;
-    if (musicResult?.loaded && musicResult.blobUrl) {
-      setMusicBlobUrl(musicResult.blobUrl);
-    }
     
     setIsBooted(true);
     sessionStorage.set(CACHE.BOOT_STATE_KEY, 'true');
@@ -372,7 +352,6 @@ function NewAppInner() {
           volume={0.20}
           autoPlay={true}
           loop={true}
-          preloadedBlobUrl={musicBlobUrl}
         />
       )}
     </AppLayout>
