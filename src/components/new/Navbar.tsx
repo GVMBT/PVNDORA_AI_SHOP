@@ -92,112 +92,118 @@ const Navbar: React.FC<NavbarProps> = ({
         
         {/* Logo Section */}
         <div className="h-24 flex items-center shrink-0 relative cursor-pointer" onClick={() => handleClick(onNavigateHome)}>
-             <div className="absolute left-5 w-10 h-10 flex items-center justify-center relative z-10 group overflow-visible">
-                {/* Logo Glow (Internal Core) */}
-                <div className="absolute inset-0 bg-pandora-cyan blur-md opacity-40 group-hover:opacity-60 transition-opacity" />
-                
-                {/* PVNDORA Logo */}
-                <svg 
-                    width="36" 
-                    height="40" 
-                    viewBox="0 0 195 215" 
-                    fill="none" 
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="relative z-10 drop-shadow-[0_0_10px_rgba(0,255,255,0.3)] group-hover:drop-shadow-[0_0_15px_rgba(0,255,255,0.5)] transition-all"
-                >
-                    <g filter={`url(#${logoId}-filter0_f)`}>
-                        <path d="M173.2 63.7952C173.2 108.53 113.7 168.295 90.7 193.795C65.2 164.295 8.19995 108.53 8.19995 63.7952C8.19995 19.0601 45.4126 92.2952 90.7 92.2952C135.987 92.2952 173.2 19.0601 173.2 63.7952Z" fill="#2ED0CF" fillOpacity="0.5"/>
-                    </g>
-                    <g filter={`url(#${logoId}-filter1_d)`}>
-                        <rect width="99.2765" height="99.272" transform="matrix(0.866025 -0.5 0.866025 0.5 4.80518 51.1382)" fill="#06F8F7" fillOpacity="0.01"/>
-                    </g>
-                    <g filter={`url(#${logoId}-filter2_d)`}>
-                        <rect width="98.1495" height="98.1249" transform="matrix(0.866025 0.5 0 1 5.19995 55.2204)" fill="#06F8F7" fillOpacity="0.01"/>
-                    </g>
-                    <rect width="100" height="100" transform="matrix(0.866025 0.5 0 1 3.19995 54.2952)" fill="#D9D9D9"/>
-                    <rect width="100" height="100" transform="matrix(0.866025 0.5 0 1 3.19995 54.2952)" fill={`url(#${logoId}-paint0_linear)`}/>
-                    <rect width="100" height="100" transform="matrix(0.866025 0.5 0 1 3.19995 54.2952)" fill={`url(#${logoId}-paint1_linear)`}/>
-                    <rect width="100" height="100" transform="matrix(0.866025 -0.5 0.866025 0.5 4.19995 50.2952)" fill="#D9D9D9"/>
-                    <rect width="100" height="100" transform="matrix(0.866025 -0.5 0.866025 0.5 4.19995 50.2952)" fill="#272928"/>
-                    <g filter={`url(#${logoId}-filter3_dd)`}>
-                        <rect width="100" height="100" transform="matrix(0.866025 -0.5 0 1 98.2 105.295)" fill="#06F8F7"/>
-                    </g>
-                    <rect width="100" height="100" transform="matrix(0.866025 -0.5 0 1 107.2 112.295)" fill="#D9D9D9"/>
-                    <rect width="100" height="100" transform="matrix(0.866025 -0.5 0 1 107.2 112.295)" fill={`url(#${logoId}-paint2_linear)`}/>
-                    <defs>
-                        <filter id={`${logoId}-filter0_f`} x="-4.86374e-05" y="41.12" width="181.4" height="160.875" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
-                            <feFlood floodOpacity="0" result="BackgroundImageFix"/>
-                            <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
-                            <feGaussianBlur stdDeviation="4.1" result="effect1_foregroundBlur_120_61"/>
-                        </filter>
-                        <filter id={`${logoId}-filter1_d`} x="3.30518" y="0" width="174.948" height="102.274" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
-                            <feFlood floodOpacity="0" result="BackgroundImageFix"/>
-                            <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
-                            <feOffset/>
-                            <feGaussianBlur stdDeviation="0.75"/>
-                            <feColorMatrix type="matrix" values="0 0 0 0 0.0196078 0 0 0 0 0.972549 0 0 0 0 0.976471 0 0 0 1 0"/>
-                            <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_120_61"/>
-                            <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_120_61" result="shape"/>
-                        </filter>
-                        <filter id={`${logoId}-filter2_d`} x="3.09995" y="53.1204" width="89.2" height="151.4" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
-                            <feFlood floodOpacity="0" result="BackgroundImageFix"/>
-                            <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
-                            <feOffset/>
-                            <feGaussianBlur stdDeviation="1.05"/>
-                            <feColorMatrix type="matrix" values="0 0 0 0 0.0196078 0 0 0 0 0.972549 0 0 0 0 0.976471 0 0 0 1 0"/>
-                            <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_120_61"/>
-                            <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_120_61" result="shape"/>
-                        </filter>
-                        <filter id={`${logoId}-filter3_dd`} x="88.624" y="45.7192" width="105.755" height="169.152" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
-                            <feFlood floodOpacity="0" result="BackgroundImageFix"/>
-                            <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
-                            <feOffset/>
-                            <feGaussianBlur stdDeviation="0.684"/>
-                            <feColorMatrix type="matrix" values="0 0 0 0 0.0196078 0 0 0 0 0.972549 0 0 0 0 0.976471 0 0 0 1 0"/>
-                            <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_120_61"/>
-                            <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
-                            <feOffset/>
-                            <feGaussianBlur stdDeviation="4.788"/>
-                            <feColorMatrix type="matrix" values="0 0 0 0 0.0196078 0 0 0 0 0.972549 0 0 0 0 0.976471 0 0 0 1 0"/>
-                            <feBlend mode="normal" in2="effect1_dropShadow_120_61" result="effect2_dropShadow_120_61"/>
-                            <feBlend mode="normal" in="SourceGraphic" in2="effect2_dropShadow_120_61" result="shape"/>
-                        </filter>
-                        <linearGradient id={`${logoId}-paint0_linear`} x1="213.042" y1="27.4789" x2="111.971" y2="-40.2546" gradientUnits="userSpaceOnUse">
-                            <stop stopColor="#444444"/>
-                            <stop offset="1" stopColor="#212121"/>
-                        </linearGradient>
-                        <linearGradient id={`${logoId}-paint1_linear`} x1="-3.00935e-09" y1="54.5" x2="99.2591" y2="41.2692" gradientUnits="userSpaceOnUse">
-                            <stop stopColor="#252422"/>
-                            <stop offset="1" stopColor="#222220"/>
-                        </linearGradient>
-                        <linearGradient id={`${logoId}-paint2_linear`} x1="9.36506e-07" y1="-26.5" x2="117.96" y2="42.2236" gradientUnits="userSpaceOnUse">
-                            <stop stopColor="#2E2D2B"/>
-                            <stop offset="1" stopColor="#222220"/>
-                        </linearGradient>
-                    </defs>
-                </svg>
-             </div>
-             
-             {/* Text Logo (Visible on Expand) */}
-             <AnimatePresence>
-                {isHovered && (
-                    <motion.div 
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -10 }}
-                        transition={{ delay: 0.1 }}
-                        className="absolute left-20 pl-2 whitespace-nowrap overflow-hidden"
+             {/* Unified Logo Container - fixed position, flex layout */}
+             <div className={`absolute left-0 h-full flex items-center gap-3 transition-all duration-300 ${isHovered ? 'pl-5' : 'pl-0 w-full justify-center'}`}>
+                {/* Logo Icon Container */}
+                <div className="w-10 h-10 flex items-center justify-center relative z-10 group shrink-0">
+                    {/* Logo Glow (Internal Core) */}
+                    <div className="absolute inset-0 bg-pandora-cyan blur-md opacity-40 group-hover:opacity-60 transition-opacity" />
+                    
+                    {/* PVNDORA Logo */}
+                    <svg 
+                        width="36" 
+                        height="40" 
+                        viewBox="0 0 195 215" 
+                        fill="none" 
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="relative z-10 drop-shadow-[0_0_10px_rgba(0,255,255,0.3)] group-hover:drop-shadow-[0_0_15px_rgba(0,255,255,0.5)] transition-all"
                     >
-                        <h1 className="font-display font-bold text-xl text-white tracking-widest h-6 flex items-center">
-                            <Typewriter text="PVNDORA" speed={40} />
-                        </h1>
-                        <div className="text-[9px] font-mono text-gray-500 tracking-widest h-4 flex items-center">
-                            <span className="text-pandora-cyan mr-1 opacity-50">&gt;</span>
-                            <Typewriter text="MARKET_PROTOCOL_V2" delay={300} speed={20} />
-                        </div>
-                    </motion.div>
-                )}
-             </AnimatePresence>
+                        <g filter={`url(#${logoId}-filter0_f)`}>
+                            <path d="M173.2 63.7952C173.2 108.53 113.7 168.295 90.7 193.795C65.2 164.295 8.19995 108.53 8.19995 63.7952C8.19995 19.0601 45.4126 92.2952 90.7 92.2952C135.987 92.2952 173.2 19.0601 173.2 63.7952Z" fill="#2ED0CF" fillOpacity="0.5"/>
+                        </g>
+                        <g filter={`url(#${logoId}-filter1_d)`}>
+                            <rect width="99.2765" height="99.272" transform="matrix(0.866025 -0.5 0.866025 0.5 4.80518 51.1382)" fill="#06F8F7" fillOpacity="0.01"/>
+                        </g>
+                        <g filter={`url(#${logoId}-filter2_d)`}>
+                            <rect width="98.1495" height="98.1249" transform="matrix(0.866025 0.5 0 1 5.19995 55.2204)" fill="#06F8F7" fillOpacity="0.01"/>
+                        </g>
+                        <rect width="100" height="100" transform="matrix(0.866025 0.5 0 1 3.19995 54.2952)" fill="#D9D9D9"/>
+                        <rect width="100" height="100" transform="matrix(0.866025 0.5 0 1 3.19995 54.2952)" fill={`url(#${logoId}-paint0_linear)`}/>
+                        <rect width="100" height="100" transform="matrix(0.866025 0.5 0 1 3.19995 54.2952)" fill={`url(#${logoId}-paint1_linear)`}/>
+                        <rect width="100" height="100" transform="matrix(0.866025 -0.5 0.866025 0.5 4.19995 50.2952)" fill="#D9D9D9"/>
+                        <rect width="100" height="100" transform="matrix(0.866025 -0.5 0.866025 0.5 4.19995 50.2952)" fill="#272928"/>
+                        <g filter={`url(#${logoId}-filter3_dd)`}>
+                            <rect width="100" height="100" transform="matrix(0.866025 -0.5 0 1 98.2 105.295)" fill="#06F8F7"/>
+                        </g>
+                        <rect width="100" height="100" transform="matrix(0.866025 -0.5 0 1 107.2 112.295)" fill="#D9D9D9"/>
+                        <rect width="100" height="100" transform="matrix(0.866025 -0.5 0 1 107.2 112.295)" fill={`url(#${logoId}-paint2_linear)`}/>
+                        <defs>
+                            <filter id={`${logoId}-filter0_f`} x="-4.86374e-05" y="41.12" width="181.4" height="160.875" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+                                <feFlood floodOpacity="0" result="BackgroundImageFix"/>
+                                <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+                                <feGaussianBlur stdDeviation="4.1" result="effect1_foregroundBlur_120_61"/>
+                            </filter>
+                            <filter id={`${logoId}-filter1_d`} x="3.30518" y="0" width="174.948" height="102.274" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+                                <feFlood floodOpacity="0" result="BackgroundImageFix"/>
+                                <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+                                <feOffset/>
+                                <feGaussianBlur stdDeviation="0.75"/>
+                                <feColorMatrix type="matrix" values="0 0 0 0 0.0196078 0 0 0 0 0.972549 0 0 0 0 0.976471 0 0 0 1 0"/>
+                                <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_120_61"/>
+                                <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_120_61" result="shape"/>
+                            </filter>
+                            <filter id={`${logoId}-filter2_d`} x="3.09995" y="53.1204" width="89.2" height="151.4" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+                                <feFlood floodOpacity="0" result="BackgroundImageFix"/>
+                                <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+                                <feOffset/>
+                                <feGaussianBlur stdDeviation="1.05"/>
+                                <feColorMatrix type="matrix" values="0 0 0 0 0.0196078 0 0 0 0 0.972549 0 0 0 0 0.976471 0 0 0 1 0"/>
+                                <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_120_61"/>
+                                <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_120_61" result="shape"/>
+                            </filter>
+                            <filter id={`${logoId}-filter3_dd`} x="88.624" y="45.7192" width="105.755" height="169.152" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
+                                <feFlood floodOpacity="0" result="BackgroundImageFix"/>
+                                <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+                                <feOffset/>
+                                <feGaussianBlur stdDeviation="0.684"/>
+                                <feColorMatrix type="matrix" values="0 0 0 0 0.0196078 0 0 0 0 0.972549 0 0 0 0 0.976471 0 0 0 1 0"/>
+                                <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_120_61"/>
+                                <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+                                <feOffset/>
+                                <feGaussianBlur stdDeviation="4.788"/>
+                                <feColorMatrix type="matrix" values="0 0 0 0 0.0196078 0 0 0 0 0.972549 0 0 0 0 0.976471 0 0 0 1 0"/>
+                                <feBlend mode="normal" in2="effect1_dropShadow_120_61" result="effect2_dropShadow_120_61"/>
+                                <feBlend mode="normal" in="SourceGraphic" in2="effect2_dropShadow_120_61" result="shape"/>
+                            </filter>
+                            <linearGradient id={`${logoId}-paint0_linear`} x1="213.042" y1="27.4789" x2="111.971" y2="-40.2546" gradientUnits="userSpaceOnUse">
+                                <stop stopColor="#444444"/>
+                                <stop offset="1" stopColor="#212121"/>
+                            </linearGradient>
+                            <linearGradient id={`${logoId}-paint1_linear`} x1="-3.00935e-09" y1="54.5" x2="99.2591" y2="41.2692" gradientUnits="userSpaceOnUse">
+                                <stop stopColor="#252422"/>
+                                <stop offset="1" stopColor="#222220"/>
+                            </linearGradient>
+                            <linearGradient id={`${logoId}-paint2_linear`} x1="9.36506e-07" y1="-26.5" x2="117.96" y2="42.2236" gradientUnits="userSpaceOnUse">
+                                <stop stopColor="#2E2D2B"/>
+                                <stop offset="1" stopColor="#222220"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                
+                {/* Text Logo (Visible on Expand) - part of the same flex container */}
+                <AnimatePresence>
+                    {isHovered && (
+                        <motion.div 
+                            initial={{ opacity: 0, width: 0 }}
+                            animate={{ opacity: 1, width: 'auto' }}
+                            exit={{ opacity: 0, width: 0 }}
+                            transition={{ duration: 0.3, delay: 0.1 }}
+                            className="overflow-hidden whitespace-nowrap"
+                        >
+                            <div className="pl-2">
+                                <h1 className="font-display font-bold text-xl text-white tracking-widest h-6 flex items-center">
+                                    <Typewriter text="PVNDORA" speed={40} />
+                                </h1>
+                                <div className="text-[9px] font-mono text-gray-500 tracking-widest h-4 flex items-center">
+                                    <span className="text-pandora-cyan mr-1 opacity-50">&gt;</span>
+                                    <Typewriter text="MARKET_PROTOCOL_V2" delay={300} speed={20} />
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+             </div>
         </div>
 
         {/* Navigation Items */}
