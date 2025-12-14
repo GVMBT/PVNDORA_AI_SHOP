@@ -548,35 +548,44 @@ function NewAppInner() {
 
   // PRIORITY: Show PaymentResult immediately if coming from payment redirect
   // This bypasses boot sequence entirely for better UX
+  // When user returns from payment, mark as booted to avoid boot sequence loop
+  useEffect(() => {
+    if (isPaymentRedirect && !isBooted) {
+      // Mark as booted since user already loaded the app (they came from payment redirect)
+      setIsBooted(true);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('pvndora_booted', 'true');
+      }
+    }
+  }, [isPaymentRedirect, isBooted]);
+
   if (isPaymentRedirect) {
     const isTopUp = isPaymentRedirect.startsWith('topup_');
     const actualId = isTopUp ? isPaymentRedirect.replace('topup_', '') : isPaymentRedirect;
+    
+    const handleComplete = () => {
+      setIsPaymentRedirect(null);
+      // Navigate directly without boot sequence (already booted)
+      if (isTopUp) {
+        setCurrentView('profile');
+      } else {
+        setCurrentView('catalog');
+      }
+    };
+    
+    const handleViewOrders = () => {
+      setIsPaymentRedirect(null);
+      // Navigate directly without boot sequence
+      setCurrentView(isTopUp ? 'profile' : 'orders');
+    };
     
     return (
       <div className="min-h-screen bg-black">
         <PaymentResult 
           orderId={actualId}
           isTopUp={isTopUp}
-          onComplete={() => {
-            setIsPaymentRedirect(null);
-            // If not booted yet, trigger boot now
-            if (!isBooted) {
-              window.location.href = '/';
-            } else if (isTopUp) {
-              // For topup, go to profile
-              setCurrentView('profile');
-            }
-          }}
-          onViewOrders={() => {
-            setIsPaymentRedirect(null);
-            if (isBooted) {
-              // For topup, navigate to profile instead of orders
-              setCurrentView(isTopUp ? 'profile' : 'orders');
-            } else {
-              // Redirect to home, boot will happen, then user can navigate
-              window.location.href = '/';
-            }
-          }}
+          onComplete={handleComplete}
+          onViewOrders={handleViewOrders}
         />
       </div>
     );
