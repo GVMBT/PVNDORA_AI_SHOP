@@ -635,12 +635,15 @@ async def crystalpay_webhook(request: Request):
                     return JSONResponse({"ok": True, "note": "refund_pending"}, status_code=200)
             
             print(f"CrystalPay webhook processing delivery for order: {real_order_id}")
+            print(f"CrystalPay webhook: order_data found = {order_data is not None}, order_status = {order_status}")
             
             # CRITICAL: Mark payment as confirmed using centralized service
             # This ensures proper status transition and stock checking
             try:
                 from core.orders.status_service import OrderStatusService
+                print(f"CrystalPay webhook: Creating OrderStatusService...")
                 status_service = OrderStatusService(db)
+                print(f"CrystalPay webhook: Calling mark_payment_confirmed for {real_order_id}...")
                 final_status = await status_service.mark_payment_confirmed(
                     order_id=real_order_id,
                     payment_id=invoice_id,

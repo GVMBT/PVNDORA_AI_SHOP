@@ -90,6 +90,8 @@ class OrderStatusService:
         Returns:
             True if updated, False otherwise
         """
+        logger.info(f"[StatusService] update_status called: order_id={order_id}, new_status={new_status}, check_transition={check_transition}")
+        
         if check_transition:
             can_transition, reason_msg = await self.can_transition_to(order_id, new_status)
             if not can_transition:
@@ -101,19 +103,30 @@ class OrderStatusService:
                 "status": new_status,
                 "updated_at": datetime.now(timezone.utc).isoformat()
             }
-            if reason:
-                update_data["notes"] = reason
             
-            await asyncio.to_thread(
+            logger.info(f"[StatusService] Updating order {order_id} with data: {update_data}")
+            
+            result = await asyncio.to_thread(
                 lambda: self.db.client.table("orders")
                 .update(update_data)
                 .eq("id", order_id)
                 .execute()
             )
+            
+            # Log the result to verify update happened
+            rows_affected = len(result.data) if result.data else 0
+            logger.info(f"[StatusService] Update result for {order_id}: rows_affected={rows_affected}, data={result.data}")
+            
+            if rows_affected == 0:
+                logger.warning(f"[StatusService] NO ROWS UPDATED for order {order_id}! Order might not exist.")
+                return False
+            
             logger.info(f"Updated order {order_id} status to '{new_status}'")
             return True
         except Exception as e:
             logger.error(f"Failed to update order {order_id} status: {e}")
+            import traceback
+            logger.error(f"[StatusService] Traceback: {traceback.format_exc()}")
             return False
     
     async def mark_payment_confirmed(
@@ -134,8 +147,11 @@ class OrderStatusService:
         Returns:
             Final status set ('paid' or 'prepaid')
         """
+        logger.info(f"[mark_payment_confirmed] Called for order_id={order_id}, payment_id={payment_id}, check_stock={check_stock}")
+        
         # Get order info
         try:
+            logger.info(f"[mark_payment_confirmed] Fetching order {order_id} from DB...")
             order_result = await asyncio.to_thread(
                 lambda: self.db.client.table("orders")
                 .select("status, order_type, payment_method")
@@ -143,12 +159,16 @@ class OrderStatusService:
                 .single()
                 .execute()
             )
+            logger.info(f"[mark_payment_confirmed] Order fetch result: {order_result.data}")
+            
             if not order_result.data:
                 raise ValueError(f"Order {order_id} not found")
             
             current_status = order_result.data.get("status", "").lower()
             order_type = order_result.data.get("order_type", "instant")
             payment_method = order_result.data.get("payment_method", "")
+            
+            logger.info(f"[mark_payment_confirmed] Order {order_id}: current_status={current_status}, order_type={order_type}, payment_method={payment_method}")
             
             # IDEMPOTENCY: If already paid/prepaid/delivered, return current status
             if current_status in ("paid", "prepaid", "delivered", "partial"):
@@ -157,13 +177,16 @@ class OrderStatusService:
             
             # Balance payments are always 'paid' (already deducted)
             if payment_method == "balance":
+                logger.info(f"[mark_payment_confirmed] Balance payment, setting to 'paid'")
                 await self.update_status(order_id, "paid", "Balance payment confirmed", check_transition=False)
                 return "paid"
             
             # For external payments, check stock availability
             if check_stock:
+                logger.info(f"[mark_payment_confirmed] Checking stock availability...")
                 has_stock = await self._check_stock_availability(order_id)
                 final_status = "paid" if has_stock else "prepaid"
+                logger.info(f"[mark_payment_confirmed] has_stock={has_stock}, final_status={final_status}")
             else:
                 # If not checking stock, default to 'prepaid' for safety
                 final_status = "prepaid"
@@ -171,6 +194,7 @@ class OrderStatusService:
             # Update payment_id if provided
             if payment_id:
                 try:
+                    logger.info(f"[mark_payment_confirmed] Updating payment_id to {payment_id}")
                     await asyncio.to_thread(
                         lambda: self.db.client.table("orders")
                         .update({"payment_id": payment_id})
@@ -180,11 +204,19 @@ class OrderStatusService:
                 except Exception as e:
                     logger.warning(f"Failed to update payment_id for {order_id}: {e}")
             
-            await self.update_status(order_id, final_status, "Payment confirmed via webhook", check_transition=False)
+            logger.info(f"[mark_payment_confirmed] About to call update_status with final_status={final_status}")
+            update_result = await self.update_status(order_id, final_status, "Payment confirmed via webhook", check_transition=False)
+            logger.info(f"[mark_payment_confirmed] update_status returned: {update_result}")
+            
+            if not update_result:
+                logger.error(f"[mark_payment_confirmed] FAILED to update order {order_id} status to {final_status}!")
+            
             return final_status
             
         except Exception as e:
             logger.error(f"Failed to mark payment confirmed for {order_id}: {e}")
+            import traceback
+            logger.error(f"[mark_payment_confirmed] Traceback: {traceback.format_exc()}")
             raise
     
     async def _check_stock_availability(self, order_id: str) -> bool:
