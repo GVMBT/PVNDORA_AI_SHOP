@@ -1182,14 +1182,12 @@ class PaymentService:
         
         # Build callback URL
         callback_url = f"{self.base_url}/api/webhook/crystalpay"
-        # Build redirect URL based on source:
-        # - If from Telegram Mini App: use t.me deeplink to return to Mini App
-        # - If from external browser: use web result page to stay in browser
-        if is_telegram_miniapp:
-            bot_username = os.environ.get("BOT_USERNAME", "pvndora_ai_bot")
-            redirect_url = f"https://t.me/{bot_username}?startapp=payresult_{order_id}"
-        else:
-            redirect_url = f"{self.base_url}/payment/result?order_id={order_id}"
+        # Build redirect URL:
+        # CRITICAL: CrystalPay redirect opens in BROWSER, not in Telegram Mini App
+        # So we CANNOT use t.me deeplink - it won't work from external browser
+        # Instead: redirect to web page with instructions to return to bot
+        # Real verification happens via callback_url (webhook) + frontend polling
+        redirect_url = f"{self.base_url}/payment/result?order_id={order_id}&source=crystalpay"
         
         # TEST mode: force test method to avoid real charges in sandbox
         test_mode = os.environ.get("CRYSTALPAY_TEST_MODE", "false").lower() == "true"
@@ -1304,8 +1302,9 @@ class PaymentService:
         # Build redirect URL based on source
         if is_telegram_miniapp:
             bot_username = os.environ.get("BOT_USERNAME", "pvndora_ai_bot")
-            # Redirect to profile page after topup
-            redirect_url = f"https://t.me/{bot_username}?startapp=topup_{topup_id}"
+            # CRITICAL: CrystalPay redirect opens in BROWSER, not Mini App
+            # Redirect to web page with "Return to Bot" button
+            redirect_url = f"{self.base_url}/payment/result?topup_id={topup_id}&source=crystalpay"
         else:
             redirect_url = f"{self.base_url}/payment/result?topup_id={topup_id}"
         

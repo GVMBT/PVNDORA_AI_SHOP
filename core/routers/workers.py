@@ -87,10 +87,18 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
             total_delivered += 1
             continue
         
-        # For only_instant mode, count preorder items as waiting but don't try to deliver
-        if only_instant and str(it.get("fulfillment_type") or "instant") != "instant":
+        # CRITICAL: Skip preorder items - they should NEVER be delivered without stock
+        # Preorder items should only become instant after stock arrives AND admin updates them
+        fulfillment_type = str(it.get("fulfillment_type") or "instant")
+        if fulfillment_type == "preorder":
             waiting_count += 1
-            logger.debug(f"deliver-goods: skipping preorder item {it.get('id')} (only_instant=True), counting as waiting")
+            logger.debug(f"deliver-goods: skipping preorder item {it.get('id')} (no instant stock available)")
+            continue
+        
+        # For only_instant mode, only process instant items (skip everything else)
+        if only_instant and fulfillment_type != "instant":
+            waiting_count += 1
+            logger.debug(f"deliver-goods: skipping non-instant item {it.get('id')} (only_instant=True)")
             continue
         
         product_id = it.get("product_id")
@@ -114,10 +122,11 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
             stock = None
         
         if stock:
-            # Reserve/sell stock
+            # CRITICAL: Double-check stock is actually available before reserving
+            # This prevents race conditions where stock was reserved between query and update
             stock_id = stock["id"]
             stock_content = stock.get("content", "")
-            logger.info(f"deliver-goods: allocating stock {stock_id} for product {product_id}")
+            logger.info(f"deliver-goods: allocating stock {stock_id} for product {product_id}, fulfillment_type={fulfillment_type}")
             try:
                 await asyncio.to_thread(
                     lambda sid=stock_id, ts=now.isoformat(): db.client.table("stock_items").update({

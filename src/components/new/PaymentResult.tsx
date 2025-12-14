@@ -364,6 +364,16 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
           {/* Actions */}
           {isComplete && (
             <div className="p-4 border-t border-white/10 space-y-3">
+              {/* Return to Bot button - ALWAYS show for external browser users */}
+              {typeof window !== 'undefined' && !(window as any).Telegram?.WebApp && (
+                <a
+                  href={`https://t.me/${process.env.REACT_APP_BOT_USERNAME || 'pvndora_ai_bot'}`}
+                  className="block w-full py-3 bg-pandora-cyan text-black font-bold text-sm text-center hover:bg-pandora-cyan/90 transition-colors"
+                >
+                  🤖 RETURN_TO_BOT
+                </a>
+              )}
+              
               {isSuccess && (
                 <button
                   onClick={onViewOrders}
