@@ -209,6 +209,19 @@ class OrderStatusService:
             if not update_result:
                 logger.error(f"[mark_payment_confirmed] FAILED to update order {order_id} status to {final_status}!")
             
+            # Set fulfillment deadline for prepaid orders
+            if final_status == "prepaid":
+                try:
+                    logger.info(f"[mark_payment_confirmed] Setting fulfillment deadline for prepaid order {order_id}")
+                    await asyncio.to_thread(
+                        lambda: self.db.client.rpc("set_fulfillment_deadline_for_prepaid_order", {
+                            "p_order_id": order_id,
+                            "p_hours_from_now": 48
+                        }).execute()
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to set fulfillment deadline for {order_id}: {e}")
+            
             return final_status
             
         except Exception as e:
