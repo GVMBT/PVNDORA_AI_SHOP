@@ -56,7 +56,7 @@ function calculateProgressPercent(turnover: number, currentLevel: CareerLevel): 
 }
 
 /**
- * Format billing log entry
+ * Format billing log entry (for referral bonuses and withdrawals)
  */
 function formatBillingLog(
   item: { id: string; amount: number; level?: number; created_at: string },
@@ -79,13 +79,69 @@ function formatBillingLog(
 }
 
 /**
+ * Format balance transaction to billing log
+ */
+function formatBalanceTransactionLog(
+  tx: { id: string; type: string; amount: number; description?: string; created_at: string; currency?: string }
+): BillingLog {
+  const date = new Date(tx.created_at);
+  
+  // Map transaction types to display types
+  const typeMap: Record<string, 'INCOME' | 'OUTCOME' | 'SYSTEM'> = {
+    'topup': 'INCOME',
+    'purchase': 'OUTCOME',
+    'refund': 'INCOME',
+    'bonus': 'INCOME',
+    'withdrawal': 'OUTCOME',
+    'cashback': 'INCOME',
+    'credit': 'INCOME',
+    'debit': 'OUTCOME',
+  };
+  
+  const logType = typeMap[tx.type.toLowerCase()] || 'SYSTEM';
+  
+  // Map transaction types to source labels
+  const sourceMap: Record<string, string> = {
+    'topup': 'TOP_UP',
+    'purchase': 'PURCHASE',
+    'refund': 'REFUND',
+    'bonus': 'BONUS',
+    'withdrawal': 'WITHDRAWAL',
+    'cashback': 'CASHBACK',
+    'credit': 'CREDIT',
+    'debit': 'DEBIT',
+  };
+  
+  const source = tx.description || sourceMap[tx.type.toLowerCase()] || tx.type.toUpperCase();
+  
+  // Format amount with sign
+  const amountStr = logType === 'OUTCOME' 
+    ? `-${tx.amount.toFixed(2)}`
+    : `+${tx.amount.toFixed(2)}`;
+  
+  return {
+    id: tx.id.substring(0, 8).toUpperCase(),
+    type: logType,
+    source,
+    amount: amountStr,
+    date: date.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).replace(',', ''),
+  };
+}
+
+/**
  * Adapt API profile response to component format
  */
 export function adaptProfile(
   response: APIProfileResponse,
   telegramUser?: TelegramUser
 ): ProfileData {
-  const { profile, referral_stats, referral_program, bonus_history, withdrawals } = response;
+  const { profile, referral_stats, referral_program, bonus_history, withdrawals, balance_transactions = [] } = response;
   
   const currentLevel = getCurrentLevel(
     referral_program.turnover_usd,
@@ -94,12 +150,16 @@ export function adaptProfile(
   
   const nextLevel = getNextLevel(currentLevel, referral_program.thresholds_usd);
   
-  // Combine and sort billing logs
+  // Combine and sort billing logs from multiple sources
   const billingLogs: BillingLog[] = [
+    // Balance transactions (most comprehensive - includes topups, purchases, refunds, etc.)
+    ...balance_transactions.map(tx => formatBalanceTransactionLog(tx)),
+    // Legacy referral bonuses (for backward compatibility)
     ...bonus_history.map(b => formatBillingLog(b, 'INCOME')),
+    // Legacy withdrawals (for backward compatibility)
     ...withdrawals.map(w => formatBillingLog({ ...w, level: undefined }, 'OUTCOME')),
   ].sort((a, b) => {
-    // Parse dates and sort descending
+    // Parse dates and sort descending (newest first)
     return new Date(b.date.replace(' ', 'T')).getTime() - new Date(a.date.replace(' ', 'T')).getTime();
   });
   

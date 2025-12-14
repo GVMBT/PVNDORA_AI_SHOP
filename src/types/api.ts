@@ -221,12 +221,30 @@ export interface APIWithdrawalRequest {
   created_at: string;
 }
 
+export interface APIBalanceTransaction {
+  id: UUID;
+  user_id: UUID;
+  type: 'topup' | 'purchase' | 'refund' | 'bonus' | 'withdrawal' | 'cashback' | 'credit' | 'debit';
+  amount: number;
+  currency: string;
+  balance_before: number;
+  balance_after: number;
+  reference_type?: string;  // 'order', 'payment', 'referral', etc.
+  reference_id?: string;
+  description?: string;
+  status: 'pending' | 'completed' | 'failed' | 'cancelled';
+  metadata?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface APIProfileResponse {
   profile: APIProfile;
   referral_program: APIReferralProgram;
   referral_stats: APIReferralStats;
   bonus_history: APIBonusHistoryItem[];
   withdrawals: APIWithdrawalRequest[];
+  balance_transactions?: APIBalanceTransaction[];
   currency: string;
 }
 

@@ -133,7 +133,7 @@ export interface NetworkNode {
 
 export interface BillingLog {
   id: string;
-  type: 'INCOME' | 'OUTCOME';
+  type: 'INCOME' | 'OUTCOME' | 'SYSTEM';
   source: string;
   amount: string;
   date: string;

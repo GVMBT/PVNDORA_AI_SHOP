@@ -156,12 +156,28 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
             print(f"ERROR: Failed to query withdrawal_requests: {e}")
             return type('obj', (object,), {'data': []})()
     
+    async def fetch_balance_transactions():
+        try:
+            return await asyncio.to_thread(
+                lambda: db.client.table("balance_transactions")
+                .select("*")
+                .eq("user_id", db_user.id)
+                .eq("status", "completed")
+                .order("created_at", desc=True)
+                .limit(50)
+                .execute()
+            )
+        except Exception as e:
+            print(f"ERROR: Failed to query balance_transactions: {e}")
+            return type('obj', (object,), {'data': []})()
+    
     # Execute all DB queries in parallel
-    settings, extended_stats_result, bonus_result, withdrawal_result = await asyncio.gather(
+    settings, extended_stats_result, bonus_result, withdrawal_result, balance_transactions_result = await asyncio.gather(
         fetch_settings(),
         fetch_extended_stats(),
         fetch_bonuses(),
-        fetch_withdrawals()
+        fetch_withdrawals(),
+        fetch_balance_transactions()
     )
     
     # Level thresholds in USD (from settings)
@@ -223,6 +239,7 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
         "referral_stats": referral_stats,
         "bonus_history": bonus_result.data or [],
         "withdrawals": withdrawal_result.data or [],
+        "balance_transactions": balance_transactions_result.data or [],
         "currency": currency
     }
 
