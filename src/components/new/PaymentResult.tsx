@@ -83,7 +83,7 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
 
       // Use different endpoint for topup vs order
       const endpoint = isTopUp 
-        ? `/api/profile/topup/${orderId}/status`
+        ? `/api/webapp/profile/topup/${orderId}/status`
         : `/api/orders/${orderId}/status`;
       
       const response = await fetch(endpoint, { headers });
