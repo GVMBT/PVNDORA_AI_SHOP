@@ -397,7 +397,7 @@ function NewAppInner() {
           const profileData = await getProfile();
           return { 
             loaded: !!profileData,
-            username: profileData?.username || null,
+            username: profileData?.handle || null,
             balance: profileData?.balance || 0,
           };
         } catch (e) {
