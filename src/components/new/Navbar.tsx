@@ -91,8 +91,8 @@ const Navbar: React.FC<NavbarProps> = ({
       >
         
         {/* Logo Section */}
-        <div className="h-24 flex items-center justify-center shrink-0 relative cursor-pointer" onClick={() => handleClick(onNavigateHome)}>
-             <div className="w-10 h-10 flex items-center justify-center relative z-10 group overflow-visible">
+        <div className="h-24 flex items-center shrink-0 relative cursor-pointer" onClick={() => handleClick(onNavigateHome)}>
+             <div className="absolute left-5 w-10 h-10 flex items-center justify-center relative z-10 group overflow-visible">
                 {/* Logo Glow (Internal Core) */}
                 <div className="absolute inset-0 bg-pandora-cyan blur-md opacity-40 group-hover:opacity-60 transition-opacity" />
                 
