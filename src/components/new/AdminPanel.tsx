@@ -84,92 +84,7 @@ interface AdminPanelProps {
 
 type AdminView = 'dashboard' | 'catalog' | 'sales' | 'partners' | 'support';
 
-// --- MOCK DATA ---
-
-const MOCK_PRODUCTS = [
-    { 
-        id: 1, 
-        name: "Nano Banana Pro", 
-        category: "Text",
-        description: "Full access to GPT-4 Turbo via decentralized nodes.",
-        price: 299, 
-        msrp: 500, 
-        type: "Instant", 
-        stock: 12, 
-        fulfillment: 0, 
-        warranty: 720, 
-        duration: 30, 
-        sold: 1542, 
-        vpn: true,
-        image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=800&auto=format&fit=crop",
-        video: "https://youtube.com/watch?v=dQw4w9WgXcQ",
-        instructions: "1. Download client.\n2. Enter key." 
-    },
-    { 
-        id: 2, 
-        name: "Veo 3.1", 
-        category: "Video",
-        description: "High-fidelity video generation model.",
-        price: 450, 
-        msrp: 800, 
-        type: "Instant", 
-        stock: 0, 
-        fulfillment: 0, 
-        warranty: 168, 
-        duration: 30, 
-        sold: 890, 
-        vpn: false,
-        image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop",
-        instructions: "Login via web portal." 
-    },
-    { 
-        id: 3, 
-        name: "Claude Max", 
-        category: "Text",
-        description: "Large context window model.",
-        price: 350, 
-        msrp: 600, 
-        type: "Preorder", 
-        stock: 5, 
-        fulfillment: 24, 
-        warranty: 720, 
-        duration: 30, 
-        sold: 430, 
-        vpn: true,
-        image: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=800&auto=format&fit=crop",
-        instructions: "Wait for invite." 
-    },
-];
-
-const MOCK_ORDERS = [
-    { id: "ORD-9921", user: "@neon_runner", product: "Nano Banana Pro", amount: 299, status: "PAID", date: "10m ago", method: "CRYPTO" },
-    { id: "ORD-9920", user: "@crypto_whale", product: "Veo 3.1", amount: 450, status: "REFUNDED", date: "2h ago", method: "CARD" },
-    { id: "ORD-9919", user: "@anon_x", product: "Claude Max", amount: 350, status: "PAID", date: "5h ago", method: "INTERNAL" },
-    { id: "ORD-9918", user: "@user_001", product: "Midjourney V6", amount: 400, status: "FAILED", date: "1d ago", method: "CARD" },
-    { id: "ORD-8812", user: "@matrix_fan", product: "Nano Banana Pro", amount: 299, status: "PAID", date: "1d ago", method: "CRYPTO" },
-];
-
-const MOCK_TICKETS = [
-    { 
-        id: "TCK-9921", user: "@neon_runner", subject: "Auth Token Invalid", status: "OPEN", priority: "HIGH", date: "10m ago",
-        history: [{ sender: 'user', text: "Token gives 403 error.", time: "10:00" }]
-    },
-    { 
-        id: "TCK-9920", user: "@crypto_whale", subject: "Payment not credited", status: "CLOSED", priority: "MEDIUM", date: "2h ago",
-        history: [{ sender: 'user', text: "Sent USDT, pending.", time: "08:30" }]
-    },
-];
-
-const MOCK_PARTNERS = [
-    { id: 1, handle: "@crypto_whale", level: "ARCHITECT", totalRef: 450, earned: 12500, status: "ACTIVE", rewardType: "commission" },
-    { id: 2, handle: "@sub_zero", level: "OPERATOR", totalRef: 12, earned: 450, status: "ACTIVE", rewardType: "commission" },
-    { id: 3, handle: "@ghost_shell", level: "PROXY", totalRef: 0, earned: 0, status: "INACTIVE", rewardType: "commission" },
-];
-
-const VIP_REQUESTS = [
-    { id: 101, handle: "@tech_blogger_ru", source: "YouTube (150k)", message: "Want to review Veo 3.1 for my channel.", date: "1h ago" },
-    { id: 102, handle: "@ai_course_lead", source: "Online School", message: "Need bulk access for 50 students.", date: "5h ago" },
-];
+// MOCK DATA removed - production uses only real API data
 
 // --- COMPONENTS ---
 
@@ -185,11 +100,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
   
-  // Use props data if provided, otherwise fall back to mock data
-  const productsData = propsProducts || MOCK_PRODUCTS;
-  const ordersData = propsOrders || MOCK_ORDERS;
-  const partnersData = propsUsers || MOCK_PARTNERS;
-  const ticketsData = propsTickets || MOCK_TICKETS;
+  // Use props data only - NO MOCK FALLBACK (production)
+  const productsData = propsProducts || [];
+  const ordersData = propsOrders || [];
+  const partnersData = propsUsers || [];
+  const ticketsData = propsTickets || [];
   
   // Sales State
   const [orderSearch, setOrderSearch] = useState('');
@@ -320,7 +235,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5 text-gray-300">
-                      {MOCK_PRODUCTS.map(p => (
+                      {productsData.map(p => (
                           <tr key={p.id} className="hover:bg-white/5 transition-colors">
                               <td className="p-4 font-bold text-white flex items-center gap-3">
                                   <div className="w-8 h-8 rounded-sm overflow-hidden bg-black border border-white/10">
@@ -365,7 +280,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   );
 
   const renderSales = () => {
-      const filteredOrders = MOCK_ORDERS.filter(o => 
+      const filteredOrders = ordersData.filter(o => 
           o.id.toLowerCase().includes(orderSearch.toLowerCase()) || 
           o.user.toLowerCase().includes(orderSearch.toLowerCase())
       );
@@ -444,7 +359,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 onClick={() => setActivePartnerTab('requests')}
                 className={`text-xs font-bold uppercase pb-2 px-2 transition-colors ${activePartnerTab === 'requests' ? 'text-pandora-cyan border-b-2 border-pandora-cyan' : 'text-gray-500'}`}
               >
-                  VIP Requests <span className="ml-1 bg-red-500 text-white px-1 rounded-sm text-[9px]">{VIP_REQUESTS.length}</span>
+                  VIP Requests <span className="ml-1 bg-red-500 text-white px-1 rounded-sm text-[9px]">0</span>
               </button>
           </div>
 
@@ -463,7 +378,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5 text-gray-300">
-                            {MOCK_PARTNERS.map(p => (
+                            {partnersData.map(p => (
                                 <tr key={p.id} className="hover:bg-white/5 transition-colors">
                                     <td className="p-4 font-bold text-white">{p.handle}</td>
                                     <td className="p-4"><span className={`text-[10px] px-2 py-0.5 border ${p.level === 'ARCHITECT' ? 'border-yellow-500 text-yellow-500' : 'border-gray-500 text-gray-500'}`}>{p.level}</span></td>
@@ -492,7 +407,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </>
           ) : (
               <div className="grid grid-cols-1 gap-4">
-                  {VIP_REQUESTS.map(req => (
+                  {[].map(req => (
                       <div key={req.id} className="bg-[#0e0e0e] border border-white/10 p-4 flex flex-col md:flex-row justify-between gap-4">
                           <div>
                               <div className="flex items-center gap-2 font-bold text-white mb-1">
@@ -521,7 +436,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <h3 className="font-display font-bold text-white">INBOX</h3>
                   <div className="text-xs font-mono text-gray-500">2 OPEN</div>
               </div>
-              {MOCK_TICKETS.map(t => (
+              {ticketsData.map(t => (
                   <div 
                       key={t.id} 
                       onClick={() => setSelectedTicketId(t.id)}

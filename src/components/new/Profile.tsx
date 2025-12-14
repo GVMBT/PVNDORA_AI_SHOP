@@ -156,74 +156,12 @@ const DecryptedText: React.FC<{ text: string | number; speed?: number; className
   return <span ref={elementRef} className={className}>{displayText || (reveal ? '' : textStr)}</span>;
 };
 
-// --- MOCK DATA ---
-const MOCK_USER = {
-  name: "Nikita",
-  handle: "@gvmbt158",
-  id: "UID-8492-X",
-  balance: 12500,
-  earnedRef: 12500,
-  saved: 4500,
-  role: "ADMIN", // Roles: USER, VIP, ADMIN
-  isVip: true, // Allow VIP toggle testing
-  referralLink: "https://pvndora.io/ref/8492X",
-  stats: {
-    referrals: 11,
-    clicks: 142,
-    conversion: 7.8, // %
-    turnover: 120 // $ turnover (current progress)
-  }
-};
+// MOCK DATA removed - production uses only real API data
 
 const CAREER_LEVELS = [
     { id: 1, label: "PROXY", min: 0, max: 250, color: "text-gray-400" },
     { id: 2, label: "OPERATOR", min: 250, max: 1000, color: "text-purple-400" },
     { id: 3, label: "ARCHITECT", min: 1000, max: 5000, color: "text-yellow-400" }
-];
-
-const NETWORK_TREE = [
-    // LINE 1 (Direct Invites)
-    { 
-        id: 1, line: 1, handle: "@crypto_whale", rank: "ARCHITECT", status: "VIP", volume: 5400, profit: 540, subs: 12, signal: 100, lastActive: '2m ago',
-        invitedBy: null, activityData: [20, 45, 30, 80, 50, 90, 100]
-    },
-    { 
-        id: 2, line: 1, handle: "@neon_runner", rank: "PROXY", status: "ACTIVE", volume: 250, profit: 25, subs: 3, signal: 75, lastActive: '1h ago',
-        invitedBy: null, activityData: [10, 20, 15, 40, 30, 25, 60]
-    },
-    { 
-        id: 3, line: 1, handle: "@silent_bob", rank: "PROXY", status: "SLEEP", volume: 0, profit: 0, subs: 0, signal: 10, lastActive: '5d ago',
-        invitedBy: null, activityData: [5, 5, 0, 0, 0, 0, 0]
-    },
-    { 
-        id: 4, line: 1, handle: "@ai_artist_x", rank: "OPERATOR", status: "ACTIVE", volume: 890, profit: 89, subs: 5, signal: 90, lastActive: '15m ago',
-        invitedBy: null, activityData: [30, 40, 50, 45, 60, 80, 70]
-    },
-    // LINE 2 (Invited by Line 1)
-    { 
-        id: 10, line: 2, handle: "@sub_zero", rank: "ARCHITECT", status: "ACTIVE", volume: 1500, profit: 105, subs: 0, signal: 85, lastActive: '10m ago',
-        invitedBy: "@crypto_whale", activityData: [10, 40, 20, 50, 30, 80, 40]
-    },
-    { 
-        id: 11, line: 2, handle: "@matrix_fan", rank: "OPERATOR", status: "ACTIVE", volume: 300, profit: 21, subs: 0, signal: 60, lastActive: '3h ago',
-        invitedBy: "@crypto_whale", activityData: [5, 10, 5, 20, 15, 10, 30]
-    },
-    { 
-        id: 12, line: 2, handle: "@pixel_dust", rank: "PROXY", status: "SLEEP", volume: 50, profit: 3.5, subs: 0, signal: 20, lastActive: '1d ago',
-        invitedBy: "@neon_runner", activityData: [5, 5, 0, 0, 0, 0, 0]
-    },
-    // LINE 3 (Invited by Line 2)
-    { 
-        id: 20, line: 3, handle: "@deep_diver", rank: "ARCHITECT", status: "ACTIVE", volume: 2000, profit: 60, subs: 0, signal: 95, lastActive: '5m ago',
-        invitedBy: "@sub_zero", activityData: [50, 60, 70, 80, 70, 90, 100]
-    },
-];
-
-const BILLING_LOGS = [
-    { id: "TX-9921", type: "INCOME", source: "REF_BONUS (L1)", amount: "+250.00", date: "10.12.24 14:20" },
-    { id: "TX-9920", type: "OUTCOME", source: "WITHDRAWAL", amount: "-5000.00", date: "09.12.24 09:15" },
-    { id: "TX-9919", type: "INCOME", source: "REF_BONUS (L2)", amount: "+120.50", date: "08.12.24 18:40" },
-    { id: "TX-9918", type: "SYSTEM", source: "CASHBACK", amount: "+45.00", date: "05.12.24 11:00" },
 ];
 
 // --- MAIN COMPONENT ---
@@ -237,10 +175,30 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
   // DOSSIER STATE
   const [selectedReferralId, setSelectedReferralId] = useState<number | string | null>(null);
   
-  // Use provided profile or fallback to mock
-  const user = propProfile || MOCK_USER;
-  const networkTree = propProfile?.networkTree?.length ? propProfile.networkTree : NETWORK_TREE;
-  const billingLogs = propProfile?.billingLogs?.length ? propProfile.billingLogs : BILLING_LOGS;
+  // Use provided profile data only - NO MOCK FALLBACK (production)
+  if (!propProfile) {
+    // Return empty state if no profile data provided
+    return (
+      <div className="min-h-screen text-white pt-20 md:pt-24 pb-32 px-4 md:px-8 md:pl-28 relative">
+        <div className="max-w-7xl mx-auto">
+          <button onClick={onBack} className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors">
+            <ArrowLeft size={12} /> RETURN_TO_BASE
+          </button>
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <User size={64} className="text-gray-700 mb-6" />
+            <h2 className="text-2xl font-bold text-white mb-2">NO PROFILE DATA</h2>
+            <p className="text-gray-500 font-mono text-sm max-w-md">
+              Profile data is not available. Please try again later.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  const user = propProfile;
+  const networkTree = propProfile?.networkTree || [];
+  const billingLogs = propProfile?.billingLogs || [];
   
   // Use networkTree (which may be from API or mock) instead of hardcoded NETWORK_TREE
   const selectedReferral = networkTree.find((n: any) => n.id === selectedReferralId);
