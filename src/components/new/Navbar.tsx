@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { ShoppingBag, Box, User, Trophy, ShoppingCart, Activity, Shield, LogOut, ChevronRight, Zap, LayoutGrid, Command } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AudioEngine } from '../../lib/AudioEngine';
@@ -47,7 +47,7 @@ const Typewriter: React.FC<{ text: string; delay?: number; speed?: number }> = (
   return <span>{displayedText}</span>;
 };
 
-const Navbar: React.FC<NavbarProps> = ({ 
+const NavbarComponent: React.FC<NavbarProps> = ({ 
     showMobile = true, 
     cartCount = 0, 
     onOpenCart, 
@@ -451,4 +451,5 @@ const MobileNavItem: React.FC<NavItemProps> = ({ icon, label, active, onClick })
     </button>
 );
 
+const Navbar = memo(NavbarComponent);
 export default Navbar;

@@ -13,6 +13,8 @@ interface BackgroundMusicProps {
   volume?: number; // 0-1
   autoPlay?: boolean;
   loop?: boolean;
+  /** If provided, skip fetch and use this preloaded blob URL directly */
+  preloadedBlobUrl?: string;
   onLoadComplete?: () => void;
   onLoadError?: (error: Error) => void;
 }
@@ -22,6 +24,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
   volume = 0.20,
   autoPlay = true,
   loop = true,
+  preloadedBlobUrl,
   onLoadComplete,
   onLoadError,
 }) => {
@@ -48,26 +51,35 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
   // Preload audio file completely before creating Audio element
   useEffect(() => {
     let cancelled = false;
-    const startTime = Date.now();
+    let ownedBlobUrl: string | null = null; // Track if we created the blob URL ourselves
 
     const loadAudio = async () => {
       try {
-        // First: Prefetch the entire file via fetch to ensure it's fully downloaded
-        const response = await fetch(src, { 
-          cache: 'force-cache',
-        });
+        let blobUrl: string;
         
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
+        // If preloaded blob URL provided, skip fetch entirely
+        if (preloadedBlobUrl) {
+          blobUrl = preloadedBlobUrl;
+          // Don't mark as owned - boot sequence manages this URL's lifecycle
+        } else {
+          // First: Prefetch the entire file via fetch to ensure it's fully downloaded
+          const response = await fetch(src, { 
+            cache: 'force-cache',
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
 
-        // Convert to blob URL for better buffering
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        
-        if (cancelled) {
-          URL.revokeObjectURL(blobUrl);
-          return;
+          // Convert to blob URL for better buffering
+          const blob = await response.blob();
+          blobUrl = URL.createObjectURL(blob);
+          ownedBlobUrl = blobUrl; // Mark as owned so we revoke on cleanup
+          
+          if (cancelled) {
+            URL.revokeObjectURL(blobUrl);
+            return;
+          }
         }
 
         // Now create Audio element with blob URL
@@ -143,7 +155,10 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
           setLoadError(error);
           setIsLoading(false);
           onLoadErrorRef.current?.(error);
-          URL.revokeObjectURL(blobUrl);
+          // Only revoke if we created the blob URL ourselves
+          if (ownedBlobUrl) {
+            URL.revokeObjectURL(ownedBlobUrl);
+          }
         };
 
         const handlePlay = () => {
@@ -201,7 +216,10 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
           audio.removeEventListener('progress', handleProgress);
           audio.pause();
           audio.src = '';
-          URL.revokeObjectURL(blobUrl);
+          // Only revoke if we created the blob URL ourselves
+          if (ownedBlobUrl) {
+            URL.revokeObjectURL(ownedBlobUrl);
+          }
           audioRef.current = null;
         };
       } catch (error) {
@@ -237,8 +255,8 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
         audioRef.current = null;
       }
     };
-    // Only re-run if src, loop, volume, or autoPlay change - NOT callbacks
-  }, [src, loop, volume, autoPlay]);
+    // Only re-run if src, loop, volume, autoPlay, or preloadedBlobUrl change - NOT callbacks
+  }, [src, loop, volume, autoPlay, preloadedBlobUrl]);
 
   // Update volume when prop changes
   useEffect(() => {

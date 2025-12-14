@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { memo } from 'react';
 import { ShieldCheck, Zap, Headphones, Lock, Activity, Server } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -27,7 +27,7 @@ const FEATURES = [
   }
 ];
 
-const Guarantees: React.FC = () => {
+const GuaranteesComponent: React.FC = () => {
   return (
     <section className="relative w-full text-white pt-0 pb-24 px-6 md:pl-28 overflow-hidden z-20 bg-transparent">
       
@@ -123,4 +123,5 @@ const Guarantees: React.FC = () => {
   );
 };
 
+const Guarantees = memo(GuaranteesComponent);
 export default Guarantees;

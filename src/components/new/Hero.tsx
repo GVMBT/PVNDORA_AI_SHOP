@@ -1,10 +1,10 @@
 
-import React from 'react';
+import React, { memo } from 'react';
 import PandoraBox from './PandoraBox';
 import { Terminal, Zap, Unlock, Cpu, Network, Activity, ShieldCheck, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const Hero: React.FC = () => {
+const HeroComponent: React.FC = () => {
   const scrollToCatalog = () => {
     const catalog = document.getElementById('catalog');
     if (catalog) {
@@ -132,4 +132,5 @@ const Hero: React.FC = () => {
   );
 };
 
+const Hero = memo(HeroComponent);
 export default Hero;

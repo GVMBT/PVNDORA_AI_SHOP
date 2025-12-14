@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { memo } from 'react';
 import { MessageCircle, Mail, FileText, Shield, HelpCircle, CreditCard, ChevronRight } from 'lucide-react';
 
 interface FooterProps {
@@ -7,7 +7,7 @@ interface FooterProps {
   onOpenSupport?: () => void;
 }
 
-const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) => {
+const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) => {
   
   const handleSupportClick = () => {
       if (onOpenSupport) {
@@ -158,4 +158,5 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) => {
   );
 };
 
+const Footer = memo(FooterComponent);
 export default Footer;
