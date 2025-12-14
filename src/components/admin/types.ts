@@ -72,3 +72,4 @@ export interface AdminStats {
 
 export type AdminView = 'dashboard' | 'catalog' | 'sales' | 'partners' | 'support';
 
+

@@ -336,7 +336,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             ${showMobile ? 'translate-y-0' : 'translate-y-[120%]'}
         `}
       >
-        <div className="grid grid-cols-4 h-16 items-center relative">
+        <div className="grid grid-cols-4 h-16 items-center relative gap-1">
             {/* Active Indicator Line */}
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-pandora-cyan/50 to-transparent opacity-50" />
 

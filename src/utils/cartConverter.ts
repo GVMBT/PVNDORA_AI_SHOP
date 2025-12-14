@@ -92,3 +92,4 @@ export function getCartTotal(cartData: CartData | null): number {
   return cartData.total || 0;
 }
 
+

@@ -57,3 +57,4 @@ const ProductSpecs: React.FC<ProductSpecsProps> = ({
 
 export default memo(ProductSpecs);
 
+

@@ -76,3 +76,4 @@ export function useClipboard(timeout: number = 2000): UseClipboardReturn {
 
 export default useClipboard;
 
+

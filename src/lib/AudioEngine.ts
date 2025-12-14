@@ -26,12 +26,12 @@ const SOUND_FILES: Record<string, string> = {
   uiShort: '/ui-short.ogg',      // open/close modals, navigation
   uiLong: '/ui-long.ogg',         // product card open
   decrypt: '/Dossier.ogg',
-  success: '/success.ogg',
-  error: '/error.ogg',
-  warning: '/warning.ogg',
-  notification: '/notification.ogg',
-  addToCart: '/add-to-cart.ogg',
-  transaction: '/transaction.ogg',
+  // success: '/success.ogg', // Missing file
+  // error: '/error.ogg', // Missing file
+  // warning: '/warning.ogg', // Missing file
+  // notification: '/notification.ogg', // Missing file
+  // addToCart: '/add-to-cart.ogg', // Missing file
+  // transaction: '/transaction.ogg', // Missing file
 };
 
 class AudioEngineClass {
@@ -177,7 +177,8 @@ class AudioEngineClass {
     if (!buffer) {
       // Fallback to procedural generation
       logger.warn(`[AudioEngine] File not available, using procedural fallback for: ${key}`);
-      return;
+      // Throw error to trigger catch block in caller (which activates procedural fallback)
+      throw new Error(`Sound file not found: ${key}`);
     }
     
     const source = this.ctx.createBufferSource();

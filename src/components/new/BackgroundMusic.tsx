@@ -138,18 +138,29 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
           const errorMsg = audioError 
             ? `Code ${audioError.code}: ${audioError.message}`
             : 'Unknown error';
+          
+          // CRITICAL: Stop retrying if format is not supported (Code 4) to prevent CPU heating
+          if (audioError?.code === 4) {
+             logger.error('[BackgroundMusic] Audio format not supported (likely OGG on iOS). Stopping retries.');
+             setLoadError(new Error('Audio format not supported'));
+             setIsLoading(false);
+             return;
+          }
+
           const error = new Error(`Failed to load audio: ${errorMsg}`);
           
           logger.error('[BackgroundMusic] Load error', error);
           
-          // Retry logic
+          // Retry logic - exponential backoff with cap
           if (retryCountRef.current < maxRetries) {
             retryCountRef.current++;
+            const delay = Math.min(2000 * Math.pow(2, retryCountRef.current), 10000); // Max 10s delay
+            
             setTimeout(() => {
               if (!cancelled) {
                 loadAudio();
               }
-            }, 1000 * retryCountRef.current);
+            }, delay);
             return;
           }
           

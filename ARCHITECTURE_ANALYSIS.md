@@ -486,3 +486,4 @@ core/ai/*, core/bot/*, core/cart/*
 - Repository Pattern обеспечивает гибкость при изменении БД
 - Frontend архитектура следует современным React паттернам
 
+

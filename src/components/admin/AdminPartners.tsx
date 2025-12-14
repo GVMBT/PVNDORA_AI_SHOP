@@ -129,3 +129,4 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
 
 export default memo(AdminPartners);
 
+
