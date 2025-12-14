@@ -33,6 +33,7 @@ export type ProductAvailability = typeof PRODUCT_AVAILABILITY.STATUS[keyof typeo
 export const PAYMENT_STATUS = {
   CHECKING: 'checking',
   PAID: 'paid',
+  PREPAID: 'prepaid',
   DELIVERED: 'delivered',
   PARTIAL: 'partial',
   PENDING: 'pending',
@@ -46,8 +47,9 @@ export type PaymentStatus = typeof PAYMENT_STATUS[keyof typeof PAYMENT_STATUS];
 export const PAYMENT_STATUS_MESSAGES: Record<PaymentStatus, { color: string; label: string; description: string }> = {
   checking: { color: 'purple', label: 'VERIFYING', description: 'Checking payment status...' },
   paid: { color: 'green', label: 'CONFIRMED', description: 'Payment confirmed! Preparing delivery...' },
+  prepaid: { color: 'cyan', label: 'PREORDER', description: 'Payment confirmed! Awaiting stock for delivery.' },
   delivered: { color: 'cyan', label: 'COMPLETE', description: 'All items delivered to your account!' },
-  partial: { color: 'yellow', label: 'PARTIAL', description: 'Some items delivered, others in queue.' },
+  partial: { color: 'yellow', label: 'PARTIAL', description: 'Some items delivered, preorder items in queue.' },
   pending: { color: 'orange', label: 'PENDING', description: 'Waiting for payment confirmation...' },
   expired: { color: 'red', label: 'EXPIRED', description: 'Payment session expired.' },
   failed: { color: 'red', label: 'FAILED', description: 'Payment verification failed.' },

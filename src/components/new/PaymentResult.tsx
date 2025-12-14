@@ -51,6 +51,9 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
   const [pollCount, setPollCount] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const consecutive404sRef = useRef(0); // Use ref to avoid triggering effect re-runs
+  
+  // Check if we're in Telegram Mini App or external browser
+  const isTelegramMiniApp = typeof window !== 'undefined' && !!(window as any).Telegram?.WebApp;
 
   // Add log entry
   const addLog = useCallback((message: string, type: LogEntry['type'] = 'info') => {
@@ -120,8 +123,10 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
   }, [orderId, isTopUp]);
 
   // Polling effect with exponential backoff
+  // Only run polling in Telegram Mini App (browser shows simple static page)
   useEffect(() => {
     if (isComplete) return;
+    if (!isTelegramMiniApp) return; // No polling in browser
 
     const targetLabel = isTopUp ? 'Top-Up' : 'Order';
     addLog(`INIT: ${isTopUp ? 'Balance top-up' : 'Payment'} verification started`, 'info');
@@ -206,10 +211,34 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
               shouldStop = true;
               break;
             case 'paid':
+              addLog('RECV: Payment confirmed', 'success');
+              if (isTopUp) {
+                addLog('EXEC: Balance credited successfully', 'success');
+                addLog('DONE: Top-up complete!', 'success');
+              } else {
+                addLog('EXEC: Order confirmed, delivery starting...', 'success');
+                addLog('DONE: Check Orders for delivery status', 'success');
+              }
+              setProgress(100);
+              setIsComplete(true);
+              shouldStop = true;
+              break;
             case 'partial':
               addLog('RECV: Payment confirmed', 'success');
-              addLog(isTopUp ? 'PROC: Crediting balance...' : 'PROC: Delivery in progress...', 'info');
-              setProgress(75);
+              addLog('EXEC: Some items delivered', 'success');
+              addLog('INFO: Preorder items will be delivered when stock arrives', 'info');
+              addLog('DONE: Check Orders for full status', 'success');
+              setProgress(100);
+              setIsComplete(true);
+              shouldStop = true;
+              break;
+            case 'prepaid':
+              addLog('RECV: Payment confirmed', 'success');
+              addLog('INFO: Preorder in queue, will be delivered when stock arrives', 'info');
+              addLog('DONE: Check Orders for delivery status', 'success');
+              setProgress(100);
+              setIsComplete(true);
+              shouldStop = true;
               break;
             case 'pending':
               addLog('WAIT: Payment not yet received', 'warning');
@@ -267,11 +296,59 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
       }
       clearInterval(progressInterval);
     };
-  }, [orderId, addLog, checkStatus, isComplete]);
+  }, [orderId, addLog, checkStatus, isComplete, isTelegramMiniApp]);
 
   const statusInfo = PAYMENT_STATUS_MESSAGES[status];
-  const isSuccess = status === 'delivered' || status === 'paid' || status === 'partial';
+  const isSuccess = status === 'delivered' || status === 'paid' || status === 'partial' || status === 'prepaid';
   const isFailed = status === 'expired' || status === 'failed' || (status === 'unknown' && isComplete && consecutive404sRef.current >= 3);
+
+  // For external browser: show simple "Return to Telegram" message
+  // Polling happens in Mini App, no need to duplicate here
+  if (!isTelegramMiniApp) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-sm text-center"
+        >
+          {/* Success Icon */}
+          <div className="mb-6">
+            <div className="w-20 h-20 mx-auto bg-green-500/20 border border-green-500/50 rounded-full flex items-center justify-center">
+              <CheckCircle size={40} className="text-green-500" />
+            </div>
+          </div>
+
+          {/* Message */}
+          <h1 className="text-2xl font-bold text-white mb-2">
+            Payment Received!
+          </h1>
+          <p className="text-gray-400 mb-8">
+            Your order is being processed.<br />
+            Return to Telegram to check status.
+          </p>
+
+          {/* Order ID */}
+          <div className="bg-white/5 border border-white/10 rounded-lg p-3 mb-6">
+            <div className="text-xs text-gray-500 mb-1">Order ID</div>
+            <div className="font-mono text-pandora-cyan">{orderId.slice(0, 8).toUpperCase()}</div>
+          </div>
+
+          {/* Return to Telegram Button */}
+          <a
+            href={`https://t.me/${import.meta.env.VITE_BOT_USERNAME || 'pvndora_ai_bot'}`}
+            className="block w-full py-4 bg-[#2AABEE] hover:bg-[#229ED9] text-white font-bold rounded-xl transition-colors mb-4"
+          >
+            Open Telegram
+          </a>
+
+          <p className="text-xs text-gray-600">
+            You can close this tab now
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4">
@@ -361,24 +438,9 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
             <div className="w-2 h-4 bg-gray-600 animate-pulse mt-1" />
           </div>
 
-          {/* Actions */}
+          {/* Actions - Mini App only (browser has separate UI) */}
           {isComplete && (
             <div className="p-4 border-t border-white/10 space-y-3">
-              {/* Return to Bot button - Show prominently for external browser users */}
-              {typeof window !== 'undefined' && !(window as any).Telegram?.WebApp && (
-                <div className="text-center mb-4">
-                  <div className="text-xs text-gray-400 mb-2 font-mono">
-                    Payment processed! Close this tab and return to Telegram.
-                  </div>
-                  <a
-                    href={`https://t.me/${import.meta.env.VITE_BOT_USERNAME || 'pvndora_ai_bot'}`}
-                    className="block w-full py-4 bg-pandora-cyan text-black font-bold text-sm text-center hover:bg-pandora-cyan/90 transition-colors"
-                  >
-                    🤖 OPEN TELEGRAM BOT
-                  </a>
-                </div>
-              )}
-              
               {isSuccess && (
                 <button
                   onClick={onViewOrders}
@@ -428,21 +490,6 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
             <span>CONNECTION_CLOSED</span>
           )}
         </div>
-        
-        {/* Browser-specific hint - show if NOT in Telegram WebApp */}
-        {typeof window !== 'undefined' && !(window as any).Telegram?.WebApp && !isComplete && (
-          <div className="mt-6 p-4 border border-dashed border-pandora-cyan/30 bg-pandora-cyan/5">
-            <div className="text-center">
-              <div className="text-xs text-pandora-cyan font-mono mb-2">
-                💡 TIP: Keep this tab open
-              </div>
-              <div className="text-[10px] text-gray-400">
-                Verification in progress. You can also return to the Telegram app - 
-                your order will be processed automatically.
-              </div>
-            </div>
-          </div>
-        )}
       </motion.div>
     </div>
   );
