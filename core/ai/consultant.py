@@ -160,9 +160,7 @@ class AIConsultant:
             return await self._process_response(response, user_id, db, language, messages, progress_callback)
             
         except Exception as e:
-            print(f"Gemini API error: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Gemini API error: {e}", exc_info=True)
             # Return structured error response
             return StructuredAIResponse(
                 thought=f"Error occurred: {str(e)}",
@@ -304,12 +302,12 @@ class AIConsultant:
         """
         # Validate OGG magic bytes
         if len(ogg_data) < 4:
-            print(f"ERROR: Voice data too short: {len(ogg_data)} bytes")
+            logger.error(f"Voice data too short: {len(ogg_data)} bytes")
             return ogg_data, "audio/ogg"
         
         # Check OGG magic bytes
         if ogg_data[:4] == b'OggS':
-            print(f"DEBUG: Valid OGG file detected, size: {len(ogg_data)} bytes")
+            logger.debug(f"Valid OGG file detected, size: {len(ogg_data)} bytes")
             # Gemini 2.5 Flash supports OGG containers (including Opus codec)
             return ogg_data, "audio/ogg"
         
@@ -746,7 +744,7 @@ class AIConsultant:
                                     break
                 
                 if not text_from_candidates:
-                    print("WARNING: Empty response from structured generation, using original text")
+                    logger.warning("Empty response from structured generation, using original text")
                     # Fallback: use original text response
                     initial_text = text_response.text if hasattr(text_response, 'text') and text_response.text else ""
                     if initial_text:

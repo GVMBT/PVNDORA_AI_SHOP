@@ -71,6 +71,7 @@ export interface APIProductDetailed extends APIProduct {
 export interface APIProductsResponse {
   products: APIProduct[];
   count: number;
+  currency?: string; // Currency code for price display
 }
 
 export interface APIProductResponse {

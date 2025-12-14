@@ -24,7 +24,13 @@ declare global {
      * Custom bot username override (for development/testing)
      */
     __BOT_USERNAME?: string;
+
+    /**
+     * WebKit prefixed AudioContext (for Safari compatibility)
+     */
+    webkitAudioContext?: typeof AudioContext;
   }
 }
 
 export {};
+

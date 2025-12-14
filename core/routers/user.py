@@ -4,11 +4,19 @@ User API Router
 User-specific endpoints (referral, wishlist, reviews).
 These are non-webapp endpoints with /api prefix.
 """
+import asyncio
+import urllib.parse
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from core.services.database import get_database
 from core.auth import verify_telegram_auth
+from core.routers.deps import get_bot, get_webapp_url
+from core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api", tags=["user"])
 
@@ -19,8 +27,132 @@ class SubmitReviewRequest(BaseModel):
     text: str | None = None
 
 
-# NOTE: /api/user/referral and /api/webapp/referral/share-link remain in api/index.py
-# because they require bot_instance which is initialized there
+# ==================== REFERRAL ====================
+
+@router.get("/user/referral")
+async def get_referral_info(user=Depends(verify_telegram_auth)):
+    """Get referral link and stats"""
+    bot_instance = get_bot()
+    
+    if not bot_instance:
+        raise HTTPException(status_code=500, detail="Bot not configured")
+    
+    bot_info = await bot_instance.get_me()
+    referral_link = f"https://t.me/{bot_info.username}?start=ref_{user.id}"
+    
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    
+    return {
+        "link": referral_link,
+        "percent": db_user.personal_ref_percent if db_user else 20,
+        "balance": db_user.balance if db_user else 0
+    }
+
+
+@router.post("/webapp/referral/share-link")
+async def create_referral_share_link(user=Depends(verify_telegram_auth)):
+    """
+    Create a prepared inline message for sharing.
+    Returns prepared_message_id to be used with Telegram.WebApp.shareMessage()
+    """
+    from aiogram.types import InlineQueryResultPhoto, InlineKeyboardMarkup, InlineKeyboardButton
+    
+    bot_instance = get_bot()
+    if not bot_instance:
+        raise HTTPException(status_code=500, detail="Bot not configured")
+        
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    # Calculate savings or get from DB
+    total_saved = int(float(db_user.total_saved)) if hasattr(db_user, 'total_saved') and db_user.total_saved else 0
+    display_name = db_user.first_name or db_user.username or "User"
+    
+    # Calculate leaderboard rank
+    user_rank = None
+    if total_saved > 0:
+        rank_result = await asyncio.to_thread(
+            lambda: db.client.table("users").select(
+                "id", count="exact"
+            ).gt("total_saved", total_saved).execute()
+        )
+        user_rank = (rank_result.count or 0) + 1
+    
+    # Referral link
+    bot_info = await bot_instance.get_me()
+    ref_link = f"https://t.me/{bot_info.username}?start=ref_{user.id}"
+    
+    # Dynamic Image URL powered by Vercel OG
+    webapp_url = get_webapp_url()
+    timestamp = int(datetime.now(timezone.utc).timestamp())
+    avatar_url = getattr(user, "photo_url", None)
+    if not avatar_url:
+        initials_seed = urllib.parse.quote(display_name)
+        avatar_url = f"https://api.dicebear.com/7.x/initials/png?seed={initials_seed}&backgroundColor=1f1f2e,4c1d95&fontWeight=700"
+    
+    query_params = {
+        "name": display_name,
+        "saved": total_saved,
+        "lang": db_user.language_code or "ru",
+        "avatar": avatar_url,
+        "t": timestamp,
+        "handle": f"@{bot_info.username}"
+    }
+    if user_rank:
+        query_params["rank"] = user_rank
+    
+    query_string = urllib.parse.urlencode(query_params, doseq=False)
+    photo_url = f"{webapp_url}/og/referral?{query_string}"
+    
+    result_id = f"share_{user.id}_{timestamp}"
+    
+    # Лаконичный caption от первого лица
+    if db_user.language_code == "ru":
+        caption_text = "Оплачиваю тарифы нейросетей за 20% от их стоимости"
+        button_text = "🎁 Попробовать"
+    else:
+        caption_text = "Paying for AI subscriptions at 20% of their cost"
+        button_text = "🎁 Try it"
+    
+    # Using InlineQueryResultPhoto for "Major-style" large image
+    photo = InlineQueryResultPhoto(
+        id=result_id,
+        photo_url=photo_url,
+        thumbnail_url=photo_url,  # Use same URL for thumb
+        title="🎁 PVNDORA AI",
+        description=caption_text,
+        caption=caption_text,
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[[
+                InlineKeyboardButton(text=button_text, url=ref_link)
+            ]]
+        )
+    )
+    
+    try:
+        prepared_message = await bot_instance.save_prepared_inline_message(
+            user_id=user.id,
+            result=photo,
+            allow_user_chats=True,
+            allow_group_chats=True,
+            allow_channel_chats=True
+        )
+        return {"prepared_message_id": prepared_message.id}
+    except Exception as e:
+        error_msg = str(e)
+        
+        if "object has no attribute 'save_prepared_inline_message'" in error_msg:
+             raise HTTPException(status_code=501, detail="Feature not supported by bot backend version")
+        
+        # Check if it's a Telegram API error
+        if "Bad Request" in error_msg or "400" in error_msg:
+            raise HTTPException(status_code=400, detail=f"Telegram API error: {error_msg}")
+        
+        raise HTTPException(status_code=500, detail=f"Failed to save prepared message: {error_msg}")
 
 
 # ==================== WISHLIST ====================

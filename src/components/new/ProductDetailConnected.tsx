@@ -11,7 +11,7 @@ import { useProductsTyped } from '../../hooks/useApiTyped';
 import { useCart } from '../../contexts/CartContext';
 import { AudioEngine } from '../../lib/AudioEngine';
 import { logger } from '../../utils/logger';
-import type { CatalogProduct, ProductDetailData } from '../../types/component';
+import type { CatalogProduct, ProductDetailData, ProductReview, ProductFile } from '../../types/component';
 
 interface ProductDetailConnectedProps {
   productId: string;
@@ -88,11 +88,11 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
   if (!isInitialized) {
     // If we have initial product data, use it while loading detailed data
     if (initialProduct) {
-      const tempProduct = {
+      const tempProduct: ProductDetailData = {
         ...initialProduct,
-        reviews: [],
-        files: [],
-        relatedProducts: [],
+        reviews: [] as ProductReview[],
+        files: [] as ProductFile[],
+        relatedProducts: [] as CatalogProduct[],
       };
       return (
         <ProductDetail

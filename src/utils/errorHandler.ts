@@ -116,3 +116,4 @@ export function handleError(error: unknown, context?: Record<string, unknown>): 
   logError(error, context);
   return getUserFriendlyError(error);
 }
+

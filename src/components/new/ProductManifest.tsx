@@ -40,3 +40,4 @@ const ProductManifest: React.FC<ProductManifestProps> = ({ description, instruct
 };
 
 export default memo(ProductManifest);
+

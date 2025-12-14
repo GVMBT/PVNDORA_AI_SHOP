@@ -22,6 +22,7 @@ interface ProductData {
   categories?: string[];
   price: number;
   msrp?: number;
+  currency: string;
   description: string;
   warranty: number;
   duration?: number;

@@ -14,6 +14,10 @@ from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from supabase import create_client, Client
 
+from core.logging import get_logger
+
+logger = get_logger(__name__)
+
 # Re-export models for backward compatibility
 from core.services.models import User, Product, StockItem, Order
 
@@ -362,7 +366,7 @@ class Database:
             
             referrer_id = user_result.data[0]["referrer_id"]
             if referrer_id == order.user_id:
-                print(f"WARNING: Self-referral loop detected at L{level}")
+                logger.warning(f"Self-referral loop detected at L{level}")
                 break
             
             bonus = round(order.amount * (percent / 100), 2)
@@ -380,12 +384,12 @@ class Database:
             self.client.rpc("increment_referral_earnings", {"p_user_id": referrer_id, "p_amount": bonus}).execute()
             
             bonuses_awarded.append({"level": level, "referrer_id": referrer_id, "bonus": bonus})
-            print(f"Referral L{level}: {percent}% = {bonus}₽ to user {referrer_id}")
+            logger.info(f"Referral L{level}: {percent}% = {bonus}₽ to user {referrer_id}")
             
             current_user_id = referrer_id
         
         if bonuses_awarded:
-            print(f"Total referral bonuses: {sum(b['bonus'] for b in bonuses_awarded)}₽")
+            logger.info(f"Total referral bonuses: {sum(b['bonus'] for b in bonuses_awarded)}₽")
 
 
 # Singleton instance

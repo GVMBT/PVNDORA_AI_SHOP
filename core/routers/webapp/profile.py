@@ -97,7 +97,7 @@ async def _maybe_refresh_photo(db, db_user, telegram_id: int) -> None:
                 await db.update_user_photo(telegram_id, photo_url)
                 db_user.photo_url = photo_url
             except Exception as e:
-                print(f"Warning: Failed to update user photo: {e}")
+                logger.warning(f"Failed to update user photo: {e}")
         
         if redis:
             try:
@@ -106,7 +106,7 @@ async def _maybe_refresh_photo(db, db_user, telegram_id: int) -> None:
                 pass
     except Exception as e:
         # Non-fatal
-        print(f"Warning: photo refresh failed: {e}")
+        logger.warning(f"Photo refresh failed: {e}")
 
 
 @router.get("/profile")
@@ -219,7 +219,7 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
         preferred_curr = getattr(db_user, 'preferred_currency', None)
         currency = currency_service.get_user_currency(user_lang, preferred_curr)
     except Exception as e:
-        print(f"Warning: Currency service unavailable: {e}, using USD")
+        logger.warning(f"Currency service unavailable: {e}, using USD")
     
     return {
         "profile": {
@@ -322,7 +322,7 @@ async def create_topup(
             rate = currency_service.get_rate("USD", "RUB")
             amount_rub = request.amount * rate
         except Exception as e:
-            print(f"Currency conversion failed: {e}, using fallback rate")
+            logger.warning(f"Currency conversion failed: {e}, using fallback rate")
             amount_rub = request.amount * 100  # Fallback rate
     
     # Create pending transaction record
@@ -348,7 +348,7 @@ async def create_topup(
         )
         topup_id = tx_result.data[0]["id"] if tx_result.data else None
     except Exception as e:
-        print(f"Failed to create topup transaction: {e}")
+        logger.error(f"Failed to create topup transaction: {e}")
         raise HTTPException(status_code=500, detail="Failed to create top-up request")
     
     if not topup_id:
@@ -409,7 +409,7 @@ async def create_topup(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Failed to create CrystalPay payment: {e}")
+        logger.error(f"Failed to create CrystalPay payment: {e}")
         # Rollback transaction
         await asyncio.to_thread(
             lambda: db.client.table("balance_transactions")
@@ -465,7 +465,7 @@ async def get_topup_status(topup_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Topup status error: {e}")
+        logger.error(f"Topup status error: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch status")
 
 

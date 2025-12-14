@@ -1,13 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
-import { API, CACHE } from '../config';
-import { localStorage } from '../utils/storage';
+import { API } from '../config';
 import { logger } from '../utils/logger';
-import { getApiHeaders, type ApiHeaders } from '../utils/apiHeaders';
-import { apiGet } from '../utils/apiClient';
-
-interface RequestOptions extends RequestInit {
-  headers?: Record<string, string>;
-}
+import { apiGet, apiRequest, apiPost, apiPut } from '../utils/apiClient';
 
 export function useAdmin() {
   const [loading, setLoading] = useState(false);
@@ -38,32 +32,26 @@ export function useAdmin() {
     checkAdminStatus();
   }, [checkAdminStatus]);
 
-  const getHeaders = useCallback((): ApiHeaders => {
-    // Use centralized header generation
-    return getApiHeaders();
-  }, []);
-
-  const adminRequest = useCallback(async <T = unknown>(endpoint: string, options: RequestOptions = {}): Promise<T> => {
+  /**
+   * Admin request wrapper using apiClient for consistent error handling
+   */
+  const adminRequest = useCallback(async <T = unknown>(
+    endpoint: string, 
+    options: { method?: string; body?: string } = {}
+  ): Promise<T> => {
     setLoading(true);
     setError(null);
     
     try {
+      // Build full admin URL
       const url = endpoint.startsWith('http') ? endpoint : `${API.ADMIN_URL}${endpoint}`;
       
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          ...getHeaders(),
-          ...options.headers
-        }
+      // Use apiRequest from apiClient for consistent error handling
+      const data = await apiRequest<T>(url, {
+        method: options.method || 'GET',
+        body: options.body,
       });
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || errorData.error || `HTTP ${response.status}`);
-      }
-      
-      const data = await response.json();
       setLoading(false);
       return data;
     } catch (err) {
@@ -72,7 +60,7 @@ export function useAdmin() {
       setLoading(false);
       throw err;
     }
-  }, [getHeaders]);
+  }, []);
 
   // Products
   const getProducts = useCallback(() => adminRequest('/products'), [adminRequest]);

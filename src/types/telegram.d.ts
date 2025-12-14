@@ -239,3 +239,4 @@ export interface BiometricAuthenticateParams {
 }
 
 export {};
+

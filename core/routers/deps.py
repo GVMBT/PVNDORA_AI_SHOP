@@ -5,6 +5,7 @@ Lazy-loaded singletons to optimize cold start.
 Import heavy modules only when needed.
 """
 
+import os
 from typing import Optional, TYPE_CHECKING
 from functools import lru_cache
 
@@ -12,6 +13,7 @@ if TYPE_CHECKING:
     from core.services.notifications import NotificationService
     from core.services.payments import PaymentService
     from core.cart import CartManager
+    from aiogram import Bot
 
 
 # ==================== LAZY SINGLETONS ====================
@@ -19,6 +21,7 @@ if TYPE_CHECKING:
 _notification_service: Optional["NotificationService"] = None
 _payment_service: Optional["PaymentService"] = None
 _cart_manager: Optional["CartManager"] = None
+_bot: Optional["Bot"] = None
 
 
 def get_notification_service() -> "NotificationService":
@@ -46,6 +49,27 @@ def get_cart_manager_lazy() -> "CartManager":
         from core.cart import get_cart_manager
         _cart_manager = get_cart_manager()
     return _cart_manager
+
+
+def get_bot() -> Optional["Bot"]:
+    """Get or create Bot singleton (lazy loaded)"""
+    global _bot
+    if _bot is None:
+        telegram_token = os.environ.get("TELEGRAM_TOKEN", "")
+        if telegram_token:
+            from aiogram import Bot
+            from aiogram.client.default import DefaultBotProperties
+            from aiogram.enums import ParseMode
+            _bot = Bot(
+                token=telegram_token,
+                default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+            )
+    return _bot
+
+
+def get_webapp_url() -> str:
+    """Get WebApp URL from environment."""
+    return os.environ.get("WEBAPP_URL", "https://pvndora.app")
 
 
 # ==================== QSTASH VERIFICATION ====================

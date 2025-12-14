@@ -3,6 +3,26 @@ import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronRight, Command, Package, User, Terminal, LogOut, ShoppingCart, Shield } from 'lucide-react';
 import type { CatalogProduct, NavigationTarget } from '../../types/component';
+import type { ViewType } from '../app';
+
+// Command palette item types
+interface CommandItem {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  type: 'nav';
+  view: ViewType;
+}
+
+interface ProductItem {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  type: 'product';
+  product: CatalogProduct;
+}
+
+type PaletteItem = CommandItem | ProductItem;
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -67,7 +87,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onNavi
       }
   };
 
-  const executeCommand = (item: any) => {
+  const executeCommand = (item: PaletteItem | undefined) => {
       if (!item) return;
       if (item.type === 'nav') {
           onNavigate(item.view);

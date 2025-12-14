@@ -44,6 +44,7 @@ import { useTelegram } from './hooks/useTelegram';
 import { AudioEngine } from './lib/AudioEngine';
 import { BOT, CACHE, UI } from './config';
 import { sessionStorage } from './utils/storage';
+import { logger } from './utils/logger';
 
 /**
  * Check for payment redirect on initial load
@@ -172,7 +173,7 @@ function NewAppInner() {
       AudioEngine.addToCart();
       hud.success('MODULE MOUNTED', `${product.name} added to payload`);
     } catch (err) {
-      console.error('Failed to add to cart:', err);
+      logger.error('Failed to add to cart:', err);
       hud.error('MOUNT FAILED', 'Unable to add module to payload');
     }
   }, [addToCart, hud]);

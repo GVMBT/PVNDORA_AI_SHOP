@@ -273,6 +273,7 @@ export function adaptOrder(apiOrder: APIOrder, currency: string = 'USD'): Order 
     displayId: apiOrder.id.substring(0, 8).toUpperCase(), // Short ID for UI
     date: formatOrderDate(apiOrder.created_at),
     total: apiOrder.amount_display || apiOrder.amount,
+    currency: apiOrder.currency || currency,
     status: mapOrderStatus(apiOrder.status),
     items: [{
       id: apiOrder.id,

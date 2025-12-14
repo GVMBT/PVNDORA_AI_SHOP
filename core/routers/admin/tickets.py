@@ -10,6 +10,9 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 
 from core.services.database import get_database
 from core.auth import verify_admin
+from core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/tickets", tags=["admin-tickets"])
 
@@ -47,7 +50,7 @@ async def get_tickets(
         return {"tickets": tickets, "count": len(tickets)}
     
     except Exception as e:
-        print(f"Error fetching tickets: {e}")
+        logger.error(f"Error fetching tickets: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -73,7 +76,7 @@ async def get_ticket(ticket_id: str, admin=Depends(verify_admin)):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error fetching ticket {ticket_id}: {e}")
+        logger.error(f"Error fetching ticket {ticket_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -120,7 +123,7 @@ async def resolve_ticket(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error resolving ticket {ticket_id}: {e}")
+        logger.error(f"Error resolving ticket {ticket_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -148,7 +151,7 @@ async def close_ticket(
         return {"success": True, "status": "closed"}
     
     except Exception as e:
-        print(f"Error closing ticket {ticket_id}: {e}")
+        logger.error(f"Error closing ticket {ticket_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

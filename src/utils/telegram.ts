@@ -31,9 +31,11 @@ export function getTelegramInitData(): string {
  * @returns Telegram user object or null if not available
  * @warning This uses initDataUnsafe which is not cryptographically verified
  */
-export function getTelegramUser(): { id: number; language_code?: string; [key: string]: unknown } | null {
+export function getTelegramUser(): { id: number; language_code?: string } | null {
   const tg = getTelegramWebApp();
-  return (tg?.initDataUnsafe?.user as { id: number; language_code?: string; [key: string]: unknown }) || null;
+  const user = tg?.initDataUnsafe?.user;
+  if (!user) return null;
+  return { id: user.id, language_code: user.language_code };
 }
 
 /**
@@ -62,8 +64,9 @@ export function getStartParam(): string | null {
  */
 export function requestFullscreen(): void {
   const tg = getTelegramWebApp();
-  if (tg?.requestFullscreen) {
-    tg.requestFullscreen();
+  // requestFullscreen is available in newer Bot API versions
+  if (tg && 'requestFullscreen' in tg) {
+    (tg as unknown as { requestFullscreen: () => void }).requestFullscreen();
   }
 }
 
@@ -88,3 +91,4 @@ export function readyWebApp(): void {
     tg.ready();
   }
 }
+

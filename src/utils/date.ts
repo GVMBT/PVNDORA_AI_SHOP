@@ -106,3 +106,4 @@ export function formatDateTime(
 
   return new Intl.DateTimeFormat('en-US', defaultOptions).format(dateObj);
 }
+

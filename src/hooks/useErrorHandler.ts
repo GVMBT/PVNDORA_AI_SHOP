@@ -185,3 +185,4 @@ function getErrorMessage(error: Error, context: ErrorContext): string {
 }
 
 export default useErrorHandler;
+

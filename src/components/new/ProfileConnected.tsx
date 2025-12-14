@@ -9,6 +9,8 @@ import Profile from './Profile';
 import { useProfileTyped } from '../../hooks/useApiTyped';
 import { useTelegram } from '../../hooks/useTelegram';
 import { useCyberModal } from './CyberModal';
+import { useClipboard } from '../../hooks/useClipboard';
+import { logger } from '../../utils/logger';
 import type { ProfileData } from '../../types/component';
 
 interface ProfileConnectedProps {

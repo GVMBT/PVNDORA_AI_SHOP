@@ -95,3 +95,4 @@ export function getRetryDelay(error: ApiError, attempt: number): number {
 export function formatErrorForUser(error: ApiError): string {
   return error.message;
 }
+

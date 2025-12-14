@@ -20,3 +20,4 @@ const StockIndicator: React.FC<StockIndicatorProps> = ({ stock }) => (
 );
 
 export default memo(StockIndicator);
+

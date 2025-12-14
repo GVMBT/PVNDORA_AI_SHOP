@@ -127,7 +127,7 @@ async def handle_search_products(
         return {"count": len(products), "products": products[:5]}
         
     except Exception as e:
-        print(f"RAG search failed, using text search: {e}")
+        logger.warning(f"RAG search failed, using text search: {e}")
         products = await db.search_products(query)
         return {
             "count": len(products),

@@ -87,3 +87,4 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders }) => {
 };
 
 export default memo(AdminSales);
+

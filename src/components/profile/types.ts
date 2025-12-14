@@ -70,3 +70,4 @@ export interface ProfileDataProp {
   currency: string;
   photoUrl?: string;
 }
+

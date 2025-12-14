@@ -40,8 +40,8 @@ interface ModalConfig {
   // Buttons
   buttons?: ModalButton[];
   
-  // Callbacks
-  onConfirm?: (value?: string | number) => void | Promise<void>;
+  // Callbacks - supports various callback signatures
+  onConfirm?: ((value?: string | number) => void | Promise<void>) | ((amount: number, method: string, details: string) => Promise<void>);
   onCancel?: () => void;
 }
 
@@ -49,6 +49,9 @@ interface ModalState extends ModalConfig {
   isOpen: boolean;
   isLoading?: boolean;
 }
+
+// Types for modal submit values
+type ModalSubmitValue = string | number | { amount: number; method: string; details: string } | undefined;
 
 interface CyberModalContextType {
   showModal: (config: ModalConfig) => void;
@@ -73,7 +76,7 @@ export const useCyberModal = () => {
 
 // ==================== MODAL COMPONENT ====================
 
-const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value?: any) => void }> = ({
+const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value?: ModalSubmitValue) => void }> = ({
   state,
   onClose,
   onSubmit,
@@ -475,14 +478,14 @@ export const CyberModalProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   }, []);
 
-  const handleSubmit = async (value?: any) => {
+  const handleSubmit = async (value?: ModalSubmitValue) => {
     if (modalState.onConfirm) {
       setModalState(prev => ({ ...prev, isLoading: true }));
       try {
         if (modalState.type === 'withdraw' && value) {
-          await (modalState.onConfirm as any)(value.amount, value.method, value.details);
+          await (modalState.onConfirm as (amount: number, method: string, details: string) => Promise<void>)(value.amount, value.method, value.details);
         } else {
-          await modalState.onConfirm(value);
+          await (modalState.onConfirm as (value?: string | number) => void | Promise<void>)(value);
         }
         hideModal();
       } catch (error: unknown) {

@@ -172,7 +172,7 @@ async def handle_get_referral_info(
             "balance": user["balance"]
         }
     except Exception as e:
-        print(f"ERROR: get_referral_info failed: {e}")
+        logger.error(f"get_referral_info failed: {e}")
         return create_error_response(e, "Failed to get referral info.")
 
 

@@ -40,7 +40,7 @@ async def handle_create_support_ticket(
             "message": "Support ticket created"
         }
     except Exception as e:
-        print(f"ERROR: create_support_ticket failed: {e}")
+        logger.error(f"create_support_ticket failed: {e}")
         return create_error_response(e, "Failed to create support ticket.")
 
 

@@ -169,7 +169,7 @@ export function useBootTasks({ getProducts, getCart, getProfile }: UseBootTasksP
       successLabel: 'Resources cached',
       execute: async () => {
         const prefetchUrls = ['https://grainy-gradients.vercel.app/noise.svg'];
-        await Promise.allSettled(prefetchUrls.map(url => fetch(url).catch(() => null)));
+        await Promise.allSettled(prefetchUrls.map((url: string): Promise<Response | null> => fetch(url).catch((): null => null)));
         return true;
       },
     },

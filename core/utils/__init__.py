@@ -12,3 +12,4 @@ __all__ = [
     "TelegramUser",
     "get_init_data_param"
 ]
+

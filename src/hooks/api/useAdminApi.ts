@@ -86,7 +86,7 @@ export function useAdminProductsTyped() {
       await getProducts();
       return response.product;
     } catch (err) {
-      console.error('Failed to create product:', err);
+      logger.error('Failed to create product:', err);
       return null;
     }
   }, [post, getProducts]);

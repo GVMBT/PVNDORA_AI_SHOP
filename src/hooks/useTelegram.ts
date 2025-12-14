@@ -71,6 +71,7 @@ export function useTelegram(): UseTelegramReturn {
       setInitData('');
       setUser({
         id: 123456789,
+        is_bot: false,
         first_name: 'Test',
         last_name: 'User',
         username: 'testuser',

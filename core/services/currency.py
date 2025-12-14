@@ -7,6 +7,9 @@ from decimal import Decimal
 from typing import Dict, Optional, Union
 
 from core.services.money import to_decimal, to_float, round_money
+from core.logging import get_logger
+
+logger = get_logger(__name__)
 
 # Language to Currency mapping
 # Simplified logic: Russian → RUB, all others → USD
@@ -95,7 +98,7 @@ class CurrencyService:
                 if cached_rate:
                     return float(cached_rate)
             except Exception as e:
-                print(f"Warning: Failed to get cached rate: {e}")
+                logger.warning(f"Failed to get cached rate: {e}")
         
         # Try to fetch from external API
         try:
@@ -106,11 +109,11 @@ class CurrencyService:
                     await self._cache_rate(target_currency, rate)
                 return rate
         except Exception as e:
-            print(f"Warning: Failed to fetch exchange rate for {target_currency}: {e}")
+            logger.warning(f"Failed to fetch exchange rate for {target_currency}: {e}")
         
         # No fallback - if API unavailable, log error and return 1.0 (USD equivalent)
         # This will show prices in USD if conversion fails
-        print(f"ERROR: Could not get exchange rate for {target_currency}, using 1.0 (USD)")
+        logger.error(f"Could not get exchange rate for {target_currency}, using 1.0 (USD)")
         return 1.0
     
     async def _get_cached_rate(self, currency: str) -> Optional[str]:
@@ -124,7 +127,7 @@ class CurrencyService:
             result = await self.redis.get(key)
             return result if result else None
         except Exception as e:
-            print(f"Warning: Failed to get cached rate: {e}")
+            logger.warning(f"Failed to get cached rate: {e}")
             return None
     
     async def _cache_rate(self, currency: str, rate: float):
@@ -137,7 +140,7 @@ class CurrencyService:
             # AsyncRedis setex method
             await self.redis.setex(key, 3600, str(rate))
         except Exception as e:
-            print(f"Warning: Failed to cache rate: {e}")
+            logger.warning(f"Failed to cache rate: {e}")
     
     async def _fetch_exchange_rate(self, target_currency: str) -> Optional[float]:
         """
@@ -159,7 +162,7 @@ class CurrencyService:
                 rates = data.get("rates", {})
                 return rates.get(target_currency)
         except Exception as e:
-            print(f"Error fetching exchange rate: {e}")
+            logger.error(f"Error fetching exchange rate: {e}")
             return None
     
     async def convert_price(

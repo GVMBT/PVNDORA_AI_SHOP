@@ -110,3 +110,4 @@ const CartSummary: React.FC<CartSummaryProps> = ({
 };
 
 export default memo(CartSummary);
+

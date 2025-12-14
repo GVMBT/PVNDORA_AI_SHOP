@@ -9,6 +9,9 @@ from aiogram.enums import ParseMode
 
 from core.services.database import get_database
 from core.i18n import get_text
+from core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class NotificationService:
@@ -52,17 +55,17 @@ class NotificationService:
         # Get order details
         order = await db.get_order_by_id(order_id)
         if not order:
-            print(f"Order not found: {order_id}")
+            logger.warning(f"Order not found: {order_id}")
             return False
         
         if order.status == "completed":
-            print(f"Order already completed: {order_id}")
+            logger.info(f"Order already completed: {order_id}")
             return True
         
         # Get user
         user_result = db.client.table("users").select("*").eq("id", order.user_id).execute()
         if not user_result.data:
-            print(f"User not found for order: {order_id}")
+            logger.warning(f"User not found for order: {order_id}")
             return False
         
         user = user_result.data[0]
@@ -71,7 +74,7 @@ class NotificationService:
         # Get product_id from order_items (source of truth)
         order_items = await db.get_order_items_by_order(order_id)
         if not order_items:
-            print(f"No order items found for order: {order_id}")
+            logger.warning(f"No order items found for order: {order_id}")
             await self._refund_to_balance(order, user, language, "No order items")
             return False
         
@@ -80,14 +83,14 @@ class NotificationService:
         # Get product
         product = await db.get_product_by_id(product_id)
         if not product:
-            print(f"Product not found for order: {order_id}")
+            logger.warning(f"Product not found for order: {order_id}")
             await self._refund_to_balance(order, user, language, "Product not found")
             return False
         
         # Get available stock item
         stock_item = await db.get_available_stock_item(product_id)
         if not stock_item:
-            print(f"No stock available for order: {order_id}")
+            logger.warning(f"No stock available for order: {order_id}")
             await self._refund_to_balance(order, user, language, "Out of stock")
             return False
         
@@ -95,7 +98,7 @@ class NotificationService:
         reserved = await db.reserve_stock_item(stock_item.id)
         if not reserved:
             # Race condition - item was sold to someone else
-            print(f"Stock item already sold, trying next: {order_id}")
+            logger.info(f"Stock item already sold, trying next: {order_id}")
             
             # Try one more time with a different item
             stock_item = await db.get_available_stock_item(product_id)
@@ -168,7 +171,7 @@ class NotificationService:
         """Send credentials to user via Telegram"""
         bot = self._get_bot()
         if not bot:
-            print("Bot not configured for notifications")
+            logger.warning("Bot not configured for notifications")
             return
         
         # Format expiration
@@ -196,7 +199,7 @@ class NotificationService:
                 reply_markup=keyboard
             )
         except Exception as e:
-            print(f"Failed to send credentials to {telegram_id}: {e}")
+            logger.error(f"Failed to send credentials to {telegram_id}: {e}")
     
     async def _refund_to_balance(
         self,
@@ -224,9 +227,9 @@ class NotificationService:
                     text=message
                 )
             except Exception as e:
-                print(f"Failed to send refund notification: {e}")
+                logger.error(f"Failed to send refund notification: {e}")
         
-        print(f"Refunded order {order.id} to balance: {reason}")
+        logger.info(f"Refunded order {order.id} to balance: {reason}")
     
     async def _notify_supplier(
         self,
@@ -261,7 +264,7 @@ class NotificationService:
         try:
             await bot.send_message(chat_id=telegram_id, text=message)
         except Exception as e:
-            print(f"Failed to notify supplier {supplier_id}: {e}")
+            logger.error(f"Failed to notify supplier {supplier_id}: {e}")
     
     # ==================== SCHEDULED NOTIFICATIONS ====================
     
@@ -297,7 +300,7 @@ class NotificationService:
                 reply_markup=keyboard
             )
         except Exception as e:
-            print(f"Failed to send review request: {e}")
+            logger.error(f"Failed to send review request: {e}")
     
     async def send_expiration_reminder(
         self,
@@ -321,7 +324,7 @@ class NotificationService:
         try:
             await bot.send_message(chat_id=telegram_id, text=message)
         except Exception as e:
-            print(f"Failed to send expiration reminder: {e}")
+            logger.error(f"Failed to send expiration reminder: {e}")
     
     async def send_waitlist_notification(
         self,
@@ -364,7 +367,7 @@ class NotificationService:
         try:
             await bot.send_message(chat_id=telegram_id, text=message)
         except Exception as e:
-            print(f"Failed to send waitlist notification: {e}")
+            logger.error(f"Failed to send waitlist notification: {e}")
     
     async def send_referral_unlock_notification(self, telegram_id: int) -> None:
         """
@@ -391,7 +394,7 @@ class NotificationService:
                 parse_mode="HTML"
             )
         except Exception as e:
-            print(f"Failed to send referral unlock notification: {e}")
+            logger.error(f"Failed to send referral unlock notification: {e}")
     
     async def send_referral_level_up_notification(self, telegram_id: int, new_level: int) -> None:
         """
@@ -430,7 +433,7 @@ class NotificationService:
                 parse_mode="HTML"
             )
         except Exception as e:
-            print(f"Failed to send referral level up notification: {e}")
+            logger.error(f"Failed to send referral level up notification: {e}")
     
     async def send_delivery(self, telegram_id: int, product_name: str, content: str) -> None:
         """Send delivery notification with product credentials."""
@@ -452,7 +455,7 @@ class NotificationService:
                 parse_mode="HTML"
             )
         except Exception as e:
-            print(f"Failed to send delivery notification: {e}")
+            logger.error(f"Failed to send delivery notification: {e}")
     
     async def send_broadcast(
         self,
@@ -491,7 +494,7 @@ class NotificationService:
                 )
                 sent_count += 1
             except Exception as e:
-                print(f"Failed to send broadcast to {user['telegram_id']}: {e}")
+                logger.error(f"Failed to send broadcast to {user['telegram_id']}: {e}")
         
         return sent_count
 

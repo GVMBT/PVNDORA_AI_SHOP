@@ -11,6 +11,9 @@ from fastapi import APIRouter, HTTPException, Query
 from core.services.database import get_database
 from core.services.currency import get_currency_service
 from core.db import get_redis
+from core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["webapp-public"])
 
@@ -56,7 +59,7 @@ async def get_webapp_product(
         if msrp_usd:
             msrp = await currency_service.convert_price(msrp_usd, currency, round_to_int=True)
     except Exception as e:
-        print(f"Warning: Currency conversion failed: {e}, using USD")
+        logger.warning(f"Currency conversion failed: {e}, using USD")
         # Values already set to USD above
     
     fulfillment_time_hours = getattr(product, 'fulfillment_time_hours', 48)
@@ -68,7 +71,7 @@ async def get_webapp_product(
         )
         social_proof_data = social_proof_result.data if social_proof_result.data else {}
     except Exception as e:
-        print(f"Warning: Failed to get social proof: {e}")
+        logger.warning(f"Failed to get social proof: {e}")
         social_proof_data = {}
     
     # Build social proof response
@@ -124,7 +127,7 @@ async def get_webapp_products(
         currency_service = get_currency_service(redis)
         currency = currency_service.get_user_currency(language_code)
     except Exception as e:
-        print(f"Warning: Currency service unavailable: {e}, using USD")
+        logger.warning(f"Currency service unavailable: {e}, using USD")
         # Values already set to USD above
     
     # Batch fetch social proof data for all products
@@ -137,7 +140,7 @@ async def get_webapp_products(
             )
             social_proof_map = {sp["product_id"]: sp for sp in (social_proof_result.data or [])}
     except Exception as e:
-        print(f"Warning: Failed to batch fetch social proof: {e}")
+        logger.warning(f"Failed to batch fetch social proof: {e}")
     
     result = []
     for p in products:
@@ -162,7 +165,7 @@ async def get_webapp_products(
                 final_price = await currency_service.convert_price(final_price_usd, currency, round_to_int=True)
                 msrp = await currency_service.convert_price(msrp_usd, currency, round_to_int=True) if msrp_usd else None
             except Exception as e:
-                print(f"Warning: Failed to convert price for product {p.id}: {e}, using USD")
+                logger.warning(f"Failed to convert price for product {p.id}: {e}, using USD")
                 original_price = price_usd
                 final_price = price_usd * (1 - discount_percent / 100)
                 msrp = msrp_usd

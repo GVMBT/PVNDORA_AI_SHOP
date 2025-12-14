@@ -8,6 +8,7 @@ Provides singleton instances of:
 """
 
 import os
+import warnings
 from typing import Optional, TYPE_CHECKING
 
 from supabase import create_client, Client
@@ -28,7 +29,7 @@ except ImportError:
     # Runtime fallback: lightweight REST client (get/set/delete) for Upstash
     Redis = None  # type: ignore
     AsyncRedis = None  # type: ignore
-    print("WARNING: upstash_redis not installed. Falling back to lightweight REST client.")
+    warnings.warn("upstash_redis not installed. Falling back to lightweight REST client.", ImportWarning)
     import httpx
 
     class AsyncRedisFallback:

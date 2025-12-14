@@ -18,6 +18,7 @@ interface LeaderboardUserData {
   status: 'ONLINE' | 'AWAY' | 'BUSY' | 'OFFLINE';
   isMe?: boolean;
   avatarUrl?: string; // optional avatar if backend provides
+  currency?: string; // Currency code (USD, RUB, etc.)
 }
 
 interface LeaderboardProps {
@@ -70,6 +71,18 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
   React.useEffect(() => {
     onLoadMoreRef.current = onLoadMore;
   }, [onLoadMore]);
+
+  // Use provided data - NO MOCK fallback (mock data causes confusion)
+  const data = propData || [];
+  
+  // Determine currency: use from first user if available, or from props, or default to USD
+  const displayCurrency = data.find(u => u.currency)?.currency || currency || 'USD';
+  
+  // Extract top 3 for podium display (may have less than 3)
+  const topThree = data.slice(0, 3);
+  
+  // Rest of the list (excluding top 3, no duplicates)
+  const restList = data.slice(3);
   
   // Virtualizer for main list (only restList, not top 3)
   const virtualizer = useVirtualizer({
@@ -98,18 +111,6 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
       scrollElement.removeEventListener('scroll', handleScroll);
     };
   }, [onLoadMore]);
-
-  // Use provided data - NO MOCK fallback (mock data causes confusion)
-  const data = propData || [];
-  
-  // Determine currency: use from first user if available, or from props, or default to USD
-  const displayCurrency = data.find(u => u.currency)?.currency || currency || 'USD';
-  
-  // Extract top 3 for podium display (may have less than 3)
-  const topThree = data.slice(0, 3);
-  
-  // Rest of the list (excluding top 3, no duplicates)
-  const restList = data.slice(3);
   
   // Find current user for the sticky footer
   const currentUser = data.find(u => u.isMe);

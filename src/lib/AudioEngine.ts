@@ -55,7 +55,7 @@ class AudioEngineClass {
     if (this.ctx) return;
     
     try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       if (!AudioContextClass) {
         logger.warn('[AudioEngine] Web Audio API not supported');
         return;
@@ -136,7 +136,7 @@ class AudioEngineClass {
     // Start loading
     const filePath = SOUND_FILES[key];
     if (!filePath) {
-      console.warn(`[AudioEngine] No file mapping for sound: ${key}`);
+      logger.warn(`[AudioEngine] No file mapping for sound: ${key}`);
       return null;
     }
     

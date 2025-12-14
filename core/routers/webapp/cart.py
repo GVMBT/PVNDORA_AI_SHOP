@@ -40,7 +40,7 @@ async def _format_cart_response(cart, db, user_language: str, user_telegram_id: 
         
         currency = currency_service.get_user_currency(user_lang, preferred_curr)
     except Exception as e:
-        print(f"Warning: Currency service unavailable: {e}, using USD")
+        logger.warning(f"Currency service unavailable: {e}, using USD")
     
     if not cart:
         return {
@@ -72,7 +72,7 @@ async def _format_cart_response(cart, db, user_language: str, user_telegram_id: 
                 final_price_converted = await currency_service.convert_price(float(item.final_price), currency, round_to_int=True)
                 total_price_converted = await currency_service.convert_price(float(item.total_price), currency, round_to_int=True)
             except Exception as e:
-                print(f"Warning: Failed to convert cart item prices: {e}")
+                logger.warning(f"Failed to convert cart item prices: {e}")
         
         items_with_details.append({
             "product_id": item.product_id, 
@@ -95,7 +95,7 @@ async def _format_cart_response(cart, db, user_language: str, user_telegram_id: 
             instant_total_converted = await currency_service.convert_price(float(cart.instant_total), currency, round_to_int=True)
             prepaid_total_converted = await currency_service.convert_price(float(cart.prepaid_total), currency, round_to_int=True)
         except Exception as e:
-            print(f"Warning: Failed to convert cart totals: {e}")
+            logger.warning(f"Failed to convert cart totals: {e}")
     
     return {
         "cart": {

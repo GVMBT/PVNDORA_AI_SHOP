@@ -188,3 +188,4 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
 };
 
 export default memo(ReferralDossier);
+

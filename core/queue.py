@@ -14,6 +14,9 @@ from typing import Optional
 from functools import wraps
 
 from fastapi import Request, HTTPException
+from core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 # Environment variables
@@ -120,7 +123,7 @@ async def publish_to_worker(
         return {"message_id": result.message_id, "queued": True}
     except Exception as e:
         # Log error but don't raise - let caller handle fallback
-        print(f"QStash publish failed: {e}")
+        logger.error(f"QStash publish failed: {e}")
         return {"message_id": None, "queued": False, "error": str(e)}
 
 
@@ -170,7 +173,7 @@ def verify_qstash_signature(body: bytes, signature: str, url: str = "") -> bool:
     """
     if not QSTASH_CURRENT_SIGNING_KEY:
         # Skip verification in development
-        print("QStash: No signing key configured, skipping verification")
+        logger.warning("QStash: No signing key configured, skipping verification")
         return True
     
     try:
@@ -189,7 +192,7 @@ def verify_qstash_signature(body: bytes, signature: str, url: str = "") -> bool:
         )
         return True
     except Exception as e:
-        print(f"QStash signature verification failed: {e}")
+        logger.error(f"QStash signature verification failed: {e}")
         return False
 
 
@@ -212,7 +215,7 @@ async def verify_qstash_request(request: Request) -> dict:
     url = str(request.url)
     
     if not verify_qstash_signature(body, signature, url):
-        print(f"QStash verification failed for URL: {url}")
+        logger.error(f"QStash verification failed for URL: {url}")
         raise HTTPException(status_code=401, detail="Invalid QStash signature")
     
     import json

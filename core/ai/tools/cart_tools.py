@@ -130,7 +130,7 @@ async def handle_add_to_cart(
             "message": f"Added {product.name} to cart"
         }
     except Exception as e:
-        print(f"ERROR: add_to_cart failed: {e}")
+        logger.error(f"add_to_cart failed: {e}")
         return create_error_response(e, "Failed to add to cart.")
 
 

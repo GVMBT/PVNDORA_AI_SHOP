@@ -91,3 +91,4 @@ export function getCartTotal(cartData: CartData | null): number {
   if (!cartData) return 0;
   return cartData.total || 0;
 }
+

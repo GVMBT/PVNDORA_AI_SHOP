@@ -15,6 +15,7 @@ export interface CatalogProduct {
   categories?: string[]; // text/video/image/code/audio...
   category: string;      // legacy single category (kept for compatibility)
   price: number;
+  final_price?: number;  // Price after discount (from API)
   msrp?: number;
   currency: string;      // Currency code (USD, RUB, etc.)
   description: string;

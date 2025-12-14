@@ -55,7 +55,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
     if (onUpdatePreferences) {
       try {
         await onUpdatePreferences(undefined, lang);
-        if (onHaptic) onHaptic('notification', 'success');
+        if (onHaptic) onHaptic('light');
         if (lang === 'ru') {
           window.location.reload(); // Reload to apply language change
         }
@@ -248,3 +248,4 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
 };
 
 export default memo(ProfileStats);
+

@@ -87,3 +87,4 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 };
 
 export default memo(ProfileHeader);
+

@@ -161,11 +161,13 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   
   if (cart?.items && Array.isArray(cart.items)) {
     try {
+      const cartCurrency = cart.currency || 'USD';
       cartItems = cart.items.map((item) => ({
         id: item.id,
         name: item.name,
         category: item.category,
         price: item.price,
+        currency: item.currency || cartCurrency,
         quantity: item.quantity,
         image: item.image,
       }));
