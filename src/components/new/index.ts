@@ -20,6 +20,7 @@ export { default as Legal } from './Legal';
 export { default as BootSequence, type BootTask } from './BootSequence';
 export { HUDProvider, useHUD, HUDIcons } from './HUDNotifications';
 export { default as BackgroundMusic } from './BackgroundMusic';
+export { default as PaymentResult } from './PaymentResult';
 
 // === DATA COMPONENTS (With Mock Data - For Development) ===
 export { default as Catalog } from './Catalog';

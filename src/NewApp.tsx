@@ -31,6 +31,7 @@ import {
   BootSequence,
   useHUD,
   BackgroundMusic,
+  PaymentResult,
   type BootTask,
   type RefundContext,
 } from './components/new';
@@ -48,7 +49,7 @@ import { AudioEngine } from './lib/AudioEngine';
 // API base URL
 const API_BASE = (import.meta as any)?.env?.VITE_API_URL || '/api';
 
-type ViewType = 'home' | 'orders' | 'profile' | 'leaderboard' | 'legal' | 'admin';
+type ViewType = 'home' | 'orders' | 'profile' | 'leaderboard' | 'legal' | 'admin' | 'payment-result';
 
 function NewAppInner() {
   // Bot username for web login widget
@@ -66,6 +67,7 @@ function NewAppInner() {
   // Navigation State
   const [currentView, setCurrentView] = useState<ViewType>('home');
   const [legalDoc, setLegalDoc] = useState('terms');
+  const [paymentResultOrderId, setPaymentResultOrderId] = useState<string | null>(null);
   
   // Authentication State (for web users)
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null); // null = checking
@@ -458,6 +460,52 @@ function NewAppInner() {
     }, 500);
   }, [hud]);
 
+  // Handle payment result redirects (from CrystalPay)
+  // Supports both Mini App (startapp=payresult_xxx) and Browser (/payment/result?order_id=xxx)
+  useEffect(() => {
+    if (!isBooted) return; // Wait for boot to complete
+    
+    const handlePaymentRedirect = () => {
+      // Check URL path for /payment/result (browser flow)
+      if (window.location.pathname === '/payment/result') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get('order_id');
+        if (orderId) {
+          console.log('[PaymentResult] Browser redirect detected, order:', orderId);
+          setPaymentResultOrderId(orderId);
+          setCurrentView('payment-result');
+          // Clean up URL to prevent duplicate handling on refresh
+          window.history.replaceState({}, '', '/');
+          return true;
+        }
+      }
+      
+      // Check Telegram startapp parameter (Mini App flow)
+      const tg = (window as any).Telegram?.WebApp;
+      const startParam = tg?.initDataUnsafe?.start_param;
+      
+      // Also check URL params (may contain tgWebAppStartParam or startapp)
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlStartapp = urlParams.get('tgWebAppStartParam') || urlParams.get('startapp');
+      const hashParams = new URLSearchParams(window.location.hash.slice(1));
+      const hashStartapp = hashParams.get('tgWebAppStartParam');
+      
+      const effectiveStartParam = startParam || urlStartapp || hashStartapp;
+      
+      if (effectiveStartParam?.startsWith('payresult_')) {
+        const orderId = effectiveStartParam.replace('payresult_', '');
+        console.log('[PaymentResult] Mini App redirect detected, order:', orderId);
+        setPaymentResultOrderId(orderId);
+        setCurrentView('payment-result');
+        return true;
+      }
+      
+      return false;
+    };
+    
+    handlePaymentRedirect();
+  }, [isBooted]);
+
   // Show Boot Sequence first (only once per session)
   if (!isBooted) {
     return (
@@ -504,7 +552,7 @@ function NewAppInner() {
         }}
       />
       
-      {currentView !== 'admin' && (
+      {currentView !== 'admin' && currentView !== 'payment-result' && (
           <Navbar 
             showMobile={!selectedProduct} 
             cartCount={cart?.items?.length || 0} 
@@ -521,7 +569,20 @@ function NewAppInner() {
       {/* Main Content */}
       <main className="w-full relative z-10">
         <AnimatePresence mode="wait">
-          {currentView === 'admin' ? (
+          {currentView === 'payment-result' && paymentResultOrderId ? (
+            <PaymentResult 
+              key="payment-result"
+              orderId={paymentResultOrderId}
+              onComplete={() => {
+                setPaymentResultOrderId(null);
+                navigate('home');
+              }}
+              onViewOrders={() => {
+                setPaymentResultOrderId(null);
+                navigate('orders');
+              }}
+            />
+          ) : currentView === 'admin' ? (
             <AdminPanelConnected key="admin" onExit={() => navigate('profile')} />
           ) : currentView === 'profile' ? (
             <ProfileConnected 
