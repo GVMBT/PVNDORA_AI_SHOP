@@ -1223,13 +1223,13 @@ class PaymentService:
         
         logger.info("CrystalPay payment creation for order %s: amount=%s %s", 
                    order_id, amount_rub, currency)
-        logger.debug(
-            "CrystalPay payload: order=%s redirect_url=%s callback_url=%s currency=%s required_method=%s",
+        # Log callback_url at INFO level to verify it's being sent correctly
+        logger.info(
+            "CrystalPay payload: order=%s callback_url=%s redirect_url=%s test_mode=%s",
             order_id,
-            redirect_url,
             callback_url,
-            currency,
-            required_method or "auto"
+            redirect_url,
+            test_mode
         )
         
         client = await self._get_http_client()
@@ -1242,7 +1242,10 @@ class PaymentService:
             logger.info("CrystalPay API response status: %s for order %s", response.status_code, order_id)
             
             data = response.json()
-            logger.debug("CrystalPay API response: %s", data)
+            # Log full response to verify callback_url is registered
+            response_callback = data.get("callback_url", "NOT_IN_RESPONSE")
+            logger.info("CrystalPay API response: id=%s, state=%s, callback_url=%s", 
+                       data.get("id"), data.get("state"), response_callback)
             
             # Check for errors
             if data.get("error"):

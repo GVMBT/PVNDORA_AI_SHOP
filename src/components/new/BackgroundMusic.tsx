@@ -27,6 +27,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
 }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isPlayingRef = useRef(false);
+  const wasPlayingBeforeHiddenRef = useRef(false); // Track if music was playing before tab was hidden
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -161,8 +162,14 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
 
         const handlePause = () => {
           if (!cancelled) {
-            isPlayingRef.current = false;
-            setIsPlaying(false);
+            // Only update state if pause was NOT caused by visibility change
+            // (we check this by seeing if document is hidden)
+            if (!document.hidden) {
+              isPlayingRef.current = false;
+              setIsPlaying(false);
+            }
+            // If document is hidden, we keep isPlayingRef.current = true
+            // so we can resume when tab becomes visible again
           }
         };
 
@@ -262,16 +269,33 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
       if (!audioRef.current) return;
       
       if (document.hidden) {
-        // Page is hidden - pause music
+        // Page is hidden - save state and pause music
+        wasPlayingBeforeHiddenRef.current = isPlayingRef.current;
         if (isPlayingRef.current) {
           audioRef.current.pause();
+          // Don't update isPlayingRef here - we want to resume later
         }
       } else {
-        // Page is visible - resume if was playing
-        if (isPlayingRef.current && autoPlay) {
-          audioRef.current.play().catch(() => {
-            // Ignore autoplay errors
-          });
+        // Page is visible - resume if was playing before
+        if (wasPlayingBeforeHiddenRef.current && autoPlay && !isMuted) {
+          // Small delay to ensure audio context is ready
+          setTimeout(() => {
+            if (audioRef.current && !document.hidden) {
+              audioRef.current.play()
+                .then(() => {
+                  // Successfully resumed - update state
+                  isPlayingRef.current = true;
+                  setIsPlaying(true);
+                })
+                .catch((err) => {
+                  console.warn('[BackgroundMusic] Resume after visibility change failed:', err);
+                  // If resume fails, update state
+                  isPlayingRef.current = false;
+                  setIsPlaying(false);
+                  wasPlayingBeforeHiddenRef.current = false;
+                });
+            }
+          }, 100);
         }
       }
     };
@@ -280,7 +304,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [autoPlay]);
+  }, [autoPlay, isMuted]);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
