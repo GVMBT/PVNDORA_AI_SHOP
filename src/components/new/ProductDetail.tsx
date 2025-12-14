@@ -1,11 +1,18 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ArrowLeft, ShoppingCart, Shield, Download, FileText, 
   Video, Globe, Star, Cpu, Terminal, CheckCircle, ChevronRight, Plus, HardDrive, Wifi, Lock, Zap, Box, FileKey, Clock, Server, MessageSquare, Minus, Radio, FileCode, Loader2, ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion';
 import { formatPrice } from '../../utils/currency';
+import { useTimeoutState } from '../../hooks/useTimeoutState';
+import { UI } from '../../config';
+import { randomInt } from '../../utils/random';
+import ProductSpecs from './ProductSpecs';
+import ProductFiles from './ProductFiles';
+import ProductManifest from './ProductManifest';
+import { logger } from '../../utils/logger';
 
 import type { ProductDetailData, ProductFile, ProductReview, CatalogProduct } from '../../types/component';
 
@@ -26,20 +33,27 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
 
   // Micro-interaction states
   const [isAllocating, setIsAllocating] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [isSuccess, setIsSuccess] = useTimeoutState(false, { timeout: UI.SUCCESS_MESSAGE_DURATION });
 
-  // Simulated System Check Animation
+  // Simulated System Check Animation - optimized with useMemo for cleanup
   useEffect(() => {
-      let interval = setInterval(() => {
+      let interval: ReturnType<typeof setInterval> | null = null;
+      
+      const updateSystemCheck = () => {
           setSystemCheck(prev => {
               if (prev >= 100) {
-                  clearInterval(interval);
+                  if (interval) clearInterval(interval);
                   return 100;
               }
-              return prev + Math.floor(Math.random() * 15);
+              return prev + randomInt(1, 15);
           });
-      }, 150);
-      return () => clearInterval(interval);
+      };
+      
+      interval = setInterval(updateSystemCheck, 150);
+      
+      return () => {
+          if (interval) clearInterval(interval);
+      };
   }, []);
 
   // --- 3D TILT LOGIC (Desktop Only) ---
@@ -73,30 +87,60 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
       if(onHaptic) onHaptic('light');
   }
 
-  // --- DERIVED AVAILABILITY STATES ---
-  const hasStock = product.stock > 0;
-  const isPreorder = !hasStock && product.fulfillment > 0;
-  const isDisabled = !hasStock && !isPreorder;
+  // --- DERIVED AVAILABILITY STATES --- (memoized for performance)
+  const availabilityData = useMemo(() => {
+    const hasStock = product.stock > 0;
+    const isPreorder = !hasStock && product.fulfillment > 0;
+    const isDisabled = !hasStock && !isPreorder;
 
-  const accessProtocol = hasStock ? 'DIRECT_ACCESS' : isPreorder ? 'ON_DEMAND' : 'DISCONTINUED';
-  const deliveryLabel = hasStock 
-    ? 'INSTANT_DEPLOY' 
-    : isPreorder 
-      ? `ALLOCATION_QUEUE ~${product.fulfillment}H` 
-      : 'UNAVAILABLE';
+    const accessProtocol = hasStock ? 'DIRECT_ACCESS' : isPreorder ? 'ON_DEMAND' : 'DISCONTINUED';
+    const deliveryLabel = hasStock 
+      ? 'INSTANT_DEPLOY' 
+      : isPreorder 
+        ? `ALLOCATION_QUEUE ~${product.fulfillment}H` 
+        : 'UNAVAILABLE';
 
-  const nodeStatus = hasStock ? 'OPERATIONAL' : isPreorder ? 'STANDBY' : 'DISABLED';
-  const nodeStatusColor = hasStock ? 'text-green-500' : isPreorder ? 'text-yellow-500' : 'text-red-500';
-  const statusDotColor = hasStock ? 'bg-green-500' : isPreorder ? 'bg-yellow-500' : 'bg-red-500';
-  const statusText = hasStock ? 'GRID_ONLINE' : isPreorder ? 'RESOURCE_QUEUE' : 'OFFLINE';
+    const nodeStatus = hasStock ? 'OPERATIONAL' : isPreorder ? 'STANDBY' : 'DISABLED';
+    const nodeStatusColor = hasStock ? 'text-green-500' : isPreorder ? 'text-yellow-500' : 'text-red-500';
+    const statusDotColor = hasStock ? 'bg-green-500' : isPreorder ? 'bg-yellow-500' : 'bg-red-500';
+    const statusText = hasStock ? 'GRID_ONLINE' : isPreorder ? 'RESOURCE_QUEUE' : 'OFFLINE';
 
-  const warrantyLabel = product.warranty > 0
-    ? (product.warranty % 24 === 0 ? `${product.warranty / 24} DAYS` : `${product.warranty} HOURS`)
-    : 'UNSPECIFIED';
+    const warrantyLabel = product.warranty > 0
+      ? (product.warranty % 24 === 0 ? `${product.warranty / 24} DAYS` : `${product.warranty} HOURS`)
+      : 'UNSPECIFIED';
 
-  const durationLabel = product.duration && product.duration > 0
-    ? `${product.duration} DAYS`
-    : 'UNBOUNDED';
+    const durationLabel = product.duration && product.duration > 0
+      ? `${product.duration} DAYS`
+      : 'UNBOUNDED';
+
+    return {
+      hasStock,
+      isPreorder,
+      isDisabled,
+      accessProtocol,
+      deliveryLabel,
+      nodeStatus,
+      nodeStatusColor,
+      statusDotColor,
+      statusText,
+      warrantyLabel,
+      durationLabel,
+    };
+  }, [product.stock, product.fulfillment, product.warranty, product.duration]);
+
+  const {
+    hasStock,
+    isPreorder,
+    isDisabled,
+    accessProtocol,
+    deliveryLabel,
+    nodeStatus,
+    nodeStatusColor,
+    statusDotColor,
+    statusText,
+    warrantyLabel,
+    durationLabel,
+  } = availabilityData;
 
   // --- MICRO-INTERACTION: ADD TO CART ---
   const handleMountModule = async () => {
@@ -110,26 +154,30 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
           await onAddToCart(product, quantity);
           setIsSuccess(true);
           if (onHaptic) onHaptic('success');
-          setTimeout(() => setIsSuccess(false), 2000);
       } catch (err) {
-          console.error('Failed to add to cart:', err);
+          logger.error('Failed to add to cart', err);
       } finally {
           setIsAllocating(false);
       }
   };
 
-  // --- CROSS-SELL LOGIC (uses provided relatedProducts from API/connected layer) ---
-  const relatedProducts = (product.relatedProducts || [])
+  // --- CROSS-SELL LOGIC (memoized) ---
+  const relatedProducts = useMemo(() => {
+    return (product.relatedProducts || [])
       .filter(p => p.id !== product.id)
       .slice(0, 3);
+  }, [product.relatedProducts, product.id]);
 
+  // 3D tilt transforms (memoized)
   const rotateX = useTransform(mouseY, [-0.5, 0.5], [10, -10]);
   const rotateY = useTransform(mouseX, [-0.5, 0.5], [-10, 10]);
   const sheenGradient = useTransform(
     mouseX,
     [-0.5, 0.5],
-    ["linear-gradient(115deg, transparent 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, transparent 100%)", 
-     "linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.1) 40%, rgba(0,255,255,0.2) 60%, transparent 100%)"]
+    [
+      "linear-gradient(115deg, transparent 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, transparent 100%)", 
+      "linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.1) 40%, rgba(0,255,255,0.2) 60%, transparent 100%)"
+    ]
   );
 
   return (
@@ -264,72 +312,29 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                 <div className="min-h-[200px]">
                     <AnimatePresence mode="wait">
                         
-                        {/* === TECH SPECS (TERMINAL LIST STYLE) === */}
+                        {/* === TECH SPECS === */}
                         {activeTab === 'specs' && (
-                            <motion.div 
-                                key="specs"
-                                initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}
-                                className="font-mono text-xs space-y-0"
-                            >
-                                <SpecRow label="ACCESS_PROTOCOL" value={accessProtocol} valueColor={nodeStatusColor} />
-                                <SpecRow label="UPTIME_ASSURANCE" value={warrantyLabel} valueColor="text-pandora-cyan" />
-                                <SpecRow label="SESSION_DURATION" value={durationLabel} />
-                                <SpecRow label="DEPLOY_MODE" value={deliveryLabel} valueColor={nodeStatusColor} />
-                                <SpecRow label="SECURE_UPLINK" value="AES-256-GCM" />
-                                <SpecRow label="NODE_STATUS" value={nodeStatus} valueColor={nodeStatusColor} />
-                            </motion.div>
+                          <ProductSpecs
+                            accessProtocol={accessProtocol}
+                            warrantyLabel={warrantyLabel}
+                            durationLabel={durationLabel}
+                            deliveryLabel={deliveryLabel}
+                            nodeStatus={nodeStatus}
+                            nodeStatusColor={nodeStatusColor}
+                          />
                         )}
 
-                        {/* === FILES (Visualizer) === */}
+                        {/* === FILES === */}
                         {activeTab === 'files' && (
-                            <motion.div 
-                                key="files"
-                                initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
-                                className="space-y-2"
-                            >
-                                <div className="text-[10px] font-mono text-gray-500 mb-2 uppercase">Files included in payload:</div>
-                                {files.length === 0 && (
-                                  <div className="text-[10px] text-gray-600 font-mono uppercase">No attached payload</div>
-                                )}
-                                {files.map((file, i) => (
-                                    <div key={i} className="flex items-center justify-between bg-[#0e0e0e] border border-white/10 p-3 hover:border-pandora-cyan/30 transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 bg-white/5 flex items-center justify-center rounded-sm">
-                                                {file.type === 'key' && <FileKey size={14} className="text-yellow-500" />}
-                                                {file.type === 'doc' && <FileText size={14} className="text-blue-500" />}
-                                                {file.type === 'config' && <Terminal size={14} className="text-gray-400" />}
-                                                {file.type === 'net' && <Globe size={14} className="text-green-500" />}
-                                                {!file.type && <Lock size={14} className="text-gray-500" />}
-                                            </div>
-                                            <div>
-                                                <div className="text-xs font-bold text-white">{file.name}</div>
-                                                <div className="text-[9px] text-gray-600 font-mono uppercase">{file.type || 'doc'} FILE // {file.size}</div>
-                                            </div>
-                                        </div>
-                                        <div className="text-gray-600">
-                                            <Lock size={12} />
-                                        </div>
-                                    </div>
-                                ))}
-                            </motion.div>
+                          <ProductFiles files={files} />
                         )}
 
-                        {/* === MANIFEST (Description & Instructions) === */}
+                        {/* === MANIFEST === */}
                         {activeTab === 'manifest' && (
-                            <motion.div 
-                                key="manifest"
-                                initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
-                                className="space-y-4 font-mono text-xs leading-relaxed text-gray-400"
-                            >
-                                <div className="p-4 bg-white/[0.02] border-l-2 border-pandora-cyan">
-                                    <h4 className="text-white font-bold mb-2 uppercase text-[10px] tracking-wider">Module Description</h4>
-                                    <p>{product.description}</p>
-                                </div>
-                                <div className="p-4 bg-white/[0.02] border-l-2 border-white/20">
-                                    <h4 className="text-white font-bold mb-2 uppercase text-[10px] tracking-wider">Deployment Instructions</h4>
-                                    <p className="whitespace-pre-wrap">{product.instructions || "Standard deployment protocols apply. Check attached documentation."}</p>
-                                </div>
-                            </motion.div>
+                          <ProductManifest 
+                            description={product.description}
+                            instructions={product.instructions}
+                          />
                         )}
                     </AnimatePresence>
                 </div>
@@ -528,20 +533,5 @@ const DatabaseIcon: React.FC<{category: string}> = ({ category }) => {
         default: return <HardDrive size={12} />;
     }
 }
-
-// --- NEW COMPONENT: TERMINAL STYLE SPEC ROW ---
-const SpecRow: React.FC<{ label: string, value: string, valueColor?: string }> = ({ label, value, valueColor = "text-white" }) => (
-    <div className="flex items-baseline justify-between py-3 border-b border-dashed border-white/10 hover:bg-white/[0.02] transition-colors group">
-        <div className="flex items-center gap-2">
-            <div className="w-1 h-1 bg-gray-600 group-hover:bg-pandora-cyan transition-colors" />
-            <span className="text-gray-500 group-hover:text-gray-300 transition-colors">{label}</span>
-        </div>
-        
-        {/* Dotted Leader */}
-        <div className="flex-1 mx-4 border-b border-dotted border-white/10 opacity-30 relative top-[-4px]" />
-        
-        <span className={`font-bold ${valueColor}`}>{value}</span>
-    </div>
-);
 
 export default ProductDetail;

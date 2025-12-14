@@ -47,7 +47,15 @@ ERD и модель данных:
 - Управление секретами
 - Стратегия развертывания
 
-### 7. [Аутентификация](./AUTHENTICATION.md)
+### 7. [Архитектурные Паттерны и Guidelines](./ARCHITECTURE_PATTERNS.md)
+Документация паттернов разработки:
+- Lazy Imports Pattern
+- Dependency Injection
+- Singleton Pattern
+- Barrel Exports
+- Guidelines по добавлению новых модулей
+
+### 8. [Аутентификация](./AUTHENTICATION.md)
 Описание системы аутентификации:
 - Telegram Mini App authentication (initData)
 - Web Browser authentication (session tokens)

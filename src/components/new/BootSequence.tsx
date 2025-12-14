@@ -11,6 +11,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { randomBoolWithProbability, randomFloat } from '../../utils/random';
 
 // Types for boot tasks
 export interface BootTask {
@@ -162,9 +163,9 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
   // Random glitch effect
   useEffect(() => {
     const glitchInterval = setInterval(() => {
-      if (Math.random() > 0.7) {
+      if (randomBoolWithProbability(0.3)) {
         setGlitchActive(true);
-        setTimeout(() => setGlitchActive(false), 100 + Math.random() * 150);
+        setTimeout(() => setGlitchActive(false), 100 + randomFloat(0, 150));
       }
     }, 500);
     return () => clearInterval(glitchInterval);
@@ -214,7 +215,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
               style={{
                 background: `linear-gradient(transparent 50%, rgba(0, 255, 255, 0.05) 50%)`,
                 backgroundSize: '100% 4px',
-                transform: `translateX(${Math.random() * 10 - 5}px)`,
+                transform: `translateX(${randomFloat(-5, 5)}px)`,
               }}
             />
           )}

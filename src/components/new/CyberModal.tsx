@@ -485,12 +485,13 @@ export const CyberModalProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           await modalState.onConfirm(value);
         }
         hideModal();
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Show error but keep modal open
+        const errorMessage = error instanceof Error ? error.message : 'Operation failed';
         setModalState(prev => ({ 
           ...prev, 
           isLoading: false,
-          message: error?.message || 'Operation failed'
+          message: errorMessage
         }));
       }
     } else {

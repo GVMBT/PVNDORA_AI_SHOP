@@ -4,10 +4,11 @@
  * Connected version of Orders component with real API data.
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import Orders, { RefundContext } from './Orders';
 import { useOrdersTyped, useReviewsTyped } from '../../hooks/useApiTyped';
 import type { Order } from '../../types/component';
+import { logger } from '../../utils/logger';
 
 interface OrdersConnectedProps {
   onBack: () => void;
@@ -33,7 +34,7 @@ const OrdersConnected: React.FC<OrdersConnectedProps> = ({ onBack, onOpenSupport
       // Refresh orders to update hasReview status
       await getOrders();
     } catch (err) {
-      console.error('Failed to submit review:', err);
+      logger.error('Failed to submit review', err instanceof Error ? err : new Error(String(err)));
     }
   }, [submitReview, getOrders]);
 
@@ -80,4 +81,4 @@ const OrdersConnected: React.FC<OrdersConnectedProps> = ({ onBack, onOpenSupport
   );
 };
 
-export default OrdersConnected;
+export default memo(OrdersConnected);

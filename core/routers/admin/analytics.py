@@ -8,7 +8,7 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends
 
-from src.services.database import get_database
+from core.services.database import get_database
 from core.auth import verify_admin
 
 router = APIRouter(tags=["admin-analytics"])

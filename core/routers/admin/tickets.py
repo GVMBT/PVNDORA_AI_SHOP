@@ -4,12 +4,11 @@ Admin Tickets Router
 Support ticket management endpoints.
 """
 import asyncio
-from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 
-from src.services.database import get_database
+from core.services.database import get_database
 from core.auth import verify_admin
 
 router = APIRouter(prefix="/tickets", tags=["admin-tickets"])

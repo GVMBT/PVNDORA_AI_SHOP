@@ -6,6 +6,7 @@
 
 import { useState, useCallback } from 'react';
 import { useApi } from '../useApi';
+import { logger } from '../../utils/logger';
 
 // Reviews Hook
 export function useReviewsTyped() {
@@ -19,7 +20,7 @@ export function useReviewsTyped() {
     try {
       return await post('/reviews', { order_id: orderId, rating, text });
     } catch (err) {
-      console.error('Failed to submit review:', err);
+      logger.error('Failed to submit review', err);
       throw err;
     }
   }, [post]);
@@ -49,7 +50,7 @@ export function useSupportTyped() {
       setTickets(data);
       return data;
     } catch (err) {
-      console.error('Failed to fetch tickets:', err);
+      logger.error('Failed to fetch tickets', err);
       return [];
     }
   }, [get]);
@@ -66,7 +67,7 @@ export function useSupportTyped() {
         order_id: orderId,
       });
     } catch (err) {
-      console.error('Failed to create ticket:', err);
+      logger.error('Failed to create ticket', err);
       throw err;
     }
   }, [post]);
@@ -76,7 +77,7 @@ export function useSupportTyped() {
       const response = await get<{ ticket: SupportTicket }>(`/support/tickets/${ticketId}`);
       return response.ticket || null;
     } catch (err) {
-      console.error(`Failed to fetch ticket ${ticketId}:`, err);
+      logger.error(`Failed to fetch ticket ${ticketId}`, err);
       return null;
     }
   }, [get]);
@@ -109,7 +110,7 @@ export function useAIChatTyped() {
       const response: AIChatResponse = await post('/ai/chat', { message });
       return response;
     } catch (err) {
-      console.error('Failed to send AI message:', err);
+      logger.error('Failed to send AI message', err);
       return null;
     }
   }, [post]);
@@ -121,7 +122,7 @@ export function useAIChatTyped() {
       setHistory(messages);
       return messages;
     } catch (err) {
-      console.error('Failed to get chat history:', err);
+      logger.error('Failed to get chat history', err);
       return [];
     }
   }, [get]);
@@ -132,10 +133,33 @@ export function useAIChatTyped() {
       setHistory([]);
       return true;
     } catch (err) {
-      console.error('Failed to clear chat history:', err);
+      logger.error('Failed to clear chat history', err);
       return false;
     }
   }, [del]);
 
   return { history, sendMessage, getHistory, clearHistory, loading, error };
+}
+
+// Promo Code Hook
+interface PromoResult {
+  is_valid: boolean;
+  discount_percent?: number;
+  discount_amount?: number;
+  error?: string;
+}
+
+export function usePromoTyped() {
+  const { post, loading, error } = useApi();
+
+  const checkPromo = useCallback(async (code: string): Promise<PromoResult> => {
+    try {
+      return await post<PromoResult>('/promo/check', { code });
+    } catch (err) {
+      logger.error('Failed to check promo code', err);
+      return { is_valid: false, error: err instanceof Error ? err.message : 'Unknown error' };
+    }
+  }, [post]);
+
+  return { checkPromo, loading, error };
 }

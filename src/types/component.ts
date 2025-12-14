@@ -235,4 +235,8 @@ export type ViewType =
   | 'admin'
   | 'legal';
 
+export type NavigationTarget = 
+  | ViewType 
+  | { type: 'product'; product: CatalogProduct };
+
 

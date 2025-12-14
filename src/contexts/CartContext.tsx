@@ -8,6 +8,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { useApi } from '../hooks/useApi';
 import { adaptCart } from '../adapters/cartAdapter';
+import { logger } from '../utils/logger';
 import type { APICartResponse } from '../types/api';
 import type { CartData } from '../types/component';
 
@@ -37,7 +38,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setCart(adapted);
       return adapted;
     } catch (err) {
-      console.error('Failed to get cart:', err);
+      logger.error('Failed to get cart', err);
       return null;
     }
   }, [get]);
@@ -49,7 +50,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setCart(adapted);
       return adapted;
     } catch (err) {
-      console.error('Failed to add to cart:', err);
+      logger.error('Failed to add to cart', err);
       throw err;
     }
   }, [post]);
@@ -61,7 +62,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setCart(adapted);
       return adapted;
     } catch (err) {
-      console.error('Failed to update cart item:', err);
+      logger.error('Failed to update cart item', err);
       throw err;
     }
   }, [patch]);
@@ -73,7 +74,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setCart(adapted);
       return adapted;
     } catch (err) {
-      console.error('Failed to remove cart item:', err);
+      logger.error('Failed to remove cart item', err);
       throw err;
     }
   }, [del]);
@@ -83,7 +84,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       await post('/cart/promo/apply', { code });
       return getCart();
     } catch (err) {
-      console.error('Failed to apply promo:', err);
+      logger.error('Failed to apply promo', err);
       throw err;
     }
   }, [post, getCart]);
@@ -93,7 +94,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       await post('/cart/promo/remove', {});
       return getCart();
     } catch (err) {
-      console.error('Failed to remove promo:', err);
+      logger.error('Failed to remove promo', err);
       throw err;
     }
   }, [post, getCart]);

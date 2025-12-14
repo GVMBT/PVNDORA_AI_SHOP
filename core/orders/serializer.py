@@ -3,7 +3,7 @@ import logging
 from decimal import Decimal
 from typing import Dict, Any, Optional, List
 
-from src.services.money import to_float, to_decimal, to_kopecks
+from core.services.money import to_float, to_decimal, to_kopecks
 from core.payments import DELIVERED_STATES
 
 logger = logging.getLogger(__name__)

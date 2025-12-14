@@ -1,12 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
-
-const ADMIN_API_BASE = '/api/admin';
-
-interface ApiHeaders {
-  'Content-Type': string;
-  'X-Init-Data'?: string;
-  Authorization?: string;
-}
+import { API, CACHE } from '../config';
+import { localStorage } from '../utils/storage';
+import { logger } from '../utils/logger';
+import { getApiHeaders, type ApiHeaders } from '../utils/apiHeaders';
+import { apiGet } from '../utils/apiClient';
 
 interface RequestOptions extends RequestInit {
   headers?: Record<string, string>;
@@ -25,33 +22,12 @@ export function useAdmin() {
     }
     
     try {
-      const headers: ApiHeaders = {
-        'Content-Type': 'application/json'
-      };
-      
-      const initData = (window as any).Telegram?.WebApp?.initData || '';
-      if (initData) {
-        headers['X-Init-Data'] = initData;
-      } else {
-        const sessionToken = window.localStorage?.getItem('pvndora_session');
-        if (sessionToken) {
-          headers['Authorization'] = `Bearer ${sessionToken}`;
-        }
-      }
-      
-      const response = await fetch('/api/webapp/profile', { headers });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Admin check failed:', response.status, errorText);
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('Admin profile check:', data.profile);
+      // Use apiClient for consistent error handling
+      const data = await apiGet<{ profile: { is_admin?: boolean } }>('/profile');
+      logger.debug('Admin profile check', data.profile);
       setIsAdmin(data.profile?.is_admin === true);
     } catch (err) {
-      console.error('Failed to check admin status:', err);
+      logger.error('Failed to check admin status', err);
       setIsAdmin(false);
     } finally {
       setChecking(false);
@@ -63,23 +39,8 @@ export function useAdmin() {
   }, [checkAdminStatus]);
 
   const getHeaders = useCallback((): ApiHeaders => {
-    const headers: ApiHeaders = {
-      'Content-Type': 'application/json'
-    };
-    
-    const initData = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp?.initData || '' : '';
-    if (initData) {
-      headers['X-Init-Data'] = initData;
-    } else {
-      const sessionToken = typeof window !== 'undefined' && window.localStorage 
-        ? window.localStorage.getItem('pvndora_session')
-        : null;
-      if (sessionToken) {
-        headers['Authorization'] = `Bearer ${sessionToken}`;
-      }
-    }
-    
-    return headers;
+    // Use centralized header generation
+    return getApiHeaders();
   }, []);
 
   const adminRequest = useCallback(async <T = unknown>(endpoint: string, options: RequestOptions = {}): Promise<T> => {
@@ -87,7 +48,7 @@ export function useAdmin() {
     setError(null);
     
     try {
-      const url = endpoint.startsWith('http') ? endpoint : `${ADMIN_API_BASE}${endpoint}`;
+      const url = endpoint.startsWith('http') ? endpoint : `${API.ADMIN_URL}${endpoint}`;
       
       const response = await fetch(url, {
         ...options,

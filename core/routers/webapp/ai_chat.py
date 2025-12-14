@@ -10,8 +10,8 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 
 from core.logging import get_logger
-from src.services.database import get_database
-from src.ai.consultant import AIConsultant
+from core.services.database import get_database
+from core.ai.consultant import AIConsultant
 from core.auth import verify_telegram_auth
 
 logger = get_logger(__name__)

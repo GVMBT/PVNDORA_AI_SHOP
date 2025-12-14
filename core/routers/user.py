@@ -4,13 +4,10 @@ User API Router
 User-specific endpoints (referral, wishlist, reviews).
 These are non-webapp endpoints with /api prefix.
 """
-import asyncio
-from datetime import datetime, timezone
-
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
-from src.services.database import get_database
+from core.services.database import get_database
 from core.auth import verify_telegram_auth
 
 router = APIRouter(prefix="/api", tags=["user"])

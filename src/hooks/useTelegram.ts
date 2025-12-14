@@ -1,16 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { WebAppUser, WebApp, HapticStyle as TelegramHapticStyle, HapticNotificationType } from '../types/telegram';
 
-interface TelegramUser {
-  id: number;
-  first_name: string;
-  last_name?: string;
-  username?: string;
-  language_code?: string;
-  photo_url?: string;
-}
+// Re-export types for convenience
+export type TelegramUser = WebAppUser;
 
 type HapticType = 'impact' | 'notification' | 'selection';
-type HapticStyle = 'light' | 'medium' | 'heavy' | 'rigid' | 'soft' | 'success' | 'warning' | 'error';
+type HapticStyle = TelegramHapticStyle | 'success' | 'warning' | 'error';
 type ColorScheme = 'light' | 'dark';
 
 interface MainButtonConfig {
@@ -53,7 +48,7 @@ export function useTelegram(): UseTelegramReturn {
   const [colorScheme, setColorScheme] = useState<ColorScheme>('dark');
   
   useEffect(() => {
-    const tg = (window as any).Telegram?.WebApp;
+    const tg: WebApp | undefined = window.Telegram?.WebApp;
     
     if (tg) {
       // Mark as ready
@@ -86,7 +81,7 @@ export function useTelegram(): UseTelegramReturn {
   }, []);
   
   const showConfirm = useCallback((message: string): Promise<boolean> => {
-    const tg = (window as any).Telegram?.WebApp;
+    const tg: WebApp | undefined = window.Telegram?.WebApp;
     if (tg?.showConfirm) {
       return new Promise((resolve) => {
         tg.showConfirm(message, resolve);
@@ -96,7 +91,7 @@ export function useTelegram(): UseTelegramReturn {
   }, []);
   
   const showAlert = useCallback((message: string): Promise<void> => {
-    const tg = (window as any).Telegram?.WebApp;
+    const tg: WebApp | undefined = window.Telegram?.WebApp;
     if (tg?.showAlert) {
       return new Promise((resolve) => {
         tg.showAlert(message, resolve);
@@ -107,36 +102,44 @@ export function useTelegram(): UseTelegramReturn {
   }, []);
   
   const hapticFeedback = useCallback((type: HapticType = 'impact', style: HapticStyle = 'medium'): void => {
-    const tg = (window as any).Telegram?.WebApp?.HapticFeedback;
-    if (tg) {
+    const haptic = window.Telegram?.WebApp?.HapticFeedback;
+    if (haptic) {
       if (type === 'impact') {
-        tg.impactOccurred(style);
+        // Map custom styles to Telegram styles
+        const telegramStyle: TelegramHapticStyle = 
+          style === 'success' || style === 'warning' || style === 'error' ? 'medium' : style;
+        haptic.impactOccurred(telegramStyle);
       } else if (type === 'notification') {
-        tg.notificationOccurred(style);
+        // Map custom styles to Telegram notification types
+        const notificationType: HapticNotificationType = 
+          style === 'success' ? 'success' : 
+          style === 'warning' ? 'warning' : 
+          style === 'error' ? 'error' : 'error';
+        haptic.notificationOccurred(notificationType);
       } else if (type === 'selection') {
-        tg.selectionChanged();
+        haptic.selectionChanged();
       }
     }
   }, []);
   
   const close = useCallback((): void => {
-    (window as any).Telegram?.WebApp?.close();
+    window.Telegram?.WebApp?.close();
   }, []);
   
   const openLink = useCallback((url: string): void => {
-    (window as any).Telegram?.WebApp?.openLink(url);
+    window.Telegram?.WebApp?.openLink(url);
   }, []);
   
   const openTelegramLink = useCallback((url: string): void => {
-    (window as any).Telegram?.WebApp?.openTelegramLink(url);
+    window.Telegram?.WebApp?.openTelegramLink(url);
   }, []);
   
   const sendData = useCallback((data: unknown): void => {
-    (window as any).Telegram?.WebApp?.sendData(JSON.stringify(data));
+    window.Telegram?.WebApp?.sendData(JSON.stringify(data));
   }, []);
   
   const setMainButton = useCallback((config: MainButtonConfig): void => {
-    const btn = (window as any).Telegram?.WebApp?.MainButton;
+    const btn = window.Telegram?.WebApp?.MainButton;
     if (btn) {
       if (config.text) btn.setText(config.text);
       if (config.color) btn.setParams({ color: config.color });
@@ -152,7 +155,7 @@ export function useTelegram(): UseTelegramReturn {
   }, []);
   
   const setBackButton = useCallback((config: BackButtonConfig): void => {
-    const btn = (window as any).Telegram?.WebApp?.BackButton;
+    const btn = window.Telegram?.WebApp?.BackButton;
     if (btn) {
       if (config.onClick) btn.onClick(config.onClick);
       if (config.isVisible !== undefined) {

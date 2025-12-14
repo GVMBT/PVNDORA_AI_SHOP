@@ -7,6 +7,8 @@
 
 import { useMemo } from 'react';
 import { AudioEngine } from '../../lib/AudioEngine';
+import { logger } from '../../utils/logger';
+import { getTelegramInitData } from '../../utils/telegram';
 import type { BootTask } from '../new';
 
 interface UseBootTasksProps {
@@ -38,8 +40,8 @@ export function useBootTasks({ getProducts, getCart, getProfile }: UseBootTasksP
         const { persistSessionTokenFromQuery } = await import('../../utils/auth');
         persistSessionTokenFromQuery();
 
-        const tg = (window as any).Telegram?.WebApp;
-        if (tg?.initData) {
+        const initData = getTelegramInitData();
+        if (initData) {
           return { authenticated: true, source: 'telegram' };
         }
         
@@ -89,7 +91,7 @@ export function useBootTasks({ getProducts, getCart, getProfile }: UseBootTasksP
             balance: profileData?.balance || 0,
           };
         } catch (e) {
-          console.warn('[Boot] Profile fetch failed:', e);
+          logger.warn('[Boot] Profile fetch failed', e);
           return { loaded: false };
         }
       },
@@ -122,7 +124,7 @@ export function useBootTasks({ getProducts, getCart, getProfile }: UseBootTasksP
             audio.crossOrigin = 'anonymous';
             
             const timeout = setTimeout(() => {
-              console.warn('[Boot] Music buffering timeout, continuing...');
+              logger.warn('[Boot] Music buffering timeout, continuing...');
               audio.pause();
               audio.src = '';
               resolve({ loaded: true, blobUrl, loadTime: Date.now() - startTime, fetchTime });
@@ -140,7 +142,7 @@ export function useBootTasks({ getProducts, getCart, getProfile }: UseBootTasksP
               clearTimeout(timeout);
               const error = (e.target as HTMLAudioElement).error;
               const errorMsg = error ? `Code ${error.code}: ${error.message}` : 'Unknown';
-              console.warn('[Boot] Music load error:', errorMsg);
+              logger.warn('[Boot] Music load error', errorMsg);
               audio.pause();
               audio.src = '';
               URL.revokeObjectURL(blobUrl);
@@ -151,7 +153,7 @@ export function useBootTasks({ getProducts, getCart, getProfile }: UseBootTasksP
           });
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : 'Unknown prefetch error';
-          console.warn('[Boot] Music prefetch error:', errorMsg);
+          logger.warn('[Boot] Music prefetch error', errorMsg);
           return { 
             loaded: false, 
             error: errorMsg, 

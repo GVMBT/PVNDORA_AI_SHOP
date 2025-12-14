@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useProducts, useOrders, usePromo, useCartApi } from './useApi';
+import { useProductsTyped, useOrdersTyped, usePromoTyped } from './useApiTyped';
+import { useCart } from '../contexts/CartContext';
 import { useLocale } from './useLocale';
 import { useTelegram } from './useTelegram';
+import { convertCartDataToLegacyCart, type LegacyCart } from '../utils/cartConverter';
+import type { CartData } from '../types/component';
 
 interface Product {
   id: string;
@@ -9,23 +12,7 @@ interface Product {
   price: number;
   final_price?: number;
   currency?: string;
-  [key: string]: unknown;
-}
-
-interface CartItem {
-  product_id: string;
-  quantity: number;
-  product?: Product;
-  [key: string]: unknown;
-}
-
-interface Cart {
-  items: CartItem[];
-  total?: number;
-  subtotal?: number;
-  promo_code?: string;
-  promo_discount_percent?: number;
-  currency?: string;
+  [key: string]: string | number | undefined;
 }
 
 interface PromoResult {
@@ -54,15 +41,14 @@ interface UseCheckoutFlowProps {
  * с Telegram UI (back button, haptics, alerts).
  */
 export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSuccess }: UseCheckoutFlowProps) {
-  const { getProduct, loading: productLoading } = useProducts();
-  const { createOrderFromCart, getPaymentMethods } = useOrders();
-  const { checkPromo, loading: promoLoading } = usePromo();
-  const { getCart, addToCart, updateCartItem, removeCartItem, applyCartPromo, removeCartPromo, loading: cartLoading } = useCartApi();
+  const { getProduct, loading: productLoading } = useProductsTyped();
+  const { createOrderFromCart, getPaymentMethods } = useOrdersTyped();
+  const { checkPromo, loading: promoLoading } = usePromoTyped();
+  const { cart: cartData, getCart, addToCart, updateCartItem, removeCartItem, applyPromo, removePromo, loading: cartLoading } = useCart();
   const { t, formatPrice } = useLocale();
-  const { setBackButton, hapticFeedback, showAlert } = useTelegram();
+  const { setBackButton, hapticFeedback, showAlert, openLink, close } = useTelegram();
 
   const [product, setProduct] = useState<Product | null>(null);
-  const [cart, setCart] = useState<Cart | null>(null);
   const [promoCode, setPromoCode] = useState('');
   const [promoResult, setPromoResult] = useState<PromoResult | null>(null);
   const [quantity, setQuantity] = useState(initialQuantity);
@@ -71,11 +57,24 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
   const [selectedGateway, setSelectedGateway] = useState('crystalpay');
   const isCartMode = !productId;
 
+  // Convert CartData to legacy Cart format for backward compatibility
+  const cart: LegacyCart | null = useMemo(() => {
+    return convertCartDataToLegacyCart(cartData);
+  }, [cartData]);
+
   const loadProduct = useCallback(async () => {
     if (!productId) return;
     try {
       const data = await getProduct(productId);
-      setProduct(data.product as Product);
+      if (data) {
+        setProduct({
+          id: data.id,
+          name: data.name,
+          price: data.price,
+          final_price: data.final_price,
+          currency: data.currency,
+        } as Product);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     }
@@ -85,9 +84,9 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
     try {
       const data = await getCart();
       if (data && data.items && Array.isArray(data.items) && data.items.length > 0) {
-        setCart(data as Cart);
-        if (data.promo_code) {
-          setPromoCode(data.promo_code);
+        // Cart is automatically updated via CartContext, just sync promo code
+        if (data.promoCode) {
+          setPromoCode(data.promoCode);
         }
       } else {
         setError(t('checkout.cartEmpty') || 'Cart is empty');
@@ -99,12 +98,14 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
 
   const calculateTotal = useCallback(() => {
     if (isCartMode) {
-      if (!cart || !cart.items || !Array.isArray(cart.items) || cart.items.length === 0) return 0;
+      if (!cartData || !cartData.items || cartData.items.length === 0) return 0;
 
-      let total = cart.total || cart.subtotal || 0;
+      let total = cartData.total || 0;
 
-      if (promoResult?.is_valid && promoResult.discount_percent) {
-        total = total * (1 - promoResult.discount_percent / 100);
+      // If promo is applied but not yet reflected in cartData, apply it manually
+      if (promoResult?.is_valid && promoResult.discount_percent && !cartData.promoCode) {
+        const subtotal = cartData.originalTotal || cartData.total || 0;
+        total = subtotal * (1 - promoResult.discount_percent / 100);
       }
 
       return total;
@@ -124,16 +125,18 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
     }
 
     return total;
-  }, [isCartMode, cart, promoResult, product, quantity]);
+  }, [isCartMode, cartData, promoResult, product, quantity]);
 
   const handlePromoCheck = useCallback(async () => {
     if (!promoCode.trim()) return;
 
     try {
       if (isCartMode) {
-        const updated = await applyCartPromo(promoCode);
-        setCart(updated as Cart);
-        setPromoResult({ is_valid: true, discount_percent: updated.promo_discount_percent || 0 });
+        const updated = await applyPromo(promoCode);
+        if (updated) {
+          // Cart is automatically updated via CartContext
+          setPromoResult({ is_valid: true, discount_percent: updated.promoDiscountPercent || 0 });
+        }
         hapticFeedback('notification', 'success');
       } else {
         const result = await checkPromo(promoCode);
@@ -151,7 +154,7 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
       hapticFeedback('notification', 'error');
       await showAlert(errorMessage);
     }
-  }, [applyCartPromo, checkPromo, hapticFeedback, isCartMode, promoCode, showAlert]);
+  }, [applyPromo, checkPromo, hapticFeedback, isCartMode, promoCode, showAlert]);
 
   const handleRemovePromo = useCallback(async () => {
     if (!isCartMode) {
@@ -160,8 +163,8 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
       return;
     }
     try {
-      const updated = await removeCartPromo();
-      setCart(updated as Cart);
+      await removePromo();
+      // Cart is automatically updated via CartContext
       setPromoResult(null);
       setPromoCode('');
       hapticFeedback('notification', 'success');
@@ -169,13 +172,13 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       await showAlert(errorMessage);
     }
-  }, [hapticFeedback, isCartMode, removeCartPromo, showAlert]);
+  }, [hapticFeedback, isCartMode, removePromo, showAlert]);
 
   const handleCartQuantity = useCallback(async (pid: string, newQuantity: number) => {
     try {
       hapticFeedback('selection');
-      const updated = await updateCartItem(pid, newQuantity);
-      setCart(updated as Cart);
+      await updateCartItem(pid, newQuantity);
+      // Cart is automatically updated via CartContext
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       await showAlert(errorMessage);
@@ -185,8 +188,8 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
   const handleCartRemove = useCallback(async (pid: string) => {
     try {
       hapticFeedback('selection');
-      const updated = await removeCartItem(pid);
-      setCart(updated as Cart);
+      await removeCartItem(pid);
+      // Cart is automatically updated via CartContext
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       await showAlert(errorMessage);
@@ -202,7 +205,7 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
       }
 
       if (promoResult?.is_valid && promoCode) {
-        await applyCartPromo(promoCode);
+        await applyPromo(promoCode);
       }
 
       const result = await createOrderFromCart(
@@ -219,15 +222,9 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
         if (isLocalForm) {
           window.location.href = result.payment_url;
         } else {
-          if ((window as any).Telegram?.WebApp?.openLink) {
-            (window as any).Telegram.WebApp.openLink(result.payment_url);
-          } else {
-            window.open(result.payment_url, '_blank');
-          }
+          openLink(result.payment_url);
           setTimeout(() => {
-            if ((window as any).Telegram?.WebApp?.close) {
-              (window as any).Telegram.WebApp.close();
-            }
+            close();
           }, 500);
         }
       } else {
@@ -243,11 +240,13 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
     }
   }, [
     addToCart,
-    applyCartPromo,
+    applyPromo,
     createOrderFromCart,
     hapticFeedback,
     isCartMode,
     onSuccess,
+    openLink,
+    close,
     productId,
     promoCode,
     promoResult,
@@ -292,14 +291,14 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
   }, [productId, loadProduct, loadCart, onBack, setBackButton, getPaymentMethods, selectedGateway]);
 
   const total = calculateTotal();
-  const currency = product?.currency || cart?.currency || 'USD';
+  const currency = product?.currency || cartData?.currency || 'USD';
 
   const priceMeta = useMemo(() => {
     let subtotal = 0;
     let discount = 0;
 
-    if (isCartMode && cart) {
-      subtotal = cart.subtotal || 0;
+    if (isCartMode && cartData) {
+      subtotal = cartData.originalTotal || cartData.total || 0;
       discount = subtotal - total;
     } else if (!isCartMode && product) {
       const basePrice = (product.final_price || product.price) * quantity;
@@ -308,7 +307,7 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
     }
 
     return { subtotal, discount };
-  }, [isCartMode, cart, product, quantity, total]);
+  }, [isCartMode, cartData, product, quantity, total]);
 
   return {
     product,

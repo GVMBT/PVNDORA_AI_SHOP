@@ -16,8 +16,8 @@ export { useProfileTyped } from './useProfileApi';
 // Leaderboard
 export { useLeaderboardTyped } from './useLeaderboardApi';
 
-// Support (Reviews, Tickets, AI Chat)
-export { useReviewsTyped, useSupportTyped, useAIChatTyped } from './useSupportApi';
+// Support (Reviews, Tickets, AI Chat, Promo)
+export { useReviewsTyped, useSupportTyped, useAIChatTyped, usePromoTyped } from './useSupportApi';
 
 // Admin
 export {

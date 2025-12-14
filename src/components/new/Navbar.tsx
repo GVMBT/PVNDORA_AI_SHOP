@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, memo } from 'react';
 import { ShoppingBag, Box, User, Trophy, ShoppingCart, Activity, Shield, LogOut, ChevronRight, Zap, LayoutGrid, Command } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AudioEngine } from '../../lib/AudioEngine';
+import { generateShortId } from '../../utils/id';
 
 interface NavbarProps {
   showMobile?: boolean;
@@ -60,7 +61,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const wasHoveredRef = useRef(false);
-  const logoId = useRef(`navbar-logo-${Math.random().toString(36).substr(2, 9)}`).current;
+  const logoId = useRef(generateShortId('navbar-logo')).current;
 
   // Play typewriter sound when sidebar expands
   useEffect(() => {

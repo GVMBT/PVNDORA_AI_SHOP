@@ -27,7 +27,7 @@ async def auto_alloc_entrypoint(request: Request):
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
     
-    from src.services.database import get_database
+    from core.services.database import get_database
     from core.routers.deps import get_notification_service
     from core.routers.workers import _deliver_items_for_order
     

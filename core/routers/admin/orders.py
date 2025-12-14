@@ -8,7 +8,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends
 
-from src.services.database import get_database
+from core.services.database import get_database
 from core.auth import verify_admin
 from .models import CreateFAQRequest
 

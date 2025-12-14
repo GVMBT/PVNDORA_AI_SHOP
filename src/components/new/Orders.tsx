@@ -1,53 +1,18 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Copy, Check, Clock, AlertTriangle, Package, Terminal, Activity, Box, Star, MessageSquare, X, Send, Eye, EyeOff, Shield } from 'lucide-react';
-import { formatPrice } from '../../utils/currency';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { ArrowLeft, Box, Star, MessageSquare, X, Send, Package, Terminal } from 'lucide-react';
+import { logger } from '../../utils/logger';
+import { useClipboard } from '../../hooks/useClipboard';
+import { useTimeoutState } from '../../hooks/useTimeoutState';
+import OrderCard, { type OrderData } from './OrderCard';
+import type { RefundContext } from './OrderCard';
 
-// Type for order item data (matches OrderItem from types/component)
-interface OrderItemData {
-  id: string | number;
-  name: string;
-  type: 'instant' | 'preorder';
-  status: 'delivered' | 'waiting' | 'cancelled';
-  credentials?: string | null;
-  expiry?: string | null;
-  hasReview: boolean;
-  estimatedDelivery?: string | null;
-  progress?: number | null;
-  deadline?: string | null;
-  reason?: string | null;
-}
-
-// Raw backend status for detailed UI
-type RawOrderStatus = 'pending' | 'prepaid' | 'paid' | 'partial' | 'delivered' | 'cancelled' | 'refunded' | 'expired' | 'failed';
-
-// Type for order data (matches Order from types/component)
-interface OrderData {
-  id: string;          // Full UUID for API operations
-  displayId?: string;  // Short ID for UI display (8 chars)
-  date: string;
-  total: number;
-  currency?: string;   // Currency code (USD, RUB, etc.)
-  status: 'paid' | 'processing' | 'refunded';
-  items: OrderItemData[];
-  payment_url?: string | null;
-  
-  // Extended status info
-  rawStatus?: RawOrderStatus;
-  paymentConfirmed?: boolean;
-  statusMessage?: string;
-  canCancel?: boolean;
-  canRequestRefund?: boolean;
-}
-
-// Context for refund request
-export interface RefundContext {
-  orderId: string;
-  orderTotal: number;
-  productNames: string[];
-  reason?: string;
-}
+// Re-export types for backward compatibility
+export type { OrderData } from './OrderCard';
+export type { OrderItemData } from './OrderItem';
+export type { RefundContext } from './OrderCard';
 
 interface OrdersProps {
   orders?: OrderData[];
@@ -56,159 +21,13 @@ interface OrdersProps {
   onSubmitReview?: (orderId: string, rating: number, text?: string) => Promise<void>;
 }
 
-// --- UTILITY: DECRYPT EFFECT ---
-const DecryptText: React.FC<{ text: string, revealed: boolean }> = ({ text, revealed }) => {
-    const [display, setDisplay] = useState(text.replace(/./g, '*'));
-    
-    useEffect(() => {
-        if (!revealed) {
-            setDisplay(text.replace(/./g, '•'));
-            return;
-        }
-
-        // Use requestAnimationFrame instead of setInterval for better performance
-        let iterations = 0;
-        let rafId: number | null = null;
-        let lastTime = performance.now();
-        const targetInterval = 30; // ms
-        
-        const animate = (currentTime: number) => {
-            const delta = currentTime - lastTime;
-            if (delta >= targetInterval) {
-                setDisplay(text.split('').map((char, index) => {
-                    if (index < iterations) return char;
-                    return "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*".charAt(Math.floor(Math.random() * 40));
-                }).join(''));
-                
-                if (iterations >= text.length) {
-                    if (rafId) cancelAnimationFrame(rafId);
-                    return;
-                }
-                iterations++;
-                lastTime = currentTime;
-            }
-            rafId = requestAnimationFrame(animate);
-        };
-        
-        rafId = requestAnimationFrame(animate);
-        
-        return () => {
-            if (rafId) cancelAnimationFrame(rafId);
-        };
-    }, [revealed, text]);
-
-    return <span className="font-mono">{display}</span>;
-}
-
-// --- MOCK ORDERS DATA (with extended status fields) ---
-const MOCK_ORDERS: OrderData[] = [
-  {
-    id: "cb8c8dc5-1234-5678-9abc-def012345678",
-    displayId: "CB8C8DC5",
-    date: "2025-12-08 // 14:32:01",
-    total: 1156,
-    status: "paid",
-    rawStatus: "delivered",
-    paymentConfirmed: true,
-    statusMessage: "COMPLETED — Все товары доставлены",
-    canCancel: false,
-    canRequestRefund: false,
-    items: [
-      {
-        id: 1,
-        name: "CURSOR_IDE_PRO_7D",
-        type: "instant",
-        status: "delivered",
-        credentials: "cursor_user3:cursor_pass3",
-        expiry: "2025-12-15",
-        hasReview: false
-      },
-      {
-        id: 2,
-        name: "MIDJOURNEY_V6_SHARED",
-        type: "instant",
-        status: "delivered",
-        credentials: "mj_user_x:discord_pass_123",
-        hasReview: true
-      }
-    ]
-  },
-  {
-    id: "2c1a0a25-1234-5678-9abc-def012345678",
-    displayId: "2C1A0A25",
-    date: "2025-12-07 // 09:15:00",
-    total: 4238,
-    status: "processing",
-    rawStatus: "prepaid",
-    paymentConfirmed: true,
-    statusMessage: "PAYMENT_CONFIRMED — Оплачено, ожидание поступления товара",
-    canCancel: false,
-    canRequestRefund: true,
-    items: [
-      {
-        id: 3,
-        name: "GEMINI_PRO_1Y_SUB",
-        type: "preorder",
-        status: "waiting",
-        estimatedDelivery: "24H",
-        progress: 65,
-        deadline: "2025-12-09 // 14:00",
-        hasReview: false
-      }
-    ]
-  },
-  {
-    id: "abc12399-1234-5678-9abc-def012345678",
-    displayId: "ABC12399",
-    date: "2025-12-10 // 11:30:00",
-    total: 500,
-    status: "processing",
-    rawStatus: "pending",
-    paymentConfirmed: false,
-    statusMessage: "AWAITING_PAYMENT — Ожидается оплата",
-    canCancel: true,
-    canRequestRefund: false,
-    payment_url: "https://pay.crystalpay.io/example",
-    items: [
-      {
-        id: 5,
-        name: "CHATGPT_PLUS_1M",
-        type: "instant",
-        status: "waiting",
-        hasReview: false
-      }
-    ]
-  },
-  {
-    id: "ff9e2b11-1234-5678-9abc-def012345678",
-    displayId: "FF9E2B11",
-    date: "2025-12-01 // 18:45:22",
-    total: 250,
-    status: "refunded",
-    rawStatus: "refunded",
-    paymentConfirmed: false,
-    statusMessage: "REFUNDED — Средства возвращены",
-    canCancel: false,
-    canRequestRefund: false,
-    items: [
-      {
-        id: 4,
-        name: "JASPER_AI_TRIAL",
-        type: "instant",
-        status: "cancelled",
-        reason: "ERR_STOCK_EMPTY :: AUTO_REFUND_EXECUTED",
-        hasReview: false
-      }
-    ]
-  }
-];
-
 const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSupport, onSubmitReview }) => {
   // Use provided orders - NO MOCK fallback
   const ordersData = propOrders || [];
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'log'>('all');
-  const [copiedId, setCopiedId] = useState<number | string | null>(null);
+  const [copiedId, setCopiedId] = useTimeoutState<number | string | null>(null);
   const [revealedKeys, setRevealedKeys] = useState<(number | string)[]>([]);
+  const parentRef = useRef<HTMLDivElement>(null);
   
   // Review State - use ordersData as initial state when provided
   const [ordersState, setOrdersState] = useState<OrderData[]>(ordersData as OrderData[]);
@@ -226,27 +45,32 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
     }
   }, [propOrders]);
 
-  const handleCopy = (text: string, id: number | string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
+  const { copy: copyToClipboard } = useClipboard();
+  
+  const handleCopy = useCallback(async (text: string, id: number | string) => {
+    const success = await copyToClipboard(text);
+    if (success) {
+      setCopiedId(id);
+    }
+  }, [copyToClipboard, setCopiedId]);
 
-  const toggleReveal = (id: number | string) => {
-      if (revealedKeys.includes(id)) {
-          setRevealedKeys(prev => prev.filter(k => k !== id));
-      } else {
-          setRevealedKeys(prev => [...prev, id]);
-      }
-  };
+  const toggleReveal = useCallback((id: number | string) => {
+      setRevealedKeys(prev => {
+          if (prev.includes(id)) {
+              return prev.filter(k => k !== id);
+          } else {
+              return [...prev, id];
+          }
+      });
+  }, []);
 
-  const openReviewModal = (itemId: number | string, itemName: string, orderId: string) => {
+  const openReviewModal = useCallback((itemId: number | string, itemName: string, orderId: string) => {
       setRating(5);
       setReviewText('');
       setReviewModal({ isOpen: true, itemId, itemName, orderId });
-  };
+  }, []);
 
-  const submitReview = async () => {
+  const submitReview = useCallback(async () => {
       if (!reviewModal.itemId || !reviewModal.orderId) return;
 
       setIsSubmitting(true);
@@ -267,11 +91,11 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
         setOrdersState(updatedOrders);
         setReviewModal({ isOpen: false, itemId: null, itemName: '', orderId: null });
       } catch (error) {
-        console.error('Failed to submit review:', error);
+        logger.error('Failed to submit review', error instanceof Error ? error : new Error(String(error)));
       } finally {
         setIsSubmitting(false);
       }
-  };
+  }, [reviewModal.itemId, reviewModal.orderId, rating, reviewText, onSubmitReview, ordersState]);
 
   const filteredOrders = ordersState.filter(order => {
     if (activeTab === 'all') return true;
@@ -280,6 +104,14 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
     // Archived: completed (paid) or refunded - finished orders
     if (activeTab === 'log') return order.status === 'paid' || order.status === 'refunded';
     return true;
+  });
+
+  // Virtualizer for orders list
+  const virtualizer = useVirtualizer({
+    count: filteredOrders.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 300, // Estimated order card height (varies by items count)
+    overscan: 3, // Render 3 extra items outside viewport
   });
 
   // Empty state when no orders
@@ -361,258 +193,48 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
                 ))}
             </div>
 
-            {/* --- ORDERS LIST --- */}
-            <div className="space-y-8">
-                {filteredOrders.map((order) => (
-                    <div key={order.id} className="relative group">
-                        
-                        {/* Connecting Line */}
-                        <div className="absolute -left-3 top-0 bottom-0 w-px bg-white/5 group-hover:bg-white/10 transition-colors" />
-
-                        {/* Order Card */}
-                        <div className="bg-[#080808] border border-white/10 hover:border-white/20 transition-all relative overflow-hidden">
-                            
-                            {/* Card Header - Enhanced Status Display */}
-                            <div className="bg-white/5 p-3 flex justify-between items-center border-b border-white/5">
-                                <div className="flex items-center gap-4">
-                                    <span className="font-mono text-xs text-pandora-cyan tracking-wider">ID: {order.displayId || order.id}</span>
-                                    <span className="hidden sm:inline text-[10px] font-mono text-gray-600 uppercase">// {order.date}</span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    {/* Status Badge based on rawStatus for clarity */}
-                                    {order.rawStatus === 'delivered' && (
-                                      <span className="text-[10px] font-bold bg-green-500/20 text-green-400 px-2 py-0.5 border border-green-500/30">[ DELIVERED ]</span>
-                                    )}
-                                    {order.rawStatus === 'paid' && (
-                                      <span className="text-[10px] font-bold bg-blue-500/20 text-blue-400 px-2 py-0.5 border border-blue-500/30 animate-pulse">[ PROCESSING ]</span>
-                                    )}
-                                    {order.rawStatus === 'partial' && (
-                                      <span className="text-[10px] font-bold bg-yellow-500/20 text-yellow-400 px-2 py-0.5 border border-yellow-500/30">[ PARTIAL ]</span>
-                                    )}
-                                    {order.rawStatus === 'prepaid' && (
-                                      <span className="text-[10px] font-bold bg-purple-500/20 text-purple-400 px-2 py-0.5 border border-purple-500/30 animate-pulse">[ PAID • WAITING_STOCK ]</span>
-                                    )}
-                                    {order.rawStatus === 'pending' && (
-                                      <span className="text-[10px] font-bold bg-orange-500/20 text-orange-400 px-2 py-0.5 border border-orange-500/30 animate-pulse">[ UNPAID ]</span>
-                                    )}
-                                    {order.rawStatus === 'expired' && (
-                                      <span className="text-[10px] font-bold bg-gray-500/20 text-gray-400 px-2 py-0.5 border border-gray-500/30">[ EXPIRED ]</span>
-                                    )}
-                                    {(order.rawStatus === 'cancelled' || order.rawStatus === 'refunded') && (
-                                      <span className="text-[10px] font-bold bg-red-500/10 text-red-500 px-2 py-0.5 border border-red-500/20">[ {order.rawStatus?.toUpperCase()} ]</span>
-                                    )}
-                                    {order.rawStatus === 'failed' && (
-                                      <span className="text-[10px] font-bold bg-red-500/20 text-red-500 px-2 py-0.5 border border-red-500/30">[ FAILED ]</span>
-                                    )}
-                                    {/* Fallback for old data without rawStatus */}
-                                    {!order.rawStatus && order.status === 'paid' && (
-                                      <span className="text-[10px] font-bold bg-green-500/20 text-green-400 px-2 py-0.5 border border-green-500/30">[ STATUS: OK ]</span>
-                                    )}
-                                    {!order.rawStatus && order.status === 'processing' && (
-                                      <span className="text-[10px] font-bold bg-orange-500/20 text-orange-400 px-2 py-0.5 border border-orange-500/30 animate-pulse">[ STATUS: PENDING ]</span>
-                                    )}
-                                    {!order.rawStatus && order.status === 'refunded' && (
-                                      <span className="text-[10px] font-bold bg-red-500/10 text-red-500 px-2 py-0.5 border border-red-500/20">[ STATUS: VOID ]</span>
-                                    )}
-                                    <span className="font-display font-bold text-white">{formatPrice(order.total, order.currency || 'USD')}</span>
-                                </div>
+            {/* --- ORDERS LIST (Virtualized) --- */}
+            <div 
+                ref={parentRef}
+                className="h-[70vh] overflow-auto"
+                style={{ contain: 'strict' }}
+            >
+                <div
+                    style={{
+                        height: `${virtualizer.getTotalSize()}px`,
+                        width: '100%',
+                        position: 'relative',
+                    }}
+                >
+                    {virtualizer.getVirtualItems().map((virtualRow) => {
+                        const order = filteredOrders[virtualRow.index];
+                        return (
+                            <div
+                                key={virtualRow.key}
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: `${virtualRow.size}px`,
+                                    transform: `translateY(${virtualRow.start}px)`,
+                                }}
+                                className="mb-8"
+                            >
+                                <OrderCard
+                                  key={order.id}
+                                  order={order}
+                                  revealedKeys={revealedKeys}
+                                  copiedId={copiedId}
+                                  onToggleReveal={toggleReveal}
+                                  onCopy={handleCopy}
+                                  onOpenReview={openReviewModal}
+                                  onOpenSupport={onOpenSupport}
+                                />
                             </div>
-
-                            {/* Status Explanation Banner - hide for prepaid (has its own block below) */}
-                            {order.statusMessage && order.rawStatus !== 'prepaid' && (
-                                <div className={`px-4 py-2 text-[10px] font-mono border-b ${
-                                  order.paymentConfirmed 
-                                    ? 'bg-green-500/5 border-green-500/20 text-green-400' 
-                                    : 'bg-orange-500/5 border-orange-500/20 text-orange-400'
-                                }`}>
-                                    <div className="flex items-center gap-2">
-                                        {order.paymentConfirmed ? <Check size={12} /> : <Clock size={12} />}
-                                        {order.statusMessage}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Payment Button - ONLY for unpaid orders */}
-                            {order.rawStatus === 'pending' && order.payment_url && (
-                                <div className="p-4 bg-orange-500/10 border-b border-orange-500/20">
-                                    <div className="flex items-center justify-between">
-                                        <div className="text-[10px] font-mono text-orange-400">
-                                            <span className="flex items-center gap-2">
-                                                <AlertTriangle size={12} />
-                                                PAYMENT_REQUIRED — Оплатите заказ
-                                            </span>
-                                        </div>
-                                        <button
-                                            onClick={() => {
-                                                const tg = (window as any).Telegram?.WebApp;
-                                                if (tg) {
-                                                    tg.openLink(order.payment_url!);
-                                                } else {
-                                                    window.location.href = order.payment_url!;
-                                                }
-                                            }}
-                                            className="px-4 py-2 bg-pandora-cyan text-black font-mono text-xs font-bold uppercase hover:bg-pandora-cyan/80 transition-colors"
-                                        >
-                                            PAY_NOW
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {/* Waiting for Stock Banner - for prepaid orders */}
-                            {order.rawStatus === 'prepaid' && (
-                                <div className="p-4 bg-purple-500/10 border-b border-purple-500/20">
-                                    <div className="text-[11px] font-mono text-purple-400">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Check size={12} className="text-green-400" />
-                                            <span className="text-green-400">PAYMENT CONFIRMED</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-purple-300 mb-2">
-                                            <Package size={12} />
-                                            Товар временно отсутствует на складе. Доставим при поступлении.
-                                        </div>
-                                        <div className="flex items-center gap-2 text-gray-500 text-[10px]">
-                                            <Shield size={10} />
-                                            Автоматический возврат средств при превышении срока доставки
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {/* Warranty Refund Banner - for delivered orders within warranty */}
-                            {order.rawStatus === 'delivered' && order.canRequestRefund && onOpenSupport && (
-                                <div className="p-4 bg-green-500/5 border-b border-green-500/20">
-                                    <div className="flex items-center justify-between">
-                                        <div className="text-[11px] font-mono text-green-400">
-                                            <div className="flex items-center gap-2">
-                                                <Shield size={12} />
-                                                Гарантийный период активен
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={() => onOpenSupport({
-                                                orderId: order.id,
-                                                orderTotal: order.total,
-                                                productNames: order.items.map(i => i.name),
-                                                reason: 'WARRANTY_CLAIM: Проблема с доставленным товаром'
-                                            })}
-                                            className="px-3 py-1.5 bg-green-500/20 border border-green-500/30 text-green-400 font-mono text-[10px] uppercase hover:bg-green-500/30 transition-colors"
-                                        >
-                                            REPORT_ISSUE
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Items Content */}
-                            <div className="p-5 space-y-6">
-                                {order.items.map((item) => (
-                                    <div key={item.id} className="relative pl-4 border-l-2 border-white/10 group-hover:border-pandora-cyan/30 transition-colors">
-                                        
-                                        {/* Item Header */}
-                                        <div className="flex justify-between items-start mb-3">
-                                            <h3 className="font-bold text-white text-sm tracking-wide">{item.name}</h3>
-                                            
-                                            <div className="text-[10px] font-mono">
-                                                {item.status === 'delivered' && <span className="text-green-500 flex items-center gap-1"><Check size={10} /> DELIVERED</span>}
-                                                {item.status === 'waiting' && <span className="text-orange-400 flex items-center gap-1"><Clock size={10} /> QUEUED</span>}
-                                                {item.status === 'cancelled' && <span className="text-red-500 flex items-center gap-1"><AlertTriangle size={10} /> KILLED</span>}
-                                            </div>
-                                        </div>
-
-                                        {/* === DELIVERED: Credentials & Actions === */}
-                                        {item.status === 'delivered' && (
-                                            <div className="space-y-3">
-                                                {/* Credentials Box */}
-                                                {item.credentials && (
-                                                    <div className="bg-black border border-white/10 border-dashed p-3 relative group/key">
-                                                        <div className="text-[10px] text-gray-500 font-mono mb-2 flex justify-between items-center border-b border-white/5 pb-2">
-                                                            <span>ACCESS_KEY_ENCRYPTED</span>
-                                                            <div className="flex items-center gap-2">
-                                                                <button onClick={() => toggleReveal(item.id)} className="text-gray-500 hover:text-white transition-colors">
-                                                                    {revealedKeys.includes(item.id) ? <EyeOff size={12} /> : <Eye size={12} />}
-                                                                </button>
-                                                                {item.expiry && <span className="text-gray-600">EXP: {item.expiry}</span>}
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        {/* Key Content */}
-                                                        <div className="flex justify-between items-center mt-2">
-                                                            <div className="font-mono text-sm text-pandora-cyan break-all tracking-wider">
-                                                                <DecryptText text={item.credentials} revealed={revealedKeys.includes(item.id)} />
-                                                            </div>
-                                                            <button 
-                                                                onClick={() => handleCopy(item.credentials!, item.id)}
-                                                                className="ml-4 p-1.5 bg-white/5 hover:bg-pandora-cyan hover:text-black transition-colors rounded-sm shrink-0"
-                                                                title="Copy to Clipboard"
-                                                            >
-                                                                {copiedId === item.id ? <Check size={14} /> : <Copy size={14} />}
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* Review Action (Only for delivered items) */}
-                                                <div className="flex justify-end pt-2">
-                                                    {item.hasReview ? (
-                                                        <div className="flex items-center gap-2 text-[10px] font-mono text-gray-500 border border-white/5 px-3 py-1.5 rounded-sm select-none opacity-60">
-                                                            <Check size={12} className="text-pandora-cyan" />
-                                                            FEEDBACK_LOGGED
-                                                        </div>
-                                                    ) : (
-                                                        <button 
-                                                            onClick={() => openReviewModal(item.id, item.name, order.id)}
-                                                            className="flex items-center gap-2 text-[10px] font-bold font-mono text-pandora-cyan border border-pandora-cyan/30 px-3 py-1.5 hover:bg-pandora-cyan hover:text-black transition-all"
-                                                        >
-                                                            <MessageSquare size={12} />
-                                                            INITIALIZE_REVIEW
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* === WAITING: Pre-order === */}
-                                        {item.status === 'waiting' && (
-                                            <div className="mt-2 bg-[#0c0c0c] border border-orange-500/20 p-3">
-                                                <div className="flex justify-between text-[10px] font-mono text-orange-400 mb-1">
-                                                    <span className="flex items-center gap-1"><Activity size={10} /> PROVISIONING_RESOURCE...</span>
-                                                    <span>EST: {item.estimatedDelivery}</span>
-                                                </div>
-                                                
-                                                {/* Fake Progress Bar */}
-                                                <div className="w-full h-1 bg-gray-800 mt-2 mb-2 relative overflow-hidden">
-                                                    <div 
-                                                        className="absolute top-0 left-0 h-full bg-orange-500 shadow-[0_0_10px_orange]"
-                                                        style={{ width: `${item.progress}%` }} 
-                                                    />
-                                                    <div className="absolute top-0 left-0 h-full w-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
-                                                </div>
-
-                                                <p className="text-[10px] text-gray-500 font-mono border-t border-white/5 pt-2 mt-2">
-                                                    &gt; DEADLINE: {item.deadline}
-                                                </p>
-                                            </div>
-                                        )}
-
-                                        {/* === REFUNDED === */}
-                                        {item.status === 'cancelled' && (
-                                            <div className="mt-2 bg-red-900/5 border border-red-500/20 p-2 font-mono text-[10px] text-red-400">
-                                                &gt; {item.reason}
-                                            </div>
-                                        )}
-
-                                    </div>
-                                ))}
-                            </div>
-                            
-                            {/* Decorative Corner Overlays */}
-                            <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-pandora-cyan opacity-50" />
-                            <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-pandora-cyan opacity-50" />
-
-                        </div>
-                    </div>
-                ))}
+                        );
+                    })}
+                </div>
             </div>
 
             {/* Footer */}

@@ -11,10 +11,10 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "isolatedModules": true,
-    "strict": false,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
+  "isolatedModules": true,
+  "strict": false,
+  "noImplicitAny": true,
+  "strictNullChecks": false,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]

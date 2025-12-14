@@ -13,8 +13,8 @@ export { default as Footer } from './Footer';
 export { default as Guarantees } from './Guarantees';
 export { default as PandoraBox } from './PandoraBox';
 export { default as SupportChat } from './SupportChat';
-export { default as CommandPalette } from './CommandPalette';
-export { default as Legal } from './Legal';
+// CommandPalette - lazy loaded in NewApp.tsx (removed from barrel to avoid duplicate import)
+// Legal - lazy loaded in AppRouter.tsx (removed from barrel to avoid duplicate import)
 
 // === SYSTEM COMPONENTS ===
 export { default as BootSequence, type BootTask } from './BootSequence';
@@ -35,10 +35,11 @@ export { default as AdminPanel } from './AdminPanel';
 // === CONNECTED COMPONENTS (Real API Data - For Production) ===
 export { default as CatalogConnected } from './CatalogConnected';
 export { default as ProductDetailConnected } from './ProductDetailConnected';
-export { default as OrdersConnected } from './OrdersConnected';
-export { default as ProfileConnected } from './ProfileConnected';
-export { default as LeaderboardConnected } from './LeaderboardConnected';
-export { default as CheckoutModalConnected } from './CheckoutModalConnected';
 export { default as LoginPage } from './LoginPage';
 export { default as SupportChatConnected } from './SupportChatConnected';
-export { default as AdminPanelConnected } from './AdminPanelConnected';
+// Lazy-loaded components (use direct imports in lazy() to avoid duplicate import warnings):
+// - OrdersConnected (lazy loaded in AppRouter.tsx)
+// - ProfileConnected (lazy loaded in AppRouter.tsx)
+// - LeaderboardConnected (lazy loaded in AppRouter.tsx)
+// - CheckoutModalConnected (lazy loaded in NewApp.tsx)
+// - AdminPanelConnected (lazy loaded in AppRouter.tsx)

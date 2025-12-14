@@ -9,6 +9,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Cpu, CheckCircle, XCircle, Clock, AlertTriangle, ArrowRight, RefreshCw } from 'lucide-react';
+import { API } from '../../config';
+import { localStorage } from '../../utils/storage';
+import { getApiHeaders } from '../../utils/apiHeaders';
+import { logger } from '../../utils/logger';
+import { apiRequest } from '../../utils/apiClient';
+import { randomFloat } from '../../utils/random';
 
 interface PaymentResultProps {
   orderId: string;
@@ -72,73 +78,55 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
   // Check order/topup status
   const checkStatus = useCallback(async () => {
     try {
-      const tg = (window as any).Telegram?.WebApp;
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      
-      // Add Telegram init data if available
-      if (tg?.initData) {
-        headers['X-Telegram-Init-Data'] = tg.initData;
-      }
-      
-      // Add session token if available
-      const sessionToken = localStorage.getItem('session_token');
-      if (sessionToken) {
-        headers['Authorization'] = `Bearer ${sessionToken}`;
-      }
-
       // Use different endpoint for topup vs order
       const endpoint = isTopUp 
-        ? `/api/webapp/profile/topup/${orderId}/status`
-        : `/api/webapp/orders/${orderId}/status`;
+        ? `/profile/topup/${orderId}/status`
+        : `/orders/${orderId}/status`;
       
-      const response = await fetch(endpoint, { headers });
-      
-      // Handle 404 specifically - order might not exist yet or invalid ID
-      if (response.status === 404) {
-        const errorData = await response.json().catch(() => ({}));
-        return { 
-          status: 'unknown' as PaymentStatus, 
-          error: new Error('ORDER_NOT_FOUND'),
-          httpStatus: 404,
-          errorDetail: errorData
-        };
+      // Use apiClient for consistent error handling
+      // Note: We need to handle 404 specially, so we'll catch and check
+      try {
+        const data = await apiRequest<OrderStatusResponse>(endpoint);
+        
+        // Map backend status to our status type
+        const backendStatus = data.status?.toLowerCase() || 'unknown';
+        let newStatus: PaymentStatus = 'unknown';
+        
+        if (['delivered', 'completed', 'ready'].includes(backendStatus)) {
+          newStatus = 'delivered';
+        } else if (['paid', 'processing'].includes(backendStatus)) {
+          newStatus = 'paid';
+        } else if (backendStatus === 'partial') {
+          newStatus = 'partial';
+        } else if (['pending', 'awaiting_payment'].includes(backendStatus)) {
+          newStatus = 'pending';
+        } else if (['expired', 'cancelled'].includes(backendStatus)) {
+          newStatus = 'expired';
+        } else if (['failed', 'refunded'].includes(backendStatus)) {
+          newStatus = 'failed';
+        } else if (backendStatus === 'prepaid') {
+          newStatus = 'paid'; // Prepaid means payment confirmed, waiting for stock
+        }
+        
+        return { status: newStatus, data };
+      } catch (error: unknown) {
+        // Handle 404 specifically - order might not exist yet or invalid ID
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('404') || errorMessage.includes('ORDER_NOT_FOUND')) {
+          return {
+            status: 'unknown' as PaymentStatus,
+            error: new Error('ORDER_NOT_FOUND'),
+            httpStatus: 404,
+          };
+        }
+        throw error;
       }
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      const data: OrderStatusResponse = await response.json();
-      
-      // Map backend status to our status type
-      const backendStatus = data.status?.toLowerCase() || 'unknown';
-      let newStatus: PaymentStatus = 'unknown';
-      
-      if (['delivered', 'completed', 'ready'].includes(backendStatus)) {
-        newStatus = 'delivered';
-      } else if (['paid', 'processing'].includes(backendStatus)) {
-        newStatus = 'paid';
-      } else if (backendStatus === 'partial') {
-        newStatus = 'partial';
-      } else if (['pending', 'awaiting_payment'].includes(backendStatus)) {
-        newStatus = 'pending';
-      } else if (['expired', 'cancelled'].includes(backendStatus)) {
-        newStatus = 'expired';
-      } else if (['failed', 'refunded'].includes(backendStatus)) {
-        newStatus = 'failed';
-      } else if (backendStatus === 'prepaid') {
-        newStatus = 'paid'; // Prepaid means payment confirmed, waiting for stock
-      }
-      
-      return { status: newStatus, data };
-    } catch (error: any) {
-      console.error('Status check failed:', error);
+    } catch (error: unknown) {
+      const errorInstance = error instanceof Error ? error : new Error(String(error));
+      logger.error('Status check failed', errorInstance);
       return { 
         status: 'unknown' as PaymentStatus, 
-        error: error instanceof Error ? error : new Error(String(error)),
-        httpStatus: error?.httpStatus
+        error: errorInstance,
       };
     }
   }, [orderId, isTopUp]);
@@ -278,7 +266,7 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
       if (!shouldStop && !isComplete) {
         setProgress(prev => {
           if (prev >= 90) return prev; // Cap at 90% until complete
-          return prev + Math.random() * 5;
+          return prev + randomFloat(0.5, 5);
         });
       }
     }, 500);

@@ -9,8 +9,8 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
 
 from core.logging import get_logger
-from src.services.database import get_database
-from src.services.money import to_float
+from core.services.database import get_database
+from core.services.money import to_float
 from core.auth import verify_admin
 from .models import ReferralSettingsRequest, SetPartnerRequest, ReviewApplicationRequest
 
@@ -191,7 +191,7 @@ async def admin_get_partners_crm(
             view_name = "partner_analytics"
         
         try:
-            test_result = await asyncio.to_thread(
+            await asyncio.to_thread(
                 lambda: db.client.table(view_name).select("user_id").limit(1).execute()
             )
         except Exception as view_error:

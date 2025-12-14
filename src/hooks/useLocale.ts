@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { getLanguageCode } from '../config';
 
 // Import all locale files
 import en from '../../locales/en.json';
@@ -33,11 +34,8 @@ export function useLocale(): UseLocaleReturn {
   const [locale, setLocale] = useState<LocaleCode>('en');
   
   useEffect(() => {
-    // Get language from Telegram or browser
-    const tgLang = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
-    const browserLang = navigator.language?.split('-')[0];
-    
-    const detectedLang = tgLang || browserLang || 'en';
+    // Use centralized language detection from config
+    const detectedLang = getLanguageCode();
     const supportedLang = (locales[detectedLang as LocaleCode] ? detectedLang : 'en') as LocaleCode;
     
     setLocale(supportedLang);

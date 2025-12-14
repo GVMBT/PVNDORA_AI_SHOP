@@ -6,12 +6,14 @@
     "scripts": {
         "dev": "vite",
         "build": "vite build",
+        "build:analyze": "vite build && echo Bundle analysis saved to dist/stats.html",
         "lint": "eslint .",
         "preview": "vite preview"
     },
     "dependencies": {
         "@radix-ui/react-slot": "^1.2.4",
         "@resvg/resvg-js": "^2.6.2",
+        "@tanstack/react-virtual": "^3.13.13",
         "clsx": "^2.1.1",
         "framer-motion": "^12.23.26",
         "lucide-react": "^0.559.0",
@@ -35,6 +37,7 @@
         "eslint-plugin-react-refresh": "^0.4.5",
         "globals": "^16.5.0",
         "postcss": "^8.4.35",
+        "rollup-plugin-visualizer": "^6.0.5",
         "tailwindcss": "^3.4.1",
         "typescript": "~5.8.2",
         "vite": "^5.1.6"

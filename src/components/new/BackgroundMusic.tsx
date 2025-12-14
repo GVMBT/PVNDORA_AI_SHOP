@@ -7,6 +7,7 @@
 
 import React, { useEffect, useRef, useState, memo } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
+import { logger } from '../../utils/logger';
 
 interface BackgroundMusicProps {
   src?: string;
@@ -105,7 +106,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
             setTimeout(() => {
               if (!cancelled && audioRef.current) {
                 audioRef.current.play().catch((err) => {
-                  console.warn('[BackgroundMusic] Autoplay blocked:', err);
+                  logger.warn('[BackgroundMusic] Autoplay blocked', err);
                 });
               }
             }, 100);
@@ -114,12 +115,12 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
 
         // Handle buffering issues
         const handleWaiting = () => {
-          console.warn('[BackgroundMusic] Buffering...');
+          logger.warn('[BackgroundMusic] Buffering...');
           // Audio is waiting for data - this shouldn't happen if fully preloaded
         };
 
         const handleStalled = () => {
-          console.warn('[BackgroundMusic] Stalled - retrying...');
+          logger.warn('[BackgroundMusic] Stalled - retrying...');
           if (audioRef.current && !cancelled && isPlayingRef.current) {
             // Try to resume playback
             setTimeout(() => {
@@ -139,7 +140,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
             : 'Unknown error';
           const error = new Error(`Failed to load audio: ${errorMsg}`);
           
-          console.error('[BackgroundMusic] Load error:', error);
+          logger.error('[BackgroundMusic] Load error', error);
           
           // Retry logic
           if (retryCountRef.current < maxRetries) {
@@ -225,7 +226,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
       } catch (error) {
         if (cancelled) return;
         
-        console.error('[BackgroundMusic] Prefetch error:', error);
+        logger.error('[BackgroundMusic] Prefetch error', error);
         
         // Retry on fetch error
         if (retryCountRef.current < maxRetries) {
@@ -290,7 +291,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
                   setIsPlaying(true);
                 })
                 .catch((err) => {
-                  console.warn('[BackgroundMusic] Resume after visibility change failed:', err);
+                  logger.warn('[BackgroundMusic] Resume after visibility change failed', err);
                   // If resume fails, update state
                   isPlayingRef.current = false;
                   setIsPlaying(false);
@@ -315,7 +316,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
       audioRef.current.pause();
     } else {
       audioRef.current.play().catch((err) => {
-        console.warn('[BackgroundMusic] Play failed:', err);
+        logger.warn('[BackgroundMusic] Play failed', err);
       });
     }
   };

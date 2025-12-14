@@ -9,8 +9,8 @@ from typing import Optional, TYPE_CHECKING
 from functools import lru_cache
 
 if TYPE_CHECKING:
-    from src.services.notifications import NotificationService
-    from src.services.payments import PaymentService
+    from core.services.notifications import NotificationService
+    from core.services.payments import PaymentService
     from core.cart import CartManager
 
 
@@ -25,7 +25,7 @@ def get_notification_service() -> "NotificationService":
     """Get or create NotificationService singleton (lazy loaded)"""
     global _notification_service
     if _notification_service is None:
-        from src.services.notifications import NotificationService
+        from core.services.notifications import NotificationService
         _notification_service = NotificationService()
     return _notification_service
 
@@ -34,7 +34,7 @@ def get_payment_service() -> "PaymentService":
     """Get or create PaymentService singleton (lazy loaded)"""
     global _payment_service
     if _payment_service is None:
-        from src.services.payments import PaymentService
+        from core.services.payments import PaymentService
         _payment_service = PaymentService()
     return _payment_service
 

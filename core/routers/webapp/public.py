@@ -8,8 +8,8 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
-from src.services.database import get_database
-from src.services.currency import get_currency_service
+from core.services.database import get_database
+from core.services.currency import get_currency_service
 from core.db import get_redis
 
 router = APIRouter(tags=["webapp-public"])

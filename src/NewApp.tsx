@@ -7,18 +7,16 @@
  * - HUD Notifications (System Logs)
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { AnimatePresence } from 'framer-motion';
 
 // App Components
 import { AppLayout, AppRouter, useFeedback, useBootTasks, type ViewType } from './components/app';
 
-// Connected Components
+// Connected Components (lazy load heavy ones)
 import {
   Navbar,
   SupportChatConnected,
-  CommandPalette,
-  CheckoutModalConnected,
   LoginPage,
   BootSequence,
   useHUD,
@@ -29,18 +27,23 @@ import {
   type RefundContext,
 } from './components/new';
 
+// Lazy load heavy components for code splitting
+const CommandPalette = lazy(() => import('./components/new/CommandPalette'));
+const CheckoutModalConnected = lazy(() => import('./components/new/CheckoutModalConnected'));
+
 // Types
-import type { CatalogProduct } from './types/component';
+import type { CatalogProduct, NavigationTarget } from './types/component';
+import { getStartParam } from './utils/telegram';
 
 // Hooks
 import { useProductsTyped, useProfileTyped } from './hooks/useApiTyped';
 import { useCart } from './contexts/CartContext';
+import { useTelegram } from './hooks/useTelegram';
 
 // Audio Engine
 import { AudioEngine } from './lib/AudioEngine';
-
-// Config
-const BOT_USERNAME = (import.meta as any)?.env?.VITE_BOT_USERNAME || (window as any).__BOT_USERNAME || 'pvndora_ai_bot';
+import { BOT, CACHE, UI } from './config';
+import { sessionStorage } from './utils/storage';
 
 /**
  * Check for payment redirect on initial load
@@ -57,8 +60,8 @@ function usePaymentRedirect() {
       if (topupId) return `topup_${topupId}`;
     }
     
-    const tg = (window as any).Telegram?.WebApp;
-    const startParam = tg?.initDataUnsafe?.start_param;
+    // Try to get start_param from Telegram WebApp
+    const startParam = getStartParam();
     const urlParams = new URLSearchParams(window.location.search);
     const urlStartapp = urlParams.get('tgWebAppStartParam') || urlParams.get('startapp');
     const hashParams = new URLSearchParams(window.location.hash.slice(1));
@@ -95,10 +98,7 @@ function NewAppInner() {
   
   // Boot State
   const [isBooted, setIsBooted] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('pvndora_booted') === 'true';
-    }
-    return false;
+    return sessionStorage.get(CACHE.BOOT_STATE_KEY) === 'true';
   });
   const [musicBlobUrl, setMusicBlobUrl] = useState<string | undefined>(undefined);
   
@@ -111,6 +111,7 @@ function NewAppInner() {
   const { products: allProducts, getProducts } = useProductsTyped();
   const { getProfile } = useProfileTyped();
   const { cart, getCart, addToCart, removeCartItem } = useCart();
+  const { user: telegramUser } = useTelegram();
   
   // Boot tasks
   const bootTasks = useBootTasks({ getProducts, getCart, getProfile });
@@ -196,7 +197,7 @@ function NewAppInner() {
   }, [getCart, hud]);
 
   // Command palette navigation
-  const handleUniversalNavigate = useCallback((target: any) => {
+  const handleUniversalNavigate = useCallback((target: NavigationTarget) => {
     handleFeedback('medium');
     if (typeof target === 'string') {
       navigate(target as ViewType);
@@ -223,7 +224,7 @@ function NewAppInner() {
     }
     
     setIsBooted(true);
-    sessionStorage.setItem('pvndora_booted', 'true');
+    sessionStorage.set(CACHE.BOOT_STATE_KEY, 'true');
     AudioEngine.connect();
     
     const productCount = results.catalog?.productCount || 0;
@@ -245,7 +246,7 @@ function NewAppInner() {
   useEffect(() => {
     if (isPaymentRedirect && !isBooted) {
       setIsBooted(true);
-      sessionStorage.setItem('pvndora_booted', 'true');
+      sessionStorage.set(CACHE.BOOT_STATE_KEY, 'true');
     }
   }, [isPaymentRedirect, isBooted]);
 
@@ -282,12 +283,12 @@ function NewAppInner() {
 
   // Boot sequence
   if (!isBooted) {
-    return <BootSequence tasks={bootTasks} onComplete={handleBootComplete} minDuration={2500} />;
+    return <BootSequence tasks={bootTasks} onComplete={handleBootComplete} minDuration={UI.BOOT_MIN_DURATION} />;
   }
 
   // Login page
   if (!isAuthenticated) {
-    return <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} botUsername={BOT_USERNAME} redirectPath="/" />;
+    return <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} botUsername={BOT.USERNAME} redirectPath="/" />;
   }
 
   // Main app
@@ -321,16 +322,22 @@ function NewAppInner() {
         onHaptic={handleFeedback}
       />
 
-      <CommandPalette 
-        isOpen={isCmdOpen} 
-        onClose={() => setIsCmdOpen(false)} 
-        onNavigate={handleUniversalNavigate}
-        products={allProducts} 
-      />
+      <Suspense fallback={null}>
+        {isCmdOpen && (
+          <CommandPalette 
+            isOpen={isCmdOpen} 
+            onClose={() => setIsCmdOpen(false)} 
+            onNavigate={handleUniversalNavigate}
+            products={allProducts} 
+          />
+        )}
+      </Suspense>
 
       <AnimatePresence>
         {isCheckoutOpen && (
-          <CheckoutModalConnected onClose={handleCloseCheckout} onSuccess={handleCheckoutSuccess} />
+          <Suspense fallback={null}>
+            <CheckoutModalConnected onClose={handleCloseCheckout} onSuccess={handleCheckoutSuccess} />
+          </Suspense>
         )}
       </AnimatePresence>
 
@@ -362,7 +369,7 @@ function NewAppInner() {
 // Main App with providers
 function NewApp() {
   return (
-    <HUDProvider position="top-right" maxNotifications={5} defaultDuration={4000}>
+    <HUDProvider position="top-right" maxNotifications={UI.HUD_MAX_NOTIFICATIONS} defaultDuration={UI.HUD_DURATION}>
       <CyberModalProvider>
         <NewAppInner />
       </CyberModalProvider>

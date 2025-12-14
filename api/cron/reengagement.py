@@ -13,6 +13,10 @@ from fastapi.responses import JSONResponse
 import os
 import asyncio
 
+from core.logging import get_logger
+
+logger = get_logger(__name__)
+
 CRON_SECRET = os.environ.get("CRON_SECRET", "")
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 BOT_USERNAME = "pvndora_ai_bot"
@@ -30,8 +34,8 @@ async def reengagement_entrypoint(request: Request):
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
     
-    from src.services.database import get_database
-    from src.i18n import get_text
+    from core.services.database import get_database
+    from core.i18n import get_text
     import httpx
     
     db = get_database()
@@ -64,7 +68,8 @@ async def reengagement_entrypoint(request: Request):
                     last_dt = datetime.fromisoformat(last_reengagement.replace("Z", "+00:00"))
                     if last_dt > reengagement_cutoff:
                         continue
-                except:
+                except (ValueError, AttributeError):
+                    # Invalid date format - continue with processing
                     pass
             
             lang = user.get("language_code", "en")
@@ -94,7 +99,7 @@ async def reengagement_entrypoint(request: Request):
                 
                 sent_count += 1
             except Exception as e:
-                print(f"Failed to send to {user['telegram_id']}: {e}")
+                logger.error(f"Failed to send to {user['telegram_id']}: {e}", exc_info=True)
         
         results["tasks"]["reengagement_sent"] = sent_count
         
@@ -141,7 +146,7 @@ async def reengagement_entrypoint(request: Request):
                 
                 wishlist_sent += 1
             except Exception as e:
-                print(f"Failed wishlist reminder: {e}")
+                logger.error(f"Failed wishlist reminder: {e}", exc_info=True)
         
         results["tasks"]["wishlist_reminders_sent"] = wishlist_sent
         
@@ -170,7 +175,7 @@ async def reengagement_entrypoint(request: Request):
                 try:
                     expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
                     days_left = (expires_at - now).days
-                except:
+                except (ValueError, AttributeError):
                     days_left = 3  # fallback
             else:
                 days_left = 3
@@ -195,7 +200,7 @@ async def reengagement_entrypoint(request: Request):
                     )
                 expiry_sent += 1
             except Exception as e:
-                print(f"Failed expiry notification: {e}")
+                logger.error(f"Failed expiry notification: {e}", exc_info=True)
         
         results["tasks"]["expiry_notifications_sent"] = expiry_sent
         results["success"] = True

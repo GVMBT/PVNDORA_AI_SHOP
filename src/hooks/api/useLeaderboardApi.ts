@@ -6,9 +6,11 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { useApi } from '../useApi';
+import { logger } from '../../utils/logger';
 import type { APILeaderboardResponse } from '../../types/api';
 import type { LeaderboardUser } from '../../types/component';
 import { adaptLeaderboard } from '../../adapters';
+import { getLanguageCode, getCurrencyForLanguage, PAGINATION } from '../../config';
 
 export function useLeaderboardTyped() {
   const { get, loading, error } = useApi();
@@ -17,17 +19,17 @@ export function useLeaderboardTyped() {
   const [currentOffset, setCurrentOffset] = useState(0);
   const loadedOffsetsRef = useRef<Set<number>>(new Set());
 
-  const getLeaderboard = useCallback(async (limit: number = 15, offset: number = 0, append: boolean = false): Promise<LeaderboardUser[]> => {
+  const getLeaderboard = useCallback(async (limit: number = PAGINATION.LEADERBOARD_LIMIT, offset: number = 0, append: boolean = false): Promise<LeaderboardUser[]> => {
     if (append && loadedOffsetsRef.current.has(offset)) {
-      console.log(`[Leaderboard] Skipping duplicate request for offset ${offset}`);
+      logger.debug(`[Leaderboard] Skipping duplicate request for offset ${offset}`);
       return [];
     }
     
     try {
       const response: APILeaderboardResponse = await get(`/leaderboard?limit=${limit}&offset=${offset}`);
-      const telegramUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
-      const lang = telegramUser?.language_code || navigator.language?.split('-')[0] || 'en';
-      const currency = (lang === 'ru' || lang === 'be' || lang === 'kk') ? 'RUB' : 'USD';
+      const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+      const lang = getLanguageCode();
+      const currency = getCurrencyForLanguage(lang);
       const adapted = adaptLeaderboard(response, telegramUser?.id?.toString(), currency);
       
       loadedOffsetsRef.current.add(offset);
@@ -57,14 +59,14 @@ export function useLeaderboardTyped() {
       
       return adapted;
     } catch (err) {
-      console.error('Failed to fetch leaderboard:', err);
+      logger.error('Failed to fetch leaderboard', err);
       return [];
     }
   }, [get]);
 
   const loadMore = useCallback(async () => {
     if (!hasMore || loading) return;
-    return getLeaderboard(15, currentOffset, true);
+    return getLeaderboard(PAGINATION.LEADERBOARD_LIMIT, currentOffset, true);
   }, [getLeaderboard, hasMore, loading, currentOffset]);
 
   const reset = useCallback(() => {

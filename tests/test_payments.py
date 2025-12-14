@@ -6,8 +6,8 @@ from typing import Any, Dict, List, Optional
 import httpx
 import pytest  # type: ignore[reportMissingImports]
 
-from src.services.payments import PaymentService
-from src.services import payments as payments_module
+from core.services.payments import PaymentService
+from core.services import payments as payments_module
 
 
 class _Result:

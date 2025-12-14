@@ -6,10 +6,8 @@ Ensures status changes only happen after payment confirmation.
 """
 import logging
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
+from typing import Optional
 import asyncio
-
-from core.payments.constants import OrderStatus, DELIVERED_STATES
 
 logger = logging.getLogger(__name__)
 
@@ -177,13 +175,13 @@ class OrderStatusService:
             
             # Balance payments are always 'paid' (already deducted)
             if payment_method == "balance":
-                logger.info(f"[mark_payment_confirmed] Balance payment, setting to 'paid'")
+                logger.info("[mark_payment_confirmed] Balance payment, setting to 'paid'")
                 await self.update_status(order_id, "paid", "Balance payment confirmed", check_transition=False)
                 return "paid"
             
             # For external payments, check stock availability
             if check_stock:
-                logger.info(f"[mark_payment_confirmed] Checking stock availability...")
+                logger.info("[mark_payment_confirmed] Checking stock availability...")
                 has_stock = await self._check_stock_availability(order_id)
                 final_status = "paid" if has_stock else "prepaid"
                 logger.info(f"[mark_payment_confirmed] has_stock={has_stock}, final_status={final_status}")

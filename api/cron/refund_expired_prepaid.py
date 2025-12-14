@@ -13,6 +13,10 @@ from fastapi.responses import JSONResponse
 import os
 import asyncio
 
+from core.logging import get_logger
+
+logger = get_logger(__name__)
+
 CRON_SECRET = os.environ.get("CRON_SECRET", "")
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 
@@ -29,7 +33,7 @@ async def refund_expired_prepaid_entrypoint(request: Request):
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
     
-    from src.services.database import get_database
+    from core.services.database import get_database
     import httpx
     
     db = get_database()
@@ -102,14 +106,14 @@ async def refund_expired_prepaid_entrypoint(request: Request):
                                 timeout=10
                             )
                     except Exception as notify_err:
-                        print(f"Failed to notify user {telegram_id}: {notify_err}")
+                        logger.error(f"Failed to notify user {telegram_id}: {notify_err}", exc_info=True)
                 
                 results["refunded"] += 1
-                print(f"Auto-refunded order {order_id}: {amount}₽ for {product_name}")
+                logger.info(f"Auto-refunded order {order_id}: {amount}₽ for {product_name}")
                 
             except Exception as e:
                 error_msg = f"Failed to refund order {order_id}: {e}"
-                print(error_msg)
+                logger.error(error_msg, exc_info=True)
                 results["errors"].append(error_msg)
         
         results["success"] = True

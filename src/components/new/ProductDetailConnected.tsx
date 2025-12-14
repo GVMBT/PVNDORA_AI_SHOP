@@ -10,6 +10,7 @@ import ProductDetail from './ProductDetail';
 import { useProductsTyped } from '../../hooks/useApiTyped';
 import { useCart } from '../../contexts/CartContext';
 import { AudioEngine } from '../../lib/AudioEngine';
+import { logger } from '../../utils/logger';
 import type { CatalogProduct, ProductDetailData } from '../../types/component';
 
 interface ProductDetailConnectedProps {
@@ -79,7 +80,7 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
       await addToCart(String(product.id), quantity);
       if (onHaptic) onHaptic('success');
     } catch (err) {
-      console.error('Failed to add to cart:', err);
+      logger.error('Failed to add to cart', err);
     }
   }, [addToCart, onHaptic, onAddToCartProp]);
 

@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 
 from core.logging import get_logger
-from src.services.database import get_database
+from core.services.database import get_database
 from core.auth import verify_telegram_auth
 from .models import AddToCartRequest, UpdateCartItemRequest, ApplyPromoRequest
 
@@ -20,7 +20,7 @@ router = APIRouter(tags=["webapp-cart"])
 async def _format_cart_response(cart, db, user_language: str, user_telegram_id: Optional[int] = None):
     """Build cart response with currency conversion."""
     from core.db import get_redis
-    from src.services.currency import get_currency_service
+    from core.services.currency import get_currency_service
     
     currency = "USD"
     currency_service = None

@@ -5,9 +5,10 @@
  * Supports infinite scroll pagination and period filtering.
  */
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, memo } from 'react';
 import Leaderboard from './Leaderboard';
 import { useLeaderboardTyped } from '../../hooks/useApiTyped';
+import { PAGINATION } from '../../config';
 
 interface LeaderboardConnectedProps {
   onBack: () => void;
@@ -21,7 +22,7 @@ const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) =
 
   useEffect(() => {
     const init = async () => {
-      await getLeaderboard(15, 0, false);
+      await getLeaderboard(PAGINATION.LEADERBOARD_LIMIT, 0, false);
       setIsInitialized(true);
     };
     init();
@@ -97,4 +98,4 @@ const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) =
   );
 };
 
-export default LeaderboardConnected;
+export default memo(LeaderboardConnected);

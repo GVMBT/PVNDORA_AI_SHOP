@@ -6,7 +6,8 @@
 
 import { useState, useCallback } from 'react';
 import { useApi } from '../useApi';
-import type { APIOrdersResponse, APICreateOrderRequest, APICreateOrderResponse } from '../../types/api';
+import { logger } from '../../utils/logger';
+import type { APIOrdersResponse, APICreateOrderRequest, APICreateOrderResponse, APIPaymentMethodsResponse } from '../../types/api';
 import type { Order } from '../../types/component';
 import { adaptOrders } from '../../adapters';
 
@@ -26,7 +27,7 @@ export function useOrdersTyped() {
       setOrders(adapted);
       return adapted;
     } catch (err) {
-      console.error('Failed to fetch orders:', err);
+      logger.error('Failed to fetch orders', err);
       return [];
     }
   }, [get]);
@@ -35,10 +36,44 @@ export function useOrdersTyped() {
     try {
       return await post('/orders', request);
     } catch (err) {
-      console.error('Failed to create order:', err);
+      logger.error('Failed to create order', err);
       return null;
     }
   }, [post]);
 
-  return { orders, getOrders, createOrder, loading, error };
+  const getPaymentMethods = useCallback(async (gateway?: string): Promise<APIPaymentMethodsResponse> => {
+    try {
+      const query = gateway ? `?gateway=${gateway}` : '';
+      return await get<APIPaymentMethodsResponse>(`/payments/methods${query}`);
+    } catch (err) {
+      logger.error('Failed to fetch payment methods', err);
+      // Return default methods on error
+      return {
+        systems: [
+          { system_group: 'card', name: 'Банковская карта', icon: '💳', enabled: true, min_amount: 0 },
+          { system_group: 'sbp', name: 'СБП', icon: '🏦', enabled: true, min_amount: 0 },
+        ]
+      };
+    }
+  }, [get]);
+
+  const createOrderFromCart = useCallback(async (
+    promoCode: string | null = null,
+    paymentMethod: string = 'card',
+    paymentGateway: string | null = null
+  ): Promise<APICreateOrderResponse | null> => {
+    try {
+      return await post<APICreateOrderResponse>('/orders', {
+        use_cart: true,
+        promo_code: promoCode,
+        payment_method: paymentMethod,
+        payment_gateway: paymentGateway,
+      });
+    } catch (err) {
+      logger.error('Failed to create order from cart', err);
+      return null;
+    }
+  }, [post]);
+
+  return { orders, getOrders, createOrder, createOrderFromCart, getPaymentMethods, loading, error };
 }

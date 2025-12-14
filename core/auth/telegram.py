@@ -1,13 +1,12 @@
 """Telegram Mini App authentication and admin checks."""
 import os
 import logging
-from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import Header, HTTPException, Depends
 
-from src.utils.validators import validate_telegram_init_data, extract_user_from_init_data, TelegramUser
-from src.services.database import get_database
+from core.utils.validators import validate_telegram_init_data, extract_user_from_init_data, TelegramUser
+from core.services.database import get_database
 from .session import verify_web_session_token
 
 logger = logging.getLogger(__name__)

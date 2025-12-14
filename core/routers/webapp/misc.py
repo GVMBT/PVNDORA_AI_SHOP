@@ -10,8 +10,8 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
-from src.services.database import get_database
-from src.services.money import to_float
+from core.services.database import get_database
+from core.services.money import to_float
 from core.auth import verify_telegram_auth
 from .models import PromoCheckRequest, WebAppReviewRequest
 

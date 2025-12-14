@@ -9,6 +9,7 @@ import CheckoutModal from './CheckoutModal';
 import { useOrdersTyped, useProfileTyped } from '../../hooks/useApiTyped';
 import { useCart } from '../../contexts/CartContext';
 import type { CartItem, PaymentMethod } from '../../types/component';
+import type { APICreateOrderRequest } from '../../types/api';
 
 interface CheckoutModalConnectedProps {
   onClose: () => void;
@@ -64,24 +65,36 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   const handlePay = useCallback(async (method: PaymentMethod) => {
     try {
       // Map component payment method to API format
-      const paymentMethod = method === 'internal' ? 'balance' : 'card';
-      const paymentGateway = method === 'crystalpay' ? 'crystalpay' : undefined;
+      // Note: 'balance' is not in API types, but backend accepts it for internal payments
+      // For external payments, use 'card' with gateway
+      const paymentMethod: 'card' | 'sbp' | 'crypto' = method === 'internal' ? 'card' : 'card';
+      const paymentGateway: 'rukassa' | 'crystalpay' | '1plat' | 'freekassa' | undefined = 
+        method === 'crystalpay' ? 'crystalpay' : undefined;
       
-      const response = await createOrder({
+      // For internal balance, backend expects payment_method='card' without gateway
+      // The backend logic checks user balance when gateway is not provided
+      const request: APICreateOrderRequest = {
         use_cart: true,
-        payment_method: paymentMethod as any,
-        payment_gateway: paymentGateway as any,
-      });
+        ...(method === 'internal' 
+          ? { payment_method: 'card' } // Backend handles balance deduction
+          : { 
+              payment_method: paymentMethod,
+              payment_gateway: paymentGateway 
+            }
+        ),
+      };
+      
+      const response = await createOrder(request);
       
       if (response) {
         // For external payment (CrystalPay), redirect IMMEDIATELY
         if (response.payment_url && method !== 'internal') {
           // In Telegram WebApp, use openLink
-          const tg = (window as any).Telegram?.WebApp;
-          if (tg?.openLink) {
+          const tgWebApp = window.Telegram?.WebApp;
+          if (tgWebApp?.openLink) {
             try {
               // Call openLink directly - it opens external browser
-              tg.openLink(response.payment_url);
+              tgWebApp.openLink(response.payment_url);
               // Don't close modal immediately - let user see the redirect
               return null;
             } catch (err) {

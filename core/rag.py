@@ -9,7 +9,7 @@ import os
 from typing import Optional, List
 
 from core.logging import get_logger
-from src.services.database import get_database
+from core.services.database import get_database
 
 logger = get_logger(__name__)
 

@@ -23,10 +23,11 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   onAdminEnter,
 }) => {
   const { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, updatePreferences, loading, error } = useProfileTyped();
-  const { hapticFeedback, showPopup, showConfirm, openLink } = useTelegram();
-  const { showTopUp, showWithdraw, showAlert } = useCyberModal();
+  const { hapticFeedback, showConfirm, openLink, showAlert: showTelegramAlert } = useTelegram();
+  const { showTopUp, showWithdraw, showAlert: showModalAlert } = useCyberModal();
   const [isInitialized, setIsInitialized] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
+  const { copy: copyToClipboard } = useClipboard();
 
   useEffect(() => {
     const init = async () => {
@@ -40,18 +41,12 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     if (!profile?.referralLink) return;
     if (onHaptic) onHaptic('light');
     
-    try {
-      await navigator.clipboard.writeText(profile.referralLink);
+    const success = await copyToClipboard(profile.referralLink);
+    if (success) {
       hapticFeedback?.('notification', 'success');
-      showPopup?.({
-        title: '✅',
-        message: 'Ссылка скопирована!',
-        buttons: [{ type: 'ok' }],
-      });
-    } catch (e) {
-      console.error('Copy failed:', e);
+      showTelegramAlert('Ссылка скопирована!');
     }
-  }, [profile?.referralLink, onHaptic, hapticFeedback, showPopup]);
+  }, [profile?.referralLink, onHaptic, hapticFeedback, showTelegramAlert, copyToClipboard]);
 
   const handleShare = useCallback(async () => {
     setShareLoading(true);
@@ -61,19 +56,19 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       const { prepared_message_id } = await createShareLink();
       
       // Try Telegram's shareMessage first
-      const tg = (window as any).Telegram?.WebApp;
-      if (tg?.shareMessage) {
-        tg.shareMessage(prepared_message_id, () => {
+      const tgWebApp = window.Telegram?.WebApp;
+      if (tgWebApp?.shareMessage) {
+        tgWebApp.shareMessage(prepared_message_id, () => {
           // Share completed
         });
-      } else if (tg?.switchInlineQuery) {
-        tg.switchInlineQuery('invite', ['users', 'groups', 'channels']);
+      } else if (tgWebApp?.switchInlineQuery) {
+        tgWebApp.switchInlineQuery('invite', ['users', 'groups', 'channels']);
       } else {
         // Fallback to copy
         await handleCopyLink();
       }
     } catch (err) {
-      console.error('Failed to share:', err);
+      logger.error('Failed to share', err);
       await handleCopyLink();
     } finally {
       setShareLoading(false);
@@ -86,7 +81,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     const minAmount = 500;
     
     if (balance < minAmount) {
-      showAlert('INSUFFICIENT FUNDS', `Minimum withdrawal is ${minAmount} ${currency}`, 'warning');
+        showModalAlert('INSUFFICIENT FUNDS', `Minimum withdrawal is ${minAmount} ${currency}`, 'warning');
       return;
     }
     
@@ -99,14 +94,14 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       onConfirm: async (amount: number, method: string, details: string) => {
         await requestWithdrawal(amount, method, details);
         hapticFeedback?.('notification', 'success');
-        showAlert('REQUEST SUBMITTED', 'Your withdrawal request has been submitted. We will process it within 24-48 hours.', 'success');
+        showModalAlert('REQUEST SUBMITTED', 'Your withdrawal request has been submitted. We will process it within 24-48 hours.', 'success');
         await getProfile();
       },
     });
-  }, [profile?.balance, profile?.currency, requestWithdrawal, getProfile, hapticFeedback, showWithdraw, showAlert, onHaptic]);
+  }, [profile?.balance, profile?.currency, requestWithdrawal, getProfile, hapticFeedback, showWithdraw, showModalAlert, onHaptic]);
 
   const handleTopUp = useCallback(() => {
-    const tg = (window as any).Telegram?.WebApp;
+    const tgWebApp = window.Telegram?.WebApp;
     const currency = profile?.currency || 'RUB';
     const balance = profile?.balance || 0;
     const minAmount = currency === 'USD' ? 5 : 500;
@@ -121,12 +116,8 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
         const result = await createTopUp(amount, currency);
         
         if (result.payment_url) {
-          // Open payment URL
-          if (tg?.openLink) {
-            tg.openLink(result.payment_url);
-          } else {
-            window.open(result.payment_url, '_blank');
-          }
+          // Open payment URL using Telegram WebApp or fallback
+          openLink(result.payment_url);
         }
       },
     });

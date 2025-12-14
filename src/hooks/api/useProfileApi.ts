@@ -6,9 +6,11 @@
 
 import { useState, useCallback } from 'react';
 import { useApi } from '../useApi';
+import { logger } from '../../utils/logger';
 import type { APIProfileResponse, APIReferralNetworkResponse } from '../../types/api';
 import type { ProfileData } from '../../types/component';
 import { adaptProfile, adaptReferralNetwork } from '../../adapters';
+import { PAGINATION } from '../../config';
 
 export function useProfileTyped() {
   const { get, post, loading, error } = useApi();
@@ -17,15 +19,15 @@ export function useProfileTyped() {
   const getProfile = useCallback(async (): Promise<ProfileData | null> => {
     try {
       const response: APIProfileResponse = await get('/profile');
-      const telegramUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
+      const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
       const adapted = adaptProfile(response, telegramUser);
       
       // Also fetch referral network for all 3 levels
       try {
         const [level1Res, level2Res, level3Res] = await Promise.all([
-          get('/referral/network?level=1&limit=50'),
-          get('/referral/network?level=2&limit=50'),
-          get('/referral/network?level=3&limit=50'),
+          get(`/referral/network?level=1&limit=${PAGINATION.REFERRAL_LIMIT}`),
+          get(`/referral/network?level=2&limit=${PAGINATION.REFERRAL_LIMIT}`),
+          get(`/referral/network?level=3&limit=${PAGINATION.REFERRAL_LIMIT}`),
         ]) as [APIReferralNetworkResponse, APIReferralNetworkResponse, APIReferralNetworkResponse];
         
         adapted.networkTree = adaptReferralNetwork(
@@ -34,13 +36,13 @@ export function useProfileTyped() {
           level3Res.referrals || []
         );
       } catch (networkErr) {
-        console.warn('Failed to fetch referral network, using empty tree:', networkErr);
+        logger.warn('Failed to fetch referral network, using empty tree', networkErr);
       }
       
       setProfile(adapted);
       return adapted;
     } catch (err) {
-      console.error('Failed to fetch profile:', err);
+      logger.error('Failed to fetch profile', err);
       return null;
     }
   }, [get]);
@@ -53,7 +55,7 @@ export function useProfileTyped() {
     try {
       return await post('/profile/withdraw', { amount, method, details });
     } catch (err) {
-      console.error('Failed to request withdrawal:', err);
+      logger.error('Failed to request withdrawal', err);
       throw err;
     }
   }, [post]);
@@ -62,7 +64,7 @@ export function useProfileTyped() {
     try {
       return await post('/referral/share-link', {});
     } catch (err) {
-      console.error('Failed to create share link:', err);
+      logger.error('Failed to create share link', err);
       throw err;
     }
   }, [post]);
@@ -74,7 +76,7 @@ export function useProfileTyped() {
     try {
       return await post('/profile/topup', { amount, currency });
     } catch (err) {
-      console.error('Failed to create top-up:', err);
+      logger.error('Failed to create top-up', err);
       throw err;
     }
   }, [post]);
@@ -86,7 +88,7 @@ export function useProfileTyped() {
     try {
       return await post('/profile/preferences', { preferred_currency, interface_language });
     } catch (err) {
-      console.error('Failed to update preferences:', err);
+      logger.error('Failed to update preferences', err);
       throw err;
     }
   }, [post]);

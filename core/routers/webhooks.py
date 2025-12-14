@@ -12,6 +12,9 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
 from core.routers.deps import get_payment_service, get_queue_publisher
+from core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["webhooks"])
 
@@ -40,12 +43,12 @@ async def onplat_webhook(request: Request):
             try:
                 form_data = await request.form()
                 data = dict(form_data)
-            except:
+            except Exception:
                 # Try query parameters as fallback
                 data = dict(request.query_params)
         
         if not data:
-            print("1Plat webhook: Could not parse request body")
+            logger.warning("1Plat webhook: Could not parse request body")
             return JSONResponse(
                 {"ok": False, "error": "Could not parse webhook data"},
                 status_code=400
@@ -53,7 +56,7 @@ async def onplat_webhook(request: Request):
         
         # Log webhook receipt (without sensitive data)
         order_id = data.get("order_id") or data.get("orderId") or "unknown"
-        print(f"1Plat webhook received for order: {order_id}")
+        logger.info(f"1Plat webhook received for order: {order_id}")
         
         payment_service = get_payment_service()
         result = await payment_service.verify_1plat_webhook(data)
@@ -62,10 +65,10 @@ async def onplat_webhook(request: Request):
             order_id = result["order_id"]
             payment_id = result.get("payment_id") or result.get("invoice_id")
             
-            print(f"1Plat webhook verified successfully for order: {order_id}")
+            logger.info(f"1Plat webhook verified successfully for order: {order_id}")
             
             # CRITICAL: Mark payment as confirmed using centralized service
-            from src.services.database import get_database
+            from core.services.database import get_database
             db = get_database()
             try:
                 from core.orders.status_service import OrderStatusService
@@ -75,9 +78,9 @@ async def onplat_webhook(request: Request):
                     payment_id=payment_id,
                     check_stock=True
                 )
-                print(f"1Plat webhook: Payment confirmed for order {order_id}, status set to '{final_status}'")
+                logger.info(f"1Plat webhook: Payment confirmed for order {order_id}, status set to '{final_status}'")
             except Exception as e:
-                print(f"1Plat webhook: Failed to mark payment confirmed: {e}")
+                logger.error(f"1Plat webhook: Failed to mark payment confirmed: {e}", exc_info=True)
                 return JSONResponse(
                     {"ok": False, "error": f"Failed to confirm payment: {str(e)}"},
                     status_code=500
@@ -95,16 +98,16 @@ async def onplat_webhook(request: Request):
             
             # FALLBACK: If QStash failed, deliver directly
             if not delivery_result.get("queued"):
-                print(f"1Plat webhook: QStash failed, executing direct delivery for {order_id}")
+                logger.warning(f"1Plat webhook: QStash failed, executing direct delivery for {order_id}")
                 try:
-                    from src.services.database import get_database
+                    from core.services.database import get_database
                     from core.routers.workers import _deliver_items_for_order
                     from core.routers.deps import get_notification_service
                     db = get_database()
                     notification_service = get_notification_service()
                     await _deliver_items_for_order(db, notification_service, order_id, only_instant=True)
                 except Exception as fallback_err:
-                    print(f"1Plat webhook: Direct delivery failed: {fallback_err}")
+                    logger.error(f"1Plat webhook: Direct delivery failed: {fallback_err}", exc_info=True)
             
             # Calculate referral bonus (non-critical)
             await publish_to_worker(
@@ -118,7 +121,7 @@ async def onplat_webhook(request: Request):
         
         # Log verification failure
         error_msg = result.get("error", "Unknown error")
-        print(f"1Plat webhook verification failed: {error_msg}")
+        logger.warning(f"1Plat webhook verification failed: {error_msg}")
         
         return JSONResponse(
             {"ok": False, "error": error_msg},
@@ -126,10 +129,7 @@ async def onplat_webhook(request: Request):
         )
         
     except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
-        print(f"1Plat webhook error: {e}")
-        print(f"Traceback: {error_trace}")
+        logger.error(f"1Plat webhook error: {e}", exc_info=True)
         return JSONResponse(
             {"ok": False, "error": str(e)},
             status_code=500
@@ -157,12 +157,12 @@ async def freekassa_webhook(request: Request):
         try:
             form_data = await request.form()
             data = dict(form_data)
-        except:
+        except Exception:
             # Fallback to query parameters
             data = dict(request.query_params)
         
         if not data:
-            print("Freekassa webhook: Could not parse request data")
+            logger.warning("Freekassa webhook: Could not parse request data")
             return JSONResponse(
                 {"error": "Could not parse webhook data"},
                 status_code=400
@@ -170,7 +170,7 @@ async def freekassa_webhook(request: Request):
         
         # Log webhook receipt (without sensitive data)
         order_id = data.get("MERCHANT_ORDER_ID") or "unknown"
-        print(f"Freekassa webhook received for order: {order_id}")
+        logger.info(f"Freekassa webhook received for order: {order_id}")
         
         payment_service = get_payment_service()
         result = await payment_service.verify_freekassa_webhook(data)
@@ -179,10 +179,10 @@ async def freekassa_webhook(request: Request):
             order_id = result["order_id"]
             payment_id = result.get("payment_id")
             
-            print(f"Freekassa webhook verified successfully for order: {order_id}")
+            logger.info(f"Freekassa webhook verified successfully for order: {order_id}")
             
             # CRITICAL: Mark payment as confirmed using centralized service
-            from src.services.database import get_database
+            from core.services.database import get_database
             db = get_database()
             try:
                 from core.orders.status_service import OrderStatusService
@@ -192,9 +192,9 @@ async def freekassa_webhook(request: Request):
                     payment_id=payment_id,
                     check_stock=True
                 )
-                print(f"Freekassa webhook: Payment confirmed for order {order_id}, status set to '{final_status}'")
+                logger.info(f"Freekassa webhook: Payment confirmed for order {order_id}, status set to '{final_status}'")
             except Exception as e:
-                print(f"Freekassa webhook: Failed to mark payment confirmed: {e}")
+                logger.error(f"Freekassa webhook: Failed to mark payment confirmed: {e}", exc_info=True)
                 return JSONResponse(
                     {"error": f"Failed to confirm payment: {str(e)}"},
                     status_code=500
@@ -212,16 +212,16 @@ async def freekassa_webhook(request: Request):
             
             # FALLBACK: If QStash failed, deliver directly
             if not delivery_result.get("queued"):
-                print(f"Freekassa webhook: QStash failed, executing direct delivery for {order_id}")
+                logger.warning(f"Freekassa webhook: QStash failed, executing direct delivery for {order_id}")
                 try:
-                    from src.services.database import get_database
+                    from core.services.database import get_database
                     from core.routers.workers import _deliver_items_for_order
                     from core.routers.deps import get_notification_service
                     db = get_database()
                     notification_service = get_notification_service()
                     await _deliver_items_for_order(db, notification_service, order_id, only_instant=True)
                 except Exception as fallback_err:
-                    print(f"Freekassa webhook: Direct delivery failed: {fallback_err}")
+                    logger.error(f"Freekassa webhook: Direct delivery failed: {fallback_err}", exc_info=True)
             
             # Calculate referral bonus (non-critical)
             await publish_to_worker(
@@ -236,7 +236,7 @@ async def freekassa_webhook(request: Request):
         
         # Log verification failure
         error_msg = result.get("error", "Unknown error")
-        print(f"Freekassa webhook verification failed: {error_msg}")
+        logger.warning(f"Freekassa webhook verification failed: {error_msg}")
         
         return JSONResponse(
             {"error": error_msg},
@@ -244,10 +244,7 @@ async def freekassa_webhook(request: Request):
         )
         
     except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
-        print(f"Freekassa webhook error: {e}")
-        print(f"Traceback: {error_trace}")
+        logger.error(f"Freekassa webhook error: {e}", exc_info=True)
         return JSONResponse(
             {"error": str(e)},
             status_code=500
@@ -293,14 +290,14 @@ async def rukassa_webhook(request: Request):
             data = dict(form_data)
         
         if not data:
-            print("Rukassa webhook: Could not parse request body")
+            logger.warning("Rukassa webhook: Could not parse request body")
             return Response(content="ERROR PARSE", status_code=400)
         
         # Log webhook receipt
         order_id = data.get("order_id") or "unknown"
         payment_id = data.get("id") or "unknown"
         status = data.get("status") or "unknown"
-        print(f"Rukassa webhook: order={order_id}, id={payment_id}, status={status}")
+        logger.info(f"Rukassa webhook: order={order_id}, id={payment_id}, status={status}")
         
         payment_service = get_payment_service()
         result = await payment_service.verify_rukassa_webhook(data, signature=signature)
@@ -308,10 +305,10 @@ async def rukassa_webhook(request: Request):
         if result["success"]:
             payment_order_id = result["order_id"]  # This is the temp UUID we sent to Rukassa
             
-            print(f"Rukassa webhook verified for payment_id: {payment_order_id}")
+            logger.info(f"Rukassa webhook verified for payment_id: {payment_order_id}")
             
             # Find real order by payment_id field (maps temp_order_id -> real order)
-            from src.services.database import get_database
+            from core.services.database import get_database
             db = get_database()
             
             real_order_id = payment_order_id  # Default fallback
@@ -328,7 +325,7 @@ async def rukassa_webhook(request: Request):
                 if lookup_result.data:
                     order_data = lookup_result.data[0]
                     real_order_id = order_data["id"]
-                    print(f"Rukassa webhook: mapped payment_id {payment_order_id} -> order_id {real_order_id}")
+                    logger.info(f"Rukassa webhook: mapped payment_id {payment_order_id} -> order_id {real_order_id}")
                 else:
                     # Fallback: try direct lookup (backward compatibility)
                     direct_result = await asyncio.to_thread(
@@ -341,18 +338,18 @@ async def rukassa_webhook(request: Request):
                     if direct_result.data:
                         order_data = direct_result.data[0]
                         real_order_id = order_data["id"]
-                        print(f"Rukassa webhook: direct order lookup succeeded for {real_order_id}")
+                        logger.info(f"Rukassa webhook: direct order lookup succeeded for {real_order_id}")
                     else:
-                        print(f"Rukassa webhook: Order not found for payment_id {payment_order_id}")
+                        logger.warning(f"Rukassa webhook: Order not found for payment_id {payment_order_id}")
                         return Response(content="ERROR ORDER NOT FOUND", status_code=404)
             except Exception as e:
-                print(f"Rukassa webhook: Order lookup error: {e}")
+                logger.error(f"Rukassa webhook: Order lookup error: {e}", exc_info=True)
                 # Continue with payment_order_id as fallback
             
             # Handle edge case: payment came after order expired/cancelled
             order_status = order_data.get("status", "pending") if order_data else "pending"
             if order_status in ("expired", "cancelled"):
-                print(f"Rukassa webhook: Order {real_order_id} was {order_status}, attempting recovery")
+                logger.info(f"Rukassa webhook: Order {real_order_id} was {order_status}, attempting recovery")
                 
                 # Check if product is still available
                 product_id = order_data.get("product_id") if order_data else None
@@ -370,11 +367,11 @@ async def rukassa_webhook(request: Request):
                         )
                         can_fulfill = bool(stock_check.data)
                     except Exception as e:
-                        print(f"Rukassa webhook: Stock check error: {e}")
+                        logger.error(f"Rukassa webhook: Stock check error: {e}", exc_info=True)
                 
                 if can_fulfill:
                     # Restore order and proceed with delivery
-                    print(f"Rukassa webhook: Restoring order {real_order_id} - stock available")
+                    logger.info(f"Rukassa webhook: Restoring order {real_order_id} - stock available")
                     await asyncio.to_thread(
                         lambda: db.client.table("orders")
                         .update({"status": "pending", "notes": "Restored after late payment"})
@@ -383,7 +380,7 @@ async def rukassa_webhook(request: Request):
                     )
                 else:
                     # No stock - credit to user balance or create refund ticket
-                    print(f"Rukassa webhook: Order {real_order_id} - no stock, creating refund ticket")
+                    logger.warning(f"Rukassa webhook: Order {real_order_id} - no stock, creating refund ticket")
                     user_id = order_data.get("user_id") if order_data else None
                     amount = result.get("amount", 0)
                     
@@ -406,12 +403,12 @@ async def rukassa_webhook(request: Request):
                                 .execute()
                             )
                         except Exception as e:
-                            print(f"Rukassa webhook: Failed to create refund ticket: {e}")
+                            logger.error(f"Rukassa webhook: Failed to create refund ticket: {e}", exc_info=True)
                     
                     # Still return OK to acknowledge webhook
                     return Response(content="OK", status_code=200)
             
-            print(f"Rukassa webhook processing delivery for order: {real_order_id}")
+            logger.info(f"Rukassa webhook processing delivery for order: {real_order_id}")
             
             # CRITICAL: Mark payment as confirmed using centralized service
             try:
@@ -422,9 +419,9 @@ async def rukassa_webhook(request: Request):
                     payment_id=payment_order_id,
                     check_stock=True
                 )
-                print(f"Rukassa webhook: Payment confirmed for order {real_order_id}, status set to '{final_status}'")
+                logger.info(f"Rukassa webhook: Payment confirmed for order {real_order_id}, status set to '{final_status}'")
             except Exception as e:
-                print(f"Rukassa webhook: Failed to mark payment confirmed: {e}")
+                logger.error(f"Rukassa webhook: Failed to mark payment confirmed: {e}", exc_info=True)
                 return Response(content=f"ERROR Failed to confirm payment: {str(e)}", status_code=500)
             
             publish_to_worker, WorkerEndpoints = get_queue_publisher()
@@ -439,14 +436,14 @@ async def rukassa_webhook(request: Request):
             
             # FALLBACK: If QStash failed, deliver directly
             if not delivery_result.get("queued"):
-                print(f"Rukassa webhook: QStash failed, executing direct delivery for {real_order_id}")
+                logger.warning(f"Rukassa webhook: QStash failed, executing direct delivery for {real_order_id}")
                 try:
                     from core.routers.workers import _deliver_items_for_order
                     from core.routers.deps import get_notification_service
                     notification_service = get_notification_service()
                     await _deliver_items_for_order(db, notification_service, real_order_id, only_instant=True)
                 except Exception as fallback_err:
-                    print(f"Rukassa webhook: Direct delivery failed: {fallback_err}")
+                    logger.error(f"Rukassa webhook: Direct delivery failed: {fallback_err}", exc_info=True)
             
             # Calculate referral bonus (non-critical)
             await publish_to_worker(
@@ -461,16 +458,13 @@ async def rukassa_webhook(request: Request):
         
         # Log verification failure
         error_msg = result.get("error", "Unknown error")
-        print(f"Rukassa webhook failed: {error_msg}")
+        logger.warning(f"Rukassa webhook failed: {error_msg}")
         
         # Return error message for Rukassa
         return Response(content=f"ERROR {error_msg}", status_code=400)
         
     except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
-        print(f"Rukassa webhook error: {e}")
-        print(f"Traceback: {error_trace}")
+        logger.error(f"Rukassa webhook error: {e}", exc_info=True)
         return Response(content=f"ERROR {str(e)}", status_code=500)
 
 
@@ -494,23 +488,23 @@ async def crystalpay_webhook(request: Request):
     Docs: https://docs.crystalpay.io/callback/invoice-uvedomleniya
     """
     # FIRST LINE: Log that we received ANY request
-    print(f"CrystalPay webhook RECEIVED: method={request.method}, url={request.url}")
+    logger.info(f"CrystalPay webhook RECEIVED: method={request.method}, url={request.url}")
     
     try:
         # Parse JSON body
         raw_body = await request.body()
-        print(f"CrystalPay webhook raw body length: {len(raw_body)}")
+        logger.debug(f"CrystalPay webhook raw body length: {len(raw_body)}")
         try:
             data = json.loads(raw_body.decode('utf-8'))
         except (json.JSONDecodeError, UnicodeDecodeError):
-            print("CrystalPay webhook: Could not parse JSON body")
+            logger.warning("CrystalPay webhook: Could not parse JSON body")
             return JSONResponse(
                 {"error": "Could not parse JSON"},
                 status_code=400
             )
         
         if not data:
-            print("CrystalPay webhook: Empty request body")
+            logger.warning("CrystalPay webhook: Empty request body")
             return JSONResponse(
                 {"error": "Empty request body"},
                 status_code=400
@@ -520,19 +514,19 @@ async def crystalpay_webhook(request: Request):
         invoice_id = data.get("id") or "unknown"
         state = data.get("state") or "unknown"
         order_id = data.get("extra") or "unknown"  # we pass real order_id in extra
-        print(f"CrystalPay webhook: invoice={invoice_id}, state={state}, order_id={order_id}")
+        logger.info(f"CrystalPay webhook: invoice={invoice_id}, state={state}, order_id={order_id}")
         
         payment_service = get_payment_service()
         result = await payment_service.verify_crystalpay_webhook(data)
-        print(f"CrystalPay webhook verify result: {result}")
+        logger.debug(f"CrystalPay webhook verify result: {result}")
         
         if result["success"]:
             real_order_id = result["order_id"]
             
-            print(f"CrystalPay webhook verified for order: {real_order_id}")
+            logger.info(f"CrystalPay webhook verified for order: {real_order_id}")
             
             # Find real order by payment_id field (maps invoice_id -> real order)
-            from src.services.database import get_database
+            from core.services.database import get_database
             db = get_database()
             
             order_data = None
@@ -549,7 +543,7 @@ async def crystalpay_webhook(request: Request):
                 if lookup_result.data:
                     order_data = lookup_result.data[0]
                     real_order_id = order_data["id"]
-                    print(f"CrystalPay webhook: mapped invoice {invoice_id} -> order {real_order_id}")
+                    logger.info(f"CrystalPay webhook: mapped invoice {invoice_id} -> order {real_order_id}")
                 else:
                     # Fallback: try direct lookup by order_id from extra (real order_id)
                     direct_result = await asyncio.to_thread(
@@ -562,21 +556,21 @@ async def crystalpay_webhook(request: Request):
                     if direct_result.data:
                         order_data = direct_result.data[0]
                         real_order_id = order_data["id"]
-                        print(f"CrystalPay webhook: direct order lookup for {real_order_id}")
+                        logger.info(f"CrystalPay webhook: direct order lookup for {real_order_id}")
                     else:
-                        print(f"CrystalPay webhook: Order not found for invoice {invoice_id}, extra {order_id}")
+                        logger.warning(f"CrystalPay webhook: Order not found for invoice {invoice_id}, extra {order_id}")
                         return JSONResponse(
                             {"error": "Order not found"},
                             status_code=404
                         )
             except Exception as e:
-                print(f"CrystalPay webhook: Order lookup error: {e}")
+                logger.error(f"CrystalPay webhook: Order lookup error: {e}", exc_info=True)
                 # Continue with order_id from extra as fallback
             
             # Handle edge case: payment came after order expired/cancelled
             order_status = order_data.get("status", "pending") if order_data else "pending"
             if order_status in ("expired", "cancelled"):
-                print(f"CrystalPay webhook: Order {real_order_id} was {order_status}, attempting recovery")
+                logger.info(f"CrystalPay webhook: Order {real_order_id} was {order_status}, attempting recovery")
                 
                 # Check if product is still available
                 product_id = order_data.get("product_id") if order_data else None
@@ -594,11 +588,11 @@ async def crystalpay_webhook(request: Request):
                         )
                         can_fulfill = bool(stock_check.data)
                     except Exception as e:
-                        print(f"CrystalPay webhook: Stock check error: {e}")
+                        logger.error(f"CrystalPay webhook: Stock check error: {e}", exc_info=True)
                 
                 if can_fulfill:
                     # Restore order and proceed with delivery
-                    print(f"CrystalPay webhook: Restoring order {real_order_id} - stock available")
+                    logger.info(f"CrystalPay webhook: Restoring order {real_order_id} - stock available")
                     await asyncio.to_thread(
                         lambda: db.client.table("orders")
                         .update({"status": "pending", "notes": "Restored after late payment"})
@@ -607,7 +601,7 @@ async def crystalpay_webhook(request: Request):
                     )
                 else:
                     # No stock - credit to user balance or create refund ticket
-                    print(f"CrystalPay webhook: Order {real_order_id} - no stock, creating refund ticket")
+                    logger.warning(f"CrystalPay webhook: Order {real_order_id} - no stock, creating refund ticket")
                     user_id = order_data.get("user_id") if order_data else None
                     amount = result.get("amount", 0)
                     
@@ -630,29 +624,27 @@ async def crystalpay_webhook(request: Request):
                                 .execute()
                             )
                         except Exception as e:
-                            print(f"CrystalPay webhook: Failed to create refund ticket: {e}")
+                            logger.error(f"CrystalPay webhook: Failed to create refund ticket: {e}", exc_info=True)
                     
                     # Still return 200 to acknowledge webhook
                     return JSONResponse({"ok": True, "note": "refund_pending"}, status_code=200)
             
-            print(f"CrystalPay webhook processing delivery for order: {real_order_id}")
-            print(f"CrystalPay webhook: order_data found = {order_data is not None}, order_status = {order_status}")
+            logger.info(f"CrystalPay webhook processing delivery for order: {real_order_id}")
+            logger.debug(f"CrystalPay webhook: order_data found = {order_data is not None}, order_status = {order_status}")
             
             # CRITICAL: Mark payment as confirmed using centralized service
             # This ensures proper status transition and stock checking
             try:
                 from core.orders.status_service import OrderStatusService
-                print(f"CrystalPay webhook: Creating OrderStatusService...")
                 status_service = OrderStatusService(db)
-                print(f"CrystalPay webhook: Calling mark_payment_confirmed for {real_order_id}...")
                 final_status = await status_service.mark_payment_confirmed(
                     order_id=real_order_id,
                     payment_id=invoice_id,
                     check_stock=True
                 )
-                print(f"CrystalPay webhook: Payment confirmed for order {real_order_id}, status set to '{final_status}'")
+                logger.info(f"CrystalPay webhook: Payment confirmed for order {real_order_id}, status set to '{final_status}'")
             except Exception as e:
-                print(f"CrystalPay webhook: Failed to mark payment confirmed: {e}")
+                logger.error(f"CrystalPay webhook: Failed to mark payment confirmed: {e}", exc_info=True)
                 # Don't continue if payment confirmation failed
                 return JSONResponse(
                     {"error": f"Failed to confirm payment: {str(e)}"},
@@ -671,17 +663,15 @@ async def crystalpay_webhook(request: Request):
             
             # FALLBACK: If QStash failed, deliver directly
             if not delivery_result.get("queued"):
-                print(f"CrystalPay webhook: QStash failed (error={delivery_result.get('error')}), executing direct delivery for {real_order_id}")
+                logger.warning(f"CrystalPay webhook: QStash failed (error={delivery_result.get('error')}), executing direct delivery for {real_order_id}")
                 try:
                     from core.routers.workers import _deliver_items_for_order
                     from core.routers.deps import get_notification_service
                     notification_service = get_notification_service()
                     fallback_result = await _deliver_items_for_order(db, notification_service, real_order_id, only_instant=True)
-                    print(f"CrystalPay webhook: Direct delivery completed: {fallback_result}")
+                    logger.info(f"CrystalPay webhook: Direct delivery completed: {fallback_result}")
                 except Exception as fallback_err:
-                    import traceback
-                    print(f"CrystalPay webhook: Direct delivery FAILED for {real_order_id}: {fallback_err}")
-                    print(f"CrystalPay webhook: Traceback: {traceback.format_exc()}")
+                    logger.error(f"CrystalPay webhook: Direct delivery FAILED for {real_order_id}: {fallback_err}", exc_info=True)
                     # Return 500 to signal CrystalPay to retry
                     return JSONResponse(
                         {"error": f"Delivery failed: {str(fallback_err)[:100]}"},
@@ -701,7 +691,7 @@ async def crystalpay_webhook(request: Request):
         
         # Log verification failure
         error_msg = result.get("error", "Unknown error")
-        print(f"CrystalPay webhook failed: {error_msg}")
+        logger.warning(f"CrystalPay webhook failed: {error_msg}")
         
         return JSONResponse(
             {"error": error_msg},
@@ -709,10 +699,7 @@ async def crystalpay_webhook(request: Request):
         )
         
     except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
-        print(f"CrystalPay webhook error: {e}")
-        print(f"Traceback: {error_trace}")
+        logger.error(f"CrystalPay webhook error: {e}", exc_info=True)
         return JSONResponse(
             {"error": str(e)},
             status_code=500
@@ -735,12 +722,12 @@ async def crystalpay_topup_webhook(request: Request):
     
     try:
         body = await request.body()
-        print(f"CrystalPay TOPUP webhook received: {len(body)} bytes")
+        logger.info(f"CrystalPay TOPUP webhook received: {len(body)} bytes")
         
         try:
             data = await request.json()
         except Exception:
-            print(f"CrystalPay TOPUP webhook: Invalid JSON")
+            logger.warning("CrystalPay TOPUP webhook: Invalid JSON")
             return JSONResponse({"error": "Invalid JSON"}, status_code=400)
         
         # Extract fields
@@ -749,11 +736,11 @@ async def crystalpay_topup_webhook(request: Request):
         extra = data.get("extra") or ""  # Format: "topup_{topup_id}"
         received_signature = str(data.get("signature", "")).strip().lower()
         
-        print(f"CrystalPay TOPUP webhook: invoice={invoice_id}, state={state}, extra={extra}")
+        logger.info(f"CrystalPay TOPUP webhook: invoice={invoice_id}, state={state}, extra={extra}")
         
         # Verify this is a topup transaction
         if not extra.startswith("topup_"):
-            print(f"CrystalPay TOPUP webhook: Not a topup transaction (extra={extra})")
+            logger.warning(f"CrystalPay TOPUP webhook: Not a topup transaction (extra={extra})")
             return JSONResponse({"error": "Not a topup transaction"}, status_code=400)
         
         topup_id = extra.replace("topup_", "")
@@ -765,16 +752,16 @@ async def crystalpay_topup_webhook(request: Request):
             expected_signature = hashlib.sha1(sign_string.encode()).hexdigest().lower()
             
             if not hmac.compare_digest(received_signature, expected_signature):
-                print(f"CrystalPay TOPUP webhook: Signature mismatch")
+                logger.warning("CrystalPay TOPUP webhook: Signature mismatch")
                 return JSONResponse({"error": "Invalid signature"}, status_code=400)
         
         # Check payment state
         if state.lower() != "payed":
-            print(f"CrystalPay TOPUP webhook: Payment not successful (state={state})")
+            logger.info(f"CrystalPay TOPUP webhook: Payment not successful (state={state})")
             return JSONResponse({"ok": True, "message": f"State {state} acknowledged"}, status_code=200)
         
         # Get database
-        from src.services.database import get_database
+        from core.services.database import get_database
         db = get_database()
         
         # Find topup transaction
@@ -787,14 +774,14 @@ async def crystalpay_topup_webhook(request: Request):
         )
         
         if not tx_result.data:
-            print(f"CrystalPay TOPUP webhook: Transaction {topup_id} not found")
+            logger.warning(f"CrystalPay TOPUP webhook: Transaction {topup_id} not found")
             return JSONResponse({"error": "Transaction not found"}, status_code=404)
         
         tx = tx_result.data
         
         # Idempotency check - if already completed, return success
         if tx.get("status") == "completed":
-            print(f"CrystalPay TOPUP webhook: Transaction {topup_id} already completed (idempotency)")
+            logger.info(f"CrystalPay TOPUP webhook: Transaction {topup_id} already completed (idempotency)")
             return JSONResponse({"ok": True}, status_code=200)
         
         user_id = tx.get("user_id")
@@ -811,7 +798,7 @@ async def crystalpay_topup_webhook(request: Request):
         )
         
         if not user_result.data:
-            print(f"CrystalPay TOPUP webhook: User {user_id} not found")
+            logger.warning(f"CrystalPay TOPUP webhook: User {user_id} not found")
             return JSONResponse({"error": "User not found"}, status_code=404)
         
         current_balance = float(user_result.data.get("balance") or 0)
@@ -837,15 +824,12 @@ async def crystalpay_topup_webhook(request: Request):
             .execute()
         )
         
-        print(f"CrystalPay TOPUP webhook: SUCCESS! User {user_id} balance: {current_balance} -> {new_balance} (+{amount} {currency})")
+        logger.info(f"CrystalPay TOPUP webhook: SUCCESS! User {user_id} balance: {current_balance} -> {new_balance} (+{amount} {currency})")
         
         return JSONResponse({"ok": True}, status_code=200)
         
     except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
-        print(f"CrystalPay TOPUP webhook error: {e}")
-        print(f"Traceback: {error_trace}")
+        logger.error(f"CrystalPay TOPUP webhook error: {e}", exc_info=True)
         return JSONResponse(
             {"error": str(e)},
             status_code=500

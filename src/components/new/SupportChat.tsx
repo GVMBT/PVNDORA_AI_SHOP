@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Terminal, Paperclip, MessageSquare, ChevronDown, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { randomInt } from '../../utils/random';
 
 interface SupportChatProps {
   isOpen: boolean;
@@ -55,7 +56,7 @@ const SupportChat: React.FC<SupportChatProps> = ({ isOpen, onToggle, onHaptic, r
       setTimeout(() => {
           const agentMsg: Message = {
               id: Date.now() + 1,
-              text: "Request acknowledged. Processing ticket ID #" + Math.floor(Math.random() * 10000) + ". Please wait...",
+              text: "Request acknowledged. Processing ticket ID #" + randomInt(1000, 9999) + ". Please wait...",
               sender: 'agent',
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           };

@@ -8,6 +8,8 @@
  * For background music, use BackgroundMusic component (HTMLAudioElement).
  */
 
+import { logger } from '../utils/logger';
+
 type OscillatorType = 'sine' | 'square' | 'sawtooth' | 'triangle';
 
 interface ToneConfig {
@@ -55,7 +57,7 @@ class AudioEngineClass {
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) {
-        console.warn('[AudioEngine] Web Audio API not supported');
+        logger.warn('[AudioEngine] Web Audio API not supported');
         return;
       }
       
@@ -65,12 +67,12 @@ class AudioEngineClass {
       this.masterGain.connect(this.ctx.destination);
       this.initialized = true;
       
-      console.log('[AudioEngine] Initialized');
+      logger.debug('[AudioEngine] Initialized');
       
       // Preload critical sounds
       this.preloadSounds();
     } catch (e) {
-      console.warn('[AudioEngine] Failed to initialize:', e);
+      logger.warn('[AudioEngine] Failed to initialize', e);
     }
   }
 
@@ -112,7 +114,7 @@ class AudioEngineClass {
       criticalSounds.map(key => this.loadSound(key))
     );
     
-    console.log(`[AudioEngine] Preloaded ${this.soundCache.size} sound(s)`);
+    logger.debug(`[AudioEngine] Preloaded ${this.soundCache.size} sound(s)`);
   }
 
   /**
@@ -152,10 +154,10 @@ class AudioEngineClass {
         this.soundCache.set(key, audioBuffer);
         this.loadingPromises.delete(key);
         
-        console.log(`[AudioEngine] Loaded: ${key}`);
+        logger.debug(`[AudioEngine] Loaded: ${key}`);
         return audioBuffer;
       } catch (error) {
-        console.warn(`[AudioEngine] Failed to load ${key}:`, error);
+        logger.warn(`[AudioEngine] Failed to load ${key}`, error);
         this.loadingPromises.delete(key);
         return null;
       }
@@ -174,7 +176,7 @@ class AudioEngineClass {
     const buffer = await this.loadSound(key);
     if (!buffer) {
       // Fallback to procedural generation
-      console.warn(`[AudioEngine] File not available, using procedural fallback for: ${key}`);
+      logger.warn(`[AudioEngine] File not available, using procedural fallback for: ${key}`);
       return;
     }
     
@@ -401,6 +403,7 @@ class AudioEngineClass {
    * Single typing character (procedural - random)
    */
   type(): void {
+    // Use inline calculation for audio frequency variation
     const freq = 2000 + Math.random() * 1000;
     this.playTone({ freq, type: 'square', duration: 0.01, volume: 0.005 });
   }

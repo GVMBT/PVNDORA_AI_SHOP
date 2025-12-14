@@ -6,6 +6,7 @@
 
 import { useState, useCallback } from 'react';
 import { useApi } from '../useApi';
+import { logger } from '../../utils/logger';
 
 // Types
 export interface AdminProduct {
@@ -74,7 +75,7 @@ export function useAdminProductsTyped() {
       setProducts(data);
       return data;
     } catch (err) {
-      console.error('Failed to fetch admin products:', err);
+      logger.error('Failed to fetch admin products', err);
       return [];
     }
   }, [get]);
@@ -96,7 +97,7 @@ export function useAdminProductsTyped() {
       await getProducts();
       return response.product;
     } catch (err) {
-      console.error('Failed to update product:', err);
+      logger.error('Failed to update product', err);
       return null;
     }
   }, [put, getProducts]);
@@ -107,7 +108,7 @@ export function useAdminProductsTyped() {
       await getProducts();
       return true;
     } catch (err) {
-      console.error('Failed to delete product:', err);
+      logger.error('Failed to delete product', err);
       return false;
     }
   }, [del, getProducts]);
@@ -118,7 +119,7 @@ export function useAdminProductsTyped() {
       await getProducts();
       return true;
     } catch (err) {
-      console.error('Failed to add stock:', err);
+      logger.error('Failed to add stock', err);
       return false;
     }
   }, [post, getProducts]);
@@ -144,7 +145,7 @@ export function useAdminOrdersTyped() {
       setOrders(data);
       return data;
     } catch (err) {
-      console.error('Failed to fetch admin orders:', err);
+      logger.error('Failed to fetch admin orders', err);
       return [];
     }
   }, [get]);
@@ -165,7 +166,7 @@ export function useAdminUsersTyped() {
       setUsers(data);
       return data;
     } catch (err) {
-      console.error('Failed to fetch admin users:', err);
+      logger.error('Failed to fetch admin users', err);
       return [];
     }
   }, [get]);
@@ -176,7 +177,7 @@ export function useAdminUsersTyped() {
       await getUsers();
       return true;
     } catch (err) {
-      console.error('Failed to update user role:', err);
+      logger.error('Failed to update user role', err);
       return false;
     }
   }, [put, getUsers]);
@@ -187,7 +188,7 @@ export function useAdminUsersTyped() {
       await getUsers();
       return true;
     } catch (err) {
-      console.error('Failed to ban/unban user:', err);
+      logger.error('Failed to ban/unban user', err);
       return false;
     }
   }, [put, getUsers]);
@@ -206,7 +207,7 @@ export function useAdminAnalyticsTyped() {
       setAnalytics(response);
       return response;
     } catch (err) {
-      console.error('Failed to fetch admin analytics:', err);
+      logger.error('Failed to fetch admin analytics', err);
       return null;
     }
   }, [get]);

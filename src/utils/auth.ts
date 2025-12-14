@@ -4,9 +4,22 @@
  * Shared authentication logic for web and Telegram Mini App.
  */
 
+import { API, CACHE } from '../config';
+import { localStorage } from './storage';
+import { logger } from './logger';
+import { apiPost } from './apiClient';
+
 /**
  * Extract session_token from URL query and persist to localStorage.
  * Used for web login flow when Telegram initData is unavailable.
+ * 
+ * @returns Extracted token or null if not found
+ * 
+ * @example
+ * ```ts
+ * // URL: https://app.com/?session_token=abc123
+ * const token = persistSessionTokenFromQuery(); // Returns 'abc123' and saves to localStorage
+ * ```
  */
 export function persistSessionTokenFromQuery(): string | null {
   if (typeof window === 'undefined') return null;
@@ -14,7 +27,7 @@ export function persistSessionTokenFromQuery(): string | null {
     const url = new URL(window.location.href);
     const token = url.searchParams.get('session_token');
     if (token) {
-      window.localStorage?.setItem('pvndora_session', token);
+      localStorage.set(CACHE.SESSION_TOKEN_KEY, token);
       // Remove token from URL to avoid leaking
       url.searchParams.delete('session_token');
       window.history.replaceState({}, '', url.toString());
@@ -30,56 +43,58 @@ export function persistSessionTokenFromQuery(): string | null {
  * Verify session token with backend.
  * Returns session data if valid, null if invalid or error.
  */
-export async function verifySessionToken(token: string): Promise<{ valid: boolean; user?: any } | null> {
+export interface SessionVerificationResult {
+  valid: boolean;
+  user?: {
+    id: number;
+    first_name?: string;
+    username?: string;
+    [key: string]: unknown;
+  };
+}
+
+/**
+ * Verify session token with backend API
+ * 
+ * @param token - Session token string to verify
+ * @returns Promise resolving to SessionVerificationResult or null on error
+ */
+export async function verifySessionToken(token: string): Promise<SessionVerificationResult | null> {
   try {
-    const response = await fetch('/api/webapp/auth/verify-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_token: token }),
+    // Use apiClient for consistent error handling
+    const data = await apiPost<SessionVerificationResult>('/auth/verify-session', {
+      session_token: token,
     });
-
-    // Check if response is ok before parsing JSON
-    if (!response.ok) {
-      // Try to parse error message if available
-      try {
-        const errorData = await response.json();
-        console.error('Session verification failed:', errorData);
-      } catch {
-        // If not JSON, log response text
-        const text = await response.text();
-        console.error('Session verification failed with non-JSON response:', text.substring(0, 100));
-      }
-      return null;
-    }
-
-    const data = await response.json();
     return data;
   } catch (err) {
-    console.error('Session verification error:', err);
+    logger.error('Session verification error', err);
     return null;
   }
 }
 
 /**
- * Get session token from localStorage.
+ * Get session token from localStorage
+ * 
+ * @returns Session token string or null if not found
  */
 export function getSessionToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return window.localStorage?.getItem('pvndora_session') || null;
+  return localStorage.get(CACHE.SESSION_TOKEN_KEY);
 }
 
 /**
- * Save session token to localStorage.
+ * Save session token to localStorage
+ * 
+ * @param token - Session token string to save
  */
 export function saveSessionToken(token: string): void {
-  if (typeof window === 'undefined') return;
-  window.localStorage?.setItem('pvndora_session', token);
+  localStorage.set(CACHE.SESSION_TOKEN_KEY, token);
 }
 
 /**
- * Remove session token from localStorage.
+ * Remove session token from localStorage
+ * 
+ * Clears the stored session token, effectively logging out the user.
  */
 export function removeSessionToken(): void {
-  if (typeof window === 'undefined') return;
-  window.localStorage?.removeItem('pvndora_session');
+  localStorage.remove(CACHE.SESSION_TOKEN_KEY);
 }

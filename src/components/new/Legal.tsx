@@ -3,6 +3,7 @@ import React from 'react';
 import { ArrowLeft, FileText, Shield, HelpCircle, Mail, Terminal, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLocale } from '../../hooks/useLocale';
+import { generateHashId } from '../../utils/id';
 
 interface LegalProps {
   doc: string;
@@ -358,7 +359,7 @@ const Legal: React.FC<LegalProps> = ({ doc, onBack }) => {
 
               {/* Footer Signature */}
               <div className="mt-12 pt-8 border-t border-white/5 flex justify-between items-center text-[10px] font-mono text-gray-600">
-                  <span>DOC_HASH: {Math.random().toString(36).substr(2, 12).toUpperCase()}</span>
+                  <span>DOC_HASH: {generateHashId(12)}</span>
                   <span>LAST_UPDATED: 2024.12.13</span>
               </div>
           </div>

@@ -30,7 +30,7 @@ async def daily_cleanup_entrypoint(request: Request):
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
     
-    from src.services.database import get_database
+    from core.services.database import get_database
     
     db = get_database()
     now = datetime.now(timezone.utc)

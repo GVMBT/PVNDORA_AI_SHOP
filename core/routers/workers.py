@@ -8,9 +8,12 @@ import asyncio
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Request
 
-from src.services.database import get_database
-from src.services.money import to_decimal, to_float
+from core.services.database import get_database
+from core.services.money import to_float
 from core.routers.deps import verify_qstash, get_notification_service
+from core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/workers", tags=["workers"])
 
@@ -24,7 +27,7 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
     CRITICAL: This function should ONLY be called AFTER payment is confirmed via webhook.
     Orders with status 'pending' should NOT be processed - payment is not confirmed yet.
     """
-    print(f"deliver-goods: starting for order {order_id}, only_instant={only_instant}")
+    logger.info(f"deliver-goods: starting for order {order_id}, only_instant={only_instant}")
     
     # CRITICAL CHECK: Verify order status - must be paid/prepaid, NOT pending
     try:
@@ -37,25 +40,24 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
         )
         if order_check.data:
             order_status = order_check.data.get("status", "").lower()
-            payment_method = order_check.data.get("payment_method", "")
             
             # If order is still pending, payment is NOT confirmed - DO NOT process
             if order_status == "pending":
-                print(f"deliver-goods: Order {order_id} is still PENDING - payment not confirmed. Skipping delivery.")
+                logger.warning(f"deliver-goods: Order {order_id} is still PENDING - payment not confirmed. Skipping delivery.")
                 return {"delivered": 0, "waiting": 0, "note": "payment_not_confirmed", "error": "Order payment not confirmed yet"}
             
             # For balance payments, status should be 'paid' (set during order creation)
             # For external payments, status should be 'prepaid' or 'paid' (set by webhook)
             if order_status not in ("paid", "prepaid", "partial", "delivered"):
-                print(f"deliver-goods: Order {order_id} has invalid status '{order_status}' for delivery. Skipping.")
+                logger.warning(f"deliver-goods: Order {order_id} has invalid status '{order_status}' for delivery. Skipping.")
                 return {"delivered": 0, "waiting": 0, "note": "invalid_status", "error": f"Order status '{order_status}' is not valid for delivery"}
     except Exception as e:
-        print(f"deliver-goods: Failed to check order status for {order_id}: {e}")
+        logger.error(f"deliver-goods: Failed to check order status for {order_id}: {e}", exc_info=True)
         # Continue with delivery attempt, but log the error
     
     now = datetime.now(timezone.utc)
     items = await db.get_order_items_by_order(order_id)
-    print(f"deliver-goods: found {len(items) if items else 0} items for order {order_id}")
+    logger.info(f"deliver-goods: found {len(items) if items else 0} items for order {order_id}")
     if not items:
         return {"delivered": 0, "waiting": 0, "note": "no_items"}
     
@@ -69,7 +71,7 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
             )
             products_map = {p["id"]: p for p in (prod_res.data or [])}
     except Exception as e:
-        print(f"deliver-goods: failed to load products for order {order_id}: {e}")
+        logger.error(f"deliver-goods: failed to load products for order {order_id}: {e}", exc_info=True)
     
     delivered_lines = []
     delivered_count = 0
@@ -88,7 +90,7 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
         # For only_instant mode, count preorder items as waiting but don't try to deliver
         if only_instant and str(it.get("fulfillment_type") or "instant") != "instant":
             waiting_count += 1
-            print(f"deliver-goods: skipping preorder item {it.get('id')} (only_instant=True), counting as waiting")
+            logger.debug(f"deliver-goods: skipping preorder item {it.get('id')} (only_instant=True), counting as waiting")
             continue
         
         product_id = it.get("product_id")
@@ -108,14 +110,14 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
             )
             stock = stock_res.data[0] if stock_res.data else None
         except Exception as e:
-            print(f"deliver-goods: stock query failed for order {order_id}, product {product_id}: {e}")
+            logger.error(f"deliver-goods: stock query failed for order {order_id}, product {product_id}: {e}", exc_info=True)
             stock = None
         
         if stock:
             # Reserve/sell stock
             stock_id = stock["id"]
             stock_content = stock.get("content", "")
-            print(f"deliver-goods: allocating stock {stock_id} for product {product_id}")
+            logger.info(f"deliver-goods: allocating stock {stock_id} for product {product_id}")
             try:
                 await asyncio.to_thread(
                     lambda sid=stock_id, ts=now.isoformat(): db.client.table("stock_items").update({
@@ -125,7 +127,7 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
                     }).eq("id", sid).execute()
                 )
             except Exception as e:
-                print(f"deliver-goods: failed to mark stock sold {stock_id}: {e}")
+                logger.error(f"deliver-goods: failed to mark stock sold {stock_id}: {e}", exc_info=True)
                 continue
             
             # Update item as delivered
@@ -159,12 +161,12 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
                 delivered_count += 1
                 delivered_lines.append(f"{prod_name}:\n{stock_content}")
             except Exception as e:
-                print(f"deliver-goods: failed to update order_item {item_id}: {e}")
+                logger.error(f"deliver-goods: failed to update order_item {item_id}: {e}", exc_info=True)
         else:
             # No stock yet - keep current status (don't change to prepaid here)
             # Status should already be 'prepaid' if payment was confirmed and stock unavailable
             # If status is 'pending', it means payment is not confirmed - don't change it
-            print(f"deliver-goods: NO stock available for product {product_id}, keeping current status")
+            logger.debug(f"deliver-goods: NO stock available for product {product_id}, keeping current status")
             waiting_count += 1
             item_id = it.get("id")
             # Don't change status - keep it as is (should be 'prepaid' if payment confirmed, 'pending' if not)
@@ -177,12 +179,12 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
                         }).eq("id", iid).execute()
                 )
             except Exception as e:
-                print(f"deliver-goods: failed to update timestamp for item {item_id}: {e}")
+                logger.error(f"deliver-goods: failed to update timestamp for item {item_id}: {e}", exc_info=True)
     
     # Update order status summary using centralized service
     # IMPORTANT: Include previously delivered items + newly delivered items
     total_delivered_final = total_delivered + delivered_count
-    print(f"deliver-goods: order {order_id} status calc: total_delivered={total_delivered_final} (prev={total_delivered} + new={delivered_count}), waiting={waiting_count}")
+    logger.debug(f"deliver-goods: order {order_id} status calc: total_delivered={total_delivered_final} (prev={total_delivered} + new={delivered_count}), waiting={waiting_count}")
     
     try:
         from core.orders.status_service import OrderStatusService
@@ -201,7 +203,7 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
                 .execute()
             )
     except Exception as e:
-        print(f"deliver-goods: failed to update order status {order_id}: {e}")
+        logger.error(f"deliver-goods: failed to update order status {order_id}: {e}", exc_info=True)
     
     # Update user's total_saved (discount savings)
     # Calculate saved amount = original_price - amount
@@ -254,9 +256,9 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
                         .execute()
                     )
                     
-                    print(f"deliver-goods: Updated total_saved for user {user_id}: {current_saved:.2f} -> {new_saved:.2f} (+{saved_amount:.2f} from order {order_id}, original={original_price:.2f}, final={final_amount:.2f})")
+                    logger.info(f"deliver-goods: Updated total_saved for user {user_id}: {current_saved:.2f} -> {new_saved:.2f} (+{saved_amount:.2f} from order {order_id}, original={original_price:.2f}, final={final_amount:.2f})")
     except Exception as e:
-        print(f"deliver-goods: Failed to update total_saved for order {order_id}: {e}")
+        logger.error(f"deliver-goods: Failed to update total_saved for order {order_id}: {e}", exc_info=True)
     
     # Notify user once with aggregated content
     try:
@@ -273,7 +275,7 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
                     content=content_block
                 )
     except Exception as e:
-        print(f"deliver-goods: failed to notify for order {order_id}: {e}")
+        logger.error(f"deliver-goods: failed to notify for order {order_id}: {e}", exc_info=True)
     
     return {"delivered": delivered_count, "waiting": waiting_count}
 
@@ -383,7 +385,7 @@ async def worker_calculate_referral(request: Request):
         }
     except Exception as e:
         # If referral program not unlocked or percent is null, skip bonus and continue
-        print(f"Referral bonus failed for order {order_id}: {e}")
+        logger.warning(f"Referral bonus failed for order {order_id}: {e}", exc_info=True)
         return {
             "success": True,
             "turnover": turnover_data,
@@ -400,7 +402,7 @@ async def worker_deliver_batch(request: Request):
     QStash Worker: Try to deliver all waiting items (pending/prepaid/fulfilling), any fulfillment_type.
     Useful for автоаллоцирования при пополнении стока.
     """
-    data = await verify_qstash(request)
+    await verify_qstash(request)  # Verify QStash signature
     
     db = get_database()
     notification_service = get_notification_service()
@@ -448,7 +450,7 @@ async def worker_notify_supplier(request: Request):
     
     if len(stock.data) <= threshold:
         # Log low stock alert (in production, send to admin)
-        print(f"LOW STOCK ALERT: Product {product_id} has only {len(stock.data)} items")
+        logger.warning(f"LOW STOCK ALERT: Product {product_id} has only {len(stock.data)} items")
         return {"alerted": True, "stock_count": len(stock.data)}
     
     return {"skipped": True, "stock_count": len(stock.data)}

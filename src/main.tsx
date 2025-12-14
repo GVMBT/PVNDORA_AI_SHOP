@@ -4,39 +4,18 @@ import NewApp from './NewApp';
 import { CartProvider } from './contexts/CartContext';
 import { ErrorBoundary } from './components/app';
 import './index.css';
-
-// Telegram WebApp type declaration
-declare global {
-  interface Window {
-    Telegram?: {
-      WebApp?: {
-        ready: () => void;
-        expand: () => void;
-        themeParams: {
-          bg_color?: string;
-        };
-        initData?: string;
-        initDataUnsafe?: {
-          user?: {
-            id: number;
-            language_code?: string;
-          };
-          start_param?: string;
-        };
-      };
-    };
-  }
-}
+import type { WebApp } from './types/telegram';
 
 // Initialize Telegram WebApp
-if (window.Telegram?.WebApp) {
-  window.Telegram.WebApp.ready();
-  window.Telegram.WebApp.expand();
+const tgWebApp: WebApp | undefined = window.Telegram?.WebApp;
+if (tgWebApp) {
+  tgWebApp.ready();
+  tgWebApp.expand();
   
   // Set theme
   document.documentElement.style.setProperty(
     '--tg-theme-bg-color',
-    window.Telegram.WebApp.themeParams.bg_color || '#0a0a0f'
+    tgWebApp.themeParams.bg_color || '#0a0a0f'
   );
 }
 

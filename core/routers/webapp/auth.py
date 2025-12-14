@@ -10,7 +10,7 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, HTTPException
 
-from src.services.database import get_database
+from core.services.database import get_database
 from core.auth import create_web_session
 from .models import TelegramLoginData, SessionTokenRequest
 
@@ -133,8 +133,6 @@ async def get_dev_token(telegram_id: int):
     DEV ONLY: Generate a session token for a user by telegram_id.
     This endpoint should be disabled in production or protected by secret.
     """
-    # Check for dev secret (optional protection)
-    dev_secret = os.environ.get("DEV_AUTH_SECRET")
     # For now, allow if TELEGRAM_TOKEN exists (means we're in dev/staging)
     
     db = get_database()

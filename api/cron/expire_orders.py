@@ -7,11 +7,15 @@ Tasks:
 2. Release reserved stock items for cancelled orders
 3. Handle stale orders without expires_at (fallback: older than 60 min)
 """
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import os
 import asyncio
+
+from core.logging import get_logger
+
+logger = get_logger(__name__)
 
 # Verify cron secret to prevent unauthorized access
 CRON_SECRET = os.environ.get("CRON_SECRET", "")
@@ -30,7 +34,7 @@ async def expire_orders_entrypoint(request: Request):
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
     
-    from src.services.database import get_database
+    from core.services.database import get_database
     
     db = get_database()
     now = datetime.now(timezone.utc)
@@ -67,7 +71,7 @@ async def expire_orders_entrypoint(request: Request):
                 cancelled_count += 1
                 
             except Exception as e:
-                print(f"Failed to expire order {order.id}: {e}")
+                logger.error(f"Failed to expire order {order.id}: {e}", exc_info=True)
         
         results["tasks"]["expired_orders"] = cancelled_count
         results["tasks"]["released_stock"] = released_stock_count
@@ -97,7 +101,7 @@ async def expire_orders_entrypoint(request: Request):
                 stale_cancelled += 1
                 
             except Exception as e:
-                print(f"Failed to cancel stale order {order.id}: {e}")
+                logger.error(f"Failed to cancel stale order {order.id}: {e}", exc_info=True)
         
         results["tasks"]["stale_orders"] = stale_cancelled
         results["success"] = True

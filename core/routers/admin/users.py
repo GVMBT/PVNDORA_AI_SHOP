@@ -8,8 +8,8 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
 
 from core.logging import get_logger
-from src.services.database import get_database
-from src.services.money import to_float
+from core.services.database import get_database
+from core.services.money import to_float
 from core.auth import verify_admin
 
 logger = get_logger(__name__)
@@ -208,7 +208,7 @@ async def admin_update_user_balance(
         new_balance = current_balance + amount
         
         # Update balance
-        result = await asyncio.to_thread(
+        await asyncio.to_thread(
             lambda: db.client.table("users")
             .update({"balance": new_balance})
             .eq("id", user_id)

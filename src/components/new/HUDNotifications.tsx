@@ -7,6 +7,7 @@
 
 import React, { createContext, useContext, useCallback, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { generateId } from '../../utils/id';
 import { 
   Terminal, 
   CheckCircle, 
@@ -278,7 +279,7 @@ export const HUDProvider: React.FC<HUDProviderProps> = ({
   const addNotification = useCallback((
     notification: Omit<HUDNotification, 'id' | 'timestamp'>
   ): string => {
-    const id = `hud-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const id = generateId('hud');
     const newNotification: HUDNotification = {
       ...notification,
       id,

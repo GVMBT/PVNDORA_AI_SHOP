@@ -45,7 +45,7 @@ export const API = {
  */
 export const BOT = {
   /** Telegram bot username (without @) */
-  USERNAME: env.VITE_BOT_USERNAME || (window as any).__BOT_USERNAME || 'pvndora_ai_bot',
+  USERNAME: env.VITE_BOT_USERNAME || window.__BOT_USERNAME || 'pvndora_ai_bot',
   /** Deep link base URL */
   DEEP_LINK: 'https://t.me/pvndora_ai_bot',
 } as const;
@@ -66,6 +66,12 @@ export const UI = {
   TRANSITION_DURATION: 300,
   /** Debounce delay for search inputs in ms */
   SEARCH_DEBOUNCE: 300,
+  /** Copy feedback duration (show "copied" state) in ms */
+  COPY_FEEDBACK_DURATION: 2000,
+  /** Success message display duration in ms */
+  SUCCESS_MESSAGE_DURATION: 2000,
+  /** Default timeout for retry operations in ms */
+  RETRY_DELAY: 1000,
 } as const;
 
 /**
@@ -134,7 +140,7 @@ export const LOCALE = {
  * Get user's language code from Telegram or browser
  */
 export function getLanguageCode(): string {
-  const tgLang = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
+  const tgLang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
   const browserLang = navigator.language?.split('-')[0];
   return tgLang || browserLang || LOCALE.DEFAULT_LANGUAGE;
 }
@@ -151,7 +157,7 @@ export function getCurrencyForLanguage(lang?: string): 'RUB' | 'USD' {
  * Check if running inside Telegram WebApp
  */
 export function isTelegramWebApp(): boolean {
-  return !!(window as any).Telegram?.WebApp?.initData;
+  return !!window.Telegram?.WebApp?.initData;
 }
 
 export default {

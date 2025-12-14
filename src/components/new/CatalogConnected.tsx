@@ -5,7 +5,7 @@
  * Replaces mock data with live backend integration.
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import Catalog from './Catalog';
 import { useProductsTyped } from '../../hooks/useApiTyped';
 import type { CatalogProduct } from '../../types/component';
@@ -85,4 +85,4 @@ const CatalogConnected: React.FC<CatalogConnectedProps> = ({
   );
 };
 
-export default CatalogConnected;
+export default memo(CatalogConnected);

@@ -5,14 +5,13 @@ User profile and referral program endpoints.
 """
 import os
 import asyncio
-from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import httpx
 from fastapi import APIRouter, HTTPException, Depends
 
 from core.logging import get_logger
-from src.services.database import get_database
+from core.services.database import get_database
 from core.auth import verify_telegram_auth
 from .models import WithdrawalRequest, UpdatePreferencesRequest, TopUpRequest
 
@@ -212,7 +211,7 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     currency = "USD"
     try:
         from core.db import get_redis
-        from src.services.currency import get_currency_service
+        from core.services.currency import get_currency_service
         redis = get_redis()
         currency_service = get_currency_service(redis)
         # Use preferred_currency if set, otherwise fallback to language_code
@@ -317,7 +316,7 @@ async def create_topup(
     if currency == "USD":
         try:
             from core.db import get_redis
-            from src.services.currency import get_currency_service
+            from core.services.currency import get_currency_service
             redis = get_redis()
             currency_service = get_currency_service(redis)
             rate = currency_service.get_rate("USD", "RUB")
@@ -357,7 +356,7 @@ async def create_topup(
     
     # Create CrystalPay invoice with type="topup"
     try:
-        from src.services.payments import PaymentService
+        from core.services.payments import PaymentService
         payment_service = PaymentService()
         
         # Check if request is from Telegram Mini App

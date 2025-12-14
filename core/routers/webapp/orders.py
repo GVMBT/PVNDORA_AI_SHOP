@@ -12,15 +12,13 @@ from typing import Dict, Any, Tuple, List, Optional
 
 from fastapi import APIRouter, HTTPException, Depends, Query, Header
 
-from src.services.database import get_database
-from src.services.money import to_decimal, to_float, round_money, multiply, subtract, divide, to_kopecks
+from core.services.database import get_database
+from core.services.money import to_decimal, to_float, round_money, multiply, subtract, divide, to_kopecks
 from core.auth import verify_telegram_auth
 from core.routers.deps import get_payment_service
 from core.payments import (
     validate_gateway_config, 
     normalize_gateway, 
-    DELIVERED_STATES,
-    OrderStatus,
     GATEWAY_CURRENCY,
 )
 from core.orders import build_order_payload, build_item_payload, convert_order_prices
@@ -337,7 +335,7 @@ async def get_webapp_orders(
     
     try:
         from core.db import get_redis
-        from src.services.currency import get_currency_service
+        from core.services.currency import get_currency_service
         redis = get_redis()  # get_redis() is synchronous, no await needed
         currency_service = get_currency_service(redis)
         # Use preferred_currency if set, otherwise fallback to language_code
@@ -651,7 +649,6 @@ async def _create_cart_order(
     # Cooldown checks
     cooldown_redis, cooldown_seconds = await enforce_cooldown()
     
-    first_item = order_items[0]
     product_names = ", ".join([item["product_name"] for item in order_items[:3]])
     if len(order_items) > 3:
         product_names += f" и еще {len(order_items) - 3}"
@@ -663,7 +660,7 @@ async def _create_cart_order(
     payable_amount = to_decimal(total_amount)
     try:
         from core.db import get_redis
-        from src.services.currency import get_currency_service
+        from core.services.currency import get_currency_service
         currency_redis = get_redis()
         currency_service = get_currency_service(currency_redis)
         # Конвертация из базовой валюты (USD) в валюту шлюза

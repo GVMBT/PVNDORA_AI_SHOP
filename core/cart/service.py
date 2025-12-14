@@ -5,7 +5,7 @@ from typing import Optional
 from datetime import datetime
 from decimal import Decimal
 
-from src.services.money import to_decimal
+from core.services.money import to_decimal
 from .models import CartItem, Cart
 from .storage import get_redis, RedisKeys, TTL
 

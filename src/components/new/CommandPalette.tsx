@@ -1,13 +1,14 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronRight, Command, Package, User, Terminal, LogOut, ShoppingCart, Shield } from 'lucide-react';
+import type { CatalogProduct, NavigationTarget } from '../../types/component';
 
 interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
-  onNavigate: (view: any) => void;
-  products: any[];
+  onNavigate: (view: NavigationTarget) => void;
+  products: CatalogProduct[];
 }
 
 const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onNavigate, products }) => {
@@ -24,27 +25,31 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onNavi
     }
   }, [isOpen]);
 
-  // Filtering Logic
-  const commands = [
+  // Filtering Logic - memoized for performance
+  const commands = useMemo(() => [
       { id: 'home', label: 'Go to Catalog', icon: <Package size={14} />, type: 'nav', view: 'home' },
       { id: 'orders', label: 'My Orders / Logs', icon: <Terminal size={14} />, type: 'nav', view: 'orders' },
       { id: 'profile', label: 'Operative Profile', icon: <User size={14} />, type: 'nav', view: 'profile' },
       { id: 'leaderboard', label: 'Global Leaderboard', icon: <Shield size={14} />, type: 'nav', view: 'leaderboard' },
-  ];
+  ], []);
 
-  const productResults = products
-    .filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
-    .map(p => ({ 
-        id: `prod-${p.id}`, 
-        label: p.name, 
-        icon: <ShoppingCart size={14} />, 
-        type: 'product', 
-        product: p 
-    }));
-
-  const filteredItems = query 
-    ? [...commands.filter(c => c.label.toLowerCase().includes(query.toLowerCase())), ...productResults]
-    : commands;
+  const filteredItems = useMemo(() => {
+    if (!query) return commands;
+    
+    const queryLower = query.toLowerCase();
+    const filteredCommands = commands.filter(c => c.label.toLowerCase().includes(queryLower));
+    const productResults = products
+      .filter(p => p.name.toLowerCase().includes(queryLower))
+      .map(p => ({ 
+          id: `prod-${p.id}`, 
+          label: p.name, 
+          icon: <ShoppingCart size={14} />, 
+          type: 'product', 
+          product: p 
+      }));
+    
+    return [...filteredCommands, ...productResults];
+  }, [query, products, commands]);
 
   // Keyboard Navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -163,4 +168,4 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onNavi
   );
 };
 
-export default CommandPalette;
+export default memo(CommandPalette);

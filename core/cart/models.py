@@ -1,10 +1,10 @@
 """Cart models with Decimal-based pricing."""
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional, List
 
-from src.services.money import to_decimal, round_money, subtract, divide, multiply
+from core.services.money import to_decimal, round_money, subtract, divide, multiply
 
 
 @dataclass

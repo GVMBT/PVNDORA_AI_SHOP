@@ -10,7 +10,7 @@ export { useProductsTyped } from './api/useProductsApi';
 export { useOrdersTyped } from './api/useOrdersApi';
 export { useProfileTyped } from './api/useProfileApi';
 export { useLeaderboardTyped } from './api/useLeaderboardApi';
-export { useReviewsTyped, useSupportTyped, useAIChatTyped } from './api/useSupportApi';
+export { useReviewsTyped, useSupportTyped, useAIChatTyped, usePromoTyped } from './api/useSupportApi';
 export {
   useAdminProductsTyped,
   useAdminOrdersTyped,

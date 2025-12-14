@@ -9,6 +9,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Zap, LogIn, Terminal, AlertTriangle, Loader2 } from 'lucide-react';
 import { verifySessionToken, saveSessionToken, removeSessionToken, getSessionToken } from '../../utils/auth';
+import { API, BOT } from '../../config';
+import { logger } from '../../utils/logger';
+import { apiPost } from '../../utils/apiClient';
 
 interface TelegramLoginData {
   id: number;
@@ -28,7 +31,7 @@ interface LoginPageProps {
 
 const LoginPage: React.FC<LoginPageProps> = ({ 
   onLoginSuccess,
-  botUsername = 'pvndora_ai_bot', // Default bot username (from env)
+  botUsername = BOT.USERNAME,
   redirectPath = '/',
 }) => {
   const [error, setError] = useState<string | null>(null);
@@ -41,27 +44,8 @@ const LoginPage: React.FC<LoginPageProps> = ({
     setError(null);
     
     try {
-      const response = await fetch('/api/webapp/auth/telegram-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(user),
-      });
-      
-      // Check response status before parsing JSON
-      if (!response.ok) {
-        let errorMessage = 'Authentication failed';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.detail || errorMessage;
-        } catch {
-          // If not JSON, try to get text
-          const text = await response.text();
-          errorMessage = text.substring(0, 100) || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-      
-      const data = await response.json();
+      // Use apiClient for consistent error handling
+      const data = await apiPost<{ session_token: string }>('/auth/telegram-login', user);
       
       // Store session token
       saveSessionToken(data.session_token);
@@ -72,9 +56,10 @@ const LoginPage: React.FC<LoginPageProps> = ({
       if (redirectPath) {
         window.location.replace(redirectPath);
       }
-    } catch (err: any) {
-      console.error('Login error:', err);
-      setError(err.message || 'Failed to authenticate');
+    } catch (err: unknown) {
+      logger.error('Login error', err instanceof Error ? err : new Error(String(err)));
+      const errorMessage = err instanceof Error ? err.message : 'Failed to authenticate';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -102,7 +87,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
     checkExistingSession();
 
     // Setup global callback for Telegram Widget
-    (window as any).onTelegramAuth = handleTelegramAuth;
+    window.onTelegramAuth = handleTelegramAuth;
 
     // Load Telegram widget script
     const script = document.createElement('script');
@@ -120,7 +105,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
     }
 
     return () => {
-      delete (window as any).onTelegramAuth;
+      delete window.onTelegramAuth;
       if (container && script.parentNode === container) {
         container.removeChild(script);
       }

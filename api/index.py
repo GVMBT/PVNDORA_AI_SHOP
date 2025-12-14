@@ -33,14 +33,14 @@ try:
     from aiogram.enums import ParseMode
 
     # Import bot components
-    from src.bot.handlers import router as bot_router
-    from src.bot.middlewares import (
+    from core.bot.handlers import router as bot_router
+    from core.bot.middlewares import (
         AuthMiddleware,
         LanguageMiddleware, 
         ActivityMiddleware,
         AnalyticsMiddleware
     )
-    from src.services.database import get_database
+    from core.services.database import get_database
 except ImportError as e:
     import traceback
     print(f"ERROR: Failed to import modules: {e}")
@@ -113,7 +113,9 @@ async def lifespan(app: FastAPI):
         from core.routers.deps import shutdown_services
         await shutdown_services()
     except Exception as e:
-        print(f"WARNING: failed to shutdown services cleanly: {e}")
+        # Use basic logging for shutdown errors (logger may not be configured)
+        import logging
+        logging.warning(f"Failed to shutdown services cleanly: {e}", exc_info=True)
     if bot:
         await bot.session.close()
 
@@ -240,7 +242,6 @@ async def set_webhook_endpoint():
 @app.post("/webhook/telegram")
 async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
     """Handle Telegram webhook updates"""
-    import traceback
     import logging
     logger = logging.getLogger(__name__)
     
@@ -343,7 +344,6 @@ async def create_referral_share_link(user = Depends(verify_telegram_auth)):
     Returns prepared_message_id to be used with Telegram.WebApp.shareMessage()
     """
     from aiogram.types import InlineQueryResultPhoto, InlineKeyboardMarkup, InlineKeyboardButton
-    import traceback
     
     bot_instance = get_bot()
     if not bot_instance:
