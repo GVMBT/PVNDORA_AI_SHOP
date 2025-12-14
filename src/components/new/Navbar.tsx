@@ -90,7 +90,7 @@ const Navbar: React.FC<NavbarProps> = ({
       >
         
         {/* Logo Section */}
-        <div className="h-24 flex items-center shrink-0 relative px-5 cursor-pointer" onClick={() => handleClick(onNavigateHome)}>
+        <div className="h-24 flex items-center justify-center shrink-0 relative cursor-pointer" onClick={() => handleClick(onNavigateHome)}>
              <div className="w-10 h-10 flex items-center justify-center relative z-10 group">
                 {/* Logo Glow (Internal Core) */}
                 <div className="absolute inset-0 bg-pandora-cyan blur-md opacity-40 group-hover:opacity-60 transition-opacity" />
@@ -171,11 +171,13 @@ const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Footer Info (Visible on Expand) */}
-        <div className="mt-auto p-4 border-t border-white/5 bg-white/[0.02] relative overflow-hidden min-h-[80px]">
+        <div className="mt-auto border-t border-white/5 bg-white/[0.02] relative overflow-hidden" style={{ minHeight: isHovered ? '80px' : '60px' }}>
              {/* Collapsed View: Hint for CMD+K */}
-             <div className={`absolute left-0 top-0 w-full h-full flex flex-col items-center justify-center pt-2 transition-opacity duration-200 ${isHovered ? 'opacity-0' : 'opacity-100'}`}>
-                <Command size={16} className="text-gray-600 mb-1" />
-                <span className="text-[9px] text-gray-700 font-mono">CMD+K</span>
+             <div className={`absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-200 ${isHovered ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                <div className="w-8 h-8 flex items-center justify-center rounded bg-white/5 border border-white/10 mb-1">
+                    <Command size={14} className="text-gray-600" />
+                </div>
+                <span className="text-[8px] text-gray-600 font-mono tracking-wider">CMD+K</span>
              </div>
 
              {/* Expanded View */}
@@ -186,7 +188,7 @@ const Navbar: React.FC<NavbarProps> = ({
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ delay: 0.2 }}
-                        className="flex flex-col gap-3"
+                        className="flex flex-col gap-3 p-4"
                      >
                          <div className="flex items-center justify-between text-[10px] font-mono text-gray-400">
                              <span className="flex items-center gap-2"><Shield size={10} /> <Typewriter text="ENCRYPTED" delay={200} /></span>
@@ -271,15 +273,17 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, subLabel, active, onClic
     <button 
         onClick={onClick} 
         className={`
-            relative flex items-center h-14 w-full transition-all duration-300 group/item
+            relative flex items-center justify-center md:justify-start h-12 md:h-14 w-full transition-all duration-300 group/item
             ${active ? 'bg-white/5' : 'hover:bg-white/5'}
+            ${!isExpanded ? 'px-0' : 'px-3'}
         `}
+        title={!isExpanded ? label : undefined}
     >
         {/* Active Indicator (Left Line) */}
         <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-pandora-cyan transition-all duration-300 rounded-r-sm ${active ? 'opacity-100' : 'opacity-0'}`} />
 
         {/* Icon Container (Standard Rounded Square) */}
-        <div className="w-20 flex items-center justify-center shrink-0 relative z-10">
+        <div className={`flex items-center justify-center shrink-0 relative z-10 ${isExpanded ? 'w-20' : 'w-full'}`}>
             <div 
                 className={`
                     w-10 h-10 flex items-center justify-center transition-all duration-300 rounded-lg
