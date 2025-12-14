@@ -75,11 +75,20 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
     delivered_count = 0
     waiting_count = 0
     
+    # Track total items for proper status calculation
+    total_delivered = 0  # Already delivered (before this run)
+    
     for it in items:
         status = str(it.get("status") or "").lower()
         if status in {"delivered", "fulfilled", "completed", "ready", "refund_pending", "replacement_pending", "failed"}:
+            # Already delivered items - track separately
+            total_delivered += 1
             continue
+        
+        # For only_instant mode, count preorder items as waiting but don't try to deliver
         if only_instant and str(it.get("fulfillment_type") or "instant") != "instant":
+            waiting_count += 1
+            print(f"deliver-goods: skipping preorder item {it.get('id')} (only_instant=True), counting as waiting")
             continue
         
         product_id = it.get("product_id")
@@ -171,12 +180,16 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
                 print(f"deliver-goods: failed to update timestamp for item {item_id}: {e}")
     
     # Update order status summary using centralized service
+    # IMPORTANT: Include previously delivered items + newly delivered items
+    total_delivered_final = total_delivered + delivered_count
+    print(f"deliver-goods: order {order_id} status calc: total_delivered={total_delivered_final} (prev={total_delivered} + new={delivered_count}), waiting={waiting_count}")
+    
     try:
         from core.orders.status_service import OrderStatusService
         status_service = OrderStatusService(db)
         new_status = await status_service.update_delivery_status(
             order_id=order_id,
-            delivered_count=delivered_count,
+            delivered_count=total_delivered_final,  # Use TOTAL delivered (not just new)
             waiting_count=waiting_count
         )
         if new_status == "delivered":
