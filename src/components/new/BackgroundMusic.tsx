@@ -103,14 +103,39 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
           const tryAutoStart = async () => {
             if (cancelled) return;
             try {
+              // Set volume BEFORE starting (muted doesn't affect volume property)
+              audio.volume = volume;
+              
               // Silent start to satisfy autoplay restrictions
               audio.muted = true;
-              audio.volume = 0;
+              
+              // Wait for enough data to play
+              if (audio.readyState < 3) {
+                await new Promise<void>((resolve) => {
+                  const onReady = () => {
+                    audio.removeEventListener('canplay', onReady);
+                    resolve();
+                  };
+                  audio.addEventListener('canplay', onReady);
+                  // Timeout after 3 seconds
+                  setTimeout(() => {
+                    audio.removeEventListener('canplay', onReady);
+                    resolve();
+                  }, 3000);
+                });
+              }
+              
+              if (cancelled) return;
+              
               await audio.play();
-
-              // Unmute to desired volume
-              audio.muted = false;
-              audio.volume = isMuted ? 0 : volume;
+              
+              // Only unmute if playback actually started
+              if (!audio.paused) {
+                audio.muted = false;
+                isPlayingRef.current = true;
+                setIsPlaying(true);
+                logger.debug('[BackgroundMusic] Autoplay succeeded');
+              }
             } catch (err) {
               // If autoplay is blocked, we keep going (UI can still trigger later).
               logger.warn('[BackgroundMusic] Autoplay blocked', err);
@@ -363,6 +388,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
       if (!autoPlay) return;
       if (isMuted) return;
       if (loadError) return;
+      if (isLoading) return; // Don't try if still loading
       if (isPlayingRef.current) return;
 
       audio.play()
@@ -388,7 +414,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
       window.removeEventListener('click', tryPlay);
       window.removeEventListener('keydown', tryPlay);
     };
-  }, [autoPlay, isLoading, loadError]);
+  }, [autoPlay, isLoading, loadError, isMuted]);
 
   // Don't render UI if there's an error or if not needed
   if (loadError) {

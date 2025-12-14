@@ -21,12 +21,29 @@ if (tgWebApp) {
 }
 
 // Try to initialize audio ASAP (helps Telegram Mini App autoplay behavior)
+// Telegram Mini App sometimes allows AudioContext init right after expand()
 try {
   AudioEngine.init();
   void AudioEngine.resume();
 } catch {
   // Ignore: some browsers require user gesture; app will still work.
 }
+
+// Also listen for first user interaction to unlock audio if needed
+const unlockAudio = () => {
+  try {
+    AudioEngine.init();
+    void AudioEngine.resume();
+  } catch {
+    // Ignore
+  }
+};
+
+// Add listeners for all possible interaction events
+window.addEventListener('pointerdown', unlockAudio, { once: true, passive: true });
+window.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
+window.addEventListener('click', unlockAudio, { once: true });
+window.addEventListener('keydown', unlockAudio, { once: true });
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
