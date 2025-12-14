@@ -10,6 +10,7 @@ import { User, ArrowLeft } from 'lucide-react';
 import { AudioEngine } from '../../lib/AudioEngine';
 import { useClipboard } from '../../hooks/useClipboard';
 import { logger } from '../../utils/logger';
+import { CAREER_LEVELS } from '../../constants';
 import {
   ProfileHeader,
   ProfileStats,
@@ -17,17 +18,8 @@ import {
   ProfileNetwork,
   ProfileBilling,
   ReferralDossier,
-  DecryptedText,
   type ProfileDataProp,
-  type NetworkNodeData,
-  type CareerLevelData,
 } from '../profile';
-
-const CAREER_LEVELS: CareerLevelData[] = [
-  { id: 1, label: "PROXY", min: 0, max: 250, color: "text-gray-400" },
-  { id: 2, label: "OPERATOR", min: 250, max: 1000, color: "text-purple-400" },
-  { id: 3, label: "ARCHITECT", min: 1000, max: 5000, color: "text-yellow-400" }
-];
 
 interface ProfileProps {
   profile?: ProfileDataProp;

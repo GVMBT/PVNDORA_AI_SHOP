@@ -1,159 +1,80 @@
 /**
- * Application Constants
+ * PVNDORA Business Constants
  * 
- * Centralized constants for order statuses, payment methods, product categories, etc.
+ * Centralized repository for all business logic constants, enums, and static data.
+ * Does NOT include environment configuration (see src/config.ts).
  */
 
-/**
- * Order Status Constants
- */
-export const ORDER_STATUSES = {
-  PENDING: 'pending',
-  PREPAID: 'prepaid',
+import type { CareerLevelData } from '../components/profile/types';
+
+// ==========================================
+// PRODUCT CATALOG
+// ==========================================
+
+export const PRODUCT_CATEGORIES = ['All', 'Text', 'Image', 'Video', 'Code', 'Audio'] as const;
+
+export const PRODUCT_AVAILABILITY = {
+  FILTERS: ['All', 'Available', 'On Demand', 'Discontinued'] as const,
+  STATUS: {
+    AVAILABLE: 'available',
+    ON_DEMAND: 'on_demand',
+    DISCONTINUED: 'discontinued',
+    COMING_SOON: 'coming_soon',
+  } as const
+} as const;
+
+export type AvailabilityFilter = typeof PRODUCT_AVAILABILITY.FILTERS[number];
+export type ProductAvailability = typeof PRODUCT_AVAILABILITY.STATUS[keyof typeof PRODUCT_AVAILABILITY.STATUS];
+
+// ==========================================
+// ORDERS & PAYMENTS
+// ==========================================
+
+export const PAYMENT_STATUS = {
+  CHECKING: 'checking',
   PAID: 'paid',
-  PROCESSING: 'processing',
-  PARTIAL: 'partial',
   DELIVERED: 'delivered',
-  COMPLETED: 'completed',
-  READY: 'ready',
-  CANCELLED: 'cancelled',
-  REFUNDED: 'refunded',
+  PARTIAL: 'partial',
+  PENDING: 'pending',
   EXPIRED: 'expired',
   FAILED: 'failed',
-  AWAITING_PAYMENT: 'awaiting_payment',
+  UNKNOWN: 'unknown',
 } as const;
 
-export type OrderStatus = typeof ORDER_STATUSES[keyof typeof ORDER_STATUSES];
+export type PaymentStatus = typeof PAYMENT_STATUS[keyof typeof PAYMENT_STATUS];
 
-/**
- * Payment Gateway Constants
- */
-export const PAYMENT_GATEWAYS = {
-  ONEPLAT: 'oneplat',
-  RUKASSA: 'rukassa',
-  CRYPTO: 'crypto',
+export const PAYMENT_STATUS_MESSAGES: Record<PaymentStatus, { color: string; label: string; description: string }> = {
+  checking: { color: 'purple', label: 'VERIFYING', description: 'Checking payment status...' },
+  paid: { color: 'green', label: 'CONFIRMED', description: 'Payment confirmed! Preparing delivery...' },
+  delivered: { color: 'cyan', label: 'COMPLETE', description: 'All items delivered to your account!' },
+  partial: { color: 'yellow', label: 'PARTIAL', description: 'Some items delivered, others in queue.' },
+  pending: { color: 'orange', label: 'PENDING', description: 'Waiting for payment confirmation...' },
+  expired: { color: 'red', label: 'EXPIRED', description: 'Payment session expired.' },
+  failed: { color: 'red', label: 'FAILED', description: 'Payment verification failed.' },
+  unknown: { color: 'gray', label: 'UNKNOWN', description: 'Unable to determine status.' },
+};
+
+// ==========================================
+// USER PROFILE & CAREER
+// ==========================================
+
+export const CAREER_LEVELS: CareerLevelData[] = [
+  { id: 1, label: "PROXY", min: 0, max: 250, color: "text-gray-400" },
+  { id: 2, label: "OPERATOR", min: 250, max: 1000, color: "text-purple-400" },
+  { id: 3, label: "ARCHITECT", min: 1000, max: 5000, color: "text-yellow-400" }
+];
+
+// ==========================================
+// SYSTEM
+// ==========================================
+
+export const STORAGE_KEYS = {
+  BOOT_STATE: 'pvndora_booted',
+  SESSION_TOKEN: 'pvndora_session',
+  CART: 'pvndora_cart',
 } as const;
 
-export type PaymentGateway = typeof PAYMENT_GATEWAYS[keyof typeof PAYMENT_GATEWAYS];
-
-/**
- * Payment Method Constants
- */
-export const PAYMENT_METHODS = {
-  CARD: 'card',
-  SBP: 'sbp',
-  CRYPTO: 'crypto',
-  BANK: 'bank',
+export const API_ENDPOINTS = {
+  WEBAPP: '/api/webapp',
+  ADMIN: '/api/admin',
 } as const;
-
-export type PaymentMethod = typeof PAYMENT_METHODS[keyof typeof PAYMENT_METHODS];
-
-/**
- * Payment Method Groups
- */
-export const PAYMENT_METHOD_GROUPS = {
-  CARD: 'card',
-  SBP: 'sbp',
-  CRYPTO: 'crypto',
-  BANK: 'bank',
-} as const;
-
-export type PaymentMethodGroup = typeof PAYMENT_METHOD_GROUPS[keyof typeof PAYMENT_METHOD_GROUPS];
-
-/**
- * Product Category Constants
- */
-export const PRODUCT_CATEGORIES = {
-  TEXT: 'Text',
-  ACCOUNT: 'Account',
-  KEY: 'Key',
-  CODE: 'Code',
-  SUBSCRIPTION: 'Subscription',
-  SERVICE: 'Service',
-} as const;
-
-export type ProductCategory = typeof PRODUCT_CATEGORIES[keyof typeof PRODUCT_CATEGORIES];
-
-/**
- * Product Type Constants
- */
-export const PRODUCT_TYPES = {
-  INSTANT: 'instant',
-  PREORDER: 'preorder',
-} as const;
-
-export type ProductType = typeof PRODUCT_TYPES[keyof typeof PRODUCT_TYPES];
-
-/**
- * User Role Constants
- */
-export const USER_ROLES = {
-  USER: 'USER',
-  VIP: 'VIP',
-  ADMIN: 'ADMIN',
-} as const;
-
-export type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES];
-
-/**
- * Support Ticket Status Constants
- */
-export const TICKET_STATUSES = {
-  OPEN: 'open',
-  APPROVED: 'approved',
-  REJECTED: 'rejected',
-  CLOSED: 'closed',
-} as const;
-
-export type TicketStatus = typeof TICKET_STATUSES[keyof typeof TICKET_STATUSES];
-
-/**
- * Currency Constants
- */
-export const CURRENCIES = {
-  USD: 'USD',
-  RUB: 'RUB',
-  EUR: 'EUR',
-} as const;
-
-export type Currency = typeof CURRENCIES[keyof typeof CURRENCIES];
-
-/**
- * Language Constants
- */
-export const LANGUAGES = {
-  EN: 'en',
-  RU: 'ru',
-  DE: 'de',
-  ES: 'es',
-  FR: 'fr',
-  IT: 'it',
-  PT: 'pt',
-  TR: 'tr',
-  UK: 'uk',
-} as const;
-
-export type Language = typeof LANGUAGES[keyof typeof LANGUAGES];
-
-/**
- * Helper function to check if a string is a valid order status
- */
-export function isValidOrderStatus(status: string): status is OrderStatus {
-  return Object.values(ORDER_STATUSES).includes(status as OrderStatus);
-}
-
-/**
- * Helper function to check if a string is a valid payment method
- */
-export function isValidPaymentMethod(method: string): method is PaymentMethod {
-  return Object.values(PAYMENT_METHODS).includes(method as PaymentMethod);
-}
-
-/**
- * Helper function to check if a string is a valid user role
- */
-export function isValidUserRole(role: string): role is UserRole {
-  return Object.values(USER_ROLES).includes(role as UserRole);
-}
-
-

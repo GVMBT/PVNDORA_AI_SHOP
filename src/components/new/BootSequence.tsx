@@ -136,29 +136,27 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
       addLog('sys', 'All systems operational', 'success');
       addLog('sys', 'SYSTEM READY', 'system');
       
-      setPhase('ready');
-      
       // Calculate remaining time to meet minimum duration
       const elapsed = Date.now() - startTimeRef.current;
       const remainingTime = Math.max(0, minDuration - elapsed);
       
-      // Wait for minimum duration then fade out
-      await new Promise(r => setTimeout(r, remainingTime + 500));
-      
+      await new Promise(r => setTimeout(r, remainingTime));
+
       if (cancelled) return;
-      setPhase('fadeout');
-      
-      // Complete after fade animation
-      await new Promise(r => setTimeout(r, 800));
-      if (!cancelled) {
-        onComplete(resultsRef.current);
-      }
+      setPhase('ready');
     };
     
     runBootSequence();
     
     return () => { cancelled = true; };
-  }, [tasks, addLog, minDuration, onComplete]);
+  }, [tasks, addLog, minDuration]); // Removed onComplete from deps since we call it manually now
+
+  const handleEnterSystem = async () => {
+      setPhase('fadeout');
+      // Complete after fade animation
+      await new Promise(r => setTimeout(r, 800));
+      onComplete(resultsRef.current);
+  };
 
   // Random glitch effect
   useEffect(() => {
@@ -314,16 +312,31 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
             </div>
 
             {/* Status hint */}
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="text-center font-mono text-[10px] text-gray-600 mt-6"
-            >
-              {phase === 'ready' && 'ENTERING SYSTEM...'}
-              {phase === 'boot' && 'ESTABLISHING SECURE CONNECTION...'}
-              {phase === 'error' && 'CONNECTION TERMINATED'}
-            </motion.p>
+            {phase === 'ready' ? (
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex justify-center mt-6"
+                >
+                    <button 
+                        onClick={handleEnterSystem}
+                        className="px-8 py-3 bg-pandora-cyan text-black font-display font-bold text-sm tracking-wider hover:bg-white transition-colors shadow-[0_0_20px_rgba(0,255,255,0.3)]"
+                        style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
+                    >
+                        INITIALIZE UPLINK [ENTER]
+                    </button>
+                </motion.div>
+            ) : (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="text-center font-mono text-[10px] text-gray-600 mt-6"
+                >
+                  {phase === 'boot' && 'ESTABLISHING SECURE CONNECTION...'}
+                  {phase === 'error' && 'CONNECTION TERMINATED'}
+                </motion.p>
+            )}
           </motion.div>
 
           {/* Corner decorations */}

@@ -15,6 +15,7 @@ import { getApiHeaders } from '../../utils/apiHeaders';
 import { logger } from '../../utils/logger';
 import { apiRequest } from '../../utils/apiClient';
 import { randomFloat } from '../../utils/random';
+import { PAYMENT_STATUS_MESSAGES, type PaymentStatus } from '../../constants';
 
 interface PaymentResultProps {
   orderId: string;
@@ -23,25 +24,12 @@ interface PaymentResultProps {
   onViewOrders: () => void;  // For topup, this navigates to profile
 }
 
-type PaymentStatus = 'checking' | 'paid' | 'delivered' | 'partial' | 'pending' | 'expired' | 'failed' | 'unknown';
-
 interface OrderStatusResponse {
   status: string;
   payment_confirmed?: boolean;
   items_delivered?: number;
   items_total?: number;
 }
-
-const STATUS_MESSAGES: Record<PaymentStatus, { color: string; label: string; description: string }> = {
-  checking: { color: 'purple', label: 'VERIFYING', description: 'Checking payment status...' },
-  paid: { color: 'green', label: 'CONFIRMED', description: 'Payment confirmed! Preparing delivery...' },
-  delivered: { color: 'cyan', label: 'COMPLETE', description: 'All items delivered to your account!' },
-  partial: { color: 'yellow', label: 'PARTIAL', description: 'Some items delivered, others in queue.' },
-  pending: { color: 'orange', label: 'PENDING', description: 'Waiting for payment confirmation...' },
-  expired: { color: 'red', label: 'EXPIRED', description: 'Payment session expired.' },
-  failed: { color: 'red', label: 'FAILED', description: 'Payment verification failed.' },
-  unknown: { color: 'gray', label: 'UNKNOWN', description: 'Unable to determine status.' },
-};
 
 // Terminal log entry
 interface LogEntry {
@@ -281,7 +269,7 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
     };
   }, [orderId, addLog, checkStatus, isComplete]);
 
-  const statusInfo = STATUS_MESSAGES[status];
+  const statusInfo = PAYMENT_STATUS_MESSAGES[status];
   const isSuccess = status === 'delivered' || status === 'paid' || status === 'partial';
   const isFailed = status === 'expired' || status === 'failed' || (status === 'unknown' && isComplete && consecutive404sRef.current >= 3);
 

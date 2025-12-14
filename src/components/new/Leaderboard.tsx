@@ -1,7 +1,6 @@
 
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { useVirtualizer } from '@tanstack/react-virtual';
 import { Trophy, ChevronUp, ChevronDown, User, Crown, ArrowRight, TrendingUp, ShieldCheck, Activity, Zap, Terminal, BarChart3, Lock, ArrowLeft } from 'lucide-react';
 import { formatPrice, getCurrencySymbol } from '../../utils/currency';
 
@@ -57,7 +56,6 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
   };
   
   const loadMoreTriggerRef = React.useRef<HTMLDivElement | null>(null);
-  const parentRef = useRef<HTMLDivElement>(null);
   
   // Track whether we can load more - use refs to avoid observer recreation
   const canLoadMoreRef = React.useRef(hasMore && !isLoadingMore);
@@ -84,33 +82,26 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
   // Rest of the list (excluding top 3, no duplicates)
   const restList = data.slice(3);
   
-  // Virtualizer for main list (only restList, not top 3)
-  const virtualizer = useVirtualizer({
-    count: restList.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 100, // Estimated row height in pixels
-    overscan: 5, // Render 5 extra items outside viewport
-  });
-  
-  // Setup infinite scroll observer - watch for scroll near end of virtualized list
+  // Setup infinite scroll observer - watch for sentinel at end of list
   React.useEffect(() => {
-    if (!onLoadMore || !parentRef.current) return;
+    if (!onLoadMore || !loadMoreTriggerRef.current) return;
     
-    const scrollElement = parentRef.current;
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = scrollElement;
-      // Trigger load more when within 200px of bottom
-      if (scrollHeight - scrollTop - clientHeight < 200 && canLoadMoreRef.current && onLoadMoreRef.current) {
-        onLoadMoreRef.current();
-      }
-    };
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first.isIntersecting && canLoadMoreRef.current && onLoadMoreRef.current) {
+          onLoadMoreRef.current();
+        }
+      },
+      { threshold: 0.1 }
+    );
     
-    scrollElement.addEventListener('scroll', handleScroll, { passive: true });
+    observer.observe(loadMoreTriggerRef.current);
     
     return () => {
-      scrollElement.removeEventListener('scroll', handleScroll);
+      observer.disconnect();
     };
-  }, [onLoadMore]);
+  }, [onLoadMore, restList.length]); // Re-attach when list changes
   
   // Find current user for the sticky footer
   const currentUser = data.find(u => u.isMe);
@@ -370,123 +361,92 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                     <div className="col-span-2 text-right">Net Profit</div>
                 </div>
 
-                {/* Virtualized Rows */}
-                <div 
-                    ref={parentRef}
-                    className="h-[60vh] overflow-auto"
-                    style={{ contain: 'strict' }}
-                >
-                    <div
-                        style={{
-                            height: `${virtualizer.getTotalSize()}px`,
-                            width: '100%',
-                            position: 'relative',
-                        }}
-                    >
-                        {virtualizer.getVirtualItems().map((virtualRow) => {
-                            const user = restList[virtualRow.index];
-                            const efficiency = calculateEfficiency(user.marketSpend, user.saved);
-                            return (
-                                <div
-                                    key={virtualRow.key}
-                                    style={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        width: '100%',
-                                        height: `${virtualRow.size}px`,
-                                        transform: `translateY(${virtualRow.start}px)`,
-                                    }}
-                                >
-                                    <div className="group relative bg-[#0a0a0a] border border-white/5 hover:border-pandora-cyan/50 transition-all duration-300 mb-2">
-                                        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-pandora-cyan opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        
-                                        <div className="grid grid-cols-12 gap-4 items-center p-4">
-                                            {/* Rank */}
-                                            <div className="col-span-2 md:col-span-1 text-center font-display font-bold text-gray-600 group-hover:text-white transition-colors">
-                                                {user.rank.toString().padStart(2, '0')}
-                                            </div>
+                {/* Rows (Native) */}
+                <div className="space-y-2">
+                    {restList.map((user) => {
+                        const efficiency = calculateEfficiency(user.marketSpend, user.saved);
+                        return (
+                            <div key={user.rank} className="group relative bg-[#0a0a0a] border border-white/5 hover:border-pandora-cyan/50 transition-all duration-300">
+                                <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-pandora-cyan opacity-0 group-hover:opacity-100 transition-opacity" />
+                                
+                                <div className="grid grid-cols-12 gap-4 items-center p-4">
+                                    {/* Rank */}
+                                    <div className="col-span-2 md:col-span-1 text-center font-display font-bold text-gray-600 group-hover:text-white transition-colors">
+                                        {user.rank.toString().padStart(2, '0')}
+                                    </div>
 
-                                            {/* Identity */}
-                                            <div className="col-span-10 md:col-span-4 flex items-center gap-4">
-                                                <div className="w-8 h-8 bg-white/5 rounded-sm flex items-center justify-center border border-white/10 shrink-0 overflow-hidden">
-                                                    {user.avatarUrl ? (
-                                                        <img 
-                                                            src={user.avatarUrl} 
-                                                            alt={user.name} 
-                                                            className="w-full h-full object-cover"
-                                                            onError={(e) => {
-                                                                (e.target as HTMLImageElement).style.display = 'none';
-                                                                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                                                            }}
-                                                        />
-                                                    ) : null}
-                                                    <User size={14} className={`text-gray-500 group-hover:text-pandora-cyan ${user.avatarUrl ? 'hidden' : ''}`} />
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <div className="text-sm font-bold text-white group-hover:text-pandora-cyan transition-colors flex items-center gap-2 truncate">
-                                                        {user.name}
-                                                        {user.status === 'ONLINE' && <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shrink-0" />}
-                                                    </div>
-                                                    <div className="text-[10px] font-mono text-gray-600 truncate">{user.modules} modules installed</div>
-                                                </div>
+                                    {/* Identity */}
+                                    <div className="col-span-10 md:col-span-4 flex items-center gap-4">
+                                        <div className="w-8 h-8 bg-white/5 rounded-sm flex items-center justify-center border border-white/10 shrink-0 overflow-hidden">
+                                            {user.avatarUrl ? (
+                                                <img 
+                                                    src={user.avatarUrl} 
+                                                    alt={user.name} 
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => {
+                                                        (e.target as HTMLImageElement).style.display = 'none';
+                                                        (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                                                    }}
+                                                />
+                                            ) : null}
+                                            <User size={14} className={`text-gray-500 group-hover:text-pandora-cyan ${user.avatarUrl ? 'hidden' : ''}`} />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="text-sm font-bold text-white group-hover:text-pandora-cyan transition-colors flex items-center gap-2 truncate">
+                                                {user.name}
+                                                {user.status === 'ONLINE' && <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shrink-0" />}
                                             </div>
+                                            <div className="text-[10px] font-mono text-gray-600 truncate">{user.modules} modules installed</div>
+                                        </div>
+                                    </div>
 
-                                            {/* Visual Bar (Savings Visualization) */}
-                                            <div className="col-span-12 md:col-span-5 mt-2 md:mt-0">
-                                                <div className="flex justify-between text-[9px] font-mono text-gray-500 mb-1">
-                                                    <span>MARKET: <span className="line-through decoration-red-500/50">{user.marketSpend.toLocaleString()}</span></span>
-                                                    <span className="text-pandora-cyan">SAVED: {efficiency}%</span>
-                                                </div>
-                                                <div className="h-2 w-full bg-white/5 rounded-sm overflow-hidden flex relative">
-                                                    <div className="absolute inset-0 bg-white/5" />
-                                                    <div 
-                                                        className="h-full bg-gray-600" 
-                                                        style={{ width: `${100 - efficiency}%` }} 
-                                                    />
-                                                    <div 
-                                                        className="h-full bg-pandora-cyan shadow-[0_0_10px_#00FFFF]" 
-                                                        style={{ width: `${efficiency}%` }} 
-                                                    />
-                                                </div>
-                                            </div>
+                                    {/* Visual Bar (Savings Visualization) */}
+                                    <div className="col-span-12 md:col-span-5 mt-2 md:mt-0">
+                                        <div className="flex justify-between text-[9px] font-mono text-gray-500 mb-1">
+                                            <span>MARKET: <span className="line-through decoration-red-500/50">{user.marketSpend.toLocaleString()}</span></span>
+                                            <span className="text-pandora-cyan">SAVED: {efficiency}%</span>
+                                        </div>
+                                        <div className="h-2 w-full bg-white/5 rounded-sm overflow-hidden flex relative">
+                                            <div className="absolute inset-0 bg-white/5" />
+                                            <div 
+                                                className="h-full bg-gray-600" 
+                                                style={{ width: `${100 - efficiency}%` }} 
+                                            />
+                                            <div 
+                                                className="h-full bg-pandora-cyan shadow-[0_0_10px_#00FFFF]" 
+                                                style={{ width: `${efficiency}%` }} 
+                                            />
+                                        </div>
+                                    </div>
 
-                                            {/* Net Savings */}
-                                            <div className="col-span-12 md:col-span-2 text-right mt-2 md:mt-0 flex justify-between md:block items-center">
-                                                <span className="md:hidden text-[10px] text-gray-500 font-mono uppercase">Net Profit:</span>
-                                                <div className="font-display font-bold text-white text-lg group-hover:text-pandora-cyan transition-colors">
-                                                    {formatPrice(user.saved, user.currency || displayCurrency)}
-                                                </div>
-                                            </div>
+                                    {/* Net Savings */}
+                                    <div className="col-span-12 md:col-span-2 text-right mt-2 md:mt-0 flex justify-between md:block items-center">
+                                        <span className="md:hidden text-[10px] text-gray-500 font-mono uppercase">Net Profit:</span>
+                                        <div className="font-display font-bold text-white text-lg group-hover:text-pandora-cyan transition-colors">
+                                            {formatPrice(user.saved, user.currency || displayCurrency)}
                                         </div>
                                     </div>
                                 </div>
-                            );
-                        })}
-                        
-                        {/* Infinite scroll trigger - placed at end of virtualized list */}
-                        {onLoadMore && hasMore && (
-                            <div 
-                                ref={loadMoreTriggerRef} 
-                                className="py-8 flex justify-center"
-                                style={{ 
-                                    position: 'absolute',
-                                    top: `${virtualizer.getTotalSize()}px`,
-                                    left: 0,
-                                    right: 0,
-                                }}
-                            >
-                                {isLoadingMore ? (
-                                    <div className="flex items-center gap-3 text-pandora-cyan">
-                                        <div className="w-5 h-5 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin" />
-                                        <span className="font-mono text-xs uppercase">Loading more agents...</span>
-                                    </div>
-                                ) : (
-                                    <span className="text-[10px] font-mono text-gray-600">Scroll for more...</span>
-                                )}
                             </div>
-                        )}
-                    </div>
+                        );
+                    })}
+                    
+                    {/* Infinite scroll trigger - placed at end of list */}
+                    {onLoadMore && hasMore && (
+                        <div 
+                            ref={loadMoreTriggerRef} 
+                            className="py-8 flex justify-center"
+                        >
+                            {isLoadingMore ? (
+                                <div className="flex items-center gap-3 text-pandora-cyan">
+                                    <div className="w-5 h-5 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin" />
+                                    <span className="font-mono text-xs uppercase">Loading more agents...</span>
+                                </div>
+                            ) : (
+                                <span className="text-[10px] font-mono text-gray-600">Scroll for more...</span>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -534,5 +494,3 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
 };
 
 export default Leaderboard;
-
-

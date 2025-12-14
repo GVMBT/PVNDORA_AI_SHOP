@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowLeft, Box, Package, Terminal } from 'lucide-react';
 import { logger } from '../../utils/logger';
 import { useClipboard } from '../../hooks/useClipboard';
@@ -27,7 +26,6 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'log'>('all');
   const [copiedId, setCopiedId] = useTimeoutState<number | string | null>(null);
   const [revealedKeys, setRevealedKeys] = useState<(number | string)[]>([]);
-  const parentRef = useRef<HTMLDivElement>(null);
   
   // Review State - use ordersData as initial state when provided
   const [ordersState, setOrdersState] = useState<OrderData[]>(ordersData as OrderData[]);
@@ -104,14 +102,6 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
     // Archived: completed (paid) or refunded - finished orders
     if (activeTab === 'log') return order.status === 'paid' || order.status === 'refunded';
     return true;
-  });
-
-  // Virtualizer for orders list
-  const virtualizer = useVirtualizer({
-    count: filteredOrders.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 300, // Estimated order card height (varies by items count)
-    overscan: 3, // Render 3 extra items outside viewport
   });
 
   // Empty state when no orders
@@ -193,48 +183,20 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
                 ))}
             </div>
 
-            {/* --- ORDERS LIST (Virtualized) --- */}
-            <div 
-                ref={parentRef}
-                className="h-[70vh] overflow-auto"
-                style={{ contain: 'strict' }}
-            >
-                <div
-                    style={{
-                        height: `${virtualizer.getTotalSize()}px`,
-                        width: '100%',
-                        position: 'relative',
-                    }}
-                >
-                    {virtualizer.getVirtualItems().map((virtualRow) => {
-                        const order = filteredOrders[virtualRow.index];
-                        return (
-                            <div
-                                key={virtualRow.key}
-                                style={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    width: '100%',
-                                    height: `${virtualRow.size}px`,
-                                    transform: `translateY(${virtualRow.start}px)`,
-                                }}
-                                className="mb-8"
-                            >
-                                <OrderCard
-                                  key={order.id}
-                                  order={order}
-                                  revealedKeys={revealedKeys}
-                                  copiedId={copiedId}
-                                  onToggleReveal={toggleReveal}
-                                  onCopy={handleCopy}
-                                  onOpenReview={openReviewModal}
-                                  onOpenSupport={onOpenSupport}
-                                />
-                            </div>
-                        );
-                    })}
-                </div>
+            {/* --- ORDERS LIST (Native) --- */}
+            <div className="space-y-8">
+                {filteredOrders.map((order) => (
+                    <OrderCard
+                        key={order.id}
+                        order={order}
+                        revealedKeys={revealedKeys}
+                        copiedId={copiedId}
+                        onToggleReveal={toggleReveal}
+                        onCopy={handleCopy}
+                        onOpenReview={openReviewModal}
+                        onOpenSupport={onOpenSupport}
+                    />
+                ))}
             </div>
 
             {/* Footer */}

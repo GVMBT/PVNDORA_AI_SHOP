@@ -1,12 +1,8 @@
-
 import React, { useState, useMemo } from 'react';
 import { Search, ShoppingCart, ArrowUpRight, Zap, List, Grid, ChevronDown, Check, Cpu, HardDrive, Disc, Activity, Lock, ScanLine, Crosshair, Binary, Box, Database, Server } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPrice } from '../../utils/currency';
-
-const CATEGORIES = ['All', 'Text', 'Image', 'Video', 'Code', 'Audio'];
-const AVAILABILITY_FILTERS = ['All', 'Available', 'On Demand', 'Discontinued'] as const;
-type AvailabilityFilter = typeof AVAILABILITY_FILTERS[number];
+import { PRODUCT_CATEGORIES, PRODUCT_AVAILABILITY, type AvailabilityFilter } from '../../constants';
 
 type SortOption = 'popular' | 'price_asc' | 'price_desc';
 type ViewMode = 'grid' | 'list';
@@ -270,7 +266,7 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
       {/* --- CATEGORY TABS --- */}
       <div className="max-w-7xl mx-auto mb-8 border-b border-white/5 pb-1">
          <div className="flex gap-6 overflow-x-auto pb-2 scrollbar-hide">
-            {CATEGORIES.map((cat) => (
+            {PRODUCT_CATEGORIES.map((cat) => (
                 <button
                 key={cat}
                 onClick={() => handleCategoryChange(cat)}
@@ -281,7 +277,7 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                     : 'text-gray-500 hover:text-gray-300'}
                 `}
                 >
-                <span className="mr-1 opacity-50 text-[10px] font-mono">0{CATEGORIES.indexOf(cat) + 1}.</span>
+                <span className="mr-1 opacity-50 text-[10px] font-mono">0{PRODUCT_CATEGORIES.indexOf(cat) + 1}.</span>
                 {cat}
                 {activeCategory === cat && (
                     <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-pandora-cyan shadow-[0_0_10px_#00FFFF]" />
