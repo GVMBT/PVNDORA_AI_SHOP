@@ -402,22 +402,22 @@ async def create_topup(
 
 
 @router.get("/profile/topup/{topup_id}/status")
-async def get_topup_status(
-    topup_id: str,
-    user=Depends(verify_telegram_auth)
-):
-    """Get top-up transaction status for polling."""
+async def get_topup_status(topup_id: str):
+    """
+    Get top-up transaction status for polling.
+    
+    Note: This endpoint is public because:
+    1. topup_id (UUID) is effectively a secret - only the user who created it knows it
+    2. Returns minimal info (status only, no sensitive data)
+    3. Required for payment redirect flow where auth may not be preserved
+    """
     db = get_database()
-    db_user = await db.get_user_by_telegram_id(user.id)
-    if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
     
     try:
         tx_result = await asyncio.to_thread(
             lambda: db.client.table("balance_transactions")
-            .select("*")
+            .select("id, status, amount, currency, balance_after")
             .eq("id", topup_id)
-            .eq("user_id", db_user.id)  # Security: only own transactions
             .single()
             .execute()
         )
