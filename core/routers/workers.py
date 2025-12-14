@@ -203,6 +203,61 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
     except Exception as e:
         print(f"deliver-goods: failed to update order status {order_id}: {e}")
     
+    # Update user's total_saved (discount savings)
+    # Calculate saved amount = original_price - amount
+    # Only update once per order (idempotency via saved_calculated flag)
+    try:
+        order_full = await asyncio.to_thread(
+            lambda: db.client.table("orders")
+            .select("user_id, original_price, amount, saved_calculated")
+            .eq("id", order_id)
+            .single()
+            .execute()
+        )
+        
+        if order_full.data:
+            # Idempotency: only update once per order
+            saved_calculated = order_full.data.get("saved_calculated", False)
+            if not saved_calculated:
+                user_id = order_full.data.get("user_id")
+                original_price = to_float(order_full.data.get("original_price") or 0)
+                final_amount = to_float(order_full.data.get("amount") or 0)
+                
+                # Calculate saved amount (difference between original and final price)
+                saved_amount = max(0, original_price - final_amount)
+                
+                if saved_amount > 0 and user_id:
+                    # Get current total_saved
+                    user_check = await asyncio.to_thread(
+                        lambda: db.client.table("users")
+                        .select("total_saved")
+                        .eq("id", user_id)
+                        .single()
+                        .execute()
+                    )
+                    current_saved = to_float(user_check.data.get("total_saved") or 0) if user_check.data else 0
+                    new_saved = current_saved + saved_amount
+                    
+                    # Update user's total_saved
+                    await asyncio.to_thread(
+                        lambda: db.client.table("users")
+                        .update({"total_saved": new_saved})
+                        .eq("id", user_id)
+                        .execute()
+                    )
+                    
+                    # Mark order as processed (idempotency flag)
+                    await asyncio.to_thread(
+                        lambda: db.client.table("orders")
+                        .update({"saved_calculated": True})
+                        .eq("id", order_id)
+                        .execute()
+                    )
+                    
+                    print(f"deliver-goods: Updated total_saved for user {user_id}: {current_saved:.2f} -> {new_saved:.2f} (+{saved_amount:.2f} from order {order_id}, original={original_price:.2f}, final={final_amount:.2f})")
+    except Exception as e:
+        print(f"deliver-goods: Failed to update total_saved for order {order_id}: {e}")
+    
     # Notify user once with aggregated content
     try:
         if delivered_lines:
