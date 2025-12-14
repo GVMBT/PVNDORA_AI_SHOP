@@ -63,14 +63,18 @@ function adaptLeaderboardEntry(entry: APILeaderboardEntry): LeaderboardUser {
  */
 export function adaptLeaderboard(
   response: APILeaderboardResponse,
-  _currentUserId?: string // Not needed anymore, backend sets is_current_user
+  _currentUserId?: string, // Not needed anymore, backend sets is_current_user
+  currency: string = 'USD' // Currency for formatting saved amounts
 ): LeaderboardUser[] {
   const { leaderboard } = response;
   
   // Adapt all leaderboard entries - DO NOT add separate "YOU" entry
   // The backend already marks the current user with is_current_user: true
   // Adding a duplicate causes rank conflicts
-  const adaptedUsers = leaderboard.map(adaptLeaderboardEntry);
+  const adaptedUsers = leaderboard.map(entry => ({
+    ...adaptLeaderboardEntry(entry),
+    currency, // Add currency to each user entry
+  }));
   
   // Deduplicate by rank (in case backend sends duplicates)
   const seenRanks = new Set<number>();

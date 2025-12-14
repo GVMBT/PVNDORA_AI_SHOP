@@ -6,7 +6,7 @@
  * Works for both Mini App (startapp) and Browser (/payment/result) flows.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Cpu, CheckCircle, XCircle, Clock, AlertTriangle, ArrowRight, RefreshCw } from 'lucide-react';
 
@@ -44,12 +44,19 @@ interface LogEntry {
   type: 'info' | 'success' | 'error' | 'warning';
 }
 
+// Constants for polling strategy
+const MAX_POLL_ATTEMPTS = 15; // Maximum number of polling attempts
+const INITIAL_POLL_DELAY = 1000; // Start with 1 second delay
+const MAX_POLL_DELAY = 16000; // Maximum delay of 16 seconds between polls
+const BACKOFF_MULTIPLIER = 2; // Exponential backoff multiplier
+
 export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrders }: PaymentResultProps) {
   const [status, setStatus] = useState<PaymentStatus>('checking');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [progress, setProgress] = useState(0);
   const [pollCount, setPollCount] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
+  const consecutive404sRef = useRef(0); // Use ref to avoid triggering effect re-runs
 
   // Add log entry
   const addLog = useCallback((message: string, type: LogEntry['type'] = 'info') => {
@@ -84,9 +91,20 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
       // Use different endpoint for topup vs order
       const endpoint = isTopUp 
         ? `/api/webapp/profile/topup/${orderId}/status`
-        : `/api/orders/${orderId}/status`;
+        : `/api/webapp/orders/${orderId}/status`;
       
       const response = await fetch(endpoint, { headers });
+      
+      // Handle 404 specifically - order might not exist yet or invalid ID
+      if (response.status === 404) {
+        const errorData = await response.json().catch(() => ({}));
+        return { 
+          status: 'unknown' as PaymentStatus, 
+          error: new Error('ORDER_NOT_FOUND'),
+          httpStatus: 404,
+          errorDetail: errorData
+        };
+      }
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -115,13 +133,17 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
       }
       
       return { status: newStatus, data };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Status check failed:', error);
-      return { status: 'unknown' as PaymentStatus, error };
+      return { 
+        status: 'unknown' as PaymentStatus, 
+        error: error instanceof Error ? error : new Error(String(error)),
+        httpStatus: error?.httpStatus
+      };
     }
   }, [orderId, isTopUp]);
 
-  // Polling effect
+  // Polling effect with exponential backoff
   useEffect(() => {
     if (isComplete) return;
 
@@ -129,85 +151,151 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
     addLog(`INIT: ${isTopUp ? 'Balance top-up' : 'Payment'} verification started`, 'info');
     addLog(`TARGET: ${targetLabel} ${orderId.slice(0, 8).toUpperCase()}`, 'info');
 
-    let pollInterval: NodeJS.Timeout;
+    let pollTimeout: NodeJS.Timeout | null = null;
     let progressInterval: NodeJS.Timeout;
+    let currentAttempt = 0;
+    let shouldStop = false;
+
+    const calculateDelay = (attempt: number): number => {
+      // Exponential backoff: 1s, 2s, 4s, 8s, 16s (max)
+      const delay = Math.min(
+        INITIAL_POLL_DELAY * Math.pow(BACKOFF_MULTIPLIER, attempt),
+        MAX_POLL_DELAY
+      );
+      return delay;
+    };
 
     const poll = async () => {
-      setPollCount(prev => prev + 1);
+      if (shouldStop || isComplete) return;
+
+      currentAttempt++;
+      setPollCount(currentAttempt);
+
+      // Check if we've exceeded max attempts
+      if (currentAttempt > MAX_POLL_ATTEMPTS) {
+        addLog(`TIMEOUT: Max verification attempts (${MAX_POLL_ATTEMPTS}) reached`, 'warning');
+        addLog('INFO: Order may still be processing. Check your orders later.', 'info');
+        setIsComplete(true);
+        shouldStop = true;
+        return;
+      }
+
       addLog('SCAN: Querying payment gateway...', 'info');
       
       const result = await checkStatus();
       
-      if (result.status === 'unknown' && result.error) {
-        addLog('WARN: Gateway response delayed, retrying...', 'warning');
-      } else {
-        setStatus(result.status);
-        
-        switch (result.status) {
-          case 'delivered':
-            addLog('RECV: Payment confirmed by gateway', 'success');
-            if (isTopUp) {
-              addLog('EXEC: Balance credited successfully', 'success');
-              addLog('DONE: Top-up complete!', 'success');
-            } else {
-              addLog('EXEC: Delivery pipeline complete', 'success');
-              addLog('DONE: All assets transferred', 'success');
-            }
-            setProgress(100);
-            setIsComplete(true);
-            clearInterval(pollInterval);
-            clearInterval(progressInterval);
-            break;
-          case 'paid':
-          case 'partial':
-            addLog('RECV: Payment confirmed', 'success');
-            addLog(isTopUp ? 'PROC: Crediting balance...' : 'PROC: Delivery in progress...', 'info');
-            setProgress(75);
-            break;
-          case 'pending':
-            addLog('WAIT: Payment not yet received', 'warning');
-            break;
-          case 'expired':
-          case 'failed':
-            addLog(`FAIL: Payment ${result.status}`, 'error');
-            setIsComplete(true);
-            clearInterval(pollInterval);
-            clearInterval(progressInterval);
-            break;
+      // Handle 404 specifically
+      if (result.httpStatus === 404 || (result.error && result.error.message === 'ORDER_NOT_FOUND')) {
+        consecutive404sRef.current += 1;
+        const new404Count = consecutive404sRef.current;
+
+        // If we get multiple consecutive 404s, order likely doesn't exist
+        if (new404Count >= 3) {
+          addLog('ERROR: Order not found in system', 'error');
+          addLog('INFO: Please verify order ID or contact support', 'info');
+          setStatus('failed');
+          setIsComplete(true);
+          shouldStop = true;
+          return;
         }
+
+        // First few 404s might be temporary (order not yet in DB after redirect)
+        if (currentAttempt <= 3) {
+          addLog('WAIT: Order record not yet available, retrying...', 'warning');
+        } else {
+          addLog('WARN: Order not found, but continuing verification...', 'warning');
+        }
+      } else {
+        // Reset 404 counter on successful response
+        if (consecutive404sRef.current > 0) {
+          consecutive404sRef.current = 0;
+        }
+
+        // Handle successful response
+        if (result.status !== 'unknown' || !result.error) {
+          setStatus(result.status);
+          
+          switch (result.status) {
+            case 'delivered':
+              addLog('RECV: Payment confirmed by gateway', 'success');
+              if (isTopUp) {
+                addLog('EXEC: Balance credited successfully', 'success');
+                addLog('DONE: Top-up complete!', 'success');
+              } else {
+                addLog('EXEC: Delivery pipeline complete', 'success');
+                addLog('DONE: All assets transferred', 'success');
+              }
+              setProgress(100);
+              setIsComplete(true);
+              shouldStop = true;
+              break;
+            case 'paid':
+            case 'partial':
+              addLog('RECV: Payment confirmed', 'success');
+              addLog(isTopUp ? 'PROC: Crediting balance...' : 'PROC: Delivery in progress...', 'info');
+              setProgress(75);
+              break;
+            case 'pending':
+              addLog('WAIT: Payment not yet received', 'warning');
+              break;
+            case 'expired':
+            case 'failed':
+              addLog(`FAIL: Payment ${result.status}`, 'error');
+              setIsComplete(true);
+              shouldStop = true;
+              break;
+            default:
+              if (result.error) {
+                addLog('WARN: Gateway response delayed, retrying...', 'warning');
+              }
+          }
+        } else if (result.error) {
+          // Generic error handling
+          addLog('WARN: Gateway response delayed, retrying...', 'warning');
+        }
+      }
+
+      // Schedule next poll if we should continue
+      if (!shouldStop && !isComplete && currentAttempt < MAX_POLL_ATTEMPTS) {
+        const delay = calculateDelay(currentAttempt - 1);
+        const delaySeconds = (delay / 1000).toFixed(1);
+        
+        if (currentAttempt > 1) {
+          addLog(`NEXT: Retry in ${delaySeconds}s (attempt ${currentAttempt}/${MAX_POLL_ATTEMPTS})`, 'info');
+        }
+
+        pollTimeout = setTimeout(() => {
+          poll();
+        }, delay);
       }
     };
 
-    // Start polling
+    // Start first poll immediately
     poll();
-    pollInterval = setInterval(poll, 3000); // Poll every 3 seconds
 
     // Progress animation (cosmetic)
     progressInterval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 90) return prev; // Cap at 90% until complete
-        return prev + Math.random() * 10;
-      });
+      if (!shouldStop && !isComplete) {
+        setProgress(prev => {
+          if (prev >= 90) return prev; // Cap at 90% until complete
+          return prev + Math.random() * 5;
+        });
+      }
     }, 500);
 
     // Cleanup
     return () => {
-      clearInterval(pollInterval);
+      shouldStop = true;
+      if (pollTimeout) {
+        clearTimeout(pollTimeout);
+      }
       clearInterval(progressInterval);
     };
   }, [orderId, addLog, checkStatus, isComplete]);
 
-  // Stop polling after max attempts
-  useEffect(() => {
-    if (pollCount >= 20 && !isComplete) {
-      addLog('TIMEOUT: Max verification attempts reached', 'warning');
-      setIsComplete(true);
-    }
-  }, [pollCount, isComplete, addLog]);
-
   const statusInfo = STATUS_MESSAGES[status];
   const isSuccess = status === 'delivered' || status === 'paid' || status === 'partial';
-  const isFailed = status === 'expired' || status === 'failed';
+  const isFailed = status === 'expired' || status === 'failed' || (status === 'unknown' && isComplete && consecutive404sRef.current >= 3);
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4">
@@ -310,14 +398,22 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
                 </button>
               )}
               
-              {isFailed && (
-                <button
-                  onClick={() => window.location.reload()}
-                  className="w-full py-3 bg-white/10 text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-white/20 transition-colors"
-                >
-                  <RefreshCw size={16} />
-                  RETRY
-                </button>
+              {(isFailed || (status === 'unknown' && isComplete && consecutive404sRef.current >= 3)) && (
+                <>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="w-full py-3 bg-white/10 text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-white/20 transition-colors"
+                  >
+                    <RefreshCw size={16} />
+                    RETRY
+                  </button>
+                  <button
+                    onClick={onViewOrders}
+                    className="w-full py-2 bg-transparent border border-white/20 text-gray-400 text-xs font-mono hover:border-white/40 transition-colors"
+                  >
+                    CHECK_ORDERS_MANUALLY
+                  </button>
+                </>
               )}
               
               <button

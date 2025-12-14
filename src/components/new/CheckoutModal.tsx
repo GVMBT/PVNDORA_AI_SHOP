@@ -2,12 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CreditCard, Bitcoin, ShieldCheck, ChevronRight, Cpu, CheckCircle, Trash2, Globe, Lock, Server, Wallet, Zap } from 'lucide-react';
+import { formatPrice } from '../../utils/currency';
 
 export type PaymentMethod = 'crystalpay' | 'internal';
 
 interface CheckoutModalProps {
   cart: any[];
   userBalance?: number;
+  currency?: string; // Currency code from API
   onClose: () => void;
   onRemoveItem: (id: string | number) => void;
   onPay?: (method: PaymentMethod) => Promise<any>;
@@ -18,7 +20,8 @@ interface CheckoutModalProps {
 
 const CheckoutModal: React.FC<CheckoutModalProps> = ({ 
   cart, 
-  userBalance = 0, 
+  userBalance = 0,
+  currency = 'USD',
   onClose, 
   onRemoveItem, 
   onPay,
@@ -206,9 +209,9 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                             </div>
                                             <div className="flex items-center gap-6">
                                                 <div className="text-right">
-                                                    <div className="font-mono text-pandora-cyan">{item.price * (item.quantity || 1)} ₽</div>
+                                                    <div className="font-mono text-pandora-cyan">{formatPrice(item.price * (item.quantity || 1), item.currency || currency)}</div>
                                                     {(item.quantity || 1) > 1 && (
-                                                        <div className="text-[9px] text-gray-500">{item.price} ea</div>
+                                                        <div className="text-[9px] text-gray-500">{formatPrice(item.price, item.currency || currency)} ea</div>
                                                     )}
                                                 </div>
                                                 <button onClick={() => onRemoveItem(item.id)} className="text-gray-600 hover:text-red-500 transition-colors">
@@ -224,7 +227,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                 <div className="mt-8 border-t border-white/10 pt-6">
                                     <div className="flex justify-between items-end mb-6">
                                         <span className="text-gray-500 font-mono text-xs">TOTAL_ESTIMATION</span>
-                                        <span className="text-3xl font-display font-bold text-white">{total} ₽</span>
+                                        <span className="text-3xl font-display font-bold text-white">{formatPrice(total, currency)}</span>
                                     </div>
                                     <button 
                                         onClick={() => setStep('payment')}
@@ -268,7 +271,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                         </div>
                                         <div>
                                             <div className="text-xs font-bold text-white uppercase mb-1">Internal</div>
-                                            <div className="text-[10px] text-gray-500 font-mono">Balance: {userBalance.toLocaleString()} ₽</div>
+                                            <div className="text-[10px] text-gray-500 font-mono">Balance: {formatPrice(userBalance, currency)}</div>
                                         </div>
                                         {selectedPayment === 'internal' && (
                                             <div className="absolute top-1 right-1">
@@ -337,7 +340,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                             >
                                 <span className="relative z-10 flex items-center gap-2">
                                     <ShieldCheck size={18} />
-                                    {selectedPayment === 'internal' ? `CONFIRM DEBIT (${total} ₽)` : `OPEN GATEWAY (${total} ₽)`}
+                                    {selectedPayment === 'internal' ? `CONFIRM DEBIT (${formatPrice(total, currency)})` : `OPEN GATEWAY (${formatPrice(total, currency)})`}
                                 </span>
                                 {/* Hover Glitch */}
                                 <div className="absolute inset-0 bg-white mix-blend-overlay opacity-0 hover:opacity-20 transition-opacity" />

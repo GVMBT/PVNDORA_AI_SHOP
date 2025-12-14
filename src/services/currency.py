@@ -11,18 +11,20 @@ from datetime import datetime, timedelta
 from src.services.money import to_decimal, to_float, round_money
 
 # Language to Currency mapping
+# Simplified logic: Russian → RUB, all others → USD
 LANGUAGE_TO_CURRENCY: Dict[str, str] = {
     "ru": "RUB",      # Русский → Рубли
-    "uk": "UAH",      # Украинский → Гривны
-    "en": "USD",      # Английский → Доллары
-    "de": "EUR",      # Немецкий → Евро
-    "fr": "EUR",      # Французский → Евро
-    "es": "EUR",      # Испанский → Евро
-    "tr": "TRY",      # Турецкий → Лиры
-    "ar": "AED",      # Арабский → Дирхамы
-    "hi": "INR",      # Хинди → Рупии
     "be": "RUB",      # Белорусский → Рубли
     "kk": "RUB",      # Казахский → Рубли
+    # All other languages default to USD
+    "uk": "USD",      # Украинский → USD
+    "en": "USD",      # Английский → USD
+    "de": "USD",      # Немецкий → USD
+    "fr": "USD",      # Французский → USD
+    "es": "USD",      # Испанский → USD
+    "tr": "USD",      # Турецкий → USD
+    "ar": "USD",      # Арабский → USD
+    "hi": "USD",      # Хинди → USD
 }
 
 # Note: Exchange rates are fetched from exchangerate-api.com
@@ -63,10 +65,15 @@ class CurrencyService:
             return preferred_currency.upper()
         
         # Fallback to language-based currency
+        # Simplified logic: Russian (ru/be/kk) → RUB, all others → USD
         if language_code:
             # Normalize language code (e.g., "ru-RU" -> "ru")
             lang = language_code.split("-")[0].lower()
-            return self.language_to_currency.get(lang, "USD")
+            # Check if it's a Russian language variant
+            if lang in ["ru", "be", "kk"]:
+                return "RUB"
+            # All other languages default to USD
+            return "USD"
         
         return "USD"
     

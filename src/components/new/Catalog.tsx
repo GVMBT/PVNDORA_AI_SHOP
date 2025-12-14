@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, ShoppingCart, ArrowUpRight, Zap, List, Grid, ChevronDown, Check, Cpu, HardDrive, Disc, Activity, Lock, ScanLine, Crosshair, Binary, Box, Database, Server } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatPrice } from '../../utils/currency';
 
 const CATEGORIES = ['All', 'Text', 'Image', 'Video', 'Code', 'Audio'];
 const AVAILABILITY_FILTERS = ['All', 'Available', 'On Demand', 'Discontinued'] as const;
@@ -407,7 +408,7 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                 <div className="mt-auto flex items-center justify-between">
                                     <div className="flex flex-col">
                                         <span className="text-[9px] text-gray-600 font-mono uppercase">Credits Required</span>
-                                        <div className="text-lg font-bold text-white group-hover:text-pandora-cyan transition-colors">{product.price} ₽</div>
+                                        <div className="text-lg font-bold text-white group-hover:text-pandora-cyan transition-colors">{formatPrice(product.price, product.currency)}</div>
                                     </div>
                                     <button 
                                         onClick={(e) => { e.stopPropagation(); handleAddToCart(product, 1); }}
@@ -475,7 +476,7 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                 </div>
 
                                 <div className="flex items-center gap-4 min-w-[100px] justify-end">
-                                    <span className="block text-lg font-bold text-white font-mono">{product.price} ₽</span>
+                                    <span className="block text-lg font-bold text-white font-mono">{formatPrice(product.price, product.currency)}</span>
                                     <ChevronDown className="-rotate-90 text-gray-600 group-hover:text-pandora-cyan transition-colors" size={16} />
                                 </div>
                             </div>

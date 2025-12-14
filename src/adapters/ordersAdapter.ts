@@ -221,7 +221,7 @@ function adaptOrderItem(
 /**
  * Adapt a single API order
  */
-export function adaptOrder(apiOrder: APIOrder): Order {
+export function adaptOrder(apiOrder: APIOrder, currency: string = 'USD'): Order {
   const rawStatus = normalizeRawStatus(apiOrder.status);
   const paymentConfirmed = isPaymentConfirmed(rawStatus);
   const statusMessage = getStatusMessage(rawStatus);
@@ -235,6 +235,7 @@ export function adaptOrder(apiOrder: APIOrder): Order {
       displayId: apiOrder.id.substring(0, 8).toUpperCase(), // Short ID for UI
       date: formatOrderDate(apiOrder.created_at),
       total: apiOrder.amount_display || apiOrder.amount,
+      currency: apiOrder.currency || currency,
       status: mapOrderStatus(apiOrder.status),
       items: apiOrder.items.map(item => adaptOrderItem(
         item, 
@@ -299,5 +300,6 @@ export function adaptOrder(apiOrder: APIOrder): Order {
  * Adapt list of API orders
  */
 export function adaptOrders(response: APIOrdersResponse): Order[] {
-  return response.orders.map(adaptOrder);
+  const currency = response.currency || 'USD';
+  return response.orders.map(order => adaptOrder(order, currency));
 }

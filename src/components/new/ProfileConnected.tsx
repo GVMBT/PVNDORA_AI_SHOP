@@ -22,7 +22,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   onHaptic,
   onAdminEnter,
 }) => {
-  const { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, loading, error } = useProfileTyped();
+  const { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, updatePreferences, loading, error } = useProfileTyped();
   const { hapticFeedback, showPopup, showConfirm, openLink } = useTelegram();
   const { showTopUp, showWithdraw, showAlert } = useCyberModal();
   const [isInitialized, setIsInitialized] = useState(false);
@@ -167,16 +167,17 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
 
   return (
     <Profile
-      profile={profile}
-      onBack={onBack}
-      onHaptic={onHaptic}
-      onAdminEnter={onAdminEnter}
-      onCopyLink={handleCopyLink}
-      onShare={handleShare}
-      shareLoading={shareLoading}
-      onWithdraw={handleWithdraw}
-      onTopUp={handleTopUp}
-    />
+        profile={profile}
+        onBack={onBack}
+        onHaptic={onHaptic}
+        onAdminEnter={onAdminEnter}
+        onCopyLink={handleCopyLink}
+        onShare={handleShare}
+        shareLoading={shareLoading}
+        onWithdraw={handleWithdraw}
+        onTopUp={handleTopUp}
+        onUpdatePreferences={updatePreferences}
+      />
   );
 };
 

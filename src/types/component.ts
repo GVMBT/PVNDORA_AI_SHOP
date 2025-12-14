@@ -16,6 +16,7 @@ export interface CatalogProduct {
   category: string;      // legacy single category (kept for compatibility)
   price: number;
   msrp?: number;
+  currency: string;      // Currency code (USD, RUB, etc.)
   description: string;
   warranty: number; // in hours
   duration?: number; // in days
@@ -90,6 +91,7 @@ export interface Order {
   displayId: string;   // Short ID for UI display (8 chars)
   date: string;
   total: number;
+  currency: string;    // Currency code (USD, RUB, etc.)
   status: OrderStatus;
   items: OrderItem[];
   payment_url?: string | null; // Payment URL for pending orders
@@ -185,6 +187,7 @@ export interface LeaderboardUser {
   status: 'ONLINE' | 'AWAY' | 'BUSY';
   isMe: boolean;
   avatarUrl?: string;
+  currency?: string; // Currency code (USD, RUB, etc.)
 }
 
 // ==================== CART / CHECKOUT ====================
@@ -194,6 +197,7 @@ export interface CartItem {
   name: string;
   category: string;
   price: number;
+  currency: string;
   quantity: number;
   image: string;
 }
@@ -203,6 +207,7 @@ export interface CartData {
   total: number;
   originalTotal: number;
   discountTotal: number;
+  currency: string;
   promoCode?: string;
   promoDiscountPercent?: number;
 }

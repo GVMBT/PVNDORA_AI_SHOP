@@ -61,7 +61,8 @@ export function useProductsTyped() {
     
     try {
       const response: APIProductsResponse = await get(`/products?${params.toString()}`);
-      const adapted = adaptProductList(response.products);
+      const currency = response.currency || 'USD';
+      const adapted = adaptProductList(response.products, currency);
       setProducts(adapted);
       return adapted;
     } catch (err) {
@@ -74,7 +75,8 @@ export function useProductsTyped() {
     const lang = getLanguageCode();
     try {
       const response: APIProductResponse = await get(`/products/${id}?language_code=${lang}`);
-      return adaptProductDetail(response);
+      const currency = response.product?.currency || 'USD';
+      return adaptProductDetail(response, currency);
     } catch (err) {
       console.error(`Failed to fetch product ${id}:`, err);
       return null;
@@ -193,7 +195,19 @@ export function useProfileTyped() {
     }
   }, [post]);
 
-  return { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, loading, error };
+  const updatePreferences = useCallback(async (
+    preferred_currency?: string,
+    interface_language?: string
+  ): Promise<{ success: boolean; message: string }> => {
+    try {
+      return await post('/profile/preferences', { preferred_currency, interface_language });
+    } catch (err) {
+      console.error('Failed to update preferences:', err);
+      throw err;
+    }
+  }, [post]);
+
+  return { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, updatePreferences, loading, error };
 }
 
 /**
@@ -217,7 +231,10 @@ export function useLeaderboardTyped() {
     try {
       const response: APILeaderboardResponse = await get(`/leaderboard?limit=${limit}&offset=${offset}`);
       const telegramUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
-      const adapted = adaptLeaderboard(response, telegramUser?.id?.toString());
+      // Try to get currency from profile if available, otherwise default to USD
+      const lang = telegramUser?.language_code || navigator.language?.split('-')[0] || 'en';
+      const currency = (lang === 'ru' || lang === 'be' || lang === 'kk') ? 'RUB' : 'USD';
+      const adapted = adaptLeaderboard(response, telegramUser?.id?.toString(), currency);
       
       // Mark this offset as loaded
       loadedOffsetsRef.current.add(offset);

@@ -9,6 +9,7 @@ import {
   FileCode, Hash, RefreshCw, ShieldCheck, Layers, LayoutDashboard, ToggleRight, ToggleLeft, QrCode, ArrowLeft
 } from 'lucide-react';
 import { AudioEngine } from '../../lib/AudioEngine';
+import { formatPrice, getCurrencySymbol } from '../../utils/currency';
 
 // Types matching types/component.ts ProfileData
 interface CareerLevelData {
@@ -79,6 +80,7 @@ interface ProfileProps {
   shareLoading?: boolean;
   onWithdraw?: () => void;
   onTopUp?: () => void;
+  onUpdatePreferences?: (preferred_currency?: string, interface_language?: string) => Promise<{ success: boolean; message: string }>;
 }
 
 // --- UTILITY: DECRYPTED TEXT ANIMATION ---
@@ -166,7 +168,7 @@ const CAREER_LEVELS = [
 
 // --- MAIN COMPONENT ---
 
-const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHaptic, onAdminEnter, onCopyLink, onShare: onShareProp, shareLoading, onWithdraw, onTopUp }) => {
+const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHaptic, onAdminEnter, onCopyLink, onShare: onShareProp, shareLoading, onWithdraw, onTopUp, onUpdatePreferences }) => {
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'network' | 'logs'>('network');
   const [networkLine, setNetworkLine] = useState<1 | 2 | 3>(1);
@@ -353,7 +355,7 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
                              Internal Balance <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                         </div>
                         <div className="text-4xl sm:text-5xl font-display font-bold text-white flex items-baseline gap-2">
-                            <DecryptedText text={user.balance} /> <span className="text-xl text-pandora-cyan">{user.currency === 'RUB' ? '₽' : '$'}</span>
+                            <DecryptedText text={user.balance} /> <span className="text-xl text-pandora-cyan">{getCurrencySymbol(user.currency)}</span>
                         </div>
                     </div>
 
@@ -450,6 +452,103 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
                                 {rewardMode === 'cash' ? <><Wallet size={12} /> CASH_OUT</> : <><Percent size={12} /> DISCOUNT</>}
                                 <RefreshCw size={12} className="ml-1 opacity-50" />
                             </button>
+                        </div>
+                    )}
+
+                    {/* Language & Currency Settings */}
+                    {onUpdatePreferences && (
+                        <div className="mt-4 border-t border-white/5 pt-3">
+                            <div className="text-[10px] font-mono text-gray-500 uppercase mb-2 flex items-center gap-2">
+                                <Settings size={12} /> INTERFACE_SETTINGS
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                {/* Currency Selector */}
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-mono text-gray-600">CURRENCY:</span>
+                                    <div className="flex gap-1">
+                                        <button
+                                            onClick={async () => {
+                                                if (onHaptic) onHaptic('light');
+                                                if (onUpdatePreferences) {
+                                                    try {
+                                                        await onUpdatePreferences('USD', undefined);
+                                                        if (onHaptic) onHaptic('light');
+                                                        window.location.reload(); // Reload to apply currency change
+                                                    } catch (err) {
+                                                        console.error('Failed to update currency:', err);
+                                                    }
+                                                }
+                                            }}
+                                            className={`px-2 py-1 text-[9px] font-mono border rounded-sm transition-colors ${
+                                                user.currency === 'USD' 
+                                                    ? 'border-pandora-cyan text-pandora-cyan bg-pandora-cyan/10' 
+                                                    : 'border-white/10 text-gray-500 hover:border-white/20'
+                                            }`}
+                                        >
+                                            USD
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                if (onHaptic) onHaptic('light');
+                                                if (onUpdatePreferences) {
+                                                    try {
+                                                        await onUpdatePreferences('RUB', undefined);
+                                                        if (onHaptic) onHaptic('notification', 'success');
+                                                    } catch (err) {
+                                                        console.error('Failed to update currency:', err);
+                                                    }
+                                                }
+                                            }}
+                                            className={`px-2 py-1 text-[9px] font-mono border rounded-sm transition-colors ${
+                                                user.currency === 'RUB' 
+                                                    ? 'border-pandora-cyan text-pandora-cyan bg-pandora-cyan/10' 
+                                                    : 'border-white/10 text-gray-500 hover:border-white/20'
+                                            }`}
+                                        >
+                                            RUB
+                                        </button>
+                                    </div>
+                                </div>
+                                {/* Language Selector */}
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-mono text-gray-600">LANGUAGE:</span>
+                                    <div className="flex gap-1">
+                                        <button
+                                            onClick={async () => {
+                                                if (onHaptic) onHaptic('light');
+                                                if (onUpdatePreferences) {
+                                                    try {
+                                                        await onUpdatePreferences(undefined, 'ru');
+                                                        if (onHaptic) onHaptic('light');
+                                                        window.location.reload(); // Reload to apply language change
+                                                    } catch (err) {
+                                                        console.error('Failed to update language:', err);
+                                                    }
+                                                }
+                                            }}
+                                            className="px-2 py-1 text-[9px] font-mono border border-white/10 text-gray-500 hover:border-white/20 rounded-sm transition-colors"
+                                        >
+                                            RU
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                if (onHaptic) onHaptic('light');
+                                                if (onUpdatePreferences) {
+                                                    try {
+                                                        await onUpdatePreferences(undefined, 'en');
+                                                        if (onHaptic) onHaptic('notification', 'success');
+                                                    } catch (err) {
+                                                        console.error('Failed to update language:', err);
+                                                    }
+                                                }
+                                            }}
+                                            className="px-2 py-1 text-[9px] font-mono border border-white/10 text-gray-500 hover:border-white/20 rounded-sm transition-colors"
+                                        >
+                                            EN
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>

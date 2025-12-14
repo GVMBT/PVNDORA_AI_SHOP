@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, ChevronUp, ChevronDown, User, Crown, ArrowRight, TrendingUp, ShieldCheck, Activity, Zap, Terminal, BarChart3, Lock, ArrowLeft } from 'lucide-react';
+import { formatPrice, getCurrencySymbol } from '../../utils/currency';
 
 // Type matching LeaderboardUser from types/component
 interface LeaderboardUserData {
@@ -20,6 +21,7 @@ interface LeaderboardUserData {
 
 interface LeaderboardProps {
   leaderboardData?: LeaderboardUserData[];
+  currency?: string; // Currency code for formatting prices
   onBack: () => void;
   onLoadMore?: () => void;
   hasMore?: boolean;
@@ -32,6 +34,7 @@ interface LeaderboardProps {
 
 const Leaderboard: React.FC<LeaderboardProps> = ({ 
   leaderboardData: propData, 
+  currency = 'USD',
   onBack, 
   onLoadMore,
   hasMore = false,
@@ -92,7 +95,10 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
 
   // Use provided data - NO MOCK fallback (mock data causes confusion)
   const data = propData || [];
-
+  
+  // Determine currency: use from first user if available, or from props, or default to USD
+  const displayCurrency = data.find(u => u.currency)?.currency || currency || 'USD';
+  
   // Extract top 3 for podium display (may have less than 3)
   const topThree = data.slice(0, 3);
   
@@ -180,7 +186,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                             <ShieldCheck size={10} className="text-pandora-cyan" /> Total Corporate Loss
                         </div>
                         <div className="text-xl sm:text-2xl md:text-3xl font-mono font-bold text-white tracking-tight tabular-nums break-all sm:break-normal">
-                            ₽ {totalSavedAggregate.toLocaleString('ru-RU')}<span className="text-gray-600">{totalEfficiency ? ` // ${totalEfficiency}%` : ''}</span>
+                            {formatPrice(totalSavedAggregate, displayCurrency)}<span className="text-gray-600">{totalEfficiency ? ` // ${totalEfficiency}%` : ''}</span>
                         </div>
                     </div>
                     {/* Decorative Corner */}
@@ -214,7 +220,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                             
                             <div className="w-full bg-white/5 p-2 rounded-sm border border-white/5">
                                 <div className="text-[9px] text-gray-500 uppercase">Total Saved</div>
-                                <div className="text-lg font-bold text-white">₽ {(topThree[1].saved / 1000).toFixed(1)}k</div>
+                                <div className="text-lg font-bold text-white">{formatPrice(topThree[1].saved, topThree[1].currency || displayCurrency)}</div>
                             </div>
                         </div>
                     </div>
@@ -270,7 +276,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                                 <div className="w-full grid grid-cols-2 gap-2">
                                     <div className="bg-pandora-cyan/10 border border-pandora-cyan/30 p-2 rounded-sm overflow-hidden">
                                         <div className="text-[9px] text-pandora-cyan uppercase font-bold truncate">Saved</div>
-                                        <div className="text-base sm:text-xl font-bold text-white whitespace-normal break-all sm:break-normal leading-tight">₽ {(topThree[0].saved / 1000).toFixed(0)}k</div>
+                                        <div className="text-base sm:text-xl font-bold text-white whitespace-normal break-all sm:break-normal leading-tight">{formatPrice(topThree[0].saved, topThree[0].currency || displayCurrency)}</div>
                                     </div>
                                     <div className="bg-white/5 border border-white/10 p-2 rounded-sm overflow-hidden">
                                         <div className="text-[9px] text-gray-500 uppercase font-bold truncate">Efficiency</div>
@@ -306,7 +312,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                             
                             <div className="w-full bg-white/5 p-2 rounded-sm border border-white/5">
                                 <div className="text-[9px] text-gray-500 uppercase">Total Saved</div>
-                                <div className="text-lg font-bold text-white">₽ {(topThree[2].saved / 1000).toFixed(1)}k</div>
+                                <div className="text-lg font-bold text-white">{formatPrice(topThree[2].saved, topThree[2].currency || displayCurrency)}</div>
                             </div>
                         </div>
                     </div>
@@ -424,7 +430,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                                 <div className="col-span-12 md:col-span-2 text-right mt-2 md:mt-0 flex justify-between md:block items-center">
                                     <span className="md:hidden text-[10px] text-gray-500 font-mono uppercase">Net Profit:</span>
                                     <div className="font-display font-bold text-white text-lg group-hover:text-pandora-cyan transition-colors">
-                                        {user.saved.toLocaleString()} <span className="text-sm text-gray-600">₽</span>
+                                        {formatPrice(user.saved, user.currency || displayCurrency)}
                                     </div>
                                 </div>
                              </div>
@@ -485,7 +491,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                             <div className="text-right relative z-10">
                                 <div className="text-[9px] font-mono text-gray-500 uppercase tracking-wider mb-0.5">Net Profit</div>
                                 <div className="text-xl font-display font-bold text-white flex items-center gap-2 justify-end">
-                                    {currentUser.saved.toLocaleString()} ₽
+                                    {formatPrice(currentUser.saved, currentUser.currency || displayCurrency)}
                                     <TrendingUp size={16} className="text-pandora-cyan" />
                                 </div>
                             </div>

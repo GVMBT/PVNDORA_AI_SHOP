@@ -28,7 +28,7 @@ function deriveAvailability(apiProduct: APIProduct): ProductAvailability {
 /**
  * Adapt a single API product to CatalogProduct format
  */
-export function adaptProduct(apiProduct: APIProduct): CatalogProduct {
+export function adaptProduct(apiProduct: APIProduct, currency: string = 'USD'): CatalogProduct {
   return {
     id: apiProduct.id,
     name: apiProduct.name,
@@ -37,6 +37,7 @@ export function adaptProduct(apiProduct: APIProduct): CatalogProduct {
     categories: apiProduct.categories || [],
     price: apiProduct.final_price,
     msrp: apiProduct.msrp || apiProduct.original_price,
+    currency: apiProduct.currency || currency,
     description: apiProduct.description || '',
     warranty: apiProduct.warranty_days * 24, // days to hours
     duration: apiProduct.duration_days,
@@ -57,16 +58,16 @@ export function adaptProduct(apiProduct: APIProduct): CatalogProduct {
 /**
  * Adapt a list of API products
  */
-export function adaptProductList(apiProducts: APIProduct[]): CatalogProduct[] {
-  return apiProducts.map(adaptProduct);
+export function adaptProductList(apiProducts: APIProduct[], currency: string = 'USD'): CatalogProduct[] {
+  return apiProducts.map(p => adaptProduct(p, currency));
 }
 
 /**
  * Adapt detailed product response with reviews
  */
-export function adaptProductDetail(response: APIProductResponse): ProductDetailData {
+export function adaptProductDetail(response: APIProductResponse, currency: string = 'USD'): ProductDetailData {
   const { product, social_proof } = response;
-  const baseProduct = adaptProduct(product);
+  const baseProduct = adaptProduct(product, product.currency || currency);
   
   // Adapt reviews from social_proof (real data only)
   const reviews: ProductReview[] = (social_proof.recent_reviews || []).map((r, idx) => ({

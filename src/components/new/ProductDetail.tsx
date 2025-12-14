@@ -5,6 +5,7 @@ import {
   Video, Globe, Star, Cpu, Terminal, CheckCircle, ChevronRight, Plus, HardDrive, Wifi, Lock, Zap, Box, FileKey, Clock, Server, MessageSquare, Minus, Radio, FileCode, Loader2, ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion';
+import { formatPrice } from '../../utils/currency';
 
 import type { ProductDetailData, ProductFile, ProductReview, CatalogProduct } from '../../types/component';
 
@@ -233,9 +234,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                     <div className="p-4 flex flex-col justify-between h-24 bg-white/[0.02]">
                         <div className="text-[9px] font-mono text-gray-500 uppercase tracking-widest mb-1 text-right">Allocation_Cost</div>
                         <div className="text-right">
-                            {product.msrp && <div className="text-xs text-gray-600 line-through decoration-red-500/50 mb-1">{product.msrp} ₽</div>}
+                            {product.msrp && <div className="text-xs text-gray-600 line-through decoration-red-500/50 mb-1">{formatPrice(product.msrp, product.currency)}</div>}
                             <div className="text-3xl font-display font-bold text-white text-shadow-glow flex justify-end gap-1">
-                                {product.price} <span className="text-pandora-cyan text-xl">₽</span>
+                                {formatPrice(product.price, product.currency)}
                             </div>
                         </div>
                     </div>
@@ -412,7 +413,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                          <div className="flex-1 min-w-0">
                              <div className="text-xs font-bold text-white truncate group-hover:text-pandora-cyan transition-colors">{rel.name}</div>
                              <div className="text-[9px] font-mono text-gray-500 mb-1">{rel.category} // {rel.stock > 0 ? 'ONLINE' : 'OFFLINE'}</div>
-                             <div className="text-xs font-mono text-white font-bold">{rel.price} ₽</div>
+                             <div className="text-xs font-mono text-white font-bold">{formatPrice(rel.price, rel.currency)}</div>
                          </div>
                          <div className="flex items-center text-gray-600 group-hover:text-pandora-cyan group-hover:translate-x-1 transition-all">
                              <ArrowRight size={14} />
@@ -504,7 +505,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                                         {isPreorder ? 'QUEUE ALLOCATION' : 'MOUNT MODULE'}
                                     </span>
                                     <span className="font-mono text-lg md:text-xl font-bold border-l border-black/20 pl-4 ml-4">
-                                        {product.price * quantity} ₽
+                                        {formatPrice(product.price * quantity, product.currency)}
                                     </span>
                                 </motion.div>
                             )}

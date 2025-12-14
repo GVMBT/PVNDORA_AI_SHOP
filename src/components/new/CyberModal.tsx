@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, AlertTriangle, CheckCircle, Info, Wallet, ArrowUpRight, Plus, Loader2 } from 'lucide-react';
+import { getCurrencySymbol } from '../../utils/currency';
 
 // ==================== TYPES ====================
 
@@ -140,7 +141,7 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
     }
   };
 
-  const currencySymbol = state.currency === 'USD' ? '$' : '₽';
+  const currencySymbol = getCurrencySymbol(state.currency || 'USD');
 
   return (
     <AnimatePresence>

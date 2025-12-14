@@ -257,6 +257,7 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   const modalProps = {
     cart: cartItems,
     userBalance: profile?.balance || 0,
+    currency: cart?.currency || profile?.currency || 'USD',
     onClose,
     onRemoveItem: handleRemoveItem,
     onPay: handlePay,

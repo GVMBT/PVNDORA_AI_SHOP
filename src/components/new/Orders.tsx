@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Copy, Check, Clock, AlertTriangle, Package, Terminal, Activity, Box, Star, MessageSquare, X, Send, Eye, EyeOff, Shield } from 'lucide-react';
+import { formatPrice } from '../../utils/currency';
 
 // Type for order item data (matches OrderItem from types/component)
 interface OrderItemData {
@@ -412,7 +413,7 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
                                     {!order.rawStatus && order.status === 'refunded' && (
                                       <span className="text-[10px] font-bold bg-red-500/10 text-red-500 px-2 py-0.5 border border-red-500/20">[ STATUS: VOID ]</span>
                                     )}
-                                    <span className="font-display font-bold text-white">{order.total} ₽</span>
+                                    <span className="font-display font-bold text-white">{formatPrice(order.total, order.currency || 'USD')}</span>
                                 </div>
                             </div>
 
