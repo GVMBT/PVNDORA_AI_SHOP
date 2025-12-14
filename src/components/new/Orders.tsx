@@ -28,6 +28,7 @@ interface OrderData {
   displayId?: string;  // Short ID for UI display (8 chars)
   date: string;
   total: number;
+  currency?: string;   // Currency code (USD, RUB, etc.)
   status: 'paid' | 'processing' | 'refunded';
   items: OrderItemData[];
   payment_url?: string | null;
