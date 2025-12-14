@@ -21,11 +21,12 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   onHaptic,
   onAdminEnter,
 }) => {
-  const { profile, getProfile, requestWithdrawal, createShareLink, loading, error } = useProfileTyped();
-  const { hapticFeedback, showPopup, showConfirm } = useTelegram();
+  const { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, loading, error } = useProfileTyped();
+  const { hapticFeedback, showPopup, showConfirm, openLink } = useTelegram();
   const [isInitialized, setIsInitialized] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [topUpLoading, setTopUpLoading] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -139,16 +140,57 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     }
   }, [profile?.balance, requestWithdrawal, getProfile, hapticFeedback]);
 
-  const handleTopUp = useCallback(() => {
+  const handleTopUp = useCallback(async () => {
     const tg = (window as any).Telegram?.WebApp;
-    const msg = 'Баланс пополняется автоматически при получении реферальных бонусов.\n\nДля ручного пополнения обратитесь в поддержку.';
+    const currency = profile?.currency || 'RUB';
+    const minAmount = currency === 'USD' ? 5 : 500;
+    const symbol = currency === 'USD' ? '$' : '₽';
     
-    if (tg?.showPopup) {
-      tg.showPopup({ title: '💰 Пополнение', message: msg, buttons: [{ type: 'ok' }] });
-    } else {
-      alert(msg);
+    // Prompt for amount
+    const amountStr = window.prompt(
+      `💰 Пополнение баланса\n\nВведите сумму (мин. ${minAmount}${symbol}):`,
+      String(minAmount)
+    );
+    
+    if (!amountStr) return; // Cancelled
+    
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount < minAmount) {
+      const errorMsg = `Минимальная сумма: ${minAmount}${symbol}`;
+      if (tg?.showPopup) {
+        tg.showPopup({ title: '❌ Ошибка', message: errorMsg, buttons: [{ type: 'ok' }] });
+      } else {
+        alert(errorMsg);
+      }
+      return;
     }
-  }, []);
+    
+    setTopUpLoading(true);
+    if (onHaptic) onHaptic('medium');
+    
+    try {
+      const result = await createTopUp(amount, currency);
+      
+      if (result.payment_url) {
+        // Open payment URL
+        if (tg?.openLink) {
+          tg.openLink(result.payment_url);
+        } else {
+          window.open(result.payment_url, '_blank');
+        }
+      }
+    } catch (e: any) {
+      console.error('Top-up failed:', e);
+      const errorMsg = e?.message || 'Не удалось создать платёж';
+      if (tg?.showPopup) {
+        tg.showPopup({ title: '❌ Ошибка', message: errorMsg, buttons: [{ type: 'ok' }] });
+      } else {
+        alert(errorMsg);
+      }
+    } finally {
+      setTopUpLoading(false);
+    }
+  }, [profile?.currency, createTopUp, onHaptic]);
 
   // Loading state
   if (!isInitialized || loading) {

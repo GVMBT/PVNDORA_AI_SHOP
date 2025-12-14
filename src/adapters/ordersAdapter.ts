@@ -231,7 +231,8 @@ export function adaptOrder(apiOrder: APIOrder): Order {
   // Handle orders with items array (multi-item orders)
   if (apiOrder.items && apiOrder.items.length > 0) {
     return {
-      id: apiOrder.id.substring(0, 8).toUpperCase(),
+      id: apiOrder.id, // Full UUID for API operations
+      displayId: apiOrder.id.substring(0, 8).toUpperCase(), // Short ID for UI
       date: formatOrderDate(apiOrder.created_at),
       total: apiOrder.amount_display || apiOrder.amount,
       status: mapOrderStatus(apiOrder.status),
@@ -267,7 +268,8 @@ export function adaptOrder(apiOrder: APIOrder): Order {
   // For delivered/cancelled/refunded - no deadline
   
   return {
-    id: apiOrder.id.substring(0, 8).toUpperCase(),
+    id: apiOrder.id, // Full UUID for API operations
+    displayId: apiOrder.id.substring(0, 8).toUpperCase(), // Short ID for UI
     date: formatOrderDate(apiOrder.created_at),
     total: apiOrder.amount_display || apiOrder.amount,
     status: mapOrderStatus(apiOrder.status),

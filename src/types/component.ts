@@ -86,13 +86,14 @@ export interface OrderItem {
 }
 
 export interface Order {
-  id: string;
+  id: string;          // Full UUID for API operations
+  displayId: string;   // Short ID for UI display (8 chars)
   date: string;
   total: number;
   status: OrderStatus;
   items: OrderItem[];
   payment_url?: string | null; // Payment URL for pending orders
-  
+
   // Extended status info for better UX
   rawStatus: RawOrderStatus;       // Backend status as-is
   paymentConfirmed: boolean;       // Is payment received?

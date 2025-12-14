@@ -23,7 +23,8 @@ type RawOrderStatus = 'pending' | 'prepaid' | 'paid' | 'partial' | 'delivered' |
 
 // Type for order data (matches Order from types/component)
 interface OrderData {
-  id: string;
+  id: string;          // Full UUID for API operations
+  displayId?: string;  // Short ID for UI display (8 chars)
   date: string;
   total: number;
   status: 'paid' | 'processing' | 'refunded';
@@ -82,7 +83,8 @@ const DecryptText: React.FC<{ text: string, revealed: boolean }> = ({ text, reve
 // --- MOCK ORDERS DATA (with extended status fields) ---
 const MOCK_ORDERS: OrderData[] = [
   {
-    id: "CB8-C8D-C5",
+    id: "cb8c8dc5-1234-5678-9abc-def012345678",
+    displayId: "CB8C8DC5",
     date: "2025-12-08 // 14:32:01",
     total: 1156,
     status: "paid",
@@ -112,7 +114,8 @@ const MOCK_ORDERS: OrderData[] = [
     ]
   },
   {
-    id: "2C1-A0A-25",
+    id: "2c1a0a25-1234-5678-9abc-def012345678",
+    displayId: "2C1A0A25",
     date: "2025-12-07 // 09:15:00",
     total: 4238,
     status: "processing",
@@ -135,7 +138,8 @@ const MOCK_ORDERS: OrderData[] = [
     ]
   },
   {
-    id: "ABC-123-99",
+    id: "abc12399-1234-5678-9abc-def012345678",
+    displayId: "ABC12399",
     date: "2025-12-10 // 11:30:00",
     total: 500,
     status: "processing",
@@ -156,7 +160,8 @@ const MOCK_ORDERS: OrderData[] = [
     ]
   },
   {
-    id: "FF9-E2B-11",
+    id: "ff9e2b11-1234-5678-9abc-def012345678",
+    displayId: "FF9E2B11",
     date: "2025-12-01 // 18:45:22",
     total: 250,
     status: "refunded",
@@ -350,7 +355,7 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
                             {/* Card Header - Enhanced Status Display */}
                             <div className="bg-white/5 p-3 flex justify-between items-center border-b border-white/5">
                                 <div className="flex items-center gap-4">
-                                    <span className="font-mono text-xs text-pandora-cyan tracking-wider">ID: {order.id}</span>
+                                    <span className="font-mono text-xs text-pandora-cyan tracking-wider">ID: {order.displayId || order.id}</span>
                                     <span className="hidden sm:inline text-[10px] font-mono text-gray-600 uppercase">// {order.date}</span>
                                 </div>
                                 <div className="flex items-center gap-3">

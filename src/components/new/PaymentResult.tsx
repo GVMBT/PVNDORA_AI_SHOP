@@ -12,8 +12,9 @@ import { Cpu, CheckCircle, XCircle, Clock, AlertTriangle, ArrowRight, RefreshCw 
 
 interface PaymentResultProps {
   orderId: string;
+  isTopUp?: boolean;  // True if this is a balance top-up, not an order
   onComplete: () => void;
-  onViewOrders: () => void;
+  onViewOrders: () => void;  // For topup, this navigates to profile
 }
 
 type PaymentStatus = 'checking' | 'paid' | 'delivered' | 'partial' | 'pending' | 'expired' | 'failed' | 'unknown';
@@ -43,7 +44,7 @@ interface LogEntry {
   type: 'info' | 'success' | 'error' | 'warning';
 }
 
-export function PaymentResult({ orderId, onComplete, onViewOrders }: PaymentResultProps) {
+export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrders }: PaymentResultProps) {
   const [status, setStatus] = useState<PaymentStatus>('checking');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [progress, setProgress] = useState(0);
@@ -61,7 +62,7 @@ export function PaymentResult({ orderId, onComplete, onViewOrders }: PaymentResu
     setLogs(prev => [...prev.slice(-9), { timestamp, message, type }]);
   }, []);
 
-  // Check order status
+  // Check order/topup status
   const checkStatus = useCallback(async () => {
     try {
       const tg = (window as any).Telegram?.WebApp;
@@ -80,7 +81,12 @@ export function PaymentResult({ orderId, onComplete, onViewOrders }: PaymentResu
         headers['Authorization'] = `Bearer ${sessionToken}`;
       }
 
-      const response = await fetch(`/api/orders/${orderId}/status`, { headers });
+      // Use different endpoint for topup vs order
+      const endpoint = isTopUp 
+        ? `/api/profile/topup/${orderId}/status`
+        : `/api/orders/${orderId}/status`;
+      
+      const response = await fetch(endpoint, { headers });
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -113,14 +119,15 @@ export function PaymentResult({ orderId, onComplete, onViewOrders }: PaymentResu
       console.error('Status check failed:', error);
       return { status: 'unknown' as PaymentStatus, error };
     }
-  }, [orderId]);
+  }, [orderId, isTopUp]);
 
   // Polling effect
   useEffect(() => {
     if (isComplete) return;
 
-    addLog('INIT: Payment verification sequence started', 'info');
-    addLog(`TARGET: Order ${orderId.slice(0, 8).toUpperCase()}`, 'info');
+    const targetLabel = isTopUp ? 'Top-Up' : 'Order';
+    addLog(`INIT: ${isTopUp ? 'Balance top-up' : 'Payment'} verification started`, 'info');
+    addLog(`TARGET: ${targetLabel} ${orderId.slice(0, 8).toUpperCase()}`, 'info');
 
     let pollInterval: NodeJS.Timeout;
     let progressInterval: NodeJS.Timeout;
@@ -139,8 +146,13 @@ export function PaymentResult({ orderId, onComplete, onViewOrders }: PaymentResu
         switch (result.status) {
           case 'delivered':
             addLog('RECV: Payment confirmed by gateway', 'success');
-            addLog('EXEC: Delivery pipeline complete', 'success');
-            addLog('DONE: All assets transferred', 'success');
+            if (isTopUp) {
+              addLog('EXEC: Balance credited successfully', 'success');
+              addLog('DONE: Top-up complete!', 'success');
+            } else {
+              addLog('EXEC: Delivery pipeline complete', 'success');
+              addLog('DONE: All assets transferred', 'success');
+            }
             setProgress(100);
             setIsComplete(true);
             clearInterval(pollInterval);
@@ -149,7 +161,7 @@ export function PaymentResult({ orderId, onComplete, onViewOrders }: PaymentResu
           case 'paid':
           case 'partial':
             addLog('RECV: Payment confirmed', 'success');
-            addLog('PROC: Delivery in progress...', 'info');
+            addLog(isTopUp ? 'PROC: Crediting balance...' : 'PROC: Delivery in progress...', 'info');
             setProgress(75);
             break;
           case 'pending':
@@ -293,7 +305,7 @@ export function PaymentResult({ orderId, onComplete, onViewOrders }: PaymentResu
                   onClick={onViewOrders}
                   className="w-full py-3 bg-pandora-cyan text-black font-bold text-sm flex items-center justify-center gap-2 hover:bg-pandora-cyan/90 transition-colors"
                 >
-                  VIEW_ORDERS
+                  {isTopUp ? 'VIEW_PROFILE' : 'VIEW_ORDERS'}
                   <ArrowRight size={16} />
                 </button>
               )}

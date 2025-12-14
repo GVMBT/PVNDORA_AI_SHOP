@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException, Depends
 
 from src.services.database import get_database
 from core.auth import verify_telegram_auth
-from .models import WithdrawalRequest, UpdatePreferencesRequest
+from .models import WithdrawalRequest, UpdatePreferencesRequest, TopUpRequest
 
 router = APIRouter(tags=["webapp-profile"])
 
@@ -257,6 +257,197 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
     )
     
     return {"success": True, "message": "Withdrawal request submitted"}
+
+
+@router.post("/profile/topup")
+async def create_topup(
+    request: TopUpRequest,
+    user=Depends(verify_telegram_auth)
+):
+    """
+    Create a balance top-up payment via CrystalPay.
+    
+    Minimum amounts:
+    - RUB: 500₽
+    - USD: 5$
+    
+    Returns payment URL for redirect.
+    """
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Validate minimum amounts
+    currency = request.currency.upper()
+    MIN_AMOUNTS = {"RUB": 500, "USD": 5}
+    
+    if currency not in MIN_AMOUNTS:
+        raise HTTPException(status_code=400, detail=f"Invalid currency. Supported: {', '.join(MIN_AMOUNTS.keys())}")
+    
+    min_amount = MIN_AMOUNTS[currency]
+    if request.amount < min_amount:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Minimum top-up is {min_amount} {currency}"
+        )
+    
+    # Convert USD to RUB for CrystalPay (which works in RUB)
+    amount_rub = request.amount
+    if currency == "USD":
+        try:
+            from core.db import get_redis
+            from src.services.currency import get_currency_service
+            redis = get_redis()
+            currency_service = get_currency_service(redis)
+            rate = currency_service.get_rate("USD", "RUB")
+            amount_rub = request.amount * rate
+        except Exception as e:
+            print(f"Currency conversion failed: {e}, using fallback rate")
+            amount_rub = request.amount * 100  # Fallback rate
+    
+    # Create pending transaction record
+    current_balance = float(db_user.balance) if db_user.balance else 0
+    
+    try:
+        tx_result = await asyncio.to_thread(
+            lambda: db.client.table("balance_transactions").insert({
+                "user_id": db_user.id,
+                "type": "topup",
+                "amount": request.amount,
+                "currency": currency,
+                "balance_before": current_balance,
+                "balance_after": current_balance,  # Will be updated on completion
+                "status": "pending",
+                "description": f"Balance top-up: {request.amount} {currency}",
+                "metadata": {
+                    "original_currency": currency,
+                    "original_amount": request.amount,
+                    "rub_amount": amount_rub,
+                }
+            }).execute()
+        )
+        topup_id = tx_result.data[0]["id"] if tx_result.data else None
+    except Exception as e:
+        print(f"Failed to create topup transaction: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create top-up request")
+    
+    if not topup_id:
+        raise HTTPException(status_code=500, detail="Failed to create top-up request")
+    
+    # Create CrystalPay invoice with type="topup"
+    try:
+        from src.services.payments import PaymentService
+        payment_service = PaymentService()
+        
+        # Check if request is from Telegram Mini App
+        is_telegram_miniapp = True  # Default to True since this is via telegram auth
+        
+        result = await payment_service.create_crystalpay_payment_topup(
+            topup_id=topup_id,
+            user_id=str(db_user.id),
+            amount=amount_rub,
+            currency="RUB",
+            is_telegram_miniapp=is_telegram_miniapp,
+        )
+        
+        if not result or not result.get("payment_url"):
+            # Rollback transaction
+            await asyncio.to_thread(
+                lambda: db.client.table("balance_transactions")
+                .update({"status": "failed"})
+                .eq("id", topup_id)
+                .execute()
+            )
+            raise HTTPException(status_code=500, detail="Failed to create payment")
+        
+        # Update transaction with payment_id
+        await asyncio.to_thread(
+            lambda: db.client.table("balance_transactions")
+            .update({
+                "reference_type": "payment",
+                "reference_id": result.get("invoice_id"),
+                "metadata": {
+                    "original_currency": currency,
+                    "original_amount": request.amount,
+                    "rub_amount": amount_rub,
+                    "invoice_id": result.get("invoice_id"),
+                }
+            })
+            .eq("id", topup_id)
+            .execute()
+        )
+        
+        return {
+            "success": True,
+            "topup_id": topup_id,
+            "payment_url": result["payment_url"],
+            "amount": request.amount,
+            "currency": currency,
+            "amount_rub": amount_rub,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Failed to create CrystalPay payment: {e}")
+        # Rollback transaction
+        await asyncio.to_thread(
+            lambda: db.client.table("balance_transactions")
+            .update({"status": "failed"})
+            .eq("id", topup_id)
+            .execute()
+        )
+        raise HTTPException(status_code=500, detail=f"Payment creation failed: {str(e)}")
+
+
+@router.get("/profile/topup/{topup_id}/status")
+async def get_topup_status(
+    topup_id: str,
+    user=Depends(verify_telegram_auth)
+):
+    """Get top-up transaction status for polling."""
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    try:
+        tx_result = await asyncio.to_thread(
+            lambda: db.client.table("balance_transactions")
+            .select("*")
+            .eq("id", topup_id)
+            .eq("user_id", db_user.id)  # Security: only own transactions
+            .single()
+            .execute()
+        )
+        
+        if not tx_result.data:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+        
+        tx = tx_result.data
+        
+        # Map internal status to frontend status
+        status = tx.get("status", "pending")
+        status_map = {
+            "pending": "pending",
+            "completed": "delivered",  # Use "delivered" for consistency with orders
+            "failed": "failed",
+            "cancelled": "cancelled",
+        }
+        
+        return {
+            "topup_id": topup_id,
+            "status": status_map.get(status, "pending"),
+            "amount": tx.get("amount"),
+            "currency": tx.get("currency"),
+            "balance_after": tx.get("balance_after"),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Topup status error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch status")
 
 
 @router.put("/profile/preferences")

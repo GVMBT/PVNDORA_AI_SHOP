@@ -91,9 +91,14 @@ function NewAppInner() {
     if (window.location.pathname === '/payment/result') {
       const urlParams = new URLSearchParams(window.location.search);
       const orderId = urlParams.get('order_id');
+      const topupId = urlParams.get('topup_id');
       if (orderId) {
         console.log('[PaymentResult] Browser redirect detected early, order:', orderId);
         return orderId;
+      }
+      if (topupId) {
+        console.log('[PaymentResult] Browser TOPUP redirect detected early, topup:', topupId);
+        return `topup_${topupId}`;
       }
     }
     
@@ -111,6 +116,13 @@ function NewAppInner() {
       const orderId = effectiveStartParam.replace('payresult_', '');
       console.log('[PaymentResult] Mini App redirect detected early, order:', orderId);
       return orderId;
+    }
+    
+    // Handle topup redirect - navigate to profile after success
+    if (effectiveStartParam?.startsWith('topup_')) {
+      const topupId = effectiveStartParam.replace('topup_', '');
+      console.log('[PaymentResult] Mini App TOPUP redirect detected early, topup:', topupId);
+      return `topup_${topupId}`;
     }
     
     return null;
@@ -536,21 +548,29 @@ function NewAppInner() {
   // PRIORITY: Show PaymentResult immediately if coming from payment redirect
   // This bypasses boot sequence entirely for better UX
   if (isPaymentRedirect) {
+    const isTopUp = isPaymentRedirect.startsWith('topup_');
+    const actualId = isTopUp ? isPaymentRedirect.replace('topup_', '') : isPaymentRedirect;
+    
     return (
       <div className="min-h-screen bg-black">
         <PaymentResult 
-          orderId={isPaymentRedirect}
+          orderId={actualId}
+          isTopUp={isTopUp}
           onComplete={() => {
             setIsPaymentRedirect(null);
             // If not booted yet, trigger boot now
             if (!isBooted) {
               window.location.href = '/';
+            } else if (isTopUp) {
+              // For topup, go to profile
+              setCurrentView('profile');
             }
           }}
           onViewOrders={() => {
             setIsPaymentRedirect(null);
             if (isBooted) {
-              setCurrentView('orders');
+              // For topup, navigate to profile instead of orders
+              setCurrentView(isTopUp ? 'profile' : 'orders');
             } else {
               // Redirect to home, boot will happen, then user can navigate
               window.location.href = '/';

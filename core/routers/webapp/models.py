@@ -78,6 +78,11 @@ class WithdrawalRequest(BaseModel):
     details: str
 
 
+class TopUpRequest(BaseModel):
+    amount: float  # Amount in user's currency (RUB or USD)
+    currency: str = "RUB"  # RUB or USD
+
+
 class PromoCheckRequest(BaseModel):
     code: str
 

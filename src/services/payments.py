@@ -1281,6 +1281,104 @@ class PaymentService:
             logger.error("CrystalPay network error: %s", e)
             raise ValueError(f"Failed to connect to CrystalPay API: {str(e)}")
     
+    async def create_crystalpay_payment_topup(
+        self,
+        topup_id: str,
+        user_id: str,
+        amount: float,
+        currency: str = "RUB",
+        is_telegram_miniapp: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Create CrystalPay invoice for balance top-up.
+        
+        Similar to order payment, but uses type="topup" and different callback handling.
+        """
+        login, secret, salt, api_url = self._validate_crystalpay_config()
+        
+        # Amount in rubles (CrystalPay expects float)
+        amount_rub = to_float(amount)
+        
+        # Build callback URL - uses special topup webhook
+        callback_url = f"{self.base_url}/api/webhook/crystalpay/topup"
+        
+        # Build redirect URL based on source
+        if is_telegram_miniapp:
+            bot_username = os.environ.get("BOT_USERNAME", "pvndora_ai_bot")
+            # Redirect to profile page after topup
+            redirect_url = f"https://t.me/{bot_username}?startapp=topup_{topup_id}"
+        else:
+            redirect_url = f"{self.base_url}/payment/result?topup_id={topup_id}"
+        
+        # TEST mode
+        test_mode = os.environ.get("CRYSTALPAY_TEST_MODE", "false").lower() == "true"
+        required_method = "TEST" if test_mode else None
+        
+        # Description
+        safe_description = f"Balance top-up: {amount_rub:.0f} RUB"[:60]
+        
+        # API request payload - NOTE: type="topup" for balance operations
+        payload = {
+            "auth_login": login,
+            "auth_secret": secret,
+            "amount": amount_rub,
+            "type": "topup",  # Important: topup instead of purchase
+            "lifetime": 30,  # 30 minutes for topup
+            "currency": "RUB",
+            "description": safe_description,
+            "extra": f"topup_{topup_id}",  # Prefix to identify topup transactions
+            "callback_url": callback_url,
+            "redirect_url": redirect_url,
+        }
+        if required_method:
+            payload["required_method"] = required_method
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        
+        logger.info("CrystalPay TOPUP: topup_id=%s, amount=%s RUB, user=%s",
+                   topup_id, amount_rub, user_id)
+        
+        client = await self._get_http_client()
+        try:
+            response = await client.post(
+                f"{api_url}/invoice/create/",
+                headers=headers,
+                json=payload
+            )
+            logger.info("CrystalPay TOPUP response status: %s", response.status_code)
+            
+            data = response.json()
+            
+            if data.get("error"):
+                errors = data.get("errors", [])
+                error_msg = ", ".join(errors) if errors else "Unknown error"
+                logger.error("CrystalPay TOPUP error: %s", error_msg)
+                raise ValueError(f"CrystalPay error: {error_msg}")
+            
+            payment_url = data.get("url")
+            invoice_id = data.get("id")
+            
+            if not payment_url:
+                logger.error("CrystalPay TOPUP: URL not in response")
+                raise ValueError("Payment URL not found in CrystalPay response")
+            
+            logger.info("CrystalPay TOPUP created: topup_id=%s, invoice_id=%s", topup_id, invoice_id)
+            return {
+                "payment_url": payment_url,
+                "invoice_id": invoice_id,
+            }
+        
+        except httpx.HTTPStatusError as e:
+            error_detail = e.response.text[:200]
+            logger.error("CrystalPay TOPUP API error %s: %s", e.response.status_code, error_detail)
+            raise ValueError(f"CrystalPay API error: {error_detail}")
+        except httpx.RequestError as e:
+            logger.error("CrystalPay TOPUP network error: %s", e)
+            raise ValueError(f"Failed to connect to CrystalPay API: {str(e)}")
+    
     async def verify_crystalpay_webhook(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Verify CrystalPay webhook signature and extract order info.

@@ -181,7 +181,19 @@ export function useProfileTyped() {
     }
   }, [post]);
 
-  return { profile, getProfile, requestWithdrawal, createShareLink, loading, error };
+  const createTopUp = useCallback(async (
+    amount: number,
+    currency: string = 'RUB'
+  ): Promise<{ success: boolean; payment_url: string; topup_id: string; amount_rub: number }> => {
+    try {
+      return await post('/profile/topup', { amount, currency });
+    } catch (err) {
+      console.error('Failed to create top-up:', err);
+      throw err;
+    }
+  }, [post]);
+
+  return { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, loading, error };
 }
 
 /**

@@ -718,4 +718,137 @@ async def crystalpay_webhook(request: Request):
         )
 
 
+@router.post("/api/webhook/crystalpay/topup")
+@router.post("/webhook/crystalpay/topup")
+async def crystalpay_topup_webhook(request: Request):
+    """
+    CrystalPay webhook handler for balance TOP-UP payments.
+    
+    Similar to order webhook but:
+    - Credits user balance instead of delivering goods
+    - Uses balance_transactions table
+    """
+    import asyncio
+    import hashlib
+    import hmac
+    
+    try:
+        body = await request.body()
+        print(f"CrystalPay TOPUP webhook received: {len(body)} bytes")
+        
+        try:
+            data = await request.json()
+        except Exception:
+            print(f"CrystalPay TOPUP webhook: Invalid JSON")
+            return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+        
+        # Extract fields
+        invoice_id = data.get("id") or "unknown"
+        state = data.get("state") or "unknown"
+        extra = data.get("extra") or ""  # Format: "topup_{topup_id}"
+        received_signature = str(data.get("signature", "")).strip().lower()
+        
+        print(f"CrystalPay TOPUP webhook: invoice={invoice_id}, state={state}, extra={extra}")
+        
+        # Verify this is a topup transaction
+        if not extra.startswith("topup_"):
+            print(f"CrystalPay TOPUP webhook: Not a topup transaction (extra={extra})")
+            return JSONResponse({"error": "Not a topup transaction"}, status_code=400)
+        
+        topup_id = extra.replace("topup_", "")
+        
+        # Verify signature
+        salt = os.environ.get("CRYSTALPAY_SALT", "")
+        if received_signature and salt:
+            sign_string = f"{invoice_id}:{salt}"
+            expected_signature = hashlib.sha1(sign_string.encode()).hexdigest().lower()
+            
+            if not hmac.compare_digest(received_signature, expected_signature):
+                print(f"CrystalPay TOPUP webhook: Signature mismatch")
+                return JSONResponse({"error": "Invalid signature"}, status_code=400)
+        
+        # Check payment state
+        if state.lower() != "payed":
+            print(f"CrystalPay TOPUP webhook: Payment not successful (state={state})")
+            return JSONResponse({"ok": True, "message": f"State {state} acknowledged"}, status_code=200)
+        
+        # Get database
+        from src.services.database import get_database
+        db = get_database()
+        
+        # Find topup transaction
+        tx_result = await asyncio.to_thread(
+            lambda: db.client.table("balance_transactions")
+            .select("*")
+            .eq("id", topup_id)
+            .single()
+            .execute()
+        )
+        
+        if not tx_result.data:
+            print(f"CrystalPay TOPUP webhook: Transaction {topup_id} not found")
+            return JSONResponse({"error": "Transaction not found"}, status_code=404)
+        
+        tx = tx_result.data
+        
+        # Idempotency check - if already completed, return success
+        if tx.get("status") == "completed":
+            print(f"CrystalPay TOPUP webhook: Transaction {topup_id} already completed (idempotency)")
+            return JSONResponse({"ok": True}, status_code=200)
+        
+        user_id = tx.get("user_id")
+        amount = float(tx.get("amount") or 0)
+        currency = tx.get("currency") or "RUB"
+        
+        # Get user current balance
+        user_result = await asyncio.to_thread(
+            lambda: db.client.table("users")
+            .select("balance")
+            .eq("id", user_id)
+            .single()
+            .execute()
+        )
+        
+        if not user_result.data:
+            print(f"CrystalPay TOPUP webhook: User {user_id} not found")
+            return JSONResponse({"error": "User not found"}, status_code=404)
+        
+        current_balance = float(user_result.data.get("balance") or 0)
+        new_balance = current_balance + amount
+        
+        # Update user balance
+        await asyncio.to_thread(
+            lambda: db.client.table("users")
+            .update({"balance": new_balance})
+            .eq("id", user_id)
+            .execute()
+        )
+        
+        # Update transaction status
+        await asyncio.to_thread(
+            lambda: db.client.table("balance_transactions")
+            .update({
+                "status": "completed",
+                "balance_before": current_balance,
+                "balance_after": new_balance,
+            })
+            .eq("id", topup_id)
+            .execute()
+        )
+        
+        print(f"CrystalPay TOPUP webhook: SUCCESS! User {user_id} balance: {current_balance} -> {new_balance} (+{amount} {currency})")
+        
+        return JSONResponse({"ok": True}, status_code=200)
+        
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"CrystalPay TOPUP webhook error: {e}")
+        print(f"Traceback: {error_trace}")
+        return JSONResponse(
+            {"error": str(e)},
+            status_code=500
+        )
+
+
 
