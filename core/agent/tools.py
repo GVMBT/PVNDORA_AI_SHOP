@@ -1,22 +1,19 @@
 """
 LangChain Tools for Shop Agent
 
-Async tools that delegate to Service Layer.
-Each tool:
-- Has clear docstring (used by LLM to understand when to use)
-- Uses type hints (for schema generation)
-- Is async-native (no run_until_complete hacks)
+Complete toolset covering all app functionality:
+- Catalog & Search
+- Cart Management  
+- Orders & Credentials
+- User Profile & Referrals
+- Wishlist & Waitlist
+- Support & FAQ
 """
-from typing import List, Optional
+import asyncio
+from typing import Optional
 
 from langchain_core.tools import tool
 
-from core.services.domains import (
-    CatalogService,
-    WishlistService,
-    ReferralService,
-    SupportService,
-)
 from core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -43,287 +40,142 @@ def get_db():
 # =============================================================================
 
 @tool
-async def check_product_availability(product_name: str) -> dict:
+async def get_catalog() -> dict:
     """
-    Check if a product is available in stock.
-    Use when user asks about product availability or stock.
+    Get full product catalog with prices and availability.
+    Use when user asks what products are available.
+    
+    Returns:
+        List of all active products with stock status
+    """
+    try:
+        db = get_db()
+        products = await db.get_products(status="active")
+        return {
+            "success": True,
+            "count": len(products),
+            "products": [
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "price": p.price,
+                    "currency": getattr(p, "currency", "RUB") or "RUB",
+                    "in_stock": p.stock_count > 0,
+                    "stock_count": p.stock_count,
+                    "status": p.status,
+                }
+                for p in products
+            ]
+        }
+    except Exception as e:
+        logger.error(f"get_catalog error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@tool
+async def search_products(query: str) -> dict:
+    """
+    Search products by name or description.
+    Use when user asks about specific products.
     
     Args:
-        product_name: Name or partial name of the product
+        query: Search query (product name, category, etc.)
         
     Returns:
-        Product availability info including stock count and price
+        Matching products
     """
-    service = CatalogService(get_db())
-    result = await service.check_availability(product_name)
-    return {
-        "found": result.found,
-        "product_id": result.product_id,
-        "name": result.name,
-        "price": result.price,
-        "in_stock": result.in_stock,
-        "stock_count": result.stock_count,
-        "status": result.status,
-    }
+    try:
+        db = get_db()
+        products = await db.search_products(query)
+        return {
+            "success": True,
+            "count": len(products),
+            "products": [
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "price": p.price,
+                    "in_stock": p.stock_count > 0,
+                }
+                for p in products
+            ]
+        }
+    except Exception as e:
+        logger.error(f"search_products error: {e}")
+        return {"success": False, "error": str(e)}
 
 
 @tool
 async def get_product_details(product_id: str) -> dict:
     """
-    Get detailed information about a specific product.
-    Use when user wants to know more about a product.
+    Get detailed info about a specific product.
     
     Args:
-        product_id: UUID of the product
-        
-    Returns:
-        Full product details including description, price, rating
-    """
-    service = CatalogService(get_db())
-    result = await service.get_details(product_id)
-    return {
-        "found": result.found,
-        "id": result.id,
-        "name": result.name,
-        "description": result.description,
-        "price": result.price,
-        "type": result.type,
-        "in_stock": result.in_stock,
-        "rating": result.rating,
-        "reviews_count": result.reviews_count,
-    }
-
-
-@tool
-async def search_products(query: str, category: str = "all") -> dict:
-    """
-    Search for products by name or description.
-    Use when user is looking for products or asking what's available.
-    
-    Args:
-        query: Search query (what user is looking for)
-        category: Optional category filter (all, chatgpt, claude, midjourney, etc.)
-        
-    Returns:
-        List of matching products with prices and availability
-    """
-    service = CatalogService(get_db())
-    results = await service.search(query, category, limit=5)
-    return {
-        "count": len(results),
-        "products": [
-            {
-                "id": r.id,
-                "name": r.name,
-                "price": r.price,
-                "in_stock": r.in_stock,
-            }
-            for r in results
-        ]
-    }
-
-
-@tool
-async def get_catalog() -> dict:
-    """
-    Get full product catalog.
-    Use when user wants to see all available products.
-    
-    Returns:
-        List of all active products
-    """
-    service = CatalogService(get_db())
-    products = await service.get_catalog(status="active")
-    return {
-        "count": len(products),
-        "products": [
-            {
-                "id": p.id,
-                "name": p.name,
-                "price": p.price,
-                "in_stock": p.stock_count > 0,
-            }
-            for p in products
-        ]
-    }
-
-
-@tool
-async def create_purchase_intent(product_id: str) -> dict:
-    """
-    Create purchase intent for a product.
-    Use when user wants to buy a product.
-    
-    Args:
-        product_id: UUID of the product to purchase
-        
-    Returns:
-        Purchase details including order type (instant/prepaid) and price
-    """
-    service = CatalogService(get_db())
-    result = await service.create_purchase_intent(product_id)
-    return {
-        "success": result.success,
-        "product_id": result.product_id,
-        "product_name": result.product_name,
-        "price": result.price,
-        "order_type": result.order_type,
-        "action": result.action,
-        "message": result.message,
-        "reason": result.reason,
-    }
-
-
-# =============================================================================
-# WISHLIST TOOLS
-# =============================================================================
-
-@tool
-async def add_to_wishlist(user_id: str, product_id: str) -> dict:
-    """
-    Add a product to user's wishlist.
-    Use when user wants to save a product for later.
-    
-    Args:
-        user_id: User database ID
         product_id: Product UUID
         
     Returns:
-        Success status and message
+        Full product details
     """
-    service = WishlistService(get_db())
-    return await service.add_item(user_id, product_id)
-
-
-@tool
-async def get_wishlist(user_id: str) -> dict:
-    """
-    Get user's wishlist.
-    Use when user wants to see saved products.
-    
-    Args:
-        user_id: User database ID
+    try:
+        db = get_db()
+        product = await db.get_product_by_id(product_id)
+        if not product:
+            return {"success": False, "error": "Product not found"}
         
-    Returns:
-        List of wishlist items
-    """
-    service = WishlistService(get_db())
-    items = await service.get_items(user_id)
-    return {
-        "count": len(items),
-        "items": [
-            {
-                "id": item.product_id,
-                "name": item.product_name,
-                "price": item.price,
-                "in_stock": item.in_stock,
-            }
-            for item in items
-        ]
-    }
-
-
-# =============================================================================
-# USER TOOLS
-# =============================================================================
-
-@tool
-async def get_referral_info(user_id: str) -> dict:
-    """
-    Get user's referral information and statistics.
-    Use when user asks about referral program or their referral link.
-    
-    Args:
-        user_id: User database ID
-        
-    Returns:
-        Referral link and statistics by level
-    """
-    service = ReferralService(get_db())
-    result = await service.get_info(user_id)
-    
-    if not result.success:
-        return {"success": False, "error": result.error}
-    
-    return {
-        "success": True,
-        "referral_link": result.referral_link,
-        "total_referrals": result.total_referrals,
-        "balance": result.balance,
-        "levels": {
-            f"level_{k}": {"count": v.count, "percent": v.percent}
-            for k, v in (result.levels or {}).items()
-        }
-    }
-
-
-# =============================================================================
-# SUPPORT TOOLS
-# =============================================================================
-
-@tool
-async def create_support_ticket(
-    user_id: str, 
-    message: str, 
-    order_id: Optional[str] = None
-) -> dict:
-    """
-    Create a support ticket.
-    Use when user reports a problem or needs help.
-    
-    Args:
-        user_id: User database ID
-        message: Description of the issue
-        order_id: Related order ID (optional)
-        
-    Returns:
-        Ticket creation result
-    """
-    service = SupportService(get_db())
-    return await service.create_ticket(user_id, message, order_id)
-
-
-@tool
-async def search_faq(question: str, language: str = "en") -> dict:
-    """
-    Search FAQ for an answer.
-    Use when user asks a common question.
-    
-    Args:
-        question: User's question
-        language: Language code
-        
-    Returns:
-        FAQ entry if found
-    """
-    service = SupportService(get_db())
-    entry = await service.search_faq(question, language)
-    
-    if entry:
         return {
-            "found": True,
-            "question": entry.question,
-            "answer": entry.answer,
+            "success": True,
+            "id": product.id,
+            "name": product.name,
+            "description": product.description,
+            "price": product.price,
+            "currency": getattr(product, "currency", "RUB") or "RUB",
+            "in_stock": product.stock_count > 0,
+            "stock_count": product.stock_count,
+            "status": product.status,
         }
-    return {"found": False}
+    except Exception as e:
+        logger.error(f"get_product_details error: {e}")
+        return {"success": False, "error": str(e)}
 
 
 @tool
-async def request_refund(user_id: str, order_id: str, reason: str = "") -> dict:
+async def check_product_availability(product_name: str) -> dict:
     """
-    Request a refund for an order.
-    Use when user wants to return/refund an order.
+    Check if a product is available for purchase.
+    Use before adding to cart or purchasing.
     
     Args:
-        user_id: User database ID
-        order_id: Order ID
-        reason: Reason for refund
+        product_name: Name or partial name of the product
         
     Returns:
-        Refund request result
+        Availability info with price
     """
-    service = SupportService(get_db())
-    return await service.request_refund(user_id, order_id, reason)
+    try:
+        db = get_db()
+        products = await db.search_products(product_name)
+        
+        if not products:
+            return {
+                "success": False,
+                "found": False,
+                "message": f"Product '{product_name}' not found"
+            }
+        
+        p = products[0]  # Best match
+        return {
+            "success": True,
+            "found": True,
+            "product_id": p.id,
+            "name": p.name,
+            "price": p.price,
+            "in_stock": p.stock_count > 0,
+            "stock_count": p.stock_count,
+            "status": p.status,
+            "availability": "instant" if p.stock_count > 0 else "prepaid (24-48h)",
+        }
+    except Exception as e:
+        logger.error(f"check_product_availability error: {e}")
+        return {"success": False, "error": str(e)}
 
 
 # =============================================================================
@@ -334,152 +186,147 @@ async def request_refund(user_id: str, order_id: str, reason: str = "") -> dict:
 async def get_user_cart(user_telegram_id: int) -> dict:
     """
     Get user's shopping cart.
-    Use when user wants to see what's in their cart.
+    ALWAYS call this before mentioning cart contents.
     
     Args:
         user_telegram_id: User's Telegram ID
         
     Returns:
-        Cart contents and totals
+        Cart with items and totals
     """
-    from core.cart import get_cart_manager
-    
-    cart_manager = get_cart_manager()
-    cart = await cart_manager.get_cart(user_telegram_id)
-    
-    if not cart:
-        return {"success": True, "empty": True, "items": [], "total": 0.0}
-    
-    return {
-        "success": True,
-        "empty": False,
-        "items": [
-            {
-                "product_id": item.product_id,
-                "product_name": item.product_name,
-                "quantity": item.quantity,
-                "instant_quantity": item.instant_quantity,
-                "prepaid_quantity": item.prepaid_quantity,
-                "unit_price": item.unit_price,
-                "total_price": item.total_price,
-            }
-            for item in cart.items
-        ],
-        "instant_total": cart.instant_total,
-        "prepaid_total": cart.prepaid_total,
-        "total": cart.total,
-        "promo_code": cart.promo_code,
-    }
+    try:
+        from core.cart import get_cart_manager
+        
+        cart_manager = get_cart_manager()
+        cart = await cart_manager.get_cart(user_telegram_id)
+        
+        if not cart or not cart.items:
+            return {"success": True, "empty": True, "items": [], "total": 0.0}
+        
+        return {
+            "success": True,
+            "empty": False,
+            "items": [
+                {
+                    "product_id": item.product_id,
+                    "product_name": item.product_name,
+                    "quantity": item.quantity,
+                    "unit_price": item.unit_price,
+                    "total_price": item.total_price,
+                }
+                for item in cart.items
+            ],
+            "total": cart.total,
+            "promo_code": cart.promo_code,
+        }
+    except Exception as e:
+        logger.error(f"get_user_cart error: {e}")
+        return {"success": False, "error": str(e)}
 
 
 @tool
-async def add_to_cart(
-    user_telegram_id: int,
-    product_id: str,
-    quantity: int = 1
-) -> dict:
+async def add_to_cart(user_telegram_id: int, product_id: str, quantity: int = 1) -> dict:
     """
-    Add a product to user's cart.
-    Use when user wants to add something to cart.
+    Add product to user's cart.
     
     Args:
         user_telegram_id: User's Telegram ID
         product_id: Product UUID
-        quantity: How many to add
+        quantity: How many to add (default 1)
         
     Returns:
         Updated cart info
     """
-    import asyncio
-    from core.cart import get_cart_manager
-    
-    db = get_db()
-    product = await db.get_product_by_id(product_id)
-    if not product:
-        return {"success": False, "reason": "Product not found"}
-    
-    # Get available stock with discounts
-    stock_result = await asyncio.to_thread(
-        lambda: db.client.table("available_stock_with_discounts").select(
-            "*"
-        ).eq("product_id", product_id).limit(1).execute()
-    )
-    available_stock = len(stock_result.data) if stock_result.data else 0
-    discount_percent = stock_result.data[0].get("discount_percent", 0) if stock_result.data else 0
-    
-    cart_manager = get_cart_manager()
-    cart = await cart_manager.add_item(
-        user_telegram_id=user_telegram_id,
-        product_id=product_id,
-        product_name=product.name,
-        quantity=quantity,
-        available_stock=available_stock,
-        unit_price=product.price,
-        discount_percent=discount_percent,
-    )
-    
-    return {
-        "success": True,
-        "product_name": product.name,
-        "quantity": quantity,
-        "cart_total": cart.total,
-    }
+    try:
+        from core.cart import get_cart_manager
+        
+        db = get_db()
+        product = await db.get_product_by_id(product_id)
+        if not product:
+            return {"success": False, "error": "Product not found"}
+        
+        # Get stock info
+        stock_count = await db.get_available_stock_count(product_id)
+        
+        cart_manager = get_cart_manager()
+        cart = await cart_manager.add_item(
+            user_telegram_id=user_telegram_id,
+            product_id=product_id,
+            product_name=product.name,
+            quantity=quantity,
+            available_stock=stock_count,
+            unit_price=product.price,
+            discount_percent=0,
+        )
+        
+        return {
+            "success": True,
+            "product_name": product.name,
+            "quantity": quantity,
+            "cart_total": cart.total,
+            "message": f"Added {product.name} to cart"
+        }
+    except Exception as e:
+        logger.error(f"add_to_cart error: {e}")
+        return {"success": False, "error": str(e)}
 
 
 @tool
-async def update_cart(
-    user_telegram_id: int,
-    operation: str,
-    product_id: Optional[str] = None,
-    quantity: Optional[int] = None
-) -> dict:
+async def clear_cart(user_telegram_id: int) -> dict:
     """
-    Update shopping cart: change quantity, remove item, or clear cart.
+    Clear user's shopping cart.
     
     Args:
         user_telegram_id: User's Telegram ID
-        operation: One of: 'update_quantity', 'remove_item', 'clear'
-        product_id: Product UUID (required for update/remove)
-        quantity: New quantity (required for update_quantity, 0 = remove)
         
     Returns:
-        Updated cart status
+        Confirmation
     """
-    import asyncio
-    from core.cart import get_cart_manager
-    
-    cart_manager = get_cart_manager()
-    db = get_db()
-    
-    if operation == "clear":
-        await cart_manager.clear_cart(user_telegram_id)
-        return {"success": True, "message": "Cart cleared", "cart_total": 0.0}
-    
-    if operation == "remove_item":
-        if not product_id:
-            return {"success": False, "reason": "product_id required"}
-        cart = await cart_manager.remove_item(user_telegram_id, product_id)
-        return {"success": True, "message": "Item removed", "cart_total": cart.total if cart else 0.0}
-    
-    if operation == "update_quantity":
-        if not product_id or quantity is None:
-            return {"success": False, "reason": "product_id and quantity required"}
+    try:
+        from core.cart import get_cart_manager
         
-        if quantity == 0:
-            cart = await cart_manager.remove_item(user_telegram_id, product_id)
-        else:
-            stock_result = await asyncio.to_thread(
-                lambda: db.client.table("available_stock_with_discounts").select(
-                    "*"
-                ).eq("product_id", product_id).limit(1).execute()
-            )
-            available_stock = len(stock_result.data) if stock_result.data else 0
-            cart = await cart_manager.update_item_quantity(
-                user_telegram_id, product_id, quantity, available_stock
-            )
-        return {"success": True, "message": "Cart updated", "cart_total": cart.total if cart else 0.0}
+        cart_manager = get_cart_manager()
+        await cart_manager.clear_cart(user_telegram_id)
+        return {"success": True, "message": "Cart cleared"}
+    except Exception as e:
+        logger.error(f"clear_cart error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@tool
+async def apply_promo_code(code: str, user_telegram_id: int) -> dict:
+    """
+    Apply promo code to cart.
     
-    return {"success": False, "reason": f"Unknown operation: {operation}"}
+    Args:
+        code: Promo code
+        user_telegram_id: User's Telegram ID
+        
+    Returns:
+        Discount info
+    """
+    try:
+        db = get_db()
+        promo = await db.validate_promo_code(code)
+        
+        if not promo:
+            return {"success": False, "valid": False, "message": "Invalid or expired promo code"}
+        
+        # Apply to cart
+        from core.cart import get_cart_manager
+        cart_manager = get_cart_manager()
+        await cart_manager.apply_promo(user_telegram_id, code, promo["discount_percent"])
+        
+        return {
+            "success": True,
+            "valid": True,
+            "code": code.upper(),
+            "discount_percent": promo["discount_percent"],
+            "message": f"Promo code applied! {promo['discount_percent']}% discount"
+        }
+    except Exception as e:
+        logger.error(f"apply_promo_code error: {e}")
+        return {"success": False, "error": str(e)}
 
 
 # =============================================================================
@@ -489,126 +336,530 @@ async def update_cart(
 @tool
 async def get_user_orders(user_id: str, limit: int = 5) -> dict:
     """
-    Get user's recent orders.
-    Use when user asks about their orders or order history.
+    Get user's order history.
+    Use when user asks about their orders.
     
     Args:
         user_id: User database ID
-        limit: Maximum number of orders to return
+        limit: Max orders to return
         
     Returns:
-        List of recent orders with status
+        List of orders with status
     """
-    db = get_db()
-    orders = await db.get_user_orders(user_id, limit=limit)
-    
-    return {
-        "count": len(orders),
-        "orders": [
-            {
-                "id": o.id[:8],
-                "product_id": o.product_id,
-                "amount": o.amount,
-                "status": o.status,
-                "created_at": o.created_at.isoformat() if o.created_at else None,
-            }
-            for o in orders
-        ]
-    }
-
-
-@tool
-async def apply_promo_code(code: str) -> dict:
-    """
-    Check and apply a promo code for discount.
-    Use when user provides a promo or discount code.
-    
-    Args:
-        code: The promo code to validate
+    try:
+        db = get_db()
+        orders = await db.get_user_orders(user_id, limit=limit)
         
-    Returns:
-        Validation result with discount percentage
-    """
-    db = get_db()
-    code = code.strip().upper()
-    promo = await db.validate_promo_code(code)
-    
-    if promo:
+        if not orders:
+            return {"success": True, "count": 0, "orders": [], "message": "No orders found"}
+        
+        # Get order items for each order
+        order_ids = [o.id for o in orders]
+        all_items = await db.get_order_items_by_orders(order_ids)
+        
+        # Group items by order
+        items_by_order = {}
+        for item in all_items:
+            oid = item["order_id"]
+            if oid not in items_by_order:
+                items_by_order[oid] = []
+            items_by_order[oid].append(item)
+        
         return {
-            "valid": True,
-            "code": code,
-            "discount_percent": promo["discount_percent"],
-            "message": f"Promo code applied! {promo['discount_percent']}% discount"
+            "success": True,
+            "count": len(orders),
+            "orders": [
+                {
+                    "id": o.id[:8],
+                    "full_id": o.id,
+                    "amount": o.amount,
+                    "status": o.status,
+                    "created_at": o.created_at.isoformat() if o.created_at else None,
+                    "items": [
+                        {
+                            "product_name": it.get("product_name", "Unknown"),
+                            "status": it.get("status", "unknown"),
+                            "has_credentials": bool(it.get("delivery_content")),
+                        }
+                        for it in items_by_order.get(o.id, [])
+                    ]
+                }
+                for o in orders
+            ]
         }
-    return {"valid": False, "message": "Invalid or expired promo code"}
+    except Exception as e:
+        logger.error(f"get_user_orders error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@tool
+async def get_order_credentials(user_id: str, order_id_prefix: str) -> dict:
+    """
+    Get credentials/login data for a delivered order.
+    Use when user asks for login/password from their order.
+    
+    Args:
+        user_id: User database ID
+        order_id_prefix: First 8 characters of order ID (e.g. "c7e72095")
+        
+    Returns:
+        Credentials for delivered items
+    """
+    try:
+        db = get_db()
+        
+        # Find order by prefix
+        orders = await db.get_user_orders(user_id, limit=20)
+        order = next((o for o in orders if o.id.startswith(order_id_prefix)), None)
+        
+        if not order:
+            return {
+                "success": False,
+                "error": f"Order {order_id_prefix} not found. Check order ID."
+            }
+        
+        # Get order items with credentials
+        items = await db.get_order_items_by_order(order.id)
+        
+        credentials = []
+        for item in items:
+            content = item.get("delivery_content")
+            if content:
+                credentials.append({
+                    "product_name": item.get("product_name", "Product"),
+                    "credentials": content,
+                    "instructions": item.get("delivery_instructions", ""),
+                })
+        
+        if not credentials:
+            # Check order status
+            if order.status in ("pending", "prepaid"):
+                return {
+                    "success": True,
+                    "status": order.status,
+                    "message": f"Order {order_id_prefix} is not yet delivered. Status: {order.status}",
+                    "credentials": []
+                }
+            return {
+                "success": True,
+                "status": order.status,
+                "message": f"No credentials found for order {order_id_prefix}",
+                "credentials": []
+            }
+        
+        return {
+            "success": True,
+            "order_id": order_id_prefix,
+            "status": order.status,
+            "credentials": credentials,
+        }
+    except Exception as e:
+        logger.error(f"get_order_credentials error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@tool
+async def resend_order_credentials(user_id: str, order_id_prefix: str, telegram_id: int) -> dict:
+    """
+    Resend order credentials to user via Telegram.
+    Use when user asks to resend/forward their login/password.
+    
+    Args:
+        user_id: User database ID  
+        order_id_prefix: First 8 characters of order ID
+        telegram_id: User's Telegram ID to send to
+        
+    Returns:
+        Confirmation
+    """
+    try:
+        from core.services.notifications import NotificationService
+        
+        # First get credentials
+        db = get_db()
+        orders = await db.get_user_orders(user_id, limit=20)
+        order = next((o for o in orders if o.id.startswith(order_id_prefix)), None)
+        
+        if not order:
+            return {"success": False, "error": f"Order {order_id_prefix} not found"}
+        
+        items = await db.get_order_items_by_order(order.id)
+        
+        credentials = []
+        for item in items:
+            content = item.get("delivery_content")
+            if content:
+                credentials.append(f"{item.get('product_name', 'Product')}:\n{content}")
+        
+        if not credentials:
+            return {"success": False, "error": "No credentials to resend"}
+        
+        # Send via notification service
+        notification = NotificationService()
+        content_text = "\n\n".join(credentials)
+        await notification.send_delivery(
+            telegram_id=telegram_id,
+            product_name=f"Заказ {order_id_prefix}",
+            content=content_text
+        )
+        
+        return {
+            "success": True,
+            "message": f"Credentials for order {order_id_prefix} sent to your Telegram"
+        }
+    except Exception as e:
+        logger.error(f"resend_order_credentials error: {e}")
+        return {"success": False, "error": str(e)}
 
 
 # =============================================================================
-# ADDITIONAL CATALOG TOOLS
+# USER & PROFILE TOOLS
 # =============================================================================
 
 @tool
-async def compare_products(product_names: List[str]) -> dict:
+async def get_user_profile(user_id: str) -> dict:
     """
-    Compare two or more products side by side.
-    Use when user wants to compare different products.
+    Get user's profile information.
+    Use when user asks about their account, balance, or stats.
     
     Args:
-        product_names: List of product names to compare (e.g. ["ChatGPT", "Claude"])
+        user_id: User database ID
         
     Returns:
-        Comparison data for all products
+        Profile with balance and stats
     """
-    service = CatalogService(get_db())
-    results = await service.compare(product_names)
-    return {"products": results}
+    try:
+        db = get_db()
+        
+        # Get user from DB
+        result = await asyncio.to_thread(
+            lambda: db.client.table("users").select("*").eq("id", user_id).single().execute()
+        )
+        
+        if not result.data:
+            return {"success": False, "error": "User not found"}
+        
+        user = result.data
+        return {
+            "success": True,
+            "balance": user.get("balance", 0),
+            "total_spent": user.get("total_spent", 0),
+            "total_saved": user.get("total_saved", 0),
+            "referral_level": user.get("referral_level", 1),
+            "referral_earnings": user.get("referral_earnings", 0),
+            "orders_count": user.get("orders_count", 0),
+        }
+    except Exception as e:
+        logger.error(f"get_user_profile error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@tool
+async def get_referral_info(user_id: str, telegram_id: int) -> dict:
+    """
+    Get user's referral program info.
+    Use when user asks about referrals, affiliate link, or earnings.
+    
+    Args:
+        user_id: User database ID
+        telegram_id: User's Telegram ID
+        
+    Returns:
+        Referral link and stats
+    """
+    try:
+        db = get_db()
+        
+        # Get user
+        result = await asyncio.to_thread(
+            lambda: db.client.table("users").select(
+                "balance, referral_level, referral_earnings, total_spent"
+            ).eq("id", user_id).single().execute()
+        )
+        
+        if not result.data:
+            return {"success": False, "error": "User not found"}
+        
+        user = result.data
+        level = user.get("referral_level", 1)
+        
+        # Count referrals by level
+        referral_counts = {"level_1": 0, "level_2": 0, "level_3": 0}
+        
+        # Level 1 - direct referrals
+        l1 = await asyncio.to_thread(
+            lambda: db.client.table("users").select("id", count="exact").eq("referrer_id", user_id).execute()
+        )
+        referral_counts["level_1"] = l1.count or 0
+        
+        # Level 2 - referrals of referrals
+        if l1.data:
+            l1_ids = [u["id"] for u in l1.data]
+            if l1_ids:
+                l2 = await asyncio.to_thread(
+                    lambda: db.client.table("users").select("id", count="exact").in_("referrer_id", l1_ids).execute()
+                )
+                referral_counts["level_2"] = l2.count or 0
+        
+        # Referral percentages by level
+        level_percents = {
+            1: {"level_1": 5},
+            2: {"level_1": 5, "level_2": 2},
+            3: {"level_1": 5, "level_2": 2, "level_3": 1},
+        }
+        
+        return {
+            "success": True,
+            "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{telegram_id}",
+            "balance": user.get("balance", 0),
+            "referral_level": level,
+            "referral_earnings": user.get("referral_earnings", 0),
+            "referral_counts": referral_counts,
+            "total_referrals": sum(referral_counts.values()),
+            "active_percentages": level_percents.get(level, level_percents[1]),
+            "next_level_requirement": 5000 if level == 1 else (15000 if level == 2 else None),
+            "total_spent": user.get("total_spent", 0),
+        }
+    except Exception as e:
+        logger.error(f"get_referral_info error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+# =============================================================================
+# WISHLIST & WAITLIST TOOLS
+# =============================================================================
+
+@tool
+async def add_to_wishlist(user_id: str, product_id: str) -> dict:
+    """
+    Add product to user's wishlist (saved for later).
+    
+    Args:
+        user_id: User database ID
+        product_id: Product UUID
+        
+    Returns:
+        Confirmation
+    """
+    try:
+        db = get_db()
+        product = await db.get_product_by_id(product_id)
+        if not product:
+            return {"success": False, "error": "Product not found"}
+        
+        await db.add_to_wishlist(user_id, product_id)
+        return {
+            "success": True,
+            "message": f"{product.name} added to wishlist"
+        }
+    except Exception as e:
+        logger.error(f"add_to_wishlist error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@tool
+async def get_wishlist(user_id: str) -> dict:
+    """
+    Get user's wishlist.
+    
+    Args:
+        user_id: User database ID
+        
+    Returns:
+        List of saved products
+    """
+    try:
+        db = get_db()
+        products = await db.get_wishlist(user_id)
+        
+        return {
+            "success": True,
+            "count": len(products),
+            "items": [
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "price": p.price,
+                }
+                for p in products
+            ]
+        }
+    except Exception as e:
+        logger.error(f"get_wishlist error: {e}")
+        return {"success": False, "error": str(e)}
 
 
 @tool
 async def add_to_waitlist(user_id: str, product_name: str) -> dict:
     """
-    Add user to waitlist for a coming_soon product.
-    Use when user wants to be notified when product becomes available.
+    Add user to waitlist for coming_soon product.
+    User will be notified when product becomes available.
     
     Args:
         user_id: User database ID
-        product_name: Name of the product to wait for
+        product_name: Product name
         
     Returns:
-        Waitlist status
+        Confirmation
     """
-    service = CatalogService(get_db())
-    return await service.add_to_waitlist(user_id=user_id, product_name=product_name)
+    try:
+        db = get_db()
+        await db.add_to_waitlist(user_id, product_name)
+        return {
+            "success": True,
+            "message": f"Added to waitlist for {product_name}. You'll be notified when available."
+        }
+    except Exception as e:
+        logger.error(f"add_to_waitlist error: {e}")
+        return {"success": False, "error": str(e)}
 
 
 # =============================================================================
-# ALL TOOLS
+# SUPPORT TOOLS
+# =============================================================================
+
+@tool
+async def search_faq(question: str, language: str = "ru") -> dict:
+    """
+    Search FAQ for answer to common question.
+    Use first before creating support ticket.
+    
+    Args:
+        question: User's question
+        language: Language code
+        
+    Returns:
+        Matching FAQ entry if found
+    """
+    try:
+        db = get_db()
+        faq_entries = await db.get_faq(language)
+        
+        if not faq_entries:
+            return {"success": True, "found": False}
+        
+        # Simple keyword matching
+        question_lower = question.lower()
+        for entry in faq_entries:
+            q = entry.get("question", "").lower()
+            if any(word in q for word in question_lower.split() if len(word) > 3):
+                return {
+                    "success": True,
+                    "found": True,
+                    "question": entry["question"],
+                    "answer": entry["answer"],
+                }
+        
+        return {"success": True, "found": False}
+    except Exception as e:
+        logger.error(f"search_faq error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@tool
+async def create_support_ticket(user_id: str, message: str, order_id: Optional[str] = None) -> dict:
+    """
+    Create support ticket for user's issue.
+    Use when user reports problem that can't be solved automatically.
+    
+    Args:
+        user_id: User database ID
+        message: Issue description
+        order_id: Related order ID (optional)
+        
+    Returns:
+        Ticket ID
+    """
+    try:
+        db = get_db()
+        result = await db.create_ticket(
+            user_id=user_id,
+            subject="Support Request",
+            message=message,
+            order_id=order_id
+        )
+        
+        return {
+            "success": True,
+            "ticket_id": result.get("id", "")[:8] if result else None,
+            "message": "Support ticket created. We'll respond soon."
+        }
+    except Exception as e:
+        logger.error(f"create_support_ticket error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@tool
+async def request_refund(user_id: str, order_id: str, reason: str) -> dict:
+    """
+    Request refund for an order.
+    
+    Args:
+        user_id: User database ID
+        order_id: Order ID (full or prefix)
+        reason: Reason for refund
+        
+    Returns:
+        Ticket ID for refund request
+    """
+    try:
+        db = get_db()
+        
+        # Find order
+        orders = await db.get_user_orders(user_id, limit=20)
+        order = next((o for o in orders if o.id.startswith(order_id)), None)
+        
+        if not order:
+            return {"success": False, "error": f"Order {order_id} not found"}
+        
+        # Create refund ticket
+        result = await db.create_ticket(
+            user_id=user_id,
+            subject=f"Refund Request: {order_id[:8]}",
+            message=f"Refund requested for order {order_id[:8]}. Reason: {reason}",
+            order_id=order.id
+        )
+        
+        return {
+            "success": True,
+            "ticket_id": result.get("id", "")[:8] if result else None,
+            "message": f"Refund request created for order {order_id[:8]}. We'll review it soon."
+        }
+    except Exception as e:
+        logger.error(f"request_refund error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+# =============================================================================
+# TOOL REGISTRY
 # =============================================================================
 
 def get_all_tools():
     """Get all available tools for the agent."""
     return [
         # Catalog
-        check_product_availability,
-        get_product_details,
-        search_products,
         get_catalog,
-        compare_products,
-        create_purchase_intent,
-        add_to_waitlist,
-        # Wishlist
-        add_to_wishlist,
-        get_wishlist,
-        # User
-        get_referral_info,
-        get_user_orders,
-        apply_promo_code,
-        # Support
-        create_support_ticket,
-        search_faq,
-        request_refund,
+        search_products,
+        get_product_details,
+        check_product_availability,
         # Cart
         get_user_cart,
         add_to_cart,
-        update_cart,
+        clear_cart,
+        apply_promo_code,
+        # Orders
+        get_user_orders,
+        get_order_credentials,
+        resend_order_credentials,
+        # User & Referrals
+        get_user_profile,
+        get_referral_info,
+        # Wishlist & Waitlist
+        add_to_wishlist,
+        get_wishlist,
+        add_to_waitlist,
+        # Support
+        search_faq,
+        create_support_ticket,
+        request_refund,
     ]

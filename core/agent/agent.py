@@ -1,11 +1,11 @@
 """
-LangGraph Shop Agent
+LangGraph Shop Agent — Full-Featured & Fault-Tolerant
 
-ReAct agent powered by Gemini 2.5 Flash with tools for:
-- Product catalog and search
-- Shopping cart management
-- Wishlist operations
-- Support and refunds
+Complete agent covering all shop functionality:
+- Catalog, Cart, Orders, Credentials
+- User Profile, Referrals
+- Wishlist, Waitlist
+- Support, FAQ, Refunds
 """
 import os
 from typing import Optional, Dict, Any, List
@@ -35,13 +35,14 @@ class AgentResponse:
 
 class ShopAgent:
     """
-    LangGraph-based shop agent.
+    LangGraph-based shop agent with full functionality.
     
     Features:
     - ReAct pattern for reasoning + acting
     - Gemini 2.5 Flash as LLM
-    - Async tools for shop operations
-    - Memory for conversation history
+    - 20 tools covering all shop features
+    - Fault-tolerant with retries
+    - Per-user conversation memory
     """
     
     def __init__(
@@ -57,7 +58,7 @@ class ShopAgent:
         Args:
             db: Database instance
             model: Gemini model name
-            temperature: LLM temperature
+            temperature: LLM temperature (0.7 = balanced)
             use_memory: Whether to use conversation memory
         """
         self.db = db
@@ -76,6 +77,7 @@ class ShopAgent:
             model=model,
             temperature=temperature,
             google_api_key=api_key,
+            convert_system_message_to_human=True,  # Better Gemini compatibility
         )
         
         # Get tools
@@ -102,39 +104,41 @@ class ShopAgent:
         telegram_id: Optional[int] = None,
     ) -> AgentResponse:
         """
-        Send a message to the agent.
+        Send message to agent.
         
         Args:
             message: User message
             user_id: User database ID
             language: User's language code
             thread_id: Conversation thread ID (for memory)
-            telegram_id: User's Telegram ID (for cart operations)
+            telegram_id: User's Telegram ID (for cart/notifications)
             
         Returns:
             AgentResponse with content and metadata
         """
-        # Load product catalog for context
+        # Load product catalog
+        product_catalog = ""
         try:
             products = await self.db.get_products(status="active")
             product_catalog = format_product_catalog(products)
         except Exception as e:
             logger.warning(f"Failed to load catalog: {e}")
-            product_catalog = ""
         
-        # Build system prompt with user context
+        # Build system prompt
         system_prompt = get_system_prompt(language, product_catalog)
         
-        # Add user context for tools
+        # Add user context
         context = f"""
 
-Current context:
+## Current User Context
 - user_id: {user_id}
 - telegram_id: {telegram_id or 'unknown'}
 - language: {language}
 
-When using tools that require user_id, use: {user_id}
-When using cart tools that require user_telegram_id, use: {telegram_id}
+Use these values when calling tools:
+- For user operations: user_id="{user_id}"
+- For cart operations: user_telegram_id={telegram_id}
+- For notifications: telegram_id={telegram_id}
 """
         full_system = system_prompt + context
         
@@ -149,24 +153,31 @@ When using cart tools that require user_telegram_id, use: {telegram_id}
         if thread_id and self.memory:
             config["configurable"] = {"thread_id": thread_id}
         
-        # Invoke agent
-        try:
-            result = await self.agent.ainvoke({"messages": messages}, config)
-            
-            # Extract response from messages
-            return self._parse_result(result)
-            
-        except Exception as e:
-            logger.error(f"Agent error: {e}", exc_info=True)
-            # Fallback response
-            error_messages = {
-                "ru": "Произошла временная ошибка. Попробуйте ещё раз.",
-                "en": "A temporary error occurred. Please try again.",
-            }
-            return AgentResponse(
-                content=error_messages.get(language, error_messages["en"]),
-                action="error",
-            )
+        # Invoke with retry
+        max_retries = 2
+        last_error = None
+        
+        for attempt in range(max_retries + 1):
+            try:
+                result = await self.agent.ainvoke({"messages": messages}, config)
+                return self._parse_result(result)
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Agent attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries:
+                    continue
+        
+        # All retries failed
+        logger.error(f"Agent failed after {max_retries + 1} attempts: {last_error}")
+        
+        error_messages = {
+            "ru": "Произошла ошибка. Попробуй переформулировать вопрос.",
+            "en": "An error occurred. Please try rephrasing your question.",
+        }
+        return AgentResponse(
+            content=error_messages.get(language, error_messages["en"]),
+            action="error",
+        )
     
     def _parse_result(self, result: Dict[str, Any]) -> AgentResponse:
         """Parse agent result into AgentResponse."""
@@ -174,7 +185,7 @@ When using cart tools that require user_telegram_id, use: {telegram_id}
         
         # Find last AI message
         ai_messages = [m for m in messages if isinstance(m, AIMessage)]
-        last_ai_message = ai_messages[-1] if ai_messages else None
+        last_ai = ai_messages[-1] if ai_messages else None
         
         content = ""
         tool_calls = []
@@ -182,17 +193,23 @@ When using cart tools that require user_telegram_id, use: {telegram_id}
         product_id = None
         total_amount = None
         
-        if last_ai_message:
-            raw_content = last_ai_message.content or ""
-            # Handle multimodal content (list) - extract text parts
+        if last_ai:
+            # Handle multimodal content (can be list)
+            raw_content = last_ai.content or ""
             if isinstance(raw_content, list):
-                content = " ".join(
-                    part.get("text", "") if isinstance(part, dict) else str(part)
-                    for part in raw_content
-                )
+                # Extract text from list of content parts
+                parts = []
+                for part in raw_content:
+                    if isinstance(part, dict):
+                        parts.append(part.get("text", ""))
+                    elif isinstance(part, str):
+                        parts.append(part)
+                content = " ".join(parts).strip()
             else:
-                content = str(raw_content)
-            tool_calls = getattr(last_ai_message, "tool_calls", []) or []
+                content = str(raw_content).strip()
+            
+            # Get tool calls
+            tool_calls = getattr(last_ai, "tool_calls", []) or []
             
             # Detect action from tool calls
             for tc in tool_calls:
@@ -202,13 +219,19 @@ When using cart tools that require user_telegram_id, use: {telegram_id}
                 if tool_name == "add_to_cart":
                     action = "add_to_cart"
                     product_id = tool_args.get("product_id")
-                elif tool_name == "create_purchase_intent":
-                    action = "offer_payment"
-                    product_id = tool_args.get("product_id")
+                elif tool_name in ("get_order_credentials", "resend_order_credentials"):
+                    action = "show_credentials"
                 elif tool_name == "create_support_ticket":
                     action = "create_ticket"
                 elif tool_name == "request_refund":
                     action = "refund_request"
+                elif tool_name == "get_user_cart":
+                    # Check if cart has items
+                    pass
+        
+        # Ensure we have some content
+        if not content:
+            content = "Готово!"
         
         return AgentResponse(
             content=content,
@@ -217,70 +240,37 @@ When using cart tools that require user_telegram_id, use: {telegram_id}
             product_id=product_id,
             total_amount=total_amount,
         )
-    
-    async def stream(
-        self,
-        message: str,
-        user_id: str,
-        language: str = "en",
-        thread_id: Optional[str] = None,
-        telegram_id: Optional[int] = None,
-    ):
-        """
-        Stream agent response.
-        
-        Yields chunks as they're generated.
-        """
-        system_prompt = get_system_prompt(language)
-        context = f"\n\nCurrent user_id: {user_id}, telegram_id: {telegram_id}"
-        full_system = system_prompt + context
-        
-        messages = [
-            {"role": "system", "content": full_system},
-            {"role": "user", "content": message},
-        ]
-        
-        config = {}
-        if thread_id and self.memory:
-            config["configurable"] = {"thread_id": thread_id}
-        
-        async for chunk in self.agent.astream(
-            {"messages": messages}, 
-            config, 
-            stream_mode="values"
-        ):
-            yield chunk
 
 
-# Singleton instance
-_shop_agent: Optional[ShopAgent] = None
+# =============================================================================
+# SINGLETON
+# =============================================================================
+
+_agent: Optional[ShopAgent] = None
 
 
-def create_shop_agent(db, **kwargs) -> ShopAgent:
+def get_shop_agent(db=None) -> ShopAgent:
     """
-    Factory function to create ShopAgent.
+    Get or create agent singleton.
     
     Args:
-        db: Database instance
-        **kwargs: Additional arguments for ShopAgent
+        db: Database instance (required on first call)
         
     Returns:
-        Configured ShopAgent instance
+        ShopAgent instance
     """
-    return ShopAgent(db, **kwargs)
-
-
-def get_shop_agent(db) -> ShopAgent:
-    """
-    Get or create singleton ShopAgent.
+    global _agent
     
-    Args:
-        db: Database instance
-        
-    Returns:
-        ShopAgent singleton
-    """
-    global _shop_agent
-    if _shop_agent is None:
-        _shop_agent = create_shop_agent(db)
-    return _shop_agent
+    if _agent is None:
+        if db is None:
+            from core.services.database import get_database
+            db = get_database()
+        _agent = ShopAgent(db)
+    
+    return _agent
+
+
+def reset_agent():
+    """Reset agent singleton (for testing)."""
+    global _agent
+    _agent = None

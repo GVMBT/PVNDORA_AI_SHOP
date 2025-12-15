@@ -1,11 +1,9 @@
 """
-LangGraph-based AI Agent Module
+PVNDORA Shop Agent
 
-Clean architecture:
-- Agent uses LangGraph + Gemini
-- Tools delegate to Service Layer
-- No direct DB access in tools
+Full-featured AI assistant powered by LangGraph + Gemini.
+Handles: Catalog, Cart, Orders, Credentials, Referrals, Support.
 """
-from .agent import ShopAgent, create_shop_agent, get_shop_agent
+from .agent import ShopAgent, get_shop_agent, reset_agent
 
-__all__ = ["ShopAgent", "create_shop_agent", "get_shop_agent"]
+__all__ = ["ShopAgent", "get_shop_agent", "reset_agent"]
