@@ -13,7 +13,7 @@ import { adaptProfile, adaptReferralNetwork } from '../../adapters';
 import { PAGINATION } from '../../config';
 
 export function useProfileTyped() {
-  const { get, post, loading, error } = useApi();
+  const { get, post, put, loading, error } = useApi();
   const [profile, setProfile] = useState<ProfileData | null>(null);
 
   const getProfile = useCallback(async (): Promise<ProfileData | null> => {
@@ -86,12 +86,12 @@ export function useProfileTyped() {
     interface_language?: string
   ): Promise<{ success: boolean; message: string }> => {
     try {
-      return await post('/profile/preferences', { preferred_currency, interface_language });
+      return await put('/profile/preferences', { preferred_currency, interface_language });
     } catch (err) {
       logger.error('Failed to update preferences', err);
       throw err;
     }
-  }, [post]);
+  }, [put]);
 
   return { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, updatePreferences, loading, error };
 }

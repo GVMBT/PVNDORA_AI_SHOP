@@ -115,13 +115,10 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
   return (
     <AdminPanel 
       onExit={onExit}
-      // These props would need to be added to AdminPanel to use real data
-      // For now, AdminPanel will use its internal mock data
-      // TODO: Update AdminPanel to accept these props
-      // products={transformedProducts}
-      // orders={transformedOrders}
-      // users={transformedUsers}
-      // stats={transformedStats}
+      products={transformedProducts}
+      orders={transformedOrders}
+      users={transformedUsers}
+      stats={transformedStats}
     />
   );
 };

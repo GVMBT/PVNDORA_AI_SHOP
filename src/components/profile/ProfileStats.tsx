@@ -187,57 +187,58 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
 
           {/* Language & Currency Settings */}
           {onUpdatePreferences && (
-            <div className="mt-4 border-t border-white/5 pt-3">
-              <div className="text-[10px] font-mono text-gray-500 uppercase mb-2 flex items-center gap-2">
+            <div className="mt-4 border-t border-white/5 pt-4">
+              <div className="text-[10px] font-mono text-gray-500 uppercase mb-3 flex items-center gap-2">
                 <Settings size={12} /> INTERFACE_SETTINGS
               </div>
-              <div className="flex flex-col gap-2">
-                {/* Currency Selector */}
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-gray-600">CURRENCY:</span>
-                  <div className="flex gap-1">
+              <div className="flex flex-wrap gap-4 items-center">
+                {/* Currency Toggle */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-mono text-gray-600">CURRENCY:</span>
+                  <div className="flex bg-black/50 border border-white/10 rounded-sm overflow-hidden">
                     <button
                       onClick={() => handleCurrencyChange('USD')}
-                      className={`px-2 py-1 text-[9px] font-mono border rounded-sm transition-colors ${
+                      className={`px-3 py-1.5 text-[10px] font-mono font-bold transition-all ${
                         user.currency === 'USD' 
-                          ? 'border-pandora-cyan text-pandora-cyan bg-pandora-cyan/10' 
-                          : 'border-white/10 text-gray-500 hover:border-white/20'
+                          ? 'bg-pandora-cyan text-black' 
+                          : 'text-gray-500 hover:text-white hover:bg-white/5'
                       }`}
                     >
                       USD
                     </button>
                     <button
                       onClick={() => handleCurrencyChange('RUB')}
-                      className={`px-2 py-1 text-[9px] font-mono border rounded-sm transition-colors ${
+                      className={`px-3 py-1.5 text-[10px] font-mono font-bold transition-all ${
                         user.currency === 'RUB' 
-                          ? 'border-pandora-cyan text-pandora-cyan bg-pandora-cyan/10' 
-                          : 'border-white/10 text-gray-500 hover:border-white/20'
+                          ? 'bg-pandora-cyan text-black' 
+                          : 'text-gray-500 hover:text-white hover:bg-white/5'
                       }`}
                     >
                       RUB
                     </button>
                   </div>
                 </div>
-                {/* Language Selector */}
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-gray-600">LANGUAGE:</span>
-                  <div className="flex gap-1">
+                
+                {/* Language Toggle */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-mono text-gray-600">LANGUAGE:</span>
+                  <div className="flex bg-black/50 border border-white/10 rounded-sm overflow-hidden">
                     <button
                       onClick={() => handleLanguageChange('ru')}
-                      className={`px-2 py-1 text-[9px] font-mono border rounded-sm transition-colors ${
+                      className={`px-3 py-1.5 text-[10px] font-mono font-bold transition-all ${
                         user.language === 'ru' 
-                          ? 'border-pandora-cyan text-pandora-cyan bg-pandora-cyan/10' 
-                          : 'border-white/10 text-gray-500 hover:border-white/20'
+                          ? 'bg-pandora-cyan text-black' 
+                          : 'text-gray-500 hover:text-white hover:bg-white/5'
                       }`}
                     >
                       RU
                     </button>
                     <button
                       onClick={() => handleLanguageChange('en')}
-                      className={`px-2 py-1 text-[9px] font-mono border rounded-sm transition-colors ${
+                      className={`px-3 py-1.5 text-[10px] font-mono font-bold transition-all ${
                         user.language === 'en' || !user.language
-                          ? 'border-pandora-cyan text-pandora-cyan bg-pandora-cyan/10' 
-                          : 'border-white/10 text-gray-500 hover:border-white/20'
+                          ? 'bg-pandora-cyan text-black' 
+                          : 'text-gray-500 hover:text-white hover:bg-white/5'
                       }`}
                     >
                       EN
