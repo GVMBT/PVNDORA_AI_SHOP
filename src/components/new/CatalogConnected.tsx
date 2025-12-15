@@ -8,6 +8,7 @@
 import React, { useEffect, useState, useCallback, memo } from 'react';
 import Catalog from './Catalog';
 import { useProductsTyped } from '../../hooks/useApiTyped';
+import { useLocaleContext } from '../../contexts/LocaleContext';
 import type { CatalogProduct } from '../../types/component';
 
 interface CatalogConnectedProps {
@@ -22,6 +23,7 @@ const CatalogConnected: React.FC<CatalogConnectedProps> = ({
   onHaptic,
 }) => {
   const { products, getProducts, loading, error } = useProductsTyped();
+  const { locale, currency } = useLocaleContext();
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
@@ -31,6 +33,13 @@ const CatalogConnected: React.FC<CatalogConnectedProps> = ({
     };
     init();
   }, [getProducts]);
+
+  // Reload products when currency or language changes
+  useEffect(() => {
+    if (isInitialized) {
+      getProducts();
+    }
+  }, [locale, currency, isInitialized, getProducts]);
 
   const handleSelectProduct = useCallback((product: CatalogProduct) => {
     if (onHaptic) onHaptic('light');

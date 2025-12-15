@@ -170,6 +170,7 @@ export interface ProfileData {
   billingLogs: BillingLog[];
   currency: string;
   language: string;
+  interfaceLanguage?: string; // User's preferred interface language (ru, en, etc.)
   photoUrl?: string;
 }
 

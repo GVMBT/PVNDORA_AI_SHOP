@@ -1290,11 +1290,14 @@ class PaymentService:
         Create CrystalPay invoice for balance top-up.
         
         Similar to order payment, but uses type="topup" and different callback handling.
+        
+        Supports multiple currencies (RUB, USD, etc.) - CrystalPay will handle conversion.
         """
         login, secret, salt, api_url = self._validate_crystalpay_config()
         
-        # Amount in rubles (CrystalPay expects float)
-        amount_rub = to_float(amount)
+        # Amount in user's currency (CrystalPay expects float)
+        payment_amount = to_float(amount)
+        payment_currency = currency.upper()
         
         # Build callback URL - uses special topup webhook
         callback_url = f"{self.base_url}/api/webhook/crystalpay/topup"
@@ -1312,17 +1315,21 @@ class PaymentService:
         test_mode = os.environ.get("CRYSTALPAY_TEST_MODE", "false").lower() == "true"
         required_method = "TEST" if test_mode else None
         
-        # Description
-        safe_description = f"Balance top-up: {amount_rub:.0f} RUB"[:60]
+        # Description with currency
+        if payment_currency == "USD":
+            safe_description = f"Balance top-up: ${payment_amount:.2f}"[:60]
+        else:
+            safe_description = f"Balance top-up: {payment_amount:.0f} {payment_currency}"[:60]
         
         # API request payload - NOTE: type="topup" for balance operations
+        # CrystalPay supports currency parameter (RUB, USD, EUR, etc.)
         payload = {
             "auth_login": login,
             "auth_secret": secret,
-            "amount": amount_rub,
+            "amount": payment_amount,
             "type": "topup",  # Important: topup instead of purchase
             "lifetime": 30,  # 30 minutes for topup
-            "currency": "RUB",
+            "currency": payment_currency,  # Use user's currency (RUB, USD, etc.)
             "description": safe_description,
             "extra": f"topup_{topup_id}",  # Prefix to identify topup transactions
             "callback_url": callback_url,
@@ -1336,8 +1343,8 @@ class PaymentService:
             "Accept": "application/json",
         }
         
-        logger.info("CrystalPay TOPUP: topup_id=%s, amount=%s RUB, user=%s",
-                   topup_id, amount_rub, user_id)
+        logger.info("CrystalPay TOPUP: topup_id=%s, amount=%s %s, user=%s",
+                   topup_id, payment_amount, payment_currency, user_id)
         
         client = await self._get_http_client()
         try:

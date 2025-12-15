@@ -40,6 +40,7 @@ import { getStartParam } from './utils/telegram';
 import { useProductsTyped, useProfileTyped } from './hooks/useApiTyped';
 import { useCart } from './contexts/CartContext';
 import { useTelegram } from './hooks/useTelegram';
+import { LocaleProvider } from './contexts/LocaleContext';
 
 // Audio Engine
 import { AudioEngine } from './lib/AudioEngine';
@@ -119,7 +120,7 @@ function NewAppInner() {
   const hud = useHUD();
   const handleFeedback = useFeedback();
   const { products: allProducts, getProducts } = useProductsTyped();
-  const { getProfile } = useProfileTyped();
+  const { profile, getProfile } = useProfileTyped();
   const { cart, getCart, addToCart, removeCartItem } = useCart();
   const { user: telegramUser } = useTelegram();
   
@@ -486,12 +487,17 @@ function NewAppInner() {
 
 // Main App with providers
 function NewApp() {
+  // Load profile early to initialize LocaleProvider with user preferences
+  const { profile } = useProfileTyped();
+  
   return (
-    <HUDProvider position="top-right" maxNotifications={UI.HUD_MAX_NOTIFICATIONS} defaultDuration={UI.HUD_DURATION}>
-      <CyberModalProvider>
-        <NewAppInner />
-      </CyberModalProvider>
-    </HUDProvider>
+    <LocaleProvider initialProfile={profile || null}>
+      <HUDProvider position="top-right" maxNotifications={UI.HUD_MAX_NOTIFICATIONS} defaultDuration={UI.HUD_DURATION}>
+        <CyberModalProvider>
+          <NewAppInner />
+        </CyberModalProvider>
+      </HUDProvider>
+    </LocaleProvider>
   );
 }
 

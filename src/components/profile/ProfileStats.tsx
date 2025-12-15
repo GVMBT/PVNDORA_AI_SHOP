@@ -41,9 +41,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
       try {
         await onUpdatePreferences(currency, undefined);
         if (onHaptic) onHaptic('light');
-        if (currency === 'USD') {
-          window.location.reload(); // Reload to apply currency change
-        }
+        // No reload needed - context will update automatically
       } catch (err) {
         // Error handled by logger in parent
       }
@@ -56,9 +54,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
       try {
         await onUpdatePreferences(undefined, lang);
         if (onHaptic) onHaptic('light');
-        if (lang === 'ru') {
-          window.location.reload(); // Reload to apply language change
-        }
+        // No reload needed - context will update automatically
       } catch (err) {
         // Error handled by logger in parent
       }

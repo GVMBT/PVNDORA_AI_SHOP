@@ -10,6 +10,7 @@ import { useProfileTyped } from '../../hooks/useApiTyped';
 import { useTelegram } from '../../hooks/useTelegram';
 import { useCyberModal } from './CyberModal';
 import { useClipboard } from '../../hooks/useClipboard';
+import { useLocaleContext } from '../../contexts/LocaleContext';
 import { logger } from '../../utils/logger';
 import type { ProfileData } from '../../types/component';
 
@@ -27,6 +28,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   const { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, updatePreferences, loading, error } = useProfileTyped();
   const { hapticFeedback, showConfirm, openLink, showAlert: showTelegramAlert } = useTelegram();
   const { showTopUp, showWithdraw, showAlert: showModalAlert } = useCyberModal();
+  const { updateFromProfile, setCurrency, setLocale } = useLocaleContext();
   const [isInitialized, setIsInitialized] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
   const { copy: copyToClipboard } = useClipboard();
@@ -38,6 +40,13 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     };
     init();
   }, [getProfile]);
+
+  // Update locale context when profile changes
+  useEffect(() => {
+    if (profile) {
+      updateFromProfile(profile);
+    }
+  }, [profile, updateFromProfile]);
 
   const handleCopyLink = useCallback(async () => {
     if (!profile?.referralLink) return;
@@ -159,6 +168,24 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     );
   }
 
+  const handleUpdatePreferences = useCallback(async (preferred_currency?: string, interface_language?: string) => {
+    // Update preferences via API
+    const result = await updatePreferences(preferred_currency, interface_language);
+    
+    // Update locale context immediately (no reload needed)
+    if (preferred_currency) {
+      setCurrency(preferred_currency as 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED');
+    }
+    if (interface_language) {
+      setLocale(interface_language as 'en' | 'ru' | 'uk' | 'de' | 'fr' | 'es' | 'tr' | 'ar' | 'hi');
+    }
+    
+    // Reload profile to get updated data (prices will be recalculated with new currency)
+    await getProfile();
+    
+    return result;
+  }, [updatePreferences, setCurrency, setLocale, getProfile]);
+
   return (
     <Profile
         profile={profile}
@@ -170,7 +197,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
         shareLoading={shareLoading}
         onWithdraw={handleWithdraw}
         onTopUp={handleTopUp}
-        onUpdatePreferences={updatePreferences}
+        onUpdatePreferences={handleUpdatePreferences}
       />
   );
 };

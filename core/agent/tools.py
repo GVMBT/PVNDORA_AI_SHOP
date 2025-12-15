@@ -76,7 +76,8 @@ async def get_catalog(user_language: str = "en") -> dict:
             else:
                 price_converted = price_usd
             
-            symbol = "₽" if target_currency == "RUB" else "$"
+            # Use currency service formatter for proper symbol placement
+            price_formatted = currency_service.format_price(price_converted, target_currency)
             
             result_products.append({
                 "id": p.id,
@@ -84,7 +85,7 @@ async def get_catalog(user_language: str = "en") -> dict:
                 "price": price_converted,
                 "price_usd": price_usd,
                 "currency": target_currency,
-                "price_formatted": f"{price_converted:.0f}{symbol}" if target_currency == "RUB" else f"${price_converted:.2f}",
+                "price_formatted": price_formatted,
                 "in_stock": p.stock_count > 0,
                 "stock_count": p.stock_count,
                 "status": p.status,
@@ -171,7 +172,8 @@ async def get_product_details(product_id: str, user_language: str = "en") -> dic
         else:
             price_converted = price_usd
         
-        symbol = "₽" if target_currency == "RUB" else "$"
+        # Use currency service formatter for proper symbol placement
+        price_formatted = currency_service.format_price(price_converted, target_currency)
         
         # Availability message
         if product.stock_count > 0:
@@ -195,7 +197,7 @@ async def get_product_details(product_id: str, user_language: str = "en") -> dic
             "price": price_converted,
             "price_usd": price_usd,
             "currency": target_currency,
-            "price_formatted": f"{price_converted:.0f}{symbol}" if target_currency == "RUB" else f"${price_usd:.2f}",
+            "price_formatted": price_formatted,
             "in_stock": product.stock_count > 0,
             "stock_count": product.stock_count,
             "availability": availability,
@@ -664,31 +666,42 @@ async def get_user_profile(user_id: str, user_language: str = "en") -> dict:
         redis = get_redis()
         currency_service = get_currency_service(redis)
         target_currency = currency_service.get_user_currency(user_language)
-        symbol = "₽" if target_currency == "RUB" else "$"
         
         # Balance is stored in USD, convert if needed
-        if target_currency == "RUB" and balance > 0:
+        if target_currency != "USD" and balance > 0:
             try:
-                balance_converted = await currency_service.convert_price(balance, "RUB")
+                balance_converted = await currency_service.convert_price(balance, target_currency)
             except Exception:
                 balance_converted = balance
         else:
             balance_converted = balance
+        
+        # Convert total_saved and referral_earnings to user currency for display
+        if target_currency != "USD":
+            try:
+                total_saved_converted = await currency_service.convert_price(total_saved, target_currency)
+                referral_earnings_converted = await currency_service.convert_price(referral_earnings, target_currency)
+            except Exception:
+                total_saved_converted = total_saved
+                referral_earnings_converted = referral_earnings
+        else:
+            total_saved_converted = total_saved
+            referral_earnings_converted = referral_earnings
         
         return {
             "success": True,
             "balance": balance_converted,
             "balance_usd": balance,
             "currency": target_currency,
-            "balance_formatted": f"{balance_converted:.0f}{symbol}",
+            "balance_formatted": currency_service.format_price(balance_converted, target_currency),
             "career_level": career_level,
             "turnover_usd": turnover,
             "next_level": next_level,
             "turnover_to_next_usd": turnover_to_next,
             "total_saved": total_saved,
-            "total_saved_formatted": f"${total_saved:.0f}",
+            "total_saved_formatted": currency_service.format_price(total_saved_converted, target_currency),
             "referral_earnings": referral_earnings,
-            "referral_earnings_formatted": f"${referral_earnings:.0f}",
+            "referral_earnings_formatted": currency_service.format_price(referral_earnings_converted, target_currency),
             "orders_count": orders_count,
             "partner_mode": user.get("partner_mode", "commission"),
         }
@@ -1123,18 +1136,58 @@ async def pay_cart_from_balance(user_telegram_id: int, user_id: str) -> dict:
         
         # Check balance
         user_result = await asyncio.to_thread(
-            lambda: db.client.table("users").select("balance").eq("id", user_id).single().execute()
+            lambda: db.client.table("users").select("balance, language_code, preferred_currency").eq("id", user_id).single().execute()
         )
-        balance = float(user_result.data.get("balance", 0) or 0) if user_result.data else 0
+        balance_usd = float(user_result.data.get("balance", 0) or 0) if user_result.data else 0
         
-        if balance < cart.total:
+        # Get user currency for formatting
+        user_lang = user_result.data.get("language_code", "en") if user_result.data else "en"
+        preferred_currency = user_result.data.get("preferred_currency") if user_result.data else None
+        
+        try:
+            from core.db import get_redis
+            from core.services.currency import get_currency_service
+            redis = get_redis()
+            currency_service = get_currency_service(redis)
+            user_currency = currency_service.get_user_currency(user_lang, preferred_currency)
+            
+            # Convert balance and cart total to user currency
+            if user_currency != "USD":
+                try:
+                    balance = await currency_service.convert_price(balance_usd, user_currency)
+                    cart_total = await currency_service.convert_price(cart.total, user_currency)
+                except Exception:
+                    balance = balance_usd
+                    cart_total = cart.total
+            else:
+                balance = balance_usd
+                cart_total = cart.total
+        except Exception:
+            # Fallback if currency service unavailable
+            balance = balance_usd
+            cart_total = cart.total
+            user_currency = "USD"
+            currency_service = None
+        
+        if balance < cart_total:
+            # Format message with proper currency symbols
+            if currency_service:
+                try:
+                    balance_formatted = currency_service.format_price(balance, user_currency)
+                    cart_total_formatted = currency_service.format_price(cart_total, user_currency)
+                    message = f"Баланс: {balance_formatted}, нужно: {cart_total_formatted}. Пополни баланс или оплати картой."
+                except Exception:
+                    message = f"Баланс: {balance:.0f}, нужно: {cart_total:.0f}. Пополни баланс или оплати картой."
+            else:
+                message = f"Баланс: {balance:.0f}, нужно: {cart_total:.0f}. Пополни баланс или оплати картой."
+            
             return {
                 "success": False,
                 "error": "Недостаточно средств на балансе",
                 "balance": balance,
-                "cart_total": cart.total,
-                "shortage": cart.total - balance,
-                "message": f"Баланс: {balance:.0f}₽, нужно: {cart.total:.0f}₽. Пополни баланс или оплати картой."
+                "cart_total": cart_total,
+                "shortage": cart_total - balance,
+                "message": message
             }
         
         # Balance is sufficient - direct user to checkout with balance option

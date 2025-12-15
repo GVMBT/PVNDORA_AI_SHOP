@@ -9,6 +9,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import ProductDetail from './ProductDetail';
 import { useProductsTyped } from '../../hooks/useApiTyped';
 import { useCart } from '../../contexts/CartContext';
+import { useLocaleContext } from '../../contexts/LocaleContext';
 import { AudioEngine } from '../../lib/AudioEngine';
 import { logger } from '../../utils/logger';
 import type { CatalogProduct, ProductDetailData, ProductReview, ProductFile } from '../../types/component';
@@ -34,6 +35,7 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
 }) => {
   const { getProduct, getProducts, loading, error } = useProductsTyped();
   const { addToCart } = useCart();
+  const { locale, currency } = useLocaleContext();
   const [productData, setProductData] = useState<ProductDetailData | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<CatalogProduct[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -44,27 +46,34 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
     AudioEngine.productOpen();
   }, []);
 
-  useEffect(() => {
-    const loadData = async () => {
-      // Fetch detailed product
-      const detail = await getProduct(productId);
-      if (detail) {
-        setProductData(detail);
-      }
-      
-      // Fetch related products
-      const allProducts = await getProducts();
-      const related = allProducts
-        .filter(p => p.id !== productId)
-        .sort(() => 0.5 - Math.random())
-        .slice(0, 3);
-      setRelatedProducts(related);
-      
-      setIsInitialized(true);
-    };
+  const loadProductData = useCallback(async () => {
+    // Fetch detailed product
+    const detail = await getProduct(productId);
+    if (detail) {
+      setProductData(detail);
+    }
     
-    loadData();
+    // Fetch related products
+    const allProducts = await getProducts();
+    const related = allProducts
+      .filter(p => p.id !== productId)
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 3);
+    setRelatedProducts(related);
+    
+    setIsInitialized(true);
   }, [productId, getProduct, getProducts]);
+
+  useEffect(() => {
+    loadProductData();
+  }, [loadProductData]);
+
+  // Reload product when currency or language changes
+  useEffect(() => {
+    if (isInitialized) {
+      loadProductData();
+    }
+  }, [locale, currency, isInitialized, loadProductData]);
 
   const handleAddToCart = useCallback(async (product: CatalogProduct, quantity: number) => {
     if (onHaptic) onHaptic('medium');

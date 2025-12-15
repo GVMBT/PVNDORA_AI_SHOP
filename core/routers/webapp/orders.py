@@ -755,10 +755,17 @@ async def _create_cart_order(
         if user_balance < payable_amount:
             # Удаляем заказ, если баланс недостаточен
             await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())
-            raise HTTPException(
-                status_code=400,
-                detail=f"Недостаточно средств на балансе. Доступно: {to_float(user_balance):.2f}₽, требуется: {to_float(payable_amount):.2f}₽"
-            )
+            
+            # Format error message with proper currency symbols
+            try:
+                balance_formatted = currency_service.format_price(to_float(user_balance), currency)
+                amount_formatted = currency_service.format_price(to_float(payable_amount), currency)
+                error_msg = f"Недостаточно средств на балансе. Доступно: {balance_formatted}, требуется: {amount_formatted}"
+            except Exception:
+                # Fallback if currency service unavailable
+                error_msg = f"Недостаточно средств на балансе. Доступно: {to_float(user_balance):.2f}, требуется: {to_float(payable_amount):.2f}"
+            
+            raise HTTPException(status_code=400, detail=error_msg)
         
         # Списание с баланса через RPC (отрицательная сумма)
         try:

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { getLanguageCode } from '../config';
+import { useCallback, useMemo } from 'react';
+import { useLocaleContext } from '../contexts/LocaleContext';
 
 // Import all locale files
 import en from '../../locales/en.json';
@@ -21,6 +21,7 @@ const RTL_LANGUAGES: string[] = ['ar', 'he', 'fa'];
 interface UseLocaleReturn {
   locale: LocaleCode;
   setLocale: (locale: LocaleCode) => void;
+  currency: CurrencyCode;
   isRTL: boolean;
   t: (key: string, params?: Record<string, string | number>) => string;
   formatPrice: (amount: number, currency?: CurrencyCode | null) => string;
@@ -29,20 +30,10 @@ interface UseLocaleReturn {
 
 /**
  * Hook for localization
+ * Now uses LocaleContext for global state management
  */
 export function useLocale(): UseLocaleReturn {
-  const [locale, setLocale] = useState<LocaleCode>('en');
-  
-  useEffect(() => {
-    // Use centralized language detection from config
-    const detectedLang = getLanguageCode();
-    const supportedLang = (locales[detectedLang as LocaleCode] ? detectedLang : 'en') as LocaleCode;
-    
-    setLocale(supportedLang);
-    
-    // Set HTML lang attribute
-    document.documentElement.lang = supportedLang;
-  }, []);
+  const { locale, currency, setLocale: setLocaleContext } = useLocaleContext();
   
   const isRTL = useMemo(() => RTL_LANGUAGES.includes(locale), [locale]);
   
@@ -76,28 +67,10 @@ export function useLocale(): UseLocaleReturn {
     
     return value;
   }, [locale]);
-  
-  // Determine currency based on language
-  const getCurrency = useCallback((): CurrencyCode => {
-    const languageToCurrency: Record<string, CurrencyCode> = {
-      'ru': 'RUB',
-      'uk': 'UAH',
-      'en': 'USD',
-      'de': 'EUR',
-      'fr': 'EUR',
-      'es': 'EUR',
-      'tr': 'TRY',
-      'ar': 'AED',
-      'hi': 'INR',
-      'be': 'RUB',
-      'kk': 'RUB'
-    };
-    return languageToCurrency[locale] || 'USD';
-  }, [locale]);
 
-  const formatPrice = useCallback((amount: number, currency: CurrencyCode | null = null): string => {
-    // Use provided currency or determine from language
-    const targetCurrency = currency || getCurrency();
+  const formatPrice = useCallback((amount: number, currencyOverride: CurrencyCode | null = null): string => {
+    // Use provided currency or context currency
+    const targetCurrency = currencyOverride || currency;
     
     // Custom formatting for better control
     const symbols: Record<string, string> = {
@@ -129,7 +102,7 @@ export function useLocale(): UseLocaleReturn {
     } else {
       return `${formatted} ${symbol}`;
     }
-  }, [locale, getCurrency]);
+  }, [locale, currency]);
   
   const formatDate = useCallback((date: string | Date, options: Intl.DateTimeFormatOptions = {}): string => {
     return new Intl.DateTimeFormat(locale, {

@@ -287,16 +287,34 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
             logger.error(f"Currency conversion failed for withdrawal: {e}")
             raise HTTPException(status_code=500, detail=f"Currency conversion failed: {str(e)}")
     
+    # Get currency service for formatting
+    try:
+        from core.db import get_redis
+        from core.services.currency import get_currency_service
+        redis = get_redis()
+        currency_service = get_currency_service(redis)
+    except Exception:
+        currency_service = None
+    
     if request.amount < MIN_WITHDRAWAL:
-        raise HTTPException(status_code=400, detail=f"Minimum withdrawal is {MIN_WITHDRAWAL}₽")
+        min_withdrawal_formatted = f"{MIN_WITHDRAWAL}₽"  # Default to RUB for minimum
+        if currency_service:
+            try:
+                min_withdrawal_formatted = currency_service.format_price(MIN_WITHDRAWAL, withdrawal_currency)
+            except Exception:
+                pass
+        raise HTTPException(status_code=400, detail=f"Minimum withdrawal is {min_withdrawal_formatted}")
+    
     if amount_usd > balance_usd:
-        # Convert balance to user currency for error message
-        try:
-            balance_user_currency = await currency_service.convert_price(balance_usd, withdrawal_currency, round_to_int=True)
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Insufficient balance. Available: {balance_user_currency:.0f}{'₽' if withdrawal_currency == 'RUB' else '$'}, requested: {request.amount:.0f}{'₽' if withdrawal_currency == 'RUB' else '$'}"
-            )
+            # Convert balance to user currency for error message
+            try:
+                balance_user_currency = await currency_service.convert_price(balance_usd, withdrawal_currency, round_to_int=True)
+                balance_formatted = currency_service.format_price(balance_user_currency, withdrawal_currency)
+                amount_formatted = currency_service.format_price(request.amount, withdrawal_currency)
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Insufficient balance. Available: {balance_formatted}, requested: {amount_formatted}"
+                )
         except Exception:
             raise HTTPException(status_code=400, detail="Insufficient balance")
     
@@ -351,19 +369,10 @@ async def create_topup(
             detail=f"Minimum top-up is {min_amount} {currency}"
         )
     
-    # Convert USD to RUB for CrystalPay (which works in RUB)
-    amount_rub = request.amount
-    if currency == "USD":
-        try:
-            from core.db import get_redis
-            from core.services.currency import get_currency_service
-            redis = get_redis()
-            currency_service = get_currency_service(redis)
-            rate = currency_service.get_rate("USD", "RUB")
-            amount_rub = request.amount * rate
-        except Exception as e:
-            logger.warning(f"Currency conversion failed: {e}, using fallback rate")
-            amount_rub = request.amount * 100  # Fallback rate
+    # Use original currency and amount - CrystalPay supports multiple currencies
+    # No conversion needed - CrystalPay will handle currency conversion if needed
+    payment_amount = request.amount
+    payment_currency = currency
     
     # Create pending transaction record
     current_balance = float(db_user.balance) if db_user.balance else 0
@@ -382,7 +391,6 @@ async def create_topup(
                 "metadata": {
                     "original_currency": currency,
                     "original_amount": request.amount,
-                    "rub_amount": amount_rub,
                 }
             }).execute()
         )
@@ -402,11 +410,12 @@ async def create_topup(
         # Check if request is from Telegram Mini App
         is_telegram_miniapp = True  # Default to True since this is via telegram auth
         
+        # Pass user's currency directly to CrystalPay
         result = await payment_service.create_crystalpay_payment_topup(
             topup_id=topup_id,
             user_id=str(db_user.id),
-            amount=amount_rub,
-            currency="RUB",
+            amount=payment_amount,
+            currency=payment_currency,
             is_telegram_miniapp=is_telegram_miniapp,
         )
         

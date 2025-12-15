@@ -200,6 +200,7 @@ export function adaptProfile(
     billingLogs,
     currency: profile.currency,
     language: profile.interface_language || 'en',
+    interfaceLanguage: profile.interface_language || undefined,
     photoUrl,
   };
 }
