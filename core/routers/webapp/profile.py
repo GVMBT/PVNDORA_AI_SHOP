@@ -341,8 +341,8 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
                 pass  # Fall through to generic error
         raise HTTPException(status_code=400, detail="Insufficient balance")
     
-    if request.method not in ['card', 'phone', 'crypto']:
-        raise HTTPException(status_code=400, detail="Invalid payment method")
+    if request.method not in ['crypto']:
+        raise HTTPException(status_code=400, detail="Invalid payment method. Only TRC20 USDT is supported.")
     
     await asyncio.to_thread(
         lambda: db.client.table("withdrawal_requests").insert({

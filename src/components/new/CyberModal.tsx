@@ -5,10 +5,11 @@
  * with styled modals matching PVNDORA aesthetic.
  */
 
-import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, AlertTriangle, CheckCircle, Info, Wallet, ArrowUpRight, Plus, Loader2 } from 'lucide-react';
 import { getCurrencySymbol } from '../../utils/currency';
+import { useLocaleContext } from '../../contexts/LocaleContext';
 
 // ==================== TYPES ====================
 
@@ -82,15 +83,40 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
   onSubmit,
 }) => {
   const [inputValue, setInputValue] = useState(state.defaultValue || '');
-  const [withdrawMethod, setWithdrawMethod] = useState<'card' | 'phone' | 'crypto'>('card');
+  const [withdrawMethod, setWithdrawMethod] = useState<'crypto'>('crypto');
   const [withdrawDetails, setWithdrawDetails] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const { currency: contextCurrency } = useLocaleContext();
+  
+  // Convert preset amounts from USD to user currency
+  // Using approximate rates for quick conversion (backend will handle exact conversion)
+  const getPresetAmounts = useMemo(() => {
+    const usdPresets = [500, 1000, 2000, 5000];
+    const targetCurrency = state.currency || contextCurrency || 'USD';
+    
+    if (targetCurrency === 'USD') {
+      return usdPresets;
+    }
+    
+    // Approximate exchange rates (backend will handle exact conversion)
+    const rates: Record<string, number> = {
+      'RUB': 100,  // 1 USD ≈ 100 RUB
+      'UAH': 40,   // 1 USD ≈ 40 UAH
+      'EUR': 0.9,  // 1 USD ≈ 0.9 EUR
+      'TRY': 35,   // 1 USD ≈ 35 TRY
+      'INR': 85,   // 1 USD ≈ 85 INR
+      'AED': 3.7,  // 1 USD ≈ 3.7 AED
+    };
+    
+    const rate = rates[targetCurrency] || 1;
+    return usdPresets.map(amount => Math.round(amount * rate));
+  }, [state.currency, contextCurrency]);
 
   // Reset state when modal opens
   useEffect(() => {
     if (state.isOpen) {
       setInputValue(state.defaultValue || (state.minAmount?.toString() || ''));
-      setWithdrawMethod('card');
+      setWithdrawMethod('crypto');
       setWithdrawDetails('');
       setError(null);
     }
@@ -232,7 +258,7 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
                   
                   {/* Quick amounts */}
                   <div className="flex gap-2">
-                    {[500, 1000, 2000, 5000].map((amount) => (
+                    {getPresetAmounts.map((amount) => (
                       <button
                         key={amount}
                         onClick={() => setInputValue(String(amount))}
@@ -242,7 +268,7 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
                             : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/30'
                         }`}
                       >
-                        {amount}{currencySymbol}
+                        {amount.toLocaleString()}{currencySymbol}
                       </button>
                     ))}
                   </div>
@@ -278,45 +304,30 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
                     </div>
                   </div>
                   
-                  {/* Method Selection */}
+                  {/* Method Selection - Only Crypto (TRC20 USDT) */}
                   <div>
                     <label className="text-[10px] text-gray-500 font-mono uppercase mb-2 block">PAYMENT_METHOD</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { id: 'card', label: 'CARD', icon: '💳' },
-                        { id: 'phone', label: 'PHONE', icon: '📱' },
-                        { id: 'crypto', label: 'CRYPTO', icon: '₿' },
-                      ].map((method) => (
-                        <button
-                          key={method.id}
-                          onClick={() => setWithdrawMethod(method.id as any)}
-                          className={`py-3 text-xs font-mono border transition-colors flex flex-col items-center gap-1 ${
-                            withdrawMethod === method.id
-                              ? 'bg-purple-500/20 border-purple-500 text-purple-400'
-                              : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/30'
-                          }`}
-                        >
-                          <span className="text-lg">{method.icon}</span>
-                          {method.label}
-                        </button>
-                      ))}
+                    <div className="bg-purple-500/20 border border-purple-500 p-4 rounded">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">₿</span>
+                        <div>
+                          <div className="text-sm font-mono font-bold text-purple-400">TRC20 USDT</div>
+                          <div className="text-[10px] text-gray-500 font-mono">Cryptocurrency withdrawal</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   
                   {/* Details Input */}
                   <div>
                     <label className="text-[10px] text-gray-500 font-mono uppercase mb-2 block">
-                      {withdrawMethod === 'card' ? 'CARD_NUMBER' : withdrawMethod === 'phone' ? 'PHONE_NUMBER' : 'WALLET_ADDRESS'}
+                      WALLET_ADDRESS
                     </label>
                     <input
                       type="text"
                       value={withdrawDetails}
                       onChange={(e) => setWithdrawDetails(e.target.value)}
-                      placeholder={
-                        withdrawMethod === 'card' ? '0000 0000 0000 0000' :
-                        withdrawMethod === 'phone' ? '+7 (000) 000-00-00' :
-                        'TRC20/ERC20 address'
-                      }
+                      placeholder="TRC20 USDT wallet address"
                       className="w-full bg-black border border-white/20 focus:border-purple-500 px-4 py-3 text-white font-mono outline-none transition-colors"
                     />
                   </div>
