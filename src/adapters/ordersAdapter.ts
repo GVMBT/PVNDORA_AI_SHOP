@@ -214,6 +214,12 @@ export function adaptOrder(apiOrder: APIOrder, currency: string = 'USD'): Order 
   
   // Handle orders with items array (multi-item orders)
   if (apiOrder.items && apiOrder.items.length > 0) {
+    // Determine deadline for pending orders
+    let orderDeadline: string | null = null;
+    if (rawStatus === 'pending' && apiOrder.expires_at) {
+      orderDeadline = formatDateWithTimezone(apiOrder.expires_at);
+    }
+    
     return {
       id: apiOrder.id, // Full UUID for API operations
       displayId: apiOrder.id.substring(0, 8).toUpperCase(), // Short ID for UI
@@ -228,6 +234,7 @@ export function adaptOrder(apiOrder: APIOrder, currency: string = 'USD'): Order 
         apiOrder.fulfillment_deadline
       )),
       payment_url: apiOrder.payment_url || null,
+      deadline: orderDeadline,
       rawStatus,
       paymentConfirmed,
       statusMessage,
@@ -273,6 +280,7 @@ export function adaptOrder(apiOrder: APIOrder, currency: string = 'USD'): Order 
       reason: null,
     }],
     payment_url: apiOrder.payment_url || null,
+    deadline: deadline, // Payment deadline for pending orders
     rawStatus,
     paymentConfirmed,
     statusMessage,

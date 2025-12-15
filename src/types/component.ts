@@ -94,6 +94,7 @@ export interface Order {
   status: OrderStatus;
   items: OrderItem[];
   payment_url?: string | null; // Payment URL for pending orders
+  deadline?: string | null;    // Payment deadline for pending orders (ISO string or formatted)
 
   // Extended status info for better UX
   rawStatus: RawOrderStatus;       // Backend status as-is
