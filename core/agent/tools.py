@@ -536,14 +536,14 @@ async def resend_order_credentials(user_id: str, order_id_prefix: str, telegram_
 @tool
 async def get_user_profile(user_id: str) -> dict:
     """
-    Get user's profile information.
-    Use when user asks about their account, balance, or stats.
+    Get user's full profile information.
+    Use when user asks about their account, balance, stats, or career level.
     
     Args:
         user_id: User database ID
         
     Returns:
-        Profile with balance and stats
+        Complete profile with balance, career level, stats
     """
     try:
         db = get_db()
@@ -558,15 +558,56 @@ async def get_user_profile(user_id: str) -> dict:
         
         user = result.data
         balance = float(user.get("balance", 0) or 0)
+        turnover = float(user.get("turnover_usd", 0) or 0)
+        total_saved = float(user.get("total_saved", 0) or 0)
+        referral_earnings = float(user.get("total_referral_earnings", 0) or 0)
+        
+        # Determine career level
+        if turnover >= 1000:
+            career_level = "ARCHITECT"
+            career_id = 3
+            next_level = None
+            progress = 100
+        elif turnover >= 250:
+            career_level = "OPERATOR"
+            career_id = 2
+            next_level = "ARCHITECT"
+            progress = int((turnover - 250) / 750 * 100)
+        else:
+            career_level = "PROXY"
+            career_id = 1
+            next_level = "OPERATOR"
+            progress = int(turnover / 250 * 100)
+        
+        # Get referral percentages by level
+        referral_percents = {
+            1: {"line1": 5},
+            2: {"line1": 5, "line2": 2},
+            3: {"line1": 5, "line2": 2, "line3": 1},
+        }
+        
+        # Count orders
+        orders_result = await asyncio.to_thread(
+            lambda: db.client.table("orders").select("id", count="exact").eq("user_id", user_id).execute()
+        )
+        orders_count = orders_result.count or 0
+        
         return {
             "success": True,
             "balance": balance,
             "balance_formatted": f"{balance:.0f}₽",
-            "total_spent": user.get("total_spent", 0),
-            "total_saved": user.get("total_saved", 0),
-            "referral_level": user.get("referral_level", 1),
-            "referral_earnings": user.get("referral_earnings", 0),
-            "orders_count": user.get("orders_count", 0),
+            "career_level": career_level,
+            "career_level_id": career_id,
+            "turnover_usd": turnover,
+            "next_level": next_level,
+            "progress_to_next": progress,
+            "total_saved": total_saved,
+            "total_saved_formatted": f"{total_saved:.0f}₽",
+            "referral_earnings": referral_earnings,
+            "referral_earnings_formatted": f"{referral_earnings:.0f}₽",
+            "orders_count": orders_count,
+            "referral_percents": referral_percents.get(career_id, referral_percents[1]),
+            "partner_mode": user.get("partner_mode", "commission"),
         }
     except Exception as e:
         logger.error(f"get_user_profile error: {e}")
@@ -577,22 +618,22 @@ async def get_user_profile(user_id: str) -> dict:
 async def get_referral_info(user_id: str, telegram_id: int) -> dict:
     """
     Get user's referral program info.
-    Use when user asks about referrals, affiliate link, or earnings.
+    Use when user asks about referrals, affiliate link, earnings, or network.
     
     Args:
         user_id: User database ID
         telegram_id: User's Telegram ID
         
     Returns:
-        Referral link and stats
+        Complete referral info with link, earnings, network stats
     """
     try:
         db = get_db()
         
-        # Get user
+        # Get user with all referral fields
         result = await asyncio.to_thread(
             lambda: db.client.table("users").select(
-                "balance, referral_level, referral_earnings, total_spent"
+                "balance, turnover_usd, total_referral_earnings, partner_mode, partner_discount_percent"
             ).eq("id", user_id).single().execute()
         )
         
@@ -600,44 +641,76 @@ async def get_referral_info(user_id: str, telegram_id: int) -> dict:
             return {"success": False, "error": "User not found"}
         
         user = result.data
-        level = user.get("referral_level", 1)
+        turnover = float(user.get("turnover_usd", 0) or 0)
+        earnings = float(user.get("total_referral_earnings", 0) or 0)
         
-        # Count referrals by level
-        referral_counts = {"level_1": 0, "level_2": 0, "level_3": 0}
+        # Determine career level
+        if turnover >= 1000:
+            career_level = "ARCHITECT"
+            career_id = 3
+            next_level = None
+            turnover_to_next = 0
+        elif turnover >= 250:
+            career_level = "OPERATOR"
+            career_id = 2
+            next_level = "ARCHITECT"
+            turnover_to_next = 1000 - turnover
+        else:
+            career_level = "PROXY"
+            career_id = 1
+            next_level = "OPERATOR"
+            turnover_to_next = 250 - turnover
         
-        # Level 1 - direct referrals
+        # Count referrals by line
+        network = {"line1": 0, "line2": 0, "line3": 0}
+        
+        # Line 1 - direct referrals
         l1 = await asyncio.to_thread(
             lambda: db.client.table("users").select("id", count="exact").eq("referrer_id", user_id).execute()
         )
-        referral_counts["level_1"] = l1.count or 0
+        network["line1"] = l1.count or 0
         
-        # Level 2 - referrals of referrals
-        if l1.data:
-            l1_ids = [u["id"] for u in l1.data]
-            if l1_ids:
-                l2 = await asyncio.to_thread(
-                    lambda: db.client.table("users").select("id", count="exact").in_("referrer_id", l1_ids).execute()
+        # Line 2 - referrals of referrals
+        l1_ids = [u["id"] for u in (l1.data or [])]
+        if l1_ids:
+            l2 = await asyncio.to_thread(
+                lambda ids=l1_ids: db.client.table("users").select("id", count="exact").in_("referrer_id", ids).execute()
+            )
+            network["line2"] = l2.count or 0
+            
+            # Line 3
+            l2_ids = [u["id"] for u in (l2.data or [])]
+            if l2_ids and career_id >= 3:
+                l3 = await asyncio.to_thread(
+                    lambda ids=l2_ids: db.client.table("users").select("id", count="exact").in_("referrer_id", ids).execute()
                 )
-                referral_counts["level_2"] = l2.count or 0
+                network["line3"] = l3.count or 0
         
-        # Referral percentages by level
-        level_percents = {
-            1: {"level_1": 5},
-            2: {"level_1": 5, "level_2": 2},
-            3: {"level_1": 5, "level_2": 2, "level_3": 1},
+        # Commission percentages by career level
+        commission_percents = {
+            1: {"line1": 5},
+            2: {"line1": 5, "line2": 2},
+            3: {"line1": 5, "line2": 2, "line3": 1},
         }
+        
+        partner_mode = user.get("partner_mode", "commission")
         
         return {
             "success": True,
             "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{telegram_id}",
-            "balance": user.get("balance", 0),
-            "referral_level": level,
-            "referral_earnings": user.get("referral_earnings", 0),
-            "referral_counts": referral_counts,
-            "total_referrals": sum(referral_counts.values()),
-            "active_percentages": level_percents.get(level, level_percents[1]),
-            "next_level_requirement": 5000 if level == 1 else (15000 if level == 2 else None),
-            "total_spent": user.get("total_spent", 0),
+            "career_level": career_level,
+            "career_level_id": career_id,
+            "turnover_usd": turnover,
+            "next_level": next_level,
+            "turnover_to_next": turnover_to_next,
+            "total_earnings": earnings,
+            "total_earnings_formatted": f"{earnings:.0f}₽",
+            "network": network,
+            "total_referrals": sum(network.values()),
+            "commission_percents": commission_percents.get(career_id, commission_percents[1]),
+            "partner_mode": partner_mode,
+            "discount_percent": user.get("partner_discount_percent", 0) if partner_mode == "discount" else 0,
+            "balance": float(user.get("balance", 0) or 0),
         }
     except Exception as e:
         logger.error(f"get_referral_info error: {e}")
@@ -776,35 +849,90 @@ async def search_faq(question: str, language: str = "ru") -> dict:
 
 
 @tool
-async def create_support_ticket(user_id: str, message: str, order_id: Optional[str] = None) -> dict:
+async def create_support_ticket(user_id: str, issue_type: str, message: str, order_id_prefix: Optional[str] = None) -> dict:
     """
     Create support ticket for user's issue.
-    Use when user reports problem that can't be solved automatically.
+    Automatically checks warranty and approves if within warranty period.
     
     Args:
         user_id: User database ID
+        issue_type: Type of issue (replacement, refund, technical_issue, other)
         message: Issue description
-        order_id: Related order ID (optional)
+        order_id_prefix: First 8 chars of related order ID (optional)
         
     Returns:
-        Ticket ID
+        Ticket info with status
     """
     try:
+        from datetime import datetime, timezone
+        
         db = get_db()
+        
+        order_id = None
+        warranty_status = "unknown"
+        auto_approved = False
+        
+        # If order specified, check warranty
+        if order_id_prefix:
+            orders = await db.get_user_orders(user_id, limit=20)
+            order = next((o for o in orders if o.id.startswith(order_id_prefix)), None)
+            
+            if order:
+                order_id = order.id
+                
+                # Get order items to check product warranty
+                items = await db.get_order_items_by_order(order.id)
+                
+                if items and order.created_at:
+                    # Check if within warranty
+                    order_date = order.created_at
+                    now = datetime.now(timezone.utc)
+                    days_since = (now - order_date).days
+                    
+                    # Default warranty: 14 days for annual, 1 day for trial
+                    # Check product type
+                    product_name = items[0].get("product_name", "").lower()
+                    if "trial" in product_name or "7 дней" in product_name:
+                        warranty_days = 1
+                    else:
+                        warranty_days = 14
+                    
+                    if days_since <= warranty_days:
+                        warranty_status = "in_warranty"
+                        if issue_type == "replacement":
+                            auto_approved = True
+                    else:
+                        warranty_status = "out_of_warranty"
+        
+        # Create ticket
         result = await db.create_ticket(
             user_id=user_id,
-            subject="Support Request",
+            subject=f"{issue_type.title()}: {order_id_prefix or 'General'}",
             message=message,
             order_id=order_id
         )
         
+        ticket_id = result.get("id", "")[:8] if result else None
+        
+        # If auto-approved, update status
+        status = "approved" if auto_approved else "open"
+        if auto_approved and result:
+            await db.update_ticket_status(result.get("id"), "approved")
+        
         return {
             "success": True,
-            "ticket_id": result.get("id", "")[:8] if result else None,
-            "message": "Support ticket created. We'll respond soon."
+            "ticket_id": ticket_id,
+            "status": status,
+            "warranty_status": warranty_status,
+            "auto_approved": auto_approved,
+            "message": (
+                f"Запрос на замену одобрен автоматически (в гарантии). Ticket: {ticket_id}"
+                if auto_approved else
+                f"Тикет создан: {ticket_id}. Мы ответим в ближайшее время."
+            )
         }
     except Exception as e:
-        logger.error(f"create_support_ticket error: {e}")
+        logger.error(f"create_support_ticket error: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
 
 
