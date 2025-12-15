@@ -255,12 +255,51 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
         raise HTTPException(status_code=404, detail="User not found")
     
     MIN_WITHDRAWAL = 500
-    balance = float(db_user.balance) if db_user.balance else 0
+    balance_usd = float(db_user.balance) if db_user.balance else 0
+    
+    # Determine user currency for withdrawal (default to RUB for Russian users)
+    user_lang = getattr(db_user, 'language_code', 'en') or 'en'
+    preferred_currency = getattr(db_user, 'preferred_currency', None)
+    
+    try:
+        from core.db import get_redis
+        from core.services.currency import get_currency_service
+        redis = get_redis()
+        currency_service = get_currency_service(redis)
+        withdrawal_currency = currency_service.get_user_currency(user_lang, preferred_currency)
+    except Exception as e:
+        logger.warning(f"Currency service unavailable: {e}, defaulting to RUB")
+        withdrawal_currency = "RUB"
+    
+    # Convert withdrawal amount from user currency to USD for balance check
+    # Balance is stored in USD, so we need to convert RUB → USD
+    amount_usd = request.amount
+    if withdrawal_currency != "USD":
+        try:
+            rate = await currency_service.get_exchange_rate(withdrawal_currency)
+            # Check if rate is valid (not 1.0 which is fallback for errors)
+            if rate and rate > 0 and rate != 1.0:
+                amount_usd = request.amount / rate
+                logger.info(f"Withdrawal conversion: {request.amount} {withdrawal_currency} → {amount_usd:.2f} USD (rate: 1 USD = {rate} {withdrawal_currency})")
+            else:
+                raise ValueError(f"Invalid exchange rate for {withdrawal_currency}: {rate}")
+        except Exception as e:
+            logger.error(f"Currency conversion failed for withdrawal: {e}")
+            raise HTTPException(status_code=500, detail=f"Currency conversion failed: {str(e)}")
     
     if request.amount < MIN_WITHDRAWAL:
         raise HTTPException(status_code=400, detail=f"Minimum withdrawal is {MIN_WITHDRAWAL}₽")
-    if request.amount > balance:
-        raise HTTPException(status_code=400, detail="Insufficient balance")
+    if amount_usd > balance_usd:
+        # Convert balance to user currency for error message
+        try:
+            balance_user_currency = await currency_service.convert_price(balance_usd, withdrawal_currency, round_to_int=True)
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Insufficient balance. Available: {balance_user_currency:.0f}{'₽' if withdrawal_currency == 'RUB' else '$'}, requested: {request.amount:.0f}{'₽' if withdrawal_currency == 'RUB' else '$'}"
+            )
+        except Exception:
+            raise HTTPException(status_code=400, detail="Insufficient balance")
+    
     if request.method not in ['card', 'phone', 'crypto']:
         raise HTTPException(status_code=400, detail="Invalid payment method")
     
@@ -271,8 +310,9 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
         }).execute()
     )
     
+    # Subtract USD amount from USD balance
     await asyncio.to_thread(
-        lambda: db.client.table("users").update({"balance": balance - request.amount}).eq("id", db_user.id).execute()
+        lambda: db.client.table("users").update({"balance": balance_usd - amount_usd}).eq("id", db_user.id).execute()
     )
     
     return {"success": True, "message": "Withdrawal request submitted"}

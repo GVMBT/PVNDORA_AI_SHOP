@@ -802,7 +802,44 @@ async def crystalpay_topup_webhook(request: Request):
             return JSONResponse({"error": "User not found"}, status_code=404)
         
         current_balance = float(user_result.data.get("balance") or 0)
-        new_balance = current_balance + amount
+        
+        # CRITICAL: Convert top-up amount to USD before adding to balance
+        # Balance is always stored in USD, so we need to convert RUB → USD
+        amount_usd = amount
+        if currency != "USD":
+            try:
+                from core.db import get_redis
+                from core.services.currency import get_currency_service
+                redis = get_redis()
+                currency_service = get_currency_service(redis)
+                # Convert from user currency to USD (reverse conversion)
+                # If user paid 1000 RUB, we need to convert RUB → USD
+                # Rate is stored as "1 USD = X RUB", so: USD = RUB / rate
+                rate = await currency_service.get_exchange_rate(currency)
+                # Check if rate is valid (not 1.0 which is fallback for errors)
+                if rate and rate > 0 and rate != 1.0:
+                    amount_usd = amount / rate
+                    logger.info(f"Top-up conversion: {amount} {currency} → {amount_usd:.2f} USD (rate: 1 USD = {rate} {currency})")
+                elif rate == 1.0:
+                    # This means conversion failed and we got fallback value
+                    logger.error(f"Exchange rate fetch failed for {currency}, got fallback 1.0. Cannot convert safely!")
+                    # For safety, we should NOT add the amount - this prevents data corruption
+                    # But we've already received payment, so we need to handle this
+                    # Use a conservative estimate: assume 1 RUB = 0.01 USD (100 RUB = 1 USD)
+                    # This is safer than adding RUB directly to USD balance
+                    if currency == "RUB":
+                        amount_usd = amount / 100.0  # Conservative fallback: 100 RUB = 1 USD
+                        logger.warning(f"Using conservative fallback rate for RUB: 100 RUB = 1 USD")
+                    else:
+                        # For other currencies, we can't safely convert
+                        logger.error(f"Cannot safely convert {currency} to USD, payment may be lost!")
+                        raise ValueError(f"Exchange rate unavailable for {currency}")
+            except Exception as e:
+                logger.error(f"Currency conversion failed in topup webhook: {e}")
+                # Re-raise to prevent adding wrong currency to balance
+                raise
+        
+        new_balance = current_balance + amount_usd
         
         # Update user balance
         await asyncio.to_thread(
@@ -824,7 +861,7 @@ async def crystalpay_topup_webhook(request: Request):
             .execute()
         )
         
-        logger.info(f"CrystalPay TOPUP webhook: SUCCESS! User {user_id} balance: {current_balance} -> {new_balance} (+{amount} {currency})")
+        logger.info(f"CrystalPay TOPUP webhook: SUCCESS! User {user_id} balance: {current_balance:.2f} USD -> {new_balance:.2f} USD (+{amount} {currency} = {amount_usd:.2f} USD)")
         
         return JSONResponse({"ok": True}, status_code=200)
         
