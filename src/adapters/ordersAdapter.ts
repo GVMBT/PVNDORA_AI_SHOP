@@ -64,9 +64,9 @@ function getStatusMessage(rawStatus: RawOrderStatus): string {
     case 'pending':
       return 'AWAITING_PAYMENT — Ожидается оплата';
     case 'prepaid':
-      return 'PAYMENT_CONFIRMED — Оплачено, ожидание поступления товара';
+      return 'PAYMENT_CONFIRMED — Оплачено ✓ Товар временно отсутствует на складе. Доставим при поступлении.';
     case 'paid':
-      return 'PROCESSING — Оплачено, идёт подготовка к выдаче';
+      return 'PROCESSING — Оплачено ✓ Идёт подготовка к выдаче';
     case 'partial':
       return 'PARTIAL_DELIVERY — Часть товаров доставлена';
     case 'delivered':
