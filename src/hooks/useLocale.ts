@@ -113,7 +113,8 @@ export function useLocale(): UseLocaleReturn {
   
   return {
     locale,
-    setLocale,
+    setLocale: setLocaleContext,
+    currency,
     isRTL,
     t,
     formatPrice,
