@@ -135,6 +135,25 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     });
   }, [profile?.currency, profile?.balance, createTopUp, showTopUp, onHaptic]);
 
+  // CRITICAL: All hooks must be called BEFORE any conditional returns
+  const handleUpdatePreferences = useCallback(async (preferred_currency?: string, interface_language?: string) => {
+    // Update preferences via API
+    const result = await updatePreferences(preferred_currency, interface_language);
+    
+    // Update locale context immediately (no reload needed)
+    if (preferred_currency) {
+      setCurrency(preferred_currency as 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED');
+    }
+    if (interface_language) {
+      setLocale(interface_language as 'en' | 'ru' | 'uk' | 'de' | 'fr' | 'es' | 'tr' | 'ar' | 'hi');
+    }
+    
+    // Reload profile to get updated data (prices will be recalculated with new currency)
+    await getProfile();
+    
+    return result;
+  }, [updatePreferences, setCurrency, setLocale, getProfile]);
+
   // Loading state
   if (!isInitialized || loading) {
     return (
@@ -167,24 +186,6 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       </div>
     );
   }
-
-  const handleUpdatePreferences = useCallback(async (preferred_currency?: string, interface_language?: string) => {
-    // Update preferences via API
-    const result = await updatePreferences(preferred_currency, interface_language);
-    
-    // Update locale context immediately (no reload needed)
-    if (preferred_currency) {
-      setCurrency(preferred_currency as 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED');
-    }
-    if (interface_language) {
-      setLocale(interface_language as 'en' | 'ru' | 'uk' | 'de' | 'fr' | 'es' | 'tr' | 'ar' | 'hi');
-    }
-    
-    // Reload profile to get updated data (prices will be recalculated with new currency)
-    await getProfile();
-    
-    return result;
-  }, [updatePreferences, setCurrency, setLocale, getProfile]);
 
   return (
     <Profile
