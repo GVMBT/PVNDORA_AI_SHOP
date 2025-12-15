@@ -67,21 +67,15 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   const handlePay = useCallback(async (method: PaymentMethod) => {
     try {
       // Map component payment method to API format
-      // Note: 'balance' is not in API types, but backend accepts it for internal payments
-      // For external payments, use 'card' with gateway
-      const paymentMethod: 'card' | 'sbp' | 'crypto' = method === 'internal' ? 'card' : 'card';
-      const paymentGateway: 'rukassa' | 'crystalpay' | '1plat' | 'freekassa' | undefined = 
-        method === 'crystalpay' ? 'crystalpay' : undefined;
-      
-      // For internal balance, backend expects payment_method='card' without gateway
-      // The backend logic checks user balance when gateway is not provided
+      // For internal balance: payment_method='balance' (no gateway needed)
+      // For external payments: payment_method='card' with gateway
       const request: APICreateOrderRequest = {
         use_cart: true,
         ...(method === 'internal' 
-          ? { payment_method: 'card' } // Backend handles balance deduction
+          ? { payment_method: 'balance' } // Backend deducts from user balance
           : { 
-              payment_method: paymentMethod,
-              payment_gateway: paymentGateway 
+              payment_method: 'card',
+              payment_gateway: method === 'crystalpay' ? 'crystalpay' : undefined
             }
         ),
       };
