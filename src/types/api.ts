@@ -10,17 +10,12 @@
 export type UUID = string;
 export type OrderStatus = 
   | 'pending' 
-  | 'prepaid' 
   | 'paid'
+  | 'prepaid' 
   | 'partial'
-  | 'fulfilling' 
-  | 'ready' 
   | 'delivered' 
   | 'cancelled' 
-  | 'refunded' 
-  | 'failed'
-  | 'payment_pending'
-  | 'awaiting_payment';
+  | 'refunded';
 
 export type ProductType = 'shared' | 'personal';
 export type ProductStatus = 'active' | 'discontinued' | 'coming_soon' | 'out_of_stock';

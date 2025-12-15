@@ -58,7 +58,7 @@ class NotificationService:
             logger.warning(f"Order not found: {order_id}")
             return False
         
-        if order.status == "completed":
+        if order.status == "delivered":
             logger.info(f"Order already completed: {order_id}")
             return True
         
@@ -123,7 +123,7 @@ class NotificationService:
         # Note: stock_item_id removed - stock items are linked via order_items table
         await db.update_order_status(
             order_id=order_id,
-            status="completed",
+            status="delivered",
             expires_at=expires_at
         )
         
@@ -277,7 +277,7 @@ class NotificationService:
             return
         
         order = await db.get_order_by_id(order_id)
-        if not order or order.status != "completed":
+        if not order or order.status != "delivered":
             return
         
         # Get user

@@ -20,20 +20,29 @@ class PaymentMethod(str, Enum):
 
 
 class OrderStatus(str, Enum):
-    """Order statuses."""
+    """
+    Order status lifecycle.
+    
+    Flow:
+        pending -> paid/prepaid -> partial -> delivered
+                                -> cancelled
+                                -> refunded
+    
+    - pending: Created, awaiting payment
+    - paid: Payment confirmed + stock available
+    - prepaid: Payment confirmed + stock unavailable (preorder)
+    - partial: Some items delivered, others waiting
+    - delivered: All items delivered (final)
+    - cancelled: Order cancelled (expired/user/error) (final)
+    - refunded: Funds returned to user (final)
+    """
     PENDING = "pending"
+    PAID = "paid"
     PREPAID = "prepaid"
     PARTIAL = "partial"
     DELIVERED = "delivered"
-    FULFILLED = "fulfilled"
-    COMPLETED = "completed"
-    READY = "ready"
-    EXPIRED = "expired"
     CANCELLED = "cancelled"
-    REFUND_PENDING = "refund_pending"
     REFUNDED = "refunded"
-    FAILED = "failed"
-    ERROR = "error"
 
 
 # Gateway name aliases (input -> canonical)
@@ -53,9 +62,20 @@ GATEWAY_ALIASES: dict[str, str] = {
 # Statuses that indicate delivery completed
 DELIVERED_STATES: Set[str] = {
     OrderStatus.DELIVERED.value,
-    OrderStatus.FULFILLED.value,
-    OrderStatus.COMPLETED.value,
-    OrderStatus.READY.value,
+}
+
+# Statuses that indicate payment confirmed (can proceed with delivery)
+PAID_STATES: Set[str] = {
+    OrderStatus.PAID.value,
+    OrderStatus.PREPAID.value,
+    OrderStatus.PARTIAL.value,
+}
+
+# Final statuses (no further transitions)
+FINAL_STATES: Set[str] = {
+    OrderStatus.DELIVERED.value,
+    OrderStatus.CANCELLED.value,
+    OrderStatus.REFUNDED.value,
 }
 
 # Gateway -> currency map (for payment creation)

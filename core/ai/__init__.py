@@ -1,5 +1,7 @@
-# AI Consultant Module
-from .consultant import AIConsultant
-from .tools import TOOLS
+# AI Module
+# Legacy module - AI agent moved to core/agent/
+# Keeping prompts for reference
 
-__all__ = ["AIConsultant", "TOOLS"]
+from .prompts import SYSTEM_PROMPT, LANGUAGE_INSTRUCTIONS
+
+__all__ = ["SYSTEM_PROMPT", "LANGUAGE_INSTRUCTIONS"]

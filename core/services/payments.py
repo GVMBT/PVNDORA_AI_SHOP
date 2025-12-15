@@ -648,7 +648,7 @@ class PaymentService:
                 status_val = status
             
             # Idempotency: если заказ уже завершён, подтверждаем без повторной обработки
-            processed_statuses = {"completed", "delivered", "paid", "fulfilled"}
+            processed_statuses = {"delivered", "paid", "prepaid", "partial"}
             if order_status and str(order_status).lower() in processed_statuses:
                 logger.info("1Plat webhook: order %s already processed with status %s", order_id, order_status)
                 return {
@@ -1545,8 +1545,8 @@ class PaymentService:
                 return {"success": False, "error": "Order not found"}
             
             status_lower = (getattr(order, "status", "") or "").lower()
-            forbidden_statuses = {"refund_pending", "refunded", "cancelled", "rejected", "failed"}
-            allowed_statuses = {"pending", "paid", "delivered", "fulfilled", "completed"}
+            forbidden_statuses = {"refunded", "cancelled"}
+            allowed_statuses = {"pending", "paid", "prepaid", "partial", "delivered"}
             if status_lower in forbidden_statuses or (status_lower and allowed_statuses and status_lower not in allowed_statuses):
                 return {"success": False, "error": f"Refund not allowed for status '{order.status}'"}
             

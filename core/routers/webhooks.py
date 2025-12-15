@@ -348,7 +348,7 @@ async def rukassa_webhook(request: Request):
             
             # Handle edge case: payment came after order expired/cancelled
             order_status = order_data.get("status", "pending") if order_data else "pending"
-            if order_status in ("expired", "cancelled"):
+            if order_status == "cancelled":
                 logger.info(f"Rukassa webhook: Order {real_order_id} was {order_status}, attempting recovery")
                 
                 # Check if product is still available
@@ -569,7 +569,7 @@ async def crystalpay_webhook(request: Request):
             
             # Handle edge case: payment came after order expired/cancelled
             order_status = order_data.get("status", "pending") if order_data else "pending"
-            if order_status in ("expired", "cancelled"):
+            if order_status == "cancelled":
                 logger.info(f"CrystalPay webhook: Order {real_order_id} was {order_status}, attempting recovery")
                 
                 # Check if product is still available

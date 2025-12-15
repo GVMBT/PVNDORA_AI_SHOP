@@ -63,14 +63,12 @@ export type OrderItemStatus = 'delivered' | 'waiting' | 'cancelled';
 // Raw backend status for detailed UI rendering
 export type RawOrderStatus = 
   | 'pending'     // Not paid yet
+  | 'paid'        // Paid, stock available
   | 'prepaid'     // Paid, waiting for stock
-  | 'paid'        // Paid, stock allocated
   | 'partial'     // Some items delivered
   | 'delivered'   // All items delivered
   | 'cancelled'   // Cancelled
-  | 'refunded'    // Refunded
-  | 'expired'     // Payment deadline passed
-  | 'failed';     // Failed
+  | 'refunded';   // Refunded
 
 export interface OrderItem {
   id: string;

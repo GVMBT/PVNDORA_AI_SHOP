@@ -82,7 +82,7 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
         raise HTTPException(status_code=404, detail="Order not found")
     if order.user_id != db_user.id:
         raise HTTPException(status_code=403, detail="Order does not belong to user")
-    if order.status not in ["completed", "delivered", "partial"]:
+    if order.status not in ["delivered", "partial"]:
         raise HTTPException(status_code=400, detail="Can only review completed orders")
     
     existing = await asyncio.to_thread(
@@ -140,7 +140,7 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
         orders_result = await asyncio.to_thread(
             lambda: db.client.table("orders").select(
                 "user_id,amount,original_price,users(telegram_id,username,first_name,photo_url)"
-            ).eq("status", "completed").gte("created_at", date_filter).execute()
+            ).eq("status", "delivered").gte("created_at", date_filter).execute()
         )
         
         user_savings = {}
@@ -226,7 +226,7 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
     
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     improved_result = await asyncio.to_thread(
-        lambda: db.client.table("orders").select("user_id", count="exact").eq("status", "completed").gte("created_at", today_start.isoformat()).execute()
+        lambda: db.client.table("orders").select("user_id", count="exact").eq("status", "delivered").gte("created_at", today_start.isoformat()).execute()
     )
     improved_today = improved_result.count or 0
     

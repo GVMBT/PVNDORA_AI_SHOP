@@ -164,7 +164,7 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
                 lambda: db.client.table("balance_transactions")
                 .select("*")
                 .eq("user_id", db_user.id)
-                .eq("status", "completed")
+                .eq("status", "delivered")
                 .order("created_at", desc=True)
                 .limit(50)
                 .execute()
@@ -450,8 +450,8 @@ async def get_topup_status(topup_id: str):
         status = tx.get("status", "pending")
         status_map = {
             "pending": "pending",
-            "completed": "delivered",  # Use "delivered" for consistency with orders
-            "failed": "failed",
+            "paid": "paid",
+            "cancelled": "cancelled",
             "cancelled": "cancelled",
         }
         
@@ -602,7 +602,7 @@ async def get_referral_network(user=Depends(verify_telegram_auth), level: int = 
                 lambda rid=ref_id: db.client.table("orders")
                 .select("id", count="exact")
                 .eq("user_id", rid)
-                .in_("status", ["delivered", "completed", "ready"])
+                .in_("status", ["delivered"])
                 .execute()
             )
             order_count = orders_result.count or 0

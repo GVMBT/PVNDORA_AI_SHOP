@@ -85,7 +85,7 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
     
     for it in items:
         status = str(it.get("status") or "").lower()
-        if status in {"delivered", "fulfilled", "completed", "ready", "refund_pending", "replacement_pending", "failed"}:
+        if status in {"delivered", "cancelled", "refunded"}:
             # Already delivered items - track separately
             total_delivered += 1
             continue
@@ -425,7 +425,7 @@ async def worker_deliver_batch(request: Request):
         open_items = await asyncio.to_thread(
             lambda: db.client.table("order_items")
             .select("order_id")
-            .in_("status", ["pending", "prepaid", "fulfilling"])
+            .in_("status", ["pending", "prepaid", "partial"])
             .order("created_at")
             .limit(200)
             .execute()
@@ -497,7 +497,7 @@ async def worker_process_refund(request: Request):
     if not order.data:
         return {"error": "Order not found"}
     
-    if order.data["status"] not in ["prepaid", "completed", "delivered"]:
+    if order.data["status"] not in ["prepaid", "paid", "partial", "delivered"]:
         return {"skipped": True, "reason": f"Order status is {order.data['status']}, cannot refund"}
     
     amount = to_float(order.data["amount"])

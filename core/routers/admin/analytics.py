@@ -35,7 +35,7 @@ async def admin_get_analytics(
     
     orders_data = orders_result.data if orders_result.data else []
     total_orders = len(orders_data)
-    completed_orders = [o for o in orders_data if o.get("status") in ["delivered", "completed"]]
+    completed_orders = [o for o in orders_data if o.get("status") == "delivered"]
     total_revenue = sum(o.get("amount", 0) for o in completed_orders)
     avg_order_value = total_revenue / len(completed_orders) if completed_orders else 0
     

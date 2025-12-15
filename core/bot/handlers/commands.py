@@ -164,8 +164,8 @@ async def cmd_my_orders(message: Message, db_user: User):
             product_name = "Unknown"
         
         status_map = {
-            "pending": "⏳", "paid": "💳", "completed": "✅",
-            "failed": "❌", "refunded": "↩️", "delivered": "✅"
+            "pending": "⏳", "paid": "💳", "prepaid": "💳",
+            "partial": "📦", "cancelled": "❌", "refunded": "↩️", "delivered": "✅"
         }
         status_icon = status_map.get(order.status, "❓")
         order_lines.append(f"{status_icon} {product_name} - {order.amount}₽")

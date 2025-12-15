@@ -48,19 +48,16 @@ class OrderStatusService:
         current_status = current_status.lower()
         target_status = target_status.lower()
         
-        # Status transition rules
+        # Status transition rules (simplified)
+        # See docs/ORDER_STATUSES.md for details
         transitions = {
-            "pending": ["paid", "prepaid", "cancelled", "expired"],
-            "paid": ["delivered", "partial", "prepaid", "refunded"],
-            "prepaid": ["fulfilling", "ready", "delivered", "refunded", "failed"],
-            "fulfilling": ["ready", "delivered", "failed", "refunded"],
-            "ready": ["delivered"],
-            "partial": ["delivered"],
+            "pending": ["paid", "prepaid", "cancelled"],
+            "paid": ["delivered", "partial", "cancelled", "refunded"],
+            "prepaid": ["paid", "partial", "delivered", "cancelled", "refunded"],
+            "partial": ["delivered", "cancelled", "refunded"],
             "delivered": [],  # Final state
             "cancelled": [],  # Final state
-            "expired": ["cancelled", "refunded"],
             "refunded": [],  # Final state
-            "failed": ["refunded"],
         }
         
         allowed = transitions.get(current_status, [])

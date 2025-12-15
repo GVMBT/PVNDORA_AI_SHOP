@@ -12,6 +12,8 @@ from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel, Field
 
+from core.payments.constants import OrderStatus
+
 
 # ============================================================
 # Enums
@@ -48,16 +50,8 @@ class OrderType(str, Enum):
     PREPAID = "prepaid"  # Needs to be ordered
 
 
-class OrderStatus(str, Enum):
-    """Order status lifecycle."""
-    PENDING = "pending"
-    PREPAID = "prepaid"
-    FULFILLING = "fulfilling"
-    READY = "ready"
-    DELIVERED = "delivered"
-    CANCELLED = "cancelled"
-    REFUNDED = "refunded"
-    FAILED = "failed"
+# OrderStatus moved to core.payments.constants
+# Import from there: from core.payments.constants import OrderStatus
 
 
 class TicketStatus(str, Enum):

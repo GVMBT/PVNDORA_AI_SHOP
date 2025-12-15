@@ -78,7 +78,7 @@ class OrderRepository(BaseRepository):
         
         if expires_at:
             data["expires_at"] = expires_at.isoformat()
-        if status == "completed":
+        if status == "delivered":
             data["delivered_at"] = datetime.now(timezone.utc).isoformat()
         
         self.client.table("orders").update(data).eq("id", order_id).execute()
@@ -100,7 +100,7 @@ class OrderRepository(BaseRepository):
         now = datetime.now(timezone.utc)
         target = now + timedelta(days=days_before)
         
-        result = self.client.table("orders").select("*").eq("status", "completed").lt(
+        result = self.client.table("orders").select("*").eq("status", "delivered").lt(
             "expires_at", target.isoformat()
         ).gt("expires_at", now.isoformat()).execute()
         

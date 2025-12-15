@@ -1,7 +1,7 @@
 """
 WebApp AI Chat Router
 
-AI-powered chat endpoint using AIConsultant (Gemini).
+AI-powered chat endpoint using LangGraph ShopAgent (Gemini 2.5).
 """
 import asyncio
 from typing import Optional
@@ -11,23 +11,24 @@ from pydantic import BaseModel, Field
 
 from core.logging import get_logger
 from core.services.database import get_database
-from core.ai.consultant import AIConsultant
+from core.agent import get_shop_agent
 from core.auth import verify_telegram_auth
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["webapp-ai"])
 
-# Lazy singleton for AIConsultant
-_ai_consultant: Optional[AIConsultant] = None
+# Lazy singleton
+_shop_agent = None
 
 
-def get_ai_consultant() -> AIConsultant:
-    """Get or create AIConsultant singleton."""
-    global _ai_consultant
-    if _ai_consultant is None:
-        _ai_consultant = AIConsultant()
-    return _ai_consultant
+def get_agent():
+    """Get or create ShopAgent singleton."""
+    global _shop_agent
+    if _shop_agent is None:
+        db = get_database()
+        _shop_agent = get_shop_agent(db)
+    return _shop_agent
 
 
 # --- Request/Response Models ---
@@ -91,28 +92,24 @@ async def send_chat_message(
         # Save user message to history
         await db.chat_domain.save_message(db_user.id, "user", request.message)
         
-        # Get AI response
-        ai = get_ai_consultant()
-        response = await ai.get_response(
+        # Get AI response via LangGraph agent
+        agent = get_agent()
+        response = await agent.chat(
+            message=request.message,
             user_id=db_user.id,
-            user_message=request.message,
-            language=language
+            language=language,
+            thread_id=f"user_{db_user.id}",  # Memory per user
+            telegram_id=user.id,
         )
         
         # Save AI response to history
-        await db.chat_domain.save_message(db_user.id, "assistant", response.reply_text)
-        
-        # Extract ticket_id if ticket was created (check thought for clues)
-        ticket_id = None
-        if response.action and response.action.value == "create_ticket":
-            # Try to extract from thought or ticket_type
-            ticket_id = getattr(response, 'ticket_type', None)
+        await db.chat_domain.save_message(db_user.id, "assistant", response.content)
         
         return ChatMessageResponse(
-            reply_text=response.reply_text,
-            action=response.action.value if response.action else "none",
-            thought=response.thought if response.thought else None,
-            ticket_id=ticket_id,
+            reply_text=response.content,
+            action=response.action,
+            thought=None,  # LangGraph doesn't expose reasoning by default
+            ticket_id=None,  # Can be extracted from tool calls if needed
             product_id=response.product_id,
             total_amount=response.total_amount,
         )

@@ -73,7 +73,7 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
             orders_result = await asyncio.to_thread(
                 lambda rid=ref["id"]: db.client.table("orders").select(
                     "amount, status, created_at"
-                ).eq("user_id", rid).eq("status", "completed").execute()
+                ).eq("user_id", rid).eq("status", "delivered").execute()
             )
             orders = orders_result.data or []
             total_spent = sum(to_float(o.get("amount", 0)) for o in orders)

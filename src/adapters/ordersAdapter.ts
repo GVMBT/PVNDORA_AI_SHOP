@@ -13,22 +13,15 @@ import type { Order, OrderItem, OrderStatus, OrderItemStatus, RawOrderStatus } f
 function mapOrderStatus(apiStatus: string): OrderStatus {
   switch (apiStatus) {
     case 'delivered':
-    case 'completed':
-    case 'ready':
       return 'paid'; // Completed orders
     case 'paid':
     case 'partial':
-      return 'paid'; // Paid orders (partial = some items delivered)
+      return 'paid'; // Paid orders
     case 'prepaid':
     case 'pending':
-    case 'fulfilling':
-    case 'payment_pending':
-    case 'awaiting_payment':
       return 'processing';
     case 'cancelled':
     case 'refunded':
-    case 'failed':
-    case 'expired':
       return 'refunded';
     default:
       return 'processing';
@@ -41,8 +34,7 @@ function mapOrderStatus(apiStatus: string): OrderStatus {
 function normalizeRawStatus(apiStatus: string): RawOrderStatus {
   const normalized = apiStatus.toLowerCase();
   const validStatuses: RawOrderStatus[] = [
-    'pending', 'prepaid', 'paid', 'partial', 'delivered', 
-    'cancelled', 'refunded', 'expired', 'failed'
+    'pending', 'paid', 'prepaid', 'partial', 'delivered', 'cancelled', 'refunded'
   ];
   return validStatuses.includes(normalized as RawOrderStatus) 
     ? normalized as RawOrderStatus 
@@ -75,10 +67,6 @@ function getStatusMessage(rawStatus: RawOrderStatus): string {
       return 'CANCELLED — Заказ отменён';
     case 'refunded':
       return 'REFUNDED — Средства возвращены';
-    case 'expired':
-      return 'EXPIRED — Срок оплаты истёк';
-    case 'failed':
-      return 'FAILED — Ошибка обработки';
     default:
       return 'UNKNOWN — Статус неизвестен';
   }
@@ -116,16 +104,14 @@ function canRequestRefund(rawStatus: RawOrderStatus, warrantyUntil?: string | nu
 function mapOrderItemStatus(apiStatus: string): OrderItemStatus {
   switch (apiStatus) {
     case 'delivered':
-    case 'completed':
-    case 'ready':
       return 'delivered';
     case 'pending':
     case 'prepaid':
-    case 'fulfilling':
+    case 'paid':
+    case 'partial':
       return 'waiting';
     case 'cancelled':
     case 'refunded':
-    case 'failed':
       return 'cancelled';
     default:
       return 'waiting';
@@ -189,7 +175,7 @@ function adaptOrderItem(
   if (orderStatus === 'pending' && paymentDeadline) {
     // For pending (unpaid) orders, show payment deadline
     deadline = formatDateWithTimezone(paymentDeadline);
-  } else if (['prepaid', 'fulfilling', 'paid'].includes(orderStatus)) {
+  } else if (['prepaid', 'paid', 'partial'].includes(orderStatus)) {
     // For prepaid/processing orders, show delivery deadline
     if (deliveryDeadline) {
       deadline = formatDateWithTimezone(deliveryDeadline);
@@ -210,9 +196,7 @@ function adaptOrderItem(
     expiry: item.expires_at ? new Date(item.expires_at).toLocaleDateString('ru-RU') : null,
     hasReview: item.has_review ?? false,
     estimatedDelivery: item.fulfillment_type === 'preorder' ? '24H' : null,
-    progress: item.fulfillment_type === 'preorder' && item.status === 'fulfilling' 
-      ? Math.floor(Math.random() * 80) + 20 
-      : null,
+    progress: null, // Progress bar removed - simplified status model
     deadline: deadline,
     reason: null,
   };

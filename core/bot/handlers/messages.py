@@ -1,6 +1,4 @@
 """Text and voice message handlers - AI conversation entry points."""
-import asyncio
-
 from aiogram import Router, F, Bot
 from aiogram.types import Message
 from aiogram.enums import ParseMode
@@ -75,8 +73,8 @@ TOOL_LABELS = {
 
 @router.message(F.text)
 async def handle_text_message(message: Message, db_user: User, bot: Bot):
-    """Handle regular text messages - route to AI consultant."""
-    from core.ai.consultant import AIConsultant
+    """Handle regular text messages - route to AI agent."""
+    from core.agent import get_shop_agent
     from core.models import ActionType
     
     db = get_database()
@@ -85,99 +83,67 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
     lang = db_user.language_code if db_user.language_code in ("ru", "en") else "en"
     initial_text = "Думаю" if lang == "ru" else "Thinking"
     
-    # Send initial progress message with text immediately
-    progress_msg = await message.answer(f"{initial_text}.")
-    dots_state = {"count": 1, "active": True, "base_text": initial_text, "last_text": ""}
-    
-    async def animate_dots():
-        """Animate dots: . → .. → ... → . (loop) with 1s interval to respect Telegram limits"""
-        while dots_state["active"]:
-            await asyncio.sleep(1.0)  # Telegram limit: ~20 edits/min = 1 edit per 3s safe, 1s aggressive
-            if not dots_state["active"]:
-                break
-            dots_state["count"] = (dots_state["count"] % 3) + 1
-            dots = "." * dots_state["count"]
-            new_text = f"{dots_state['base_text']}{dots}"
-            # Only edit if text changed
-            if new_text != dots_state["last_text"]:
-                try:
-                    await progress_msg.edit_text(new_text)
-                    dots_state["last_text"] = new_text
-                except Exception:
-                    pass
-    
-    # Start animation immediately
-    animation_task = asyncio.create_task(animate_dots())
-    
-    async def update_progress(stage: str, details: str):
-        """Update progress message based on stage."""
-        try:
-            if stage == "analyzing":
-                dots_state["base_text"] = "Анализирую" if lang == "ru" else "Analyzing"
-            elif stage == "tool":
-                first_tool = details.split()[0] if details else ""
-                tool_info = TOOL_LABELS.get(first_tool, {})
-                dots_state["base_text"] = tool_info.get(lang, "Обрабатываю" if lang == "ru" else "Processing")
-            elif stage == "generating":
-                dots_state["base_text"] = "Формирую ответ" if lang == "ru" else "Generating"
-            else:
-                return
-            
-            # Immediate update on stage change
-            dots = "." * dots_state["count"]
-            new_text = f"{dots_state['base_text']}{dots}"
-            if new_text != dots_state["last_text"]:
-                await progress_msg.edit_text(new_text)
-                dots_state["last_text"] = new_text
-        except Exception:
-            pass
+    # Send initial progress message
+    progress_msg = await message.answer(f"{initial_text}...")
     
     try:
-        consultant = AIConsultant()
-        response = await consultant.get_response(
+        # Get AI response via LangGraph agent
+        agent = get_shop_agent(db)
+        response = await agent.chat(
+            message=message.text,
             user_id=db_user.id,
-            user_message=message.text,
             language=db_user.language_code,
-            progress_callback=update_progress
+            thread_id=f"bot_{db_user.id}",
+            telegram_id=message.from_user.id,
         )
         
-        await db.save_chat_message(db_user.id, "assistant", response.reply_text)
+        reply_text = response.content
+        await db.save_chat_message(db_user.id, "assistant", reply_text)
+        
+        # Build mock response object for keyboard detection
+        class MockResponse:
+            def __init__(self, text, action_str, product_id):
+                self.reply_text = text
+                self.product_id = product_id
+                self.quantity = 1
+                self.cart_items = []
+                # Map action string to ActionType
+                action_map = {
+                    "add_to_cart": ActionType.ADD_TO_CART,
+                    "offer_payment": ActionType.OFFER_PAYMENT,
+                    "create_ticket": ActionType.CREATE_TICKET,
+                    "show_catalog": ActionType.SHOW_CATALOG,
+                }
+                self.action = action_map.get(action_str, ActionType.NONE)
+        
+        mock_response = MockResponse(reply_text, response.action, response.product_id)
         
         # Auto-detect payment intent
-        if response.action == ActionType.NONE:
-            reply_text_lower = response.reply_text.lower() if response.reply_text else ""
+        if mock_response.action == ActionType.NONE and reply_text:
+            reply_text_lower = reply_text.lower()
             payment_keywords = ["оплатить", "к оплате", "итого", "общая сумма", "предзаказ"]
             has_payment_intent = any(kw in reply_text_lower for kw in payment_keywords)
-            has_price = "₽" in response.reply_text or "руб" in reply_text_lower
+            has_price = "₽" in reply_text or "руб" in reply_text_lower
             if has_payment_intent and has_price:
                 logger.debug("Auto-detected payment intent")
-                response.action = ActionType.OFFER_PAYMENT
+                mock_response.action = ActionType.OFFER_PAYMENT
         
-        keyboard = await _get_keyboard_for_response(response, db_user, db)
+        keyboard = await _get_keyboard_for_response(mock_response, db_user, db)
         
-        logger.debug(f"Action: {response.action}, Product: {response.product_id}")
-        
-        # Stop animation
-        dots_state["active"] = False
-        animation_task.cancel()
+        logger.debug(f"Action: {mock_response.action}, Product: {response.product_id}")
         
         # Edit progress message with final response
         try:
-            await progress_msg.edit_text(response.reply_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+            await progress_msg.edit_text(reply_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
         except Exception:
-            # If edit fails (e.g., same text), send new message
             try:
                 await progress_msg.delete()
             except Exception:
                 pass
-            await safe_answer(message, response.reply_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+            await safe_answer(message, reply_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
         
     except Exception as e:
         logger.error(f"AI error: {e}", exc_info=True)
-        
-        # Stop animation
-        dots_state["active"] = False
-        animation_task.cancel()
         
         error_text = get_text("error_generic", db_user.language_code)
         try:
@@ -189,111 +155,17 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
 
 @router.message(F.voice)
 async def handle_voice_message(message: Message, db_user: User, bot: Bot):
-    """Handle voice messages - transcribe with Gemini and process."""
-    from core.ai.consultant import AIConsultant
-    
-    db = get_database()
+    """Handle voice messages - temporarily unsupported after agent migration."""
     lang = db_user.language_code if db_user.language_code in ("ru", "en") else "en"
     
-    # Send progress message immediately
-    progress_text = "Слушаю" if lang == "ru" else "Listening"
-    progress_msg = await message.answer(f"{progress_text}...")
+    # Voice support temporarily disabled during agent migration
+    # TODO: Add voice transcription to new LangGraph agent
+    error_text = (
+        "Голосовые сообщения временно недоступны. Пожалуйста, напишите текстом."
+        if lang == "ru" else
+        "Voice messages temporarily unavailable. Please type your message."
+    )
     
-    await db.save_chat_message(db_user.id, "user", "[🎤 Голосовое сообщение]")
-    
-    typing_active = True
-    async def keep_typing():
-        while typing_active:
-            try:
-                await bot.send_chat_action(message.chat.id, "typing")
-                await asyncio.sleep(4)
-            except Exception:
-                break
-    
-    typing_task = asyncio.create_task(keep_typing())
-    
-    try:
-        voice = message.voice
-        logger.debug(f"Voice - duration: {voice.duration}s, size: {voice.file_size}")
-        
-        # Validate voice duration (Gemini has limits)
-        if voice.duration > 60:
-            error_text = "Голосовое слишком длинное (макс. 60 сек)" if lang == "ru" else "Voice too long (max 60 sec)"
-            await progress_msg.edit_text(error_text)
-            return
-        
-        # Download voice file
-        try:
-            file = await bot.get_file(voice.file_id)
-            voice_data = await bot.download_file(file.file_path)
-            audio_bytes = voice_data.read()
-            logger.debug(f"Downloaded voice file, size: {len(audio_bytes)} bytes")
-        except Exception as download_error:
-            logger.error(f"Failed to download voice: {download_error}", exc_info=True)
-            error_text = "Не удалось загрузить голосовое" if lang == "ru" else "Failed to download voice"
-            await progress_msg.edit_text(error_text)
-            return
-        
-        # Update progress
-        try:
-            await progress_msg.edit_text("Распознаю..." if lang == "ru" else "Transcribing...")
-        except Exception:
-            pass
-        
-        # Process with AI (with retry)
-        consultant = AIConsultant()
-        last_error = None
-        for attempt in range(2):  # 2 attempts
-            try:
-                response = await consultant.get_response_from_voice(
-                    user_id=db_user.id,
-                    voice_data=audio_bytes,
-                    language=db_user.language_code
-                )
-                break
-            except Exception as ai_error:
-                last_error = ai_error
-                logger.error(f"Voice AI attempt {attempt + 1} failed: {ai_error}", exc_info=True)
-                if attempt == 0:
-                    await asyncio.sleep(1)  # Wait before retry
-        else:
-            # All attempts failed
-            raise last_error
-        
-        await db.save_chat_message(db_user.id, "assistant", response.reply_text)
-        keyboard = await _get_keyboard_for_response(response, db_user, db)
-        
-        # Edit progress message with response
-        try:
-            await progress_msg.edit_text(response.reply_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
-        except Exception:
-            try:
-                await progress_msg.delete()
-            except Exception:
-                pass
-            await message.answer(response.reply_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
-        
-    except Exception as e:
-        error_str = str(e)
-        logger.error(f"Voice error: {error_str}", exc_info=True)
-        
-        # More specific error messages
-        if "timeout" in error_str.lower() or "timed out" in error_str.lower():
-            error_text = "Превышено время ожидания. Попробуйте ещё раз." if lang == "ru" else "Request timed out. Please try again."
-        elif "quota" in error_str.lower() or "rate" in error_str.lower():
-            error_text = "Слишком много запросов. Подождите минуту." if lang == "ru" else "Too many requests. Wait a minute."
-        elif "audio" in error_str.lower() or "format" in error_str.lower():
-            error_text = "Не удалось распознать аудио. Попробуйте записать заново." if lang == "ru" else "Could not process audio. Try recording again."
-        else:
-            error_text = get_text("error_generic", db_user.language_code)
-        
-        try:
-            await progress_msg.edit_text(f"❌ {error_text}")
-        except Exception:
-            await safe_answer(message, f"❌ {error_text}")
-        await db.save_chat_message(db_user.id, "assistant", error_text)
-    finally:
-        typing_active = False
-        typing_task.cancel()
+    await safe_answer(message, error_text)
 
 

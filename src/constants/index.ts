@@ -37,8 +37,8 @@ export const PAYMENT_STATUS = {
   DELIVERED: 'delivered',
   PARTIAL: 'partial',
   PENDING: 'pending',
-  EXPIRED: 'expired',
-  FAILED: 'failed',
+  CANCELLED: 'cancelled',
+  REFUNDED: 'refunded',
   UNKNOWN: 'unknown',
 } as const;
 
@@ -51,8 +51,8 @@ export const PAYMENT_STATUS_MESSAGES: Record<PaymentStatus, { color: string; lab
   delivered: { color: 'cyan', label: 'COMPLETE', description: 'All items delivered to your account!' },
   partial: { color: 'yellow', label: 'PARTIAL', description: 'Some items delivered, preorder items in queue.' },
   pending: { color: 'orange', label: 'PENDING', description: 'Waiting for payment confirmation...' },
-  expired: { color: 'red', label: 'EXPIRED', description: 'Payment session expired.' },
-  failed: { color: 'red', label: 'FAILED', description: 'Payment verification failed.' },
+  cancelled: { color: 'red', label: 'CANCELLED', description: 'Order was cancelled.' },
+  refunded: { color: 'red', label: 'REFUNDED', description: 'Payment has been refunded.' },
   unknown: { color: 'gray', label: 'UNKNOWN', description: 'Unable to determine status.' },
 };
 

@@ -222,7 +222,7 @@ async def submit_review(request: SubmitReviewRequest, user=Depends(verify_telegr
     if order.user_id != db_user.id:
         raise HTTPException(status_code=403, detail="Not your order")
     
-    if order.status != "completed":
+    if order.status != "delivered":
         raise HTTPException(status_code=400, detail="Order not completed")
     
     existing = db.client.table("reviews").select("id").eq("order_id", request.order_id).execute()
