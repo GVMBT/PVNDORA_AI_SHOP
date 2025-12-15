@@ -44,7 +44,7 @@ class PromoCodeResponse(BaseModel):
 
 
 @router.get("/promo")
-async def list_promo_codes(admin=Depends(verify_admin_session)) -> List[dict]:
+async def list_promo_codes(admin=Depends(verify_admin)) -> List[dict]:
     """Get all promo codes."""
     db = get_database()
     
@@ -116,7 +116,7 @@ async def create_promo_code(request: PromoCodeCreate, admin=Depends(verify_admin
 
 
 @router.put("/promo/{promo_id}")
-async def update_promo_code(promo_id: str, request: PromoCodeUpdate, admin=Depends(verify_admin_session)) -> dict:
+async def update_promo_code(promo_id: str, request: PromoCodeUpdate, admin=Depends(verify_admin)) -> dict:
     """Update an existing promo code."""
     db = get_database()
     
