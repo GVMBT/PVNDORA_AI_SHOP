@@ -265,7 +265,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                                         ) : null}
                                         <Crown size={32} className={`text-pandora-cyan/50 relative z-10 ${topThree[0].avatarUrl ? 'hidden' : ''}`} />
                                     </div>
-                                    <div className="absolute bottom-0 right-0 w-6 h-6 bg-pandora-cyan rounded-full flex items-center justify-center text-black font-bold text-xs shadow-[0_0_10px_#00FFFF]">1</div>
+                                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-pandora-cyan rounded-full flex items-center justify-center text-black font-bold text-xs shadow-[0_0_10px_#00FFFF] z-20">1</div>
                                 </div>
 
                                 <h3 className="font-display font-bold text-xl sm:text-2xl text-white tracking-wide">{topThree[0].name}</h3>

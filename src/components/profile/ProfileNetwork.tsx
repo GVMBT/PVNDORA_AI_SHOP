@@ -28,16 +28,14 @@ const ProfileNetwork: React.FC<ProfileNetworkProps> = ({
 
   return (
     <div className="border border-white/10 bg-[#050505] shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-      <div className="bg-[#0a0a0a] border-b border-white/10 p-2 px-4 flex flex-col sm:flex-row items-center gap-6">
-        {/* Main Tabs */}
-        <div className="flex items-center gap-6 overflow-x-auto w-full sm:w-auto">
-          <div className="text-[10px] font-mono font-bold uppercase flex items-center gap-2 whitespace-nowrap text-pandora-cyan">
-            <GitBranch size={12} /> NETWORK_SCANNER
-          </div>
+      <div className="bg-[#0a0a0a] border-b border-white/10 p-2 px-4 flex items-center gap-6 overflow-x-auto">
+        {/* Title and Tabs in one line */}
+        <div className="text-[10px] font-mono font-bold uppercase flex items-center gap-2 whitespace-nowrap text-pandora-cyan">
+          <GitBranch size={12} /> NETWORK_SCANNER
         </div>
 
         {/* Network Level Filter */}
-        <div className="flex items-center bg-[#050505] border border-white/10 rounded-sm ml-auto overflow-hidden">
+        <div className="flex items-center bg-[#050505] border border-white/10 rounded-sm overflow-hidden">
           {[1, 2, 3].map((line) => (
             <button
               key={line}
