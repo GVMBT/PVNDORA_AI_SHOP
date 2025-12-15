@@ -20,6 +20,10 @@ export interface OrderItemData {
   progress?: number | null;
   deadline?: string | null;
   reason?: string | null;
+  orderRawStatus?: 'pending' | 'paid' | 'prepaid' | 'partial' | 'delivered' | 'cancelled' | 'refunded';
+  deliveredAt?: string | null;
+  canRequestRefund?: boolean;
+  warrantyUntil?: string | null;
 }
 
 interface DecryptTextProps {
@@ -78,6 +82,7 @@ interface OrderItemProps {
   onToggleReveal: (id: string | number) => void;
   onCopy: (text: string, id: string | number) => void;
   onOpenReview: (itemId: string | number, itemName: string, orderId: string) => void;
+  onOpenSupport?: (context?: { orderId: string; itemId?: string; orderTotal: number; productNames: string[]; reason?: string }) => void;
 }
 
 const OrderItem: React.FC<OrderItemProps> = ({
@@ -104,9 +109,18 @@ const OrderItem: React.FC<OrderItemProps> = ({
             </span>
           )}
           {item.status === 'waiting' && (
-            <span className="text-orange-400 flex items-center gap-1">
-              <Clock size={10} /> QUEUED
-            </span>
+            <>
+              {/* Show QUEUED only if payment is confirmed */}
+              {item.orderRawStatus && item.orderRawStatus !== 'pending' ? (
+                <span className="text-orange-400 flex items-center gap-1">
+                  <Clock size={10} /> QUEUED
+                </span>
+              ) : (
+                <span className="text-gray-500 flex items-center gap-1">
+                  <Clock size={10} /> AWAITING_PAYMENT
+                </span>
+              )}
+            </>
           )}
           {item.status === 'cancelled' && (
             <span className="text-red-500 flex items-center gap-1">
@@ -151,8 +165,26 @@ const OrderItem: React.FC<OrderItemProps> = ({
             </div>
           )}
 
-          {/* Review Action (Only for delivered items) */}
-          <div className="flex justify-end pt-2">
+          {/* Actions Row: Review + Report Issue (Only for delivered items) */}
+          <div className="flex justify-end items-center gap-2 pt-2">
+            {/* Report Issue Button (if within warranty) */}
+            {item.status === 'delivered' && item.canRequestRefund && onOpenSupport && (
+              <button
+                onClick={() => onOpenSupport({
+                  orderId: orderId,
+                  itemId: String(item.id),
+                  orderTotal: 0, // Will be filled by parent
+                  productNames: [item.name],
+                  reason: `WARRANTY_CLAIM: Проблема с аккаунтом "${item.name}"`
+                })}
+                className="flex items-center gap-2 text-[10px] font-bold font-mono text-green-400 border border-green-500/30 px-3 py-1.5 hover:bg-green-500/20 transition-all"
+              >
+                <AlertTriangle size={12} />
+                REPORT_ISSUE
+              </button>
+            )}
+            
+            {/* Review Action */}
             {item.hasReview ? (
               <div className="flex items-center gap-2 text-[10px] font-mono text-gray-500 border border-white/5 px-3 py-1.5 rounded-sm select-none opacity-60">
                 <Check size={12} className="text-pandora-cyan" />
@@ -171,28 +203,40 @@ const OrderItem: React.FC<OrderItemProps> = ({
         </div>
       )}
 
-      {/* === WAITING: Pre-order === */}
+      {/* === WAITING: Pre-order or Processing === */}
       {item.status === 'waiting' && (
         <div className="mt-2 bg-[#0c0c0c] border border-orange-500/20 p-3">
-          <div className="flex justify-between text-[10px] font-mono text-orange-400 mb-1">
-            <span className="flex items-center gap-1">
-              <Activity size={10} /> PROVISIONING_RESOURCE...
-            </span>
-            <span>EST: {item.estimatedDelivery}</span>
-          </div>
-          
-          {/* Progress Bar */}
-          <div className="w-full h-1 bg-gray-800 mt-2 mb-2 relative overflow-hidden">
-            <div 
-              className="absolute top-0 left-0 h-full bg-orange-500 shadow-[0_0_10px_orange]"
-              style={{ width: `${item.progress || 0}%` }} 
-            />
-            <div className="absolute top-0 left-0 h-full w-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
-          </div>
+          {/* Show PROVISIONING_RESOURCE only if payment is confirmed */}
+          {item.orderRawStatus && item.orderRawStatus !== 'pending' ? (
+            <>
+              <div className="flex justify-between text-[10px] font-mono text-orange-400 mb-1">
+                <span className="flex items-center gap-1">
+                  <Activity size={10} /> PROVISIONING_RESOURCE...
+                </span>
+                <span>EST: {item.estimatedDelivery}</span>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="w-full h-1 bg-gray-800 mt-2 mb-2 relative overflow-hidden">
+                <div 
+                  className="absolute top-0 left-0 h-full bg-orange-500 shadow-[0_0_10px_orange]"
+                  style={{ width: `${item.progress || 0}%` }} 
+                />
+                <div className="absolute top-0 left-0 h-full w-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
+              </div>
 
-          <p className="text-[10px] text-gray-500 font-mono border-t border-white/5 pt-2 mt-2">
-            &gt; DEADLINE: {item.deadline}
-          </p>
+              <p className="text-[10px] text-gray-500 font-mono border-t border-white/5 pt-2 mt-2">
+                &gt; DEADLINE: {item.deadline}
+              </p>
+            </>
+          ) : (
+            /* For unpaid orders, show payment deadline only */
+            item.deadline && (
+              <p className="text-[10px] text-gray-500 font-mono">
+                &gt; PAYMENT_DEADLINE: {item.deadline}
+              </p>
+            )
+          )}
         </div>
       )}
 
@@ -207,6 +251,7 @@ const OrderItem: React.FC<OrderItemProps> = ({
 };
 
 export default memo(OrderItem);
+
 
 
 

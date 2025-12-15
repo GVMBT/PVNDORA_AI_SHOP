@@ -164,7 +164,7 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
                 lambda: db.client.table("balance_transactions")
                 .select("*")
                 .eq("user_id", db_user.id)
-                .in_("status", ["completed", "delivered"])
+                .eq("status", "completed")  # Only show completed transactions (delivered is not a valid status for balance_transactions)
                 .order("created_at", desc=True)
                 .limit(50)
                 .execute()

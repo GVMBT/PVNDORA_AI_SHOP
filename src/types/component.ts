@@ -83,6 +83,10 @@ export interface OrderItem {
   progress?: number | null;
   deadline?: string | null;
   reason?: string | null;
+  orderRawStatus?: RawOrderStatus; // Parent order status for conditional rendering
+  deliveredAt?: string | null; // When this specific item was delivered
+  canRequestRefund?: boolean; // Can request refund for this specific item (within warranty)
+  warrantyUntil?: string | null; // Warranty end date for this specific item
 }
 
 export interface Order {

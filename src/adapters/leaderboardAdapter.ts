@@ -50,7 +50,7 @@ function adaptLeaderboardEntry(entry: APILeaderboardEntry): LeaderboardUser {
     marketSpend: Math.round(marketSpend),
     actualSpend: Math.round(actualSpend),
     saved: entry.total_saved,
-    modules: Math.floor(Math.random() * 15) + 1, // Not tracked in API
+    modules: entry.modules_count || 0, // Real count of delivered orders from API
     trend: generateTrend(),
     status: entry.is_current_user ? 'ONLINE' : generateStatus(),
     isMe: entry.is_current_user,

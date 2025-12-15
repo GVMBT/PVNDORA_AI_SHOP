@@ -31,6 +31,7 @@ from core.services.repositories import (
 )
 # Domain services
 from core.services.domains import UsersDomain, ProductsDomain, StockDomain, OrdersDomain, ChatDomain
+from core.services.domains.support import SupportService
 
 
 class Database:
@@ -61,6 +62,7 @@ class Database:
         self.stock_domain = StockDomain(self._stock_repo)
         self.orders_domain = OrdersDomain(self._orders_repo, self.client)
         self.chat_domain = ChatDomain(self._chat_repo)
+        self.support_domain = SupportService(self)  # Support service uses Database instance
     
     # ==================== USER OPERATIONS (delegated) ====================
     

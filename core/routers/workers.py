@@ -469,6 +469,203 @@ async def worker_notify_supplier(request: Request):
     return {"skipped": True, "stock_count": len(stock.data)}
 
 
+@router.post("/process-replacement")
+async def worker_process_replacement(request: Request):
+    """
+    QStash Worker: Process account replacement for approved replacement tickets.
+    
+    Finds new stock item for the same product and updates order_item with new credentials.
+    """
+    data = await verify_qstash(request)
+    ticket_id = data.get("ticket_id")
+    item_id = data.get("item_id")
+    order_id = data.get("order_id")
+    
+    if not ticket_id or not item_id:
+        return {"error": "ticket_id and item_id required"}
+    
+    db = get_database()
+    notification_service = get_notification_service()
+    
+    # Get ticket to verify it's approved
+    ticket_res = await asyncio.to_thread(
+        lambda: db.client.table("tickets")
+        .select("id, status, issue_type, user_id, order_id, item_id")
+        .eq("id", ticket_id)
+        .single()
+        .execute()
+    )
+    
+    if not ticket_res.data:
+        return {"error": "Ticket not found"}
+    
+    if ticket_res.data["status"] != "approved":
+        return {"skipped": True, "reason": f"Ticket status is {ticket_res.data['status']}, not approved"}
+    
+    if ticket_res.data["issue_type"] != "replacement":
+        return {"skipped": True, "reason": f"Ticket issue_type is {ticket_res.data['issue_type']}, not replacement"}
+    
+    # Get order item to replace
+    item_res = await asyncio.to_thread(
+        lambda: db.client.table("order_items")
+        .select("id, order_id, product_id, status, delivery_content")
+        .eq("id", item_id)
+        .single()
+        .execute()
+    )
+    
+    if not item_res.data:
+        return {"error": "Order item not found"}
+    
+    item_data = item_res.data[0]
+    product_id = item_data.get("product_id")
+    order_id_from_item = item_data.get("order_id")
+    
+    # Get order to get user_telegram_id
+    order_res = await asyncio.to_thread(
+        lambda: db.client.table("orders")
+        .select("user_telegram_id")
+        .eq("id", order_id_from_item)
+        .single()
+        .execute()
+    )
+    
+    user_telegram_id = None
+    if order_res.data:
+        user_telegram_id = order_res.data.get("user_telegram_id")
+    
+    if item_data.get("status") != "delivered":
+        return {"skipped": True, "reason": f"Item status is {item_data.get('status')}, must be delivered"}
+    
+    # Find available stock for the same product
+    now = datetime.now(timezone.utc)
+    stock_res = await asyncio.to_thread(
+        lambda: db.client.table("stock_items")
+        .select("id, content")
+        .eq("product_id", product_id)
+        .eq("status", "available")
+        .limit(1)
+        .execute()
+    )
+    
+    if not stock_res.data:
+        # No stock available - mark ticket for manual processing
+        await asyncio.to_thread(
+            lambda: db.client.table("tickets")
+            .update({
+                "status": "open",
+                "admin_comment": "Replacement pending: no stock available. Manual processing required."
+            })
+            .eq("id", ticket_id)
+            .execute()
+        )
+        return {
+            "skipped": True,
+            "reason": "No stock available for replacement",
+            "action": "ticket_reopened_for_manual_processing"
+        }
+    
+    stock_item = stock_res.data[0]
+    stock_id = stock_item["id"]
+    stock_content = stock_item.get("content", "")
+    
+    # Mark stock as sold
+    try:
+        await asyncio.to_thread(
+            lambda: db.client.table("stock_items")
+            .update({
+                "status": "sold",
+                "reserved_at": now.isoformat(),
+                "sold_at": now.isoformat()
+            })
+            .eq("id", stock_id)
+            .execute()
+        )
+    except Exception as e:
+        logger.error(f"process-replacement: Failed to mark stock sold {stock_id}: {e}", exc_info=True)
+        return {"error": "Failed to reserve stock"}
+    
+    # Get product info for expiration calculation
+    product_res = await asyncio.to_thread(
+        lambda: db.client.table("products")
+        .select("duration_days, name")
+        .eq("id", product_id)
+        .single()
+        .execute()
+    )
+    
+    product = product_res.data[0] if product_res.data else {}
+    duration_days = product.get("duration_days")
+    product_name = product.get("name", "Product")
+    
+    # Calculate expires_at
+    expires_at_str = None
+    if duration_days and duration_days > 0:
+        expires_at = now + timedelta(days=duration_days)
+        expires_at_str = expires_at.isoformat()
+    
+    # Update order item with new credentials
+    try:
+        update_data = {
+            "stock_item_id": stock_id,
+            "delivery_content": stock_content,
+            "delivered_at": now.isoformat(),
+            "updated_at": now.isoformat(),
+            "status": "delivered"  # Ensure status is delivered
+        }
+        if expires_at_str:
+            update_data["expires_at"] = expires_at_str
+        
+        await asyncio.to_thread(
+            lambda: db.client.table("order_items")
+            .update(update_data)
+            .eq("id", item_id)
+            .execute()
+        )
+    except Exception as e:
+        logger.error(f"process-replacement: Failed to update order item {item_id}: {e}", exc_info=True)
+        # Rollback stock reservation
+        await asyncio.to_thread(
+            lambda: db.client.table("stock_items")
+            .update({"status": "available", "reserved_at": None, "sold_at": None})
+            .eq("id", stock_id)
+            .execute()
+        )
+        return {"error": "Failed to update order item"}
+    
+    # Close ticket
+    await asyncio.to_thread(
+        lambda: db.client.table("tickets")
+        .update({
+            "status": "closed",
+            "admin_comment": f"Replacement completed automatically. New account delivered."
+        })
+        .eq("id", ticket_id)
+        .execute()
+    )
+    
+    # Notify user
+    if user_telegram_id:
+        try:
+            await notification_service.send_replacement_notification(
+                telegram_id=user_telegram_id,
+                product_name=product_name,
+                item_id=item_id[:8]  # Short ID for display
+            )
+        except Exception as e:
+            logger.error(f"process-replacement: Failed to send notification: {e}", exc_info=True)
+    
+    logger.info(f"process-replacement: Successfully replaced item {item_id} with stock {stock_id}")
+    
+    return {
+        "success": True,
+        "item_id": item_id,
+        "stock_id": stock_id,
+        "ticket_id": ticket_id,
+        "message": "Account replacement completed"
+    }
+
+
 @router.post("/process-refund")
 async def worker_process_refund(request: Request):
     """

@@ -55,11 +55,17 @@ export interface TicketData {
   id: string;
   user: string;
   subject: string;
-  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
+  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'APPROVED' | 'REJECTED' | 'CLOSED';
   createdAt: string;
   lastMessage: string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
   date?: string;
+  issue_type?: string; // replacement, refund, technical_issue, other
+  item_id?: string; // Specific order item ID for item-level issues
+  order_id?: string; // Related order ID
+  telegram_id?: number; // User Telegram ID for direct contact
+  admin_comment?: string; // Admin response/comment
+  description?: string; // Issue description
 }
 
 export interface AdminStats {

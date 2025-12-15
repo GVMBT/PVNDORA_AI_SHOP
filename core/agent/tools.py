@@ -977,7 +977,13 @@ async def search_faq(question: str, language: str = "ru") -> dict:
 
 
 @tool
-async def create_support_ticket(user_id: str, issue_type: str, message: str, order_id_prefix: Optional[str] = None) -> dict:
+async def create_support_ticket(
+    user_id: str, 
+    issue_type: str, 
+    message: str, 
+    order_id_prefix: Optional[str] = None,
+    item_id: Optional[str] = None
+) -> dict:
     """
     Create support ticket for user's issue.
     Automatically checks warranty and approves if within warranty period.
@@ -987,18 +993,27 @@ async def create_support_ticket(user_id: str, issue_type: str, message: str, ord
         issue_type: Type of issue (replacement, refund, technical_issue, other)
         message: Issue description
         order_id_prefix: First 8 chars of related order ID (optional)
+        item_id: Specific order item ID (optional, for item-level issues)
         
     Returns:
         Ticket info with status
     """
     try:
         from datetime import datetime, timezone
+        import re
         
         db = get_db()
         
         order_id = None
         warranty_status = "unknown"
         auto_approved = False
+        extracted_item_id = item_id
+        
+        # Extract item_id from message if not provided directly (format: "Item ID: <uuid>")
+        if not extracted_item_id and ("Item ID:" in message or "item_id" in message.lower()):
+            item_id_match = re.search(r'Item ID:\s*([a-f0-9\-]{36})', message, re.IGNORECASE)
+            if item_id_match:
+                extracted_item_id = item_id_match.group(1)
         
         # If order specified, check warranty
         if order_id_prefix:
@@ -1008,44 +1023,91 @@ async def create_support_ticket(user_id: str, issue_type: str, message: str, ord
             if order:
                 order_id = order.id
                 
-                # Get order items to check product warranty
-                items = await db.get_order_items_by_order(order.id)
-                
-                if items and order.created_at:
-                    # Check if within warranty
-                    order_date = order.created_at
-                    now = datetime.now(timezone.utc)
-                    days_since = (now - order_date).days
+                # For item-level tickets, check warranty based on item delivery date
+                if extracted_item_id:
+                    item_result = await asyncio.to_thread(
+                        lambda: db.client.table("order_items")
+                        .select("id, order_id, delivered_at, product_id")
+                        .eq("id", extracted_item_id)
+                        .eq("order_id", order_id)
+                        .limit(1)
+                        .execute()
+                    )
+                    if item_result.data:
+                        item_data = item_result.data[0]
+                        if item_data.get("delivered_at"):
+                            item_delivered = datetime.fromisoformat(item_data["delivered_at"].replace("Z", "+00:00"))
+                            now = datetime.now(timezone.utc)
+                            days_since = (now - item_delivered).days
+                            
+                            # Get product warranty
+                            product_result = await asyncio.to_thread(
+                                lambda: db.client.table("products")
+                                .select("name, warranty_days")
+                                .eq("id", item_data.get("product_id"))
+                                .limit(1)
+                                .execute()
+                            )
+                            if product_result.data:
+                                product = product_result.data[0]
+                                product_name = product.get("name", "").lower()
+                                warranty_days = product.get("warranty_days", 7)  # Default 7 days
+                                
+                                if days_since <= warranty_days:
+                                    warranty_status = "in_warranty"
+                                    if issue_type == "replacement":
+                                        auto_approved = True
+                                else:
+                                    warranty_status = "out_of_warranty"
+                else:
+                    # Order-level warranty check (existing logic)
+                    items = await db.get_order_items_by_order(order.id)
                     
-                    # Default warranty: 14 days for annual, 1 day for trial
-                    # Check product type
-                    product_name = items[0].get("product_name", "").lower()
-                    if "trial" in product_name or "7 дней" in product_name:
-                        warranty_days = 1
-                    else:
-                        warranty_days = 14
-                    
-                    if days_since <= warranty_days:
-                        warranty_status = "in_warranty"
-                        if issue_type == "replacement":
-                            auto_approved = True
-                    else:
-                        warranty_status = "out_of_warranty"
+                    if items and order.created_at:
+                        # Check if within warranty
+                        order_date = order.created_at
+                        now = datetime.now(timezone.utc)
+                        days_since = (now - order_date).days
+                        
+                        # Default warranty: 14 days for annual, 1 day for trial
+                        # Check product type
+                        product_name = items[0].get("product_name", "").lower()
+                        if "trial" in product_name or "7 дней" in product_name:
+                            warranty_days = 1
+                        else:
+                            warranty_days = 14
+                        
+                        if days_since <= warranty_days:
+                            warranty_status = "in_warranty"
+                            if issue_type == "replacement":
+                                auto_approved = True
+                        else:
+                            warranty_status = "out_of_warranty"
         
-        # Create ticket
-        result = await db.create_ticket(
+        # Create ticket via support domain (supports item_id)
+        result = await db.support_domain.create_ticket(
             user_id=user_id,
-            subject=f"{issue_type.title()}: {order_id_prefix or 'General'}",
             message=message,
-            order_id=order_id
+            order_id=order_id,
+            item_id=extracted_item_id,
+            issue_type=issue_type
         )
         
-        ticket_id = result.get("id", "")[:8] if result else None
+        if not result.get("success"):
+            return {"success": False, "error": result.get("reason", "Failed to create ticket")}
+        
+        ticket_id = result.get("ticket_id", "")
+        ticket_id_short = ticket_id[:8] if ticket_id else None
         
         # If auto-approved, update status
         status = "approved" if auto_approved else "open"
-        if auto_approved and result:
-            await db.update_ticket_status(result.get("id"), "approved")
+        if auto_approved and ticket_id:
+            await asyncio.to_thread(
+                lambda: db.client.table("tickets")
+                .update({"status": "approved"})
+                .eq("id", ticket_id)
+                .execute()
+            )
         
         return {
             "success": True,

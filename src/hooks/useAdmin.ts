@@ -95,8 +95,13 @@ export function useAdmin() {
 
   // Tickets
   const getTickets = useCallback((status = 'open') => adminRequest(`/tickets?status=${status}`), [adminRequest]);
-  const resolveTicket = useCallback((ticketId: string, approve = true) => 
-    adminRequest(`/tickets/${ticketId}/resolve?approve=${approve}`, { method: 'POST' }), [adminRequest]);
+  const resolveTicket = useCallback((ticketId: string, approve = true, comment?: string) => {
+    const params = new URLSearchParams({ approve: approve.toString() });
+    if (comment) {
+      params.append('comment', comment);
+    }
+    return adminRequest(`/tickets/${ticketId}/resolve?${params.toString()}`, { method: 'POST' });
+  }, [adminRequest]);
 
   // Analytics
   const getAnalytics = useCallback((days = 7) => adminRequest(`/analytics?days=${days}`), [adminRequest]);

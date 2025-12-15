@@ -58,13 +58,15 @@ export function useSupportTyped() {
   const createTicket = useCallback(async (
     message: string,
     issueType: string = 'general',
-    orderId?: string
+    orderId?: string,
+    itemId?: string
   ): Promise<{ success: boolean; ticket_id?: string; message?: string }> => {
     try {
       return await post('/support/tickets', {
         message,
         issue_type: issueType,
         order_id: orderId,
+        item_id: itemId,
       });
     } catch (err) {
       logger.error('Failed to create ticket', err);

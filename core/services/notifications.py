@@ -1,5 +1,6 @@
 """Notification Service - Order Fulfillment and Telegram Notifications"""
 import os
+import asyncio
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -230,6 +231,47 @@ class NotificationService:
                 logger.error(f"Failed to send refund notification: {e}")
         
         logger.info(f"Refunded order {order.id} to balance: {reason}")
+    
+    async def send_replacement_notification(
+        self,
+        telegram_id: int,
+        product_name: str,
+        item_id: str
+    ) -> None:
+        """Send notification about account replacement"""
+        bot = self._get_bot()
+        if not bot:
+            return
+        
+        # Get user language
+        db = get_database()
+        user_res = await asyncio.to_thread(
+            lambda: db.client.table("users")
+            .select("language_code")
+            .eq("telegram_id", telegram_id)
+            .limit(1)
+            .execute()
+        )
+        language = "en"
+        if user_res.data:
+            language = user_res.data[0].get("language_code", "en") or "en"
+        
+        # Build replacement message
+        message = (
+            f"✅ <b>Account Replacement Completed</b>\n\n"
+            f"Product: {product_name}\n"
+            f"Item ID: {item_id}\n\n"
+            f"Your account has been replaced. Please check your orders for new credentials."
+        )
+        
+        try:
+            await bot.send_message(
+                chat_id=telegram_id,
+                text=message
+            )
+            logger.info(f"Sent replacement notification to {telegram_id}")
+        except Exception as e:
+            logger.error(f"Failed to send replacement notification to {telegram_id}: {e}")
     
     async def _notify_supplier(
         self,

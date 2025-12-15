@@ -65,7 +65,8 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
         
         // Set pre-filled message for refund request with better formatting
         const products = initialContext.productNames?.join(', ') || 'N/A';
-        const prefillMessage = `Запрос на возврат средств:\n\n• Order ID: ${initialContext.orderId}\n• Сумма: ${initialContext.orderTotal} ₽\n• Товары: ${products}\n• Причина: ${initialContext.reason || 'Проблема с доставленным товаром'}\n\nПожалуйста, помогите с возвратом средств.`;
+        const itemInfo = initialContext.itemId ? `\n• Item ID: ${initialContext.itemId}` : '';
+        const prefillMessage = `Запрос на возврат средств:\n\n• Order ID: ${initialContext.orderId}${itemInfo}\n• Сумма: ${initialContext.orderTotal} ₽\n• Товары: ${products}\n• Причина: ${initialContext.reason || 'Проблема с доставленным товаром'}\n\nПожалуйста, помогите с возвратом средств.`;
         
         // Apply after a small delay to ensure input is ready
         setTimeout(() => {
@@ -88,7 +89,8 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
         const currentContext = initialContext;
         if (currentContext && currentContext.orderId && !contextAppliedRef.current) {
           const products = currentContext.productNames?.join(', ') || 'N/A';
-          const prefillMessage = `Запрос на возврат средств:\n\n• Order ID: ${currentContext.orderId}\n• Сумма: ${currentContext.orderTotal} ₽\n• Товары: ${products}\n• Причина: ${currentContext.reason || 'Проблема с доставленным товаром'}\n\nПожалуйста, помогите с возвратом средств.`;
+          const itemInfo = currentContext.itemId ? `\n• Item ID: ${currentContext.itemId}` : '';
+          const prefillMessage = `Запрос на возврат средств:\n\n• Order ID: ${currentContext.orderId}${itemInfo}\n• Сумма: ${currentContext.orderTotal} ₽\n• Товары: ${products}\n• Причина: ${currentContext.reason || 'Проблема с доставленным товаром'}\n\nПожалуйста, помогите с возвратом средств.`;
           setInputValue(prefillMessage);
           contextAppliedRef.current = true;
           processedContextRef.current = `${currentContext.orderId}-${currentContext.reason}`;

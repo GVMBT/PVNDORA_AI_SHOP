@@ -99,8 +99,12 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
     if (activeTab === 'all') return true;
     // Active: orders in progress - uses adapted status 'processing'
     if (activeTab === 'active') return order.status === 'processing';
-    // Archived: completed (paid) or refunded - finished orders
-    if (activeTab === 'log') return order.status === 'paid' || order.status === 'refunded';
+    // Archived: completed (paid), refunded, or cancelled (including expired/timeout) - finished orders
+    if (activeTab === 'log') {
+      return order.status === 'paid' || 
+             order.status === 'refunded' || 
+             order.rawStatus === 'cancelled';
+    }
     return true;
   });
 

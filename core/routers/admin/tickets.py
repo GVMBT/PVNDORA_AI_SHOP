@@ -91,10 +91,10 @@ async def resolve_ticket(
     db = get_database()
     
     try:
-        # Check ticket exists and is open
+        # Get full ticket data including issue_type and item_id
         ticket_res = await asyncio.to_thread(
             lambda: db.client.table("tickets")
-            .select("id, status")
+            .select("id, status, issue_type, item_id, order_id, user_id")
             .eq("id", ticket_id)
             .single()
             .execute()
@@ -105,6 +105,11 @@ async def resolve_ticket(
         
         if ticket_res.data["status"] != "open":
             raise HTTPException(status_code=400, detail=f"Ticket is already {ticket_res.data['status']}")
+        
+        ticket_data = ticket_res.data
+        issue_type = ticket_data.get("issue_type")
+        item_id = ticket_data.get("item_id")
+        order_id = ticket_data.get("order_id")
         
         new_status = "approved" if approve else "rejected"
         update_data = {"status": new_status}
@@ -117,6 +122,57 @@ async def resolve_ticket(
             .eq("id", ticket_id)
             .execute()
         )
+        
+        # If approved, trigger automatic processing via QStash
+        if approve and new_status == "approved":
+            try:
+                from core.queue import publish_to_worker, WorkerEndpoints
+                from core.routers.deps import get_queue_publisher
+                
+                publish_to_worker, WorkerEndpoints = get_queue_publisher()
+                
+                if issue_type == "replacement" and item_id:
+                    # Trigger replacement worker
+                    await publish_to_worker(
+                        WorkerEndpoints.PROCESS_REPLACEMENT,
+                        {
+                            "ticket_id": ticket_id,
+                            "item_id": item_id,
+                            "order_id": order_id
+                        }
+                    )
+                    logger.info(f"Triggered replacement worker for ticket {ticket_id}, item {item_id}")
+                
+                elif issue_type == "refund" and order_id:
+                    # Trigger refund worker
+                    from core.services.money import to_float
+                    
+                    # Get order amount
+                    order_res = await asyncio.to_thread(
+                        lambda: db.client.table("orders")
+                        .select("amount, user_telegram_id")
+                        .eq("id", order_id)
+                        .single()
+                        .execute()
+                    )
+                    
+                    if order_res.data:
+                        amount = to_float(order_res.data.get("amount", 0))
+                        usd_rate = 100  # Default, should be fetched from currency service
+                        
+                        await publish_to_worker(
+                            WorkerEndpoints.PROCESS_REFUND,
+                            {
+                                "order_id": order_id,
+                                "reason": comment or "Refund approved by admin",
+                                "usd_rate": usd_rate
+                            }
+                        )
+                        logger.info(f"Triggered refund worker for ticket {ticket_id}, order {order_id}")
+                
+            except Exception as e:
+                # Log error but don't fail the request - ticket is already updated
+                logger.error(f"Failed to trigger automatic processing for ticket {ticket_id}: {e}", exc_info=True)
         
         return {"success": True, "status": new_status}
     

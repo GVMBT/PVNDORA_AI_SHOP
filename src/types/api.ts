@@ -279,6 +279,7 @@ export interface APILeaderboardEntry {
   is_current_user: boolean;
   telegram_id?: number;
   photo_url?: string;
+  modules_count?: number; // Count of delivered orders
 }
 
 export interface APILeaderboardResponse {

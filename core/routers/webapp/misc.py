@@ -22,6 +22,7 @@ router = APIRouter(tags=["webapp-misc"])
 class CreateTicketRequest(BaseModel):
     message: str
     order_id: Optional[str] = None
+    item_id: Optional[str] = None  # Specific order item ID (for item-level issues)
     issue_type: str = "general"  # general, payment, delivery, refund, other
 
 
@@ -131,6 +132,7 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
     now = datetime.now(timezone.utc)
     
     date_filter = None
+    period_modules_count_map = {}  # Initialize for period-based queries
     if period == "week":
         date_filter = (now - timedelta(days=7)).isoformat()
     elif period == "month":
@@ -144,10 +146,12 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
         )
         
         user_savings = {}
+        user_ids_from_orders = set()  # Collect user_ids for modules count
         for order in (orders_result.data or []):
             uid = order.get("user_id")
             if not uid:
                 continue
+            user_ids_from_orders.add(uid)  # Track user_id for modules count
             orig = to_float(order.get("original_price") or order.get("amount") or 0)
             paid = to_float(order.get("amount") or 0)
             saved = max(0, orig - paid)
@@ -155,6 +159,7 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
             if uid not in user_savings:
                 user_data = order.get("users", {})
                 user_savings[uid] = {
+                    "user_id": uid,  # Store user_id for modules count lookup
                     "telegram_id": user_data.get("telegram_id"),
                     "username": user_data.get("username"),
                     "first_name": user_data.get("first_name"),
@@ -164,6 +169,19 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
             user_savings[uid]["total_saved"] += saved
         
         result_data = sorted(user_savings.values(), key=lambda x: x["total_saved"], reverse=True)[:LEADERBOARD_SIZE]
+        
+        # Pre-fetch modules count for period-based queries (we already have user_ids)
+        period_modules_count_map = {}
+        if user_ids_from_orders:
+            for uid in user_ids_from_orders:
+                count_result = await asyncio.to_thread(
+                    lambda uid_param=uid: db.client.table("orders")
+                    .select("id", count="exact")
+                    .eq("user_id", uid_param)
+                    .eq("status", "delivered")
+                    .execute()
+                )
+                period_modules_count_map[uid] = count_result.count or 0
     else:
         # Get users with savings (sorted by total_saved desc)
         # Use range() for proper pagination
@@ -234,6 +252,49 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
     user_rank, user_saved = None, 0
     user_found_in_list = False
     
+    # Collect user IDs to batch fetch delivered orders count
+    # For period-based queries, user_ids are already in result_data
+    # For all-time queries, we need to get them from telegram_ids
+    user_ids_for_count = []
+    telegram_id_to_user_id = {}
+    modules_count_map = {}
+    
+    if date_filter:
+        # For period-based queries, use pre-fetched modules_count_map
+        modules_count_map = period_modules_count_map
+        # Also build telegram_id_to_user_id mapping
+        for entry in result_data:
+            uid = entry.get("user_id")
+            tg_id = entry.get("telegram_id")
+            if uid and tg_id:
+                telegram_id_to_user_id[tg_id] = uid
+    else:
+        # For all-time queries, get user_ids from telegram_ids
+        for entry in result_data:
+            tg_id = entry.get("telegram_id")
+            if tg_id:
+                # Get user_id from telegram_id
+                user_result = await asyncio.to_thread(
+                    lambda tid=tg_id: db.client.table("users").select("id").eq("telegram_id", tid).limit(1).execute()
+                )
+                if user_result.data and len(user_result.data) > 0:
+                    user_id = user_result.data[0]["id"]
+                    user_ids_for_count.append(user_id)
+                    telegram_id_to_user_id[tg_id] = user_id
+        
+        # Batch fetch delivered orders count for all users
+        if user_ids_for_count:
+            # Count delivered orders for each user
+            for uid in user_ids_for_count:
+                count_result = await asyncio.to_thread(
+                    lambda uid_param=uid: db.client.table("orders")
+                    .select("id", count="exact")
+                    .eq("user_id", uid_param)
+                    .eq("status", "delivered")
+                    .execute()
+                )
+                modules_count_map[uid] = count_result.count or 0
+    
     leaderboard = []
     for i, entry in enumerate(result_data):
         # Cap rank at total_users to avoid inflated ranks
@@ -250,6 +311,12 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
             user_rank = actual_rank
             user_saved = float(entry.get("total_saved", 0))
         
+        # Get modules count (delivered orders) for this user
+        # For period-based queries, user_id is already in entry
+        # For all-time queries, get it from telegram_id mapping
+        user_id = entry.get("user_id") or (telegram_id_to_user_id.get(tg_id) if tg_id else None)
+        modules_count = modules_count_map.get(user_id, 0) if user_id else 0
+        
         leaderboard.append({
             "rank": actual_rank,
             "name": display_name, 
@@ -257,6 +324,7 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
             "is_current_user": is_current,
             "telegram_id": tg_id,  # For avatar lookup
             "photo_url": entry.get("photo_url"),  # User profile photo from Telegram
+            "modules_count": modules_count, # Count of delivered orders
         })
     
     # If user not in current page, calculate their actual rank
@@ -314,7 +382,7 @@ async def get_user_tickets(user=Depends(verify_telegram_auth)):
     
     result = await asyncio.to_thread(
         lambda: db.client.table("tickets")
-        .select("id, status, issue_type, description, admin_comment, created_at, order_id")
+        .select("id, status, issue_type, description, admin_comment, created_at, order_id, item_id")
         .eq("user_id", db_user.id)
         .order("created_at", desc=True)
         .limit(20)
@@ -330,6 +398,7 @@ async def get_user_tickets(user=Depends(verify_telegram_auth)):
             "message": t.get("description", ""),
             "admin_reply": t.get("admin_comment"),
             "order_id": t.get("order_id"),
+            "item_id": t.get("item_id"),  # Include item_id in response
             "created_at": t["created_at"],
         })
     
@@ -353,14 +422,32 @@ async def create_user_ticket(request: CreateTicketRequest, user=Depends(verify_t
         if not order or order.user_id != db_user.id:
             raise HTTPException(status_code=400, detail="Invalid order ID")
     
+    # Validate item_id if provided (must belong to the order)
+    if request.item_id and request.order_id:
+        item_result = await asyncio.to_thread(
+            lambda: db.client.table("order_items")
+            .select("id, order_id")
+            .eq("id", request.item_id)
+            .eq("order_id", request.order_id)
+            .limit(1)
+            .execute()
+        )
+        if not item_result.data:
+            raise HTTPException(status_code=400, detail="Invalid item ID or item does not belong to the order")
+    
+    ticket_data = {
+        "user_id": db_user.id,
+        "order_id": request.order_id,
+        "issue_type": request.issue_type,
+        "description": request.message.strip(),
+        "status": "open",
+    }
+    
+    if request.item_id:
+        ticket_data["item_id"] = request.item_id
+    
     result = await asyncio.to_thread(
-        lambda: db.client.table("tickets").insert({
-            "user_id": db_user.id,
-            "order_id": request.order_id,
-            "issue_type": request.issue_type,
-            "description": request.message.strip(),
-            "status": "open",
-        }).execute()
+        lambda: db.client.table("tickets").insert(ticket_data).execute()
     )
     
     if not result.data:

@@ -40,6 +40,7 @@ interface AdminPanelProps {
   onUpdatePromo?: (id: string, data: Partial<PromoCodeData>) => Promise<void>;
   onDeletePromo?: (id: string) => Promise<void>;
   onTogglePromoActive?: (id: string, isActive: boolean) => Promise<void>;
+  onRefreshTickets?: () => void;
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
@@ -54,6 +55,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onUpdatePromo,
   onDeletePromo,
   onTogglePromoActive,
+  onRefreshTickets,
 }) => {
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -120,7 +122,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           />
         );
       case 'support':
-        return <AdminSupport tickets={propsTickets} />;
+        return <AdminSupport tickets={propsTickets} onRefresh={onRefreshTickets} />;
       case 'promo':
         return (
           <AdminPromo

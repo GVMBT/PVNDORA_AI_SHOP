@@ -13,6 +13,7 @@ import { PaymentCountdown } from './PaymentCountdown';
 
 export interface RefundContext {
   orderId: string;
+  itemId?: string; // Specific item ID if reporting issue for a single item
   orderTotal: number;
   productNames: string[];
   reason?: string;
@@ -144,27 +145,17 @@ const OrderCard: React.FC<OrderCardProps> = ({
           </div>
         )}
         
-        {/* Warranty Refund Banner - for delivered orders within warranty */}
-        {order.rawStatus === 'delivered' && order.canRequestRefund && onOpenSupport && (
+        {/* Warranty Info Banner - shows if any item has active warranty */}
+        {order.rawStatus === 'delivered' && order.items.some(item => item.canRequestRefund) && (
           <div className="p-4 bg-green-500/5 border-b border-green-500/20">
-            <div className="flex items-center justify-between">
-              <div className="text-[11px] font-mono text-green-400">
-                <div className="flex items-center gap-2">
-                  <Shield size={12} />
-                  Гарантийный период активен
-                </div>
+            <div className="text-[11px] font-mono text-green-400">
+              <div className="flex items-center gap-2">
+                <Shield size={12} />
+                Гарантийный период активен для некоторых аккаунтов
               </div>
-              <button
-                onClick={() => onOpenSupport({
-                  orderId: order.id,
-                  orderTotal: order.total,
-                  productNames: order.items.map(i => i.name),
-                  reason: 'WARRANTY_CLAIM: Проблема с доставленным товаром'
-                })}
-                className="px-3 py-1.5 bg-green-500/20 border border-green-500/30 text-green-400 font-mono text-[10px] uppercase hover:bg-green-500/30 transition-colors"
-              >
-                REPORT_ISSUE
-              </button>
+              <div className="text-[10px] text-gray-500 mt-1">
+                Используйте кнопку REPORT_ISSUE рядом с проблемным аккаунтом
+              </div>
             </div>
           </div>
         )}
@@ -181,6 +172,14 @@ const OrderCard: React.FC<OrderCardProps> = ({
               onToggleReveal={onToggleReveal}
               onCopy={onCopy}
               onOpenReview={onOpenReview}
+              onOpenSupport={onOpenSupport ? (context) => {
+                // Fill in orderTotal from order if not provided
+                const finalContext = {
+                  ...context,
+                  orderTotal: context.orderTotal || order.total
+                };
+                onOpenSupport(finalContext);
+              } : undefined}
             />
           ))}
         </div>

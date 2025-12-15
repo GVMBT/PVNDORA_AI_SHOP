@@ -160,11 +160,45 @@ function formatDateWithTimezone(dateString: string): string {
  * @param paymentDeadline - expires_at (only relevant for pending orders)
  * @param deliveryDeadline - fulfillment_deadline (for prepaid orders)
  */
+/**
+ * Calculate warranty end date for an item
+ * Warranty starts from delivered_at and lasts for warranty_days (default: 7 days)
+ */
+function calculateItemWarrantyUntil(deliveredAt: string | null | undefined, warrantyDays: number = 7): string | null {
+  if (!deliveredAt) return null;
+  
+  try {
+    const delivered = new Date(deliveredAt);
+    const warrantyEnd = new Date(delivered);
+    warrantyEnd.setDate(warrantyEnd.getDate() + warrantyDays);
+    return warrantyEnd.toISOString();
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Check if item can request refund (within warranty period)
+ */
+function canItemRequestRefund(itemStatus: string, deliveredAt: string | null | undefined, warrantyUntil: string | null | undefined): boolean {
+  if (itemStatus !== 'delivered') return false;
+  if (!warrantyUntil) return false;
+  
+  try {
+    const warrantyEnd = new Date(warrantyUntil);
+    return new Date() < warrantyEnd;
+  } catch (e) {
+    return false;
+  }
+}
+
 function adaptOrderItem(
   item: APIOrderItem, 
   orderStatus: string,
   paymentDeadline?: string | null,
-  deliveryDeadline?: string | null
+  deliveryDeadline?: string | null,
+  orderDeliveredAt?: string | null,
+  orderWarrantyUntil?: string | null
 ): OrderItem {
   // Get credentials from delivery_content (backend) or credentials (alias)
   const credentials = item.delivery_content || item.credentials || null;
@@ -186,11 +220,36 @@ function adaptOrderItem(
   }
   // For delivered/cancelled/refunded - no deadline needed
   
+  // Calculate warranty for this specific item
+  // Use item.delivered_at if available, otherwise fallback to order delivered_at
+  const itemDeliveredAt = item.delivered_at || orderDeliveredAt || null;
+  
+  // Calculate warranty_until for this item
+  // Default warranty: 7 days (can be improved by getting warranty_days from product)
+  // For now, use order warranty_until if available, otherwise calculate from delivered_at
+  let warrantyUntil: string | null = null;
+  if (itemDeliveredAt) {
+    // Try to extract warranty period from order warranty_until
+    // If order has warranty_until, use same period for item
+    if (orderDeliveredAt && orderWarrantyUntil) {
+      const orderDelivered = new Date(orderDeliveredAt);
+      const orderWarrantyEnd = new Date(orderWarrantyUntil);
+      const warrantyDays = Math.ceil((orderWarrantyEnd.getTime() - orderDelivered.getTime()) / (1000 * 60 * 60 * 24));
+      warrantyUntil = calculateItemWarrantyUntil(itemDeliveredAt, warrantyDays);
+    } else {
+      // Default: 7 days warranty
+      warrantyUntil = calculateItemWarrantyUntil(itemDeliveredAt, 7);
+    }
+  }
+  
+  const itemStatus = mapOrderItemStatus(item.status);
+  const canRefund = canItemRequestRefund(item.status, itemDeliveredAt, warrantyUntil);
+  
   return {
     id: item.id,
     name: item.product_name,
     type: item.fulfillment_type === 'instant' ? 'instant' : 'preorder',
-    status: mapOrderItemStatus(item.status),
+    status: itemStatus,
     credentials: credentials,
     instructions: item.delivery_instructions || null,
     expiry: item.expires_at ? new Date(item.expires_at).toLocaleDateString('ru-RU') : null,
@@ -199,6 +258,10 @@ function adaptOrderItem(
     progress: null, // Progress bar removed - simplified status model
     deadline: deadline,
     reason: null,
+    orderRawStatus: normalizeRawStatus(orderStatus), // Pass parent order status
+    deliveredAt: itemDeliveredAt,
+    canRequestRefund: canRefund,
+    warrantyUntil: warrantyUntil,
   };
 }
 
@@ -232,7 +295,9 @@ export function adaptOrder(apiOrder: APIOrder, currency: string = 'USD'): Order 
         item, 
         apiOrder.status,
         apiOrder.expires_at,
-        apiOrder.fulfillment_deadline
+        apiOrder.fulfillment_deadline,
+        apiOrder.delivered_at,
+        apiOrder.warranty_until
       )),
       payment_url: apiOrder.payment_url || null,
       deadline: orderDeadline,
@@ -280,6 +345,10 @@ export function adaptOrder(apiOrder: APIOrder, currency: string = 'USD'): Order 
       progress: null,
       deadline: deadline,
       reason: null,
+      orderRawStatus: rawStatus, // Pass parent order status
+      deliveredAt: apiOrder.delivered_at || null,
+      canRequestRefund: canRequestRefund(rawStatus, apiOrder.warranty_until),
+      warrantyUntil: apiOrder.warranty_until || null,
     }],
     payment_url: apiOrder.payment_url || null,
     deadline: deadline, // Payment deadline for pending orders

@@ -18,7 +18,9 @@ import {
   AdminAnalytics 
 } from '../../hooks/useApiTyped';
 import { useAdminPromoTyped, PromoCodeData } from '../../hooks/api/useAdminPromoApi';
+import { useAdmin } from '../../hooks/useAdmin';
 import { formatRelativeTime, formatDate } from '../../utils/date';
+import type { TicketData } from '../admin/types';
 
 interface AdminPanelConnectedProps {
   onExit: () => void;
@@ -30,8 +32,22 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
   const { users, getUsers, updateUserRole, banUser, loading: usersLoading } = useAdminUsersTyped();
   const { analytics, getAnalytics, loading: analyticsLoading } = useAdminAnalyticsTyped();
   const { promoCodes, getPromoCodes, createPromoCode, updatePromoCode, deletePromoCode, togglePromoActive } = useAdminPromoTyped();
+  const { getTickets } = useAdmin();
   
   const [isInitialized, setIsInitialized] = useState(false);
+  const [tickets, setTickets] = useState<any[]>([]);
+
+  // Fetch tickets
+  const fetchTickets = useCallback(async () => {
+    try {
+      const response = await getTickets('all');
+      if (response?.tickets) {
+        setTickets(response.tickets);
+      }
+    } catch (err) {
+      logger.error('Failed to fetch tickets', err);
+    }
+  }, [getTickets]);
 
   // Initial data fetch
   useEffect(() => {
@@ -41,12 +57,13 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
         getOrders(undefined, 50),
         getUsers(50),
         getAnalytics(),
-        getPromoCodes()
+        getPromoCodes(),
+        fetchTickets()
       ]);
       setIsInitialized(true);
     };
     init();
-  }, [getProducts, getOrders, getUsers, getAnalytics, getPromoCodes]);
+  }, [getProducts, getOrders, getUsers, getAnalytics, getPromoCodes, fetchTickets]);
   
   // Promo handlers
   const handleCreatePromo = useCallback(async (data: Omit<PromoCodeData, 'id' | 'usage_count' | 'created_at'>) => {
@@ -123,6 +140,24 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     savings: 0 // TODO: Add to backend
   }));
 
+  // Transform tickets
+  const transformedTickets: TicketData[] = tickets.map((t: any) => ({
+    id: t.id,
+    user: t.first_name || t.username || `user_${t.user_id?.slice(0, 6)}`,
+    subject: t.description?.slice(0, 50) || 'No subject',
+    status: (t.status?.toUpperCase() || 'OPEN') as TicketData['status'],
+    createdAt: t.created_at,
+    lastMessage: t.description || '',
+    priority: 'MEDIUM' as const,
+    date: formatRelativeTime(t.created_at),
+    issue_type: t.issue_type,
+    item_id: t.item_id,
+    order_id: t.order_id,
+    telegram_id: t.telegram_id,
+    admin_comment: t.admin_comment,
+    description: t.description
+  }));
+
   // Dashboard stats from analytics
   const transformedStats = analytics ? {
     totalRevenue: analytics.total_revenue || 0,
@@ -138,12 +173,14 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       products={transformedProducts}
       orders={transformedOrders}
       users={transformedUsers}
+      tickets={transformedTickets}
       stats={transformedStats}
       promoCodes={promoCodes}
       onCreatePromo={handleCreatePromo}
       onUpdatePromo={handleUpdatePromo}
       onDeletePromo={handleDeletePromo}
       onTogglePromoActive={handleTogglePromoActive}
+      onRefreshTickets={fetchTickets}
     />
   );
 };

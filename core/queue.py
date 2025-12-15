@@ -260,5 +260,6 @@ class WorkerEndpoints:
     CALCULATE_REFERRAL = "/api/workers/calculate-referral"
     UPDATE_LEADERBOARD = "/api/workers/update-leaderboard"
     PROCESS_REFUND = "/api/workers/process-refund"
+    PROCESS_REPLACEMENT = "/api/workers/process-replacement"
     PROCESS_REVIEW_CASHBACK = "/api/workers/process-review-cashback"
 

@@ -17,6 +17,11 @@ MAX_OPEN_REFUNDS_PER_USER = 3
 ALLOWED_REFUND_STATUSES = {"pending", "paid", "prepaid", "partial", "delivered"}
 FORBIDDEN_REFUND_STATUSES = {"refunded", "cancelled"}
 
+# Replacement configuration (anti-abuse)
+MAX_REPLACEMENTS_PER_MONTH = 20  # Reasonable limit for legitimate cases
+MAX_REPLACEMENT_TICKETS_PER_DAY = 5  # Prevent spam
+MIN_HOURS_BETWEEN_REPLACEMENTS = 1  # Cooldown between replacement requests
+
 
 @dataclass
 class FAQEntry:
@@ -56,6 +61,7 @@ class SupportService:
         user_id: str,
         message: str,
         order_id: Optional[str] = None,
+        item_id: Optional[str] = None,
         issue_type: Optional[str] = None
     ) -> Dict[str, Any]:
         """
@@ -65,19 +71,123 @@ class SupportService:
             user_id: User database ID
             message: Issue description
             order_id: Related order ID (optional)
+            item_id: Specific order item ID (optional, for item-level issues)
             issue_type: Type of issue (optional)
             
         Returns:
             Success/failure result with ticket ID
         """
         try:
+            # Anti-abuse checks for replacement requests
+            if issue_type == "replacement" and item_id:
+                # Check 1: Has this specific item_id already been replaced?
+                existing_replacement = await asyncio.to_thread(
+                    lambda: self.db.client.table("tickets")
+                    .select("id, status, created_at")
+                    .eq("item_id", item_id)
+                    .eq("issue_type", "replacement")
+                    .in_("status", ["open", "approved"])
+                    .order("created_at", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+                
+                if existing_replacement.data:
+                    # Item already has an open/approved replacement ticket
+                    return {
+                        "success": False,
+                        "reason": "This account has already been requested for replacement. Please wait for processing."
+                    }
+                
+                # Check 2: Rate limiting - too many replacement tickets today?
+                from datetime import datetime, timezone, timedelta
+                today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+                
+                today_count = await asyncio.to_thread(
+                    lambda: self.db.client.table("tickets")
+                    .select("id", count="exact")
+                    .eq("user_id", user_id)
+                    .eq("issue_type", "replacement")
+                    .gte("created_at", today_start.isoformat())
+                    .execute()
+                )
+                
+                if (today_count.count or 0) >= MAX_REPLACEMENT_TICKETS_PER_DAY:
+                    return {
+                        "success": False,
+                        "reason": f"Too many replacement requests today (limit: {MAX_REPLACEMENT_TICKETS_PER_DAY}). Please try again tomorrow."
+                    }
+                
+                # Check 3: Cooldown - last replacement request was too recent?
+                last_replacement = await asyncio.to_thread(
+                    lambda: self.db.client.table("tickets")
+                    .select("created_at")
+                    .eq("user_id", user_id)
+                    .eq("issue_type", "replacement")
+                    .order("created_at", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+                
+                if last_replacement.data:
+                    last_time = datetime.fromisoformat(last_replacement.data[0]["created_at"].replace("Z", "+00:00"))
+                    hours_since = (datetime.now(timezone.utc) - last_time).total_seconds() / 3600
+                    
+                    if hours_since < MIN_HOURS_BETWEEN_REPLACEMENTS:
+                        return {
+                            "success": False,
+                            "reason": f"Please wait {MIN_HOURS_BETWEEN_REPLACEMENTS} hour(s) between replacement requests."
+                        }
+                
+                # Check 4: Monthly limit (but allow all items from same order)
+                month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                
+                monthly_count = await asyncio.to_thread(
+                    lambda: self.db.client.table("tickets")
+                    .select("id", count="exact")
+                    .eq("user_id", user_id)
+                    .eq("issue_type", "replacement")
+                    .in_("status", ["open", "approved"])
+                    .gte("created_at", month_start.isoformat())
+                    .execute()
+                )
+                
+                # If approaching limit, check if this is from a new order (allow if so)
+                if (monthly_count.count or 0) >= MAX_REPLACEMENTS_PER_MONTH:
+                    # Check if this item_id belongs to an order that already has replacement tickets
+                    # If yes, allow (same order = legitimate batch issue)
+                    # If no, block (new order = possible abuse)
+                    if order_id:
+                        order_replacements = await asyncio.to_thread(
+                            lambda: self.db.client.table("tickets")
+                            .select("id", count="exact")
+                            .eq("user_id", user_id)
+                            .eq("order_id", order_id)
+                            .eq("issue_type", "replacement")
+                            .in_("status", ["open", "approved"])
+                            .execute()
+                        )
+                        # If this order already has replacement tickets, allow (batch issue)
+                        if (order_replacements.count or 0) == 0:
+                            return {
+                                "success": False,
+                                "reason": f"Monthly replacement limit reached ({MAX_REPLACEMENTS_PER_MONTH}). Contact support for assistance."
+                            }
+                    else:
+                        return {
+                            "success": False,
+                            "reason": f"Monthly replacement limit reached ({MAX_REPLACEMENTS_PER_MONTH}). Contact support for assistance."
+                        }
+            
             ticket_data = {
                 "user_id": user_id,
-                "message": message,
+                "description": message,  # Use 'description' field (not 'message')
                 "status": "open"
             }
             if order_id:
                 ticket_data["order_id"] = order_id
+            if item_id:
+                ticket_data["item_id"] = item_id
             if issue_type:
                 ticket_data["issue_type"] = issue_type
             
