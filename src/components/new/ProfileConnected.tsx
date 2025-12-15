@@ -4,7 +4,7 @@
  * Connected version of Profile component with real API data.
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Profile from './Profile';
 import { useProfileTyped } from '../../hooks/useApiTyped';
 import { useTelegram } from '../../hooks/useTelegram';
@@ -28,7 +28,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   const { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, updatePreferences, loading, error } = useProfileTyped();
   const { hapticFeedback, showConfirm, openLink, showAlert: showTelegramAlert } = useTelegram();
   const { showTopUp, showWithdraw, showAlert: showModalAlert } = useCyberModal();
-  const { updateFromProfile, setCurrency, setLocale } = useLocaleContext();
+  const { updateFromProfile, setCurrency, setLocale, currency: contextCurrency } = useLocaleContext();
   const [isInitialized, setIsInitialized] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
   const { copy: copyToClipboard } = useClipboard();
@@ -47,6 +47,17 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       updateFromProfile(profile);
     }
   }, [profile, updateFromProfile]);
+
+  // Re-fetch profile when currency changes in context (to get converted amounts)
+  // This ensures balance is recalculated when user changes currency in settings
+  const prevCurrencyRef = useRef<string | undefined>(profile?.currency);
+  useEffect(() => {
+    if (isInitialized && profile && prevCurrencyRef.current !== contextCurrency) {
+      // Currency changed in context, re-fetch profile to get converted amounts
+      prevCurrencyRef.current = contextCurrency;
+      getProfile();
+    }
+  }, [contextCurrency, isInitialized, profile, getProfile]);
 
   const handleCopyLink = useCallback(async () => {
     if (!profile?.referralLink) return;
@@ -148,8 +159,11 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       setLocale(interface_language as 'en' | 'ru' | 'uk' | 'de' | 'fr' | 'es' | 'tr' | 'ar' | 'hi');
     }
     
-    // Reload profile to get updated data (prices will be recalculated with new currency)
-    await getProfile();
+    // Small delay to ensure DB update is committed, then reload profile
+    // Profile endpoint uses preferred_currency from DB, so we need fresh data
+    setTimeout(async () => {
+      await getProfile();
+    }, 100);
     
     return result;
   }, [updatePreferences, setCurrency, setLocale, getProfile]);
