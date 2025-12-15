@@ -831,6 +831,123 @@ async def request_refund(user_id: str, order_id: str, reason: str) -> dict:
 
 
 # =============================================================================
+# BALANCE & PAYMENT TOOLS
+# =============================================================================
+
+@tool
+async def check_user_balance(user_id: str) -> dict:
+    """
+    Check user's current balance.
+    Use when user asks about their balance or before balance payment.
+    
+    Args:
+        user_id: User database ID
+        
+    Returns:
+        Current balance amount
+    """
+    try:
+        db = get_db()
+        result = await asyncio.to_thread(
+            lambda: db.client.table("users").select("balance").eq("id", user_id).single().execute()
+        )
+        
+        if not result.data:
+            return {"success": False, "error": "User not found"}
+        
+        balance = result.data.get("balance", 0) or 0
+        return {
+            "success": True,
+            "balance": float(balance),
+            "formatted": f"{float(balance):.2f}₽"
+        }
+    except Exception as e:
+        logger.error(f"check_user_balance error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@tool
+async def pay_cart_from_balance(user_telegram_id: int, user_id: str) -> dict:
+    """
+    Pay for cart items using internal balance.
+    Use when user says "оплати с баланса", "спиши с баланса", "pay from balance".
+    
+    Args:
+        user_telegram_id: User's Telegram ID
+        user_id: User database ID
+        
+    Returns:
+        Instructions or confirmation
+    """
+    try:
+        from core.cart import get_cart_manager
+        
+        db = get_db()
+        
+        # Get cart first
+        cart_manager = get_cart_manager()
+        cart = await cart_manager.get_cart(user_telegram_id)
+        
+        if not cart or not cart.items:
+            return {"success": False, "error": "Корзина пуста. Сначала добавь товары."}
+        
+        # Check balance
+        user_result = await asyncio.to_thread(
+            lambda: db.client.table("users").select("balance").eq("id", user_id).single().execute()
+        )
+        balance = float(user_result.data.get("balance", 0) or 0) if user_result.data else 0
+        
+        if balance < cart.total:
+            return {
+                "success": False,
+                "error": "Недостаточно средств на балансе",
+                "balance": balance,
+                "cart_total": cart.total,
+                "shortage": cart.total - balance,
+                "message": f"Баланс: {balance:.0f}₽, нужно: {cart.total:.0f}₽. Пополни баланс или оплати картой."
+            }
+        
+        # Balance is sufficient - direct user to checkout with balance option
+        items_text = ", ".join([f"{item.product_name} x{item.quantity}" for item in cart.items])
+        
+        return {
+            "success": True,
+            "can_pay": True,
+            "balance": balance,
+            "cart_total": cart.total,
+            "remaining_after": balance - cart.total,
+            "items": items_text,
+            "message": "Можно оплатить с баланса! Нажми Магазин → Корзина → выбери 'С баланса' и подтверди.",
+            "instructions": "В корзине выбери способ оплаты 'С баланса' и нажми 'Оплатить'"
+        }
+        
+    except Exception as e:
+        logger.error(f"pay_cart_from_balance error: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+
+@tool
+async def remove_from_wishlist(user_id: str, product_id: str) -> dict:
+    """
+    Remove product from user's wishlist.
+    
+    Args:
+        user_id: User database ID
+        product_id: Product UUID
+        
+    Returns:
+        Confirmation
+    """
+    try:
+        db = get_db()
+        await db.remove_from_wishlist(user_id, product_id)
+        return {"success": True, "message": "Removed from wishlist"}
+    except Exception as e:
+        logger.error(f"remove_from_wishlist error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+# =============================================================================
 # TOOL REGISTRY
 # =============================================================================
 
@@ -854,9 +971,12 @@ def get_all_tools():
         # User & Referrals
         get_user_profile,
         get_referral_info,
+        check_user_balance,
+        pay_cart_from_balance,
         # Wishlist & Waitlist
         add_to_wishlist,
         get_wishlist,
+        remove_from_wishlist,
         add_to_waitlist,
         # Support
         search_faq,

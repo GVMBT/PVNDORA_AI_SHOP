@@ -306,6 +306,52 @@ function NewAppInner() {
     }
   }, [isPaymentRedirect, isBooted]);
 
+  // Handle startapp parameters (checkout, pay_product_id, etc.)
+  useEffect(() => {
+    if (!isBooted || !isAuthenticated) return;
+    
+    // Get startapp from various sources
+    const urlParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const startParam = getStartParam();
+    const startapp = startParam || urlParams.get('startapp') || urlParams.get('tgWebAppStartParam') || hashParams.get('tgWebAppStartParam');
+    
+    if (!startapp) return;
+    
+    // Handle checkout
+    if (startapp === 'checkout' || startapp === 'cart') {
+      setIsCheckoutOpen(true);
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+    
+    // Handle pay_productId_qty_N
+    if (startapp.startsWith('pay_')) {
+      const parts = startapp.split('_');
+      // pay_productId or pay_productId_qty_N
+      if (parts.length >= 2) {
+        const productId = parts[1];
+        const product = allProducts.find(p => p.id === productId);
+        if (product) {
+          setSelectedProduct(product);
+        }
+      }
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+    
+    // Handle product_productId
+    if (startapp.startsWith('product_')) {
+      const productId = startapp.replace('product_', '');
+      const product = allProducts.find(p => p.id === productId);
+      if (product) {
+        setSelectedProduct(product);
+      }
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [isBooted, isAuthenticated, allProducts]);
+
   // Computed values
   const getActiveTab = () => {
     if (currentView === 'profile') return 'profile';

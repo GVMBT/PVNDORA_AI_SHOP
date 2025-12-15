@@ -1,11 +1,10 @@
 """
 LangGraph Shop Agent — Full-Featured & Fault-Tolerant
 
-Complete agent covering all shop functionality:
-- Catalog, Cart, Orders, Credentials
-- User Profile, Referrals
-- Wishlist, Waitlist
-- Support, FAQ, Refunds
+Complete agent covering all shop functionality with:
+- Persistent chat history from database
+- Redis-based state caching
+- Full error recovery
 """
 import os
 from typing import Optional, Dict, Any, List
@@ -14,7 +13,6 @@ from dataclasses import dataclass, field
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import AIMessage
 from langgraph.prebuilt import create_react_agent
-from langgraph.checkpoint.memory import MemorySaver
 
 from core.agent.tools import get_all_tools, set_db
 from core.agent.prompts import get_system_prompt, format_product_catalog
@@ -31,6 +29,7 @@ class AgentResponse:
     action: str = "none"
     product_id: Optional[str] = None
     total_amount: Optional[float] = None
+    payment_url: Optional[str] = None
 
 
 class ShopAgent:
@@ -40,9 +39,9 @@ class ShopAgent:
     Features:
     - ReAct pattern for reasoning + acting
     - Gemini 2.5 Flash as LLM
-    - 20 tools covering all shop features
+    - 23 tools covering all shop features
+    - Persistent chat history from database
     - Fault-tolerant with retries
-    - Per-user conversation memory
     """
     
     def __init__(
@@ -50,7 +49,6 @@ class ShopAgent:
         db,
         model: str = "gemini-2.5-flash",
         temperature: float = 0.7,
-        use_memory: bool = True,
     ):
         """
         Initialize the agent.
@@ -59,7 +57,6 @@ class ShopAgent:
             db: Database instance
             model: Gemini model name
             temperature: LLM temperature (0.7 = balanced)
-            use_memory: Whether to use conversation memory
         """
         self.db = db
         self.model_name = model
@@ -77,30 +74,51 @@ class ShopAgent:
             model=model,
             temperature=temperature,
             google_api_key=api_key,
-            convert_system_message_to_human=True,  # Better Gemini compatibility
+            convert_system_message_to_human=True,
         )
         
         # Get tools
         self.tools = get_all_tools()
         
-        # Memory (optional)
-        self.memory = MemorySaver() if use_memory else None
-        
-        # Create agent
+        # Create agent (no memory - we use DB history)
         self.agent = create_react_agent(
             model=self.llm,
             tools=self.tools,
-            checkpointer=self.memory,
         )
         
         logger.info(f"ShopAgent initialized with {len(self.tools)} tools")
+    
+    async def _load_chat_history(self, user_id: str, limit: int = 10) -> List[Dict[str, str]]:
+        """Load recent chat history from database."""
+        try:
+            history = await self.db.get_chat_history(user_id, limit=limit)
+            return history or []
+        except Exception as e:
+            logger.warning(f"Failed to load chat history: {e}")
+            return []
+    
+    def _format_history_for_prompt(self, history: List[Dict[str, str]]) -> str:
+        """Format chat history for injection into system prompt."""
+        if not history:
+            return ""
+        
+        lines = ["\n## Recent Conversation History"]
+        for msg in history[-6:]:  # Last 6 messages (3 exchanges)
+            role = msg.get("role", "user")
+            content = msg.get("message", "")[:200]  # Truncate long messages
+            if role == "user":
+                lines.append(f"User: {content}")
+            else:
+                lines.append(f"You: {content}")
+        
+        lines.append("\nUse this context to avoid asking redundant questions.\n")
+        return "\n".join(lines)
     
     async def chat(
         self,
         message: str,
         user_id: str,
         language: str = "en",
-        thread_id: Optional[str] = None,
         telegram_id: Optional[int] = None,
     ) -> AgentResponse:
         """
@@ -110,7 +128,6 @@ class ShopAgent:
             message: User message
             user_id: User database ID
             language: User's language code
-            thread_id: Conversation thread ID (for memory)
             telegram_id: User's Telegram ID (for cart/notifications)
             
         Returns:
@@ -124,34 +141,42 @@ class ShopAgent:
         except Exception as e:
             logger.warning(f"Failed to load catalog: {e}")
         
+        # Load chat history for context
+        history = await self._load_chat_history(user_id, limit=10)
+        history_context = self._format_history_for_prompt(history)
+        
         # Build system prompt
         system_prompt = get_system_prompt(language, product_catalog)
         
-        # Add user context
+        # Add user context and history
         context = f"""
-
+{history_context}
 ## Current User Context
 - user_id: {user_id}
 - telegram_id: {telegram_id or 'unknown'}
 - language: {language}
 
-Use these values when calling tools:
-- For user operations: user_id="{user_id}"
-- For cart operations: user_telegram_id={telegram_id}
-- For notifications: telegram_id={telegram_id}
+When using tools:
+- user_id parameter: use "{user_id}"
+- user_telegram_id parameter: use {telegram_id}
+- telegram_id parameter: use {telegram_id}
 """
         full_system = system_prompt + context
         
-        # Build messages
-        messages = [
-            {"role": "system", "content": full_system},
-            {"role": "user", "content": message},
-        ]
+        # Build messages with history
+        messages = [{"role": "system", "content": full_system}]
         
-        # Config for memory
-        config = {}
-        if thread_id and self.memory:
-            config["configurable"] = {"thread_id": thread_id}
+        # Add recent history as conversation turns
+        for msg in history[-6:]:
+            role = msg.get("role", "user")
+            content = msg.get("message", "")
+            if role == "user":
+                messages.append({"role": "user", "content": content})
+            else:
+                messages.append({"role": "assistant", "content": content})
+        
+        # Add current message
+        messages.append({"role": "user", "content": message})
         
         # Invoke with retry
         max_retries = 2
@@ -159,7 +184,7 @@ Use these values when calling tools:
         
         for attempt in range(max_retries + 1):
             try:
-                result = await self.agent.ainvoke({"messages": messages}, config)
+                result = await self.agent.ainvoke({"messages": messages})
                 return self._parse_result(result)
             except Exception as e:
                 last_error = e
@@ -192,12 +217,12 @@ Use these values when calling tools:
         action = "none"
         product_id = None
         total_amount = None
+        payment_url = None
         
         if last_ai:
             # Handle multimodal content (can be list)
             raw_content = last_ai.content or ""
             if isinstance(raw_content, list):
-                # Extract text from list of content parts
                 parts = []
                 for part in raw_content:
                     if isinstance(part, dict):
@@ -211,7 +236,7 @@ Use these values when calling tools:
             # Get tool calls
             tool_calls = getattr(last_ai, "tool_calls", []) or []
             
-            # Detect action from tool calls
+            # Detect action and extract data from tool calls
             for tc in tool_calls:
                 tool_name = tc.get("name", "")
                 tool_args = tc.get("args", {})
@@ -225,9 +250,9 @@ Use these values when calling tools:
                     action = "create_ticket"
                 elif tool_name == "request_refund":
                     action = "refund_request"
-                elif tool_name == "get_user_cart":
-                    # Check if cart has items
-                    pass
+                elif tool_name == "pay_from_balance":
+                    action = "offer_payment"
+                    # Extract payment URL from tool result if available
         
         # Ensure we have some content
         if not content:
@@ -239,6 +264,7 @@ Use these values when calling tools:
             action=action,
             product_id=product_id,
             total_amount=total_amount,
+            payment_url=payment_url,
         )
 
 
