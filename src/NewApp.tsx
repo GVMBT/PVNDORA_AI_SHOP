@@ -95,8 +95,17 @@ function NewAppInner() {
   const [legalDoc, setLegalDoc] = useState('terms');
   const [paymentResultOrderId, setPaymentResultOrderId] = useState<string | null>(null);
   
-  // Auth State
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  // Auth State - also check storage for already-booted case
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(() => {
+    // If we're already booted, we need to restore auth state
+    // This prevents the flicker when returning from payment redirect
+    if (sessionStorage.get(CACHE.BOOT_STATE_KEY) === 'true') {
+      // Return null to trigger auth re-check
+      return null;
+    }
+    return null;
+  });
+  const [isAuthChecking, setIsAuthChecking] = useState(false);
   
   // Boot State
   const [isBooted, setIsBooted] = useState(() => {
@@ -116,6 +125,50 @@ function NewAppInner() {
   
   // Boot tasks
   const bootTasks = useBootTasks({ getProducts, getCart, getProfile });
+  
+  // Re-check auth when already booted but auth state unknown
+  // This handles the case when user returns from payment redirect
+  useEffect(() => {
+    // Only run if: booted + auth unknown + not already checking
+    if (!isBooted || isAuthenticated !== null || isAuthChecking) return;
+    
+    const checkAuth = async () => {
+      setIsAuthChecking(true);
+      try {
+        const { getTelegramInitData } = await import('./utils/telegram');
+        const initData = getTelegramInitData();
+        
+        if (initData) {
+          setIsAuthenticated(true);
+          setIsAuthChecking(false);
+          return;
+        }
+        
+        const { getSessionToken, verifySessionToken, removeSessionToken } = await import('./utils/auth');
+        const sessionToken = getSessionToken();
+        
+        if (sessionToken) {
+          const result = await verifySessionToken(sessionToken);
+          if (result?.valid) {
+            setIsAuthenticated(true);
+            setIsAuthChecking(false);
+            return;
+          }
+          removeSessionToken();
+        }
+        
+        // No valid auth found
+        setIsAuthenticated(false);
+      } catch (err) {
+        logger.error('[Auth] Re-check failed:', err);
+        setIsAuthenticated(false);
+      } finally {
+        setIsAuthChecking(false);
+      }
+    };
+    
+    checkAuth();
+  }, [isBooted, isAuthenticated, isAuthChecking]);
 
   // Initialize Audio and CMD+K
   useEffect(() => {
@@ -289,8 +342,21 @@ function NewAppInner() {
     return <BootSequence tasks={bootTasks} onComplete={handleBootComplete} minDuration={UI.BOOT_MIN_DURATION} />;
   }
 
-  // Login page
-  if (!isAuthenticated) {
+  // Auth checking state - show loading instead of flashing LoginPage
+  // This prevents the redirect loop when returning from payment
+  if (isAuthenticated === null || isAuthChecking) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-pandora-cyan/30 border-t-pandora-cyan rounded-full animate-spin mx-auto mb-4" />
+          <div className="text-xs text-gray-500 font-mono">VERIFYING_SESSION</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Login page - only show when we're SURE user is not authenticated
+  if (isAuthenticated === false) {
     return <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} botUsername={BOT.USERNAME} redirectPath="/" />;
   }
 
