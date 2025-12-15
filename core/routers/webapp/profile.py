@@ -306,15 +306,15 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
         raise HTTPException(status_code=400, detail=f"Minimum withdrawal is {min_withdrawal_formatted}")
     
     if amount_usd > balance_usd:
-            # Convert balance to user currency for error message
-            try:
-                balance_user_currency = await currency_service.convert_price(balance_usd, withdrawal_currency, round_to_int=True)
-                balance_formatted = currency_service.format_price(balance_user_currency, withdrawal_currency)
-                amount_formatted = currency_service.format_price(request.amount, withdrawal_currency)
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"Insufficient balance. Available: {balance_formatted}, requested: {amount_formatted}"
-                )
+        # Convert balance to user currency for error message
+        try:
+            balance_user_currency = await currency_service.convert_price(balance_usd, withdrawal_currency, round_to_int=True)
+            balance_formatted = currency_service.format_price(balance_user_currency, withdrawal_currency)
+            amount_formatted = currency_service.format_price(request.amount, withdrawal_currency)
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Insufficient balance. Available: {balance_formatted}, requested: {amount_formatted}"
+            )
         except Exception:
             raise HTTPException(status_code=400, detail="Insufficient balance")
     
