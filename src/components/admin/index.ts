@@ -7,6 +7,8 @@ export { default as AdminCatalog } from './AdminCatalog';
 export { default as AdminSales } from './AdminSales';
 export { default as AdminPartners } from './AdminPartners';
 export { default as AdminSupport } from './AdminSupport';
+export { default as AdminPromo } from './AdminPromo';
+export type { PromoCodeData } from './AdminPromo';
 export { default as AdminSidebar } from './AdminSidebar';
 export { default as AdminHeader } from './AdminHeader';
 export { default as ProductModal } from './ProductModal';

@@ -13,7 +13,8 @@ import {
   LifeBuoy, 
   LogOut, 
   Terminal, 
-  Menu 
+  Menu,
+  Tag
 } from 'lucide-react';
 import AdminNavItem from './AdminNavItem';
 import type { AdminView } from './types';
@@ -120,6 +121,16 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
             active={currentView === 'support'} 
             onClick={() => {
               onViewChange('support');
+              onClose();
+            }} 
+            collapsed={isCollapsed} 
+          />
+          <AdminNavItem 
+            icon={<Tag size={18} />} 
+            label="Promo Codes" 
+            active={currentView === 'promo'} 
+            onClick={() => {
+              onViewChange('promo');
               onClose();
             }} 
             collapsed={isCollapsed} 

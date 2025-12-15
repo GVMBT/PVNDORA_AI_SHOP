@@ -17,6 +17,7 @@ import {
   AdminUser,
   AdminAnalytics 
 } from '../../hooks/useApiTyped';
+import { useAdminPromoTyped, PromoCodeData } from '../../hooks/api/useAdminPromoApi';
 import { formatRelativeTime, formatDate } from '../../utils/date';
 
 interface AdminPanelConnectedProps {
@@ -28,6 +29,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
   const { orders, getOrders, loading: ordersLoading } = useAdminOrdersTyped();
   const { users, getUsers, updateUserRole, banUser, loading: usersLoading } = useAdminUsersTyped();
   const { analytics, getAnalytics, loading: analyticsLoading } = useAdminAnalyticsTyped();
+  const { promoCodes, getPromoCodes, createPromoCode, updatePromoCode, deletePromoCode, togglePromoActive } = useAdminPromoTyped();
   
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -38,12 +40,30 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
         getProducts(),
         getOrders(undefined, 50),
         getUsers(50),
-        getAnalytics()
+        getAnalytics(),
+        getPromoCodes()
       ]);
       setIsInitialized(true);
     };
     init();
-  }, [getProducts, getOrders, getUsers, getAnalytics]);
+  }, [getProducts, getOrders, getUsers, getAnalytics, getPromoCodes]);
+  
+  // Promo handlers
+  const handleCreatePromo = useCallback(async (data: Omit<PromoCodeData, 'id' | 'usage_count' | 'created_at'>) => {
+    await createPromoCode(data);
+  }, [createPromoCode]);
+  
+  const handleUpdatePromo = useCallback(async (id: string, data: Partial<PromoCodeData>) => {
+    await updatePromoCode(id, data);
+  }, [updatePromoCode]);
+  
+  const handleDeletePromo = useCallback(async (id: string) => {
+    await deletePromoCode(id);
+  }, [deletePromoCode]);
+  
+  const handleTogglePromoActive = useCallback(async (id: string, isActive: boolean) => {
+    await togglePromoActive(id, isActive);
+  }, [togglePromoActive]);
 
   // Loading state
   if (!isInitialized) {
@@ -119,6 +139,11 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       orders={transformedOrders}
       users={transformedUsers}
       stats={transformedStats}
+      promoCodes={promoCodes}
+      onCreatePromo={handleCreatePromo}
+      onUpdatePromo={handleUpdatePromo}
+      onDeletePromo={handleDeletePromo}
+      onTogglePromoActive={handleTogglePromoActive}
     />
   );
 };

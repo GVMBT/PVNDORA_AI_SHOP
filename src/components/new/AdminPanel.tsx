@@ -12,6 +12,7 @@ import {
   AdminSales,
   AdminPartners,
   AdminSupport,
+  AdminPromo,
   AdminSidebar,
   AdminHeader,
   ProductModal,
@@ -22,6 +23,7 @@ import {
   type UserData,
   type TicketData,
   type AdminStats,
+  type PromoCodeData,
 } from '../admin';
 import { logger } from '../../utils/logger';
 
@@ -33,6 +35,11 @@ interface AdminPanelProps {
   users?: UserData[];
   tickets?: TicketData[];
   stats?: AdminStats;
+  promoCodes?: PromoCodeData[];
+  onCreatePromo?: (data: Omit<PromoCodeData, 'id' | 'usage_count' | 'created_at'>) => Promise<void>;
+  onUpdatePromo?: (id: string, data: Partial<PromoCodeData>) => Promise<void>;
+  onDeletePromo?: (id: string) => Promise<void>;
+  onTogglePromoActive?: (id: string, isActive: boolean) => Promise<void>;
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
@@ -42,6 +49,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   users: propsUsers = [],
   tickets: propsTickets = [],
   stats: propsStats,
+  promoCodes: propsPromoCodes = [],
+  onCreatePromo,
+  onUpdatePromo,
+  onDeletePromo,
+  onTogglePromoActive,
 }) => {
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -109,6 +121,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         );
       case 'support':
         return <AdminSupport tickets={propsTickets} />;
+      case 'promo':
+        return (
+          <AdminPromo
+            promoCodes={propsPromoCodes}
+            onCreatePromo={onCreatePromo}
+            onUpdatePromo={onUpdatePromo}
+            onDeletePromo={onDeletePromo}
+            onToggleActive={onTogglePromoActive}
+          />
+        );
       default:
         return null;
     }

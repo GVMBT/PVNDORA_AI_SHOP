@@ -70,7 +70,7 @@ export interface AdminStats {
   activeUsers: number;
 }
 
-export type AdminView = 'dashboard' | 'catalog' | 'sales' | 'partners' | 'support';
+export type AdminView = 'dashboard' | 'catalog' | 'sales' | 'partners' | 'support' | 'promo';
 
 
 
