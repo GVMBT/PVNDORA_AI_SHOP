@@ -43,7 +43,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       setIsInitialized(true);
     };
     init();
-  }, [getProfile, updateFromProfile]);
+  }, [getProfile, updateFromProfile]);          
 
   const handleCopyLink = useCallback(async () => {
     if (!profile?.referralLink) return;
@@ -146,9 +146,11 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       // Update preferences via API (in background)
       const result = await updatePreferences(preferred_currency, interface_language);
       
-      // Re-fetch profile ONCE to get converted amounts (after DB is updated)
-      // No delay needed - API call itself takes time, DB will be ready
-      await getProfile();
+      // Only re-fetch profile if currency changed (to get converted balance)
+      // Language change doesn't require profile reload - it's just UI text
+      if (preferred_currency && preferred_currency !== profile?.currency) {
+        await getProfile();
+      }
       
       return result;
     } catch (error) {
