@@ -17,7 +17,7 @@ from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import MemorySaver
 
 from core.agent.tools import get_all_tools, set_db
-from core.agent.prompts import get_system_prompt
+from core.agent.prompts import get_system_prompt, format_product_catalog
 from core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -114,8 +114,16 @@ class ShopAgent:
         Returns:
             AgentResponse with content and metadata
         """
+        # Load product catalog for context
+        try:
+            products = await self.db.get_products(status="active")
+            product_catalog = format_product_catalog(products)
+        except Exception as e:
+            logger.warning(f"Failed to load catalog: {e}")
+            product_catalog = ""
+        
         # Build system prompt with user context
-        system_prompt = get_system_prompt(language)
+        system_prompt = get_system_prompt(language, product_catalog)
         
         # Add user context for tools
         context = f"""
@@ -175,7 +183,15 @@ When using cart tools that require user_telegram_id, use: {telegram_id}
         total_amount = None
         
         if last_ai_message:
-            content = last_ai_message.content or ""
+            raw_content = last_ai_message.content or ""
+            # Handle multimodal content (list) - extract text parts
+            if isinstance(raw_content, list):
+                content = " ".join(
+                    part.get("text", "") if isinstance(part, dict) else str(part)
+                    for part in raw_content
+                )
+            else:
+                content = str(raw_content)
             tool_calls = getattr(last_ai_message, "tool_calls", []) or []
             
             # Detect action from tool calls
