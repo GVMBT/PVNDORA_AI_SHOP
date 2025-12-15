@@ -169,23 +169,21 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
             </div>
           </div>
 
-          {/* Reward Toggle */}
-          {user.isVip && (
-            <div className="mt-4 flex items-center justify-between text-[10px] font-mono text-gray-500 border-t border-white/5 pt-3">
-              <span>REWARD PREFERENCE:</span>
-              <button 
-                onClick={onToggleRewardMode}
-                className={`flex items-center gap-2 font-bold px-3 py-1 border rounded-sm transition-colors ${
-                  rewardMode === 'cash' 
-                    ? 'border-green-500 text-green-500 bg-green-500/10' 
-                    : 'border-purple-500 text-purple-500 bg-purple-500/10'
-                }`}
-              >
-                {rewardMode === 'cash' ? <><Wallet size={12} /> CASH_OUT</> : <><Percent size={12} /> DISCOUNT</>}
-                <RefreshCw size={12} className="ml-1 opacity-50" />
-              </button>
-            </div>
-          )}
+          {/* Reward Toggle - shown for all users with referrals */}
+          <div className="mt-4 flex items-center justify-between text-[10px] font-mono text-gray-500 border-t border-white/5 pt-3">
+            <span>REWARD_PREFERENCE:</span>
+            <button 
+              onClick={onToggleRewardMode}
+              className={`flex items-center gap-2 font-bold px-3 py-1 border rounded-sm transition-colors ${
+                rewardMode === 'cash' 
+                  ? 'border-green-500 text-green-500 bg-green-500/10' 
+                  : 'border-purple-500 text-purple-500 bg-purple-500/10'
+              }`}
+            >
+              {rewardMode === 'cash' ? <><Wallet size={12} /> CASH_OUT</> : <><Percent size={12} /> DISCOUNT</>}
+              <RefreshCw size={12} className="ml-1 opacity-50" />
+            </button>
+          </div>
 
           {/* Language & Currency Settings */}
           {onUpdatePreferences && (
@@ -226,13 +224,21 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
                   <div className="flex gap-1">
                     <button
                       onClick={() => handleLanguageChange('ru')}
-                      className="px-2 py-1 text-[9px] font-mono border border-white/10 text-gray-500 hover:border-white/20 rounded-sm transition-colors"
+                      className={`px-2 py-1 text-[9px] font-mono border rounded-sm transition-colors ${
+                        user.language === 'ru' 
+                          ? 'border-pandora-cyan text-pandora-cyan bg-pandora-cyan/10' 
+                          : 'border-white/10 text-gray-500 hover:border-white/20'
+                      }`}
                     >
                       RU
                     </button>
                     <button
                       onClick={() => handleLanguageChange('en')}
-                      className="px-2 py-1 text-[9px] font-mono border border-white/10 text-gray-500 hover:border-white/20 rounded-sm transition-colors"
+                      className={`px-2 py-1 text-[9px] font-mono border rounded-sm transition-colors ${
+                        user.language === 'en' || !user.language
+                          ? 'border-pandora-cyan text-pandora-cyan bg-pandora-cyan/10' 
+                          : 'border-white/10 text-gray-500 hover:border-white/20'
+                      }`}
                     >
                       EN
                     </button>

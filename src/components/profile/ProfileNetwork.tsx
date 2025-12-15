@@ -91,7 +91,19 @@ const ProfileNetwork: React.FC<ProfileNetworkProps> = ({
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-white text-sm">{node.handle}</span>
+                          {node.handle.startsWith('@') ? (
+                            <a 
+                              href={`https://t.me/${node.handle.slice(1)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-bold text-white text-sm hover:text-pandora-cyan transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {node.handle}
+                            </a>
+                          ) : (
+                            <span className="font-bold text-white text-sm">{node.handle}</span>
+                          )}
                           {node.rank && (
                             <span className={`text-[8px] px-1 rounded-sm border ${
                               node.rank === 'ARCHITECT' ? 'border-yellow-500 text-yellow-500' : 

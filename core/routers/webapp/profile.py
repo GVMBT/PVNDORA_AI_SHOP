@@ -164,7 +164,7 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
                 lambda: db.client.table("balance_transactions")
                 .select("*")
                 .eq("user_id", db_user.id)
-                .eq("status", "delivered")
+                .in_("status", ["completed", "delivered"])
                 .order("created_at", desc=True)
                 .limit(50)
                 .execute()

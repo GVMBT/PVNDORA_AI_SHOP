@@ -199,6 +199,7 @@ export function adaptProfile(
     networkTree: [], // Populated via adaptReferralNetwork call
     billingLogs,
     currency: profile.currency,
+    language: profile.interface_language || 'en',
     photoUrl,
   };
 }

@@ -169,6 +169,7 @@ export interface ProfileData {
   networkTree: NetworkNode[];
   billingLogs: BillingLog[];
   currency: string;
+  language: string;
   photoUrl?: string;
 }
 
