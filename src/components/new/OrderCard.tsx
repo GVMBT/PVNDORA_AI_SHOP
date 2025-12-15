@@ -93,6 +93,7 @@ export interface OrderData {
   status: 'paid' | 'processing' | 'refunded';
   items: OrderItemData[];
   payment_url?: string | null;
+  deadline?: string | null;  // Payment deadline for pending orders
   rawStatus?: RawOrderStatus;
   paymentConfirmed?: boolean;
   statusMessage?: string;
