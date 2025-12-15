@@ -487,11 +487,10 @@ function NewAppInner() {
 
 // Main App with providers
 function NewApp() {
-  // Load profile early to initialize LocaleProvider with user preferences
-  const { profile } = useProfileTyped();
-  
+  // Initialize LocaleProvider first (without profile, will use defaults)
+  // Profile will be loaded inside NewAppInner and context will be updated
   return (
-    <LocaleProvider initialProfile={profile || null}>
+    <LocaleProvider>
       <HUDProvider position="top-right" maxNotifications={UI.HUD_MAX_NOTIFICATIONS} defaultDuration={UI.HUD_DURATION}>
         <CyberModalProvider>
           <NewAppInner />
