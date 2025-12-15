@@ -35,21 +35,15 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
 
   useEffect(() => {
     const init = async () => {
-      await getProfile();
+      const fetchedProfile = await getProfile();
+      if (fetchedProfile) {
+        // Initialize context from profile only on first load
+        updateFromProfile(fetchedProfile);
+      }
       setIsInitialized(true);
     };
     init();
-  }, [getProfile]);
-
-  // Update locale context when profile changes
-  useEffect(() => {
-    if (profile) {
-      updateFromProfile(profile);
-    }
-  }, [profile, updateFromProfile]);
-
-  // Note: Profile re-fetch is handled in handleUpdatePreferences after API update
-  // No need for separate useEffect - it causes race conditions with DB updates
+  }, [getProfile, updateFromProfile]);
 
   const handleCopyLink = useCallback(async () => {
     if (!profile?.referralLink) return;
@@ -140,30 +134,36 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
 
   // CRITICAL: All hooks must be called BEFORE any conditional returns
   const handleUpdatePreferences = useCallback(async (preferred_currency?: string, interface_language?: string) => {
+    // Optimistic update: change context IMMEDIATELY (UI updates right away)
+    if (preferred_currency) {
+      setCurrency(preferred_currency as 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED');
+    }
+    if (interface_language) {
+      setLocale(interface_language as 'en' | 'ru' | 'uk' | 'de' | 'fr' | 'es' | 'tr' | 'ar' | 'hi');
+    }
+    
     try {
-      // Update preferences via API first (wait for DB commit)
+      // Update preferences via API (in background)
       const result = await updatePreferences(preferred_currency, interface_language);
       
-      // Only update context AFTER successful API update
-      // This ensures DB is updated before we change UI state
-      if (preferred_currency) {
-        setCurrency(preferred_currency as 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED');
-      }
-      if (interface_language) {
-        setLocale(interface_language as 'en' | 'ru' | 'uk' | 'de' | 'fr' | 'es' | 'tr' | 'ar' | 'hi');
-      }
-      
-      // Re-fetch profile to get converted amounts
-      // Wait a bit longer to ensure DB transaction is committed
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Re-fetch profile ONCE to get converted amounts (after DB is updated)
+      // No delay needed - API call itself takes time, DB will be ready
       await getProfile();
       
       return result;
     } catch (error) {
-      // If update fails, don't change context or reload
+      // Rollback on error: restore previous currency/language from profile
+      if (profile) {
+        if (preferred_currency) {
+          setCurrency(profile.currency as 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED');
+        }
+        if (interface_language) {
+          setLocale((profile.language || 'en') as 'en' | 'ru' | 'uk' | 'de' | 'fr' | 'es' | 'tr' | 'ar' | 'hi');
+        }
+      }
       throw error;
     }
-  }, [updatePreferences, setCurrency, setLocale, getProfile]);
+  }, [updatePreferences, setCurrency, setLocale, getProfile, profile]);
 
   // Loading state
   if (!isInitialized || loading) {
