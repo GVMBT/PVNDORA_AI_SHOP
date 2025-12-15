@@ -779,25 +779,21 @@ async def _create_cart_order(
                 detail="Ошибка списания с баланса. Попробуйте позже."
             )
         
-        # Обновляем статус заказа на "paid" (оплачен) через централизованный сервис
+        # Обновляем статус заказа через централизованный сервис
+        # mark_payment_confirmed проверяет сток и устанавливает 'paid' или 'prepaid'
         try:
             from core.orders.status_service import OrderStatusService
             status_service = OrderStatusService(db)
-            await status_service.update_status(
+            final_status = await status_service.mark_payment_confirmed(
                 order_id=order.id,
-                new_status="paid",
-                reason="Balance payment confirmed",
-                check_transition=False
+                payment_id=f"balance-{order.id}",
+                check_stock=True  # CRITICAL: Check stock even for balance payments!
             )
-            # Update payment_id separately
-            await asyncio.to_thread(
-                lambda: db.client.table("orders")
-                .update({"payment_id": f"balance-{order.id}"})
-                .eq("id", order.id)
-                .execute()
-            )
+            logger.info(f"Balance payment confirmed for order {order.id}, final_status={final_status}")
         except Exception as e:
-            logger.warning(f"Failed to update order status to paid for {order.id}: {e}")
+            logger.error(f"Failed to mark payment confirmed for balance order {order.id}: {e}", exc_info=True)
+            # Don't fail the request - order is created and balance is deducted
+            # Status will be corrected later or delivery will handle it
         
         # Запускаем доставку через QStash (асинхронно, не блокируем ответ)
         try:
@@ -808,7 +804,7 @@ async def _create_cart_order(
                 retries=2,
                 deduplication_id=f"deliver-{order.id}"
             )
-            logger.info(f"Delivery queued for balance-paid order {order.id}")
+            logger.info(f"Delivery queued for balance payment order {order.id} (status: {final_status})")
         except Exception as e:
             # Если QStash недоступен, доставляем напрямую
             logger.warning(f"QStash failed for balance order {order.id}, trying direct delivery: {e}")

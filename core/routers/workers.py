@@ -46,8 +46,11 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
                 logger.warning(f"deliver-goods: Order {order_id} is still PENDING - payment not confirmed. Skipping delivery.")
                 return {"delivered": 0, "waiting": 0, "note": "payment_not_confirmed", "error": "Order payment not confirmed yet"}
             
-            # For balance payments, status should be 'paid' (set during order creation)
-            # For external payments, status should be 'prepaid' or 'paid' (set by webhook)
+            # Valid statuses for delivery:
+            # - 'paid': Payment confirmed + stock available (balance or external)
+            # - 'prepaid': Payment confirmed + stock unavailable (balance or external)
+            # - 'partial': Some items delivered
+            # - 'delivered': All items delivered
             if order_status not in ("paid", "prepaid", "partial", "delivered"):
                 logger.warning(f"deliver-goods: Order {order_id} has invalid status '{order_status}' for delivery. Skipping.")
                 return {"delivered": 0, "waiting": 0, "note": "invalid_status", "error": f"Order status '{order_status}' is not valid for delivery"}
