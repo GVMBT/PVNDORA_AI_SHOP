@@ -50,9 +50,18 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
 
   // Re-fetch profile when currency changes in context (to get converted amounts)
   // This ensures balance is recalculated when user changes currency in settings
-  const prevCurrencyRef = useRef<string | undefined>(profile?.currency);
+  const prevCurrencyRef = useRef<string | undefined>(undefined);
+  
+  // Initialize ref when profile is first loaded
   useEffect(() => {
-    if (isInitialized && profile && prevCurrencyRef.current !== contextCurrency) {
+    if (profile && prevCurrencyRef.current === undefined) {
+      prevCurrencyRef.current = profile.currency;
+    }
+  }, [profile]);
+  
+  // Re-fetch when currency changes
+  useEffect(() => {
+    if (isInitialized && profile && prevCurrencyRef.current && prevCurrencyRef.current !== contextCurrency) {
       // Currency changed in context, re-fetch profile to get converted amounts
       prevCurrencyRef.current = contextCurrency;
       getProfile();
