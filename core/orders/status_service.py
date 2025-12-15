@@ -144,12 +144,12 @@ class OrderStatusService:
         """
         logger.info(f"[mark_payment_confirmed] Called for order_id={order_id}, payment_id={payment_id}, check_stock={check_stock}")
         
-        # Get order info
+            # Get order info
         try:
             logger.info(f"[mark_payment_confirmed] Fetching order {order_id} from DB...")
             order_result = await asyncio.to_thread(
                 lambda: self.db.client.table("orders")
-                .select("status, order_type, payment_method")
+                .select("status, order_type, payment_method, user_id, amount")
                 .eq("id", order_id)
                 .single()
                 .execute()
@@ -162,6 +162,8 @@ class OrderStatusService:
             current_status = order_result.data.get("status", "").lower()
             order_type = order_result.data.get("order_type", "instant")
             payment_method = order_result.data.get("payment_method", "")
+            user_id = order_result.data.get("user_id")
+            order_amount = order_result.data.get("amount", 0)
             
             logger.info(f"[mark_payment_confirmed] Order {order_id}: current_status={current_status}, order_type={order_type}, payment_method={payment_method}")
             
@@ -200,6 +202,58 @@ class OrderStatusService:
             
             if not update_result:
                 logger.error(f"[mark_payment_confirmed] FAILED to update order {order_id} status to {final_status}!")
+            
+            # Create balance_transaction record for purchase (for system_log visibility)
+            # Only for external payments (not balance) - balance payments already create records via add_to_user_balance
+            if payment_method and payment_method.lower() != "balance" and user_id and order_amount:
+                try:
+                    # Check if transaction already exists (idempotency)
+                    existing_tx = await asyncio.to_thread(
+                        lambda: self.db.client.table("balance_transactions")
+                        .select("id")
+                        .eq("user_id", user_id)
+                        .eq("type", "purchase")
+                        .eq("description", f"Purchase: Order {order_id}")
+                        .limit(1)
+                        .execute()
+                    )
+                    
+                    if not existing_tx.data:
+                        # Get user's current balance and currency for logging
+                        user_result = await asyncio.to_thread(
+                            lambda: self.db.client.table("users")
+                            .select("balance, preferred_currency")
+                            .eq("id", user_id)
+                            .single()
+                            .execute()
+                        )
+                        current_balance = float(user_result.data.get("balance", 0)) if user_result.data else 0
+                        user_currency = user_result.data.get("preferred_currency", "RUB") if user_result.data else "RUB"
+                        
+                        # Create purchase transaction record
+                        await asyncio.to_thread(
+                            lambda: self.db.client.table("balance_transactions").insert({
+                                "user_id": user_id,
+                                "type": "purchase",
+                                "amount": float(order_amount),
+                                "currency": user_currency,
+                                "balance_before": current_balance,
+                                "balance_after": current_balance,  # Balance doesn't change for external payments
+                                "status": "completed",
+                                "description": f"Purchase: Order {order_id}",
+                                "metadata": {
+                                    "order_id": order_id,
+                                    "payment_method": payment_method,
+                                    "payment_id": payment_id
+                                }
+                            }).execute()
+                        )
+                        logger.info(f"[mark_payment_confirmed] Created balance_transaction for purchase order {order_id}")
+                    else:
+                        logger.info(f"[mark_payment_confirmed] balance_transaction already exists for order {order_id}, skipping")
+                except Exception as e:
+                    logger.warning(f"Failed to create balance_transaction for order {order_id}: {e}")
+                    # Non-critical - don't fail the payment confirmation
             
             # Set fulfillment deadline for prepaid orders
             if final_status == "prepaid":

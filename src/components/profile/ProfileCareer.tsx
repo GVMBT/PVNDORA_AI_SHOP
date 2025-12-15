@@ -7,6 +7,7 @@
 import React, { memo } from 'react';
 import { ShieldCheck, Wifi, Radio, Crown } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useLocale } from '../../hooks/useLocale';
 import type { CareerLevelData } from './types';
 
 interface ProfileCareerProps {
@@ -24,6 +25,8 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
   maxTurnover,
   progressPercent,
 }) => {
+  const { currency, formatPrice } = useLocale();
+  
   return (
     <div className="mb-12">
       <h3 className="text-xs font-mono text-gray-500 uppercase mb-4 flex items-center gap-2">
@@ -40,7 +43,7 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
               {currentLevel.id === 1 ? <Wifi size={18} /> : currentLevel.id === 2 ? <Radio size={18} /> : <Crown size={18} />}
             </div>
             <div className="text-[10px] text-gray-600 mt-1 font-mono">
-              Turnover: <span className="text-white font-bold">{currentTurnover}$</span> / {maxTurnover}$
+              Turnover: <span className="text-white font-bold">{formatPrice(currentTurnover, currency)}</span> {maxTurnover !== Infinity ? `/ ${formatPrice(maxTurnover, currency)}` : ''}
             </div>
           </div>
 
@@ -61,8 +64,8 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
             </div>
             {/* Markers */}
             <div className="flex justify-between text-[9px] font-mono text-gray-600 mt-2 absolute w-full bottom-0 md:static">
-              <span>{currentLevel.min}$</span>
-              {nextLevel ? <span>NEXT: {nextLevel.label} ({nextLevel.min}$)</span> : <span>MAX LEVEL</span>}
+              <span>{formatPrice(currentLevel.min, currency)}</span>
+              {nextLevel ? <span>NEXT: {nextLevel.label} ({formatPrice(nextLevel.min, currency)})</span> : <span>MAX LEVEL</span>}
             </div>
           </div>
 
@@ -84,6 +87,7 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
 };
 
 export default memo(ProfileCareer);
+
 
 
 

@@ -103,14 +103,20 @@ SET total_referral_earnings = COALESCE((
     AND rb.eligible = true
 ), 0);
 
--- 3.3. Пересчитать turnover_usd на основе реальных заказов рефералов
+-- 3.3. Пересчитать turnover_usd: собственные заказы + заказы рефералов
 UPDATE users u
 SET turnover_usd = COALESCE((
-  SELECT SUM(o.amount)
-  FROM orders o
-  JOIN users r ON r.id = o.user_id
+  -- Собственные доставленные заказы
+  SELECT SUM(o1.amount)
+  FROM orders o1
+  WHERE o1.user_id = u.id AND o1.status = 'delivered'
+), 0) + COALESCE((
+  -- Доставленные заказы рефералов
+  SELECT SUM(o2.amount)
+  FROM orders o2
+  JOIN users r ON r.id = o2.user_id
   WHERE r.referrer_id = u.id 
-    AND o.status = 'delivered'
+    AND o2.status = 'delivered'
 ), 0);
 
 COMMIT;

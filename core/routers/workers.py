@@ -318,7 +318,7 @@ async def worker_calculate_referral(request: Request):
     QStash Worker: Calculate and apply referral bonuses.
     
     Logic:
-    1. Update buyer's turnover (in USD) - this may unlock new levels
+    1. Update buyer's turnover (in USD) - recalculates as own orders + referral orders (may unlock new levels)
     2. Check if referral program should be unlocked (first purchase)
     3. Process referral bonuses - ONLY for levels that referrer has unlocked
     """
@@ -345,7 +345,8 @@ async def worker_calculate_referral(request: Request):
     telegram_id = order.data.get("user_telegram_id")
     was_unlocked = order.data.get("users", {}).get("referral_program_unlocked", False)
     
-    # 1. Update buyer's turnover in USD (this may trigger level unlocks)
+    # 1. Update buyer's turnover in USD (recalculates: own delivered orders + referral delivered orders)
+    #    This may trigger level unlocks
     turnover_result = db.client.rpc("update_user_turnover", {
         "p_user_id": user_id,
         "p_amount_rub": amount,
@@ -672,7 +673,7 @@ async def worker_process_refund(request: Request):
     QStash Worker: Process refund for prepaid orders.
     
     Also handles:
-    - Rollback of turnover (user loses referral progress)
+    - Rollback of turnover (recalculates: own orders + referral orders, excluding refunded order)
     - Revoke referral bonuses paid for this order
     """
     data = await verify_qstash(request)

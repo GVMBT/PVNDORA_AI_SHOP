@@ -33,6 +33,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   const [shareLoading, setShareLoading] = useState(false);
   const { copy: copyToClipboard } = useClipboard();
 
+  // Initial load
   useEffect(() => {
     const init = async () => {
       const fetchedProfile = await getProfile();
@@ -43,7 +44,33 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       setIsInitialized(true);
     };
     init();
-  }, [getProfile, updateFromProfile]);          
+  }, [getProfile, updateFromProfile]);
+
+  // Auto-refresh profile when page becomes visible (handles returning from Telegram notifications)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isInitialized) {
+        // Refresh profile when user returns to the page (might have received level up notification)
+        getProfile();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isInitialized, getProfile]);
+
+  // Periodic refresh while page is visible (every 30 seconds)
+  useEffect(() => {
+    if (!isInitialized) return;
+    
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        getProfile();
+      }
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [isInitialized, getProfile]);          
 
   const handleCopyLink = useCallback(async () => {
     if (!profile?.referralLink) return;
@@ -207,13 +234,34 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       return profile;
     }
     
-    // Convert USD amounts to current currency
+    // Convert USD amounts to current currency (including turnover)
+    const convertedTurnover = convertUsdToCurrency(profile.career.currentTurnover, currentCurrency, exchangeRate);
+    const convertedMaxTurnover = profile.career.nextLevel 
+      ? convertUsdToCurrency(profile.career.nextLevel.min, currentCurrency, exchangeRate)
+      : profile.career.currentLevel.max === Infinity 
+        ? Infinity 
+        : convertUsdToCurrency(profile.career.currentLevel.max, currentCurrency, exchangeRate);
+    
     return {
       ...profile,
       balance: convertUsdToCurrency(profile.balanceUsd || profile.balance, currentCurrency, exchangeRate),
       earnedRef: convertUsdToCurrency(profile.earnedRefUsd || profile.earnedRef, currentCurrency, exchangeRate),
       saved: convertUsdToCurrency(profile.savedUsd || profile.saved, currentCurrency, exchangeRate),
       currency: currentCurrency,
+      career: {
+        ...profile.career,
+        currentTurnover: convertedTurnover,
+        currentLevel: {
+          ...profile.career.currentLevel,
+          min: convertUsdToCurrency(profile.career.currentLevel.min, currentCurrency, exchangeRate),
+          max: profile.career.currentLevel.max === Infinity ? Infinity : convertUsdToCurrency(profile.career.currentLevel.max, currentCurrency, exchangeRate),
+        },
+        nextLevel: profile.career.nextLevel ? {
+          ...profile.career.nextLevel,
+          min: convertUsdToCurrency(profile.career.nextLevel.min, currentCurrency, exchangeRate),
+          max: profile.career.nextLevel.max === Infinity ? Infinity : convertUsdToCurrency(profile.career.nextLevel.max, currentCurrency, exchangeRate),
+        } : undefined,
+      },
     };
   }, [profile, contextCurrency, convertUsdToCurrency]);
 
