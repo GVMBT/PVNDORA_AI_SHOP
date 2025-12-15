@@ -173,18 +173,13 @@ class OrderStatusService:
                 logger.info(f"Order {order_id} already in status '{current_status}' (idempotency check), skipping")
                 return current_status
             
-            # Balance payments are always 'paid' (already deducted)
-            if payment_method == "balance":
-                logger.info("[mark_payment_confirmed] Balance payment, setting to 'paid'")
-                await self.update_status(order_id, "paid", "Balance payment confirmed", check_transition=False)
-                return "paid"
-            
-            # For external payments, check stock availability
+            # Check stock availability for ALL payment methods (including balance)
+            # Balance payment doesn't mean stock is available!
             if check_stock:
                 logger.info("[mark_payment_confirmed] Checking stock availability...")
                 has_stock = await self._check_stock_availability(order_id)
                 final_status = "paid" if has_stock else "prepaid"
-                logger.info(f"[mark_payment_confirmed] has_stock={has_stock}, final_status={final_status}")
+                logger.info(f"[mark_payment_confirmed] has_stock={has_stock}, final_status={final_status}, payment_method={payment_method}")
             else:
                 # If not checking stock, default to 'prepaid' for safety
                 final_status = "prepaid"
@@ -231,7 +226,11 @@ class OrderStatusService:
             raise
     
     async def _check_stock_availability(self, order_id: str) -> bool:
-        """Check if order has available stock for instant delivery."""
+        """Check if order has available stock for instant delivery.
+        
+        IMPORTANT: Checks REAL stock availability, not just fulfillment_type.
+        Even if item was created as 'instant', stock might be gone by payment time.
+        """
         try:
             # Get order items
             items_result = await asyncio.to_thread(
@@ -244,21 +243,26 @@ class OrderStatusService:
             if not items_result.data:
                 return False
             
-            # Check if any instant item has stock
-            for item in items_result.data:
-                if item.get("fulfillment_type") == "instant":
-                    product_id = item.get("product_id")
-                    stock_check = await asyncio.to_thread(
-                        lambda pid=product_id: self.db.client.table("stock_items")
-                        .select("id")
-                        .eq("product_id", pid)
-                        .eq("status", "available")
-                        .limit(1)
-                        .execute()
-                    )
-                    if stock_check.data:
-                        return True
+            # Check REAL stock availability for each product
+            # Don't trust fulfillment_type - check actual stock_items table
+            product_ids = list({item.get("product_id") for item in items_result.data if item.get("product_id")})
             
+            for product_id in product_ids:
+                # Check if product has ANY available stock right now
+                stock_check = await asyncio.to_thread(
+                    lambda pid=product_id: self.db.client.table("stock_items")
+                    .select("id")
+                    .eq("product_id", pid)
+                    .eq("status", "available")
+                    .eq("is_sold", False)
+                    .limit(1)
+                    .execute()
+                )
+                if stock_check.data:
+                    # At least one product has stock
+                    return True
+            
+            # No stock available for any product
             return False
         except Exception as e:
             logger.error(f"Failed to check stock availability for {order_id}: {e}")
