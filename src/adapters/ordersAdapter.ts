@@ -215,9 +215,10 @@ export function adaptOrder(apiOrder: APIOrder, currency: string = 'USD'): Order 
   // Handle orders with items array (multi-item orders)
   if (apiOrder.items && apiOrder.items.length > 0) {
     // Determine deadline for pending orders
+    // Pass ISO string directly for PaymentCountdown to parse correctly
     let orderDeadline: string | null = null;
     if (rawStatus === 'pending' && apiOrder.expires_at) {
-      orderDeadline = formatDateWithTimezone(apiOrder.expires_at);
+      orderDeadline = apiOrder.expires_at; // ISO string for reliable parsing
     }
     
     return {
@@ -245,15 +246,16 @@ export function adaptOrder(apiOrder: APIOrder, currency: string = 'USD'): Order 
   
   // Handle legacy single-item orders
   // Determine deadline based on status
+  // Pass ISO string directly for PaymentCountdown to parse correctly
   let deadline: string | null = null;
   
   if (rawStatus === 'pending' && apiOrder.expires_at) {
-    // For pending orders, show payment deadline
-    deadline = formatDateWithTimezone(apiOrder.expires_at);
+    // For pending orders, show payment deadline (ISO string)
+    deadline = apiOrder.expires_at;
   } else if (['prepaid', 'fulfilling', 'paid'].includes(rawStatus)) {
     // For prepaid/processing orders, show delivery deadline if available
     if (apiOrder.fulfillment_deadline) {
-      deadline = formatDateWithTimezone(apiOrder.fulfillment_deadline);
+      deadline = apiOrder.fulfillment_deadline; // ISO string
     }
     // If no fulfillment_deadline, deadline stays null (UI will show "Ожидание")
   }

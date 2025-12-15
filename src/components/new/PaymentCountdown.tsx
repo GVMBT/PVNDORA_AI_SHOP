@@ -18,14 +18,15 @@ export function PaymentCountdown({ deadline }: PaymentCountdownProps) {
   useEffect(() => {
     const updateTimer = () => {
       try {
-        // Parse deadline (format: "DD.MM.YY, HH:MM:SS (UTC+3)" or ISO string)
-        let deadlineDate: Date;
-        if (deadline.includes('UTC') || deadline.includes('GMT')) {
-          // Parse formatted date string - extract just the date/time part
-          const dateStr = deadline.replace(/ \(.*\)$/, '').replace(',', '');
-          deadlineDate = new Date(dateStr);
-        } else {
-          deadlineDate = new Date(deadline);
+        // Parse ISO string (expires_at from API)
+        // Format: "2025-12-15T16:53:41.123456+00:00" or "2025-12-15T16:53:41Z"
+        const deadlineDate = new Date(deadline);
+
+        // Validate date
+        if (isNaN(deadlineDate.getTime())) {
+          console.error('PaymentCountdown: Invalid date', deadline);
+          setTimeLeft('--:--');
+          return;
         }
 
         const now = new Date();
@@ -37,8 +38,9 @@ export function PaymentCountdown({ deadline }: PaymentCountdownProps) {
           return;
         }
 
-        const minutes = Math.floor(diff / 60000);
-        const seconds = Math.floor((diff % 60000) / 1000);
+        const totalSeconds = Math.floor(diff / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
         
         if (minutes > 0) {
           setTimeLeft(`${minutes}m ${seconds}s`);
@@ -46,6 +48,7 @@ export function PaymentCountdown({ deadline }: PaymentCountdownProps) {
           setTimeLeft(`${seconds}s`);
         }
       } catch (e) {
+        console.error('PaymentCountdown error:', e, 'deadline:', deadline);
         setTimeLeft('--:--');
       }
     };
