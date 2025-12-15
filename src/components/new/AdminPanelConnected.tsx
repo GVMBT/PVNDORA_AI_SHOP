@@ -20,6 +20,7 @@ import {
 import { useAdminPromoTyped, PromoCodeData } from '../../hooks/api/useAdminPromoApi';
 import { useAdmin } from '../../hooks/useAdmin';
 import { formatRelativeTime, formatDate } from '../../utils/date';
+import { logger } from '../../utils/logger';
 import type { TicketData } from '../admin/types';
 
 interface AdminPanelConnectedProps {
@@ -46,24 +47,54 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       }
     } catch (err) {
       logger.error('Failed to fetch tickets', err);
+      // Set empty array on error to prevent infinite loading
+      setTickets([]);
     }
   }, [getTickets]);
 
-  // Initial data fetch
+  // Initial data fetch - only run once on mount
   useEffect(() => {
+    let isMounted = true;
+    
     const init = async () => {
-      await Promise.all([
-        getProducts(),
-        getOrders(undefined, 50),
-        getUsers(50),
-        getAnalytics(),
-        getPromoCodes(),
-        fetchTickets()
-      ]);
-      setIsInitialized(true);
+      try {
+        // Use Promise.allSettled to continue even if some requests fail
+        const results = await Promise.allSettled([
+          getProducts(),
+          getOrders(undefined, 50),
+          getUsers(50),
+          getAnalytics(),
+          getPromoCodes(),
+          fetchTickets()
+        ]);
+        
+        // Log any failures
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            const names = ['products', 'orders', 'users', 'analytics', 'promoCodes', 'tickets'];
+            logger.error(`Failed to fetch ${names[index]}:`, result.reason);
+          }
+        });
+        
+        if (isMounted) {
+          setIsInitialized(true);
+        }
+      } catch (err) {
+        logger.error('Failed to initialize admin panel', err);
+        // Set initialized even on error to prevent infinite loading
+        if (isMounted) {
+          setIsInitialized(true);
+        }
+      }
     };
+    
     init();
-  }, [getProducts, getOrders, getUsers, getAnalytics, getPromoCodes, fetchTickets]);
+    
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount
   
   // Promo handlers
   const handleCreatePromo = useCallback(async (data: Omit<PromoCodeData, 'id' | 'usage_count' | 'created_at'>) => {

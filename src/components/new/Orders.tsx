@@ -204,14 +204,16 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
             </div>
 
             {/* Footer */}
-            <div className="mt-16 border-t border-white/10 pt-8 text-center">
-                 <div onClick={() => onOpenSupport?.()} className="inline-flex flex-col items-center gap-2 group cursor-pointer">
-                    <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 group-hover:border-pandora-cyan group-hover:text-pandora-cyan transition-all">
-                        <Box size={18} />
-                    </div>
-                    <span className="text-[10px] font-mono text-gray-500 group-hover:text-white transition-colors">INITIATE_SUPPORT_TICKET</span>
-                 </div>
-            </div>
+            {onOpenSupport && (
+              <div className="mt-16 border-t border-white/10 pt-8 text-center">
+                <div onClick={() => onOpenSupport()} className="inline-flex flex-col items-center gap-2 group cursor-pointer">
+                  <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 group-hover:border-pandora-cyan group-hover:text-pandora-cyan transition-all">
+                    <Box size={18} />
+                  </div>
+                  <span className="text-[10px] font-mono text-gray-500 group-hover:text-white transition-colors">INITIATE_SUPPORT_TICKET</span>
+                </div>
+              </div>
+            )}
 
         </div>
 
