@@ -37,7 +37,8 @@ export function useOrdersTyped() {
       return await post('/orders', request);
     } catch (err) {
       logger.error('Failed to create order', err);
-      return null;
+      // Re-throw error so caller can handle it properly
+      throw err;
     }
   }, [post]);
 

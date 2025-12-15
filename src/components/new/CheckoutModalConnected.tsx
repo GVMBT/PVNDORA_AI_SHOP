@@ -82,44 +82,45 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
       
       const response = await createOrder(request);
       
-      if (response) {
-        // For external payment (CrystalPay), open in browser and show polling screen
-        if (response.payment_url && method !== 'internal') {
-          const tgWebApp = window.Telegram?.WebApp;
-          
-          // Open payment URL in external browser
-          if (tgWebApp?.openLink) {
-            try {
-              tgWebApp.openLink(response.payment_url);
-            } catch (err) {
-              // Fallback: open in new tab
-              window.open(response.payment_url, '_blank');
-            }
-          } else {
-            // Fallback for non-Telegram environment
-            window.open(response.payment_url, '_blank');
-          }
-          
-          // Close modal and show PaymentResult with polling
-          // This keeps Mini App open while user pays in external browser
-          if (response.order_id && onAwaitingPayment) {
-            onClose();  // Close checkout modal
-            onAwaitingPayment(response.order_id);  // Show PaymentResult
-          }
-          
-          return null;
-        }
-        
-        // For internal (balance) payment, return response to show success
-        if (method === 'internal') {
-          return response;
-        }
-        
-        // If no payment_url and not internal, something went wrong
-        throw new Error('Payment URL not received');
+      // Check if response is valid
+      if (!response || !response.order_id) {
+        throw new Error('Не удалось создать заказ. Попробуйте позже.');
       }
       
-      throw new Error('No response from server');
+      // For external payment (CrystalPay), open in browser and show polling screen
+      if (response.payment_url && method !== 'internal') {
+        const tgWebApp = window.Telegram?.WebApp;
+        
+        // Open payment URL in external browser
+        if (tgWebApp?.openLink) {
+          try {
+            tgWebApp.openLink(response.payment_url);
+          } catch (err) {
+            // Fallback: open in new tab
+            window.open(response.payment_url, '_blank');
+          }
+        } else {
+          // Fallback for non-Telegram environment
+          window.open(response.payment_url, '_blank');
+        }
+        
+        // Close modal and show PaymentResult with polling
+        // This keeps Mini App open while user pays in external browser
+        if (onAwaitingPayment) {
+          onClose();  // Close checkout modal
+          onAwaitingPayment(response.order_id);  // Show PaymentResult
+        }
+        
+        return null;
+      }
+      
+      // For internal (balance) payment, return response to show success
+      if (method === 'internal') {
+        return response;
+      }
+      
+      // If no payment_url and not internal, something went wrong
+      throw new Error('Payment URL not received');
     } catch (err) {
       throw err;
     }
