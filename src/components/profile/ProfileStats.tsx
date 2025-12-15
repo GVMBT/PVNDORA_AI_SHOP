@@ -7,6 +7,7 @@
 import React, { memo, useCallback } from 'react';
 import { Wallet, Plus, ArrowUpRight, Network, Share2, Copy, Check, Percent, RefreshCw, Settings, QrCode } from 'lucide-react';
 import { formatPrice, getCurrencySymbol } from '../../utils/currency';
+import { useLocaleContext } from '../../contexts/LocaleContext';
 import DecryptedText from './DecryptedText';
 import type { ProfileDataProp } from './types';
 
@@ -35,6 +36,10 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
   onToggleRewardMode,
   onUpdatePreferences,
 }) => {
+  // Use currency from context for active state (updates immediately)
+  const { currency: contextCurrency } = useLocaleContext();
+  const activeCurrency = contextCurrency || user.currency;
+  
   const handleCurrencyChange = useCallback(async (currency: 'USD' | 'RUB') => {
     if (onHaptic) onHaptic('light');
     if (onUpdatePreferences) {
@@ -77,7 +82,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
             </div>
             <div className="text-4xl sm:text-5xl font-display font-bold text-white flex items-baseline gap-2">
               <DecryptedText text={user.balance} /> 
-              <span className="text-xl text-pandora-cyan">{getCurrencySymbol(user.currency)}</span>
+              <span className="text-xl text-pandora-cyan">{getCurrencySymbol(activeCurrency)}</span>
             </div>
           </div>
 
@@ -195,7 +200,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
                     <button
                       onClick={() => handleCurrencyChange('USD')}
                       className={`px-3 py-1.5 text-[10px] font-mono font-bold transition-all ${
-                        user.currency === 'USD' 
+                        activeCurrency === 'USD' 
                           ? 'bg-pandora-cyan text-black' 
                           : 'text-gray-500 hover:text-white hover:bg-white/5'
                       }`}
@@ -205,7 +210,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
                     <button
                       onClick={() => handleCurrencyChange('RUB')}
                       className={`px-3 py-1.5 text-[10px] font-mono font-bold transition-all ${
-                        user.currency === 'RUB' 
+                        activeCurrency === 'RUB' 
                           ? 'bg-pandora-cyan text-black' 
                           : 'text-gray-500 hover:text-white hover:bg-white/5'
                       }`}

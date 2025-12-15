@@ -4,7 +4,7 @@
  * Connected version of Profile component with real API data.
  */
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Profile from './Profile';
 import { useProfileTyped } from '../../hooks/useApiTyped';
 import { useTelegram } from '../../hooks/useTelegram';
@@ -48,25 +48,8 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     }
   }, [profile, updateFromProfile]);
 
-  // Re-fetch profile when currency changes in context (to get converted amounts)
-  // This ensures balance is recalculated when user changes currency in settings
-  const prevCurrencyRef = useRef<string | undefined>(undefined);
-  
-  // Initialize ref when profile is first loaded
-  useEffect(() => {
-    if (profile && prevCurrencyRef.current === undefined) {
-      prevCurrencyRef.current = profile.currency;
-    }
-  }, [profile]);
-  
-  // Re-fetch when currency changes
-  useEffect(() => {
-    if (isInitialized && profile && prevCurrencyRef.current && prevCurrencyRef.current !== contextCurrency) {
-      // Currency changed in context, re-fetch profile to get converted amounts
-      prevCurrencyRef.current = contextCurrency;
-      getProfile();
-    }
-  }, [contextCurrency, isInitialized, profile, getProfile]);
+  // Note: Profile re-fetch is handled in handleUpdatePreferences after API update
+  // No need for separate useEffect - it causes race conditions with DB updates
 
   const handleCopyLink = useCallback(async () => {
     if (!profile?.referralLink) return;
@@ -157,24 +140,29 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
 
   // CRITICAL: All hooks must be called BEFORE any conditional returns
   const handleUpdatePreferences = useCallback(async (preferred_currency?: string, interface_language?: string) => {
-    // Update preferences via API
-    const result = await updatePreferences(preferred_currency, interface_language);
-    
-    // Update locale context immediately (no reload needed)
-    if (preferred_currency) {
-      setCurrency(preferred_currency as 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED');
-    }
-    if (interface_language) {
-      setLocale(interface_language as 'en' | 'ru' | 'uk' | 'de' | 'fr' | 'es' | 'tr' | 'ar' | 'hi');
-    }
-    
-    // Small delay to ensure DB update is committed, then reload profile
-    // Profile endpoint uses preferred_currency from DB, so we need fresh data
-    setTimeout(async () => {
+    try {
+      // Update preferences via API first (wait for DB commit)
+      const result = await updatePreferences(preferred_currency, interface_language);
+      
+      // Only update context AFTER successful API update
+      // This ensures DB is updated before we change UI state
+      if (preferred_currency) {
+        setCurrency(preferred_currency as 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED');
+      }
+      if (interface_language) {
+        setLocale(interface_language as 'en' | 'ru' | 'uk' | 'de' | 'fr' | 'es' | 'tr' | 'ar' | 'hi');
+      }
+      
+      // Re-fetch profile to get converted amounts
+      // Wait a bit longer to ensure DB transaction is committed
+      await new Promise(resolve => setTimeout(resolve, 200));
       await getProfile();
-    }, 100);
-    
-    return result;
+      
+      return result;
+    } catch (error) {
+      // If update fails, don't change context or reload
+      throw error;
+    }
   }, [updatePreferences, setCurrency, setLocale, getProfile]);
 
   // Loading state
