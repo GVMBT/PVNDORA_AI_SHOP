@@ -137,7 +137,7 @@ class ShopAgent:
         product_catalog = ""
         try:
             products = await self.db.get_products(status="active")
-            product_catalog = format_product_catalog(products)
+            product_catalog = format_product_catalog(products, language)
         except Exception as e:
             logger.warning(f"Failed to load catalog: {e}")
         
@@ -160,6 +160,7 @@ When using tools:
 - user_id parameter: use "{user_id}"
 - user_telegram_id parameter: use {telegram_id}
 - telegram_id parameter: use {telegram_id}
+- user_language parameter: use "{language}" (IMPORTANT for currency conversion!)
 """
         full_system = system_prompt + context
         

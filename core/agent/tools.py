@@ -40,32 +40,61 @@ def get_db():
 # =============================================================================
 
 @tool
-async def get_catalog() -> dict:
+async def get_catalog(user_language: str = "en") -> dict:
     """
     Get full product catalog with prices and availability.
-    Use when user asks what products are available.
+    Prices are in USD in database, converted based on user language.
+    
+    Args:
+        user_language: User's language code for currency conversion
     
     Returns:
         List of all active products with stock status
     """
     try:
+        from core.db import get_redis
+        from core.services.currency import get_currency_service
+        
         db = get_db()
         products = await db.get_products(status="active")
+        
+        # Get currency service for conversion
+        redis = get_redis()
+        currency_service = get_currency_service(redis)
+        target_currency = currency_service.get_user_currency(user_language)
+        
+        result_products = []
+        for p in products:
+            price_usd = float(p.price or 0)
+            
+            # Convert price
+            if target_currency != "USD":
+                try:
+                    price_converted = await currency_service.convert_price(price_usd, target_currency)
+                except Exception:
+                    price_converted = price_usd
+            else:
+                price_converted = price_usd
+            
+            symbol = "₽" if target_currency == "RUB" else "$"
+            
+            result_products.append({
+                "id": p.id,
+                "name": p.name,
+                "price": price_converted,
+                "price_usd": price_usd,
+                "currency": target_currency,
+                "price_formatted": f"{price_converted:.0f}{symbol}" if target_currency == "RUB" else f"${price_converted:.2f}",
+                "in_stock": p.stock_count > 0,
+                "stock_count": p.stock_count,
+                "status": p.status,
+            })
+        
         return {
             "success": True,
-            "count": len(products),
-            "products": [
-                {
-                    "id": p.id,
-                    "name": p.name,
-                    "price": p.price,
-                    "currency": getattr(p, "currency", "RUB") or "RUB",
-                    "in_stock": p.stock_count > 0,
-                    "stock_count": p.stock_count,
-                    "status": p.status,
-                }
-                for p in products
-            ]
+            "count": len(result_products),
+            "currency": target_currency,
+            "products": result_products
         }
     except Exception as e:
         logger.error(f"get_catalog error: {e}")
@@ -106,49 +135,74 @@ async def search_products(query: str) -> dict:
 
 
 @tool
-async def get_product_details(product_id: str) -> dict:
+async def get_product_details(product_id: str, user_language: str = "en") -> dict:
     """
     Get detailed info about a specific product.
-    Use when user asks about a specific product or before purchase.
+    Prices are in USD, converted based on user language.
     
     Args:
         product_id: Product UUID
+        user_language: User's language for currency conversion
         
     Returns:
         Full product details including description, pricing, availability
     """
     try:
+        from core.db import get_redis
+        from core.services.currency import get_currency_service
+        
         db = get_db()
         product = await db.get_product_by_id(product_id)
         if not product:
             return {"success": False, "error": "Product not found"}
         
-        # Determine availability message
+        # Currency conversion
+        redis = get_redis()
+        currency_service = get_currency_service(redis)
+        target_currency = currency_service.get_user_currency(user_language)
+        
+        price_usd = float(product.price or 0)
+        
+        if target_currency != "USD":
+            try:
+                price_converted = await currency_service.convert_price(price_usd, target_currency)
+            except Exception:
+                price_converted = price_usd
+        else:
+            price_converted = price_usd
+        
+        symbol = "₽" if target_currency == "RUB" else "$"
+        
+        # Availability message
         if product.stock_count > 0:
-            availability = f"В наличии ({product.stock_count} шт), мгновенная доставка"
+            availability_en = f"In stock ({product.stock_count}), instant delivery"
+            availability_ru = f"В наличии ({product.stock_count} шт), мгновенная доставка"
         else:
             hours = getattr(product, 'fulfillment_time_hours', 48) or 48
-            availability = f"Предзаказ, доставка {hours}ч"
+            availability_en = f"Preorder, delivery in {hours}h"
+            availability_ru = f"Предзаказ, доставка {hours}ч"
         
-        # Get price formatted
-        price = float(product.price or 0)
-        currency = getattr(product, "currency", "RUB") or "RUB"
-        symbol = "₽" if currency.upper() == "RUB" else currency
+        availability = availability_ru if user_language in ["ru", "be", "kk"] else availability_en
+        
+        # Warranty from product
+        warranty_hours = getattr(product, "warranty_hours", None)
         
         return {
             "success": True,
             "id": product.id,
             "name": product.name,
-            "description": product.description or "Нет описания",
-            "price": price,
-            "price_formatted": f"{price:.0f}{symbol}",
-            "currency": currency,
+            "description": product.description or "",
+            "price": price_converted,
+            "price_usd": price_usd,
+            "currency": target_currency,
+            "price_formatted": f"{price_converted:.0f}{symbol}" if target_currency == "RUB" else f"${price_usd:.2f}",
             "in_stock": product.stock_count > 0,
             "stock_count": product.stock_count,
             "availability": availability,
             "status": product.status,
-            "category": getattr(product, "category", None),
+            "warranty_hours": warranty_hours,
             "fulfillment_hours": getattr(product, "fulfillment_time_hours", 48),
+            "categories": getattr(product, "categories", []),
         }
     except Exception as e:
         logger.error(f"get_product_details error: {e}")
@@ -534,19 +588,35 @@ async def resend_order_credentials(user_id: str, order_id_prefix: str, telegram_
 # =============================================================================
 
 @tool
-async def get_user_profile(user_id: str) -> dict:
+async def get_user_profile(user_id: str, user_language: str = "en") -> dict:
     """
     Get user's full profile information.
-    Use when user asks about their account, balance, stats, or career level.
+    Loads thresholds from referral_settings, converts balance to user currency.
     
     Args:
         user_id: User database ID
+        user_language: User's language for currency conversion
         
     Returns:
         Complete profile with balance, career level, stats
     """
     try:
+        from core.db import get_redis
+        from core.services.currency import get_currency_service
+        
         db = get_db()
+        
+        # Load referral settings for thresholds
+        settings_result = await asyncio.to_thread(
+            lambda: db.client.table("referral_settings").select("*").limit(1).execute()
+        )
+        
+        if settings_result.data:
+            s = settings_result.data[0]
+            threshold_l2 = float(s.get("level2_threshold_usd", 250) or 250)
+            threshold_l3 = float(s.get("level3_threshold_usd", 1000) or 1000)
+        else:
+            threshold_l2, threshold_l3 = 250, 1000
         
         # Get user from DB
         result = await asyncio.to_thread(
@@ -562,29 +632,27 @@ async def get_user_profile(user_id: str) -> dict:
         total_saved = float(user.get("total_saved", 0) or 0)
         referral_earnings = float(user.get("total_referral_earnings", 0) or 0)
         
-        # Determine career level
-        if turnover >= 1000:
-            career_level = "ARCHITECT"
-            career_id = 3
-            next_level = None
-            progress = 100
-        elif turnover >= 250:
-            career_level = "OPERATOR"
-            career_id = 2
-            next_level = "ARCHITECT"
-            progress = int((turnover - 250) / 750 * 100)
-        else:
-            career_level = "PROXY"
-            career_id = 1
-            next_level = "OPERATOR"
-            progress = int(turnover / 250 * 100)
+        # Determine career level based on DB thresholds
+        line1_unlocked = user.get("level1_unlocked_at") is not None or user.get("referral_program_unlocked", False)
+        line2_unlocked = turnover >= threshold_l2 or user.get("level2_unlocked_at") is not None
+        line3_unlocked = turnover >= threshold_l3 or user.get("level3_unlocked_at") is not None
         
-        # Get referral percentages by level
-        referral_percents = {
-            1: {"line1": 5},
-            2: {"line1": 5, "line2": 2},
-            3: {"line1": 5, "line2": 2, "line3": 1},
-        }
+        if line3_unlocked:
+            career_level = "ARCHITECT"
+            next_level = None
+            turnover_to_next = 0
+        elif line2_unlocked:
+            career_level = "OPERATOR"
+            next_level = "ARCHITECT"
+            turnover_to_next = max(0, threshold_l3 - turnover)
+        elif line1_unlocked:
+            career_level = "PROXY"
+            next_level = "OPERATOR"
+            turnover_to_next = max(0, threshold_l2 - turnover)
+        else:
+            career_level = "LOCKED"
+            next_level = "PROXY (make first purchase)"
+            turnover_to_next = 0
         
         # Count orders
         orders_result = await asyncio.to_thread(
@@ -592,25 +660,40 @@ async def get_user_profile(user_id: str) -> dict:
         )
         orders_count = orders_result.count or 0
         
+        # Currency conversion
+        redis = get_redis()
+        currency_service = get_currency_service(redis)
+        target_currency = currency_service.get_user_currency(user_language)
+        symbol = "₽" if target_currency == "RUB" else "$"
+        
+        # Balance is stored in USD, convert if needed
+        if target_currency == "RUB" and balance > 0:
+            try:
+                balance_converted = await currency_service.convert_price(balance, "RUB")
+            except Exception:
+                balance_converted = balance
+        else:
+            balance_converted = balance
+        
         return {
             "success": True,
-            "balance": balance,
-            "balance_formatted": f"{balance:.0f}₽",
+            "balance": balance_converted,
+            "balance_usd": balance,
+            "currency": target_currency,
+            "balance_formatted": f"{balance_converted:.0f}{symbol}",
             "career_level": career_level,
-            "career_level_id": career_id,
             "turnover_usd": turnover,
             "next_level": next_level,
-            "progress_to_next": progress,
+            "turnover_to_next_usd": turnover_to_next,
             "total_saved": total_saved,
-            "total_saved_formatted": f"{total_saved:.0f}₽",
+            "total_saved_formatted": f"${total_saved:.0f}",
             "referral_earnings": referral_earnings,
-            "referral_earnings_formatted": f"{referral_earnings:.0f}₽",
+            "referral_earnings_formatted": f"${referral_earnings:.0f}",
             "orders_count": orders_count,
-            "referral_percents": referral_percents.get(career_id, referral_percents[1]),
             "partner_mode": user.get("partner_mode", "commission"),
         }
     except Exception as e:
-        logger.error(f"get_user_profile error: {e}")
+        logger.error(f"get_user_profile error: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
 
 
@@ -618,7 +701,7 @@ async def get_user_profile(user_id: str) -> dict:
 async def get_referral_info(user_id: str, telegram_id: int) -> dict:
     """
     Get user's referral program info.
-    Use when user asks about referrals, affiliate link, earnings, or network.
+    Loads settings from database (referral_settings table).
     
     Args:
         user_id: User database ID
@@ -630,10 +713,28 @@ async def get_referral_info(user_id: str, telegram_id: int) -> dict:
     try:
         db = get_db()
         
-        # Get user with all referral fields
+        # Load referral settings from DB (dynamic, not hardcoded)
+        settings_result = await asyncio.to_thread(
+            lambda: db.client.table("referral_settings").select("*").limit(1).execute()
+        )
+        
+        if settings_result.data:
+            s = settings_result.data[0]
+            threshold_l2 = float(s.get("level2_threshold_usd", 250) or 250)
+            threshold_l3 = float(s.get("level3_threshold_usd", 1000) or 1000)
+            commission_l1 = float(s.get("level1_commission_percent", 10) or 10)
+            commission_l2 = float(s.get("level2_commission_percent", 7) or 7)
+            commission_l3 = float(s.get("level3_commission_percent", 3) or 3)
+        else:
+            # Fallback defaults
+            threshold_l2, threshold_l3 = 250, 1000
+            commission_l1, commission_l2, commission_l3 = 10, 7, 3
+        
+        # Get user data
         result = await asyncio.to_thread(
             lambda: db.client.table("users").select(
-                "balance, turnover_usd, total_referral_earnings, partner_mode, partner_discount_percent"
+                "balance, turnover_usd, total_referral_earnings, partner_mode, partner_discount_percent, "
+                "level1_unlocked_at, level2_unlocked_at, level3_unlocked_at, referral_program_unlocked"
             ).eq("id", user_id).single().execute()
         )
         
@@ -644,22 +745,31 @@ async def get_referral_info(user_id: str, telegram_id: int) -> dict:
         turnover = float(user.get("turnover_usd", 0) or 0)
         earnings = float(user.get("total_referral_earnings", 0) or 0)
         
-        # Determine career level
-        if turnover >= 1000:
+        # Determine career level based on thresholds from DB
+        # PROXY = any purchase unlocks line 1
+        # OPERATOR = turnover >= threshold_l2 unlocks line 2
+        # ARCHITECT = turnover >= threshold_l3 unlocks line 3
+        
+        line1_unlocked = user.get("level1_unlocked_at") is not None or user.get("referral_program_unlocked", False)
+        line2_unlocked = turnover >= threshold_l2 or user.get("level2_unlocked_at") is not None
+        line3_unlocked = turnover >= threshold_l3 or user.get("level3_unlocked_at") is not None
+        
+        if line3_unlocked:
             career_level = "ARCHITECT"
-            career_id = 3
             next_level = None
             turnover_to_next = 0
-        elif turnover >= 250:
+        elif line2_unlocked:
             career_level = "OPERATOR"
-            career_id = 2
             next_level = "ARCHITECT"
-            turnover_to_next = 1000 - turnover
-        else:
+            turnover_to_next = max(0, threshold_l3 - turnover)
+        elif line1_unlocked:
             career_level = "PROXY"
-            career_id = 1
             next_level = "OPERATOR"
-            turnover_to_next = 250 - turnover
+            turnover_to_next = max(0, threshold_l2 - turnover)
+        else:
+            career_level = "LOCKED"
+            next_level = "PROXY"
+            turnover_to_next = 0  # Need first purchase
         
         # Count referrals by line
         network = {"line1": 0, "line2": 0, "line3": 0}
@@ -672,7 +782,7 @@ async def get_referral_info(user_id: str, telegram_id: int) -> dict:
         
         # Line 2 - referrals of referrals
         l1_ids = [u["id"] for u in (l1.data or [])]
-        if l1_ids:
+        if l1_ids and line2_unlocked:
             l2 = await asyncio.to_thread(
                 lambda ids=l1_ids: db.client.table("users").select("id", count="exact").in_("referrer_id", ids).execute()
             )
@@ -680,18 +790,20 @@ async def get_referral_info(user_id: str, telegram_id: int) -> dict:
             
             # Line 3
             l2_ids = [u["id"] for u in (l2.data or [])]
-            if l2_ids and career_id >= 3:
+            if l2_ids and line3_unlocked:
                 l3 = await asyncio.to_thread(
                     lambda ids=l2_ids: db.client.table("users").select("id", count="exact").in_("referrer_id", ids).execute()
                 )
                 network["line3"] = l3.count or 0
         
-        # Commission percentages by career level
-        commission_percents = {
-            1: {"line1": 5},
-            2: {"line1": 5, "line2": 2},
-            3: {"line1": 5, "line2": 2, "line3": 1},
-        }
+        # Build active commissions based on unlocked lines
+        active_commissions = {}
+        if line1_unlocked:
+            active_commissions["line1"] = commission_l1
+        if line2_unlocked:
+            active_commissions["line2"] = commission_l2
+        if line3_unlocked:
+            active_commissions["line3"] = commission_l3
         
         partner_mode = user.get("partner_mode", "commission")
         
@@ -699,21 +811,24 @@ async def get_referral_info(user_id: str, telegram_id: int) -> dict:
             "success": True,
             "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{telegram_id}",
             "career_level": career_level,
-            "career_level_id": career_id,
+            "line1_unlocked": line1_unlocked,
+            "line2_unlocked": line2_unlocked,
+            "line3_unlocked": line3_unlocked,
             "turnover_usd": turnover,
             "next_level": next_level,
-            "turnover_to_next": turnover_to_next,
+            "turnover_to_next_usd": turnover_to_next,
+            "thresholds": {"level2": threshold_l2, "level3": threshold_l3},
             "total_earnings": earnings,
-            "total_earnings_formatted": f"{earnings:.0f}₽",
             "network": network,
             "total_referrals": sum(network.values()),
-            "commission_percents": commission_percents.get(career_id, commission_percents[1]),
+            "active_commissions": active_commissions,
+            "all_commissions": {"line1": commission_l1, "line2": commission_l2, "line3": commission_l3},
             "partner_mode": partner_mode,
             "discount_percent": user.get("partner_discount_percent", 0) if partner_mode == "discount" else 0,
             "balance": float(user.get("balance", 0) or 0),
         }
     except Exception as e:
-        logger.error(f"get_referral_info error: {e}")
+        logger.error(f"get_referral_info error: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
 
 
