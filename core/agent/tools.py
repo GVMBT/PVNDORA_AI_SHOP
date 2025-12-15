@@ -109,12 +109,13 @@ async def search_products(query: str) -> dict:
 async def get_product_details(product_id: str) -> dict:
     """
     Get detailed info about a specific product.
+    Use when user asks about a specific product or before purchase.
     
     Args:
         product_id: Product UUID
         
     Returns:
-        Full product details
+        Full product details including description, pricing, availability
     """
     try:
         db = get_db()
@@ -122,16 +123,32 @@ async def get_product_details(product_id: str) -> dict:
         if not product:
             return {"success": False, "error": "Product not found"}
         
+        # Determine availability message
+        if product.stock_count > 0:
+            availability = f"В наличии ({product.stock_count} шт), мгновенная доставка"
+        else:
+            hours = getattr(product, 'fulfillment_time_hours', 48) or 48
+            availability = f"Предзаказ, доставка {hours}ч"
+        
+        # Get price formatted
+        price = float(product.price or 0)
+        currency = getattr(product, "currency", "RUB") or "RUB"
+        symbol = "₽" if currency.upper() == "RUB" else currency
+        
         return {
             "success": True,
             "id": product.id,
             "name": product.name,
-            "description": product.description,
-            "price": product.price,
-            "currency": getattr(product, "currency", "RUB") or "RUB",
+            "description": product.description or "Нет описания",
+            "price": price,
+            "price_formatted": f"{price:.0f}{symbol}",
+            "currency": currency,
             "in_stock": product.stock_count > 0,
             "stock_count": product.stock_count,
+            "availability": availability,
             "status": product.status,
+            "category": getattr(product, "category", None),
+            "fulfillment_hours": getattr(product, "fulfillment_time_hours", 48),
         }
     except Exception as e:
         logger.error(f"get_product_details error: {e}")
@@ -540,9 +557,11 @@ async def get_user_profile(user_id: str) -> dict:
             return {"success": False, "error": "User not found"}
         
         user = result.data
+        balance = float(user.get("balance", 0) or 0)
         return {
             "success": True,
-            "balance": user.get("balance", 0),
+            "balance": balance,
+            "balance_formatted": f"{balance:.0f}₽",
             "total_spent": user.get("total_spent", 0),
             "total_saved": user.get("total_saved", 0),
             "referral_level": user.get("referral_level", 1),
@@ -835,38 +854,6 @@ async def request_refund(user_id: str, order_id: str, reason: str) -> dict:
 # =============================================================================
 
 @tool
-async def check_user_balance(user_id: str) -> dict:
-    """
-    Check user's current balance.
-    Use when user asks about their balance or before balance payment.
-    
-    Args:
-        user_id: User database ID
-        
-    Returns:
-        Current balance amount
-    """
-    try:
-        db = get_db()
-        result = await asyncio.to_thread(
-            lambda: db.client.table("users").select("balance").eq("id", user_id).single().execute()
-        )
-        
-        if not result.data:
-            return {"success": False, "error": "User not found"}
-        
-        balance = result.data.get("balance", 0) or 0
-        return {
-            "success": True,
-            "balance": float(balance),
-            "formatted": f"{float(balance):.2f}₽"
-        }
-    except Exception as e:
-        logger.error(f"check_user_balance error: {e}")
-        return {"success": False, "error": str(e)}
-
-
-@tool
 async def pay_cart_from_balance(user_telegram_id: int, user_id: str) -> dict:
     """
     Pay for cart items using internal balance.
@@ -971,7 +958,6 @@ def get_all_tools():
         # User & Referrals
         get_user_profile,
         get_referral_info,
-        check_user_balance,
         pay_cart_from_balance,
         # Wishlist & Waitlist
         add_to_wishlist,

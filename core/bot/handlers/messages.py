@@ -93,7 +93,6 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
             message=message.text,
             user_id=db_user.id,
             language=db_user.language_code,
-            thread_id=f"bot_{db_user.id}",
             telegram_id=message.from_user.id,
         )
         
