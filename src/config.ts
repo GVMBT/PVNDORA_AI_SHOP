@@ -116,8 +116,8 @@ export const FEATURES = {
  * Payment Configuration
  */
 export const PAYMENT = {
-  /** Minimum withdrawal amount */
-  MIN_WITHDRAWAL: 500,
+  /** Minimum withdrawal amount (in USD) */
+  MIN_WITHDRAWAL: 10, // 10 USD
   /** Default payment gateway */
   DEFAULT_GATEWAY: 'crystalpay',
   /** Payment timeout in seconds */

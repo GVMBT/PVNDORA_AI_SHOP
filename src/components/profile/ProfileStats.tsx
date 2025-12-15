@@ -11,6 +11,23 @@ import { useLocaleContext } from '../../contexts/LocaleContext';
 import DecryptedText from './DecryptedText';
 import type { ProfileDataProp } from './types';
 
+// Format balance for display (remove excessive decimals)
+function formatBalance(balance: string | number, currency: string): string {
+  const num = typeof balance === 'string' ? parseFloat(balance) : balance;
+  if (isNaN(num)) return '0';
+  
+  // Integer currencies (no decimals)
+  const integerCurrencies = ['RUB', 'UAH', 'TRY', 'INR'];
+  const isInteger = integerCurrencies.includes(currency.toUpperCase());
+  
+  if (isInteger) {
+    return Math.round(num).toLocaleString('en-US', { maximumFractionDigits: 0 });
+  }
+  
+  // For USD/EUR/etc: show max 2 decimal places
+  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 interface ProfileStatsProps {
   user: ProfileDataProp;
   copied: boolean;
@@ -81,7 +98,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
               Internal Balance <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
             </div>
             <div className="text-4xl sm:text-5xl font-display font-bold text-white flex items-baseline gap-2">
-              <DecryptedText text={user.balance} /> 
+              <DecryptedText text={formatBalance(user.balance, activeCurrency)} /> 
               <span className="text-xl text-pandora-cyan">{getCurrencySymbol(activeCurrency)}</span>
             </div>
           </div>

@@ -86,10 +86,14 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   const handleWithdraw = useCallback(() => {
     const currency = profile?.currency || 'RUB';
     const balance = profile?.balance || 0;
-    const minAmount = 500;
+    // Minimum withdrawal is always 10 USD (convert to user's currency)
+    const minAmountUSD = 10;
+    const exchangeRate = profile?.exchangeRate || 100; // Default: 1 USD = 100 RUB
+    const minAmount = currency === 'USD' ? minAmountUSD : minAmountUSD * exchangeRate;
     
     if (balance < minAmount) {
-        showModalAlert('INSUFFICIENT FUNDS', `Minimum withdrawal is ${minAmount} ${currency}`, 'warning');
+        const minDisplay = currency === 'USD' ? '$10' : `${minAmount.toLocaleString()} ${currency}`;
+        showModalAlert('INSUFFICIENT FUNDS', `Minimum withdrawal is ${minDisplay}`, 'warning');
       return;
     }
     
