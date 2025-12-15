@@ -60,11 +60,8 @@ export const PAYMENT_STATUS_MESSAGES: Record<PaymentStatus, { color: string; lab
 // USER PROFILE & CAREER
 // ==========================================
 
-export const CAREER_LEVELS: CareerLevelData[] = [
-  { id: 1, label: "PROXY", min: 0, max: 250, color: "text-gray-400" },
-  { id: 2, label: "OPERATOR", min: 250, max: 1000, color: "text-purple-400" },
-  { id: 3, label: "ARCHITECT", min: 1000, max: 5000, color: "text-yellow-400" }
-];
+// CAREER_LEVELS removed - thresholds now loaded from DB via API
+// See profileAdapter.ts which uses thresholds_usd from referral_settings table
 
 // ==========================================
 // SYSTEM

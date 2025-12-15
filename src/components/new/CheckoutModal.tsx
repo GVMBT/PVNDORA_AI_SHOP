@@ -16,10 +16,15 @@ interface CheckoutModalProps {
   cart: CartItem[];
   userBalance?: number;
   currency?: string; // Currency code from API
+  originalTotal?: number;
+  promoCode?: string | null;
+  promoDiscountPercent?: number | null;
   onClose: () => void;
   onRemoveItem: (id: string | number) => void;
   onPay?: (method: PaymentMethod) => Promise<APICreateOrderResponse | null>;
   onSuccess: () => void;
+  onApplyPromo?: (code: string) => Promise<{ success: boolean; message?: string }>;
+  onRemovePromo?: () => void;
   loading?: boolean;
   error?: string | null;
 }
@@ -28,10 +33,15 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
   cart, 
   userBalance = 0,
   currency = 'USD',
+  originalTotal,
+  promoCode,
+  promoDiscountPercent,
   onClose, 
   onRemoveItem, 
   onPay,
   onSuccess,
+  onApplyPromo,
+  onRemovePromo,
   loading: externalLoading = false,
   error: externalError = null,
 }) => {
@@ -169,9 +179,14 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <CartSummary
                         cart={cart}
                         total={total}
+                        originalTotal={originalTotal}
                         currency={currency}
+                        promoCode={promoCode}
+                        promoDiscountPercent={promoDiscountPercent}
                         onRemoveItem={onRemoveItem}
                         onProceed={() => setStep('payment')}
+                        onApplyPromo={onApplyPromo}
+                        onRemovePromo={onRemovePromo}
                       />
                     )}
 

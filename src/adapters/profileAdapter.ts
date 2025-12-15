@@ -7,12 +7,8 @@
 import type { APIProfileResponse, APIReferralNode, TelegramUser } from '../types/api';
 import type { ProfileData, CareerLevel, BillingLog, NetworkNode } from '../types/component';
 
-// Career level definitions
-const CAREER_LEVELS: CareerLevel[] = [
-  { id: 1, label: 'PROXY', min: 0, max: 500, color: 'text-gray-400' },
-  { id: 2, label: 'OPERATOR', min: 500, max: 2000, color: 'text-purple-400' },
-  { id: 3, label: 'ARCHITECT', min: 2000, max: Infinity, color: 'text-yellow-400' },
-];
+// Career levels are built dynamically from API thresholds (referral_settings table)
+// No hardcoded values - thresholds come from referral_program.thresholds_usd
 
 /**
  * Determine current career level based on turnover

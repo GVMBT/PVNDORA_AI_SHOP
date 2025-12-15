@@ -23,7 +23,7 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   onAwaitingPayment,
 }) => {
   // Use global cart context - shared with NewApp
-  const { cart, getCart, removeCartItem, loading: cartLoading, error: cartError } = useCart();
+  const { cart, getCart, removeCartItem, applyPromo, removePromo, loading: cartLoading, error: cartError } = useCart();
   const { createOrder, loading: orderLoading, error: orderError } = useOrdersTyped();
   const { profile, getProfile } = useProfileTyped();
   const [isInitialized, setIsInitialized] = useState(false);
@@ -63,6 +63,24 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
       // Silently handle error - cart context will show error state
     }
   }, [removeCartItem, onClose]);
+  
+  const handleApplyPromo = useCallback(async (code: string): Promise<{ success: boolean; message?: string }> => {
+    try {
+      await applyPromo(code);
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid promo code';
+      return { success: false, message };
+    }
+  }, [applyPromo]);
+  
+  const handleRemovePromo = useCallback(async () => {
+    try {
+      await removePromo();
+    } catch {
+      // Silently fail
+    }
+  }, [removePromo]);
 
   const handlePay = useCallback(async (method: PaymentMethod) => {
     try {
@@ -170,10 +188,15 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
     cart: cartItems,
     userBalance: profile?.balance || 0,
     currency: cart?.currency || profile?.currency || 'USD',
+    originalTotal: cart?.originalTotal,
+    promoCode: cart?.promoCode,
+    promoDiscountPercent: cart?.promoDiscountPercent,
     onClose,
     onRemoveItem: handleRemoveItem,
     onPay: handlePay,
     onSuccess,
+    onApplyPromo: handleApplyPromo,
+    onRemovePromo: handleRemovePromo,
     loading: orderLoading,
     error: cartError || orderError,
   };

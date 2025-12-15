@@ -10,7 +10,7 @@ import { User, ArrowLeft } from 'lucide-react';
 import { AudioEngine } from '../../lib/AudioEngine';
 import { useClipboard } from '../../hooks/useClipboard';
 import { logger } from '../../utils/logger';
-import { CAREER_LEVELS } from '../../constants';
+// Career levels come from API via profile.career - no hardcoded constants
 import {
   ProfileHeader,
   ProfileStats,
@@ -73,14 +73,12 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
   // Use networkTree (which may be from API or mock) instead of hardcoded NETWORK_TREE
   const selectedReferral = networkTree.find((n) => n.id === selectedReferralId);
 
-  // Logic for Career Progress - use profile data if available
-  const currentTurnover = propProfile?.career.currentTurnover ?? user.stats.turnover;
-  const currentLevel = propProfile?.career.currentLevel ?? (CAREER_LEVELS.find(l => currentTurnover >= l.min && currentTurnover < l.max) || CAREER_LEVELS[CAREER_LEVELS.length - 1]);
-  const nextLevel = propProfile?.career.nextLevel ?? CAREER_LEVELS.find(l => l.id === currentLevel.id + 1);
+  // Career Progress - all data from API (thresholds loaded from DB)
+  const currentTurnover = propProfile.career.currentTurnover;
+  const currentLevel = propProfile.career.currentLevel;
+  const nextLevel = propProfile.career.nextLevel;
   const maxTurnover = nextLevel ? nextLevel.min : currentLevel.max;
-  const progressPercent = propProfile?.career.progressPercent ?? (nextLevel 
-    ? Math.min(100, Math.max(0, ((currentTurnover - currentLevel.min) / (nextLevel.min - currentLevel.min)) * 100))
-    : 100);
+  const progressPercent = propProfile.career.progressPercent;
 
 
   const handleCopy = useCallback(async () => {
