@@ -8,8 +8,8 @@ from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
-from core.auth.session import verify_admin_session
-from core.db import get_database
+from core.auth import verify_admin
+from core.services.database import get_database
 from core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -70,7 +70,7 @@ async def list_promo_codes(admin=Depends(verify_admin_session)) -> List[dict]:
 
 
 @router.post("/promo")
-async def create_promo_code(request: PromoCodeCreate, admin=Depends(verify_admin_session)) -> dict:
+async def create_promo_code(request: PromoCodeCreate, admin=Depends(verify_admin)) -> dict:
     """Create a new promo code."""
     db = get_database()
     
@@ -161,7 +161,7 @@ async def update_promo_code(promo_id: str, request: PromoCodeUpdate, admin=Depen
 
 
 @router.delete("/promo/{promo_id}")
-async def delete_promo_code(promo_id: str, admin=Depends(verify_admin_session)) -> dict:
+async def delete_promo_code(promo_id: str, admin=Depends(verify_admin)) -> dict:
     """Delete a promo code."""
     db = get_database()
     
