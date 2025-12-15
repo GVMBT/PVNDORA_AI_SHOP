@@ -4,7 +4,7 @@
  * Connected version of Profile component with real API data.
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import Profile from './Profile';
 import { useProfileTyped } from '../../hooks/useApiTyped';
 import { useTelegram } from '../../hooks/useTelegram';
@@ -110,9 +110,20 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
 
   const handleTopUp = useCallback(() => {
     const tgWebApp = window.Telegram?.WebApp;
-    const currency = profile?.currency || 'RUB';
+    const currency = contextCurrency || profile?.currency || 'USD';
     const balance = profile?.balance || 0;
-    const minAmount = currency === 'USD' ? 5 : 500;
+    
+    // Minimum top-up amounts (equivalent to ~5 USD)
+    const MIN_AMOUNTS: Record<string, number> = {
+      'USD': 5,
+      'RUB': 500,
+      'EUR': 5,
+      'UAH': 200,
+      'TRY': 150,
+      'INR': 400,
+      'AED': 20,
+    };
+    const minAmount = MIN_AMOUNTS[currency] || 5;
     
     if (onHaptic) onHaptic('light');
     
@@ -130,7 +141,20 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
         }
       },
     });
-  }, [profile?.currency, profile?.balance, createTopUp, showTopUp, onHaptic]);
+  }, [contextCurrency, profile?.currency, profile?.balance, createTopUp, showTopUp, onHaptic]);
+
+  // Helper function to convert USD to target currency
+  const convertUsdToCurrency = useCallback((amountUsd: number, targetCurrency: string, exchangeRate: number): number => {
+    if (targetCurrency === 'USD' || !exchangeRate || exchangeRate === 1.0) {
+      return amountUsd;
+    }
+    // Round to integer for RUB, UAH, TRY, INR; keep 2 decimals for others
+    const converted = amountUsd * exchangeRate;
+    if (['RUB', 'UAH', 'TRY', 'INR'].includes(targetCurrency)) {
+      return Math.round(converted);
+    }
+    return Math.round(converted * 100) / 100;
+  }, []);
 
   // CRITICAL: All hooks must be called BEFORE any conditional returns
   const handleUpdatePreferences = useCallback(async (preferred_currency?: string, interface_language?: string) => {
@@ -146,10 +170,10 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       // Update preferences via API (in background)
       const result = await updatePreferences(preferred_currency, interface_language);
       
-      // Only re-fetch profile if currency changed (to get converted balance)
-      // Language change doesn't require profile reload - it's just UI text
-      if (preferred_currency && preferred_currency !== profile?.currency) {
-        await getProfile();
+      // NO PROFILE RELOAD NEEDED - Frontend converts balance locally using exchange_rate
+      // Only reload if exchange_rate is missing (fallback for old API responses)
+      if (preferred_currency && preferred_currency !== profile?.currency && !profile?.exchangeRate) {
+        await getProfile(); // Fallback: reload to get exchange_rate
       }
       
       return result;
@@ -166,6 +190,28 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       throw error;
     }
   }, [updatePreferences, setCurrency, setLocale, getProfile, profile]);
+
+  // Convert profile balance to current currency (for display)
+  const convertedProfile = useMemo(() => {
+    if (!profile) return null;
+    
+    const currentCurrency = contextCurrency || profile.currency;
+    const exchangeRate = profile.exchangeRate || 1.0;
+    
+    // If currency matches profile currency, use existing converted values
+    if (currentCurrency === profile.currency) {
+      return profile;
+    }
+    
+    // Convert USD amounts to current currency
+    return {
+      ...profile,
+      balance: convertUsdToCurrency(profile.balanceUsd || profile.balance, currentCurrency, exchangeRate),
+      earnedRef: convertUsdToCurrency(profile.earnedRefUsd || profile.earnedRef, currentCurrency, exchangeRate),
+      saved: convertUsdToCurrency(profile.savedUsd || profile.saved, currentCurrency, exchangeRate),
+      currency: currentCurrency,
+    };
+  }, [profile, contextCurrency, convertUsdToCurrency]);
 
   // Loading state
   if (!isInitialized || loading) {
@@ -202,7 +248,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
 
   return (
     <Profile
-        profile={profile}
+        profile={convertedProfile || profile}
         onBack={onBack}
         onHaptic={onHaptic}
         onAdminEnter={onAdminEnter}

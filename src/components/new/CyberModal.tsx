@@ -89,22 +89,22 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
   const { currency: contextCurrency } = useLocaleContext();
   
   // Convert preset amounts from USD to user currency
-  // Using approximate rates for quick conversion (backend will handle exact conversion)
+  // Base presets: 5, 10, 20, 50 USD (reasonable amounts for top-up)
   const getPresetAmounts = useMemo(() => {
-    const usdPresets = [500, 1000, 2000, 5000];
+    const usdPresets = [5, 10, 20, 50];  // Base presets in USD
     const targetCurrency = state.currency || contextCurrency || 'USD';
     
     if (targetCurrency === 'USD') {
       return usdPresets;
     }
     
-    // Approximate exchange rates (backend will handle exact conversion)
+    // Approximate exchange rates for UI display (backend will handle exact conversion)
     const rates: Record<string, number> = {
       'RUB': 100,  // 1 USD ≈ 100 RUB
       'UAH': 40,   // 1 USD ≈ 40 UAH
       'EUR': 0.9,  // 1 USD ≈ 0.9 EUR
-      'TRY': 35,   // 1 USD ≈ 35 TRY
-      'INR': 85,   // 1 USD ≈ 85 INR
+      'TRY': 30,   // 1 USD ≈ 30 TRY
+      'INR': 80,   // 1 USD ≈ 80 INR
       'AED': 3.7,  // 1 USD ≈ 3.7 AED
     };
     
@@ -155,7 +155,7 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
     } else if (state.type === 'topup' || state.type === 'prompt') {
       onSubmit(state.inputType === 'number' ? parseFloat(inputValue) : inputValue);
     } else {
-      onSubmit(true);
+      onSubmit(undefined);
     }
   };
 
@@ -493,10 +493,10 @@ export const CyberModalProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (modalState.onConfirm) {
       setModalState(prev => ({ ...prev, isLoading: true }));
       try {
-        if (modalState.type === 'withdraw' && value) {
+        if (modalState.type === 'withdraw' && value && typeof value === 'object' && 'amount' in value) {
           await (modalState.onConfirm as (amount: number, method: string, details: string) => Promise<void>)(value.amount, value.method, value.details);
         } else {
-          await (modalState.onConfirm as (value?: string | number) => void | Promise<void>)(value);
+          await (modalState.onConfirm as (value?: string | number) => void | Promise<void>)(value as string | number | undefined);
         }
         hideModal();
       } catch (error: unknown) {

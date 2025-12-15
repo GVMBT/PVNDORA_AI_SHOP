@@ -653,17 +653,43 @@ async def _create_cart_order(
     if len(order_items) > 3:
         product_names += f" и еще {len(order_items) - 3}"
     
-    # Определяем валюту шлюза (только для внешних платежей)
+    # Определяем валюту для платежа
+    # Для CrystalPay используем валюту пользователя (поддерживает USD, RUB, EUR и др.)
+    # Для других шлюзов используем валюту по умолчанию из GATEWAY_CURRENCY
     gateway_currency = GATEWAY_CURRENCY.get(payment_gateway or "", "RUB")
     
-    # Конвертация суммы в валюту шлюза
+    # Для CrystalPay: получаем валюту пользователя
+    if payment_gateway == "crystalpay":
+        try:
+            from core.db import get_redis
+            from core.services.currency import get_currency_service
+            currency_redis = get_redis()
+            currency_service = get_currency_service(currency_redis)
+            
+            # Получаем валюту пользователя из профиля
+            user_lang = getattr(db_user, 'interface_language', None) or (db_user.language_code if db_user and db_user.language_code else user.language_code)
+            preferred_currency = getattr(db_user, 'preferred_currency', None)
+            user_currency = currency_service.get_user_currency(user_lang, preferred_currency)
+            
+            # CrystalPay поддерживает: USD, RUB, EUR, UAH, TRY, INR, AED
+            # Если валюта пользователя поддерживается, используем её
+            supported_currencies = ["USD", "RUB", "EUR", "UAH", "TRY", "INR", "AED"]
+            if user_currency in supported_currencies:
+                gateway_currency = user_currency
+                logger.info(f"Using user currency for CrystalPay: {gateway_currency} (user preference: {preferred_currency}, language: {user_lang})")
+            else:
+                logger.warning(f"User currency {user_currency} not supported by CrystalPay, using default: {gateway_currency}")
+        except Exception as e:
+            logger.warning(f"Failed to get user currency for CrystalPay: {e}, using default: {gateway_currency}")
+    
+    # Конвертация суммы в валюту платежа
     payable_amount = to_decimal(total_amount)
     try:
         from core.db import get_redis
         from core.services.currency import get_currency_service
         currency_redis = get_redis()
         currency_service = get_currency_service(currency_redis)
-        # Конвертация из базовой валюты (USD) в валюту шлюза
+        # Конвертация из базовой валюты (USD) в валюту платежа
         if gateway_currency != "USD":
             original_amount_usd = to_float(total_amount)
             converted_amount = await currency_service.convert_price(total_amount, gateway_currency, round_to_int=True)
@@ -673,7 +699,7 @@ async def _create_cart_order(
             logger.info(f"No currency conversion needed: {to_float(total_amount)} USD")
     except Exception as e:
         logger.warning(f"Currency conversion failed, using raw amount: {e}")
-        logger.warning(f"Amount in USD: {to_float(total_amount)}, Gateway currency: {gateway_currency}")
+        logger.warning(f"Amount in USD: {to_float(total_amount)}, Payment currency: {gateway_currency}")
     
     # Если Rukassa: попытаться отменить предыдущий незавершённый платёж (антифрод)
     if payment_gateway == "rukassa":

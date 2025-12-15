@@ -222,16 +222,26 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     except Exception as e:
         logger.warning(f"Currency service unavailable: {e}, using USD")
     
-    # Convert balance and earnings from USD to user currency
+    # Get USD amounts (base currency in DB)
     balance_usd = float(db_user.balance) if db_user.balance else 0
     total_referral_earnings_usd = float(db_user.total_referral_earnings) if hasattr(db_user, 'total_referral_earnings') and db_user.total_referral_earnings else 0
     total_saved_usd = float(db_user.total_saved) if db_user.total_saved else 0
     
+    # Get exchange rate for frontend conversion (avoid reload on currency change)
+    exchange_rate = 1.0
+    if currency_service and currency != "USD":
+        try:
+            exchange_rate = await currency_service.get_exchange_rate(currency)
+        except Exception as e:
+            logger.warning(f"Failed to get exchange rate: {e}, using 1.0")
+            exchange_rate = 1.0
+    
+    # Convert for display (backward compatibility)
     balance = balance_usd
     total_referral_earnings = total_referral_earnings_usd
     total_saved = total_saved_usd
     
-    if currency_service and currency != "USD":
+    if currency_service and currency != "USD" and exchange_rate != 1.0:
         try:
             balance = await currency_service.convert_price(balance_usd, currency, round_to_int=True)
             total_referral_earnings = await currency_service.convert_price(total_referral_earnings_usd, currency, round_to_int=True)
@@ -244,9 +254,12 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     
     return {
         "profile": {
-            "balance": balance,
-            "total_referral_earnings": total_referral_earnings,
-            "total_saved": total_saved,
+            "balance": balance,  # Converted for backward compatibility
+            "balance_usd": balance_usd,  # USD amount for frontend conversion
+            "total_referral_earnings": total_referral_earnings,  # Converted
+            "total_referral_earnings_usd": total_referral_earnings_usd,  # USD amount
+            "total_saved": total_saved,  # Converted
+            "total_saved_usd": total_saved_usd,  # USD amount
             "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{user.id}",
             "created_at": db_user.created_at.isoformat() if db_user.created_at else None,
             "is_admin": db_user.is_admin or False,
@@ -263,7 +276,8 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
         "bonus_history": bonus_result.data or [],
         "withdrawals": withdrawal_result.data or [],
         "balance_transactions": balance_transactions_result.data or [],
-        "currency": currency
+        "currency": currency,
+        "exchange_rate": exchange_rate  # Rate for frontend conversion (1 USD = X currency)
     }
 
 
@@ -275,10 +289,9 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    MIN_WITHDRAWAL = 500
     balance_usd = float(db_user.balance) if db_user.balance else 0
     
-    # Determine user currency for withdrawal (default to RUB for Russian users)
+    # Determine user currency for withdrawal
     user_lang = getattr(db_user, 'language_code', 'en') or 'en'
     preferred_currency = getattr(db_user, 'preferred_currency', None)
     
@@ -291,11 +304,28 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
     except Exception as e:
         logger.warning(f"Currency service unavailable: {e}, defaulting to RUB")
         withdrawal_currency = "RUB"
+        currency_service = None
+    
+    # Minimum withdrawal amounts (equivalent to ~5 USD)
+    MIN_WITHDRAWAL_USD = 5.0
+    MIN_WITHDRAWAL_BY_CURRENCY = {
+        "USD": 5,
+        "RUB": 500,      # ~5 USD at 100 RUB/USD
+        "EUR": 5,        # ~5.5 USD
+        "UAH": 200,      # ~5 USD at 40 UAH/USD
+        "TRY": 150,      # ~5 USD at 30 TRY/USD
+        "INR": 400,      # ~5 USD at 80 INR/USD
+        "AED": 20,       # ~5 USD at 3.7 AED/USD
+    }
+    
+    min_withdrawal = MIN_WITHDRAWAL_BY_CURRENCY.get(withdrawal_currency, 5)
     
     # Convert withdrawal amount from user currency to USD for balance check
-    # Balance is stored in USD, so we need to convert RUB → USD
+    # Balance is stored in USD, so we need to convert to USD
     amount_usd = request.amount
     if withdrawal_currency != "USD":
+        if not currency_service:
+            raise HTTPException(status_code=500, detail="Currency service unavailable")
         try:
             rate = await currency_service.get_exchange_rate(withdrawal_currency)
             # Check if rate is valid (not 1.0 which is fallback for errors)
@@ -308,22 +338,15 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
             logger.error(f"Currency conversion failed for withdrawal: {e}")
             raise HTTPException(status_code=500, detail=f"Currency conversion failed: {str(e)}")
     
-    # Get currency service for formatting
-    try:
-        from core.db import get_redis
-        from core.services.currency import get_currency_service
-        redis = get_redis()
-        currency_service = get_currency_service(redis)
-    except Exception:
-        currency_service = None
-    
-    if request.amount < MIN_WITHDRAWAL:
-        min_withdrawal_formatted = f"{MIN_WITHDRAWAL}₽"  # Default to RUB for minimum
+    if request.amount < min_withdrawal:
+        # Format error message with currency symbol
         if currency_service:
             try:
-                min_withdrawal_formatted = currency_service.format_price(MIN_WITHDRAWAL, withdrawal_currency)
+                min_withdrawal_formatted = currency_service.format_price(min_withdrawal, withdrawal_currency)
             except Exception:
-                pass
+                min_withdrawal_formatted = f"{min_withdrawal} {withdrawal_currency}"
+        else:
+            min_withdrawal_formatted = f"{min_withdrawal} {withdrawal_currency}"
         raise HTTPException(status_code=400, detail=f"Minimum withdrawal is {min_withdrawal_formatted}")
     
     if amount_usd > balance_usd:
@@ -378,18 +401,32 @@ async def create_topup(
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Validate minimum amounts
+    # Validate minimum amounts (equivalent to ~5 USD)
     currency = request.currency.upper()
-    MIN_AMOUNTS = {"RUB": 500, "USD": 5}
+    MIN_AMOUNTS = {
+        "USD": 5,
+        "RUB": 500,      # ~5 USD at 100 RUB/USD
+        "EUR": 5,        # ~5.5 USD
+        "UAH": 200,      # ~5 USD at 40 UAH/USD
+        "TRY": 150,      # ~5 USD at 30 TRY/USD
+        "INR": 400,      # ~5 USD at 80 INR/USD
+        "AED": 20,       # ~5 USD at 3.7 AED/USD
+    }
     
-    if currency not in MIN_AMOUNTS:
-        raise HTTPException(status_code=400, detail=f"Invalid currency. Supported: {', '.join(MIN_AMOUNTS.keys())}")
-    
-    min_amount = MIN_AMOUNTS[currency]
+    min_amount = MIN_AMOUNTS.get(currency, 5)  # Default to 5 if currency not in list
     if request.amount < min_amount:
+        # Format error message with currency symbol
+        try:
+            from core.db import get_redis
+            from core.services.currency import get_currency_service
+            redis = get_redis()
+            currency_service = get_currency_service(redis)
+            min_formatted = currency_service.format_price(min_amount, currency)
+        except Exception:
+            min_formatted = f"{min_amount} {currency}"
         raise HTTPException(
             status_code=400, 
-            detail=f"Minimum top-up is {min_amount} {currency}"
+            detail=f"Minimum top-up is {min_formatted}"
         )
     
     # Use original currency and amount - CrystalPay supports multiple currencies

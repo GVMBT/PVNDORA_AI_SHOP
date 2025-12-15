@@ -159,9 +159,12 @@ export interface ProfileData {
   name: string;
   handle: string;
   id: string;
-  balance: number;
-  earnedRef: number;
-  saved: number;
+  balance: number;  // Converted to user currency (for display)
+  balanceUsd: number;  // Base USD amount (for frontend conversion)
+  earnedRef: number;  // Converted
+  earnedRefUsd: number;  // USD amount
+  saved: number;  // Converted
+  savedUsd: number;  // USD amount
   role: 'USER' | 'VIP' | 'ADMIN';
   isVip: boolean;
   referralLink: string;
@@ -173,6 +176,7 @@ export interface ProfileData {
   language: string;
   interfaceLanguage?: string; // User's preferred interface language (ru, en, etc.)
   photoUrl?: string;
+  exchangeRate?: number;  // Exchange rate for frontend conversion (1 USD = X currency)
 }
 
 // ==================== LEADERBOARD ====================

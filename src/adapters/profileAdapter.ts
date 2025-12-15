@@ -178,9 +178,12 @@ export function adaptProfile(
     name: firstName,
     handle: username ? `@${username}` : `UID-${telegramId || Date.now()}`,
     id: telegramId ? `UID-${telegramId.toString().slice(-6)}` : `UID-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-    balance: profile.balance,
-    earnedRef: profile.total_referral_earnings,
-    saved: profile.total_saved,
+    balance: profile.balance,  // Converted for backward compatibility
+    balanceUsd: profile.balance_usd || profile.balance,  // USD amount for frontend conversion
+    earnedRef: profile.total_referral_earnings,  // Converted
+    earnedRefUsd: profile.total_referral_earnings_usd || profile.total_referral_earnings,  // USD amount
+    saved: profile.total_saved,  // Converted
+    savedUsd: profile.total_saved_usd || profile.total_saved,  // USD amount
     role: profile.is_admin ? 'ADMIN' : (referral_program.is_partner ? 'VIP' : 'USER'),
     isVip: referral_program.is_partner,
     referralLink: profile.referral_link,
@@ -202,6 +205,7 @@ export function adaptProfile(
     language: profile.interface_language || 'en',
     interfaceLanguage: profile.interface_language || undefined,
     photoUrl,
+    exchangeRate: response.exchange_rate || 1.0,  // Exchange rate for frontend conversion
   };
 }
 

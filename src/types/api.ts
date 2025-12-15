@@ -144,9 +144,12 @@ export interface APICreateOrderResponse {
 // ==================== PROFILE ====================
 
 export interface APIProfile {
-  balance: number;
-  total_referral_earnings: number;
-  total_saved: number;
+  balance: number;  // Converted to user currency (for backward compatibility)
+  balance_usd: number;  // Base USD amount (for frontend conversion)
+  total_referral_earnings: number;  // Converted
+  total_referral_earnings_usd: number;  // USD amount
+  total_saved: number;  // Converted
+  total_saved_usd: number;  // USD amount
   referral_link: string;
   created_at: string;
   is_admin: boolean;
@@ -242,6 +245,7 @@ export interface APIProfileResponse {
   withdrawals: APIWithdrawalRequest[];
   balance_transactions?: APIBalanceTransaction[];
   currency: string;
+  exchange_rate: number;  // Exchange rate for frontend conversion (1 USD = X currency)
 }
 
 // ==================== REFERRAL NETWORK ====================

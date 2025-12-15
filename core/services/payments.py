@@ -1177,8 +1177,10 @@ class PaymentService:
         """
         login, secret, salt, api_url = self._validate_crystalpay_config()
         
-        # Amount in rubles (CrystalPay expects float)
-        amount_rub = to_float(amount)
+        # Amount in user's currency (CrystalPay expects float)
+        # Currency is passed from order creation and should match user's preference
+        payment_amount = to_float(amount)
+        payment_currency = (currency or "RUB").upper()
         
         # Build callback URL
         callback_url = f"{self.base_url}/api/webhook/crystalpay"
@@ -1201,10 +1203,10 @@ class PaymentService:
         payload = {
             "auth_login": login,
             "auth_secret": secret,
-            "amount": amount_rub,
+            "amount": payment_amount,  # Amount in user's currency
             "type": "purchase",  # purchase для покупки товара, topup для пополнения
             "lifetime": 15,  # время жизни инвойса в минутах (синхронизировано с резервом)
-            "currency": currency or "RUB",
+            "currency": payment_currency,  # User's preferred currency (USD, RUB, EUR, etc.)
             "description": safe_description,
             "extra": order_id,  # сохраняем order_id для callback
             "callback_url": callback_url,
@@ -1219,7 +1221,7 @@ class PaymentService:
         }
         
         logger.info("CrystalPay payment creation for order %s: amount=%s %s", 
-                   order_id, amount_rub, currency)
+                   order_id, payment_amount, payment_currency)
         # Log callback_url at INFO level to verify it's being sent correctly
         logger.info(
             "CrystalPay payload: order=%s callback_url=%s redirect_url=%s test_mode=%s",
