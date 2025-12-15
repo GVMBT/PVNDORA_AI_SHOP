@@ -74,6 +74,8 @@ export interface AdminStats {
   ordersWeek: number;
   ordersMonth: number;
   activeUsers: number;
+  openTickets?: number;
+  revenueByDay?: { date: string; amount: number }[];
 }
 
 export type AdminView = 'dashboard' | 'catalog' | 'sales' | 'partners' | 'support' | 'promo';

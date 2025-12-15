@@ -174,6 +174,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
               onOpenReview={onOpenReview}
               onOpenSupport={onOpenSupport ? (context) => {
                 // Fill in orderTotal from order if not provided
+                if (!onOpenSupport) return; // Double check
                 const finalContext = {
                   ...context,
                   orderTotal: context.orderTotal || order.total

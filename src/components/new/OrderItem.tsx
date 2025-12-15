@@ -93,6 +93,7 @@ const OrderItem: React.FC<OrderItemProps> = ({
   onToggleReveal,
   onCopy,
   onOpenReview,
+  onOpenSupport,
 }) => {
   const isRevealed = revealedKeys.includes(item.id);
 

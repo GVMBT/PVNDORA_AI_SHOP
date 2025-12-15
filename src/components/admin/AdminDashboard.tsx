@@ -14,51 +14,81 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
-  // Use provided stats or default values
+  // Use provided stats or default to 0 (no mocks)
   const displayStats = stats || {
-    totalRevenue: 4200000,
-    ordersToday: 142,
+    totalRevenue: 0,
+    ordersToday: 0,
     ordersWeek: 0,
     ordersMonth: 0,
-    activeUsers: 8920,
+    activeUsers: 0,
+    openTickets: 0,
+    revenueByDay: []
   };
+
+  // Format revenue for display
+  const formatRevenue = (revenue: number): string => {
+    if (revenue >= 1000000) {
+      return `₽ ${(revenue / 1000000).toFixed(1)}M`;
+    } else if (revenue >= 1000) {
+      return `₽ ${(revenue / 1000).toFixed(1)}K`;
+    }
+    return `₽ ${revenue.toFixed(0)}`;
+  };
+
+  // Prepare chart data from revenue_by_day
+  const chartData = displayStats.revenueByDay || [];
+  const maxRevenue = chartData.length > 0 
+    ? Math.max(...chartData.map(d => d.amount))
+    : 1; // Avoid division by zero
+
+  // Generate 12 bars (fill missing days with 0)
+  const chartBars = Array.from({ length: 12 }, (_, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (11 - i));
+    const dateStr = date.toISOString().split('T')[0];
+    const dayData = chartData.find(d => d.date === dateStr);
+    const amount = dayData?.amount || 0;
+    const heightPercent = maxRevenue > 0 ? (amount / maxRevenue) * 100 : 0;
+    return { date: dateStr, amount, height: Math.max(heightPercent, 5) }; // Min 5% for visibility
+  });
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard 
           label="Total Revenue" 
-          value={`₽ ${(displayStats.totalRevenue / 1000000).toFixed(1)}M`} 
-          trend="+12%" 
+          value={formatRevenue(displayStats.totalRevenue)} 
+          trend="" 
           icon={<DollarSign size={20} />} 
         />
         <StatCard 
           label="Active Orders" 
           value={String(displayStats.ordersToday)} 
-          trend="+5%" 
+          trend="" 
           icon={<ShoppingBag size={20} />} 
         />
         <StatCard 
           label="Total Users" 
           value={displayStats.activeUsers.toLocaleString()} 
-          trend="+24" 
+          trend="" 
           icon={<Users size={20} />} 
         />
         <StatCard 
           label="Open Tickets" 
-          value="15" 
-          trend="-2" 
+          value={String(displayStats.openTickets || 0)} 
+          trend="" 
           isNegative={false} 
           icon={<LifeBuoy size={20} />} 
         />
       </div>
-      {/* Charts placeholder */}
+      {/* Revenue Chart */}
       <div className="bg-[#0e0e0e] border border-white/10 p-6 rounded-sm h-64 flex items-end justify-between gap-2">
-        {[...Array(12)].map((_, i) => (
+        {chartBars.map((bar, i) => (
           <div 
             key={i} 
-            className="flex-1 bg-white/5 hover:bg-pandora-cyan transition-colors" 
-            style={{ height: `${Math.random() * 80 + 20}%` }} 
+            className="flex-1 bg-white/5 hover:bg-pandora-cyan transition-colors rounded-t-sm relative group" 
+            style={{ height: `${bar.height}%` }}
+            title={`${bar.date}: ₽${bar.amount.toFixed(0)}`}
           />
         ))}
       </div>
@@ -67,6 +97,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
 };
 
 export default memo(AdminDashboard);
+
 
 
 

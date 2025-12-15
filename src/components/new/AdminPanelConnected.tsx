@@ -195,7 +195,9 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     ordersToday: analytics.orders_today || 0,
     ordersWeek: analytics.orders_this_week || 0,
     ordersMonth: analytics.orders_this_month || 0,
-    activeUsers: analytics.active_users || 0
+    activeUsers: analytics.active_users || 0,
+    openTickets: analytics.open_tickets || 0,
+    revenueByDay: analytics.revenue_by_day || []
   } : undefined;
 
   return (

@@ -59,6 +59,7 @@ export interface AdminAnalytics {
   orders_this_week: number;
   orders_this_month: number;
   active_users: number;
+  open_tickets?: number;
   top_products: { name: string; sales: number; revenue: number }[];
   revenue_by_day: { date: string; amount: number }[];
 }
