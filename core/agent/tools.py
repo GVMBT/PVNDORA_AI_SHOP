@@ -7,7 +7,7 @@ Each tool:
 - Uses type hints (for schema generation)
 - Is async-native (no run_until_complete hacks)
 """
-from typing import Optional
+from typing import List, Optional
 
 from langchain_core.tools import tool
 
@@ -548,13 +548,13 @@ async def apply_promo_code(code: str) -> dict:
 # =============================================================================
 
 @tool
-async def compare_products(product_names: list) -> dict:
+async def compare_products(product_names: List[str]) -> dict:
     """
     Compare two or more products side by side.
     Use when user wants to compare different products.
     
     Args:
-        product_names: List of product names to compare
+        product_names: List of product names to compare (e.g. ["ChatGPT", "Claude"])
         
     Returns:
         Comparison data for all products
