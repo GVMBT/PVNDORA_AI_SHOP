@@ -118,8 +118,9 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
         const result = await createTopUp(amount, currency);
         
         if (result.payment_url) {
-          // Open payment URL using Telegram WebApp or fallback
-          openLink(result.payment_url);
+          // Replace current window with payment URL
+          // After payment, user will be redirected to /payment/result
+          window.location.href = result.payment_url;
         }
       },
     });

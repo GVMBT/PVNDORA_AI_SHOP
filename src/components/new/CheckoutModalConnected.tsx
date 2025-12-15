@@ -87,30 +87,13 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
         throw new Error('Не удалось создать заказ. Попробуйте позже.');
       }
       
-      // For external payment (CrystalPay), open in browser and show polling screen
+      // For external payment (CrystalPay), redirect to payment page
+      // After payment, CrystalPay will redirect back to /payment/result
       if (response.payment_url && method !== 'internal') {
-        const tgWebApp = window.Telegram?.WebApp;
-        
-        // Open payment URL in external browser
-        if (tgWebApp?.openLink) {
-          try {
-            tgWebApp.openLink(response.payment_url);
-          } catch (err) {
-            // Fallback: open in new tab
-            window.open(response.payment_url, '_blank');
-          }
-        } else {
-          // Fallback for non-Telegram environment
-          window.open(response.payment_url, '_blank');
-        }
-        
-        // Close modal and show PaymentResult with polling
-        // This keeps Mini App open while user pays in external browser
-        if (onAwaitingPayment) {
-          onClose();  // Close checkout modal
-          onAwaitingPayment(response.order_id);  // Show PaymentResult
-        }
-        
+        // Replace current window with payment URL
+        // This closes Mini App and opens payment in browser
+        // After payment, user will be redirected to /payment/result for polling
+        window.location.href = response.payment_url;
         return null;
       }
       

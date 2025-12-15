@@ -217,23 +217,10 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
       hapticFeedback('notification', 'success');
 
       if (result.payment_url) {
-        const isLocalForm = result.payment_url.includes('/payment/form');
-        
-        if (isLocalForm) {
-          window.location.href = result.payment_url;
-        } else {
-          // Open payment in external browser
-          // IMPORTANT: Do NOT close Mini App! We need to poll for status
-          openLink(result.payment_url);
-          
-          // Return order_id so parent can show PaymentResult with polling
-          // This keeps Mini App open while user pays in external browser
-          return { 
-            awaitingPayment: true, 
-            orderId: result.order_id,
-            paymentUrl: result.payment_url 
-          };
-        }
+        // Replace current window with payment URL
+        // After payment, CrystalPay will redirect to /payment/result for polling
+        window.location.href = result.payment_url;
+        return null;
       } else {
         await showAlert(t('checkout.orderCreated'));
         onSuccess();

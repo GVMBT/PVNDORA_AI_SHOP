@@ -105,12 +105,9 @@ const OrderCard: React.FC<OrderCardProps> = ({
               </div>
               <button
                 onClick={() => {
-                  const tgWebApp = window.Telegram?.WebApp;
-                  if (tgWebApp) {
-                    tgWebApp.openLink(order.payment_url!);
-                  } else {
-                    window.location.href = order.payment_url!;
-                  }
+                  // Replace current window with payment URL
+                  // After payment, user will be redirected to /payment/result
+                  window.location.href = order.payment_url!;
                 }}
                 className="px-4 py-2 bg-pandora-cyan text-black font-mono text-xs font-bold uppercase hover:bg-pandora-cyan/80 transition-colors"
               >
