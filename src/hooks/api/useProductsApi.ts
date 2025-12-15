@@ -21,6 +21,7 @@ export function useProductsTyped() {
     const params = new URLSearchParams();
     if (category) params.append('category', category);
     params.append('language_code', locale);
+    params.append('currency', currency); // Pass currency explicitly
     
     try {
       const response: APIProductsResponse = await get(`/products?${params.toString()}`);
@@ -36,7 +37,7 @@ export function useProductsTyped() {
 
   const getProduct = useCallback(async (id: string): Promise<ProductDetailData | null> => {
     try {
-      const response: APIProductResponse = await get(`/products/${id}?language_code=${locale}`);
+      const response: APIProductResponse = await get(`/products/${id}?language_code=${locale}&currency=${currency}`); // Pass currency explicitly
       const responseCurrency = response.product?.currency || currency;
       return adaptProductDetail(response, responseCurrency);
     } catch (err) {

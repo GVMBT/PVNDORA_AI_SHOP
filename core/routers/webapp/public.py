@@ -21,7 +21,8 @@ router = APIRouter(tags=["webapp-public"])
 @router.get("/products/{product_id}")
 async def get_webapp_product(
     product_id: str,
-    language_code: Optional[str] = Query(None, description="User language code for currency conversion")
+    language_code: Optional[str] = Query(None, description="User language code for currency conversion"),
+    currency: Optional[str] = Query(None, description="User preferred currency (USD, RUB, EUR, etc.)")
 ):
     """Get product with discount and social proof for Mini App."""
     db = get_database()
@@ -38,7 +39,7 @@ async def get_webapp_product(
     rating_info = await db.get_product_rating(product_id)
     
     # Get currency service and convert prices
-    currency = "USD"
+    target_currency = "USD"
     original_price = float(product.price)
     final_price = original_price * (1 - discount_percent / 100)
     msrp = float(product.msrp) if hasattr(product, 'msrp') and product.msrp else None
@@ -46,18 +47,26 @@ async def get_webapp_product(
     try:
         redis = get_redis()  # get_redis() is synchronous, no await needed
         currency_service = get_currency_service(redis)
-        currency = currency_service.get_user_currency(language_code)
+        # Use explicit currency if provided, otherwise determine from language_code
+        if currency:
+            target_currency = currency.upper()
+        else:
+            target_currency = currency_service.get_user_currency(language_code)
         
         # Prices in database are in USD
         price_usd = float(product.price)
         msrp_usd = float(product.msrp) if hasattr(product, 'msrp') and product.msrp else None
         
-        original_price = await currency_service.convert_price(price_usd, currency, round_to_int=True)
-        final_price_usd = price_usd * (1 - discount_percent / 100)
-        final_price = await currency_service.convert_price(final_price_usd, currency, round_to_int=True)
-        
-        if msrp_usd:
-            msrp = await currency_service.convert_price(msrp_usd, currency, round_to_int=True)
+        if target_currency != "USD":
+            original_price = await currency_service.convert_price(price_usd, target_currency, round_to_int=True)
+            final_price_usd = price_usd * (1 - discount_percent / 100)
+            final_price = await currency_service.convert_price(final_price_usd, target_currency, round_to_int=True)
+            
+            if msrp_usd:
+                msrp = await currency_service.convert_price(msrp_usd, target_currency, round_to_int=True)
+        else:
+            original_price = price_usd
+            final_price = price_usd * (1 - discount_percent / 100)
     except Exception as e:
         logger.warning(f"Currency conversion failed: {e}, using USD")
         # Values already set to USD above
@@ -91,7 +100,7 @@ async def get_webapp_product(
             "original_price": original_price, "price": original_price,
             "price_usd": float(product.price),  # Keep USD for reference
             "msrp": msrp,  # Converted MSRP
-            "currency": currency or "USD",  # Ensure currency is always set
+            "currency": target_currency or "USD",  # Ensure currency is always set
             "discount_percent": discount_percent, "final_price": round(final_price, 2),
             "warranty_days": product.warranty_hours // 24 if hasattr(product, 'warranty_hours') and product.warranty_hours else 0,
             "duration_days": getattr(product, 'duration_days', None),
@@ -112,20 +121,25 @@ async def get_webapp_product(
 
 @router.get("/products")
 async def get_webapp_products(
-    language_code: Optional[str] = Query(None, description="User language code for currency conversion")
+    language_code: Optional[str] = Query(None, description="User language code for currency conversion"),
+    currency: Optional[str] = Query(None, description="User preferred currency (USD, RUB, EUR, etc.)")
 ):
     """Get all active products for Mini App catalog."""
     db = get_database()
     products = await db.get_products(status="active")
     
     # Get currency service and convert prices
-    currency = "USD"
+    target_currency = "USD"
     currency_service = None
     
     try:
         redis = get_redis()  # get_redis() is synchronous, no await needed
         currency_service = get_currency_service(redis)
-        currency = currency_service.get_user_currency(language_code)
+        # Use explicit currency if provided, otherwise determine from language_code
+        if currency:
+            target_currency = currency.upper()
+        else:
+            target_currency = currency_service.get_user_currency(language_code)
     except Exception as e:
         logger.warning(f"Currency service unavailable: {e}, using USD")
         # Values already set to USD above
@@ -158,18 +172,18 @@ async def get_webapp_products(
         price_usd = float(p.price)
         msrp_usd = float(p.msrp) if hasattr(p, 'msrp') and p.msrp else None
         
-        if currency_service and currency != "USD":
+        if currency_service and target_currency != "USD":
             try:
-                original_price = await currency_service.convert_price(price_usd, currency, round_to_int=True)
+                original_price = await currency_service.convert_price(price_usd, target_currency, round_to_int=True)
                 final_price_usd = price_usd * (1 - discount_percent / 100)
-                final_price = await currency_service.convert_price(final_price_usd, currency, round_to_int=True)
-                msrp = await currency_service.convert_price(msrp_usd, currency, round_to_int=True) if msrp_usd else None
+                final_price = await currency_service.convert_price(final_price_usd, target_currency, round_to_int=True)
+                msrp = await currency_service.convert_price(msrp_usd, target_currency, round_to_int=True) if msrp_usd else None
             except Exception as e:
                 logger.warning(f"Failed to convert price for product {p.id}: {e}, using USD")
                 original_price = price_usd
                 final_price = price_usd * (1 - discount_percent / 100)
                 msrp = msrp_usd
-                currency = "USD"  # Fallback to USD if conversion fails
+                target_currency = "USD"  # Fallback to USD if conversion fails
         else:
             original_price = price_usd
             final_price = price_usd * (1 - discount_percent / 100)
@@ -188,7 +202,7 @@ async def get_webapp_products(
             "price": original_price,
             "price_usd": price_usd,
             "msrp": msrp,
-            "currency": currency or "USD",
+            "currency": target_currency or "USD",
             "discount_percent": discount_percent, 
             "final_price": round(final_price, 2),
             "warranty_days": warranty_days,

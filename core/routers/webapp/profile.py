@@ -209,6 +209,7 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     
     # Get currency service and determine user currency
     currency = "USD"
+    currency_service = None
     try:
         from core.db import get_redis
         from core.services.currency import get_currency_service
@@ -221,11 +222,31 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     except Exception as e:
         logger.warning(f"Currency service unavailable: {e}, using USD")
     
+    # Convert balance and earnings from USD to user currency
+    balance_usd = float(db_user.balance) if db_user.balance else 0
+    total_referral_earnings_usd = float(db_user.total_referral_earnings) if hasattr(db_user, 'total_referral_earnings') and db_user.total_referral_earnings else 0
+    total_saved_usd = float(db_user.total_saved) if db_user.total_saved else 0
+    
+    balance = balance_usd
+    total_referral_earnings = total_referral_earnings_usd
+    total_saved = total_saved_usd
+    
+    if currency_service and currency != "USD":
+        try:
+            balance = await currency_service.convert_price(balance_usd, currency, round_to_int=True)
+            total_referral_earnings = await currency_service.convert_price(total_referral_earnings_usd, currency, round_to_int=True)
+            total_saved = await currency_service.convert_price(total_saved_usd, currency, round_to_int=True)
+        except Exception as e:
+            logger.warning(f"Failed to convert profile amounts: {e}, using USD values")
+            balance = balance_usd
+            total_referral_earnings = total_referral_earnings_usd
+            total_saved = total_saved_usd
+    
     return {
         "profile": {
-            "balance": float(db_user.balance) if db_user.balance else 0,
-            "total_referral_earnings": float(db_user.total_referral_earnings) if hasattr(db_user, 'total_referral_earnings') and db_user.total_referral_earnings else 0,
-            "total_saved": float(db_user.total_saved) if db_user.total_saved else 0,
+            "balance": balance,
+            "total_referral_earnings": total_referral_earnings,
+            "total_saved": total_saved,
             "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{user.id}",
             "created_at": db_user.created_at.isoformat() if db_user.created_at else None,
             "is_admin": db_user.is_admin or False,
@@ -440,7 +461,6 @@ async def create_topup(
                 "metadata": {
                     "original_currency": currency,
                     "original_amount": request.amount,
-                    "rub_amount": amount_rub,
                     "invoice_id": result.get("invoice_id"),
                 }
             })
@@ -454,7 +474,6 @@ async def create_topup(
             "payment_url": result["payment_url"],
             "amount": request.amount,
             "currency": currency,
-            "amount_rub": amount_rub,
         }
         
     except HTTPException:
