@@ -128,7 +128,8 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
 
   const handleTopUp = useCallback(() => {
     const tgWebApp = window.Telegram?.WebApp;
-    // Используем валюту из профиля (из БД) в первую очередь, так как это актуальная настройка пользователя
+    // КРИТИЧНО: Используем ОРИГИНАЛЬНУЮ валюту из БД (profile.currency)
+    // convertedProfile НЕ должен перезаписывать currency, но на всякий случай используем исходный profile
     const currency = profile?.currency || contextCurrency || 'USD';
     const balance = profile?.balance || 0;
     
@@ -226,7 +227,8 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       // For USD, turnover and thresholds are already in USD, no conversion needed
       return {
         ...profile,
-        currency: currentCurrency,
+        // НЕ перезаписываем currency - оставляем оригинальный из БД
+        // currency: currentCurrency,  // УДАЛЕНО
       };
     }
     
@@ -250,7 +252,8 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       balance: convertUsdToCurrency(profile.balanceUsd || profile.balance, currentCurrency, exchangeRate),
       earnedRef: convertUsdToCurrency(profile.earnedRefUsd || profile.earnedRef, currentCurrency, exchangeRate),
       saved: convertUsdToCurrency(profile.savedUsd || profile.saved, currentCurrency, exchangeRate),
-      currency: currentCurrency,
+      // НЕ перезаписываем currency - оставляем оригинальный из БД для платежей
+      // currency: currentCurrency,  // УДАЛЕНО - используем оригинальный profile.currency
       career: {
         ...profile.career,
         currentTurnover: convertedTurnover,
