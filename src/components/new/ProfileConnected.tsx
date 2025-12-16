@@ -11,6 +11,7 @@ import { useTelegram } from '../../hooks/useTelegram';
 import { useCyberModal } from './CyberModal';
 import { useClipboard } from '../../hooks/useClipboard';
 import { useLocaleContext } from '../../contexts/LocaleContext';
+import { useCart } from '../../contexts/CartContext';
 import { logger } from '../../utils/logger';
 import type { ProfileData } from '../../types/component';
 
@@ -29,6 +30,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   const { hapticFeedback, showConfirm, openLink, showAlert: showTelegramAlert } = useTelegram();
   const { showTopUp, showWithdraw, showAlert: showModalAlert } = useCyberModal();
   const { updateFromProfile, setCurrency, setLocale, currency: contextCurrency } = useLocaleContext();
+  const { clearCartState } = useCart();
   const [isInitialized, setIsInitialized] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
   const { copy: copyToClipboard } = useClipboard();
@@ -181,6 +183,8 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     // Optimistic update: change context IMMEDIATELY (UI updates right away)
     if (preferred_currency) {
       setCurrency(preferred_currency as 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED');
+      // Clear cart cache when currency changes - cart will be re-fetched with new currency
+      clearCartState();
     }
     if (interface_language) {
       setLocale(interface_language as 'en' | 'ru' | 'uk' | 'de' | 'fr' | 'es' | 'tr' | 'ar' | 'hi');
@@ -212,7 +216,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       }
       throw error;
     }
-  }, [updatePreferences, setCurrency, setLocale, getProfile, profile, updateFromProfile]);
+  }, [updatePreferences, setCurrency, setLocale, getProfile, profile, updateFromProfile, clearCartState]);
 
   // Convert profile balance to current currency (for display)
   // IMPORTANT: turnover_usd and thresholds are ALWAYS in USD from API, so we must convert them
