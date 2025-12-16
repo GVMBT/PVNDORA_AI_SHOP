@@ -37,8 +37,10 @@ async def _format_cart_response(cart, db, user_language: str, user_telegram_id: 
             if db_user:
                 user_lang = getattr(db_user, 'interface_language', None) or user_language
                 preferred_curr = getattr(db_user, 'preferred_currency', None)
+                logger.info(f"Cart currency: user={user_telegram_id}, preferred_curr={preferred_curr}, user_lang={user_lang}")
         
         currency = currency_service.get_user_currency(user_lang, preferred_curr)
+        logger.info(f"Cart currency result: {currency}")
     except Exception as e:
         logger.warning(f"Currency service unavailable: {e}, using USD")
     

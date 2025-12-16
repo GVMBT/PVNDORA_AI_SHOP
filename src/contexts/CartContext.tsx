@@ -34,6 +34,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const getCart = useCallback(async (): Promise<CartData | null> => {
     try {
       const response: APICartResponse = await get('/cart');
+      logger.info('Cart API response', { currency: response.currency, items: response.items?.length });
       const adapted = adaptCart(response);
       setCart(adapted);
       return adapted;
