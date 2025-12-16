@@ -558,8 +558,9 @@ async def get_topup_status(topup_id: str):
         status_map = {
             "pending": "pending",
             "paid": "paid",
+            "completed": "delivered",  # Webhook sets "completed" → frontend expects "delivered"
             "cancelled": "cancelled",
-            "cancelled": "cancelled",
+            "failed": "failed",
         }
         
         return {
