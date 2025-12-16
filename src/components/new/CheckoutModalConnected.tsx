@@ -184,10 +184,22 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
     return null;
   }
 
+  // CRITICAL FIX: Always compare balance vs cart total in the SAME currency
+  // Problem: Cart may have prices in one currency (e.g., RUB), profile balance in another (e.g., USD)
+  // Solution: Pass both USD balance and exchange rate for proper comparison
+  const cartCurrency = cart?.currency || 'USD';
+  const exchangeRate = profile?.exchangeRate || 1.0;
+  
+  // If cart is not in USD, convert balance to cart currency for display
+  // This ensures the comparison in CheckoutModal is accurate
+  const userBalanceInCartCurrency = cartCurrency === 'USD'
+    ? (profile?.balanceUsd || 0)
+    : (profile?.balanceUsd || 0) * exchangeRate;
+
   const modalProps = {
     cart: cartItems,
-    userBalance: profile?.balance || 0,
-    currency: cart?.currency || profile?.currency || 'USD',
+    userBalance: userBalanceInCartCurrency,
+    currency: cartCurrency,
     originalTotal: cart?.originalTotal,
     promoCode: cart?.promoCode,
     promoDiscountPercent: cart?.promoDiscountPercent,

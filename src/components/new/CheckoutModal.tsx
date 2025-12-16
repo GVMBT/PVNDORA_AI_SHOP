@@ -102,7 +102,9 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const handlePay = async () => {
     if (selectedPayment === 'internal' && total > userBalance) {
-        setError("INSUFFICIENT_FUNDS_ON_INTERNAL_BALANCE");
+        const availableStr = formatPrice(userBalance, currency);
+        const requiredStr = formatPrice(total, currency);
+        setError(`Недостаточно средств на балансе. Доступно: ${availableStr}, требуется: ${requiredStr}`);
         return;
     }
     
