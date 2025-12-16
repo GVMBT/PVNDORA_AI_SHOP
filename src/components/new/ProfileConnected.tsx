@@ -128,7 +128,8 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
 
   const handleTopUp = useCallback(() => {
     const tgWebApp = window.Telegram?.WebApp;
-    const currency = contextCurrency || profile?.currency || 'USD';
+    // Используем валюту из профиля (из БД) в первую очередь, так как это актуальная настройка пользователя
+    const currency = profile?.currency || contextCurrency || 'USD';
     const balance = profile?.balance || 0;
     
     // Minimum top-up amounts (equivalent to ~5 USD)
@@ -190,7 +191,11 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       
       // Always reload profile when currency changes to get correct exchange_rate for new currency
       if (preferred_currency && preferred_currency !== profile?.currency) {
-        await getProfile(); // Reload to get exchange_rate for new currency
+        const updatedProfile = await getProfile(); // Reload to get exchange_rate for new currency
+        // Синхронизируем контекст с обновленным профилем
+        if (updatedProfile) {
+          updateFromProfile(updatedProfile);
+        }
       }
       
       return result;
@@ -206,7 +211,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       }
       throw error;
     }
-  }, [updatePreferences, setCurrency, setLocale, getProfile, profile]);
+  }, [updatePreferences, setCurrency, setLocale, getProfile, profile, updateFromProfile]);
 
   // Convert profile balance to current currency (for display)
   // IMPORTANT: turnover_usd and thresholds are ALWAYS in USD from API, so we must convert them
