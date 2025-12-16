@@ -44,7 +44,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       setIsInitialized(true);
     };
     init();
-  }, [getProfile, updateFromProfile]);
+  }, [getProfile, updateFromProfile]);          
 
   // Auto-refresh profile when page becomes visible (handles returning from Telegram notifications)
   useEffect(() => {
@@ -57,19 +57,6 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [isInitialized, getProfile]);
-
-  // Periodic refresh while page is visible (every 30 seconds)
-  useEffect(() => {
-    if (!isInitialized) return;
-    
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        getProfile();
-      }
-    }, 30000); // 30 seconds
-    
-    return () => clearInterval(interval);
   }, [isInitialized, getProfile]);          
 
   const handleCopyLink = useCallback(async () => {
@@ -201,10 +188,9 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       // Update preferences via API (in background)
       const result = await updatePreferences(preferred_currency, interface_language);
       
-      // NO PROFILE RELOAD NEEDED - Frontend converts balance locally using exchange_rate
-      // Only reload if exchange_rate is missing (fallback for old API responses)
-      if (preferred_currency && preferred_currency !== profile?.currency && !profile?.exchangeRate) {
-        await getProfile(); // Fallback: reload to get exchange_rate
+      // Always reload profile when currency changes to get correct exchange_rate for new currency
+      if (preferred_currency && preferred_currency !== profile?.currency) {
+        await getProfile(); // Reload to get exchange_rate for new currency
       }
       
       return result;
@@ -223,18 +209,30 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   }, [updatePreferences, setCurrency, setLocale, getProfile, profile]);
 
   // Convert profile balance to current currency (for display)
+  // IMPORTANT: turnover_usd and thresholds are ALWAYS in USD from API, so we must convert them
   const convertedProfile = useMemo(() => {
     if (!profile) return null;
     
     const currentCurrency = contextCurrency || profile.currency;
     const exchangeRate = profile.exchangeRate || 1.0;
     
-    // If currency matches profile currency, use existing converted values
-    if (currentCurrency === profile.currency) {
+    // If currency is USD, no conversion needed (but still convert if contextCurrency differs)
+    if (currentCurrency === 'USD') {
+      // For USD, turnover and thresholds are already in USD, no conversion needed
+      return {
+        ...profile,
+        currency: currentCurrency,
+      };
+    }
+    
+    // If currencies don't match AND exchangeRate is 1.0 (not loaded for new currency),
+    // wait for profile to update with correct exchangeRate
+    if (currentCurrency !== profile.currency && currentCurrency !== 'USD' && exchangeRate === 1.0) {
+      // Exchange rate not yet loaded for new currency, use profile as-is
       return profile;
     }
     
-    // Convert USD amounts to current currency (including turnover)
+    // Always convert USD amounts (turnover_usd and thresholds are always in USD)
     const convertedTurnover = convertUsdToCurrency(profile.career.currentTurnover, currentCurrency, exchangeRate);
     const convertedMaxTurnover = profile.career.nextLevel 
       ? convertUsdToCurrency(profile.career.nextLevel.min, currentCurrency, exchangeRate)
