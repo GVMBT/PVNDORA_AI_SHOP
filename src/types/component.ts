@@ -218,6 +218,11 @@ export interface CartData {
   originalTotal: number;
   discountTotal: number;
   currency: string;
+  exchangeRate?: number;
+  // Base USD amounts for safe comparisons
+  totalUsd?: number;
+  originalTotalUsd?: number;
+  discountTotalUsd?: number;
   promoCode?: string;
   promoDiscountPercent?: number;
 }

@@ -24,6 +24,7 @@ async def _format_cart_response(cart, db, user_language: str, user_telegram_id: 
     
     currency = "USD"
     currency_service = None
+    exchange_rate = 1.0
     
     try:
         redis = get_redis()  # get_redis() is synchronous, no await needed
@@ -40,39 +41,60 @@ async def _format_cart_response(cart, db, user_language: str, user_telegram_id: 
                 logger.info(f"Cart currency: user={user_telegram_id}, preferred_curr={preferred_curr}, user_lang={user_lang}")
         
         currency = currency_service.get_user_currency(user_lang, preferred_curr)
-        logger.info(f"Cart currency result: {currency}")
+        # Important: get and reuse exchange_rate once to keep UI consistent
+        exchange_rate = await currency_service.get_exchange_rate(currency)
+        logger.info(f"Cart currency result: {currency}, rate={exchange_rate}")
     except Exception as e:
         logger.warning(f"Currency service unavailable: {e}, using USD")
+        exchange_rate = 1.0
     
     if not cart:
         return {
             "cart": None, "items": [], "total": 0.0, "subtotal": 0.0,
             "instant_total": 0.0, "prepaid_total": 0.0, 
             "promo_code": None, "promo_discount_percent": 0.0,
-            "currency": currency
+            "currency": currency,
+            "exchange_rate": exchange_rate,
+            # USD mirrors for frontend comparisons
+            "total_usd": 0.0,
+            "subtotal_usd": 0.0,
+            "instant_total_usd": 0.0,
+            "prepaid_total_usd": 0.0,
         }
     
     items_with_details = []
-    total_converted = cart.total
-    subtotal_converted = cart.subtotal
-    instant_total_converted = cart.instant_total
-    prepaid_total_converted = cart.prepaid_total
+    # Base USD amounts
+    total_usd = float(cart.total)
+    subtotal_usd = float(cart.subtotal)
+    instant_total_usd = float(cart.instant_total)
+    prepaid_total_usd = float(cart.prepaid_total)
+    
+    # By default, converted == USD
+    total_converted = total_usd
+    subtotal_converted = subtotal_usd
+    instant_total_converted = instant_total_usd
+    prepaid_total_converted = prepaid_total_usd
     
     # Fetch all products in parallel for better performance
     products = await asyncio.gather(*[db.get_product_by_id(item.product_id) for item in cart.items])
     
     for item, product in zip(cart.items, products):
         
+        # Base prices in USD
+        unit_price_usd = float(item.unit_price)
+        final_price_usd = float(item.final_price)
+        total_price_usd = float(item.total_price)
+        
         # Convert prices from USD to user currency
-        unit_price_converted = float(item.unit_price)
-        final_price_converted = float(item.final_price)
-        total_price_converted = float(item.total_price)
+        unit_price_converted = unit_price_usd
+        final_price_converted = final_price_usd
+        total_price_converted = total_price_usd
         
         if currency_service and currency != "USD":
             try:
-                unit_price_converted = await currency_service.convert_price(float(item.unit_price), currency, round_to_int=True)
-                final_price_converted = await currency_service.convert_price(float(item.final_price), currency, round_to_int=True)
-                total_price_converted = await currency_service.convert_price(float(item.total_price), currency, round_to_int=True)
+                unit_price_converted = await currency_service.convert_price(unit_price_usd, currency, round_to_int=True)
+                final_price_converted = await currency_service.convert_price(final_price_usd, currency, round_to_int=True)
+                total_price_converted = await currency_service.convert_price(total_price_usd, currency, round_to_int=True)
             except Exception as e:
                 logger.warning(f"Failed to convert cart item prices: {e}")
         
@@ -82,9 +104,14 @@ async def _format_cart_response(cart, db, user_language: str, user_telegram_id: 
             "quantity": item.quantity, 
             "instant_quantity": item.instant_quantity,
             "prepaid_quantity": item.prepaid_quantity, 
+            # Converted amounts for UI display
             "unit_price": unit_price_converted,
             "final_price": final_price_converted, 
             "total_price": total_price_converted, 
+            # Base USD amounts for safe comparisons
+            "unit_price_usd": unit_price_usd,
+            "final_price_usd": final_price_usd,
+            "total_price_usd": total_price_usd,
             "discount_percent": item.discount_percent,
             "currency": currency
         })
@@ -92,10 +119,10 @@ async def _format_cart_response(cart, db, user_language: str, user_telegram_id: 
     # Convert totals
     if currency_service and currency != "USD":
         try:
-            total_converted = await currency_service.convert_price(float(cart.total), currency, round_to_int=True)
-            subtotal_converted = await currency_service.convert_price(float(cart.subtotal), currency, round_to_int=True)
-            instant_total_converted = await currency_service.convert_price(float(cart.instant_total), currency, round_to_int=True)
-            prepaid_total_converted = await currency_service.convert_price(float(cart.prepaid_total), currency, round_to_int=True)
+            total_converted = await currency_service.convert_price(total_usd, currency, round_to_int=True)
+            subtotal_converted = await currency_service.convert_price(subtotal_usd, currency, round_to_int=True)
+            instant_total_converted = await currency_service.convert_price(instant_total_usd, currency, round_to_int=True)
+            prepaid_total_converted = await currency_service.convert_price(prepaid_total_usd, currency, round_to_int=True)
         except Exception as e:
             logger.warning(f"Failed to convert cart totals: {e}")
     
@@ -112,7 +139,13 @@ async def _format_cart_response(cart, db, user_language: str, user_telegram_id: 
         "prepaid_total": prepaid_total_converted,
         "promo_code": cart.promo_code, 
         "promo_discount_percent": cart.promo_discount_percent,
-        "currency": currency
+        "currency": currency,
+        "exchange_rate": exchange_rate,
+        # Base USD mirrors for robust comparisons on FE
+        "total_usd": total_usd,
+        "subtotal_usd": subtotal_usd,
+        "instant_total_usd": instant_total_usd,
+        "prepaid_total_usd": prepaid_total_usd,
     }
 
 

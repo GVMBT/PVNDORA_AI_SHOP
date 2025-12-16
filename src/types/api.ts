@@ -299,6 +299,10 @@ export interface APICartItem {
   unit_price: number;
   discount_percent: number;
   total_price: number;
+  // Base USD amounts for safe calculations
+  unit_price_usd?: number;
+  final_price_usd?: number;
+  total_price_usd?: number;
 }
 
 export interface APICart {
@@ -317,6 +321,12 @@ export interface APICartResponse {
   promo_code?: string;
   promo_discount_percent?: number;
   currency: string;
+  exchange_rate?: number; // 1 USD = X currency
+  // Base USD mirrors
+  total_usd?: number;
+  subtotal_usd?: number;
+  instant_total_usd?: number;
+  prepaid_total_usd?: number;
 }
 
 // ==================== PAYMENT ====================
