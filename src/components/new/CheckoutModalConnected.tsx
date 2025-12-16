@@ -23,20 +23,29 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   onAwaitingPayment,
 }) => {
   // Use global cart context - shared with NewApp
-  const { cart, getCart, removeCartItem, applyPromo, removePromo, loading: cartLoading, error: cartError } = useCart();
+  const { cart: contextCart, getCart, removeCartItem, applyPromo, removePromo, loading: cartLoading, error: cartError } = useCart();
   const { createOrder, loading: orderLoading, error: orderError } = useOrdersTyped();
-  const { profile, getProfile } = useProfileTyped();
+  const { profile: contextProfile, getProfile } = useProfileTyped();
   const [isInitialized, setIsInitialized] = useState(false);
+  
+  // Store fresh data from API to avoid stale closure issues
+  const [freshCart, setFreshCart] = useState<typeof contextCart>(null);
+  const [freshProfile, setFreshProfile] = useState<typeof contextProfile>(null);
 
   useEffect(() => {
     let isMounted = true;
     const init = async () => {
       try {
-        await Promise.all([getCart(), getProfile()]);
+        // Get FRESH data from API and store it locally to avoid stale closures
+        const [cartData, profileData] = await Promise.all([getCart(), getProfile()]);
         
         if (!isMounted) {
           return;
         }
+        
+        // Store fresh data in local state
+        setFreshCart(cartData);
+        setFreshProfile(profileData);
         setIsInitialized(true);
       } catch (err) {
         if (isMounted) {
@@ -50,10 +59,16 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
       isMounted = false;
     };
   }, [getCart, getProfile]);
+  
+  // Use fresh data if available, fallback to context
+  const cart = freshCart || contextCart;
+  const profile = freshProfile || contextProfile;
 
   const handleRemoveItem = useCallback(async (productId: string) => {
     try {
       const updatedCart = await removeCartItem(productId);
+      // Update fresh cart with new data
+      setFreshCart(updatedCart);
       // Cart state will trigger useEffect to close if empty
       // But also close immediately for faster UX
       if (!updatedCart || !updatedCart.items || updatedCart.items.length === 0) {
@@ -66,7 +81,8 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   
   const handleApplyPromo = useCallback(async (code: string): Promise<{ success: boolean; message?: string }> => {
     try {
-      await applyPromo(code);
+      const updatedCart = await applyPromo(code);
+      if (updatedCart) setFreshCart(updatedCart);
       return { success: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Invalid promo code';
@@ -76,7 +92,8 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   
   const handleRemovePromo = useCallback(async () => {
     try {
-      await removePromo();
+      const updatedCart = await removePromo();
+      if (updatedCart) setFreshCart(updatedCart);
     } catch {
       // Silently fail
     }
