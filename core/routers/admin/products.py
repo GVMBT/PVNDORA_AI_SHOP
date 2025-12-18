@@ -119,7 +119,7 @@ async def admin_update_product(product_id: str, request: CreateProductRequest, a
 
 @router.delete("/products/{product_id}")
 async def admin_delete_product(product_id: str, admin=Depends(verify_admin)):
-    """Delete a product (soft delete - set status to 'deleted')"""
+    """Delete a product (soft delete - set status to 'discontinued')"""
     db = get_database()
     
     # Check if product has sold stock (cannot delete)
@@ -135,10 +135,10 @@ async def admin_delete_product(product_id: str, admin=Depends(verify_admin)):
             detail=f"Cannot delete product with {sold_count} sold items. Archive instead."
         )
     
-    # Soft delete - mark as deleted
+    # Soft delete - mark as discontinued (valid status per DB constraint)
     result = await asyncio.to_thread(
         lambda: db.client.table("products").update({
-            "status": "deleted"
+            "status": "discontinued"
         }).eq("id", product_id).execute()
     )
     
