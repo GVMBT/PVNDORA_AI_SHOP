@@ -31,7 +31,11 @@ export async function apiRequest<T = unknown>(
   endpoint: string,
   options: ApiClientOptions = {}
 ): Promise<T> {
-  const url = endpoint.startsWith('http') ? endpoint : `${API.BASE_URL}${endpoint}`;
+  // If endpoint is full URL or already has /api/ prefix, use as-is
+  // Otherwise prepend BASE_URL for relative paths
+  const url = endpoint.startsWith('http') || endpoint.startsWith('/api/') 
+    ? endpoint 
+    : `${API.BASE_URL}${endpoint}`;
 
   try {
     const response = await fetch(url, {
