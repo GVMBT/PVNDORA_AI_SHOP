@@ -156,7 +156,10 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       order_id: t.order_id,
       telegram_id: t.telegram_id,
       admin_comment: t.admin_comment,
-      description: t.description
+      description: t.description,
+      // Credentials for admin verification
+      credentials: t.credentials,
+      product_name: t.product_name
     }))
   , [tickets]);
 

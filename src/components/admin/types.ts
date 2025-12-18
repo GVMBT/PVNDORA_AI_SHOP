@@ -66,6 +66,9 @@ export interface TicketData {
   telegram_id?: number; // User Telegram ID for direct contact
   admin_comment?: string; // Admin response/comment
   description?: string; // Issue description
+  // Credentials for admin verification
+  credentials?: string; // delivery_content from order_items
+  product_name?: string; // Product name for context
 }
 
 export interface AdminStats {

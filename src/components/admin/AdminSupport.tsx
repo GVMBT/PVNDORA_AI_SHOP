@@ -170,6 +170,19 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
                   </div>
                 )}
               </div>
+              
+              {/* Credentials for Admin Verification */}
+              {selectedTicket.credentials && (
+                <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded">
+                  <div className="text-[10px] font-mono text-yellow-400 mb-2">⚠️ CREDENTIALS FOR VERIFICATION</div>
+                  {selectedTicket.product_name && (
+                    <div className="text-xs text-gray-400 mb-1">Product: {selectedTicket.product_name}</div>
+                  )}
+                  <div className="font-mono text-sm text-white bg-black/50 p-2 break-all select-all">
+                    {selectedTicket.credentials}
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="flex-1 p-4 overflow-y-auto">
