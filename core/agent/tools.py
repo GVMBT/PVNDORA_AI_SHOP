@@ -988,16 +988,27 @@ async def create_support_ticket(
     Create support ticket for user's issue.
     Automatically checks warranty and approves if within warranty period.
     
+    IMPORTANT FOR REPLACEMENT TICKETS:
+    - You MUST provide order_id_prefix for replacement/refund issues
+    - You SHOULD provide item_id for account-specific problems
+    - Without these, the ticket cannot be auto-processed
+    
     Args:
         user_id: User database ID
         issue_type: Type of issue (replacement, refund, technical_issue, other)
         message: Issue description
-        order_id_prefix: First 8 chars of related order ID (optional)
-        item_id: Specific order item ID (optional, for item-level issues)
+        order_id_prefix: First 8 chars of related order ID (REQUIRED for replacement/refund)
+        item_id: Specific order item ID (REQUIRED for account replacements)
         
     Returns:
         Ticket info with status
     """
+    # Validate required params for replacement/refund
+    if issue_type in ("replacement", "refund") and not order_id_prefix:
+        return {
+            "success": False,
+            "error": "order_id_prefix required for replacement/refund tickets. First call get_user_orders to find the order, then ask user which one has the problem."
+        }
     try:
         from datetime import datetime, timezone
         import re

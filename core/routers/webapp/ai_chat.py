@@ -98,7 +98,6 @@ async def send_chat_message(
             message=request.message,
             user_id=db_user.id,
             language=language,
-            thread_id=f"user_{db_user.id}",  # Memory per user
             telegram_id=user.id,
         )
         
