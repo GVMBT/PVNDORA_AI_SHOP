@@ -209,7 +209,7 @@ export function useAdminUsersTyped() {
   const updateUserRole = useCallback(async (userId: string, role: string): Promise<boolean> => {
     try {
       await adminRequest(`/users/${userId}/role`, {
-        method: 'PUT',
+        method: 'POST',
         body: JSON.stringify({ role }),
       });
       await getUsers();
@@ -222,9 +222,8 @@ export function useAdminUsersTyped() {
 
   const banUser = useCallback(async (userId: string, ban: boolean): Promise<boolean> => {
     try {
-      await adminRequest(`/users/${userId}/ban`, {
-        method: 'PUT',
-        body: JSON.stringify({ banned: ban }),
+      await adminRequest(`/users/${userId}/ban?ban=${ban}`, {
+        method: 'POST',
       });
       await getUsers();
       return true;
@@ -234,7 +233,21 @@ export function useAdminUsersTyped() {
     }
   }, [getUsers]);
 
-  return { users, getUsers, updateUserRole, banUser, loading, error };
+  const updateBalance = useCallback(async (userId: string, amount: number): Promise<boolean> => {
+    try {
+      await adminRequest(`/users/${userId}/balance`, {
+        method: 'POST',
+        body: JSON.stringify({ amount }),
+      });
+      await getUsers();
+      return true;
+    } catch (err) {
+      logger.error('Failed to update balance', err);
+      return false;
+    }
+  }, [getUsers]);
+
+  return { users, getUsers, updateUserRole, banUser, updateBalance, loading, error };
 }
 
 // Analytics Hook

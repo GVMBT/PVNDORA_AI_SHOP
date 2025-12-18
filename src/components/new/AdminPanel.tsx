@@ -40,6 +40,9 @@ interface AdminPanelProps {
   onDeletePromo?: (id: string) => Promise<void>;
   onTogglePromoActive?: (id: string, isActive: boolean) => Promise<void>;
   onRefreshTickets?: () => void;
+  // User actions
+  onBanUser?: (userId: number, ban: boolean) => void;
+  onUpdateBalance?: (userId: number, amount: number) => void;
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
@@ -55,6 +58,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onDeletePromo,
   onTogglePromoActive,
   onRefreshTickets,
+  onBanUser,
+  onUpdateBalance,
 }) => {
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -106,6 +111,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         return (
           <AdminUsers
             users={propsUsers}
+            onBanUser={onBanUser}
+            onUpdateBalance={onUpdateBalance}
           />
         );
       case 'support':

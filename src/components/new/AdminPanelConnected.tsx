@@ -30,7 +30,7 @@ interface AdminPanelConnectedProps {
 const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => {
   const { products, getProducts, createProduct, updateProduct, deleteProduct, addStock, loading: productsLoading } = useAdminProductsTyped();
   const { orders, getOrders, loading: ordersLoading } = useAdminOrdersTyped();
-  const { users, getUsers, updateUserRole, banUser, loading: usersLoading } = useAdminUsersTyped();
+  const { users, getUsers, updateUserRole, banUser, updateBalance, loading: usersLoading } = useAdminUsersTyped();
   const { analytics, getAnalytics, loading: analyticsLoading } = useAdminAnalyticsTyped();
   const { promoCodes, getPromoCodes, createPromoCode, updatePromoCode, deletePromoCode, togglePromoActive } = useAdminPromoTyped();
   const { getTickets } = useAdmin();
@@ -158,19 +158,48 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     method: o.payment_method?.toUpperCase() || 'UNKNOWN'
   }));
 
-  const transformedUsers = users.map(u => ({
-    id: parseInt(u.telegram_id) || 0,
-    username: u.username || `user_${u.id?.slice(0, 6)}`,
-    role: (u.role?.toUpperCase() || 'USER') as 'USER' | 'VIP' | 'ADMIN',
-    joinedAt: formatDate(u.created_at),
-    purchases: u.orders_count || 0,
-    spent: u.total_spent || 0,
-    balance: u.balance || 0,
-    isBanned: u.is_banned || false,
-    invites: 0, // TODO: Add to backend
-    earned: 0, // TODO: Add to backend
-    savings: 0 // TODO: Add to backend
-  }));
+  // Store mapping of telegram_id -> user UUID for API calls
+  const userIdMap = new Map<number, string>();
+  
+  const transformedUsers = users.map(u => {
+    const telegramId = parseInt(u.telegram_id) || 0;
+    userIdMap.set(telegramId, u.id);
+    return {
+      id: telegramId,
+      username: u.username || `user_${u.id?.slice(0, 6)}`,
+      role: (u.role?.toUpperCase() || 'USER') as 'USER' | 'VIP' | 'ADMIN',
+      joinedAt: formatDate(u.created_at),
+      purchases: u.orders_count || 0,
+      spent: u.total_spent || 0,
+      balance: u.balance || 0,
+      isBanned: u.is_banned || false,
+      invites: 0, // TODO: Add to backend
+      earned: 0, // TODO: Add to backend
+      savings: 0 // TODO: Add to backend
+    };
+  });
+  
+  // User action handlers
+  const handleBanUser = useCallback((telegramId: number, ban: boolean) => {
+    const userId = userIdMap.get(telegramId);
+    if (userId) {
+      banUser(userId, ban);
+    }
+  }, [banUser, userIdMap]);
+  
+  const handleUpdateBalance = useCallback((telegramId: number, amount: number) => {
+    const userId = userIdMap.get(telegramId);
+    if (userId) {
+      // Prompt for amount (simple implementation)
+      const newAmount = window.prompt('Enter amount to add (negative to subtract):', '0');
+      if (newAmount !== null) {
+        const parsedAmount = parseFloat(newAmount);
+        if (!isNaN(parsedAmount)) {
+          updateBalance(userId, parsedAmount);
+        }
+      }
+    }
+  }, [updateBalance, userIdMap]);
 
   // Transform tickets
   const transformedTickets: TicketData[] = tickets.map((t: any) => ({
@@ -218,6 +247,8 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       onDeletePromo={handleDeletePromo}
       onTogglePromoActive={handleTogglePromoActive}
       onRefreshTickets={fetchTickets}
+      onBanUser={handleBanUser}
+      onUpdateBalance={handleUpdateBalance}
     />
   );
 };
