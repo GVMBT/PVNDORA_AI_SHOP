@@ -2,20 +2,16 @@
  * AdminPanelConnected
  * 
  * Connected version of AdminPanel with real API data.
- * Fetches products, orders, users, and analytics from backend.
+ * All data transformations are memoized to prevent infinite re-renders.
  */
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import AdminPanel from './AdminPanel';
 import { 
   useAdminProductsTyped, 
   useAdminOrdersTyped, 
   useAdminUsersTyped, 
   useAdminAnalyticsTyped,
-  AdminProduct,
-  AdminOrder,
-  AdminUser,
-  AdminAnalytics 
 } from '../../hooks/useApiTyped';
 import { useAdminPromoTyped, PromoCodeData } from '../../hooks/api/useAdminPromoApi';
 import { useAdmin } from '../../hooks/useAdmin';
@@ -28,17 +24,22 @@ interface AdminPanelConnectedProps {
 }
 
 const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => {
-  const { products, getProducts, createProduct, updateProduct, deleteProduct, addStock, loading: productsLoading } = useAdminProductsTyped();
-  const { orders, getOrders, loading: ordersLoading } = useAdminOrdersTyped();
-  const { users, getUsers, updateUserRole, banUser, updateBalance, loading: usersLoading } = useAdminUsersTyped();
-  const { analytics, getAnalytics, loading: analyticsLoading } = useAdminAnalyticsTyped();
+  // API hooks
+  const { products, getProducts } = useAdminProductsTyped();
+  const { orders, getOrders } = useAdminOrdersTyped();
+  const { users, getUsers, banUser, updateBalance } = useAdminUsersTyped();
+  const { analytics, getAnalytics } = useAdminAnalyticsTyped();
   const { promoCodes, getPromoCodes, createPromoCode, updatePromoCode, deletePromoCode, togglePromoActive } = useAdminPromoTyped();
   const { getTickets } = useAdmin();
   
+  // Local state
   const [isInitialized, setIsInitialized] = useState(false);
   const [tickets, setTickets] = useState<any[]>([]);
+  
+  // Ref to store user ID mapping (telegram_id -> UUID)
+  const userIdMapRef = useRef<Map<number, string>>(new Map());
 
-  // Fetch tickets
+  // Fetch tickets - stable callback
   const fetchTickets = useCallback(async () => {
     try {
       const response = await getTickets('all');
@@ -47,7 +48,6 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       }
     } catch (err) {
       logger.error('Failed to fetch tickets', err);
-      // Set empty array on error to prevent infinite loading
       setTickets([]);
     }
   }, [getTickets]);
@@ -58,8 +58,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     
     const init = async () => {
       try {
-        // Use Promise.allSettled to continue even if some requests fail
-        const results = await Promise.allSettled([
+        await Promise.allSettled([
           getProducts(),
           getOrders(undefined, 50),
           getUsers(50),
@@ -68,20 +67,11 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
           fetchTickets()
         ]);
         
-        // Log any failures
-        results.forEach((result, index) => {
-          if (result.status === 'rejected') {
-            const names = ['products', 'orders', 'users', 'analytics', 'promoCodes', 'tickets'];
-            logger.error(`Failed to fetch ${names[index]}:`, result.reason);
-          }
-        });
-        
         if (isMounted) {
           setIsInitialized(true);
         }
       } catch (err) {
         logger.error('Failed to initialize admin panel', err);
-        // Set initialized even on error to prevent infinite loading
         if (isMounted) {
           setIsInitialized(true);
         }
@@ -90,12 +80,122 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     
     init();
     
-    return () => {
-      isMounted = false;
+    return () => { isMounted = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Memoized transformations
+  const transformedProducts = useMemo(() => 
+    products.map(p => ({
+      id: p.id,
+      name: p.name,
+      category: p.category || 'ai',
+      description: p.description || '',
+      price: p.price,
+      msrp: p.msrp || p.price * 1.5,
+      type: p.type === 'instant' ? 'Instant' : 'Preorder',
+      stock: p.stock || 0,
+      fulfillment: p.fulfillment || 0,
+      warranty: p.warranty || 168,
+      duration: p.duration || 30,
+      sold: p.sold || 0,
+      vpn: p.vpn || false,
+      image: p.image || 'https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=800&auto=format&fit=crop',
+      video: p.video,
+      instructions: p.instructions || ''
+    }))
+  , [products]);
+
+  const transformedOrders = useMemo(() => 
+    orders.map(o => ({
+      id: o.id,
+      user: o.user_handle || `@user_${o.user_id?.slice(0, 6)}`,
+      product: o.product_name || 'Unknown Product',
+      amount: o.amount,
+      status: o.status?.toUpperCase() || 'PENDING',
+      date: formatRelativeTime(o.created_at),
+      method: o.payment_method?.toUpperCase() || 'UNKNOWN'
+    }))
+  , [orders]);
+
+  const transformedUsers = useMemo(() => {
+    // Update ref with fresh mapping
+    const newMap = new Map<number, string>();
+    const result = users.map(u => {
+      const telegramId = parseInt(u.telegram_id) || 0;
+      newMap.set(telegramId, u.id);
+      return {
+        id: telegramId,
+        username: u.username || `user_${u.id?.slice(0, 6)}`,
+        role: (u.role?.toUpperCase() || 'USER') as 'USER' | 'VIP' | 'ADMIN',
+        joinedAt: formatDate(u.created_at),
+        purchases: u.orders_count || 0,
+        spent: u.total_spent || 0,
+        balance: u.balance || 0,
+        isBanned: u.is_banned || false,
+        invites: 0,
+        earned: 0,
+        savings: 0
+      };
+    });
+    userIdMapRef.current = newMap;
+    return result;
+  }, [users]);
+
+  const transformedTickets = useMemo((): TicketData[] => 
+    tickets.map((t: any) => ({
+      id: t.id,
+      user: t.first_name || t.username || `user_${t.user_id?.slice(0, 6)}`,
+      subject: t.description?.slice(0, 50) || 'No subject',
+      status: (t.status?.toUpperCase() || 'OPEN') as TicketData['status'],
+      createdAt: t.created_at,
+      lastMessage: t.description || '',
+      priority: 'MEDIUM' as const,
+      date: formatRelativeTime(t.created_at),
+      issue_type: t.issue_type,
+      item_id: t.item_id,
+      order_id: t.order_id,
+      telegram_id: t.telegram_id,
+      admin_comment: t.admin_comment,
+      description: t.description
+    }))
+  , [tickets]);
+
+  const transformedStats = useMemo(() => {
+    if (!analytics) return undefined;
+    return {
+      totalRevenue: analytics.total_revenue || 0,
+      ordersToday: analytics.orders_today || 0,
+      ordersWeek: analytics.orders_this_week || 0,
+      ordersMonth: analytics.orders_this_month || 0,
+      activeUsers: analytics.active_users || 0,
+      openTickets: (analytics as any).open_tickets || 0,
+      revenueByDay: analytics.revenue_by_day || [],
+      totalUserBalances: (analytics as any).total_user_balances || 0,
+      pendingWithdrawals: (analytics as any).pending_withdrawals || 0
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount
+  }, [analytics]);
+
+  // Stable action handlers - use ref for userIdMap to avoid dependency issues
+  const handleBanUser = useCallback((telegramId: number, ban: boolean) => {
+    const userId = userIdMapRef.current.get(telegramId);
+    if (userId) {
+      banUser(userId, ban);
+    }
+  }, [banUser]);
   
+  const handleUpdateBalance = useCallback((telegramId: number, _amount: number) => {
+    const userId = userIdMapRef.current.get(telegramId);
+    if (userId) {
+      const amount = window.prompt('Enter amount to add (negative to subtract):', '0');
+      if (amount !== null) {
+        const parsed = parseFloat(amount);
+        if (!isNaN(parsed)) {
+          updateBalance(userId, parsed);
+        }
+      }
+    }
+  }, [updateBalance]);
+
   // Promo handlers
   const handleCreatePromo = useCallback(async (data: Omit<PromoCodeData, 'id' | 'usage_count' | 'created_at'>) => {
     await createPromoCode(data);
@@ -126,114 +226,6 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       </div>
     );
   }
-
-  // Transform data to match AdminPanel expected format
-  // Backend now returns properly mapped fields
-  const transformedProducts = products.map(p => ({
-    id: p.id,  // Keep as string (UUID)
-    name: p.name,
-    category: p.category || 'ai',
-    description: p.description || '',
-    price: p.price,
-    msrp: p.msrp || p.price * 1.5,
-    type: p.type === 'instant' ? 'Instant' : 'Preorder',
-    stock: p.stock || 0,
-    fulfillment: p.fulfillment || 0,
-    warranty: p.warranty || 168,
-    duration: p.duration || 30,
-    sold: p.sold || 0,
-    vpn: p.vpn || false,
-    image: p.image || 'https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=800&auto=format&fit=crop',
-    video: p.video,
-    instructions: p.instructions || ''
-  }));
-
-  const transformedOrders = orders.map(o => ({
-    id: o.id,
-    user: o.user_handle || `@user_${o.user_id?.slice(0, 6)}`,
-    product: o.product_name || 'Unknown Product',
-    amount: o.amount,
-    status: o.status?.toUpperCase() || 'PENDING',
-    date: formatRelativeTime(o.created_at),
-    method: o.payment_method?.toUpperCase() || 'UNKNOWN'
-  }));
-
-  // Memoize user transformations and ID mapping together
-  const { transformedUsers, userIdMap } = useMemo(() => {
-    const idMap = new Map<number, string>();
-    const transformed = users.map(u => {
-      const telegramId = parseInt(u.telegram_id) || 0;
-      idMap.set(telegramId, u.id);
-      return {
-        id: telegramId,
-        username: u.username || `user_${u.id?.slice(0, 6)}`,
-        role: (u.role?.toUpperCase() || 'USER') as 'USER' | 'VIP' | 'ADMIN',
-        joinedAt: formatDate(u.created_at),
-        purchases: u.orders_count || 0,
-        spent: u.total_spent || 0,
-        balance: u.balance || 0,
-        isBanned: u.is_banned || false,
-        invites: 0,
-        earned: 0,
-        savings: 0
-      };
-    });
-    return { transformedUsers: transformed, userIdMap: idMap };
-  }, [users]);
-  
-  // User action handlers
-  const handleBanUser = useCallback((telegramId: number, ban: boolean) => {
-    const userId = userIdMap.get(telegramId);
-    if (userId) {
-      banUser(userId, ban);
-    }
-  }, [banUser, userIdMap]);
-  
-  const handleUpdateBalance = useCallback((telegramId: number, _amount: number) => {
-    const userId = userIdMap.get(telegramId);
-    if (userId) {
-      // Prompt for amount (simple implementation)
-      const newAmount = window.prompt('Enter amount to add (negative to subtract):', '0');
-      if (newAmount !== null) {
-        const parsedAmount = parseFloat(newAmount);
-        if (!isNaN(parsedAmount)) {
-          updateBalance(userId, parsedAmount);
-        }
-      }
-    }
-  }, [updateBalance, userIdMap]);
-
-  // Transform tickets
-  const transformedTickets: TicketData[] = tickets.map((t: any) => ({
-    id: t.id,
-    user: t.first_name || t.username || `user_${t.user_id?.slice(0, 6)}`,
-    subject: t.description?.slice(0, 50) || 'No subject',
-    status: (t.status?.toUpperCase() || 'OPEN') as TicketData['status'],
-    createdAt: t.created_at,
-    lastMessage: t.description || '',
-    priority: 'MEDIUM' as const,
-    date: formatRelativeTime(t.created_at),
-    issue_type: t.issue_type,
-    item_id: t.item_id,
-    order_id: t.order_id,
-    telegram_id: t.telegram_id,
-    admin_comment: t.admin_comment,
-    description: t.description
-  }));
-
-  // Dashboard stats from analytics
-  const transformedStats = analytics ? {
-    totalRevenue: analytics.total_revenue || 0,
-    ordersToday: analytics.orders_today || 0,
-    ordersWeek: analytics.orders_this_week || 0,
-    ordersMonth: analytics.orders_this_month || 0,
-    activeUsers: analytics.active_users || 0,
-    openTickets: analytics.open_tickets || 0,
-    revenueByDay: analytics.revenue_by_day || [],
-    // Liabilities metrics
-    totalUserBalances: analytics.total_user_balances || 0,
-    pendingWithdrawals: analytics.pending_withdrawals || 0
-  } : undefined;
 
   return (
     <AdminPanel 
