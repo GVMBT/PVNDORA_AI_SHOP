@@ -377,7 +377,6 @@
     "balance": "CREDITS",
     "internalBalance": "INTERNAL BALANCE",
     "totalEarned": "NET EARNINGS",
-    "withdraw": "CASH OUT",
     "invite": "DEPLOY UPLINK",
     "minWithdrawalNote": "Min: {min}",
     "yourReferralLink": "UPLINK URL",
