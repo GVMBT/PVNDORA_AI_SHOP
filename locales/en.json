@@ -27,6 +27,18 @@
   },
 
   "catalog": {
+    "title": "NEURAL_MODULES",
+    "header": {
+      "source": "SOURCE: COMPUTE_NODES",
+      "status": "STATUS: OPERATIONAL"
+    },
+    "search": "SEARCH_MODULES...",
+    "creditsRequired": "CREDITS REQUIRED",
+    "card": {
+      "warranty": "{hours}H WAR",
+      "sold": "{count}+ SOLD",
+      "trending": "TRENDING"
+    },
     "all": "All Nodes",
     "subscription": "Neural Modules",
     "student": "Edu_Protocol",
@@ -34,23 +46,26 @@
     "shared": "Personal_Node",
     "key": "Access Keys",
     "subtitle": "Elite Digital Assets & Compute Power",
-    "search": "Scan Registry...",
-    "empty": "NO MODULES DETECTED",
+    "empty": "SYSTEM_ERROR: NO_DATA_FOUND",
+    "emptyHint": "Adjust filter parameters and retry sequence.",
     "category": {
       "aiSolutions": "AI_CORE",
       "designTools": "VISUAL_SYNTH",
       "developerAccess": "DEV_ROOT"
     },
     "availability": {
+      "label": "STATUS",
       "all": "ALL_NODES",
       "available": "ONLINE",
       "onDemand": "ON_DEMAND",
-      "discontinued": "OFFLINE"
+      "discontinued": "OFFLINE",
+      "comingSoon": "STANDBY"
     },
     "sort": {
-      "popularity": "Sort: POPULARITY",
-      "priceAsc": "Sort: LOW_COST",
-      "priceDesc": "Sort: HIGH_VALUE"
+      "label": "SORT",
+      "popularity": "POPULAR",
+      "priceAsc": "COST ASC",
+      "priceDesc": "COST DESC"
     },
     "about": {
       "title": "SYSTEM_INFO",
@@ -209,7 +224,20 @@
     "securePayment": "Encrypted Connection",
     "cartEmpty": "BUFFER EMPTY",
     "returnToCatalog": "RETURN TO REGISTRY",
-    "each": "ea"
+    "each": "ea",
+    "payment": {
+      "selectNode": "SELECT PAYMENT NODE",
+      "internal": "INTERNAL",
+      "balance": "Balance: {amount}",
+      "crypto": "CRYPTO/P2P",
+      "gateway": "Gateway",
+      "debited": "WILL BE DEBITED FROM YOUR BALANCE",
+      "instant": "INSTANT_PROCESSING_ENABLED",
+      "externalTitle": "EXTERNAL GATEWAY",
+      "externalDesc": "You will be redirected to the secure CrystalPay terminal to complete the transaction via Cryptocurrency or P2P.",
+      "confirmDebit": "CONFIRM DEBIT ({amount})",
+      "openGateway": "OPEN GATEWAY ({amount})"
+    }
   },
 
   "product_card": "📦 {name}\n💰 Cost: ${price}\n⭐ Rating: {rating}/5 ({reviews} logs)\n{stock_status}\n\n{description}",
@@ -465,9 +493,39 @@
       "rewardPreference": "REWARD PREFERENCE",
       "cashOut": "CASH OUT",
       "discount": "DISCOUNT"
-    }
+    },
+    "errors": {
+      "insufficientFunds": "INSUFFICIENT FUNDS",
+      "minWithdrawal": "Minimum withdrawal is {amount}"
+    },
+    "withdraw": {
+      "submittedTitle": "REQUEST SUBMITTED",
+      "submittedDesc": "Your withdrawal request has been submitted. We will process it within 24-48 hours."
+    },
+    "loading": "Loading Profile...",
+    "error": "PROFILE_ERROR",
+    "loadFailed": "Failed to load profile",
+    "retry": "Retry Connection"
   },
 
+  "support": {
+    "title": "UPLINK_SECURE",
+    "channelOpen": "CHANNEL_OPEN",
+    "sender": {
+      "agent": "SYS_ADMIN",
+      "user": "OPERATIVE"
+    },
+    "messages": {
+      "connecting": "Connecting to secure support channel...",
+      "connected": "Connection established. Agent [NEO_7] assigned.",
+      "greeting": "Greetings. Describe your issue or request access to high-tier nodes.",
+      "acknowledged": "Request acknowledged. Processing ticket ID #{id}. Please wait..."
+    },
+    "typing": "ENCRYPTING_PACKET...",
+    "inputPlaceholder": "Enter system command...",
+    "encryption": "E2E_ENCRYPTION_ACTIVE",
+    "systemOnline": "SYSTEM_ONLINE"
+  },
   "empty": {
     "orders": "NO TRANSACTION LOGS",
     "ordersHint": "Buffer is empty. Initialize nodes to generate logs.",

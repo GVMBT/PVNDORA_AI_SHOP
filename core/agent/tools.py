@@ -1054,7 +1054,7 @@ async def create_support_ticket(
                             # Get product warranty
                             product_result = await asyncio.to_thread(
                                 lambda: db.client.table("products")
-                                .select("name, warranty_days")
+                                .select("name, warranty_hours")
                                 .eq("id", item_data.get("product_id"))
                                 .limit(1)
                                 .execute()
@@ -1062,7 +1062,8 @@ async def create_support_ticket(
                             if product_result.data:
                                 product = product_result.data[0]
                                 product_name = product.get("name", "").lower()
-                                warranty_days = product.get("warranty_days", 7)  # Default 7 days
+                                warranty_hours = product.get("warranty_hours", 168)  # Default 7 days = 168 hours
+                                warranty_days = warranty_hours / 24  # Convert hours to days
                                 
                                 if days_since <= warranty_days:
                                     warranty_status = "in_warranty"
