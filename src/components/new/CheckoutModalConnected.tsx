@@ -2,30 +2,35 @@
  * CheckoutModalConnected
  * 
  * Connected version of CheckoutModal with real cart and payment API.
+ * 
+ * UNIFIED CURRENCY ARCHITECTURE:
+ * - Uses USD values (_usd) for all balance vs total comparisons
+ * - Uses display values for UI rendering
+ * - Never mixes currencies in calculations
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
 import CheckoutModal from './CheckoutModal';
 import { useOrdersTyped, useProfileTyped } from '../../hooks/useApiTyped';
 import { useCart } from '../../contexts/CartContext';
+import { useLocaleContext } from '../../contexts/LocaleContext';
 import type { CartItem, PaymentMethod } from '../../types/component';
 import type { APICreateOrderRequest } from '../../types/api';
 
 interface CheckoutModalConnectedProps {
   onClose: () => void;
   onSuccess: () => void;
-  onAwaitingPayment?: (orderId: string) => void;  // Called when external payment opened
+  onAwaitingPayment?: (orderId: string) => void;
 }
 
 const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   onClose,
   onSuccess,
-  onAwaitingPayment,
 }) => {
-  // Use global cart context - shared with NewApp
   const { cart: contextCart, getCart, removeCartItem, applyPromo, removePromo, loading: cartLoading, error: cartError } = useCart();
   const { createOrder, loading: orderLoading, error: orderError } = useOrdersTyped();
   const { profile: contextProfile, getProfile } = useProfileTyped();
+  const { setExchangeRate } = useLocaleContext();
   const [isInitialized, setIsInitialized] = useState(false);
   
   // Store fresh data from API to avoid stale closure issues
@@ -36,46 +41,40 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
     let isMounted = true;
     const init = async () => {
       try {
-        // Get FRESH data from API and store it locally to avoid stale closures
         const [cartData, profileData] = await Promise.all([getCart(), getProfile()]);
         
-        if (!isMounted) {
-          return;
-        }
+        if (!isMounted) return;
         
-        // Store fresh data in local state
         setFreshCart(cartData);
         setFreshProfile(profileData);
-        setIsInitialized(true);
-      } catch (err) {
-        if (isMounted) {
-          setIsInitialized(true);
+        
+        // Update exchange rate in context for consistency
+        if (cartData?.exchangeRate) {
+          setExchangeRate(cartData.exchangeRate);
         }
+        
+        setIsInitialized(true);
+      } catch {
+        if (isMounted) setIsInitialized(true);
       }
     };
     init();
     
-    return () => {
-      isMounted = false;
-    };
-  }, [getCart, getProfile]);
+    return () => { isMounted = false; };
+  }, [getCart, getProfile, setExchangeRate]);
   
-  // Use fresh data if available, fallback to context
   const cart = freshCart || contextCart;
   const profile = freshProfile || contextProfile;
 
   const handleRemoveItem = useCallback(async (productId: string) => {
     try {
       const updatedCart = await removeCartItem(productId);
-      // Update fresh cart with new data
       setFreshCart(updatedCart);
-      // Cart state will trigger useEffect to close if empty
-      // But also close immediately for faster UX
       if (!updatedCart || !updatedCart.items || updatedCart.items.length === 0) {
         onClose();
       }
-    } catch (err) {
-      // Silently handle error - cart context will show error state
+    } catch {
+      // Cart context will show error state
     }
   }, [removeCartItem, onClose]);
   
@@ -85,8 +84,7 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
       if (updatedCart) setFreshCart(updatedCart);
       return { success: true };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Invalid promo code';
-      return { success: false, message };
+      return { success: false, message: err instanceof Error ? err.message : 'Invalid promo code' };
     }
   }, [applyPromo]);
   
@@ -100,65 +98,43 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   }, [removePromo]);
 
   const handlePay = useCallback(async (method: PaymentMethod) => {
-    try {
-      // Map component payment method to API format
-      // For internal balance: payment_method='balance' (no gateway needed)
-      // For external payments: payment_method='card' with gateway
-      const request: APICreateOrderRequest = {
-        use_cart: true,
-        ...(method === 'internal' 
-          ? { payment_method: 'balance' } // Backend deducts from user balance
-          : { 
-              payment_method: 'card',
-              payment_gateway: method === 'crystalpay' ? 'crystalpay' : undefined
-            }
-        ),
-      };
-      
-      const response = await createOrder(request);
-      
-      // Check if response is valid
-      if (!response || !response.order_id) {
-        throw new Error('Не удалось создать заказ. Попробуйте позже.');
-      }
-      
-      // For external payment (CrystalPay), redirect to payment page
-      // After payment, CrystalPay will redirect back to /payment/result
-      if (response.payment_url && method !== 'internal') {
-        // Replace current window with payment URL
-        // This closes Mini App and opens payment in browser
-        // After payment, user will be redirected to /payment/result for polling
-        window.location.href = response.payment_url;
-        return null;
-      }
-      
-      // For internal (balance) payment, return response to show success
-      if (method === 'internal') {
-        return response;
-      }
-      
-      // If no payment_url and not internal, something went wrong
-      throw new Error('Payment URL not received');
-    } catch (err) {
-      throw err;
-    }
-  }, [createOrder]);
-
-  // Check if cart is empty and close modal if needed
-  useEffect(() => {
-    if (!isInitialized || cartLoading) {
-      return;
+    const request: APICreateOrderRequest = {
+      use_cart: true,
+      ...(method === 'internal' 
+        ? { payment_method: 'balance' }
+        : { 
+            payment_method: 'card',
+            payment_gateway: method === 'crystalpay' ? 'crystalpay' : undefined
+          }
+      ),
+    };
+    
+    const response = await createOrder(request);
+    
+    if (!response || !response.order_id) {
+      throw new Error('Не удалось создать заказ. Попробуйте позже.');
     }
     
-    const isEmpty = !cart || !cart.items || !Array.isArray(cart.items) || cart.items.length === 0;
+    if (response.payment_url && method !== 'internal') {
+      window.location.href = response.payment_url;
+      return null;
+    }
+    
+    if (method === 'internal') {
+      return response;
+    }
+    
+    throw new Error('Payment URL not received');
+  }, [createOrder]);
+
+  // Close if cart becomes empty
+  useEffect(() => {
+    if (!isInitialized || cartLoading) return;
+    
+    const isEmpty = !cart || !cart.items || cart.items.length === 0;
     if (isEmpty) {
-      const timeoutId = setTimeout(() => {
-        onClose();
-      }, 0);
-      
-      return () => {
-        clearTimeout(timeoutId);
-      };
+      const timeoutId = setTimeout(onClose, 0);
+      return () => clearTimeout(timeoutId);
     }
   }, [isInitialized, cartLoading, cart, onClose]);
 
@@ -176,49 +152,40 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
     );
   }
 
-  // Convert cart data to component format
-  let cartItems: CartItem[] = [];
-  
-  if (cart?.items && Array.isArray(cart.items)) {
-    try {
-      const cartCurrency = cart.currency || 'USD';
-      cartItems = cart.items.map((item) => ({
-        id: item.id,
-        name: item.name,
-        category: item.category,
-        price: item.price,
-        currency: item.currency || cartCurrency,
-        quantity: item.quantity,
-        image: item.image,
-      }));
-    } catch (err) {
-      cartItems = [];
-    }
-  }
+  // Convert cart items
+  const cartItems: CartItem[] = cart?.items?.map((item) => ({
+    id: item.id,
+    name: item.name,
+    category: item.category,
+    price: item.price,
+    priceUsd: item.priceUsd,
+    currency: item.currency || cart.currency || 'USD',
+    quantity: item.quantity,
+    image: item.image,
+  })) || [];
 
-  // Don't render modal if cart is empty
   if (cartItems.length === 0) {
     return null;
   }
 
-  // CRITICAL FIX: Always compare balance vs cart total in the SAME currency
-  // Problem: Cart may have prices in one currency (e.g., RUB), profile balance in another (e.g., USD)
-  // Solution: Pass both USD balance and exchange rate for proper comparison
-  const cartCurrency = cart?.currency || 'USD';
-  const exchangeRate = cart?.exchangeRate || profile?.exchangeRate || 1.0;
-  // Always compare against cart totals in the same currency
-  const userBalanceUsd = profile?.balanceUsd || 0;
-  const userBalanceInCartCurrency = cartCurrency === 'USD'
-    ? userBalanceUsd
-    : userBalanceUsd * exchangeRate;
-
+  // UNIFIED CURRENCY: Pass both USD and display values
+  // CheckoutModal will use USD for comparisons, display for UI
   const modalProps = {
     cart: cartItems,
-    userBalance: userBalanceInCartCurrency,
-    currency: cartCurrency,
+    // USD values (for calculations) - CRITICAL: always compare in same currency
+    userBalanceUsd: profile?.balanceUsd || 0,
+    totalUsd: cart?.totalUsd || 0,
+    // Display values (for UI)
+    userBalance: profile?.balance || 0,
+    total: cart?.total || 0,
     originalTotal: cart?.originalTotal,
+    // Currency info
+    currency: cart?.currency || 'USD',
+    exchangeRate: cart?.exchangeRate || 1.0,
+    // Promo
     promoCode: cart?.promoCode,
     promoDiscountPercent: cart?.promoDiscountPercent,
+    // Handlers
     onClose,
     onRemoveItem: handleRemoveItem,
     onPay: handlePay,
@@ -229,9 +196,7 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
     error: cartError || orderError,
   };
   
-  return (
-    <CheckoutModal {...modalProps} />
-  );
+  return <CheckoutModal {...modalProps} />;
 };
 
 export default CheckoutModalConnected;

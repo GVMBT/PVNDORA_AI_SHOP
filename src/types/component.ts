@@ -206,7 +206,8 @@ export interface CartItem {
   id: string;
   name: string;
   category: string;
-  price: number;
+  price: number;        // Display price (in user's currency)
+  priceUsd?: number;    // USD price (for calculations)
   currency: string;
   quantity: number;
   image: string;

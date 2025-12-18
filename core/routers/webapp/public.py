@@ -2,6 +2,7 @@
 WebApp Public Router
 
 Public endpoints that don't require authentication.
+All prices include both USD and display values for unified currency handling.
 """
 import asyncio
 from typing import Optional
@@ -9,7 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from core.services.database import get_database
-from core.services.currency import get_currency_service
+from core.services.currency_response import CurrencyFormatter
 from core.db import get_redis
 from core.logging import get_logger
 
@@ -38,38 +39,20 @@ async def get_webapp_product(
     discount_percent = stock_result.data[0].get("discount_percent", 0) if stock_result.data else 0
     rating_info = await db.get_product_rating(product_id)
     
-    # Get currency service and convert prices
-    target_currency = "USD"
-    original_price = float(product.price)
-    final_price = original_price * (1 - discount_percent / 100)
-    msrp = float(product.msrp) if hasattr(product, 'msrp') and product.msrp else None
+    # Unified currency formatter
+    redis = get_redis()
+    formatter = await CurrencyFormatter.create(
+        user_telegram_id=None,
+        db=db,
+        redis=redis,
+        preferred_currency=currency,
+        language_code=language_code
+    )
     
-    try:
-        redis = get_redis()  # get_redis() is synchronous, no await needed
-        currency_service = get_currency_service(redis)
-        # Use explicit currency if provided, otherwise determine from language_code
-        if currency:
-            target_currency = currency.upper()
-        else:
-            target_currency = currency_service.get_user_currency(language_code)
-        
-        # Prices in database are in USD
-        price_usd = float(product.price)
-        msrp_usd = float(product.msrp) if hasattr(product, 'msrp') and product.msrp else None
-        
-        if target_currency != "USD":
-            original_price = await currency_service.convert_price(price_usd, target_currency, round_to_int=True)
-            final_price_usd = price_usd * (1 - discount_percent / 100)
-            final_price = await currency_service.convert_price(final_price_usd, target_currency, round_to_int=True)
-            
-            if msrp_usd:
-                msrp = await currency_service.convert_price(msrp_usd, target_currency, round_to_int=True)
-        else:
-            original_price = price_usd
-            final_price = price_usd * (1 - discount_percent / 100)
-    except Exception as e:
-        logger.warning(f"Currency conversion failed: {e}, using USD")
-        # Values already set to USD above
+    # USD values (base)
+    price_usd = float(product.price)
+    final_price_usd = price_usd * (1 - discount_percent / 100)
+    msrp_usd = float(product.msrp) if hasattr(product, 'msrp') and product.msrp else None
     
     fulfillment_time_hours = getattr(product, 'fulfillment_time_hours', 48)
     
@@ -83,7 +66,6 @@ async def get_webapp_product(
         logger.warning(f"Failed to get social proof: {e}")
         social_proof_data = {}
     
-    # Build social proof response
     social_proof = {
         "rating": rating_info.get("average", 0),
         "review_count": rating_info.get("count", 0),
@@ -91,31 +73,46 @@ async def get_webapp_product(
         "recent_reviews": social_proof_data.get("recent_reviews", [])
     }
     
-    # Get instruction files (JSON array of {name, url, description})
     instruction_files = getattr(product, 'instruction_files', None) or []
     
     return {
         "product": {
-            "id": product.id, "name": product.name, "description": product.description,
-            "original_price": original_price, "price": original_price,
-            "price_usd": float(product.price),  # Keep USD for reference
-            "msrp": msrp,  # Converted MSRP
-            "currency": target_currency or "USD",  # Ensure currency is always set
-            "discount_percent": discount_percent, "final_price": round(final_price, 2),
+            "id": product.id,
+            "name": product.name,
+            "description": product.description,
+            # USD values (for calculations)
+            "price_usd": price_usd,
+            "final_price_usd": final_price_usd,
+            "msrp_usd": msrp_usd,
+            # Display values (for UI)
+            "original_price": formatter.convert(price_usd),
+            "price": formatter.convert(price_usd),
+            "final_price": formatter.convert(final_price_usd),
+            "msrp": formatter.convert(msrp_usd) if msrp_usd else None,
+            # Currency info
+            "currency": formatter.currency,
+            "exchange_rate": formatter.exchange_rate,
+            # Other fields
+            "discount_percent": discount_percent,
             "warranty_days": product.warranty_hours // 24 if hasattr(product, 'warranty_hours') and product.warranty_hours else 0,
             "duration_days": getattr(product, 'duration_days', None),
-            "available_count": product.stock_count, "available": product.stock_count > 0,
+            "available_count": product.stock_count,
+            "available": product.stock_count > 0,
             "can_fulfill_on_demand": product.status == 'active',
             "fulfillment_time_hours": fulfillment_time_hours if product.status == 'active' else None,
-            "type": product.type, "instructions": product.instructions,
+            "type": product.type,
+            "instructions": product.instructions,
             "instruction_files": instruction_files,
-            "rating": rating_info.get("average", 0), "reviews_count": rating_info.get("count", 0),
+            "rating": rating_info.get("average", 0),
+            "reviews_count": rating_info.get("count", 0),
             "categories": getattr(product, 'categories', []) or [],
             "status": product.status,
             "sales_count": social_proof_data.get("sales_count", 0),
             "image_url": getattr(product, 'image_url', None),
         },
-        "social_proof": social_proof
+        "social_proof": social_proof,
+        "currency": formatter.currency,
+        "exchange_rate": formatter.exchange_rate,
     }
 
 
@@ -128,23 +125,17 @@ async def get_webapp_products(
     db = get_database()
     products = await db.get_products(status="active")
     
-    # Get currency service and convert prices
-    target_currency = "USD"
-    currency_service = None
+    # Unified currency formatter
+    redis = get_redis()
+    formatter = await CurrencyFormatter.create(
+        user_telegram_id=None,
+        db=db,
+        redis=redis,
+        preferred_currency=currency,
+        language_code=language_code
+    )
     
-    try:
-        redis = get_redis()  # get_redis() is synchronous, no await needed
-        currency_service = get_currency_service(redis)
-        # Use explicit currency if provided, otherwise determine from language_code
-        if currency:
-            target_currency = currency.upper()
-        else:
-            target_currency = currency_service.get_user_currency(language_code)
-    except Exception as e:
-        logger.warning(f"Currency service unavailable: {e}, using USD")
-        # Values already set to USD above
-    
-    # Batch fetch social proof data for all products
+    # Batch fetch social proof data
     product_ids = [p.id for p in products]
     social_proof_map = {}
     try:
@@ -164,55 +155,43 @@ async def get_webapp_products(
         discount_percent = stock_result.data[0].get("discount_percent", 0) if stock_result.data else 0
         rating_info = await db.get_product_rating(p.id)
         
-        # Get sales count from social proof
         sp_data = social_proof_map.get(p.id, {})
         sales_count = sp_data.get("sales_count", 0)
         
-        # Prices in database are in USD
+        # USD values (base)
         price_usd = float(p.price)
+        final_price_usd = price_usd * (1 - discount_percent / 100)
         msrp_usd = float(p.msrp) if hasattr(p, 'msrp') and p.msrp else None
         
-        if currency_service and target_currency != "USD":
-            try:
-                original_price = await currency_service.convert_price(price_usd, target_currency, round_to_int=True)
-                final_price_usd = price_usd * (1 - discount_percent / 100)
-                final_price = await currency_service.convert_price(final_price_usd, target_currency, round_to_int=True)
-                msrp = await currency_service.convert_price(msrp_usd, target_currency, round_to_int=True) if msrp_usd else None
-            except Exception as e:
-                logger.warning(f"Failed to convert price for product {p.id}: {e}, using USD")
-                original_price = price_usd
-                final_price = price_usd * (1 - discount_percent / 100)
-                msrp = msrp_usd
-                target_currency = "USD"  # Fallback to USD if conversion fails
-        else:
-            original_price = price_usd
-            final_price = price_usd * (1 - discount_percent / 100)
-            msrp = msrp_usd
-        
-        # Get additional product fields
         warranty_days = p.warranty_hours // 24 if hasattr(p, 'warranty_hours') and p.warranty_hours else 0
         duration_days = getattr(p, 'duration_days', None)
         fulfillment_time_hours = getattr(p, 'fulfillment_time_hours', 48)
         
         result.append({
-            "id": p.id, 
-            "name": p.name, 
+            "id": p.id,
+            "name": p.name,
             "description": p.description,
-            "original_price": original_price, 
-            "price": original_price,
+            # USD values (for calculations)
             "price_usd": price_usd,
-            "msrp": msrp,
-            "currency": target_currency or "USD",
-            "discount_percent": discount_percent, 
-            "final_price": round(final_price, 2),
+            "final_price_usd": final_price_usd,
+            "msrp_usd": msrp_usd,
+            # Display values (for UI)
+            "original_price": formatter.convert(price_usd),
+            "price": formatter.convert(price_usd),
+            "final_price": formatter.convert(final_price_usd),
+            "msrp": formatter.convert(msrp_usd) if msrp_usd else None,
+            # Currency
+            "currency": formatter.currency,
+            # Other fields
+            "discount_percent": discount_percent,
             "warranty_days": warranty_days,
             "duration_days": duration_days,
-            "available_count": p.stock_count, 
+            "available_count": p.stock_count,
             "available": p.stock_count > 0,
             "can_fulfill_on_demand": p.status == 'active',
             "fulfillment_time_hours": fulfillment_time_hours if p.status == 'active' else None,
-            "type": p.type, 
-            "rating": rating_info.get("average", 0), 
+            "type": p.type,
+            "rating": rating_info.get("average", 0),
             "reviews_count": rating_info.get("count", 0),
             "sales_count": sales_count,
             "categories": getattr(p, 'categories', []) or [],
@@ -220,4 +199,8 @@ async def get_webapp_products(
             "image_url": getattr(p, 'image_url', None),
         })
     
-    return {"products": result, "count": len(result)}
+    return {
+        "products": result,
+        "currency": formatter.currency,
+        "exchange_rate": formatter.exchange_rate,
+    }

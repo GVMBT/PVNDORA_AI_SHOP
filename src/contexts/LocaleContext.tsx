@@ -2,21 +2,48 @@
  * LocaleContext
  * 
  * Manages user's language and currency preferences globally.
- * Updates automatically when user changes preferences in profile.
+ * Provides unified currency conversion functions.
+ * 
+ * ARCHITECTURE:
+ * - All amounts from API include both USD and display values
+ * - exchangeRate is stored for fallback conversion
+ * - Use USD values for all calculations/comparisons
+ * - Use display values or convertFromUsd() for UI
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
 import type { ProfileData } from '../types/component';
 
 type LocaleCode = 'en' | 'ru' | 'uk' | 'de' | 'fr' | 'es' | 'tr' | 'ar' | 'hi';
 type CurrencyCode = 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED';
 
+// Currency symbols
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$',
+  RUB: '₽',
+  EUR: '€',
+  UAH: '₴',
+  TRY: '₺',
+  INR: '₹',
+  AED: 'د.إ',
+  GBP: '£',
+};
+
+// Currencies displayed as integers (no decimals)
+const INTEGER_CURRENCIES = new Set(['RUB', 'UAH', 'TRY', 'INR', 'JPY', 'KRW']);
+
 interface LocaleContextValue {
   locale: LocaleCode;
   currency: CurrencyCode;
+  exchangeRate: number;  // 1 USD = X currency
   setLocale: (locale: LocaleCode) => void;
   setCurrency: (currency: CurrencyCode) => void;
+  setExchangeRate: (rate: number) => void;
   updateFromProfile: (profile: ProfileData | null) => void;
+  // Currency helpers
+  convertFromUsd: (amountUsd: number) => number;
+  formatPrice: (amount: number, currencyOverride?: string) => string;
+  formatPriceUsd: (amountUsd: number) => string;
 }
 
 const LocaleContext = createContext<LocaleContextValue | undefined>(undefined);
@@ -62,7 +89,6 @@ export function LocaleProvider({ children, initialProfile }: LocaleProviderProps
   const defaultLocale = getDefaultLocale();
   const defaultCurrency = getCurrencyForLocale(defaultLocale);
   
-  // Initialize from profile if available, otherwise use defaults
   const [locale, setLocaleState] = useState<LocaleCode>(() => {
     if (initialProfile?.interfaceLanguage) {
       return (initialProfile.interfaceLanguage as LocaleCode) || defaultLocale;
@@ -77,6 +103,10 @@ export function LocaleProvider({ children, initialProfile }: LocaleProviderProps
     return defaultCurrency;
   });
   
+  const [exchangeRate, setExchangeRateState] = useState<number>(() => {
+    return initialProfile?.exchangeRate || 1.0;
+  });
+  
   // Update from profile data
   const updateFromProfile = useCallback((profile: ProfileData | null) => {
     if (profile) {
@@ -87,16 +117,16 @@ export function LocaleProvider({ children, initialProfile }: LocaleProviderProps
       if (profile.currency) {
         setCurrencyState(profile.currency as CurrencyCode);
       }
+      if (profile.exchangeRate !== undefined) {
+        setExchangeRateState(profile.exchangeRate);
+      }
     }
   }, []);
   
-  // Update locale and HTML lang attribute
   const setLocale = useCallback((newLocale: LocaleCode) => {
     setLocaleState(newLocale);
     document.documentElement.lang = newLocale;
     
-    // Auto-update currency if not explicitly set by user
-    // Only if currency matches the old locale's default
     const oldCurrency = getCurrencyForLocale(locale);
     if (currency === oldCurrency) {
       const newCurrency = getCurrencyForLocale(newLocale);
@@ -108,18 +138,76 @@ export function LocaleProvider({ children, initialProfile }: LocaleProviderProps
     setCurrencyState(newCurrency);
   }, []);
   
-  // Update HTML lang attribute when locale changes
+  const setExchangeRate = useCallback((rate: number) => {
+    setExchangeRateState(rate);
+  }, []);
+  
+  // Convert USD amount to display currency
+  const convertFromUsd = useCallback((amountUsd: number): number => {
+    if (currency === 'USD' || exchangeRate === 1.0) {
+      return amountUsd;
+    }
+    const converted = amountUsd * exchangeRate;
+    // Round integer currencies
+    if (INTEGER_CURRENCIES.has(currency)) {
+      return Math.round(converted);
+    }
+    return Math.round(converted * 100) / 100;
+  }, [currency, exchangeRate]);
+  
+  // Format price with currency symbol
+  const formatPrice = useCallback((amount: number, currencyOverride?: string): string => {
+    const curr = currencyOverride || currency;
+    const symbol = CURRENCY_SYMBOLS[curr] || curr;
+    
+    let formatted: string;
+    if (INTEGER_CURRENCIES.has(curr)) {
+      formatted = Math.round(amount).toLocaleString('en-US', { maximumFractionDigits: 0 });
+    } else {
+      formatted = amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    
+    // Symbol placement
+    if (['USD', 'EUR', 'GBP'].includes(curr)) {
+      return `${symbol}${formatted}`;
+    }
+    return `${formatted} ${symbol}`;
+  }, [currency]);
+  
+  // Format USD amount in user's currency
+  const formatPriceUsd = useCallback((amountUsd: number): string => {
+    const displayAmount = convertFromUsd(amountUsd);
+    return formatPrice(displayAmount);
+  }, [convertFromUsd, formatPrice]);
+  
+  // Update HTML lang attribute
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
   
-  const value: LocaleContextValue = {
+  const value = useMemo<LocaleContextValue>(() => ({
     locale,
     currency,
+    exchangeRate,
     setLocale,
     setCurrency,
+    setExchangeRate,
     updateFromProfile,
-  };
+    convertFromUsd,
+    formatPrice,
+    formatPriceUsd,
+  }), [
+    locale, 
+    currency, 
+    exchangeRate, 
+    setLocale, 
+    setCurrency, 
+    setExchangeRate, 
+    updateFromProfile,
+    convertFromUsd,
+    formatPrice,
+    formatPriceUsd,
+  ]);
   
   return (
     <LocaleContext.Provider value={value}>
@@ -135,4 +223,3 @@ export function useLocaleContext(): LocaleContextValue {
   }
   return context;
 }
-

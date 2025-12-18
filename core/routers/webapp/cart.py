@@ -1,7 +1,11 @@
 """
 WebApp Cart Router
 
-Shopping cart endpoints.
+Shopping cart endpoints with unified currency handling.
+
+Response format:
+- All amounts include both USD value and display value
+- Frontend uses USD for calculations, display for UI
 """
 import asyncio
 from typing import Optional
@@ -9,7 +13,10 @@ from fastapi import APIRouter, HTTPException, Depends
 
 from core.logging import get_logger
 from core.services.database import get_database
+from core.services.currency_response import CurrencyFormatter
+from core.services.money import to_float
 from core.auth import verify_telegram_auth
+from core.db import get_redis
 from .models import AddToCartRequest, UpdateCartItemRequest, ApplyPromoRequest
 
 logger = get_logger(__name__)
@@ -17,135 +24,101 @@ logger = get_logger(__name__)
 router = APIRouter(tags=["webapp-cart"])
 
 
-async def _format_cart_response(cart, db, user_language: str, user_telegram_id: Optional[int] = None):
-    """Build cart response with currency conversion."""
-    from core.db import get_redis
-    from core.services.currency import get_currency_service
+async def _format_cart_response(cart, db, user_telegram_id: int):
+    """
+    Build cart response with unified currency handling.
     
-    currency = "USD"
-    currency_service = None
-    exchange_rate = 1.0
-    
-    try:
-        redis = get_redis()  # get_redis() is synchronous, no await needed
-        currency_service = get_currency_service(redis)
-        
-        # Get user preferences if telegram_id provided
-        user_lang = user_language
-        preferred_curr = None
-        if user_telegram_id:
-            db_user = await db.get_user_by_telegram_id(user_telegram_id)
-            if db_user:
-                user_lang = getattr(db_user, 'interface_language', None) or user_language
-                preferred_curr = getattr(db_user, 'preferred_currency', None)
-                logger.info(f"Cart currency: user={user_telegram_id}, preferred_curr={preferred_curr}, user_lang={user_lang}")
-        
-        currency = currency_service.get_user_currency(user_lang, preferred_curr)
-        # Important: get and reuse exchange_rate once to keep UI consistent
-        exchange_rate = await currency_service.get_exchange_rate(currency)
-        logger.info(f"Cart currency result: {currency}, rate={exchange_rate}")
-    except Exception as e:
-        logger.warning(f"Currency service unavailable: {e}, using USD")
-        exchange_rate = 1.0
+    Response includes:
+    - *_usd fields: values in USD for calculations
+    - * fields: values in user's currency for display
+    - currency: user's preferred currency
+    - exchange_rate: for frontend fallback conversion
+    """
+    redis = get_redis()
+    formatter = await CurrencyFormatter.create(user_telegram_id, db, redis)
     
     if not cart:
         return {
-            "cart": None, "items": [], "total": 0.0, "subtotal": 0.0,
-            "instant_total": 0.0, "prepaid_total": 0.0, 
-            "promo_code": None, "promo_discount_percent": 0.0,
-            "currency": currency,
-            "exchange_rate": exchange_rate,
-            # USD mirrors for frontend comparisons
+            "cart": None,
+            "items": [],
+            # USD values (for calculations)
             "total_usd": 0.0,
             "subtotal_usd": 0.0,
             "instant_total_usd": 0.0,
             "prepaid_total_usd": 0.0,
+            # Display values (for UI)
+            "total": 0.0,
+            "subtotal": 0.0,
+            "instant_total": 0.0,
+            "prepaid_total": 0.0,
+            # Promo
+            "promo_code": None,
+            "promo_discount_percent": 0.0,
+            "original_total_usd": 0.0,
+            "original_total": 0.0,
+            # Currency info
+            "currency": formatter.currency,
+            "exchange_rate": formatter.exchange_rate,
         }
     
-    items_with_details = []
-    # Base USD amounts
-    total_usd = float(cart.total)
-    subtotal_usd = float(cart.subtotal)
-    instant_total_usd = float(cart.instant_total)
-    prepaid_total_usd = float(cart.prepaid_total)
-    
-    # By default, converted == USD
-    total_converted = total_usd
-    subtotal_converted = subtotal_usd
-    instant_total_converted = instant_total_usd
-    prepaid_total_converted = prepaid_total_usd
-    
-    # Fetch all products in parallel for better performance
+    # Fetch all products in parallel
     products = await asyncio.gather(*[db.get_product_by_id(item.product_id) for item in cart.items])
     
+    items_with_details = []
     for item, product in zip(cart.items, products):
-        
-        # Base prices in USD
-        unit_price_usd = float(item.unit_price)
-        final_price_usd = float(item.final_price)
-        total_price_usd = float(item.total_price)
-        
-        # Convert prices from USD to user currency
-        unit_price_converted = unit_price_usd
-        final_price_converted = final_price_usd
-        total_price_converted = total_price_usd
-        
-        if currency_service and currency != "USD":
-            try:
-                unit_price_converted = await currency_service.convert_price(unit_price_usd, currency, round_to_int=True)
-                final_price_converted = await currency_service.convert_price(final_price_usd, currency, round_to_int=True)
-                total_price_converted = await currency_service.convert_price(total_price_usd, currency, round_to_int=True)
-            except Exception as e:
-                logger.warning(f"Failed to convert cart item prices: {e}")
+        # USD values (base)
+        unit_price_usd = to_float(item.unit_price)
+        final_price_usd = to_float(item.final_price)
+        total_price_usd = to_float(item.total_price)
         
         items_with_details.append({
-            "product_id": item.product_id, 
+            "product_id": item.product_id,
             "product_name": product.name if product else "Unknown",
-            "quantity": item.quantity, 
+            "image_url": product.image_url if product else None,
+            "quantity": item.quantity,
             "instant_quantity": item.instant_quantity,
-            "prepaid_quantity": item.prepaid_quantity, 
-            # Converted amounts for UI display
-            "unit_price": unit_price_converted,
-            "final_price": final_price_converted, 
-            "total_price": total_price_converted, 
-            # Base USD amounts for safe comparisons
+            "prepaid_quantity": item.prepaid_quantity,
+            "discount_percent": item.discount_percent,
+            # USD values (for calculations)
             "unit_price_usd": unit_price_usd,
             "final_price_usd": final_price_usd,
             "total_price_usd": total_price_usd,
-            "discount_percent": item.discount_percent,
-            "currency": currency
+            # Display values (for UI)
+            "unit_price": formatter.convert(unit_price_usd),
+            "final_price": formatter.convert(final_price_usd),
+            "total_price": formatter.convert(total_price_usd),
+            # Currency (for this item)
+            "currency": formatter.currency,
         })
     
-    # Convert totals
-    if currency_service and currency != "USD":
-        try:
-            total_converted = await currency_service.convert_price(total_usd, currency, round_to_int=True)
-            subtotal_converted = await currency_service.convert_price(subtotal_usd, currency, round_to_int=True)
-            instant_total_converted = await currency_service.convert_price(instant_total_usd, currency, round_to_int=True)
-            prepaid_total_converted = await currency_service.convert_price(prepaid_total_usd, currency, round_to_int=True)
-        except Exception as e:
-            logger.warning(f"Failed to convert cart totals: {e}")
+    # Calculate original total (before promo) if promo applied
+    original_total_usd = to_float(cart.subtotal) if cart.promo_code else to_float(cart.total)
     
     return {
         "cart": {
-            "user_telegram_id": cart.user_telegram_id, 
-            "created_at": cart.created_at, 
-            "updated_at": cart.updated_at
+            "user_telegram_id": cart.user_telegram_id,
+            "created_at": cart.created_at,
+            "updated_at": cart.updated_at,
         },
-        "items": items_with_details, 
-        "total": total_converted, 
-        "subtotal": subtotal_converted,
-        "instant_total": instant_total_converted, 
-        "prepaid_total": prepaid_total_converted,
-        "promo_code": cart.promo_code, 
+        "items": items_with_details,
+        # USD values (for calculations)
+        "total_usd": to_float(cart.total),
+        "subtotal_usd": to_float(cart.subtotal),
+        "instant_total_usd": to_float(cart.instant_total),
+        "prepaid_total_usd": to_float(cart.prepaid_total),
+        "original_total_usd": original_total_usd,
+        # Display values (for UI)
+        "total": formatter.convert(cart.total),
+        "subtotal": formatter.convert(cart.subtotal),
+        "instant_total": formatter.convert(cart.instant_total),
+        "prepaid_total": formatter.convert(cart.prepaid_total),
+        "original_total": formatter.convert(original_total_usd),
+        # Promo
+        "promo_code": cart.promo_code,
         "promo_discount_percent": cart.promo_discount_percent,
-        "currency": currency,
-        "exchange_rate": exchange_rate,
-        # Base USD mirrors for robust comparisons on FE
-        "total_usd": total_usd,
-        "subtotal_usd": subtotal_usd,
-        "instant_total_usd": instant_total_usd,
-        "prepaid_total_usd": prepaid_total_usd,
+        # Currency info (for frontend)
+        "currency": formatter.currency,
+        "exchange_rate": formatter.exchange_rate,
     }
 
 
@@ -167,12 +140,9 @@ async def get_webapp_cart(user=Depends(verify_telegram_auth)):
     try:
         cart_manager = get_cart_manager()
         cart = await cart_manager.get_cart(user.id)
-        
         db = get_database()
-        db_user = await db.get_user_by_telegram_id(user.id)
-        user_language = (db_user.language_code if db_user else None) or user.language_code
         
-        return await _format_cart_response(cart, db, user_language, user.id)
+        return await _format_cart_response(cart, db, user.id)
     except HTTPException:
         raise
     except Exception as e:
@@ -211,9 +181,7 @@ async def add_to_cart(request: AddToCartRequest, user=Depends(verify_telegram_au
         raise HTTPException(status_code=500, detail="Failed to add item to cart")
     
     cart = await cart_manager.get_cart(user.id)
-    db_user = await db.get_user_by_telegram_id(user.id)
-    user_language = (db_user.language_code if db_user else None) or user.language_code
-    return await _format_cart_response(cart, db, user_language, user.id)
+    return await _format_cart_response(cart, db, user.id)
 
 
 @router.patch("/cart/item")
@@ -244,9 +212,7 @@ async def update_cart_item(request: UpdateCartItemRequest, user=Depends(verify_t
         raise HTTPException(status_code=500, detail="Failed to update cart item")
     
     cart = await cart_manager.get_cart(user.id)
-    db_user = await db.get_user_by_telegram_id(user.id)
-    user_language = (db_user.language_code if db_user else None) or user.language_code
-    return await _format_cart_response(cart, db, user_language, user.id)
+    return await _format_cart_response(cart, db, user.id)
 
 
 @router.delete("/cart/item")
@@ -264,10 +230,8 @@ async def remove_cart_item(product_id: str, user=Depends(verify_telegram_auth)):
         raise HTTPException(status_code=500, detail="Failed to remove cart item")
     
     db = get_database()
-    db_user = await db.get_user_by_telegram_id(user.id)
-    user_language = (db_user.language_code if db_user else None) or user.language_code
     cart = await cart_manager.get_cart(user.id)
-    return await _format_cart_response(cart, db, user_language)
+    return await _format_cart_response(cart, db, user.id)
 
 
 @router.post("/cart/promo/apply")
@@ -286,9 +250,7 @@ async def apply_cart_promo(request: ApplyPromoRequest, user=Depends(verify_teleg
     if cart is None:
         raise HTTPException(status_code=400, detail="Cart is empty")
     
-    db_user = await db.get_user_by_telegram_id(user.id)
-    user_language = (db_user.language_code if db_user else None) or user.language_code
-    return await _format_cart_response(cart, db, user_language)
+    return await _format_cart_response(cart, db, user.id)
 
 
 @router.post("/cart/promo/remove")
@@ -302,6 +264,4 @@ async def remove_cart_promo(user=Depends(verify_telegram_auth)):
         raise HTTPException(status_code=400, detail="Cart is empty")
     
     db = get_database()
-    db_user = await db.get_user_by_telegram_id(user.id)
-    user_language = (db_user.language_code if db_user else None) or user.language_code
-    return await _format_cart_response(cart, db, user_language)
+    return await _format_cart_response(cart, db, user.id)

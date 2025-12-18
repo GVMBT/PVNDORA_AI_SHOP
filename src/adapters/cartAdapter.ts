@@ -2,6 +2,11 @@
  * Cart Adapter
  * 
  * Transforms API cart data into component-friendly format.
+ * 
+ * UNIFIED CURRENCY ARCHITECTURE:
+ * - API returns both *_usd (for calculations) and display values (for UI)
+ * - Always use _usd values for comparisons
+ * - Use display values or formatPrice for UI
  */
 
 import type { APICartResponse, APICartItem } from '../types/api';
@@ -14,11 +19,14 @@ function adaptCartItem(item: APICartItem, currency: string): CartItem {
   return {
     id: item.product_id,
     name: item.product_name,
-    category: 'Module', // Not provided in API
-    price: item.unit_price,
-    currency: currency,
+    category: 'Module',
+    // Display price (in user's currency)
+    price: item.unit_price || item.final_price || 0,
+    // USD price (for calculations)
+    priceUsd: item.unit_price_usd || item.final_price_usd || item.unit_price || 0,
+    currency: item.currency || currency,
     quantity: item.quantity,
-    image: `/noise.png`, // No images for cart items, use placeholder
+    image: item.image_url || `/noise.png`,
   };
 }
 
@@ -26,28 +34,33 @@ function adaptCartItem(item: APICartItem, currency: string): CartItem {
  * Adapt API cart response to component format
  */
 export function adaptCart(response: APICartResponse): CartData {
-  // Response has items at root level, not inside cart
   const items = response.items || [];
   const currency = response.currency || 'USD';
   const exchangeRate = response.exchange_rate || 1.0;
+  
+  // USD values (for calculations) - ALWAYS use these for math
   const totalUsd = response.total_usd ?? response.total ?? 0;
-  const subtotalUsd = response.subtotal_usd ?? response.subtotal ?? response.total ?? 0;
+  const originalTotalUsd = response.original_total_usd ?? response.subtotal_usd ?? totalUsd;
+  
+  // Display values (for UI)
+  const total = response.total ?? 0;
+  const originalTotal = response.original_total ?? response.subtotal ?? total;
   
   return {
     items: items.map(item => adaptCartItem(item, currency)),
-    total: response.total || 0,
-    originalTotal: response.subtotal || response.total || 0,
-    discountTotal: (response.subtotal || 0) - (response.total || 0),
-    currency: currency,
-    exchangeRate,
-    // Base USD mirrors
+    // Display values (for UI)
+    total,
+    originalTotal,
+    discountTotal: originalTotal - total,
+    // USD values (for calculations)
     totalUsd,
-    originalTotalUsd: subtotalUsd,
-    discountTotalUsd: subtotalUsd - totalUsd,
-    currency: currency,
+    originalTotalUsd,
+    discountTotalUsd: originalTotalUsd - totalUsd,
+    // Currency info
+    currency,
+    exchangeRate,
+    // Promo
     promoCode: response.promo_code,
     promoDiscountPercent: response.promo_discount_percent,
   };
 }
-
-

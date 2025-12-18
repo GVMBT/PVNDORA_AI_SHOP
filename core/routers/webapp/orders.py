@@ -316,11 +316,13 @@ async def get_webapp_orders(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ):
-    """Get user's order history with currency conversion and pagination."""
+    """Get user's order history with unified currency handling."""
+    from core.db import get_redis
+    from core.services.currency_response import CurrencyFormatter
+    
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
-        # Авто-создание пользователя, если он впервые
         db_user = await db.create_user(
             telegram_id=user.id,
             username=getattr(user, "username", None),
@@ -329,28 +331,15 @@ async def get_webapp_orders(
             referrer_telegram_id=None
         )
     
-    # Get currency service and convert prices
-    currency = "USD"
-    currency_service = None
-    
-    try:
-        from core.db import get_redis
-        from core.services.currency import get_currency_service
-        redis = get_redis()  # get_redis() is synchronous, no await needed
-        currency_service = get_currency_service(redis)
-        # Use preferred_currency if set, otherwise fallback to language_code
-        user_lang = getattr(db_user, 'interface_language', None) or (db_user.language_code if db_user and db_user.language_code else user.language_code)
-        preferred_curr = getattr(db_user, 'preferred_currency', None)
-        currency = currency_service.get_user_currency(user_lang, preferred_curr)
-    except Exception as e:
-        logger.warning(f"Currency service unavailable: {e}, using USD")
+    # Unified currency formatter
+    redis = get_redis()
+    formatter = await CurrencyFormatter.create(user.id, db, redis)
     
     orders = await db.get_user_orders(db_user.id, limit=limit, offset=offset)
     order_ids = [o.id for o in orders]
     
     # Fetch order_items in bulk
     items_data = await db.get_order_items_by_orders(order_ids)
-    # Collect product ids from both orders (legacy product_id) and items
     product_ids = set()
     for o in orders:
         if o.product_id:
@@ -369,7 +358,7 @@ async def get_webapp_orders(
     except Exception as e:
         logger.warning(f"Failed to load products map: {e}")
     
-    # Fetch reviews for orders (to determine has_review)
+    # Fetch reviews for orders
     reviews_by_order = {}
     try:
         if order_ids:
@@ -381,7 +370,7 @@ async def get_webapp_orders(
     except Exception as e:
         logger.warning(f"Failed to load reviews: {e}")
     
-    # Build items by order using helper
+    # Build items by order
     from collections import defaultdict
     items_by_order = defaultdict(list)
     for it in items_data:
@@ -392,31 +381,33 @@ async def get_webapp_orders(
         item_payload = build_item_payload(it, prod, has_review=has_review)
         items_by_order[order_id].append(item_payload)
     
-    # Build order payloads using helper
+    # Build order payloads with unified currency handling
     result = []
     for o in orders:
         product = products_map.get(o.product_id, {})
         
-        # Convert prices
-        amount_converted, original_price_converted = await convert_order_prices(
-            to_decimal(o.amount),
-            to_decimal(o.original_price) if o.original_price else None,
-            currency,
-            currency_service
-        )
+        # USD values
+        amount_usd = to_float(o.amount)
+        original_price_usd = to_float(o.original_price) if o.original_price else None
         
-        # Build order payload
         order_payload = build_order_payload(
             order=o,
             product=product,
-            amount_converted=amount_converted,
-            original_price_converted=original_price_converted,
-            currency=currency,
-            items=items_by_order.get(o.id)
+            amount_converted=formatter.convert(o.amount),
+            original_price_converted=formatter.convert(o.original_price) if o.original_price else None,
+            currency=formatter.currency,
+            items=items_by_order.get(o.id),
+            amount_usd=amount_usd,
+            original_price_usd=original_price_usd,
         )
         result.append(order_payload)
     
-    return {"orders": result, "count": len(result), "currency": currency}
+    return {
+        "orders": result,
+        "count": len(result),
+        "currency": formatter.currency,
+        "exchange_rate": formatter.exchange_rate,
+    }
 
 
 @router.post("/orders")

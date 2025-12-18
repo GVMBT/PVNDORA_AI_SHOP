@@ -1,14 +1,41 @@
 """Order response serializers and converters."""
 import logging
 from decimal import Decimal
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
 
 from core.services.money import to_float, to_decimal, to_kopecks
-from core.payments import DELIVERED_STATES
+
+if TYPE_CHECKING:
+    from core.services.currency_response import CurrencyFormatter
 
 logger = logging.getLogger(__name__)
 
+# Delivered states where we show delivery content
+DELIVERED_STATES = ["delivered", "partial", "completed"]
 
+
+def convert_order_prices_with_formatter(
+    amount: Decimal,
+    original_price: Optional[Decimal],
+    formatter: "CurrencyFormatter"
+) -> Dict[str, Any]:
+    """
+    Convert order prices using unified CurrencyFormatter.
+    
+    Returns dict with both USD and display values.
+    """
+    amount_usd = to_float(amount)
+    original_price_usd = to_float(original_price) if original_price else None
+    
+    return {
+        "amount_usd": amount_usd,
+        "amount": formatter.convert(amount),
+        "original_price_usd": original_price_usd,
+        "original_price": formatter.convert(original_price) if original_price else None,
+    }
+
+
+# Legacy function for backward compatibility
 async def convert_order_prices(
     amount: Decimal,
     original_price: Optional[Decimal],
@@ -17,6 +44,8 @@ async def convert_order_prices(
 ) -> tuple[float, Optional[float]]:
     """
     Convert order prices to target currency.
+    
+    DEPRECATED: Use convert_order_prices_with_formatter instead.
     
     Args:
         amount: Order amount in USD
@@ -67,7 +96,7 @@ def build_item_payload(
         "fulfillment_type": item_data.get("fulfillment_type"),
         "created_at": item_data.get("created_at"),
         "delivered_at": item_data.get("delivered_at"),
-        "expires_at": item_data.get("expires_at"),  # License expiration for this specific item
+        "expires_at": item_data.get("expires_at"),
         "has_review": has_review,
     }
     
@@ -75,7 +104,6 @@ def build_item_payload(
     if status_lower in DELIVERED_STATES:
         if item_data.get("delivery_content"):
             payload["delivery_content"] = item_data.get("delivery_content")
-        # instructions: prefer item-specific, fallback to product instructions
         if item_data.get("delivery_instructions"):
             payload["delivery_instructions"] = item_data.get("delivery_instructions")
         elif product.get("instructions"):
@@ -90,7 +118,10 @@ def build_order_payload(
     amount_converted: float,
     original_price_converted: Optional[float],
     currency: str,
-    items: Optional[List[Dict[str, Any]]] = None
+    items: Optional[List[Dict[str, Any]]] = None,
+    # New unified fields
+    amount_usd: Optional[float] = None,
+    original_price_usd: Optional[float] = None,
 ) -> Dict[str, Any]:
     """
     Build order payload for API response.
@@ -102,6 +133,8 @@ def build_order_payload(
         original_price_converted: Converted original price (optional)
         currency: Target currency code
         items: List of order items (source of truth for products)
+        amount_usd: Amount in USD (for calculations)
+        original_price_usd: Original price in USD (for calculations)
         
     Returns:
         Formatted order payload dict
@@ -109,7 +142,6 @@ def build_order_payload(
     # Derive product name from items (source of truth) or fallback to legacy product
     product_name = "Unknown Product"
     if items and len(items) > 0:
-        # Build product name from items
         item_names = [it.get("product_name", "Unknown") for it in items[:3]]
         product_name = ", ".join(item_names)
         if len(items) > 3:
@@ -120,6 +152,10 @@ def build_order_payload(
     payload = {
         "id": order.id,
         "product_name": product_name,
+        # USD values (for calculations)
+        "amount_usd": amount_usd if amount_usd is not None else to_float(order.amount),
+        "original_price_usd": original_price_usd,
+        # Display values (for UI)
         "amount": amount_converted,
         "original_price": original_price_converted,
         "discount_percent": order.discount_percent,
@@ -128,11 +164,8 @@ def build_order_payload(
         "currency": currency,
         "created_at": order.created_at.isoformat() if order.created_at else None,
         "delivered_at": order.delivered_at.isoformat() if hasattr(order, 'delivered_at') and order.delivered_at else None,
-        # expires_at = payment deadline (relevant only for pending orders)
         "expires_at": order.expires_at.isoformat() if order.expires_at else None,
-        # fulfillment_deadline = delivery deadline (relevant for prepaid orders)
         "fulfillment_deadline": order.fulfillment_deadline.isoformat() if hasattr(order, 'fulfillment_deadline') and order.fulfillment_deadline else None,
-        # warranty_until = warranty end date (for delivered orders)
         "warranty_until": order.warranty_until.isoformat() if hasattr(order, 'warranty_until') and order.warranty_until else None,
     }
 
@@ -142,17 +175,14 @@ def build_order_payload(
         if original_price_converted is not None:
             payload["original_price_minor"] = to_kopecks(to_decimal(original_price_converted))
     except Exception:
-        # Fallback silently if conversion fails; keep float fields
         pass
     
     # Attach items (source of truth for products and delivery content)
     if items:
         payload["items"] = items
     
-    # Include payment_url ONLY for pending orders (payment NOT confirmed yet)
-    # For prepaid orders, payment is ALREADY confirmed - no need for payment_url
+    # Include payment_url ONLY for pending orders
     if order.status == "pending" and hasattr(order, 'payment_url') and order.payment_url:
         payload["payment_url"] = order.payment_url
     
     return payload
-

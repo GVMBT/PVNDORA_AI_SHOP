@@ -140,3 +140,5 @@ export default memo(AdminPartners);
 
 
 
+
+

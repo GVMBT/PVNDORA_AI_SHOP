@@ -207,65 +207,35 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
             s, THRESHOLD_LEVEL2, THRESHOLD_LEVEL3, COMMISSION_LEVEL1, COMMISSION_LEVEL2, COMMISSION_LEVEL3
         )
     
-    # Get currency service and determine user currency
-    currency = "USD"
-    currency_service = None
-    try:
-        from core.db import get_redis
-        from core.services.currency import get_currency_service
-        redis = get_redis()
-        currency_service = get_currency_service(redis)
-        # Use preferred_currency if set, otherwise fallback to language_code
-        user_lang = getattr(db_user, 'interface_language', None) or (db_user.language_code if db_user and db_user.language_code else user.language_code)
-        preferred_curr = getattr(db_user, 'preferred_currency', None)
-        currency = currency_service.get_user_currency(user_lang, preferred_curr)
-    except Exception as e:
-        logger.warning(f"Currency service unavailable: {e}, using USD")
+    # Unified currency handling
+    from core.db import get_redis
+    from core.services.currency_response import CurrencyFormatter
+    
+    redis = get_redis()
+    formatter = await CurrencyFormatter.create(user.id, db, redis)
     
     # Get USD amounts (base currency in DB)
     balance_usd = float(db_user.balance) if db_user.balance else 0
     total_referral_earnings_usd = float(db_user.total_referral_earnings) if hasattr(db_user, 'total_referral_earnings') and db_user.total_referral_earnings else 0
     total_saved_usd = float(db_user.total_saved) if db_user.total_saved else 0
     
-    # Get exchange rate for frontend conversion (avoid reload on currency change)
-    exchange_rate = 1.0
-    if currency_service and currency != "USD":
-        try:
-            exchange_rate = await currency_service.get_exchange_rate(currency)
-        except Exception as e:
-            logger.warning(f"Failed to get exchange rate: {e}, using 1.0")
-            exchange_rate = 1.0
-    
-    # Convert for display (backward compatibility)
-    balance = balance_usd
-    total_referral_earnings = total_referral_earnings_usd
-    total_saved = total_saved_usd
-    
-    if currency_service and currency != "USD" and exchange_rate != 1.0:
-        try:
-            balance = await currency_service.convert_price(balance_usd, currency, round_to_int=True)
-            total_referral_earnings = await currency_service.convert_price(total_referral_earnings_usd, currency, round_to_int=True)
-            total_saved = await currency_service.convert_price(total_saved_usd, currency, round_to_int=True)
-        except Exception as e:
-            logger.warning(f"Failed to convert profile amounts: {e}, using USD values")
-            balance = balance_usd
-            total_referral_earnings = total_referral_earnings_usd
-            total_saved = total_saved_usd
-    
     return {
         "profile": {
-            "balance": balance,  # Converted for backward compatibility
-            "balance_usd": balance_usd,  # USD amount for frontend conversion
-            "total_referral_earnings": total_referral_earnings,  # Converted
-            "total_referral_earnings_usd": total_referral_earnings_usd,  # USD amount
-            "total_saved": total_saved,  # Converted
-            "total_saved_usd": total_saved_usd,  # USD amount
+            # USD values (for calculations - ALWAYS use these for math)
+            "balance_usd": balance_usd,
+            "total_referral_earnings_usd": total_referral_earnings_usd,
+            "total_saved_usd": total_saved_usd,
+            # Display values (for UI - these are in user's currency)
+            "balance": formatter.convert(balance_usd),
+            "total_referral_earnings": formatter.convert(total_referral_earnings_usd),
+            "total_saved": formatter.convert(total_saved_usd),
+            # Formatted strings (ready for display)
+            "balance_formatted": formatter.format(formatter.convert(balance_usd)),
             "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{user.id}",
             "created_at": db_user.created_at.isoformat() if db_user.created_at else None,
             "is_admin": db_user.is_admin or False,
             "is_partner": referral_program.get("is_partner", False),
-            "currency": currency,
-            # User identity info (for web login where initData not available)
+            # User identity info
             "first_name": db_user.first_name,
             "username": db_user.username,
             "telegram_id": db_user.telegram_id,
@@ -276,14 +246,18 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
         "bonus_history": bonus_result.data or [],
         "withdrawals": withdrawal_result.data or [],
         "balance_transactions": balance_transactions_result.data or [],
-        "currency": currency,
-        "exchange_rate": exchange_rate  # Rate for frontend conversion (1 USD = X currency)
+        # Currency info (for frontend)
+        "currency": formatter.currency,
+        "exchange_rate": formatter.exchange_rate,
     }
 
 
 @router.post("/profile/withdraw")
 async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_telegram_auth)):
     """Request balance withdrawal."""
+    from core.db import get_redis
+    from core.services.currency_response import CurrencyFormatter
+    
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
@@ -291,78 +265,33 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
     
     balance_usd = float(db_user.balance) if db_user.balance else 0
     
-    # Determine user currency for withdrawal
-    user_lang = getattr(db_user, 'language_code', 'en') or 'en'
-    preferred_currency = getattr(db_user, 'preferred_currency', None)
+    # Get currency formatter for user
+    redis = get_redis()
+    formatter = await CurrencyFormatter.create(user.id, db, redis)
     
-    try:
-        from core.db import get_redis
-        from core.services.currency import get_currency_service
-        redis = get_redis()
-        currency_service = get_currency_service(redis)
-        withdrawal_currency = currency_service.get_user_currency(user_lang, preferred_currency)
-    except Exception as e:
-        logger.warning(f"Currency service unavailable: {e}, defaulting to RUB")
-        withdrawal_currency = "RUB"
-        currency_service = None
-    
-    # Minimum withdrawal amounts (equivalent to ~5 USD)
+    # Minimum withdrawal: 5 USD equivalent
     MIN_WITHDRAWAL_USD = 5.0
-    MIN_WITHDRAWAL_BY_CURRENCY = {
-        "USD": 5,
-        "RUB": 500,      # ~5 USD at 100 RUB/USD
-        "EUR": 5,        # ~5.5 USD
-        "UAH": 200,      # ~5 USD at 40 UAH/USD
-        "TRY": 150,      # ~5 USD at 30 TRY/USD
-        "INR": 400,      # ~5 USD at 80 INR/USD
-        "AED": 20,       # ~5 USD at 3.7 AED/USD
-    }
-    
-    min_withdrawal = MIN_WITHDRAWAL_BY_CURRENCY.get(withdrawal_currency, 5)
+    min_withdrawal_display = formatter.convert(MIN_WITHDRAWAL_USD)
     
     # Convert withdrawal amount from user currency to USD for balance check
-    # Balance is stored in USD, so we need to convert to USD
-    amount_usd = request.amount
-    if withdrawal_currency != "USD":
-        if not currency_service:
-            raise HTTPException(status_code=500, detail="Currency service unavailable")
-        try:
-            rate = await currency_service.get_exchange_rate(withdrawal_currency)
-            # Check if rate is valid (not 1.0 which is fallback for errors)
-            if rate and rate > 0 and rate != 1.0:
-                amount_usd = request.amount / rate
-                logger.info(f"Withdrawal conversion: {request.amount} {withdrawal_currency} → {amount_usd:.2f} USD (rate: 1 USD = {rate} {withdrawal_currency})")
-            else:
-                raise ValueError(f"Invalid exchange rate for {withdrawal_currency}: {rate}")
-        except Exception as e:
-            logger.error(f"Currency conversion failed for withdrawal: {e}")
-            raise HTTPException(status_code=500, detail=f"Currency conversion failed: {str(e)}")
+    # Balance is stored in USD, so we need to convert input to USD
+    if formatter.currency != "USD" and formatter.exchange_rate > 0:
+        amount_usd = request.amount / formatter.exchange_rate
+    else:
+        amount_usd = request.amount
     
-    if request.amount < min_withdrawal:
-        # Format error message with currency symbol
-        if currency_service:
-            try:
-                min_withdrawal_formatted = currency_service.format_price(min_withdrawal, withdrawal_currency)
-            except Exception:
-                min_withdrawal_formatted = f"{min_withdrawal} {withdrawal_currency}"
-        else:
-            min_withdrawal_formatted = f"{min_withdrawal} {withdrawal_currency}"
-        raise HTTPException(status_code=400, detail=f"Minimum withdrawal is {min_withdrawal_formatted}")
+    if amount_usd < MIN_WITHDRAWAL_USD:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Minimum withdrawal is {formatter.format(min_withdrawal_display)}"
+        )
     
     if amount_usd > balance_usd:
-        # Convert balance to user currency for error message
-        if currency_service:
-            try:
-                balance_user_currency = await currency_service.convert_price(balance_usd, withdrawal_currency, round_to_int=True)
-                balance_formatted = currency_service.format_price(balance_user_currency, withdrawal_currency)
-                amount_formatted = currency_service.format_price(request.amount, withdrawal_currency)
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"Insufficient balance. Available: {balance_formatted}, requested: {amount_formatted}"
-                )
-            except Exception:
-                pass  # Fall through to generic error
-        raise HTTPException(status_code=400, detail="Insufficient balance")
+        balance_display = formatter.convert(balance_usd)
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Insufficient balance. Available: {formatter.format(balance_display)}, requested: {formatter.format(request.amount)}"
+        )
     
     if request.method not in ['crypto']:
         raise HTTPException(status_code=400, detail="Invalid payment method. Only TRC20 USDT is supported.")
@@ -390,43 +319,33 @@ async def create_topup(
     """
     Create a balance top-up payment via CrystalPay.
     
-    Minimum amounts:
-    - RUB: 500₽
-    - USD: 5$
-    
+    Minimum: 5 USD equivalent.
     Returns payment URL for redirect.
     """
+    from core.db import get_redis
+    from core.services.currency_response import CurrencyFormatter, format_price_simple
+    
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Validate minimum amounts (equivalent to ~5 USD)
     currency = request.currency.upper()
-    MIN_AMOUNTS = {
-        "USD": 5,
-        "RUB": 500,      # ~5 USD at 100 RUB/USD
-        "EUR": 5,        # ~5.5 USD
-        "UAH": 200,      # ~5 USD at 40 UAH/USD
-        "TRY": 150,      # ~5 USD at 30 TRY/USD
-        "INR": 400,      # ~5 USD at 80 INR/USD
-        "AED": 20,       # ~5 USD at 3.7 AED/USD
-    }
+    redis = get_redis()
     
-    min_amount = MIN_AMOUNTS.get(currency, 5)  # Default to 5 if currency not in list
-    if request.amount < min_amount:
-        # Format error message with currency symbol
-        try:
-            from core.db import get_redis
-            from core.services.currency import get_currency_service
-            redis = get_redis()
-            currency_service = get_currency_service(redis)
-            min_formatted = currency_service.format_price(min_amount, currency)
-        except Exception:
-            min_formatted = f"{min_amount} {currency}"
+    # Get formatter to calculate minimum in user's currency
+    formatter = await CurrencyFormatter.create(
+        user.id, db, redis, preferred_currency=currency
+    )
+    
+    # Minimum: 5 USD equivalent
+    MIN_USD = 5.0
+    min_in_user_currency = formatter.convert(MIN_USD)
+    
+    if request.amount < min_in_user_currency:
         raise HTTPException(
             status_code=400, 
-            detail=f"Minimum top-up is {min_formatted}"
+            detail=f"Minimum top-up is {format_price_simple(min_in_user_currency, currency)}"
         )
     
     # Use original currency and amount - CrystalPay supports multiple currencies
