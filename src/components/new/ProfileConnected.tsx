@@ -187,7 +187,9 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       clearCartState();
     }
     if (interface_language) {
-      setLocale(interface_language as 'en' | 'ru' | 'uk' | 'de' | 'fr' | 'es' | 'tr' | 'ar' | 'hi');
+      // Only RU/EN supported - normalize to these
+      const normalizedLang = interface_language === 'ru' ? 'ru' : 'en';
+      setLocale(normalizedLang as 'en' | 'ru');
     }
     
     try {
@@ -211,7 +213,9 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
           setCurrency(profile.currency as 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED');
         }
         if (interface_language) {
-          setLocale((profile.language || 'en') as 'en' | 'ru' | 'uk' | 'de' | 'fr' | 'es' | 'tr' | 'ar' | 'hi');
+          // Only RU/EN supported
+          const originalLang = profile.language === 'ru' ? 'ru' : 'en';
+          setLocale(originalLang as 'en' | 'ru');
         }
       }
       throw error;

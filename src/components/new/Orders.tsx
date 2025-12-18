@@ -4,6 +4,7 @@ import { ArrowLeft, Box, Package, Terminal } from 'lucide-react';
 import { logger } from '../../utils/logger';
 import { useClipboard } from '../../hooks/useClipboard';
 import { useTimeoutState } from '../../hooks/useTimeoutState';
+import { useLocale } from '../../hooks/useLocale';
 import OrderCard, { type OrderData } from './OrderCard';
 import type { RefundContext } from './OrderCard';
 import OrderReviewModal from './OrderReviewModal';
@@ -21,6 +22,7 @@ interface OrdersProps {
 }
 
 const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSupport, onSubmitReview }) => {
+  const { t } = useLocale();
   // Use provided orders - NO MOCK fallback
   const ordersData = propOrders || [];
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'log'>('all');
@@ -119,19 +121,19 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
       >
         <div className="max-w-6xl mx-auto">
           <button onClick={onBack} className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-8 transition-colors">
-            <ArrowLeft size={12} /> RETURN_TO_BASE
+            <ArrowLeft size={12} /> {t('empty.returnToBase').toUpperCase()}
           </button>
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <Package size={64} className="text-gray-700 mb-6" />
-            <h2 className="text-2xl font-bold text-white mb-2">NO ORDERS YET</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">{t('empty.orders').toUpperCase()}</h2>
             <p className="text-gray-500 font-mono text-sm max-w-md">
-              Your order history is empty. Complete a purchase to see your transactions here.
+              {t('empty.ordersHint')}
             </p>
             <button 
               onClick={onBack}
               className="mt-8 px-6 py-3 bg-pandora-cyan/10 border border-pandora-cyan text-pandora-cyan font-mono text-sm uppercase hover:bg-pandora-cyan/20 transition-colors"
             >
-              Browse Catalog
+              {t('empty.browseCatalog')}
             </button>
           </div>
         </div>
@@ -151,7 +153,7 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
             {/* === UNIFIED HEADER (Leaderboard Style) === */}
             <div className="mb-8 md:mb-16">
                 <button onClick={onBack} className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors">
-                    <ArrowLeft size={12} /> RETURN_TO_BASE
+                    <ArrowLeft size={12} /> {t('empty.returnToBase').toUpperCase()}
                 </button>
                 <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-[0.9] mb-4">
                     TRANSACTION <br/> <span className="text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white/50">LOGS</span>

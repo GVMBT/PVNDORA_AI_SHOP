@@ -3,6 +3,7 @@ import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, ChevronUp, ChevronDown, User, Crown, ArrowRight, TrendingUp, ShieldCheck, Activity, Zap, Terminal, BarChart3, Lock, ArrowLeft } from 'lucide-react';
 import { formatPrice, getCurrencySymbol } from '../../utils/currency';
+import { useLocale } from '../../hooks/useLocale';
 
 // Type matching LeaderboardUser from types/component
 interface LeaderboardUserData {
@@ -43,6 +44,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
   onFilterChange,
   activeFilter = 'all_time',
 }) => {
+  const { t } = useLocale();
   // Use controlled filter from parent or internal state
   const [internalFilter, setInternalFilter] = useState<'weekly' | 'all_time'>('all_time');
   const filter = onFilterChange ? activeFilter : internalFilter;
@@ -133,13 +135,13 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
       >
         <div className="max-w-7xl mx-auto">
           <button onClick={onBack} className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors">
-            <ArrowLeft size={12} /> RETURN_TO_BASE
+            <ArrowLeft size={12} /> {t('empty.returnToBase').toUpperCase()}
           </button>
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <Trophy size={64} className="text-gray-700 mb-6" />
-            <h2 className="text-2xl font-bold text-white mb-2">NO OPERATIVES YET</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">{t('leaderboard.empty').toUpperCase()}</h2>
             <p className="text-gray-500 font-mono text-sm max-w-md">
-              The leaderboard is empty. Be the first to save and claim your rank!
+              {t('leaderboard.emptyHint')}
             </p>
           </div>
         </div>
@@ -164,13 +166,13 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
             <div className="flex flex-col md:flex-row justify-between items-end gap-8 mb-8 md:mb-16">
                 <div className="w-full md:w-auto">
                     <button onClick={onBack} className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors">
-                        <ArrowLeft size={12} /> RETURN_TO_BASE
+                        <ArrowLeft size={12} /> {t('empty.returnToBase').toUpperCase()}
                     </button>
                     <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-[0.9] mb-4">
-                        PROTOCOL: <br/> <span className="text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white/50">SYSTEM_BYPASS</span>
+                        {t('leaderboard.title').toUpperCase()} <br/> <span className="text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white/50">{t('leaderboard.subtitle').toUpperCase()}</span>
                     </h1>
                     <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-pandora-cyan/70">
-                        <span className="flex items-center gap-1 bg-pandora-cyan/10 px-2 py-1 rounded-sm"><Activity size={12} /> NETWORK_ACTIVITY: HIGH</span>
+                        <span className="flex items-center gap-1 bg-pandora-cyan/10 px-2 py-1 rounded-sm"><Activity size={12} /> {t('leaderboard.networkActivity').toUpperCase()}: HIGH</span>
                         <span className="hidden sm:inline">|</span>
                         <span className="hidden sm:inline">CYCLE_HASH: #A92-B</span>
                     </div>
@@ -181,7 +183,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                     <div className="absolute inset-0 bg-pandora-cyan/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
                     <div className="relative z-10">
                         <div className="text-[9px] font-mono text-gray-500 uppercase tracking-widest mb-1 flex items-center gap-2">
-                            <ShieldCheck size={10} className="text-pandora-cyan" /> Total Corporate Loss
+                            <ShieldCheck size={10} className="text-pandora-cyan" /> {t('leaderboard.corporateLoss')}
                         </div>
                         <div className="text-xl sm:text-2xl md:text-3xl font-mono font-bold text-white tracking-tight tabular-nums break-all sm:break-normal">
                             {formatPrice(totalSavedAggregate, displayCurrency)}<span className="text-gray-600">{totalEfficiency ? ` // ${totalEfficiency}%` : ''}</span>
@@ -217,7 +219,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                             <div className="text-xs font-mono text-pandora-cyan mb-4">{topThree[1].handle}</div>
                             
                             <div className="w-full bg-white/5 p-2 rounded-sm border border-white/5">
-                                <div className="text-[9px] text-gray-500 uppercase">Total Saved</div>
+                                <div className="text-[9px] text-gray-500 uppercase">{t('leaderboard.totalSaved')}</div>
                                 <div className="text-lg font-bold text-white">{formatPrice(topThree[1].saved, topThree[1].currency || displayCurrency)}</div>
                             </div>
                         </div>
@@ -309,7 +311,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                             <div className="text-xs font-mono text-pandora-cyan mb-4">{topThree[2].handle}</div>
                             
                             <div className="w-full bg-white/5 p-2 rounded-sm border border-white/5">
-                                <div className="text-[9px] text-gray-500 uppercase">Total Saved</div>
+                                <div className="text-[9px] text-gray-500 uppercase">{t('leaderboard.totalSaved')}</div>
                                 <div className="text-lg font-bold text-white">{formatPrice(topThree[2].saved, topThree[2].currency || displayCurrency)}</div>
                             </div>
                         </div>

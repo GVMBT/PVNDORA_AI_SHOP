@@ -68,6 +68,7 @@ export interface ProfileDataProp {
   networkTree: NetworkNodeData[];
   billingLogs: BillingLogData[];
   currency: string;
+  language?: string;  // User's interface language (ru, en)
   photoUrl?: string;
 }
 

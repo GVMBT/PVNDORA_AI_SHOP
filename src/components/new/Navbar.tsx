@@ -4,6 +4,7 @@ import { ShoppingBag, Box, User, Trophy, ShoppingCart, Activity, Shield, LogOut,
 import { motion, AnimatePresence } from 'framer-motion';
 import { AudioEngine } from '../../lib/AudioEngine';
 import { generateShortId } from '../../utils/id';
+import { useLocale } from '../../hooks/useLocale';
 
 interface NavbarProps {
   showMobile?: boolean;
@@ -59,6 +60,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
     activeTab = 'catalog',
     onHaptic
 }) => {
+  const { t } = useLocale();
   const [isHovered, setIsHovered] = useState(false);
   const wasHoveredRef = useRef(false);
   const logoId = useRef(generateShortId('navbar-logo')).current;
@@ -227,8 +229,8 @@ const NavbarComponent: React.FC<NavbarProps> = ({
         <div className="flex-1 flex flex-col gap-4 py-6 px-3 w-full">
             <NavItem 
                 icon={<LayoutGrid size={18} />} 
-                label="Neural Catalog" 
-                subLabel="Browse Modules"
+                label={t('navbar.catalog')} 
+                subLabel={t('navbar.catalogSub')}
                 onClick={() => handleClick(onNavigateHome)} 
                 active={activeTab === 'catalog'} 
                 isExpanded={isHovered}
@@ -236,8 +238,8 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             />
             <NavItem 
                 icon={<Box size={18} />} 
-                label="My Orders" 
-                subLabel="Access Keys"
+                label={t('navbar.orders')} 
+                subLabel={t('navbar.ordersSub')}
                 onClick={() => handleClick(onNavigateOrders)} 
                 active={activeTab === 'orders'} 
                 isExpanded={isHovered}
@@ -245,8 +247,8 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             />
             <NavItem 
                 icon={<Trophy size={18} />} 
-                label="Leaderboard" 
-                subLabel="Global Rank"
+                label={t('navbar.leaderboard')} 
+                subLabel={t('navbar.leaderboardSub')}
                 onClick={() => handleClick(onNavigateLeaderboard)} 
                 active={activeTab === 'leaderboard'} 
                 isExpanded={isHovered}
@@ -254,8 +256,8 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             />
             <NavItem 
                 icon={<User size={18} />} 
-                label="Operative Profile" 
-                subLabel="Settings & Stats"
+                label={t('navbar.profile')} 
+                subLabel={t('navbar.profileSub')}
                 onClick={() => handleClick(onNavigateProfile)} 
                 active={activeTab === 'profile'} 
                 isExpanded={isHovered}
@@ -292,12 +294,12 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                                  <Activity size={14} className="text-green-500" />
                              </div>
                              <div className="flex-1">
-                                 <div className="text-[10px] text-gray-500 font-mono uppercase"><Typewriter text="System Status" delay={500} /></div>
-                                 <div className="text-xs text-white font-bold"><Typewriter text="ONLINE" delay={700} /></div>
+                                 <div className="text-[10px] text-gray-500 font-mono uppercase"><Typewriter text={t('navbar.status')} delay={500} /></div>
+                                 <div className="text-xs text-white font-bold"><Typewriter text={t('navbar.online').toUpperCase()} delay={700} /></div>
                              </div>
                          </div>
                          <button className="flex items-center gap-2 mt-2 text-xs text-red-400 hover:text-red-300 transition-colors font-mono uppercase">
-                             <LogOut size={12} /> <Typewriter text="DISCONNECT" delay={900} speed={50} />
+                             <LogOut size={12} /> <Typewriter text={t('navbar.disconnect').toUpperCase()} delay={900} speed={50} />
                          </button>
                      </motion.div>
                  )}
@@ -340,10 +342,10 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             {/* Active Indicator Line */}
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-pandora-cyan/50 to-transparent opacity-50" />
 
-            <MobileNavItem icon={<LayoutGrid size={20} />} label="Catalog" onClick={() => handleClick(onNavigateHome)} active={activeTab === 'catalog'} />
-            <MobileNavItem icon={<Box size={20} />} label="Orders" onClick={() => handleClick(onNavigateOrders)} active={activeTab === 'orders'} />
-            <MobileNavItem icon={<Trophy size={20} />} label="Rating" onClick={() => handleClick(onNavigateLeaderboard)} active={activeTab === 'leaderboard'} />
-            <MobileNavItem icon={<User size={20} />} label="Profile" onClick={() => handleClick(onNavigateProfile)} active={activeTab === 'profile'} />
+            <MobileNavItem icon={<LayoutGrid size={20} />} label={t('nav.catalog')} onClick={() => handleClick(onNavigateHome)} active={activeTab === 'catalog'} />
+            <MobileNavItem icon={<Box size={20} />} label={t('nav.orders')} onClick={() => handleClick(onNavigateOrders)} active={activeTab === 'orders'} />
+            <MobileNavItem icon={<Trophy size={20} />} label={t('nav.leaderboard')} onClick={() => handleClick(onNavigateLeaderboard)} active={activeTab === 'leaderboard'} />
+            <MobileNavItem icon={<User size={20} />} label={t('nav.profile')} onClick={() => handleClick(onNavigateProfile)} active={activeTab === 'profile'} />
         </div>
       </nav>
     </>

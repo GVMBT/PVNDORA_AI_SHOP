@@ -8,6 +8,7 @@ import React, { memo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Trash2, ChevronRight, Tag, Loader2, Check, X } from 'lucide-react';
 import { formatPrice } from '../../utils/currency';
+import { useLocale } from '../../hooks/useLocale';
 import type { CartItem } from '../../types/component';
 
 interface CartSummaryProps {
@@ -35,6 +36,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
   onApplyPromo,
   onRemovePromo,
 }) => {
+  const { t } = useLocale();
   const [promoInput, setPromoInput] = useState('');
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState<string | null>(null);
@@ -48,12 +50,12 @@ const CartSummary: React.FC<CartSummaryProps> = ({
     try {
       const result = await onApplyPromo(promoInput.trim().toUpperCase());
       if (!result.success) {
-        setPromoError(result.message || 'Invalid promo code');
+        setPromoError(result.message || t('checkout.promoInvalid'));
       } else {
         setPromoInput('');
       }
     } catch {
-      setPromoError('Failed to apply promo');
+      setPromoError(t('checkout.promoFailed'));
     } finally {
       setPromoLoading(false);
     }
@@ -64,9 +66,9 @@ const CartSummary: React.FC<CartSummaryProps> = ({
   if (cart.length === 0) {
     return (
       <div className="text-center py-12">
-        <div className="text-gray-600 font-mono mb-4">NO_MODULES_DETECTED</div>
+        <div className="text-gray-600 font-mono mb-4">{t('checkout.cartEmpty').toUpperCase()}</div>
         <button onClick={onProceed} className="text-pandora-cyan font-bold hover:underline">
-          RETURN TO CATALOG
+          {t('checkout.returnToCatalog').toUpperCase()}
         </button>
       </div>
     );
@@ -163,7 +165,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
                   className="px-4 py-2 bg-white/10 border border-white/20 text-white font-mono text-sm hover:bg-pandora-cyan/20 hover:border-pandora-cyan/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                 >
                   {promoLoading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                  APPLY
+                  {t('checkout.apply').toUpperCase()}
                 </button>
               </div>
             )}
@@ -178,17 +180,17 @@ const CartSummary: React.FC<CartSummaryProps> = ({
           {discount > 0 && originalTotal && (
             <>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500 font-mono">SUBTOTAL</span>
+                <span className="text-gray-500 font-mono">{t('checkout.subtotal').toUpperCase()}</span>
                 <span className="text-gray-400 line-through">{formatPrice(originalTotal, currency)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-green-400 font-mono">DISCOUNT</span>
+                <span className="text-green-400 font-mono">{t('checkout.discount').toUpperCase()}</span>
                 <span className="text-green-400">-{formatPrice(discount, currency)}</span>
               </div>
             </>
           )}
           <div className="flex justify-between items-end">
-            <span className="text-gray-500 font-mono text-xs">TOTAL</span>
+            <span className="text-gray-500 font-mono text-xs">{t('checkout.total').toUpperCase()}</span>
             <span className="text-3xl font-display font-bold text-white">
               {formatPrice(total, currency)}
             </span>
@@ -199,7 +201,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
           onClick={onProceed}
           className="w-full bg-white text-black font-bold py-4 hover:bg-pandora-cyan transition-colors uppercase tracking-widest flex items-center justify-center gap-2 group"
         >
-          PROCEED TO PAYMENT 
+          {t('checkout.proceedToPayment').toUpperCase()}
           <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
         </button>
       </div>

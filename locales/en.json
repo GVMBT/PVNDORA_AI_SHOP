@@ -130,9 +130,10 @@
     "yourRank": "Your Rank",
     "yourSavings": "Your Savings",
     "saved": "saved",
+    "totalSaved": "Total Saved",
     "you": "you",
-    "empty": "Leaderboard is empty",
-    "emptyHint": "Make purchases to appear on the leaderboard",
+    "empty": "No operatives yet",
+    "emptyHint": "The leaderboard is empty. Be the first to save and claim your rank!",
     "howItWorks": "How it works",
     "explanation": "Every purchase saves you money compared to retail prices. The more you save, the higher you rank!",
     "inviteFriend": "Invite Friend",
@@ -144,7 +145,13 @@
       "week": "Week"
     },
     "participants": "participants",
-    "improvedToday": "improved rank today"
+    "improvedToday": "improved rank today",
+    "corporateLoss": "Total Corporate Loss",
+    "networkActivity": "Network Activity",
+    "loadMore": "Load More",
+    "loading": "Loading...",
+    "rank": "Rank",
+    "modules": "modules"
   },
 
   "faq": {
@@ -173,6 +180,7 @@
     "apply": "Apply",
     "promoApplied": "Promo applied!",
     "promoInvalid": "Invalid promo code",
+    "promoFailed": "Failed to apply promo",
     "summary": "Order Summary",
     "subtotal": "Subtotal",
     "discount": "Discount",
@@ -186,7 +194,9 @@
     "selectPaymentMethod": "Payment Method",
     "selectPaymentMethodDesc": "Choose your preferred payment method",
     "securePayment": "Secure payment",
-    "cartEmpty": "Cart is empty"
+    "cartEmpty": "Cart is empty",
+    "returnToCatalog": "Return to Catalog",
+    "each": "each"
   },
 
   "product_card": "📦 {name}\n💰 Price: ${price}\n⭐ Rating: {rating}/5 ({reviews} reviews)\n{stock_status}\n\n{description}",
@@ -419,6 +429,41 @@
       "emptyOrders": "No orders yet",
       "bonusFrom": "Bonus ({level})",
       "order": "Order"
+    },
+    "settings": {
+      "title": "Interface Settings",
+      "currency": "Currency",
+      "language": "Language"
+    },
+    "actions": {
+      "topUp": "Top Up",
+      "withdraw": "Withdraw",
+      "shareKey": "Share Key",
+      "copyLink": "Copy Link",
+      "copied": "Copied"
     }
+  },
+  
+  "navbar": {
+    "catalog": "Neural Catalog",
+    "catalogSub": "Browse Modules",
+    "orders": "My Orders",
+    "ordersSub": "Access Keys",
+    "leaderboard": "Leaderboard",
+    "leaderboardSub": "Global Rank",
+    "profile": "Operative Profile",
+    "profileSub": "Settings & Stats",
+    "status": "System Status",
+    "online": "Online",
+    "disconnect": "Disconnect"
+  },
+  
+  "empty": {
+    "orders": "No orders yet",
+    "ordersHint": "Your order history is empty. Complete a purchase to see your transactions here.",
+    "browseCatalog": "Browse Catalog",
+    "profile": "No profile data",
+    "profileHint": "Profile data is not available. Please try again later.",
+    "returnToBase": "Return"
   }
 }

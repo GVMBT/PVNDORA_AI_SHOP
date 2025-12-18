@@ -14,7 +14,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
 import type { ProfileData } from '../types/component';
 
-type LocaleCode = 'en' | 'ru' | 'uk' | 'de' | 'fr' | 'es' | 'tr' | 'ar' | 'hi';
+// Only RU/EN supported for now (can be extended later)
+type LocaleCode = 'en' | 'ru';
 type CurrencyCode = 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED';
 
 // Currency symbols
@@ -55,6 +56,7 @@ interface LocaleProviderProps {
 
 /**
  * Get default locale from Telegram or browser
+ * Only supports RU/EN - Russian-speaking users get RU, others get EN
  */
 function getDefaultLocale(): LocaleCode {
   if (typeof window === 'undefined') return 'en';
@@ -63,8 +65,9 @@ function getDefaultLocale(): LocaleCode {
   const browserLang = navigator.language?.split('-')[0];
   const detectedLang = tgLang || browserLang || 'en';
   
-  const supportedLocales: LocaleCode[] = ['en', 'ru', 'uk', 'de', 'fr', 'es', 'tr', 'ar', 'hi'];
-  return (supportedLocales.includes(detectedLang as LocaleCode) ? detectedLang : 'en') as LocaleCode;
+  // Only RU or EN supported - Russian-speaking locales map to RU, others to EN
+  const russianLocales = ['ru', 'be', 'uk', 'kk']; // Russian, Belarusian, Ukrainian, Kazakh
+  return russianLocales.includes(detectedLang) ? 'ru' : 'en';
 }
 
 /**

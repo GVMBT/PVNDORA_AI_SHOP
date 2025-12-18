@@ -8,6 +8,7 @@ import React, { memo, useCallback } from 'react';
 import { Wallet, Plus, ArrowUpRight, Network, Share2, Copy, Check, Percent, RefreshCw, Settings, QrCode } from 'lucide-react';
 import { formatPrice, getCurrencySymbol } from '../../utils/currency';
 import { useLocaleContext } from '../../contexts/LocaleContext';
+import { useLocale } from '../../hooks/useLocale';
 import DecryptedText from './DecryptedText';
 import type { ProfileDataProp } from './types';
 
@@ -53,8 +54,9 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
   onToggleRewardMode,
   onUpdatePreferences,
 }) => {
-  // Use currency from context for active state (updates immediately)
-  const { currency: contextCurrency } = useLocaleContext();
+  // Use currency and locale from context for active state (updates immediately on user action)
+  const { currency: contextCurrency, locale: contextLocale } = useLocaleContext();
+  const { t } = useLocale();
   const activeCurrency = contextCurrency || user.currency;
   
   const handleCurrencyChange = useCallback(async (currency: 'USD' | 'RUB') => {
@@ -108,13 +110,13 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
               onClick={() => { if(onHaptic) onHaptic('light'); if(onTopUp) onTopUp(); }}
               className="bg-white/5 border border-white/10 hover:border-pandora-cyan text-white hover:text-pandora-cyan font-bold py-3 text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 rounded-sm"
             >
-              <Plus size={14} /> Top Up
+              <Plus size={14} /> {t('profile.actions.topUp')}
             </button>
             <button 
               onClick={() => { if(onHaptic) onHaptic('medium'); if(onWithdraw) onWithdraw(); }}
               className="bg-pandora-cyan text-black font-bold py-3 text-xs uppercase tracking-wider hover:bg-white transition-colors flex items-center justify-center gap-2 rounded-sm shadow-[0_0_15px_rgba(0,255,255,0.2)]"
             >
-              <ArrowUpRight size={14} /> Withdraw
+              <ArrowUpRight size={14} /> {t('profile.actions.withdraw')}
             </button>
           </div>
         </div>
@@ -173,7 +175,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
                 className="flex-1 bg-pandora-cyan text-black font-bold py-3 uppercase tracking-widest hover:bg-white transition-all flex items-center justify-center gap-2 rounded-sm shadow-[0_0_15px_rgba(0,255,255,0.3)] relative overflow-hidden group/btn"
               >
                 <span className="relative z-10 flex items-center gap-2">
-                  <Share2 size={16} /> SHARE KEY
+                  <Share2 size={16} /> {t('profile.actions.shareKey')}
                 </span>
                 <div className="absolute inset-0 bg-white/50 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
               </button>
@@ -182,7 +184,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
                 onClick={onCopy} 
                 className="flex-1 bg-white/5 hover:bg-white/10 text-white font-mono text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-2 rounded-sm border border-white/10"
               >
-                {copied ? <><Check size={14} /> COPIED</> : <><Copy size={14} /> COPY LINK</>}
+                {copied ? <><Check size={14} /> {t('profile.actions.copied')}</> : <><Copy size={14} /> {t('profile.actions.copyLink')}</>}
               </button>
             </div>
           </div>
@@ -207,12 +209,12 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
           {onUpdatePreferences && (
             <div className="mt-4 border-t border-white/5 pt-4">
               <div className="text-[10px] font-mono text-gray-500 uppercase mb-3 flex items-center gap-2">
-                <Settings size={12} /> INTERFACE_SETTINGS
+                <Settings size={12} /> {t('profile.settings.title')}
               </div>
               <div className="flex flex-wrap gap-4 items-center">
                 {/* Currency Toggle */}
                 <div className="flex items-center gap-2">
-                  <span className="text-[9px] font-mono text-gray-600">CURRENCY:</span>
+                  <span className="text-[9px] font-mono text-gray-600">{t('profile.settings.currency')}:</span>
                   <div className="flex bg-black/50 border border-white/10 rounded-sm overflow-hidden">
                     <button
                       onClick={() => handleCurrencyChange('USD')}
@@ -239,12 +241,12 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
                 
                 {/* Language Toggle */}
                 <div className="flex items-center gap-2">
-                  <span className="text-[9px] font-mono text-gray-600">LANGUAGE:</span>
+                  <span className="text-[9px] font-mono text-gray-600">{t('profile.settings.language')}:</span>
                   <div className="flex bg-black/50 border border-white/10 rounded-sm overflow-hidden">
                     <button
                       onClick={() => handleLanguageChange('ru')}
                       className={`px-3 py-1.5 text-[10px] font-mono font-bold transition-all ${
-                        user.language === 'ru' 
+                        contextLocale === 'ru' 
                           ? 'bg-pandora-cyan text-black' 
                           : 'text-gray-500 hover:text-white hover:bg-white/5'
                       }`}
@@ -254,7 +256,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
                     <button
                       onClick={() => handleLanguageChange('en')}
                       className={`px-3 py-1.5 text-[10px] font-mono font-bold transition-all ${
-                        user.language === 'en' || !user.language
+                        contextLocale === 'en' 
                           ? 'bg-pandora-cyan text-black' 
                           : 'text-gray-500 hover:text-white hover:bg-white/5'
                       }`}

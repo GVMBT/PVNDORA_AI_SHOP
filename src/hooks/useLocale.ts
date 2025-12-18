@@ -1,22 +1,15 @@
 import { useCallback, useMemo } from 'react';
 import { useLocaleContext } from '../contexts/LocaleContext';
 
-// Import all locale files
+// Import only RU/EN locale files (only supported languages)
 import en from '../../locales/en.json';
 import ru from '../../locales/ru.json';
-import uk from '../../locales/uk.json';
-import de from '../../locales/de.json';
-import fr from '../../locales/fr.json';
-import es from '../../locales/es.json';
-import tr from '../../locales/tr.json';
-import ar from '../../locales/ar.json';
-import hi from '../../locales/hi.json';
 
-type LocaleCode = 'en' | 'ru' | 'uk' | 'de' | 'fr' | 'es' | 'tr' | 'ar' | 'hi';
+// Only RU/EN supported for now
+type LocaleCode = 'en' | 'ru';
 type CurrencyCode = 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED';
 
-const locales: Record<LocaleCode, Record<string, any>> = { en, ru, uk, de, fr, es, tr, ar, hi };
-const RTL_LANGUAGES: string[] = ['ar', 'he', 'fa'];
+const locales: Record<LocaleCode, Record<string, any>> = { en, ru };
 
 interface UseLocaleReturn {
   locale: LocaleCode;
@@ -30,12 +23,16 @@ interface UseLocaleReturn {
 
 /**
  * Hook for localization
- * Now uses LocaleContext for global state management
+ * Only supports RU/EN languages
  */
 export function useLocale(): UseLocaleReturn {
-  const { locale, currency, setLocale: setLocaleContext } = useLocaleContext();
+  const { locale: contextLocale, currency, setLocale: setLocaleContext } = useLocaleContext();
   
-  const isRTL = useMemo(() => RTL_LANGUAGES.includes(locale), [locale]);
+  // Ensure locale is always RU or EN (normalize any other value)
+  const locale: LocaleCode = (contextLocale === 'ru' ? 'ru' : 'en') as LocaleCode;
+  
+  // RU and EN are both LTR
+  const isRTL = false;
   
   const t = useCallback((key: string, params: Record<string, string | number> = {}): string => {
     const keys = key.split('.');
