@@ -2,11 +2,21 @@
  * Admin API Hooks
  * 
  * Type-safe hooks for admin operations.
+ * Uses /api/admin base URL (not /api/webapp).
  */
 
 import { useState, useCallback } from 'react';
-import { useApi } from '../useApi';
+import { apiRequest } from '../../utils/apiClient';
+import { API } from '../../config';
 import { logger } from '../../utils/logger';
+
+/**
+ * Admin API request helper - uses /api/admin prefix
+ */
+async function adminRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const url = `${API.ADMIN_URL}${endpoint}`;
+  return apiRequest<T>(url, options);
+}
 
 // Types
 export interface AdminProduct {
@@ -66,152 +76,187 @@ export interface AdminAnalytics {
 
 // Products Hook
 export function useAdminProductsTyped() {
-  const { get, post, put, del, loading, error } = useApi();
   const [products, setProducts] = useState<AdminProduct[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const getProducts = useCallback(async (): Promise<AdminProduct[]> => {
+    setLoading(true);
     try {
-      const response = await get<{ products: AdminProduct[] }>('/admin/products');
+      const response = await adminRequest<{ products: AdminProduct[] }>('/products');
       const data = response.products || [];
       setProducts(data);
       return data;
     } catch (err) {
       logger.error('Failed to fetch admin products', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
       return [];
+    } finally {
+      setLoading(false);
     }
-  }, [get]);
+  }, []);
 
   const createProduct = useCallback(async (product: Partial<AdminProduct>): Promise<AdminProduct | null> => {
     try {
-      const response = await post<{ product: AdminProduct }>('/admin/products', product);
+      const response = await adminRequest<{ product: AdminProduct }>('/products', {
+        method: 'POST',
+        body: JSON.stringify(product),
+      });
       await getProducts();
       return response.product;
     } catch (err) {
       logger.error('Failed to create product:', err);
       return null;
     }
-  }, [post, getProducts]);
+  }, [getProducts]);
 
   const updateProduct = useCallback(async (id: string, updates: Partial<AdminProduct>): Promise<AdminProduct | null> => {
     try {
-      const response = await put<{ product: AdminProduct }>(`/admin/products/${id}`, updates);
+      const response = await adminRequest<{ product: AdminProduct }>(`/products/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
       await getProducts();
       return response.product;
     } catch (err) {
       logger.error('Failed to update product', err);
       return null;
     }
-  }, [put, getProducts]);
+  }, [getProducts]);
 
   const deleteProduct = useCallback(async (id: string): Promise<boolean> => {
     try {
-      await del(`/admin/products/${id}`);
+      await adminRequest(`/products/${id}`, { method: 'DELETE' });
       await getProducts();
       return true;
     } catch (err) {
       logger.error('Failed to delete product', err);
       return false;
     }
-  }, [del, getProducts]);
+  }, [getProducts]);
 
   const addStock = useCallback(async (productId: string, credentials: string[], notes?: string): Promise<boolean> => {
     try {
-      await post('/admin/stock', { product_id: productId, credentials, notes });
+      await adminRequest('/stock', {
+        method: 'POST',
+        body: JSON.stringify({ product_id: productId, credentials, notes }),
+      });
       await getProducts();
       return true;
     } catch (err) {
       logger.error('Failed to add stock', err);
       return false;
     }
-  }, [post, getProducts]);
+  }, [getProducts]);
 
   return { products, getProducts, createProduct, updateProduct, deleteProduct, addStock, loading, error };
 }
 
 // Orders Hook
 export function useAdminOrdersTyped() {
-  const { get, loading, error } = useApi();
   const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const getOrders = useCallback(async (status?: string, limit?: number): Promise<AdminOrder[]> => {
+    setLoading(true);
     try {
-      let url = '/admin/orders';
+      let url = '/orders';
       const params = new URLSearchParams();
       if (status) params.append('status', status);
       if (limit) params.append('limit', String(limit));
       if (params.toString()) url += `?${params.toString()}`;
       
-      const response = await get<{ orders: AdminOrder[] }>(url);
+      const response = await adminRequest<{ orders: AdminOrder[] }>(url);
       const data = response.orders || [];
       setOrders(data);
       return data;
     } catch (err) {
       logger.error('Failed to fetch admin orders', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
       return [];
+    } finally {
+      setLoading(false);
     }
-  }, [get]);
+  }, []);
 
   return { orders, getOrders, loading, error };
 }
 
 // Users Hook
 export function useAdminUsersTyped() {
-  const { get, put, loading, error } = useApi();
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const getUsers = useCallback(async (limit?: number): Promise<AdminUser[]> => {
+    setLoading(true);
     try {
-      const url = limit ? `/admin/users?limit=${limit}` : '/admin/users';
-      const response = await get<{ users: AdminUser[] }>(url);
+      const url = limit ? `/users?limit=${limit}` : '/users';
+      const response = await adminRequest<{ users: AdminUser[] }>(url);
       const data = response.users || [];
       setUsers(data);
       return data;
     } catch (err) {
       logger.error('Failed to fetch admin users', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
       return [];
+    } finally {
+      setLoading(false);
     }
-  }, [get]);
+  }, []);
 
   const updateUserRole = useCallback(async (userId: string, role: string): Promise<boolean> => {
     try {
-      await put(`/admin/users/${userId}/role`, { role });
+      await adminRequest(`/users/${userId}/role`, {
+        method: 'PUT',
+        body: JSON.stringify({ role }),
+      });
       await getUsers();
       return true;
     } catch (err) {
       logger.error('Failed to update user role', err);
       return false;
     }
-  }, [put, getUsers]);
+  }, [getUsers]);
 
   const banUser = useCallback(async (userId: string, ban: boolean): Promise<boolean> => {
     try {
-      await put(`/admin/users/${userId}/ban`, { banned: ban });
+      await adminRequest(`/users/${userId}/ban`, {
+        method: 'PUT',
+        body: JSON.stringify({ banned: ban }),
+      });
       await getUsers();
       return true;
     } catch (err) {
       logger.error('Failed to ban/unban user', err);
       return false;
     }
-  }, [put, getUsers]);
+  }, [getUsers]);
 
   return { users, getUsers, updateUserRole, banUser, loading, error };
 }
 
 // Analytics Hook
 export function useAdminAnalyticsTyped() {
-  const { get, loading, error } = useApi();
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const getAnalytics = useCallback(async (): Promise<AdminAnalytics | null> => {
+    setLoading(true);
     try {
-      const response = await get<AdminAnalytics>('/admin/analytics');
+      const response = await adminRequest<AdminAnalytics>('/analytics');
       setAnalytics(response);
       return response;
     } catch (err) {
       logger.error('Failed to fetch admin analytics', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
       return null;
+    } finally {
+      setLoading(false);
     }
-  }, [get]);
+  }, []);
 
   return { analytics, getAnalytics, loading, error };
 }
