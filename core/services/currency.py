@@ -29,7 +29,20 @@ LANGUAGE_TO_CURRENCY: Dict[str, str] = {
 }
 
 # Note: Exchange rates are fetched from exchangerate-api.com
-# No hardcoded fallback rates - always use real-time data
+# Fallback rates used when API is unavailable (updated periodically)
+FALLBACK_RATES: Dict[str, float] = {
+    "RUB": 90.0,   # ~90 RUB per 1 USD (approximate)
+    "EUR": 0.92,   # ~0.92 EUR per 1 USD
+    "UAH": 41.0,   # ~41 UAH per 1 USD
+    "TRY": 34.0,   # ~34 TRY per 1 USD
+    "INR": 84.0,   # ~84 INR per 1 USD
+    "AED": 3.67,   # ~3.67 AED per 1 USD (fixed rate)
+    "GBP": 0.79,   # ~0.79 GBP per 1 USD
+    "CNY": 7.25,   # ~7.25 CNY per 1 USD
+    "JPY": 154.0,  # ~154 JPY per 1 USD
+    "KRW": 1400.0, # ~1400 KRW per 1 USD
+    "BRL": 6.1,    # ~6.1 BRL per 1 USD
+}
 
 
 class CurrencyService:
@@ -111,9 +124,14 @@ class CurrencyService:
         except Exception as e:
             logger.warning(f"Failed to fetch exchange rate for {target_currency}: {e}")
         
-        # No fallback - if API unavailable, log error and return 1.0 (USD equivalent)
-        # This will show prices in USD if conversion fails
-        logger.error(f"Could not get exchange rate for {target_currency}, using 1.0 (USD)")
+        # Use fallback rate if API unavailable
+        fallback_rate = FALLBACK_RATES.get(target_currency)
+        if fallback_rate:
+            logger.warning(f"Using fallback rate for {target_currency}: {fallback_rate}")
+            return fallback_rate
+        
+        # Unknown currency - return 1.0 as last resort
+        logger.error(f"No fallback rate for {target_currency}, using 1.0")
         return 1.0
     
     async def _get_cached_rate(self, currency: str) -> Optional[str]:

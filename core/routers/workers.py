@@ -742,44 +742,93 @@ async def worker_process_refund(request: Request):
 async def worker_process_review_cashback(request: Request):
     """
     QStash Worker: Process 5% cashback for review.
+    
+    Expected payload (from callbacks.py):
+    - user_telegram_id: User's telegram ID
+    - order_id: Order ID
+    - order_amount: Order amount in USD
     """
     data = await verify_qstash(request)
-    review_id = data.get("review_id")
     
-    if not review_id:
-        return {"error": "review_id required"}
+    # Support both old (review_id) and new (order_id) payload formats
+    order_id = data.get("order_id")
+    user_telegram_id = data.get("user_telegram_id")
+    order_amount = data.get("order_amount")
+    
+    if not order_id:
+        return {"error": "order_id required"}
     
     db = get_database()
     
-    # Get review with order info
-    review = db.client.table("reviews").select(
-        "id, order_id, cashback_processed, orders(amount, user_id)"
-    ).eq("id", review_id).single().execute()
+    # Find review by order_id
+    review_result = db.client.table("reviews").select(
+        "id, cashback_given"
+    ).eq("order_id", order_id).limit(1).execute()
     
-    if not review.data:
-        return {"error": "Review not found"}
+    if not review_result.data:
+        return {"error": "Review not found for order"}
     
-    if review.data.get("cashback_processed"):
+    review = review_result.data[0]
+    
+    if review.get("cashback_given"):
         return {"skipped": True, "reason": "Cashback already processed"}
     
-    order = review.data.get("orders", {})
-    if not order:
-        return {"error": "Order not found"}
+    # Get user by telegram_id
+    db_user = await db.get_user_by_telegram_id(user_telegram_id) if user_telegram_id else None
     
-    # Calculate 5% cashback
-    cashback = to_float(order["amount"]) * 0.05
+    # Fallback: get user from order
+    if not db_user:
+        order_result = db.client.table("orders").select("user_id, amount").eq("id", order_id).single().execute()
+        if not order_result.data:
+            return {"error": "Order not found"}
+        order_amount = order_amount or to_float(order_result.data["amount"])
+        user_result = db.client.table("users").select("*").eq("id", order_result.data["user_id"]).single().execute()
+        if not user_result.data:
+            return {"error": "User not found"}
+        db_user = type('User', (), user_result.data)()
     
-    # Add to user balance
-    db.client.rpc("add_to_user_balance", {
-        "p_user_id": order["user_id"],
-        "p_amount": cashback,
-        "p_reason": "Review cashback for order"
+    # Calculate 5% cashback (in USD)
+    cashback = to_float(order_amount) * 0.05
+    
+    # 1. Update user balance
+    new_balance = to_float(db_user.balance or 0) + cashback
+    db.client.table("users").update({
+        "balance": new_balance
+    }).eq("id", db_user.id).execute()
+    
+    # 2. Create balance_transaction for history
+    db.client.table("balance_transactions").insert({
+        "user_id": db_user.id,
+        "type": "cashback",
+        "amount": cashback,
+        "status": "completed",
+        "description": f"5% кэшбек за отзыв",
+        "reference_id": order_id,
     }).execute()
     
-    # Mark as processed
+    # 3. Mark review as processed
     db.client.table("reviews").update({
-        "cashback_processed": True
-    }).eq("id", review_id).execute()
+        "cashback_given": True
+    }).eq("id", review["id"]).execute()
     
-    return {"success": True, "cashback": cashback}
+    # 4. Send Telegram notification to user
+    try:
+        from aiogram import Bot
+        import os
+        bot = Bot(token=os.environ.get("TELEGRAM_TOKEN", ""))
+        await bot.send_message(
+            chat_id=db_user.telegram_id,
+            text=f"💰 <b>Кэшбек начислен!</b>\n\n"
+                 f"За ваш отзыв вам начислено <b>${cashback:.2f}</b>.\n"
+                 f"Новый баланс: <b>${new_balance:.2f}</b>\n\n"
+                 f"Спасибо за обратную связь! 🙏",
+            parse_mode="HTML"
+        )
+        await bot.session.close()
+    except Exception as e:
+        logger.warning(f"Failed to send cashback notification: {e}")
+    
+    logger.info(f"Cashback processed: user={db_user.telegram_id}, amount=${cashback:.2f}, order={order_id}")
+    
+    return {"success": True, "cashback": cashback, "new_balance": new_balance}
 

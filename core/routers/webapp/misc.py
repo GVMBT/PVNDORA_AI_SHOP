@@ -111,16 +111,38 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
     
     review_id = result.data[0]["id"]
     cashback_amount = to_float(order.amount) * 0.05
-    await asyncio.to_thread(
-        lambda: db.client.table("users").update({"balance": to_float(db_user.balance) + cashback_amount}).eq("id", db_user.id).execute()
-    )
-    await asyncio.to_thread(
-        lambda: db.client.table("reviews").update({"cashback_given": True}).eq("id", review_id).execute()
-    )
+    
+    # Trigger QStash worker for cashback processing (creates balance_transaction + notification)
+    try:
+        from core.queue import publish_to_worker, WorkerEndpoints
+        await publish_to_worker(
+            endpoint=WorkerEndpoints.PROCESS_REVIEW_CASHBACK,
+            body={
+                "user_telegram_id": db_user.telegram_id,
+                "order_id": request.order_id,
+                "order_amount": to_float(order.amount)
+            }
+        )
+    except Exception as e:
+        # Fallback: direct cashback if QStash fails
+        logger.warning(f"QStash failed, direct cashback: {e}")
+        new_balance = to_float(db_user.balance) + cashback_amount
+        await asyncio.to_thread(
+            lambda: db.client.table("users").update({"balance": new_balance}).eq("id", db_user.id).execute()
+        )
+        await asyncio.to_thread(
+            lambda: db.client.table("balance_transactions").insert({
+                "user_id": db_user.id, "type": "cashback", "amount": cashback_amount,
+                "status": "completed", "description": "5% кэшбек за отзыв", "reference_id": request.order_id
+            }).execute()
+        )
+        await asyncio.to_thread(
+            lambda: db.client.table("reviews").update({"cashback_given": True}).eq("id", review_id).execute()
+        )
     
     return {
-        "success": True, "review_id": review_id, "cashback_awarded": round(cashback_amount, 2),
-        "new_balance": round(to_float(db_user.balance) + cashback_amount, 2)
+        "success": True, "review_id": review_id, "cashback_pending": round(cashback_amount, 2),
+        "message": "Кэшбек будет начислен в течение минуты"
     }
 
 

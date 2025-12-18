@@ -208,7 +208,9 @@ async def remove_from_wishlist(product_id: str, user=Depends(verify_telegram_aut
 
 @router.post("/reviews")
 async def submit_review(request: SubmitReviewRequest, user=Depends(verify_telegram_auth)):
-    """Submit product review with 5% cashback"""
+    """Submit product review with 5% cashback via QStash worker"""
+    from core.services.money import to_float
+    
     db = get_database()
     
     db_user = await db.get_user_by_telegram_id(user.id)
@@ -222,7 +224,7 @@ async def submit_review(request: SubmitReviewRequest, user=Depends(verify_telegr
     if order.user_id != db_user.id:
         raise HTTPException(status_code=403, detail="Not your order")
     
-    if order.status != "delivered":
+    if order.status not in ["delivered", "partial"]:
         raise HTTPException(status_code=400, detail="Order not completed")
     
     existing = db.client.table("reviews").select("id").eq("order_id", request.order_id).execute()
@@ -241,15 +243,31 @@ async def submit_review(request: SubmitReviewRequest, user=Depends(verify_telegr
         text=request.text
     )
     
-    cashback = order.amount * 0.05
-    await db.update_user_balance(db_user.id, cashback)
-    
-    db.client.table("reviews").update({
-        "cashback_given": True
-    }).eq("order_id", request.order_id).execute()
+    # Trigger QStash worker for cashback (creates balance_transaction + sends notification)
+    cashback = to_float(order.amount) * 0.05
+    try:
+        from core.queue import publish_to_worker, WorkerEndpoints
+        await publish_to_worker(
+            endpoint=WorkerEndpoints.PROCESS_REVIEW_CASHBACK,
+            body={
+                "user_telegram_id": db_user.telegram_id,
+                "order_id": request.order_id,
+                "order_amount": to_float(order.amount)
+            }
+        )
+    except Exception as e:
+        # Fallback: direct cashback if QStash fails
+        import logging
+        logging.warning(f"QStash failed for review cashback: {e}")
+        await db.update_user_balance(db_user.id, cashback)
+        db.client.table("reviews").update({"cashback_given": True}).eq("order_id", request.order_id).execute()
+        db.client.table("balance_transactions").insert({
+            "user_id": db_user.id, "type": "cashback", "amount": cashback,
+            "status": "completed", "description": "5% кэшбек за отзыв", "reference_id": request.order_id
+        }).execute()
     
     return {
         "success": True,
-        "cashback": cashback,
-        "new_balance": db_user.balance + cashback
+        "cashback_pending": cashback,
+        "message": "Кэшбек будет начислен в течение минуты"
     }

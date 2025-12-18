@@ -56,6 +56,21 @@ CURRENCY_SYMBOLS: Dict[str, str] = {
 # Currencies that should be displayed as integers (no decimals)
 INTEGER_CURRENCIES = {"RUB", "UAH", "TRY", "INR", "JPY", "KRW"}
 
+# Fallback exchange rates (used when API is unavailable)
+FALLBACK_RATES: dict[str, float] = {
+    "RUB": 90.0,
+    "EUR": 0.92,
+    "UAH": 41.0,
+    "TRY": 34.0,
+    "INR": 84.0,
+    "AED": 3.67,
+    "GBP": 0.79,
+    "CNY": 7.25,
+    "JPY": 154.0,
+    "KRW": 1400.0,
+    "BRL": 6.1,
+}
+
 # Language to default currency mapping
 LANGUAGE_TO_CURRENCY: Dict[str, str] = {
     "ru": "RUB",
@@ -131,14 +146,23 @@ class CurrencyFormatter:
                 currency = LANGUAGE_TO_CURRENCY.get(lang, "USD")
             
             # Get exchange rate
-            if currency != "USD" and redis:
-                currency_service = get_currency_service(redis)
-                exchange_rate = await currency_service.get_exchange_rate(currency)
+            if currency != "USD":
+                if redis:
+                    currency_service = get_currency_service(redis)
+                    exchange_rate = await currency_service.get_exchange_rate(currency)
+                else:
+                    # Use fallback rate if no redis
+                    exchange_rate = FALLBACK_RATES.get(currency, 1.0)
+                    if exchange_rate != 1.0:
+                        logger.info(f"Using fallback rate for {currency}: {exchange_rate}")
                 
         except Exception as e:
-            logger.warning(f"Currency setup failed: {e}, using USD")
-            currency = "USD"
-            exchange_rate = 1.0
+            logger.warning(f"Currency setup failed: {e}")
+            # Try to use fallback rate for the currency
+            if currency != "USD":
+                exchange_rate = FALLBACK_RATES.get(currency, 1.0)
+                if exchange_rate == 1.0:
+                    currency = "USD"  # Only fall back to USD if no rate available
         
         return cls(currency=currency, exchange_rate=exchange_rate)
     
