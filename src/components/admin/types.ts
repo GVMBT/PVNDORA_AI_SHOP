@@ -5,7 +5,7 @@
  */
 
 export interface ProductData {
-  id: number;
+  id: string | number;
   name: string;
   category: string;
   description: string;

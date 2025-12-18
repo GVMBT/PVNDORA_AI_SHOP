@@ -128,10 +128,11 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
   }
 
   // Transform data to match AdminPanel expected format
+  // Backend now returns properly mapped fields
   const transformedProducts = products.map(p => ({
-    id: parseInt(p.id) || 0,
+    id: p.id,  // Keep as string (UUID)
     name: p.name,
-    category: p.category || 'Text',
+    category: p.category || 'ai',
     description: p.description || '',
     price: p.price,
     msrp: p.msrp || p.price * 1.5,

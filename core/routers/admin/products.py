@@ -62,8 +62,35 @@ async def admin_get_products(admin=Depends(verify_admin)):
             lambda pid=product_id: db.client.table("stock_items").select("id", count="exact")
                 .eq("product_id", pid).eq("status", "available").execute()
         )
-        p["stock_count"] = getattr(stock_result, 'count', 0) or 0
-        products.append(p)
+        stock_count = getattr(stock_result, 'count', 0) or 0
+        
+        # Get sold count
+        sold_result = await asyncio.to_thread(
+            lambda pid=product_id: db.client.table("stock_items").select("id", count="exact")
+                .eq("product_id", pid).eq("status", "sold").execute()
+        )
+        sold_count = getattr(sold_result, 'count', 0) or 0
+        
+        # Map fields for frontend compatibility
+        products.append({
+            "id": p["id"],
+            "name": p["name"],
+            "description": p.get("description", ""),
+            "category": p.get("type", "ai"),  # type -> category
+            "price": float(p.get("price", 0)),
+            "msrp": float(p.get("msrp") or p.get("price", 0)),
+            "type": "instant" if p.get("fulfillment_type") == "auto" else "preorder",
+            "stock": stock_count,
+            "fulfillment": p.get("fulfillment_time_hours", 1),
+            "warranty": p.get("warranty_hours", 168),
+            "duration": p.get("duration_days", 30),
+            "sold": sold_count,
+            "status": p.get("status", "active"),
+            "vpn": False,  # TODO: add to DB if needed
+            "image": p.get("image_url"),
+            "instructions": p.get("instructions", ""),
+            "created_at": p.get("created_at")
+        })
     
     return {"products": products}
 

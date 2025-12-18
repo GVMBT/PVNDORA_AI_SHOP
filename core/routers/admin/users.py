@@ -17,6 +17,65 @@ logger = get_logger(__name__)
 router = APIRouter(tags=["admin-users"])
 
 
+@router.get("/users")
+async def admin_get_users(
+    limit: int = 50,
+    offset: int = 0,
+    admin=Depends(verify_admin)
+):
+    """Get users for admin panel - simplified view"""
+    db = get_database()
+    
+    try:
+        # Get users with order counts
+        result = await asyncio.to_thread(
+            lambda: db.client.table("users")
+            .select("id, telegram_id, username, first_name, balance, is_banned, is_admin, is_partner, created_at")
+            .order("created_at", desc=True)
+            .range(offset, offset + limit - 1)
+            .execute()
+        )
+        
+        users = []
+        for u in (result.data or []):
+            user_id = u.get("id")
+            
+            # Get orders count and total spent
+            orders_result = await asyncio.to_thread(
+                lambda uid=user_id: db.client.table("orders")
+                .select("id, amount", count="exact")
+                .eq("user_id", uid)
+                .eq("status", "delivered")
+                .execute()
+            )
+            orders_count = orders_result.count or 0
+            total_spent = sum(float(o.get("amount", 0)) for o in (orders_result.data or []))
+            
+            # Determine role
+            role = "user"
+            if u.get("is_admin"):
+                role = "admin"
+            elif u.get("is_partner"):
+                role = "vip"
+            
+            users.append({
+                "id": user_id,
+                "telegram_id": str(u.get("telegram_id", "")),
+                "username": u.get("username") or u.get("first_name") or "Unknown",
+                "role": role,
+                "balance": to_float(u.get("balance", 0)),
+                "total_spent": total_spent,
+                "orders_count": orders_count,
+                "is_banned": u.get("is_banned", False),
+                "created_at": u.get("created_at")
+            })
+        
+        return {"users": users}
+    except Exception as e:
+        logger.error(f"Failed to get users: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to load users")
+
+
 @router.get("/users/crm")
 async def admin_get_users_crm(
     sort_by: str = "total_orders",

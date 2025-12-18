@@ -11,7 +11,17 @@ import type { CareerLevelData } from '../components/profile/types';
 // PRODUCT CATALOG
 // ==========================================
 
-export const PRODUCT_CATEGORIES = ['All', 'Text', 'Image', 'Video', 'Code', 'Audio'] as const;
+// Categories matching database product.type values
+export const PRODUCT_CATEGORIES = ['All', 'ai', 'dev', 'design', 'music'] as const;
+
+// Display labels for categories
+export const PRODUCT_CATEGORY_LABELS: Record<string, string> = {
+  'All': 'All',
+  'ai': 'AI & Text',
+  'dev': 'Development',
+  'design': 'Design & Image',
+  'music': 'Audio & Music'
+};
 
 export const PRODUCT_AVAILABILITY = {
   FILTERS: ['All', 'Available', 'On Demand', 'Discontinued'] as const,
