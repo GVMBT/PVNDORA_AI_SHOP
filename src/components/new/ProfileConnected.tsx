@@ -102,24 +102,26 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   }, [onHaptic, createShareLink, handleCopyLink]);
 
   const handleWithdraw = useCallback(() => {
-    const currency = profile?.currency || 'RUB';
-    const balance = profile?.balance || 0;
+    // CRITICAL: Use contextCurrency (UI selection) as source of truth
+    const currency = contextCurrency || profile?.currency || 'USD';
+    const exchangeRate = profile?.exchangeRate || 1.0;
+    
+    // Balance from convertedProfile is already in contextCurrency
+    const balance = convertedProfile?.balance || 0;
+    
     // Minimum withdrawal is always 10 USD (convert to user's currency)
     const minAmountUSD = 10;
-    // Use exchangeRate from profile, but if it's 1.0 for non-USD currency, use sensible defaults
-    let exchangeRate = profile?.exchangeRate || 1.0;
-    if (currency !== 'USD' && exchangeRate === 1.0) {
-      // Fallback rates if exchange rate not loaded
-      const fallbackRates: Record<string, number> = {
-        'RUB': 80, 'EUR': 0.92, 'UAH': 41, 'TRY': 34, 'INR': 84, 'AED': 3.67
-      };
-      exchangeRate = fallbackRates[currency] || 80;
-    }
     const minAmount = currency === 'USD' ? minAmountUSD : minAmountUSD * exchangeRate;
     
     if (balance < minAmount) {
-        const minDisplay = currency === 'USD' ? '$10' : `${Math.round(minAmount).toLocaleString()} ${currency}`;
-        showModalAlert(t('profile.errors.insufficientFunds'), t('profile.errors.minWithdrawal', { amount: minDisplay }), 'warning');
+      const minDisplay = currency === 'USD' 
+        ? '$10' 
+        : `${Math.round(minAmount).toLocaleString()} ${currency}`;
+      showModalAlert(
+        t('profile.errors.insufficientFunds'), 
+        t('profile.errors.minWithdrawal', { amount: minDisplay }), 
+        'warning'
+      );
       return;
     }
     
@@ -136,26 +138,19 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
         await getProfile();
       },
     });
-  }, [profile?.balance, profile?.currency, requestWithdrawal, getProfile, hapticFeedback, showWithdraw, showModalAlert, onHaptic, t]);
+  }, [convertedProfile?.balance, contextCurrency, profile?.currency, profile?.exchangeRate, requestWithdrawal, getProfile, hapticFeedback, showWithdraw, showModalAlert, onHaptic, t]);
 
   const handleTopUp = useCallback(() => {
-    const tgWebApp = window.Telegram?.WebApp;
-    // КРИТИЧНО: Используем ОРИГИНАЛЬНУЮ валюту из БД (profile.currency)
-    // convertedProfile НЕ должен перезаписывать currency, но на всякий случай используем исходный profile
-    const currency = profile?.currency || contextCurrency || 'USD';
-    const balance = profile?.balance || 0;
+    // CRITICAL: Use contextCurrency (UI selection) as source of truth
+    const currency = contextCurrency || profile?.currency || 'USD';
+    const exchangeRate = profile?.exchangeRate || 1.0;
     
-    // Minimum top-up amounts (equivalent to ~5 USD)
-    const MIN_AMOUNTS: Record<string, number> = {
-      'USD': 5,
-      'RUB': 500,
-      'EUR': 5,
-      'UAH': 200,
-      'TRY': 150,
-      'INR': 400,
-      'AED': 20,
-    };
-    const minAmount = MIN_AMOUNTS[currency] || 5;
+    // Balance from convertedProfile is already in contextCurrency
+    const balance = convertedProfile?.balance || 0;
+    
+    // Minimum top-up is 5 USD (convert to user's currency)
+    const minAmountUSD = 5;
+    const minAmount = currency === 'USD' ? minAmountUSD : Math.round(minAmountUSD * exchangeRate);
     
     if (onHaptic) onHaptic('light');
     
@@ -173,7 +168,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
         }
       },
     });
-  }, [contextCurrency, profile?.currency, profile?.balance, createTopUp, showTopUp, onHaptic]);
+  }, [contextCurrency, profile?.currency, profile?.exchangeRate, convertedProfile?.balance, createTopUp, showTopUp, onHaptic]);
 
   // Helper function to convert USD to target currency
   const convertUsdToCurrency = useCallback((amountUsd: number, targetCurrency: string, exchangeRate: number): number => {
@@ -234,56 +229,48 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
 
   // Convert profile balance to current currency (for display)
   // IMPORTANT: turnover_usd and thresholds are ALWAYS in USD from API, so we must convert them
+  // CRITICAL: Use contextCurrency as the SINGLE SOURCE OF TRUTH for UI display
   const convertedProfile = useMemo(() => {
     if (!profile) return null;
     
-    const currentCurrency = contextCurrency || profile.currency;
+    const displayCurrency = contextCurrency || profile.currency || 'USD';
     const exchangeRate = profile.exchangeRate || 1.0;
     
-    // If currency is USD, no conversion needed (but still convert if contextCurrency differs)
-    if (currentCurrency === 'USD') {
-      // For USD, turnover and thresholds are already in USD, no conversion needed
+    // If currency is USD, use USD values directly
+    if (displayCurrency === 'USD') {
       return {
         ...profile,
-        // НЕ перезаписываем currency - оставляем оригинальный из БД
-        // currency: currentCurrency,  // УДАЛЕНО
+        currency: displayCurrency, // Explicitly set for UI consistency
+        balance: profile.balanceUsd || profile.balance,
+        earnedRef: profile.earnedRefUsd || profile.earnedRef,
+        saved: profile.savedUsd || profile.saved,
       };
     }
     
-    // If currencies don't match AND exchangeRate is 1.0 (not loaded for new currency),
-    // wait for profile to update with correct exchangeRate
-    if (currentCurrency !== profile.currency && currentCurrency !== 'USD' && exchangeRate === 1.0) {
-      // Exchange rate not yet loaded for new currency, use profile as-is
-      return profile;
-    }
-    
-    // Always convert USD amounts (turnover_usd and thresholds are always in USD)
-    const convertedTurnover = convertUsdToCurrency(profile.career.currentTurnover, currentCurrency, exchangeRate);
-    const convertedMaxTurnover = profile.career.nextLevel 
-      ? convertUsdToCurrency(profile.career.nextLevel.min, currentCurrency, exchangeRate)
-      : profile.career.currentLevel.max === Infinity 
-        ? Infinity 
-        : convertUsdToCurrency(profile.career.currentLevel.max, currentCurrency, exchangeRate);
+    // Convert all USD amounts to display currency
+    const convertedBalance = convertUsdToCurrency(profile.balanceUsd || profile.balance, displayCurrency, exchangeRate);
+    const convertedEarnedRef = convertUsdToCurrency(profile.earnedRefUsd || profile.earnedRef, displayCurrency, exchangeRate);
+    const convertedSaved = convertUsdToCurrency(profile.savedUsd || profile.saved, displayCurrency, exchangeRate);
+    const convertedTurnover = convertUsdToCurrency(profile.career.currentTurnover, displayCurrency, exchangeRate);
     
     return {
       ...profile,
-      balance: convertUsdToCurrency(profile.balanceUsd || profile.balance, currentCurrency, exchangeRate),
-      earnedRef: convertUsdToCurrency(profile.earnedRefUsd || profile.earnedRef, currentCurrency, exchangeRate),
-      saved: convertUsdToCurrency(profile.savedUsd || profile.saved, currentCurrency, exchangeRate),
-      // НЕ перезаписываем currency - оставляем оригинальный из БД для платежей
-      // currency: currentCurrency,  // УДАЛЕНО - используем оригинальный profile.currency
+      currency: displayCurrency, // CRITICAL: Set display currency for UI
+      balance: convertedBalance,
+      earnedRef: convertedEarnedRef,
+      saved: convertedSaved,
       career: {
         ...profile.career,
         currentTurnover: convertedTurnover,
         currentLevel: {
           ...profile.career.currentLevel,
-          min: convertUsdToCurrency(profile.career.currentLevel.min, currentCurrency, exchangeRate),
-          max: profile.career.currentLevel.max === Infinity ? Infinity : convertUsdToCurrency(profile.career.currentLevel.max, currentCurrency, exchangeRate),
+          min: convertUsdToCurrency(profile.career.currentLevel.min, displayCurrency, exchangeRate),
+          max: profile.career.currentLevel.max === Infinity ? Infinity : convertUsdToCurrency(profile.career.currentLevel.max, displayCurrency, exchangeRate),
         },
         nextLevel: profile.career.nextLevel ? {
           ...profile.career.nextLevel,
-          min: convertUsdToCurrency(profile.career.nextLevel.min, currentCurrency, exchangeRate),
-          max: profile.career.nextLevel.max === Infinity ? Infinity : convertUsdToCurrency(profile.career.nextLevel.max, currentCurrency, exchangeRate),
+          min: convertUsdToCurrency(profile.career.nextLevel.min, displayCurrency, exchangeRate),
+          max: profile.career.nextLevel.max === Infinity ? Infinity : convertUsdToCurrency(profile.career.nextLevel.max, displayCurrency, exchangeRate),
         } : undefined,
       },
     };
