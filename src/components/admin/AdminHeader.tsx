@@ -12,12 +12,21 @@ interface AdminHeaderProps {
   currentView: AdminView;
 }
 
+const VIEW_LABELS: Record<AdminView, string> = {
+  dashboard: 'Dashboard',
+  catalog: 'Catalog',
+  sales: 'Sales',
+  partners: 'Users',  // 'partners' view now shows all users
+  support: 'Support',
+  promo: 'Promo Codes',
+};
+
 const AdminHeader: React.FC<AdminHeaderProps> = ({ currentView }) => {
   return (
     <div className="hidden md:flex h-20 border-b border-white/10 justify-between items-center px-8 bg-[#050505] sticky top-0 z-30">
       <div>
         <h2 className="text-2xl font-display font-bold text-white uppercase">
-          {currentView}
+          {VIEW_LABELS[currentView] || currentView}
         </h2>
         <div className="text-[10px] font-mono text-gray-500">
           LAST_LOGIN: 2025.10.02 // 14:00
@@ -37,6 +46,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ currentView }) => {
 };
 
 export default memo(AdminHeader);
+
 
 
 

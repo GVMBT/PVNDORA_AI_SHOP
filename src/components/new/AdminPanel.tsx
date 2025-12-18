@@ -10,13 +10,12 @@ import {
   AdminDashboard,
   AdminCatalog,
   AdminSales,
-  AdminPartners,
+  AdminUsers,
   AdminSupport,
   AdminPromo,
   AdminSidebar,
   AdminHeader,
   ProductModal,
-  PartnerModal,
   type AdminView,
   type ProductData,
   type OrderData,
@@ -64,7 +63,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   // Modal states
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Partial<ProductData> | null>(null);
-  const [editingPartner, setEditingPartner] = useState<UserData | null>(null);
 
   // Handlers
   const handleEditProduct = (product: ProductData) => {
@@ -90,16 +88,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setEditingProduct(null);
   };
 
-  const handleEditPartner = (partner: UserData) => {
-    setEditingPartner(partner);
-  };
-
-  const handleSavePartner = (partner: UserData) => {
-    // TODO: Implement save logic via API
-    logger.debug('Save partner', partner);
-    setEditingPartner(null);
-  };
-
   const renderCurrentView = () => {
     switch (currentView) {
       case 'dashboard':
@@ -116,9 +104,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         return <AdminSales orders={propsOrders} />;
       case 'partners':
         return (
-          <AdminPartners
-            partners={propsUsers}
-            onEditPartner={handleEditPartner}
+          <AdminUsers
+            users={propsUsers}
           />
         );
       case 'support':
@@ -194,11 +181,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         onSave={handleSaveProduct}
       />
 
-      <PartnerModal
-        partner={editingPartner}
-        onClose={() => setEditingPartner(null)}
-        onSave={handleSavePartner}
-      />
     </motion.div>
   );
 };

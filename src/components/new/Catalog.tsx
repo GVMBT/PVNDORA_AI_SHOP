@@ -268,7 +268,19 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
       {/* --- CATEGORY TABS --- */}
       <div className="max-w-7xl mx-auto mb-8 border-b border-white/5 pb-1">
          <div className="flex gap-6 overflow-x-auto pb-2 scrollbar-hide">
-            {PRODUCT_CATEGORIES.map((cat) => (
+            {PRODUCT_CATEGORIES.map((cat) => {
+              const categoryKeyMap: Record<string, string> = {
+                All: 'all',
+                Text: 'text',
+                Image: 'image',
+                Video: 'video',
+                Code: 'code',
+                Audio: 'audio',
+              };
+              
+              const translationKey = categoryKeyMap[cat] || cat.toLowerCase();
+              
+              return (
                 <button
                 key={cat}
                 onClick={() => handleCategoryChange(cat)}
@@ -280,12 +292,13 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                 `}
                 >
                 <span className="mr-1 opacity-50 text-[10px] font-mono">0{PRODUCT_CATEGORIES.indexOf(cat) + 1}.</span>
-                {cat === 'All' ? t('catalog.all') : t(`catalog.category.${cat.toLowerCase()}`)}
+                {cat === 'All' ? t('catalog.all') : t(`catalog.category.${translationKey}`)}
                 {activeCategory === cat && (
                     <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-pandora-cyan shadow-[0_0_10px_#00FFFF]" />
                 )}
                 </button>
-            ))}
+              );
+            })}
          </div>
       </div>
 

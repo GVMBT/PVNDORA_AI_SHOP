@@ -107,7 +107,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
           />
           <AdminNavItem 
             icon={<Users size={18} />} 
-            label="Partners & VIP" 
+            label="Users" 
             active={currentView === 'partners'} 
             onClick={() => {
               onViewChange('partners');
