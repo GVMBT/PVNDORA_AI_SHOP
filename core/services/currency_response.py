@@ -130,13 +130,16 @@ class CurrencyFormatter:
                 lang = user_lang.split("-")[0].lower() if user_lang else "en"
                 currency = LANGUAGE_TO_CURRENCY.get(lang, "USD")
             
+            logger.info(f"CurrencyFormatter: user={user_telegram_id}, preferred={user_preferred}, currency={currency}")
+            
             # Get exchange rate (CurrencyService handles DB + Redis + API + fallback)
             if currency != "USD":
                 currency_service = get_currency_service(redis)
                 exchange_rate = await currency_service.get_exchange_rate(currency)
+                logger.info(f"CurrencyFormatter: got exchange_rate={exchange_rate} for {currency}")
                 
         except Exception as e:
-            logger.warning(f"Currency setup failed: {e}, using USD")
+            logger.error(f"Currency setup failed: {e}, using USD", exc_info=True)
             currency = "USD"
             exchange_rate = 1.0
         

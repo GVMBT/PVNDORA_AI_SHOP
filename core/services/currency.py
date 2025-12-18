@@ -124,24 +124,31 @@ class CurrencyService:
         try:
             rate = await self._get_rate_from_db(target_currency)
             if rate:
+                logger.info(f"Got rate from DB: {target_currency}={rate}")
                 # Cache in Redis for faster subsequent access
                 if self.redis:
                     await self._cache_rate(target_currency, rate)
                 return rate
+            else:
+                logger.debug(f"No rate in DB for {target_currency}")
         except Exception as e:
             logger.warning(f"Failed to get rate from DB for {target_currency}: {e}")
         
         # 3. Try to fetch from external API (and update DB)
         try:
+            logger.info(f"Fetching rate from API for {target_currency}...")
             rate = await self._fetch_exchange_rate(target_currency)
             if rate:
+                logger.info(f"Got rate from API: {target_currency}={rate}")
                 if self.redis:
                     await self._cache_rate(target_currency, rate)
                 # Also update DB for persistence
                 await self._update_rate_in_db(target_currency, rate)
                 return rate
+            else:
+                logger.warning(f"API returned no rate for {target_currency}")
         except Exception as e:
-            logger.warning(f"Failed to fetch exchange rate for {target_currency}: {e}")
+            logger.error(f"Failed to fetch exchange rate for {target_currency}: {e}", exc_info=True)
         
         # 4. Last resort: hardcoded fallback
         fallback_rate = FALLBACK_RATES.get(target_currency)
