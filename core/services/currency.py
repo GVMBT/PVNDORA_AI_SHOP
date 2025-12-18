@@ -95,6 +95,12 @@ class CurrencyService:
         """
         Get exchange rate for target currency (relative to USD).
         
+        Priority:
+        1. Redis cache (fast, 1 hour TTL)
+        2. Supabase exchange_rates table (authoritative source)
+        3. External API (fallback, updates Supabase)
+        4. Hardcoded fallback (last resort)
+        
         Args:
             target_currency: Target currency code
             
@@ -104,35 +110,88 @@ class CurrencyService:
         if target_currency == "USD":
             return 1.0
         
-        # Try to get from cache first
+        # 1. Try Redis cache first (fast path)
         if self.redis:
             try:
                 cached_rate = await self._get_cached_rate(target_currency)
                 if cached_rate:
                     return float(cached_rate)
             except Exception as e:
-                logger.warning(f"Failed to get cached rate: {e}")
+                logger.debug(f"Redis cache miss for {target_currency}: {e}")
         
-        # Try to fetch from external API
+        # 2. Try Supabase exchange_rates table (source of truth)
         try:
-            rate = await self._fetch_exchange_rate(target_currency)
+            rate = await self._get_rate_from_db(target_currency)
             if rate:
-                # Cache the rate for 1 hour
+                # Cache in Redis for faster subsequent access
                 if self.redis:
                     await self._cache_rate(target_currency, rate)
                 return rate
         except Exception as e:
+            logger.warning(f"Failed to get rate from DB for {target_currency}: {e}")
+        
+        # 3. Try to fetch from external API (and update DB)
+        try:
+            rate = await self._fetch_exchange_rate(target_currency)
+            if rate:
+                if self.redis:
+                    await self._cache_rate(target_currency, rate)
+                # Also update DB for persistence
+                await self._update_rate_in_db(target_currency, rate)
+                return rate
+        except Exception as e:
             logger.warning(f"Failed to fetch exchange rate for {target_currency}: {e}")
         
-        # Use fallback rate if API unavailable
+        # 4. Last resort: hardcoded fallback
         fallback_rate = FALLBACK_RATES.get(target_currency)
         if fallback_rate:
             logger.warning(f"Using fallback rate for {target_currency}: {fallback_rate}")
             return fallback_rate
         
-        # Unknown currency - return 1.0 as last resort
-        logger.error(f"No fallback rate for {target_currency}, using 1.0")
+        logger.error(f"No rate available for {target_currency}, using 1.0")
         return 1.0
+    
+    async def _get_rate_from_db(self, currency: str) -> Optional[float]:
+        """Get exchange rate from Supabase exchange_rates table."""
+        try:
+            from core.services.database import get_database
+            import asyncio
+            
+            db = get_database()
+            result = await asyncio.to_thread(
+                lambda: db.client.table("exchange_rates")
+                    .select("rate")
+                    .eq("currency", currency)
+                    .single()
+                    .execute()
+            )
+            
+            if result.data and result.data.get("rate"):
+                return float(result.data["rate"])
+            return None
+        except Exception as e:
+            logger.debug(f"DB rate lookup failed for {currency}: {e}")
+            return None
+    
+    async def _update_rate_in_db(self, currency: str, rate: float):
+        """Update exchange rate in Supabase."""
+        try:
+            from core.services.database import get_database
+            from datetime import datetime, timezone
+            import asyncio
+            
+            db = get_database()
+            await asyncio.to_thread(
+                lambda: db.client.table("exchange_rates")
+                    .upsert({
+                        "currency": currency,
+                        "rate": rate,
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    })
+                    .execute()
+            )
+        except Exception as e:
+            logger.warning(f"Failed to update rate in DB for {currency}: {e}")
     
     async def _get_cached_rate(self, currency: str) -> Optional[str]:
         """Get cached exchange rate from Redis."""

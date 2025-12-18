@@ -41,6 +41,10 @@
     {
       "path": "/api/cron/refund_expired_prepaid",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/update_exchange_rates",
+      "schedule": "0 * * * *"
     }
   ]
 }
