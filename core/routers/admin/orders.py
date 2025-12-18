@@ -31,7 +31,7 @@ async def admin_get_orders(
         query = db.client.table("orders").select(
             "id, status, amount, payment_method, payment_gateway, created_at, "
             "users(telegram_id, username, first_name), "
-            "order_items(product_id, product_name, quantity)"
+            "order_items(product_id, quantity, products(name))"
         ).order("created_at", desc=True).range(offset, offset + limit - 1)
         
         if status:
@@ -50,11 +50,13 @@ async def admin_get_orders(
         username = user_data.get("username") or user_data.get("first_name", "Unknown")
         user_handle = f"@{username}" if username != "Unknown" else "Unknown"
         
-        # Get product name from order_items
+        # Get product name from order_items -> products
         items = order.get("order_items", [])
         product_name = "Unknown Product"
         if items and len(items) > 0:
-            product_name = items[0].get("product_name", "Unknown Product")
+            # Product name is nested: order_items[0].products.name
+            product_data = items[0].get("products") or {}
+            product_name = product_data.get("name", "Unknown Product")
             if len(items) > 1:
                 product_name += f" +{len(items)-1}"
         

@@ -70,9 +70,9 @@ async def admin_get_analytics(
             "amount, created_at"
         ).eq("status", "delivered").gte("created_at", chart_days_start.isoformat()).execute()
     
-    # 8. Top products (all time)
+    # 8. Top products (all time) - via order_items join
     def get_top_products():
-        return db.client.table("orders").select(
+        return db.client.table("order_items").select(
             "products(name)"
         ).eq("status", "delivered").execute()
     
