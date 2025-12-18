@@ -76,9 +76,12 @@ export interface AdminStats {
   activeUsers: number;
   openTickets?: number;
   revenueByDay?: { date: string; amount: number }[];
+  // Liabilities metrics
+  totalUserBalances?: number;
+  pendingWithdrawals?: number;
 }
 
-export type AdminView = 'dashboard' | 'catalog' | 'sales' | 'partners' | 'support' | 'promo';
+export type AdminView = 'dashboard' | 'catalog' | 'sales' | 'users' | 'support' | 'promo';
 
 
 

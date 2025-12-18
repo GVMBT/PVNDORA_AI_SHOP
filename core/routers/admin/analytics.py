@@ -76,6 +76,16 @@ async def admin_get_analytics(
             "products(name)"
         ).eq("status", "delivered").execute()
     
+    # 9. Total user balances (liabilities) - money users can withdraw
+    def get_total_user_balances():
+        return db.client.table("users").select("balance").execute()
+    
+    # 10. Pending withdrawals
+    def get_pending_withdrawals():
+        return db.client.table("withdrawal_requests").select(
+            "amount"
+        ).eq("status", "pending").execute()
+    
     # Execute all queries
     revenue_result = await asyncio.to_thread(get_total_revenue)
     orders_today_result = await asyncio.to_thread(get_orders_today)
@@ -85,6 +95,8 @@ async def admin_get_analytics(
     revenue_by_day_result = await asyncio.to_thread(get_revenue_by_day)
     open_tickets_result = await asyncio.to_thread(get_open_tickets)
     top_products_result = await asyncio.to_thread(get_top_products)
+    user_balances_result = await asyncio.to_thread(get_total_user_balances)
+    pending_withdrawals_result = await asyncio.to_thread(get_pending_withdrawals)
     
     # Calculate total revenue
     total_revenue = sum(float(o.get("amount", 0)) for o in (revenue_result.data or []))
@@ -104,6 +116,12 @@ async def admin_get_analytics(
     
     # Count open tickets
     open_tickets = open_tickets_result.count or 0
+    
+    # Calculate total user balances (liabilities)
+    total_user_balances = sum(float(u.get("balance", 0)) for u in (user_balances_result.data or []))
+    
+    # Calculate pending withdrawals
+    pending_withdrawals = sum(float(w.get("amount", 0)) for w in (pending_withdrawals_result.data or []))
     
     # Calculate revenue by day for chart
     revenue_by_day_map = {}
@@ -146,7 +164,10 @@ async def admin_get_analytics(
         "active_users": active_users,
         "revenue_by_day": revenue_by_day,
         "open_tickets": open_tickets,
-        "top_products": top_products
+        "top_products": top_products,
+        # Liabilities metrics
+        "total_user_balances": total_user_balances,
+        "pending_withdrawals": pending_withdrawals,
     }
 
 

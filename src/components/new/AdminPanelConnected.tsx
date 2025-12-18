@@ -198,7 +198,10 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     ordersMonth: analytics.orders_this_month || 0,
     activeUsers: analytics.active_users || 0,
     openTickets: analytics.open_tickets || 0,
-    revenueByDay: analytics.revenue_by_day || []
+    revenueByDay: analytics.revenue_by_day || [],
+    // Liabilities metrics
+    totalUserBalances: analytics.total_user_balances || 0,
+    pendingWithdrawals: analytics.pending_withdrawals || 0
   } : undefined;
 
   return (

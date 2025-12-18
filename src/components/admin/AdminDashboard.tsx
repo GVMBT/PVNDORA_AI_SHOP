@@ -5,7 +5,7 @@
  */
 
 import React, { memo } from 'react';
-import { DollarSign, ShoppingBag, Users, LifeBuoy } from 'lucide-react';
+import { DollarSign, ShoppingBag, Users, LifeBuoy, Wallet, AlertTriangle } from 'lucide-react';
 import StatCard from './StatCard';
 import type { AdminStats } from './types';
 
@@ -22,7 +22,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
     ordersMonth: 0,
     activeUsers: 0,
     openTickets: 0,
-    revenueByDay: []
+    revenueByDay: [],
+    totalUserBalances: 0,
+    pendingWithdrawals: 0
   };
 
   // Format revenue for display
@@ -54,6 +56,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
 
   return (
     <div className="space-y-6">
+      {/* Main Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard 
           label="Total Revenue" 
@@ -81,6 +84,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
           icon={<LifeBuoy size={20} />} 
         />
       </div>
+      
+      {/* Liabilities Section */}
+      <div className="grid grid-cols-2 gap-4">
+        <StatCard 
+          label="User Balances" 
+          value={formatRevenue(displayStats.totalUserBalances || 0)} 
+          trend="Total owed to users" 
+          isNegative={true}
+          hideTrendComparison={true}
+          icon={<Wallet size={20} />} 
+        />
+        <StatCard 
+          label="Pending Withdrawals" 
+          value={formatRevenue(displayStats.pendingWithdrawals || 0)} 
+          trend="Awaiting processing" 
+          isNegative={true}
+          hideTrendComparison={true}
+          icon={<AlertTriangle size={20} />} 
+        />
+      </div>
+      
       {/* Revenue Chart */}
       <div className="bg-[#0e0e0e] border border-white/10 p-6 rounded-sm h-64 flex items-end justify-between gap-2">
         {chartBars.map((bar, i) => (
