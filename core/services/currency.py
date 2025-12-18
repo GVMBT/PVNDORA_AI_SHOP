@@ -30,8 +30,9 @@ LANGUAGE_TO_CURRENCY: Dict[str, str] = {
 
 # Note: Exchange rates are fetched from exchangerate-api.com
 # Fallback rates used when API is unavailable (updated periodically)
+# IMPORTANT: Keep these reasonably accurate - they're only used as last resort
 FALLBACK_RATES: Dict[str, float] = {
-    "RUB": 90.0,   # ~90 RUB per 1 USD (approximate)
+    "RUB": 80.0,   # ~80 RUB per 1 USD
     "EUR": 0.92,   # ~0.92 EUR per 1 USD
     "UAH": 41.0,   # ~41 UAH per 1 USD
     "TRY": 34.0,   # ~34 TRY per 1 USD

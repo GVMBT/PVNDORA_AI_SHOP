@@ -87,7 +87,7 @@
   },
 
   "orders": {
-    "title": "Your Orders",
+    "title": "Transaction Logs",
     "subtitle": "Purchase history and status",
     "empty": "No orders yet",
     "emptyHint": "Start shopping to see your orders here",
@@ -106,10 +106,11 @@
     "fulfillmentGuarantee": "Guaranteed delivery:",
     "fulfillmentExpired": "Awaiting refund",
     "orRefund": "or refund",
+    "initSupport": "Create Support Ticket",
     "tabs": {
-      "all": "All",
+      "all": "All Logs",
       "active": "Active",
-      "completed": "Completed"
+      "completed": "Archived"
     },
     "status": {
       "pending": "Pending",
@@ -334,6 +335,7 @@
   "profile": {
     "title": "Profile",
     "balance": "Balance",
+    "internalBalance": "Internal Balance",
     "totalEarned": "Total earned",
     "withdraw": "Withdraw",
     "invite": "Invite",
@@ -407,7 +409,9 @@
       "networkTitle": "Network (L1-L3)",
       "networkTotal": "Total network",
       "networkL2": "Level 2",
-      "networkL3": "Level 3"
+      "networkL3": "Level 3",
+      "clicks": "Clicks",
+      "conversion": "Conversion"
     },
     "referralInfo": {
       "title": "How the referral program works",
@@ -438,9 +442,17 @@
     "actions": {
       "topUp": "Top Up",
       "withdraw": "Withdraw",
-      "shareKey": "Share Key",
+      "shareKey": "Share",
       "copyLink": "Copy Link",
       "copied": "Copied"
+    },
+    "uplink": {
+      "title": "Uplink Generator",
+      "subtitle": "Invite users to build your node network",
+      "accessToken": "Personal Access Token",
+      "rewardPreference": "Reward Preference",
+      "cashOut": "Cash Out",
+      "discount": "Discount"
     }
   },
   
