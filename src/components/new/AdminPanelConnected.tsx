@@ -5,7 +5,7 @@
  * Fetches products, orders, users, and analytics from backend.
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import AdminPanel from './AdminPanel';
 import { 
   useAdminProductsTyped, 
@@ -158,26 +158,28 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     method: o.payment_method?.toUpperCase() || 'UNKNOWN'
   }));
 
-  // Store mapping of telegram_id -> user UUID for API calls
-  const userIdMap = new Map<number, string>();
-  
-  const transformedUsers = users.map(u => {
-    const telegramId = parseInt(u.telegram_id) || 0;
-    userIdMap.set(telegramId, u.id);
-    return {
-      id: telegramId,
-      username: u.username || `user_${u.id?.slice(0, 6)}`,
-      role: (u.role?.toUpperCase() || 'USER') as 'USER' | 'VIP' | 'ADMIN',
-      joinedAt: formatDate(u.created_at),
-      purchases: u.orders_count || 0,
-      spent: u.total_spent || 0,
-      balance: u.balance || 0,
-      isBanned: u.is_banned || false,
-      invites: 0, // TODO: Add to backend
-      earned: 0, // TODO: Add to backend
-      savings: 0 // TODO: Add to backend
-    };
-  });
+  // Memoize user transformations and ID mapping together
+  const { transformedUsers, userIdMap } = useMemo(() => {
+    const idMap = new Map<number, string>();
+    const transformed = users.map(u => {
+      const telegramId = parseInt(u.telegram_id) || 0;
+      idMap.set(telegramId, u.id);
+      return {
+        id: telegramId,
+        username: u.username || `user_${u.id?.slice(0, 6)}`,
+        role: (u.role?.toUpperCase() || 'USER') as 'USER' | 'VIP' | 'ADMIN',
+        joinedAt: formatDate(u.created_at),
+        purchases: u.orders_count || 0,
+        spent: u.total_spent || 0,
+        balance: u.balance || 0,
+        isBanned: u.is_banned || false,
+        invites: 0,
+        earned: 0,
+        savings: 0
+      };
+    });
+    return { transformedUsers: transformed, userIdMap: idMap };
+  }, [users]);
   
   // User action handlers
   const handleBanUser = useCallback((telegramId: number, ban: boolean) => {
@@ -187,7 +189,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     }
   }, [banUser, userIdMap]);
   
-  const handleUpdateBalance = useCallback((telegramId: number, amount: number) => {
+  const handleUpdateBalance = useCallback((telegramId: number, _amount: number) => {
     const userId = userIdMap.get(telegramId);
     if (userId) {
       // Prompt for amount (simple implementation)
