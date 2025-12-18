@@ -18,12 +18,19 @@
     "confirm": "EXECUTE"
   },
 
-  "nav": {
-    "catalog": "Neural Catalog",
-    "cart": "Buffer",
-    "orders": "Logs",
-    "leaderboard": "Rank",
-    "profile": "Profile"
+  "navbar": {
+    "catalog": "NEURAL CATALOG",
+    "catalogSub": "MODULE REGISTRY",
+    "orders": "OP LOGS",
+    "ordersSub": "ACCESS KEYS",
+    "leaderboard": "PROTOCOL BYPASS",
+    "leaderboardSub": "NETWORK RANK",
+    "profile": "PROFILE",
+    "profileSub": "CONFIGURATION",
+    "status": "SYSTEM STATUS",
+    "online": "ONLINE",
+    "disconnect": "DISCONNECT",
+    "cart": "BUFFER"
   },
 
   "catalog": {
@@ -532,5 +539,82 @@
     "profile": "PROFILE ERROR",
     "profileHint": "Data corrupted or unavailable.",
     "returnToBase": "RETURN TO BASE"
+  },
+
+  "hero": {
+    "systemOnline": "SYSTEM: ONLINE",
+    "nodeSynced": "NODE_SYNCHRONIZED",
+    "subtitle": "DECENTRALIZED COMPUTE MARKETPLACE",
+    "description": "Instant access to premium compute power: Veo 3.1, Claude Max, and Nano Banana Pro. Automated key delivery. Validity guaranteed.",
+    "quote": "Unlocking the full potential of generative AI.",
+    "channelEncrypted": "CHANNEL: ENCRYPTED",
+    "resourcesAllocated": "RESOURCES: ALLOCATED",
+    "initializeAccess": "INITIALIZE ACCESS",
+    "instantDelivery": "INSTANT DELIVERY PROTOCOL ACTIVE",
+    "uptime": "UPTIME: 99.9%",
+    "gatewaySecure": "GATEWAY: SECURE",
+    "sectorPublic": "SECTOR: PUBLIC",
+    "nodeId": "NODE_ID: #PNDR-OFFICIAL"
+  },
+
+  "guarantees": {
+    "secureConnection": "SECURE_CONNECTION_ESTABLISHED",
+    "security": "SECURITY",
+    "guaranteesTitle": "GUARANTEES",
+    "features": {
+      "delivery": {
+        "title": "Instant Digital Delivery",
+        "description": "Automated credential injection immediately after transaction processing.",
+        "stat": "LATENCY: < 0.5s"
+      },
+      "validity": {
+        "title": "Validity Guarantee",
+        "description": "All digital assets verified for functionality before delivery.",
+        "stat": "INTEGRITY: 100%"
+      },
+      "support": {
+        "title": "Client Support",
+        "description": "Fast resolution of technical issues with service authorization.",
+        "stat": "ONLINE: 24/7"
+      }
+    },
+    "sslEncrypted": "SECURE_SOCKET_LAYER: ENCRYPTED",
+    "nodesActive": "NODES_ACTIVE: 3/3",
+    "protocol": "PANDORA_PROTOCOL_V2.0"
+  },
+
+  "footer": {
+    "brandDescription": "Digital distribution platform for neural network access. Secure. Anonymous. Instant.",
+    "customers": "Customers",
+    "legalInfo": "Legal Information",
+    "faq": "FAQ (Questions)",
+    "techSupport": "Technical Support",
+    "paymentDelivery": "Payment & Delivery",
+    "termsOfService": "Terms of Service",
+    "privacyPolicy": "Privacy Policy",
+    "refundPolicy": "Refund Policy",
+    "needHelp": "Need Help?",
+    "supportAvailable": "Our support team is available 24/7.",
+    "openTicket": "Open Ticket",
+    "copyright": "© {year} PVNDORA DIGITAL. ALL RIGHTS RESERVED.",
+    "sslEncrypted": "SSL_ENCRYPTED",
+    "securePayment": "SECURE_PAYMENT",
+    "decentralizedMarket": "Decentralized Compute Market",
+    "support": "Support",
+    "contacts": "Contacts",
+    "paymentInfo": "Payment Info",
+    "legal": "Legal",
+    "sslSecure": "SSL SECURE",
+    "verified": "VERIFIED",
+    "allSystems": "All Systems Operational"
+  },
+
+  "legalPage": {
+    "returnToBase": "RETURN_TO_BASE",
+    "legal": "LEGAL",
+    "protocol": "PROTOCOL",
+    "documentId": "DOCUMENT_ID",
+    "docHash": "DOC_HASH",
+    "lastUpdated": "LAST_UPDATED"
   }
 }

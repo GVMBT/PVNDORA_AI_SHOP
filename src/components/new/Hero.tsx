@@ -3,8 +3,11 @@ import React, { memo } from 'react';
 import PandoraBox from './PandoraBox';
 import { Terminal, Zap, Unlock, Cpu, Network, Activity, ShieldCheck, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useLocale } from '../../hooks/useLocale';
 
 const HeroComponent: React.FC = () => {
+  const { t } = useLocale();
+
   const scrollToCatalog = () => {
     const catalog = document.getElementById('catalog');
     if (catalog) {
@@ -35,10 +38,10 @@ const HeroComponent: React.FC = () => {
             >
                 <div className="flex items-center gap-1.5">
                     <ShieldCheck size={10} className="text-pandora-cyan" />
-                    <span className="text-[9px] sm:text-[10px] font-mono text-pandora-cyan tracking-widest uppercase font-bold">SYSTEM: ONLINE</span>
+                    <span className="text-[9px] sm:text-[10px] font-mono text-pandora-cyan tracking-widest uppercase font-bold">{t('hero.systemOnline')}</span>
                 </div>
                 <div className="w-px h-3 bg-white/10" />
-                <span className="text-[9px] sm:text-[10px] font-mono text-gray-400">NODE_SYNCHRONIZED</span>
+                <span className="text-[9px] sm:text-[10px] font-mono text-gray-400">{t('hero.nodeSynced')}</span>
             </motion.div>
 
             {/* Main Text Block */}
@@ -57,13 +60,12 @@ const HeroComponent: React.FC = () => {
                 {/* Subtitle / Value Prop */}
                 <div className="mt-8 space-y-4 px-4">
                     <p className="font-mono text-[10px] sm:text-sm text-pandora-cyan uppercase tracking-[0.2em] sm:tracking-[0.3em] drop-shadow-[0_0_5px_rgba(0,255,255,0.5)]">
-                        DECENTRALIZED COMPUTE MARKETPLACE
+                        {t('hero.subtitle')}
                     </p>
                     <p className="text-xs sm:text-sm text-gray-400 max-w-[280px] xs:max-w-sm sm:max-w-lg mx-auto leading-relaxed font-body">
-                        Мгновенный доступ к премиальным мощностям Veo 3.1, Claude Max и Nano Banana Pro.
-                        Автоматизированная выдача ключей. Гарантия валидности.
+                        {t('hero.description')}
                         <br/>
-                        <span className="text-white/60 italic mt-2 block">"Unlocking the full potential of generative AI."</span>
+                        <span className="text-white/60 italic mt-2 block">"{t('hero.quote')}"</span>
                     </p>
                 </div>
             </motion.div>
@@ -78,11 +80,11 @@ const HeroComponent: React.FC = () => {
             >
                 <div className="flex items-center gap-2 px-3 py-2 rounded-sm bg-white/5 backdrop-blur-md border border-white/10 text-[10px] font-mono text-gray-300">
                     <Network size={12} className="text-pandora-cyan" />
-                    <span>CHANNEL: ENCRYPTED</span>
+                    <span>{t('hero.channelEncrypted')}</span>
                 </div>
                 <div className="flex items-center gap-2 px-3 py-2 rounded-sm bg-white/5 backdrop-blur-md border border-white/10 text-[10px] font-mono text-gray-300">
                     <Cpu size={12} className="text-pandora-cyan" />
-                    <span>RESOURCES: ALLOCATED</span>
+                    <span>{t('hero.resourcesAllocated')}</span>
                 </div>
             </motion.div>
 
@@ -100,7 +102,7 @@ const HeroComponent: React.FC = () => {
               >
                 <span className="relative z-10 flex items-center justify-center gap-3">
                     <Zap size={16} className="fill-black sm:w-[18px] sm:h-[18px]" />
-                    INITIALIZE ACCESS
+                    {t('hero.initializeAccess')}
                 </span>
                 
                 {/* Glitch Effect Overlay */}
@@ -109,7 +111,7 @@ const HeroComponent: React.FC = () => {
               
               <div className="mt-4 text-[9px] text-gray-600 font-mono flex items-center justify-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                  INSTANT DELIVERY PROTOCOL ACTIVE
+                  {t('hero.instantDelivery')}
               </div>
             </motion.div>
 
@@ -119,12 +121,12 @@ const HeroComponent: React.FC = () => {
       {/* Footer Metadata (HUD Style) */}
       <div className="absolute bottom-12 left-0 right-0 z-50 w-full flex justify-between px-6 md:pl-32 pr-6 opacity-80 pointer-events-none hidden md:flex text-[9px] font-mono text-pandora-cyan">
           <div className="flex gap-6">
-              <span className="flex items-center gap-1"><Activity size={10} /> UPTIME: 99.9%</span>
-              <span>GATEWAY: SECURE</span>
+              <span className="flex items-center gap-1"><Activity size={10} /> {t('hero.uptime')}</span>
+              <span>{t('hero.gatewaySecure')}</span>
           </div>
           <div className="flex gap-6">
-              <span>SECTOR: PUBLIC</span>
-              <span>NODE_ID: #PNDR-OFFICIAL</span>
+              <span>{t('hero.sectorPublic')}</span>
+              <span>{t('hero.nodeId')}</span>
           </div>
       </div>
 

@@ -211,7 +211,7 @@ const legalContent = {
 };
 
 const Legal: React.FC<LegalProps> = ({ doc, onBack }) => {
-  const { locale } = useLocale();
+  const { t, locale } = useLocale();
   
   const renderContent = () => {
     // Get content based on document type and locale (default to English if not Russian)
@@ -336,14 +336,14 @@ const Legal: React.FC<LegalProps> = ({ doc, onBack }) => {
           {/* === UNIFIED HEADER (Leaderboard Style) === */}
           <div className="mb-8 md:mb-16">
               <button onClick={onBack} className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors">
-                  <ArrowLeft size={12} /> RETURN_TO_BASE
+                  <ArrowLeft size={12} /> {t('legalPage.returnToBase')}
               </button>
               <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-[0.9] mb-4">
-                  LEGAL <br/> <span className="text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white/50">PROTOCOL</span>
+                  {t('legalPage.legal')} <br/> <span className="text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white/50">{t('legalPage.protocol')}</span>
               </h1>
               <div className="flex items-center gap-2 text-[10px] font-mono text-pandora-cyan tracking-widest uppercase">
                    <Shield size={12} />
-                   <span>DOCUMENT_ID: {getTitle()}</span>
+                   <span>{t('legalPage.documentId')}: {getTitle()}</span>
               </div>
           </div>
 
@@ -359,8 +359,8 @@ const Legal: React.FC<LegalProps> = ({ doc, onBack }) => {
 
               {/* Footer Signature */}
               <div className="mt-12 pt-8 border-t border-white/5 flex justify-between items-center text-[10px] font-mono text-gray-600">
-                  <span>DOC_HASH: {generateHashId(12)}</span>
-                  <span>LAST_UPDATED: 2024.12.13</span>
+                  <span>{t('legalPage.docHash')}: {generateHashId(12)}</span>
+                  <span>{t('legalPage.lastUpdated')}: 2024.12.13</span>
               </div>
           </div>
 
