@@ -94,7 +94,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
           }`}>
             <div className="flex items-center gap-2">
               {order.paymentConfirmed ? <Check size={12} /> : <Clock size={12} />}
-              {order.statusMessage}
+              {order.rawStatus ? t(`orders.statusMessages.${order.rawStatus}`) : order.statusMessage}
             </div>
           </div>
         )}
