@@ -8,6 +8,7 @@ import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 import { CreditCard, Wallet, Server, ShieldCheck, Globe, Bitcoin, Zap } from 'lucide-react';
 import { formatPrice } from '../../utils/currency';
+import { useLocale } from '../../hooks/useLocale';
 import type { PaymentMethod } from './CheckoutModal';
 
 interface PaymentMethodSelectorProps {
@@ -29,6 +30,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   onSelectPayment,
   onPay,
 }) => {
+  const { t } = useLocale();
   const canUseInternal = userBalance >= total;
 
   return (
@@ -41,7 +43,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
       <div className="mb-8">
         <h3 className="text-xs font-mono text-pandora-cyan mb-4 uppercase flex items-center gap-2">
           <Server size={12} />
-          Select Payment Node
+          {t('checkout.payment.selectNode')}
         </h3>
         
         {error && (
@@ -68,9 +70,9 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               <Wallet size={20} />
             </div>
             <div>
-              <div className="text-xs font-bold text-white uppercase mb-1">Internal</div>
+              <div className="text-xs font-bold text-white uppercase mb-1">{t('checkout.payment.internal')}</div>
               <div className="text-[10px] text-gray-500 font-mono">
-                Balance: {formatPrice(userBalance, currency)}
+                {t('checkout.payment.balance', { amount: formatPrice(userBalance, currency) })}
               </div>
             </div>
             {selectedPayment === 'internal' && (
@@ -97,8 +99,8 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               <Globe size={20} />
             </div>
             <div>
-              <div className="text-xs font-bold text-white uppercase mb-1">Crypto/P2P</div>
-              <div className="text-[10px] text-gray-500 font-mono">Gateway</div>
+              <div className="text-xs font-bold text-white uppercase mb-1">{t('checkout.payment.crypto')}</div>
+              <div className="text-[10px] text-gray-500 font-mono">{t('checkout.payment.gateway')}</div>
             </div>
             {selectedPayment === 'crystalpay' && (
               <div className="absolute top-1 right-1">
@@ -120,11 +122,11 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   {formatPrice(total, currency)}
                 </div>
                 <div className="text-xs font-mono text-gray-500">
-                  WILL BE DEBITED FROM YOUR BALANCE
+                  {t('checkout.payment.debited')}
                 </div>
               </div>
               <div className="flex items-center gap-2 text-xs font-mono text-green-500 bg-green-900/10 px-3 py-1 border border-green-500/30">
-                <Zap size={12} /> INSTANT_PROCESSING_ENABLED
+                <Zap size={12} /> {t('checkout.payment.instant')}
               </div>
             </div>
           )}
@@ -134,9 +136,9 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               <div className="w-16 h-16 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-purple-500/30 animate-pulse">
                 <Bitcoin size={32} className="text-purple-400" />
               </div>
-              <h4 className="text-white font-bold uppercase mb-2">External Gateway</h4>
+              <h4 className="text-white font-bold uppercase mb-2">{t('checkout.payment.externalTitle')}</h4>
               <p className="text-xs font-mono text-gray-400 leading-relaxed max-w-xs mx-auto">
-                You will be redirected to the secure CrystalPay terminal to complete the transaction via Cryptocurrency or P2P.
+                {t('checkout.payment.externalDesc')}
               </p>
             </div>
           )}
@@ -154,8 +156,8 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
         <span className="relative z-10 flex items-center gap-2">
           <ShieldCheck size={18} />
           {selectedPayment === 'internal' 
-            ? `CONFIRM DEBIT (${formatPrice(total, currency)})` 
-            : `OPEN GATEWAY (${formatPrice(total, currency)})`
+            ? t('checkout.payment.confirmDebit', { amount: formatPrice(total, currency) })
+            : t('checkout.payment.openGateway', { amount: formatPrice(total, currency) })
           }
         </span>
         <div className="absolute inset-0 bg-white mix-blend-overlay opacity-0 hover:opacity-20 transition-opacity" />
@@ -165,19 +167,3 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
 };
 
 export default memo(PaymentMethodSelector);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

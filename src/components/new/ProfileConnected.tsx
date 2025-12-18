@@ -11,6 +11,7 @@ import { useTelegram } from '../../hooks/useTelegram';
 import { useCyberModal } from './CyberModal';
 import { useClipboard } from '../../hooks/useClipboard';
 import { useLocaleContext } from '../../contexts/LocaleContext';
+import { useLocale } from '../../hooks/useLocale';
 import { useCart } from '../../contexts/CartContext';
 import { logger } from '../../utils/logger';
 import type { ProfileData } from '../../types/component';
@@ -30,6 +31,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   const { hapticFeedback, showConfirm, openLink, showAlert: showTelegramAlert } = useTelegram();
   const { showTopUp, showWithdraw, showAlert: showModalAlert } = useCyberModal();
   const { updateFromProfile, setCurrency, setLocale, currency: contextCurrency } = useLocaleContext();
+  const { t } = useLocale();
   const { clearCartState } = useCart();
   const [isInitialized, setIsInitialized] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
@@ -68,9 +70,9 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     const success = await copyToClipboard(profile.referralLink);
     if (success) {
       hapticFeedback?.('notification', 'success');
-      showTelegramAlert('Ссылка скопирована!');
+      showTelegramAlert(t('profile.actions.copied'));
     }
-  }, [profile?.referralLink, onHaptic, hapticFeedback, showTelegramAlert, copyToClipboard]);
+  }, [profile?.referralLink, onHaptic, hapticFeedback, showTelegramAlert, copyToClipboard, t]);
 
   const handleShare = useCallback(async () => {
     setShareLoading(true);
@@ -117,7 +119,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     
     if (balance < minAmount) {
         const minDisplay = currency === 'USD' ? '$10' : `${Math.round(minAmount).toLocaleString()} ${currency}`;
-        showModalAlert('INSUFFICIENT FUNDS', `Minimum withdrawal is ${minDisplay}`, 'warning');
+        showModalAlert(t('profile.errors.insufficientFunds'), t('profile.errors.minWithdrawal', { amount: minDisplay }), 'warning');
       return;
     }
     
@@ -130,11 +132,11 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       onConfirm: async (amount: number, method: string, details: string) => {
         await requestWithdrawal(amount, method, details);
         hapticFeedback?.('notification', 'success');
-        showModalAlert('REQUEST SUBMITTED', 'Your withdrawal request has been submitted. We will process it within 24-48 hours.', 'success');
+        showModalAlert(t('profile.withdraw.submittedTitle'), t('profile.withdraw.submittedDesc'), 'success');
         await getProfile();
       },
     });
-  }, [profile?.balance, profile?.currency, requestWithdrawal, getProfile, hapticFeedback, showWithdraw, showModalAlert, onHaptic]);
+  }, [profile?.balance, profile?.currency, requestWithdrawal, getProfile, hapticFeedback, showWithdraw, showModalAlert, onHaptic, t]);
 
   const handleTopUp = useCallback(() => {
     const tgWebApp = window.Telegram?.WebApp;
@@ -294,7 +296,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <div className="font-mono text-xs text-gray-500 uppercase tracking-widest">
-            Loading Profile...
+            {t('profile.loading')}
           </div>
         </div>
       </div>
@@ -307,13 +309,13 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center max-w-md">
           <div className="text-red-500 text-6xl mb-4">⚠</div>
-          <div className="font-mono text-sm text-red-400 mb-2">PROFILE_ERROR</div>
-          <p className="text-gray-500 text-sm">{error || 'Failed to load profile'}</p>
+          <div className="font-mono text-sm text-red-400 mb-2">{t('profile.error')}</div>
+          <p className="text-gray-500 text-sm">{error || t('profile.loadFailed')}</p>
           <button
             onClick={() => getProfile()}
             className="mt-6 px-6 py-2 bg-white/10 border border-white/20 text-white text-xs font-mono uppercase hover:bg-white/20 transition-colors"
           >
-            Retry Connection
+            {t('profile.retry')}
           </button>
         </div>
       </div>

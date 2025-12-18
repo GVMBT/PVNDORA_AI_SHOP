@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, Terminal, Paperclip, MessageSquare, ChevronDown, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { randomInt } from '../../utils/random';
+import { useLocale } from '../../hooks/useLocale';
 
 interface SupportChatProps {
   isOpen: boolean;
@@ -18,17 +19,23 @@ interface Message {
   timestamp: string;
 }
 
-const INITIAL_MESSAGES: Message[] = [
-    { id: 1, text: "Connecting to secure support channel...", sender: 'agent', timestamp: 'SYSTEM' },
-    { id: 2, text: "Connection established. Agent [NEO_7] assigned.", sender: 'agent', timestamp: 'SYSTEM' },
-    { id: 3, text: "Greetings. Describe your issue or request access to high-tier nodes.", sender: 'agent', timestamp: '10:00' },
-];
-
 const SupportChat: React.FC<SupportChatProps> = ({ isOpen, onToggle, onHaptic, raiseOnMobile = false }) => {
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
+  const { t } = useLocale();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Initialize messages with translations
+  useEffect(() => {
+    if (messages.length === 0) {
+        setMessages([
+            { id: 1, text: t('support.messages.connecting'), sender: 'agent', timestamp: 'SYSTEM' },
+            { id: 2, text: t('support.messages.connected'), sender: 'agent', timestamp: 'SYSTEM' },
+            { id: 3, text: t('support.messages.greeting'), sender: 'agent', timestamp: '10:00' },
+        ]);
+    }
+  }, [t]); // Only on mount/locale change if empty
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -56,7 +63,7 @@ const SupportChat: React.FC<SupportChatProps> = ({ isOpen, onToggle, onHaptic, r
       setTimeout(() => {
           const agentMsg: Message = {
               id: Date.now() + 1,
-              text: "Request acknowledged. Processing ticket ID #" + randomInt(1000, 9999) + ". Please wait...",
+              text: t('support.messages.acknowledged', { id: randomInt(1000, 9999) }),
               sender: 'agent',
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           };
@@ -123,10 +130,10 @@ const SupportChat: React.FC<SupportChatProps> = ({ isOpen, onToggle, onHaptic, r
                                     <Terminal size={12} className="text-pandora-cyan" />
                                 </div>
                                 <div>
-                                    <div className="font-mono font-bold text-[10px] tracking-widest text-white">UPLINK_SECURE</div>
+                                    <div className="font-mono font-bold text-[10px] tracking-widest text-white">{t('support.title')}</div>
                                     <div className="font-mono text-[8px] text-pandora-cyan flex items-center gap-1">
                                         <span className="w-1 h-1 bg-green-500 rounded-full animate-pulse" />
-                                        CHANNEL_OPEN
+                                        {t('support.channelOpen')}
                                     </div>
                                 </div>
                             </div>
@@ -143,7 +150,7 @@ const SupportChat: React.FC<SupportChatProps> = ({ isOpen, onToggle, onHaptic, r
                                         
                                         {/* Metadata */}
                                         <div className={`text-[8px] text-gray-600 mb-1 flex items-center gap-2 ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`}>
-                                            <span className="font-bold uppercase tracking-wider">{msg.sender === 'agent' ? 'Sys_Admin' : 'Operative'}</span>
+                                            <span className="font-bold uppercase tracking-wider">{msg.sender === 'agent' ? t('support.sender.agent') : t('support.sender.user')}</span>
                                             <span>{msg.timestamp}</span>
                                         </div>
 
@@ -169,7 +176,7 @@ const SupportChat: React.FC<SupportChatProps> = ({ isOpen, onToggle, onHaptic, r
                                 <div className="flex justify-start">
                                     <div className="bg-pandora-cyan/5 border border-pandora-cyan/20 p-2 text-pandora-cyan text-[10px] flex items-center gap-2 rounded-sm rounded-tl-none">
                                         <Activity size={10} className="animate-pulse" />
-                                        <span>ENCRYPTING_PACKET...</span>
+                                        <span>{t('support.typing')}</span>
                                     </div>
                                 </div>
                             )}
@@ -185,7 +192,7 @@ const SupportChat: React.FC<SupportChatProps> = ({ isOpen, onToggle, onHaptic, r
                                     value={inputValue}
                                     onChange={(e) => setInputValue(e.target.value)}
                                     onKeyDown={handleKeyDown}
-                                    placeholder="Enter system command..."
+                                    placeholder={t('support.inputPlaceholder')}
                                     className="flex-1 bg-transparent border-none outline-none text-white font-mono text-[11px] placeholder:text-gray-700 h-8 py-2 resize-none leading-relaxed"
                                     autoFocus
                                 />
@@ -198,7 +205,7 @@ const SupportChat: React.FC<SupportChatProps> = ({ isOpen, onToggle, onHaptic, r
                             </div>
                             <div className="text-[8px] text-gray-600 font-mono mt-1.5 text-center flex items-center justify-center gap-2">
                                 <div className="w-1 h-1 bg-green-500 rounded-full" />
-                                E2E_ENCRYPTION_ACTIVE
+                                {t('support.encryption')}
                             </div>
                         </div>
                     </motion.div>
@@ -223,7 +230,7 @@ const SupportChat: React.FC<SupportChatProps> = ({ isOpen, onToggle, onHaptic, r
                             <div className="bg-black/80 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-sm shadow-xl">
                                 <div className="text-[10px] font-bold text-pandora-cyan font-mono tracking-widest whitespace-nowrap flex items-center gap-2">
                                     <Activity size={10} className="animate-pulse" />
-                                    SYSTEM_ONLINE
+                                    {t('support.systemOnline')}
                                 </div>
                             </div>
                             {/* Connecting Line */}

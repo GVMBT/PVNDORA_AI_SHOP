@@ -3,6 +3,7 @@ import { Search, ShoppingCart, ArrowUpRight, Zap, List, Grid, ChevronDown, Check
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPrice } from '../../utils/currency';
 import { PRODUCT_CATEGORIES, PRODUCT_AVAILABILITY, type AvailabilityFilter } from '../../constants';
+import { useLocale } from '../../hooks/useLocale';
 
 type SortOption = 'popular' | 'price_asc' | 'price_desc';
 type ViewMode = 'grid' | 'list';
@@ -54,6 +55,7 @@ const HexStream = () => {
 };
 
 const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProduct, onAddToCart, onHaptic }) => {
+  const { t } = useLocale();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeAvailability, setActiveAvailability] = useState<AvailabilityFilter>('All');
@@ -132,13 +134,13 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
         <div>
           <h2 className="text-3xl font-display font-bold text-white mb-2 flex items-center gap-3">
             <span className="w-2 h-8 bg-pandora-cyan block rounded-sm shadow-[0_0_10px_#00FFFF]"></span>
-            NEURAL_MODULES
+            {t('catalog.title')}
           </h2>
           <p className="text-gray-500 font-mono text-xs tracking-widest uppercase flex items-center gap-2">
               <Cpu size={12} className="text-pandora-cyan" />
-              <span>SOURCE: COMPUTE_NODES</span>
+              <span>{t('catalog.header.source')}</span>
               <span className="text-gray-700">|</span>
-              <span className="text-pandora-cyan">STATUS: OPERATIONAL</span>
+              <span className="text-pandora-cyan">{t('catalog.header.status')}</span>
           </p>
         </div>
 
@@ -154,7 +156,7 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="SEARCH_MODULES..."
+                    placeholder={t('catalog.search')}
                     className="w-full bg-[#0a0a0a] border border-white/10 text-white text-sm rounded-sm py-3 pl-10 pr-4 focus:outline-none focus:border-pandora-cyan/50 focus:bg-[#0f0f0f] transition-all placeholder:text-gray-600 font-mono uppercase tracking-wider"
                 />
             </div>
@@ -167,10 +169,10 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                         className="h-full px-4 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm min-w-[140px] justify-between"
                     >
                         <span className="uppercase text-[10px] tracking-wider">
-                            {activeAvailability === 'All' && 'STATUS: ALL'}
-                            {activeAvailability === 'Available' && 'STATUS: ACTIVE'}
-                            {activeAvailability === 'On Demand' && 'STATUS: ON_DEMAND'}
-                            {activeAvailability === 'Discontinued' && 'STATUS: OFFLINE'}
+                            {activeAvailability === 'All' && `${t('catalog.availability.label')}: ${t('catalog.availability.all')}`}
+                            {activeAvailability === 'Available' && `${t('catalog.availability.label')}: ${t('catalog.availability.available')}`}
+                            {activeAvailability === 'On Demand' && `${t('catalog.availability.label')}: ${t('catalog.availability.onDemand')}`}
+                            {activeAvailability === 'Discontinued' && `${t('catalog.availability.label')}: ${t('catalog.availability.discontinued')}`}
                         </span>
                         <ChevronDown size={14} className={`transition-transform ${isAvailabilityOpen ? 'rotate-180' : ''}`} />
                     </button>
@@ -184,10 +186,10 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                 className="absolute top-full left-0 right-0 mt-2 bg-[#0a0a0a] border border-white/20 z-50 shadow-xl shadow-black/80"
                             >
                                 {[
-                                    { label: 'ALL_NODES', value: 'All', color: 'text-gray-400' },
-                                    { label: 'ONLINE', value: 'Available', color: 'text-green-400' },
-                                    { label: 'ON_DEMAND', value: 'On Demand', color: 'text-yellow-400' },
-                                    { label: 'OFFLINE', value: 'Discontinued', color: 'text-red-400' }
+                                    { label: t('catalog.availability.all'), value: 'All', color: 'text-gray-400' },
+                                    { label: t('catalog.availability.available'), value: 'Available', color: 'text-green-400' },
+                                    { label: t('catalog.availability.onDemand'), value: 'On Demand', color: 'text-yellow-400' },
+                                    { label: t('catalog.availability.discontinued'), value: 'Discontinued', color: 'text-red-400' }
                                 ].map((option) => (
                                     <button
                                         key={option.value}
@@ -210,9 +212,9 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                         className="h-full px-4 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm min-w-[160px] justify-between"
                     >
                         <span className="uppercase text-[10px] tracking-wider">
-                            {sortBy === 'popular' && 'SORT: POPULAR'}
-                            {sortBy === 'price_asc' && 'SORT: COST ASC'}
-                            {sortBy === 'price_desc' && 'SORT: COST DESC'}
+                            {sortBy === 'popular' && `${t('catalog.sort.label')}: ${t('catalog.sort.popularity')}`}
+                            {sortBy === 'price_asc' && `${t('catalog.sort.label')}: ${t('catalog.sort.priceAsc')}`}
+                            {sortBy === 'price_desc' && `${t('catalog.sort.label')}: ${t('catalog.sort.priceDesc')}`}
                         </span>
                         <ChevronDown size={14} className={`transition-transform ${isSortOpen ? 'rotate-180' : ''}`} />
                     </button>
@@ -226,9 +228,9 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                 className="absolute top-full left-0 right-0 mt-2 bg-[#0a0a0a] border border-white/20 z-50 shadow-xl shadow-black/80"
                             >
                                 {[
-                                    { label: 'POPULARITY_RANK', value: 'popular' },
-                                    { label: 'COST: LOW > HIGH', value: 'price_asc' },
-                                    { label: 'COST: HIGH > LOW', value: 'price_desc' }
+                                    { label: t('catalog.sort.popularity'), value: 'popular' },
+                                    { label: t('catalog.sort.priceAsc'), value: 'price_asc' },
+                                    { label: t('catalog.sort.priceDesc'), value: 'price_desc' }
                                 ].map((option) => (
                                     <button
                                         key={option.value}
@@ -278,7 +280,7 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                 `}
                 >
                 <span className="mr-1 opacity-50 text-[10px] font-mono">0{PRODUCT_CATEGORIES.indexOf(cat) + 1}.</span>
-                {cat}
+                {cat === 'All' ? t('catalog.all') : t(`catalog.category.${cat.toLowerCase().replace(' ', '')}`) || cat}
                 {activeCategory === cat && (
                     <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-pandora-cyan shadow-[0_0_10px_#00FFFF]" />
                 )}
@@ -315,10 +317,10 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                 {(() => {
                                     const avail = getProductAvailability(product);
                                     const statusConfig = {
-                                        available: { color: 'bg-green-500', textColor: 'text-green-500', label: 'AVAILABLE', pulse: true },
-                                        on_demand: { color: 'bg-yellow-500', textColor: 'text-yellow-500', label: 'ON_DEMAND', pulse: true },
-                                        discontinued: { color: 'bg-red-500', textColor: 'text-red-500', label: 'OFFLINE', pulse: false },
-                                        coming_soon: { color: 'bg-blue-500', textColor: 'text-blue-500', label: 'STANDBY', pulse: true },
+                                        available: { color: 'bg-green-500', textColor: 'text-green-500', label: t('catalog.availability.available'), pulse: true },
+                                        on_demand: { color: 'bg-yellow-500', textColor: 'text-yellow-500', label: t('catalog.availability.onDemand'), pulse: true },
+                                        discontinued: { color: 'bg-red-500', textColor: 'text-red-500', label: t('catalog.availability.discontinued'), pulse: false },
+                                        coming_soon: { color: 'bg-blue-500', textColor: 'text-blue-500', label: t('catalog.availability.comingSoon'), pulse: true },
                                     }[avail];
                                     return (
                                 <div className="flex items-center gap-2">
@@ -381,7 +383,7 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                 {/* Trending Badge */}
                                 {product.popular && (
                                     <div className="absolute top-2 left-2 bg-pandora-cyan text-black text-[9px] font-bold px-2 py-0.5 uppercase tracking-wider flex items-center gap-1 z-30 shadow-[0_0_10px_#00FFFF]">
-                                        <Zap size={8} fill="currentColor" /> Trending
+                                        <Zap size={8} fill="currentColor" /> {t('catalog.card.trending')}
                                     </div>
                                 )}
                             </div>
@@ -397,14 +399,14 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                     
                                     {/* Mini Specs */}
                                     <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-gray-400">
-                                        <div className="flex items-center gap-1"><HardDrive size={10} /> {product.warranty}H WAR</div>
-                                        <div className="flex items-center gap-1"><Activity size={10} /> {product.sold}+ SOLD</div>
+                                        <div className="flex items-center gap-1"><HardDrive size={10} /> {t('catalog.card.warranty', { hours: product.warranty })}</div>
+                                        <div className="flex items-center gap-1"><Activity size={10} /> {t('catalog.card.sold', { count: product.sold })}</div>
                                     </div>
                                 </div>
 
                                 <div className="mt-auto flex items-center justify-between">
                                     <div className="flex flex-col">
-                                        <span className="text-[9px] text-gray-600 font-mono uppercase">Credits Required</span>
+                                        <span className="text-[9px] text-gray-600 font-mono uppercase">{t('catalog.creditsRequired')}</span>
                                         <div className="text-lg font-bold text-white group-hover:text-pandora-cyan transition-colors">{formatPrice(product.price, product.currency)}</div>
                                     </div>
                                     <button 
@@ -458,10 +460,10 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                     {(() => {
                                         const avail = getProductAvailability(product);
                                         const cfg = {
-                                            available: { color: 'bg-green-500', text: `QTY: ${product.stock}`, textColor: 'text-gray-400' },
-                                            on_demand: { color: 'bg-yellow-500', text: 'ON_DEMAND', textColor: 'text-yellow-400' },
-                                            discontinued: { color: 'bg-red-500', text: 'OFFLINE', textColor: 'text-red-400' },
-                                            coming_soon: { color: 'bg-blue-500', text: 'STANDBY', textColor: 'text-blue-400' },
+                                            available: { color: 'bg-green-500', text: t('catalog.availability.available'), textColor: 'text-gray-400' },
+                                            on_demand: { color: 'bg-yellow-500', text: t('catalog.availability.onDemand'), textColor: 'text-yellow-400' },
+                                            discontinued: { color: 'bg-red-500', text: t('catalog.availability.discontinued'), textColor: 'text-red-400' },
+                                            coming_soon: { color: 'bg-blue-500', text: t('catalog.availability.comingSoon'), textColor: 'text-blue-400' },
                                         }[avail];
                                         return (
                                     <div className="flex items-center gap-2">
@@ -486,8 +488,8 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
 
         {filteredProducts.length === 0 && (
             <div className="text-center py-20 opacity-50 border border-dashed border-white/10 mt-10">
-                <p className="font-mono text-pandora-cyan text-lg">SYSTEM_ERROR: NO_DATA_FOUND</p>
-                <p className="text-sm text-gray-500 mt-2">Adjust filter parameters and retry sequence.</p>
+                <p className="font-mono text-pandora-cyan text-lg">{t('catalog.empty')}</p>
+                <p className="text-sm text-gray-500 mt-2">{t('catalog.emptyHint')}</p>
             </div>
         )}
       </div>
