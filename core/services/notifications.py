@@ -273,6 +273,67 @@ class NotificationService:
         except Exception as e:
             logger.error(f"Failed to send replacement notification to {telegram_id}: {e}")
     
+    async def send_ticket_approved_notification(
+        self,
+        telegram_id: int,
+        ticket_id: str,
+        issue_type: str,
+        language: str = "en"
+    ) -> None:
+        """Send notification when ticket is approved"""
+        bot = self._get_bot()
+        if not bot:
+            return
+        
+        if issue_type == "replacement":
+            message = (
+                f"✅ <b>Ticket #{ticket_id} Approved</b>\n\n"
+                f"Your replacement request has been approved.\n"
+                f"A new account will be delivered to you shortly."
+            )
+        elif issue_type == "refund":
+            message = (
+                f"✅ <b>Ticket #{ticket_id} Approved</b>\n\n"
+                f"Your refund request has been approved.\n"
+                f"The amount will be credited to your balance."
+            )
+        else:
+            message = (
+                f"✅ <b>Ticket #{ticket_id} Approved</b>\n\n"
+                f"Your request has been approved and is being processed."
+            )
+        
+        try:
+            await bot.send_message(chat_id=telegram_id, text=message)
+            logger.info(f"Sent approval notification to {telegram_id} for ticket {ticket_id}")
+        except Exception as e:
+            logger.error(f"Failed to send approval notification to {telegram_id}: {e}")
+    
+    async def send_ticket_rejected_notification(
+        self,
+        telegram_id: int,
+        ticket_id: str,
+        reason: str,
+        language: str = "en"
+    ) -> None:
+        """Send notification when ticket is rejected"""
+        bot = self._get_bot()
+        if not bot:
+            return
+        
+        message = (
+            f"❌ <b>Ticket #{ticket_id} Rejected</b>\n\n"
+            f"Unfortunately, your request could not be approved.\n\n"
+            f"<i>Reason: {reason}</i>\n\n"
+            f"If you have questions, please contact support."
+        )
+        
+        try:
+            await bot.send_message(chat_id=telegram_id, text=message)
+            logger.info(f"Sent rejection notification to {telegram_id} for ticket {ticket_id}")
+        except Exception as e:
+            logger.error(f"Failed to send rejection notification to {telegram_id}: {e}")
+    
     async def _notify_supplier(
         self,
         supplier_id: str,

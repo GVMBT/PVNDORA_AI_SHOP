@@ -19,17 +19,18 @@ router = APIRouter(prefix="/tickets", tags=["admin-tickets"])
 
 @router.get("")
 async def get_tickets(
-    status: str = Query("open", description="Filter by status: open, approved, rejected, closed"),
+    status: str = Query("open", description="Filter by status: open, approved, rejected, closed, all"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     admin=Depends(verify_admin)
 ):
-    """Get support tickets with optional status filter."""
+    """Get support tickets with optional status filter. Includes item credentials for admin verification."""
     db = get_database()
     
     try:
+        # Join with order_items to get credentials (delivery_content) for verification
         query = db.client.table("tickets").select(
-            "*, users(username, first_name, telegram_id)"
+            "*, users(username, first_name, telegram_id), order_items(delivery_content, products(name))"
         ).order("created_at", desc=True).limit(limit).offset(offset)
         
         if status and status != "all":
@@ -40,11 +41,17 @@ async def get_tickets(
         tickets = []
         for t in (result.data or []):
             user_data = t.pop("users", {}) or {}
+            order_item_data = t.pop("order_items", {}) or {}
+            product_data = order_item_data.get("products", {}) or {} if order_item_data else {}
+            
             tickets.append({
                 **t,
                 "username": user_data.get("username"),
                 "first_name": user_data.get("first_name"),
                 "telegram_id": user_data.get("telegram_id"),
+                # Credentials for admin verification
+                "credentials": order_item_data.get("delivery_content") if order_item_data else None,
+                "product_name": product_data.get("name") if product_data else None,
             })
         
         return {"tickets": tickets, "count": len(tickets)}
@@ -56,13 +63,13 @@ async def get_tickets(
 
 @router.get("/{ticket_id}")
 async def get_ticket(ticket_id: str, admin=Depends(verify_admin)):
-    """Get single ticket by ID."""
+    """Get single ticket by ID with credentials for admin verification."""
     db = get_database()
     
     try:
         result = await asyncio.to_thread(
             lambda: db.client.table("tickets")
-            .select("*, users(username, first_name, telegram_id), orders(id, amount, status)")
+            .select("*, users(username, first_name, telegram_id), orders(id, amount, status), order_items(delivery_content, products(name))")
             .eq("id", ticket_id)
             .single()
             .execute()
@@ -71,7 +78,15 @@ async def get_ticket(ticket_id: str, admin=Depends(verify_admin)):
         if not result.data:
             raise HTTPException(status_code=404, detail="Ticket not found")
         
-        return {"ticket": result.data}
+        # Extract credentials for admin verification
+        ticket_data = result.data
+        order_item_data = ticket_data.pop("order_items", {}) or {}
+        product_data = order_item_data.get("products", {}) or {} if order_item_data else {}
+        
+        ticket_data["credentials"] = order_item_data.get("delivery_content") if order_item_data else None
+        ticket_data["product_name"] = product_data.get("name") if product_data else None
+        
+        return {"ticket": ticket_data}
     
     except HTTPException:
         raise
@@ -87,14 +102,15 @@ async def resolve_ticket(
     comment: Optional[str] = Query(None, description="Admin comment"),
     admin=Depends(verify_admin)
 ):
-    """Resolve a support ticket (approve or reject)."""
+    """Resolve a support ticket (approve or reject). Notifies user of decision."""
     db = get_database()
+    from core.routers.deps import get_notification_service
     
     try:
         # Get full ticket data including issue_type and item_id
         ticket_res = await asyncio.to_thread(
             lambda: db.client.table("tickets")
-            .select("id, status, issue_type, item_id, order_id, user_id")
+            .select("id, status, issue_type, item_id, order_id, user_id, users(telegram_id, language_code)")
             .eq("id", ticket_id)
             .single()
             .execute()
@@ -110,6 +126,9 @@ async def resolve_ticket(
         issue_type = ticket_data.get("issue_type")
         item_id = ticket_data.get("item_id")
         order_id = ticket_data.get("order_id")
+        user_data = ticket_data.get("users", {}) or {}
+        user_telegram_id = user_data.get("telegram_id")
+        user_language = user_data.get("language_code", "en")
         
         new_status = "approved" if approve else "rejected"
         update_data = {"status": new_status}
@@ -123,7 +142,22 @@ async def resolve_ticket(
             .execute()
         )
         
-        # If approved, trigger automatic processing via QStash
+        notification_service = get_notification_service()
+        
+        # If REJECTED, notify user
+        if not approve and user_telegram_id:
+            try:
+                await notification_service.send_ticket_rejected_notification(
+                    telegram_id=user_telegram_id,
+                    ticket_id=ticket_id[:8],
+                    reason=comment or "Your request was reviewed and could not be approved.",
+                    language=user_language
+                )
+                logger.info(f"Sent rejection notification for ticket {ticket_id}")
+            except Exception as e:
+                logger.error(f"Failed to send rejection notification: {e}", exc_info=True)
+        
+        # If APPROVED, trigger automatic processing via QStash
         if approve and new_status == "approved":
             try:
                 from core.queue import publish_to_worker, WorkerEndpoints
@@ -132,7 +166,7 @@ async def resolve_ticket(
                 publish_to_worker, WorkerEndpoints = get_queue_publisher()
                 
                 if issue_type == "replacement" and item_id:
-                    # Trigger replacement worker
+                    # Trigger replacement worker - will queue if no stock
                     await publish_to_worker(
                         WorkerEndpoints.PROCESS_REPLACEMENT,
                         {
@@ -142,6 +176,15 @@ async def resolve_ticket(
                         }
                     )
                     logger.info(f"Triggered replacement worker for ticket {ticket_id}, item {item_id}")
+                    
+                    # Notify user that replacement is being processed
+                    if user_telegram_id:
+                        await notification_service.send_ticket_approved_notification(
+                            telegram_id=user_telegram_id,
+                            ticket_id=ticket_id[:8],
+                            issue_type=issue_type,
+                            language=user_language
+                        )
                 
                 elif issue_type == "refund" and order_id:
                     # Trigger refund worker
@@ -169,6 +212,15 @@ async def resolve_ticket(
                             }
                         )
                         logger.info(f"Triggered refund worker for ticket {ticket_id}, order {order_id}")
+                        
+                        # Notify user that refund is being processed
+                        if user_telegram_id:
+                            await notification_service.send_ticket_approved_notification(
+                                telegram_id=user_telegram_id,
+                                ticket_id=ticket_id[:8],
+                                issue_type=issue_type,
+                                language=user_language
+                            )
                 
             except Exception as e:
                 # Log error but don't fail the request - ticket is already updated

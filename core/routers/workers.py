@@ -550,20 +550,35 @@ async def worker_process_replacement(request: Request):
     )
     
     if not stock_res.data:
-        # No stock available - mark ticket for manual processing
+        # No stock available - keep ticket approved, will be processed by auto_alloc cron
         await asyncio.to_thread(
             lambda: db.client.table("tickets")
             .update({
-                "status": "open",
-                "admin_comment": "Replacement pending: no stock available. Manual processing required."
+                "admin_comment": "Replacement queued: waiting for stock. Will be auto-delivered when available."
             })
             .eq("id", ticket_id)
             .execute()
         )
+        
+        # Notify user that replacement is queued
+        if user_telegram_id:
+            try:
+                await notification_service.send_message(
+                    telegram_id=user_telegram_id,
+                    text=(
+                        f"⏳ <b>Replacement Queued</b>\n\n"
+                        f"Your replacement for {product_name} has been approved, "
+                        f"but no stock is currently available.\n\n"
+                        f"You will automatically receive a new account as soon as stock arrives."
+                    )
+                )
+            except Exception as e:
+                logger.warning(f"Failed to send queue notification: {e}")
+        
         return {
-            "skipped": True,
-            "reason": "No stock available for replacement",
-            "action": "ticket_reopened_for_manual_processing"
+            "queued": True,
+            "reason": "No stock available - queued for auto-delivery",
+            "ticket_status": "approved"
         }
     
     stock_item = stock_res.data[0]
