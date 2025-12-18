@@ -73,7 +73,8 @@ export interface AdminStats {
   ordersToday: number;
   ordersWeek: number;
   ordersMonth: number;
-  activeUsers: number;
+  totalUsers: number;
+  pendingOrders: number;
   openTickets?: number;
   revenueByDay?: { date: string; amount: number }[];
   // Liabilities metrics

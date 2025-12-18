@@ -20,21 +20,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
     ordersToday: 0,
     ordersWeek: 0,
     ordersMonth: 0,
-    activeUsers: 0,
+    totalUsers: 0,
+    pendingOrders: 0,
     openTickets: 0,
     revenueByDay: [],
     totalUserBalances: 0,
     pendingWithdrawals: 0
   };
 
-  // Format revenue for display
+  // Format revenue for display (USD)
   const formatRevenue = (revenue: number): string => {
     if (revenue >= 1000000) {
-      return `₽ ${(revenue / 1000000).toFixed(1)}M`;
+      return `$ ${(revenue / 1000000).toFixed(1)}M`;
     } else if (revenue >= 1000) {
-      return `₽ ${(revenue / 1000).toFixed(1)}K`;
+      return `$ ${(revenue / 1000).toFixed(1)}K`;
     }
-    return `₽ ${revenue.toFixed(0)}`;
+    return `$ ${revenue.toFixed(0)}`;
   };
 
   // Prepare chart data from revenue_by_day
@@ -65,14 +66,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
           icon={<DollarSign size={20} />} 
         />
         <StatCard 
-          label="Active Orders" 
-          value={String(displayStats.ordersToday)} 
-          trend="" 
+          label="Pending Orders" 
+          value={String(displayStats.pendingOrders || 0)} 
+          trend="Awaiting fulfillment" 
           icon={<ShoppingBag size={20} />} 
         />
         <StatCard 
           label="Total Users" 
-          value={displayStats.activeUsers.toLocaleString()} 
+          value={displayStats.totalUsers.toLocaleString()} 
           trend="" 
           icon={<Users size={20} />} 
         />

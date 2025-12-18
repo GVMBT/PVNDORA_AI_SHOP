@@ -5,7 +5,7 @@
  */
 
 import React, { memo, useState, useMemo, useEffect, useRef } from 'react';
-import { Search, Plus, Edit, Filter, X, ChevronDown, Check } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Filter, X, ChevronDown, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PRODUCT_CATEGORIES, PRODUCT_CATEGORY_LABELS } from '../../constants';
 import StockIndicator from './StockIndicator';
@@ -15,12 +15,14 @@ interface AdminCatalogProps {
   products: ProductData[];
   onEditProduct: (product: ProductData) => void;
   onNewProduct: () => void;
+  onDeleteProduct?: (productId: string) => void;
 }
 
 const AdminCatalog: React.FC<AdminCatalogProps> = ({
   products,
   onEditProduct,
   onNewProduct,
+  onDeleteProduct,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('All');
@@ -242,12 +244,28 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                   <StockIndicator stock={p.stock} />
                 </td>
                 <td className="p-4 text-right">
-                  <button 
-                    onClick={() => onEditProduct(p)} 
-                    className="hover:text-pandora-cyan p-1"
-                  >
-                    <Edit size={14} />
-                  </button>
+                  <div className="flex items-center justify-end gap-2">
+                    <button 
+                      onClick={() => onEditProduct(p)} 
+                      className="hover:text-pandora-cyan p-1"
+                      title="Edit"
+                    >
+                      <Edit size={14} />
+                    </button>
+                    {onDeleteProduct && (
+                      <button 
+                        onClick={() => {
+                          if (window.confirm(`Delete "${p.name}"?`)) {
+                            onDeleteProduct(String(p.id));
+                          }
+                        }} 
+                        className="hover:text-red-400 p-1 text-gray-500"
+                        title="Delete"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
               ))
@@ -278,12 +296,28 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                 <StockIndicator stock={p.stock} />
               </div>
             </div>
-            <button 
-              onClick={() => onEditProduct(p)} 
-              className="p-2 border border-white/10 rounded-full text-gray-400 hover:text-white hover:border-pandora-cyan"
-            >
-              <Edit size={16} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => onEditProduct(p)} 
+                className="p-2 border border-white/10 rounded-full text-gray-400 hover:text-white hover:border-pandora-cyan"
+                title="Edit"
+              >
+                <Edit size={16} />
+              </button>
+              {onDeleteProduct && (
+                <button 
+                  onClick={() => {
+                    if (window.confirm(`Delete "${p.name}"?`)) {
+                      onDeleteProduct(String(p.id));
+                    }
+                  }} 
+                  className="p-2 border border-white/10 rounded-full text-gray-400 hover:text-red-400 hover:border-red-400"
+                  title="Delete"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
           </div>
           ))
         )}

@@ -139,7 +139,14 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
               filteredUsers.map(u => (
                 <tr key={u.id} className={`hover:bg-white/5 transition-colors ${u.isBanned ? 'opacity-50' : ''}`}>
                   <td className="p-4">
-                    <div className="font-bold text-white">@{u.username}</div>
+                    <a 
+                      href={`https://t.me/${u.username}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-bold text-white hover:text-pandora-cyan transition-colors"
+                    >
+                      @{u.username}
+                    </a>
                     <div className="text-[10px] text-gray-600">ID: {u.id}</div>
                   </td>
                   <td className="p-4">
@@ -208,7 +215,14 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
             >
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <div className="font-bold text-white">@{u.username}</div>
+                  <a 
+                    href={`https://t.me/${u.username}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-bold text-white hover:text-pandora-cyan transition-colors"
+                  >
+                    @{u.username}
+                  </a>
                   <div className="text-[10px] text-gray-600">ID: {u.id}</div>
                 </div>
                 <div className="flex flex-col items-end gap-1">

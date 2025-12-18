@@ -43,6 +43,8 @@ interface AdminPanelProps {
   // User actions
   onBanUser?: (userId: number, ban: boolean) => void;
   onUpdateBalance?: (userId: number, amount: number) => void;
+  // Product actions
+  onDeleteProduct?: (productId: string) => void;
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
@@ -60,6 +62,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onRefreshTickets,
   onBanUser,
   onUpdateBalance,
+  onDeleteProduct,
 }) => {
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -103,6 +106,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             products={propsProducts}
             onEditProduct={handleEditProduct}
             onNewProduct={handleNewProduct}
+            onDeleteProduct={onDeleteProduct}
           />
         );
       case 'sales':

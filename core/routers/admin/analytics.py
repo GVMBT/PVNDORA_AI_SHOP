@@ -52,11 +52,17 @@ async def admin_get_analytics(
             "id", count="exact"
         ).gte("created_at", month_start.isoformat()).execute()
     
-    # 5. Active users (users with orders in last 30 days)
-    def get_active_users():
+    # 5. Total users count
+    def get_total_users():
+        return db.client.table("users").select(
+            "id", count="exact"
+        ).execute()
+    
+    # 5b. Pending orders (not delivered yet)
+    def get_pending_orders():
         return db.client.table("orders").select(
-            "user_id"
-        ).gte("created_at", month_start.isoformat()).execute()
+            "id", count="exact"
+        ).in_("status", ["pending", "paid", "processing"]).execute()
     
     # 7. Open tickets count
     def get_open_tickets():
@@ -91,7 +97,8 @@ async def admin_get_analytics(
     orders_today_result = await asyncio.to_thread(get_orders_today)
     orders_week_result = await asyncio.to_thread(get_orders_week)
     orders_month_result = await asyncio.to_thread(get_orders_month)
-    active_users_result = await asyncio.to_thread(get_active_users)
+    total_users_result = await asyncio.to_thread(get_total_users)
+    pending_orders_result = await asyncio.to_thread(get_pending_orders)
     revenue_by_day_result = await asyncio.to_thread(get_revenue_by_day)
     open_tickets_result = await asyncio.to_thread(get_open_tickets)
     top_products_result = await asyncio.to_thread(get_top_products)
@@ -101,18 +108,16 @@ async def admin_get_analytics(
     # Calculate total revenue
     total_revenue = sum(float(o.get("amount", 0)) for o in (revenue_result.data or []))
     
-    # Count orders (use count from result for accuracy)
+    # Count orders
     orders_today = orders_today_result.count or 0
     orders_this_week = orders_week_result.count or 0
     orders_this_month = orders_month_result.count or 0
     
-    # Count active users (unique user_ids)
-    active_user_ids = set()
-    for o in (active_users_result.data or []):
-        user_id = o.get("user_id")
-        if user_id:
-            active_user_ids.add(user_id)
-    active_users = len(active_user_ids)
+    # Total users (all registered)
+    total_users = total_users_result.count or 0
+    
+    # Pending orders (active/unfulfilled)
+    pending_orders = pending_orders_result.count or 0
     
     # Count open tickets
     open_tickets = open_tickets_result.count or 0
@@ -161,7 +166,8 @@ async def admin_get_analytics(
         "orders_today": orders_today,
         "orders_this_week": orders_this_week,
         "orders_this_month": orders_this_month,
-        "active_users": active_users,
+        "total_users": total_users,
+        "pending_orders": pending_orders,
         "revenue_by_day": revenue_by_day,
         "open_tickets": open_tickets,
         "top_products": top_products,

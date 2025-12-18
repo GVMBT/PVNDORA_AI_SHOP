@@ -39,3 +39,4 @@ export default memo(StockIndicator);
 
 
 
+

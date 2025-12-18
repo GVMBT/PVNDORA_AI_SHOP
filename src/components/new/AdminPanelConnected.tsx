@@ -25,7 +25,7 @@ interface AdminPanelConnectedProps {
 
 const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => {
   // API hooks
-  const { products, getProducts } = useAdminProductsTyped();
+  const { products, getProducts, deleteProduct } = useAdminProductsTyped();
   const { orders, getOrders } = useAdminOrdersTyped();
   const { users, getUsers, banUser, updateBalance } = useAdminUsersTyped();
   const { analytics, getAnalytics } = useAdminAnalyticsTyped();
@@ -167,7 +167,8 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       ordersToday: analytics.orders_today || 0,
       ordersWeek: analytics.orders_this_week || 0,
       ordersMonth: analytics.orders_this_month || 0,
-      activeUsers: analytics.active_users || 0,
+      totalUsers: (analytics as any).total_users || 0,
+      pendingOrders: (analytics as any).pending_orders || 0,
       openTickets: (analytics as any).open_tickets || 0,
       revenueByDay: analytics.revenue_by_day || [],
       totalUserBalances: (analytics as any).total_user_balances || 0,
@@ -213,6 +214,11 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     await togglePromoActive(id, isActive);
   }, [togglePromoActive]);
 
+  // Product handlers
+  const handleDeleteProduct = useCallback(async (productId: string) => {
+    await deleteProduct(productId);
+  }, [deleteProduct]);
+
   // Loading state
   if (!isInitialized) {
     return (
@@ -243,6 +249,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       onRefreshTickets={fetchTickets}
       onBanUser={handleBanUser}
       onUpdateBalance={handleUpdateBalance}
+      onDeleteProduct={handleDeleteProduct}
     />
   );
 };
