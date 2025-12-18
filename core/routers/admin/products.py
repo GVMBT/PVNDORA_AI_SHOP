@@ -117,6 +117,43 @@ async def admin_update_product(product_id: str, request: CreateProductRequest, a
     return {"success": True, "updated": len(result.data) > 0}
 
 
+@router.delete("/products/{product_id}")
+async def admin_delete_product(product_id: str, admin=Depends(verify_admin)):
+    """Delete a product (soft delete - set status to 'deleted')"""
+    db = get_database()
+    
+    # Check if product has sold stock (cannot delete)
+    sold_check = await asyncio.to_thread(
+        lambda: db.client.table("stock_items").select("id", count="exact")
+            .eq("product_id", product_id).eq("status", "sold").execute()
+    )
+    sold_count = getattr(sold_check, 'count', 0) or 0
+    
+    if sold_count > 0:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot delete product with {sold_count} sold items. Archive instead."
+        )
+    
+    # Soft delete - mark as deleted
+    result = await asyncio.to_thread(
+        lambda: db.client.table("products").update({
+            "status": "deleted"
+        }).eq("id", product_id).execute()
+    )
+    
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    # Also delete available stock items
+    await asyncio.to_thread(
+        lambda: db.client.table("stock_items").delete()
+            .eq("product_id", product_id).eq("status", "available").execute()
+    )
+    
+    return {"success": True, "deleted": True}
+
+
 # ==================== STOCK ====================
 
 @router.post("/stock")
