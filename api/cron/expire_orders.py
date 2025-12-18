@@ -61,11 +61,10 @@ async def expire_orders_entrypoint(request: Request):
                     )
                     released_stock_count += 1
                 
-                # Cancel the order (use 'cancelled' status as 'expired' is not in DB schema)
+                # Cancel the order
                 await asyncio.to_thread(
                     lambda oid=order.id: db.client.table("orders").update({
-                        "status": "cancelled",
-                        "notes": "Payment timeout - order expired"
+                        "status": "cancelled"
                     }).eq("id", oid).eq("status", "pending").execute()
                 )
                 cancelled_count += 1
@@ -91,11 +90,10 @@ async def expire_orders_entrypoint(request: Request):
                         }).eq("id", sid).eq("status", "reserved").execute()
                     )
                 
-                # Cancel the order (use 'cancelled' status as 'expired' is not in DB schema)
+                # Cancel the order
                 await asyncio.to_thread(
                     lambda oid=order.id: db.client.table("orders").update({
-                        "status": "cancelled",
-                        "notes": "Stale order - no payment received"
+                        "status": "cancelled"
                     }).eq("id", oid).eq("status", "pending").execute()
                 )
                 stale_cancelled += 1
