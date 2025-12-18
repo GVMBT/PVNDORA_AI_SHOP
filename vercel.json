@@ -23,12 +23,24 @@
   },
   "crons": [
     {
-      "path": "/api/cron/unified",
+      "path": "/api/cron/expire_orders",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/auto_alloc",
       "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/daily_cleanup",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/update_exchange_rates",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/refund_expired_prepaid",
+      "schedule": "0 * * * *"
     }
   ]
 }

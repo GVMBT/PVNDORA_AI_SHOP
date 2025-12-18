@@ -119,10 +119,10 @@ async def admin_update_product(product_id: str, request: CreateProductRequest, a
 
 @router.delete("/products/{product_id}")
 async def admin_delete_product(product_id: str, admin=Depends(verify_admin)):
-    """Delete a product (soft delete - set status to 'discontinued')"""
+    """Permanently delete a product from database"""
     db = get_database()
     
-    # Check if product has sold stock (cannot delete)
+    # Check if product has sold stock (cannot delete - has order history)
     sold_check = await asyncio.to_thread(
         lambda: db.client.table("stock_items").select("id", count="exact")
             .eq("product_id", product_id).eq("status", "sold").execute()
@@ -132,24 +132,23 @@ async def admin_delete_product(product_id: str, admin=Depends(verify_admin)):
     if sold_count > 0:
         raise HTTPException(
             status_code=400, 
-            detail=f"Cannot delete product with {sold_count} sold items. Archive instead."
+            detail=f"Cannot delete product with {sold_count} sold items (order history exists)."
         )
     
-    # Soft delete - mark as discontinued (valid status per DB constraint)
+    # Delete all stock items for this product first (FK constraint)
+    await asyncio.to_thread(
+        lambda: db.client.table("stock_items").delete()
+            .eq("product_id", product_id).execute()
+    )
+    
+    # Delete the product
     result = await asyncio.to_thread(
-        lambda: db.client.table("products").update({
-            "status": "discontinued"
-        }).eq("id", product_id).execute()
+        lambda: db.client.table("products").delete()
+            .eq("id", product_id).execute()
     )
     
     if not result.data:
         raise HTTPException(status_code=404, detail="Product not found")
-    
-    # Also delete available stock items
-    await asyncio.to_thread(
-        lambda: db.client.table("stock_items").delete()
-            .eq("product_id", product_id).eq("status", "available").execute()
-    )
     
     return {"success": True, "deleted": True}
 
