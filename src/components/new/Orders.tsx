@@ -156,20 +156,20 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
                     <ArrowLeft size={12} /> {t('empty.returnToBase').toUpperCase()}
                 </button>
                 <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-[0.9] mb-4">
-                    TRANSACTION <br/> <span className="text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white/50">LOGS</span>
+                    {t('orders.title').toUpperCase()}
                 </h1>
                 <div className="flex items-center gap-2 text-[10px] font-mono text-pandora-cyan tracking-widest uppercase">
                      <Terminal size={12} />
-                     <span>System_Logs // User_History</span>
+                     <span>{t('orders.subtitle')}</span>
                 </div>
             </div>
 
             {/* --- TABS --- */}
             <div className="flex gap-8 mb-10 pl-2 overflow-x-auto">
                 {[
-                    { id: 'all', label: 'ALL_LOGS' }, 
-                    { id: 'active', label: 'ACTIVE_NODES' }, 
-                    { id: 'log', label: 'ARCHIVED' }
+                    { id: 'all', label: t('orders.tabs.all').toUpperCase() }, 
+                    { id: 'active', label: t('orders.tabs.active').toUpperCase() }, 
+                    { id: 'log', label: t('orders.tabs.completed').toUpperCase() }
                 ].map(tab => (
                     <button
                         key={tab.id}
@@ -212,7 +212,7 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
                   <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 group-hover:border-pandora-cyan group-hover:text-pandora-cyan transition-all">
                     <Box size={18} />
                   </div>
-                  <span className="text-[10px] font-mono text-gray-500 group-hover:text-white transition-colors">INITIATE_SUPPORT_TICKET</span>
+                  <span className="text-[10px] font-mono text-gray-500 group-hover:text-white transition-colors">{t('orders.initSupport').toUpperCase()}</span>
                 </div>
               </div>
             )}

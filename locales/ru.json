@@ -30,7 +30,7 @@
     "trial": "Триал",
     "shared": "Личный",
     "key": "API ключи",
-    "subtitle": "Premium Access to AI Tools & Digital Assets",
+    "subtitle": "Premium доступ к AI инструментам",
     "search": "Поиск AI инструментов...",
     "empty": "Товары не найдены",
     "category": {
@@ -41,6 +41,17 @@
       "design": "Дизайн",
       "dev": "Разработка",
       "music": "Музыка"
+    },
+    "availability": {
+      "all": "Все товары",
+      "available": "В наличии",
+      "onDemand": "Под заказ",
+      "discontinued": "Нет в наличии"
+    },
+    "sort": {
+      "popularity": "По популярности",
+      "priceAsc": "Сначала дешевле",
+      "priceDesc": "Сначала дороже"
     },
     "about": {
       "title": "О сервисе",
@@ -86,7 +97,7 @@
     "fulfillmentTime": "Время изготовления"
   },
   "orders": {
-    "title": "Ваши заказы",
+    "title": "История заказов",
     "subtitle": "История покупок и статусы",
     "empty": "Заказов пока нет",
     "emptyHint": "Сделайте первую покупку",
@@ -105,10 +116,11 @@
     "fulfillmentGuarantee": "Гарантия поставки:",
     "fulfillmentExpired": "Ожидает возврата",
     "orRefund": "или возврат",
+    "initSupport": "Создать тикет поддержки",
     "tabs": {
       "all": "Все",
       "active": "Активные",
-      "completed": "Выполненные"
+      "completed": "Архив"
     },
     "status": {
       "pending": "Ожидает оплаты",
@@ -124,7 +136,7 @@
   },
   "leaderboard": {
     "title": "Экономия",
-    "subtitle": "Топ сберегателей",
+    "subtitle": "Топ экономии",
     "yourRank": "Ваш ранг",
     "yourSavings": "Ваша экономия",
     "saved": "сэкономлено",
@@ -149,7 +161,8 @@
     "loadMore": "Загрузить ещё",
     "loading": "Загрузка...",
     "rank": "Ранг",
-    "modules": "модулей"
+    "modules": "модулей",
+    "vacant": "Свободно"
   },
   "faq": {
     "title": "FAQ",
@@ -357,6 +370,7 @@
   "profile": {
     "title": "Профиль",
     "balance": "Баланс",
+    "internalBalance": "Внутренний баланс",
     "totalEarned": "Всего заработано",
     "withdraw": "Вывести",
     "invite": "Пригласить",
@@ -430,7 +444,9 @@
       "networkTitle": "Вся сеть (L1–L3)",
       "networkTotal": "Всего в сети",
       "networkL2": "Уровень 2",
-      "networkL3": "Уровень 3"
+      "networkL3": "Уровень 3",
+      "clicks": "Клики",
+      "conversion": "Конверсия"
     },
     "referralInfo": {
       "title": "Как работает реферальная программа",
@@ -464,6 +480,14 @@
       "shareKey": "Поделиться",
       "copyLink": "Скопировать",
       "copied": "Скопировано"
+    },
+    "uplink": {
+      "title": "Генератор ссылок",
+      "subtitle": "Приглашайте пользователей в свою сеть",
+      "accessToken": "Персональный токен доступа",
+      "rewardPreference": "Тип награды",
+      "cashOut": "Деньги",
+      "discount": "Скидка"
     }
   },
   

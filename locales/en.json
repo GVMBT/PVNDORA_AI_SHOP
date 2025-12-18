@@ -41,6 +41,17 @@
       "designTools": "Design Tools",
       "developerAccess": "Developer Access"
     },
+    "availability": {
+      "all": "All Nodes",
+      "available": "Online",
+      "onDemand": "On Demand",
+      "discontinued": "Offline"
+    },
+    "sort": {
+      "popularity": "Popularity",
+      "priceAsc": "Price: Low to High",
+      "priceDesc": "Price: High to Low"
+    },
     "about": {
       "title": "About Service",
       "description": "PVNDORA — Your reliable hub for AI technology access.\n\nWe are a specialized digital distribution service providing seamless access to leading generative AI tools. We eliminate payment barriers and regional restrictions, offering licensed keys, invite links, and ready accounts for SaaS platforms.\n\nOur mission: Make advanced technologies (LLM, image generation, code assistants) accessible to every professional and developer."
@@ -147,12 +158,13 @@
     },
     "participants": "participants",
     "improvedToday": "improved rank today",
-    "corporateLoss": "Total Corporate Loss",
+    "corporateLoss": "Total Network Savings",
     "networkActivity": "Network Activity",
     "loadMore": "Load More",
     "loading": "Loading...",
     "rank": "Rank",
-    "modules": "modules"
+    "modules": "modules",
+    "vacant": "Vacant"
   },
 
   "faq": {

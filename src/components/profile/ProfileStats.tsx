@@ -97,7 +97,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
           
           <div className="mb-6">
             <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-              Internal Balance <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              {t('profile.internalBalance')} <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
             </div>
             <div className="text-4xl sm:text-5xl font-display font-bold text-white flex items-baseline gap-2">
               <DecryptedText text={formatBalance(user.balance, activeCurrency)} /> 
@@ -129,20 +129,20 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-1">
-                <Network size={16} className="text-pandora-cyan" /> UPLINK_GENERATOR
+                <Network size={16} className="text-pandora-cyan" /> {t('profile.uplink.title').toUpperCase()}
               </h3>
-              <p className="text-[10px] text-gray-500 font-mono">Invite users to build your node network.</p>
+              <p className="text-[10px] text-gray-500 font-mono">{t('profile.uplink.subtitle')}</p>
             </div>
 
             {/* Stats Summary */}
             <div className="flex items-center gap-6 text-[10px] font-mono bg-white/5 px-4 py-2 rounded-sm border border-white/5 w-full sm:w-auto justify-between sm:justify-start">
               <div className="flex flex-col items-center sm:items-start">
-                <span className="text-gray-500">CLICKS</span>
+                <span className="text-gray-500">{t('profile.stats.clicks').toUpperCase()}</span>
                 <span className="text-white font-bold text-base">{user.stats.clicks}</span>
               </div>
               <div className="w-px h-6 bg-white/10" />
               <div className="flex flex-col items-center sm:items-start">
-                <span className="text-gray-500">CONVERSION</span>
+                <span className="text-gray-500">{t('profile.stats.conversion').toUpperCase()}</span>
                 <span className="text-pandora-cyan font-bold text-base">{user.stats.conversion}%</span>
               </div>
             </div>
@@ -160,7 +160,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
               
               <div className="relative z-10">
                 <div className="text-[9px] font-mono text-pandora-cyan mb-1 uppercase tracking-widest">
-                  Personal Access Token
+                  {t('profile.uplink.accessToken')}
                 </div>
                 <code className="text-lg font-mono text-white font-bold tracking-widest break-all">
                   {user.referralLink.split('/').pop()}
@@ -191,7 +191,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
 
           {/* Reward Toggle - shown for all users with referrals */}
           <div className="mt-4 flex items-center justify-between text-[10px] font-mono text-gray-500 border-t border-white/5 pt-3">
-            <span>REWARD_PREFERENCE:</span>
+            <span>{t('profile.uplink.rewardPreference').toUpperCase()}:</span>
             <button 
               onClick={onToggleRewardMode}
               className={`flex items-center gap-2 font-bold px-3 py-1 border rounded-sm transition-colors ${
@@ -200,7 +200,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
                   : 'border-purple-500 text-purple-500 bg-purple-500/10'
               }`}
             >
-              {rewardMode === 'cash' ? <><Wallet size={12} /> CASH_OUT</> : <><Percent size={12} /> DISCOUNT</>}
+              {rewardMode === 'cash' ? <><Wallet size={12} /> {t('profile.uplink.cashOut').toUpperCase()}</> : <><Percent size={12} /> {t('profile.uplink.discount').toUpperCase()}</>}
               <RefreshCw size={12} className="ml-1 opacity-50" />
             </button>
           </div>
