@@ -7,6 +7,7 @@ import {
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion';
 import { formatPrice } from '../../utils/currency';
 import { useTimeoutState } from '../../hooks/useTimeoutState';
+import { useLocale } from '../../hooks/useLocale';
 import { UI } from '../../config';
 import { randomInt } from '../../utils/random';
 import ProductSpecs from './ProductSpecs';
@@ -26,6 +27,7 @@ interface ProductDetailProps {
 }
 
 const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToCart, isInCart, onHaptic, onProductSelect }) => {
+  const { t } = useLocale();
   const [activeTab, setActiveTab] = useState<'specs' | 'files' | 'manifest'>('specs');
   const [systemCheck, setSystemCheck] = useState(0); 
   const [quantity, setQuantity] = useState(1);
@@ -192,14 +194,14 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
         {/* === UNIFIED HEADER (Leaderboard Style) === */}
         <div className="mb-8 md:mb-16">
             <button onClick={onBack} className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors">
-                <ArrowLeft size={12} /> RETURN_TO_CATALOG
+                <ArrowLeft size={12} /> {t('product.returnToCatalog')}
             </button>
             <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-[0.9] mb-4 break-words">
                 {product.name}
             </h1>
             <div className="flex items-center gap-2 text-[10px] font-mono text-pandora-cyan tracking-widest uppercase">
                     <DatabaseIcon category={product.category} />
-                    <span>DATABASE // {product.category.toUpperCase()} // {product.sku}</span>
+                    <span>{t('product.database')} // {product.category.toUpperCase()} // {product.sku}</span>
             </div>
         </div>
 
@@ -234,12 +236,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
               <div className="absolute bottom-0 left-0 right-0 p-4 z-30 bg-gradient-to-t from-black/90 to-transparent">
                   <div className="text-3xl font-display font-bold text-white mb-1">{product.name}</div>
                   <div className="text-[10px] font-mono text-pandora-cyan bg-pandora-cyan/10 px-2 py-0.5 inline-block border border-pandora-cyan/20">
-                      SYS_VER: {product.version || '1.0.0'}
+                      {t('product.sysVer')}: {product.version || '1.0.0'}
                   </div>
               </div>
               
               <div className="absolute top-4 right-4 z-30 flex flex-col items-end gap-2">
-                   {product.popular && <div className="text-[10px] bg-pandora-cyan text-black px-2 py-0.5 font-bold uppercase shadow-[0_0_10px_#00FFFF]">Trending</div>}
+                   {product.popular && <div className="text-[10px] bg-pandora-cyan text-black px-2 py-0.5 font-bold uppercase shadow-[0_0_10px_#00FFFF]">{t('product.trending')}</div>}
                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
               </div>
             </motion.div>
@@ -247,7 +249,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
             {/* System Check Visual */}
             <div className="mt-4 bg-[#0a0a0a] border border-white/10 p-3 hidden md:block">
                 <div className="flex justify-between items-center text-[10px] font-mono text-gray-500 mb-2">
-                    <span className="flex items-center gap-2"><Cpu size={12} /> COMPATIBILITY_CHECK</span>
+                    <span className="flex items-center gap-2"><Cpu size={12} /> {t('product.compatibilityCheck')}</span>
                     <span className="text-pandora-cyan">{systemCheck}%</span>
                 </div>
                 <div className="w-full h-1 bg-gray-800 relative overflow-hidden">
@@ -255,7 +257,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                 </div>
                 {systemCheck === 100 && (
                     <div className="mt-2 text-[10px] text-green-500 font-mono flex items-center gap-1">
-                        <CheckCircle size={10} /> SYSTEM OPTIMIZED FOR THIS MODULE
+                        <CheckCircle size={10} /> {t('product.systemOptimized')}
                     </div>
                 )}
             </div>
@@ -269,7 +271,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                 <div className="grid grid-cols-2 divide-x divide-white/10">
                     {/* Block 1: SKU & Status */}
                     <div className="p-4 flex flex-col justify-between h-24">
-                        <div className="text-[9px] font-mono text-gray-500 uppercase tracking-widest mb-1">Module_Identifier</div>
+                        <div className="text-[9px] font-mono text-gray-500 uppercase tracking-widest mb-1">{t('product.moduleIdentifier')}</div>
                         <div className="text-lg font-mono text-white font-bold">{product.sku}</div>
                         <div className="mt-auto flex items-center gap-2">
                             <div className={`w-1.5 h-1.5 rounded-full ${statusDotColor}`} />
@@ -280,7 +282,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                     </div>
                     {/* Block 2: Price */}
                     <div className="p-4 flex flex-col justify-between h-24 bg-white/[0.02]">
-                        <div className="text-[9px] font-mono text-gray-500 uppercase tracking-widest mb-1 text-right">Allocation_Cost</div>
+                        <div className="text-[9px] font-mono text-gray-500 uppercase tracking-widest mb-1 text-right">{t('product.allocationCost')}</div>
                         <div className="text-right">
                             {product.msrp && <div className="text-xs text-gray-600 line-through decoration-red-500/50 mb-1">{formatPrice(product.msrp, product.currency)}</div>}
                             <div className="text-3xl font-display font-bold text-white text-shadow-glow flex justify-end gap-1">
@@ -304,7 +306,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                                 : 'border-transparent text-gray-600 hover:text-white'
                             }`}
                         >
-                            {tab === 'specs' ? 'TECH_SPECS' : tab === 'files' ? 'PACKAGE_CONTENT' : 'SYSTEM_MANIFEST'}
+                            {tab === 'specs' ? t('product.techSpecs') : tab === 'files' ? t('product.packageContent') : t('product.systemManifest')}
                         </button>
                     ))}
                 </div>
@@ -350,11 +352,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                     <Radio className="text-pandora-cyan animate-pulse" size={20} />
                 </div>
                 <div>
-                    <h3 className="text-lg font-display font-bold text-white uppercase tracking-wider">Incoming Transmissions</h3>
+                    <h3 className="text-lg font-display font-bold text-white uppercase tracking-wider">{t('product.incomingTransmissions')}</h3>
                     <div className="text-[10px] font-mono text-gray-500 uppercase flex items-center gap-3">
-                        <span>User Logs</span>
-                        <span className="text-pandora-cyan">● Live Feed</span>
-                        <span>{(product.reviews || []).length} Signals Detected</span>
+                        <span>{t('product.userLogs')}</span>
+                        <span className="text-pandora-cyan">● {t('product.liveFeed')}</span>
+                        <span>{t('product.signalsDetected', { count: (product.reviews || []).length })}</span>
                     </div>
                 </div>
             </div>
@@ -372,7 +374,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                                 </div>
                                 {review.verified && (
                                     <span className="flex items-center gap-1 text-[9px] text-green-500 font-mono border border-green-900 bg-green-900/10 px-1.5 py-0.5 rounded-sm">
-                                        <CheckCircle size={8} /> VERIFIED
+                                        <CheckCircle size={8} /> {t('product.verified')}
                                     </span>
                                 )}
                             </div>
@@ -389,7 +391,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                                     <div key={starIndex} className={`w-1.5 h-1.5 rounded-full ${starIndex < review.rating ? 'bg-pandora-cyan' : 'bg-gray-800'}`} />
                                 ))}
                             </div>
-                            <div className="text-[9px] font-mono text-gray-600 uppercase">Signal Strength: 100%</div>
+                            <div className="text-[9px] font-mono text-gray-600 uppercase">{t('product.signalStrength')}</div>
                         </div>
                     </div>
                 ))}
@@ -400,9 +402,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
         <div className="mt-16 pt-8 border-t border-white/10">
              <div className="flex items-center justify-between mb-6">
                  <h3 className="text-xs font-mono font-bold text-gray-400 uppercase flex items-center gap-2">
-                     <Server size={14} /> COMPATIBLE_MODULES
+                     <Server size={14} /> {t('product.compatibleModules')}
                  </h3>
-                 <div className="text-[9px] font-mono text-pandora-cyan">AI_RECOMMENDATION_ENGINE</div>
+                 <div className="text-[9px] font-mono text-pandora-cyan">{t('product.aiRecommendation')}</div>
              </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -476,7 +478,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
 
                     {isDisabled ? (
                         <>
-                            <span className="flex items-center gap-2"><Lock size={18} /> DISABLED</span>
+                            <span className="flex items-center gap-2"><Lock size={18} /> {t('product.disabled')}</span>
                             <span>--</span>
                         </>
                     ) : (
@@ -488,7 +490,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                                     className="flex items-center gap-3 w-full justify-center"
                                 >
                                     <Loader2 size={20} className="animate-spin" />
-                                    <span>{isPreorder ? 'ALLOCATING QUEUE...' : 'ALLOCATING RESOURCES...'}</span>
+                                    <span>{isPreorder ? t('product.allocatingQueue') : t('product.allocatingResources')}</span>
                                 </motion.div>
                             ) : isSuccess ? (
                                 <motion.div
@@ -497,7 +499,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                                     className="flex items-center gap-3 w-full justify-center"
                                 >
                                     <CheckCircle size={20} />
-                                    <span>ACCESS GRANTED</span>
+                                    <span>{t('product.accessGranted')}</span>
                                 </motion.div>
                             ) : (
                                 <motion.div 
@@ -507,7 +509,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
                                 >
                                     <span className="flex items-center gap-3 text-sm md:text-base group-hover:translate-x-1 transition-transform">
                                         <Plus size={20} className="hidden sm:block" />
-                                        {isPreorder ? 'QUEUE ALLOCATION' : 'MOUNT MODULE'}
+                                        {isPreorder ? t('product.queueAllocation') : t('product.mountModule')}
                                     </span>
                                     <span className="font-mono text-lg md:text-xl font-bold border-l border-black/20 pl-4 ml-4">
                                         {formatPrice(product.price * quantity, product.currency)}

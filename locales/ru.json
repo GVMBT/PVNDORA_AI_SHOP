@@ -30,7 +30,13 @@
     "status": "СТАТУС СИСТЕМЫ",
     "online": "ОНЛАЙН",
     "disconnect": "РАЗРЫВ СОЕДИНЕНИЯ",
-    "cart": "БУФЕР"
+    "cart": "БУФЕР",
+    "mobile": {
+      "catalog": "КАТАЛОГ",
+      "orders": "ЛОГИ",
+      "leaderboard": "ОБХОД",
+      "profile": "ПРОФИЛЬ"
+    }
   },
 
   "catalog": {
@@ -121,7 +127,39 @@
     "notFound": "АССЕТ НЕ НАЙДЕН",
     "instantDelivery": "Мгновенная передача",
     "fulfillmentTime": "Время компиляции",
-    "attachments": "Дата-пак"
+    "attachments": "Дата-пак",
+    "returnToCatalog": "ВОЗВРАТ_В_КАТАЛОГ",
+    "database": "БАЗА_ДАННЫХ",
+    "moduleIdentifier": "ID_Модуля",
+    "allocationCost": "Стоимость_Аллокации",
+    "gridOnline": "СЕТЬ_АКТИВНА",
+    "resourceQueue": "ОЧЕРЕДЬ_РЕСУРСОВ",
+    "offline": "ОФФЛАЙН",
+    "directAccess": "ПРЯМОЙ_ДОСТУП",
+    "instantDeploy": "МГНОВЕННЫЙ_ДЕПЛОЙ",
+    "allocationQueue": "ОЧЕРЕДЬ_АЛЛОКАЦИИ ~{hours}Ч",
+    "unavailable": "НЕДОСТУПНО",
+    "compatibilityCheck": "ПРОВЕРКА_СОВМЕСТИМОСТИ",
+    "systemOptimized": "СИСТЕМА ОПТИМИЗИРОВАНА ДЛЯ ЭТОГО МОДУЛЯ",
+    "techSpecs": "ТЕХ_СПЕКИ",
+    "packageContent": "СОДЕРЖИМОЕ_ПАКЕТА",
+    "systemManifest": "МАНИФЕСТ_СИСТЕМЫ",
+    "incomingTransmissions": "Входящие передачи",
+    "userLogs": "Логи пользователей",
+    "liveFeed": "Live Feed",
+    "signalsDetected": "{count} Сигналов обнаружено",
+    "verified": "ПОДТВЕРЖДЕНО",
+    "signalStrength": "Сила сигнала: 100%",
+    "compatibleModules": "СОВМЕСТИМЫЕ_МОДУЛИ",
+    "aiRecommendation": "AI_РЕКОМЕНДАЦИИ",
+    "disabled": "ОТКЛЮЧЕНО",
+    "allocatingQueue": "АЛЛОКАЦИЯ В ОЧЕРЕДЬ...",
+    "allocatingResources": "АЛЛОКАЦИЯ РЕСУРСОВ...",
+    "accessGranted": "ДОСТУП РАЗРЕШЕН",
+    "queueAllocation": "В ОЧЕРЕДЬ",
+    "mountModule": "ПОДКЛЮЧИТЬ МОДУЛЬ",
+    "sysVer": "ВЕРСИЯ",
+    "trending": "В тренде"
   },
 
   "orders": {
@@ -145,6 +183,13 @@
     "fulfillmentExpired": "Ожидает возврата",
     "orRefund": "или возврат",
     "initSupport": "ОТКРЫТЬ ТИКЕТ",
+    "paymentRequired": "ОПЛАТА_ТРЕБУЕТСЯ — Оплатите заказ",
+    "payNow": "ОПЛАТИТЬ",
+    "paymentConfirmed": "ОПЛАТА ПОДТВЕРЖДЕНА",
+    "waitingStockDesc": "Товар временно отсутствует на складе. Доставим при поступлении.",
+    "autoRefund": "Автоматический возврат средств при превышении срока доставки",
+    "warrantyActive": "Гарантийный период активен для некоторых аккаунтов",
+    "reportIssueHint": "Используйте кнопку REPORT_ISSUE рядом с проблемным аккаунтом",
     "tabs": {
       "all": "ВСЕ ЛОГИ",
       "active": "АКТИВНЫЕ УЗЛЫ",
@@ -164,8 +209,9 @@
   },
 
   "leaderboard": {
-    "title": "ОБХОД ПРОТОКОЛА",
-    "subtitle": "Элитные оперативники",
+    "titlePrefix": "ПРОТОКОЛ:",
+    "title": "ОБХОД_СИСТЕМЫ",
+    "subtitle": "ЭЛИТНЫЕ_ОПЕРАТИВНИКИ",
     "yourRank": "Ваш ранг",
     "yourSavings": "Ваш профит",
     "saved": "сэкономлено",

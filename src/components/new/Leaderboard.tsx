@@ -169,8 +169,9 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                         <ArrowLeft size={12} /> {t('empty.returnToBase').toUpperCase()}
                     </button>
                     <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-[0.9] mb-4">
-                        {t('leaderboard.title').toUpperCase()} <br/> <span className="text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white/50">{t('leaderboard.subtitle').toUpperCase()}</span>
+                        {t('leaderboard.titlePrefix')} <br/> <span className="text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white/50">{t('leaderboard.title')}</span>
                     </h1>
+                    <div className="text-sm font-mono text-gray-500 uppercase tracking-widest mb-4">{t('leaderboard.subtitle')}</div>
                     <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-pandora-cyan/70">
                         <span className="flex items-center gap-1 bg-pandora-cyan/10 px-2 py-1 rounded-sm"><Activity size={12} /> {t('leaderboard.networkActivity').toUpperCase()}: HIGH</span>
                         <span className="hidden sm:inline">|</span>

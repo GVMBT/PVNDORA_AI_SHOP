@@ -30,7 +30,13 @@
     "status": "SYSTEM STATUS",
     "online": "ONLINE",
     "disconnect": "DISCONNECT",
-    "cart": "BUFFER"
+    "cart": "BUFFER",
+    "mobile": {
+      "catalog": "CATALOG",
+      "orders": "LOGS",
+      "leaderboard": "BYPASS",
+      "profile": "PROFILE"
+    }
   },
 
   "catalog": {
@@ -116,7 +122,39 @@
     "notFound": "ASSET NOT FOUND",
     "instantDelivery": "Instant Transfer",
     "fulfillmentTime": "Compile Time",
-    "attachments": "Data_Pack"
+    "attachments": "Data_Pack",
+    "returnToCatalog": "RETURN_TO_CATALOG",
+    "database": "DATABASE",
+    "moduleIdentifier": "Module_Identifier",
+    "allocationCost": "Allocation_Cost",
+    "gridOnline": "GRID_ONLINE",
+    "resourceQueue": "RESOURCE_QUEUE",
+    "offline": "OFFLINE",
+    "directAccess": "DIRECT_ACCESS",
+    "instantDeploy": "INSTANT_DEPLOY",
+    "allocationQueue": "ALLOCATION_QUEUE ~{hours}H",
+    "unavailable": "UNAVAILABLE",
+    "compatibilityCheck": "COMPATIBILITY_CHECK",
+    "systemOptimized": "SYSTEM OPTIMIZED FOR THIS MODULE",
+    "techSpecs": "TECH_SPECS",
+    "packageContent": "PACKAGE_CONTENT",
+    "systemManifest": "SYSTEM_MANIFEST",
+    "incomingTransmissions": "Incoming Transmissions",
+    "userLogs": "User Logs",
+    "liveFeed": "Live Feed",
+    "signalsDetected": "{count} Signals Detected",
+    "verified": "VERIFIED",
+    "signalStrength": "Signal Strength: 100%",
+    "compatibleModules": "COMPATIBLE_MODULES",
+    "aiRecommendation": "AI_RECOMMENDATION_ENGINE",
+    "disabled": "DISABLED",
+    "allocatingQueue": "ALLOCATING QUEUE...",
+    "allocatingResources": "ALLOCATING RESOURCES...",
+    "accessGranted": "ACCESS GRANTED",
+    "queueAllocation": "QUEUE ALLOCATION",
+    "mountModule": "MOUNT MODULE",
+    "sysVer": "SYS_VER",
+    "trending": "Trending"
   },
 
   "orders": {
@@ -140,6 +178,13 @@
     "fulfillmentExpired": "Refund Pending",
     "orRefund": "or refund",
     "initSupport": "OPEN TICKET",
+    "paymentRequired": "PAYMENT_REQUIRED — Complete payment",
+    "payNow": "PAY_NOW",
+    "paymentConfirmed": "PAYMENT CONFIRMED",
+    "waitingStockDesc": "Item temporarily out of stock. Will deliver upon arrival.",
+    "autoRefund": "Automatic refund if delivery deadline exceeded",
+    "warrantyActive": "Warranty period active for some accounts",
+    "reportIssueHint": "Use REPORT_ISSUE button next to the problem account",
     "tabs": {
       "all": "ALL_LOGS",
       "active": "ACTIVE_NODES",
@@ -159,8 +204,9 @@
   },
 
   "leaderboard": {
-    "title": "PROTOCOL BYPASS",
-    "subtitle": "Elite Operatives",
+    "titlePrefix": "PROTOCOL:",
+    "title": "SYSTEM_BYPASS",
+    "subtitle": "ELITE_OPERATIVES",
     "yourRank": "Your Rank",
     "yourSavings": "Your Profit",
     "saved": "saved",

@@ -7,6 +7,7 @@
 import React, { memo } from 'react';
 import { Check, Clock, AlertTriangle, Package, Shield } from 'lucide-react';
 import { formatPrice } from '../../utils/currency';
+import { useLocale } from '../../hooks/useLocale';
 import OrderStatusBadge from './OrderStatusBadge';
 import OrderItem, { type OrderItemData } from './OrderItem';
 import { PaymentCountdown } from './PaymentCountdown';
@@ -57,6 +58,8 @@ const OrderCard: React.FC<OrderCardProps> = ({
   onOpenReview,
   onOpenSupport,
 }) => {
+  const { t } = useLocale();
+
   return (
     <div className="relative group">
       {/* Connecting Line */}
@@ -104,7 +107,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
                 <div className="text-[10px] font-mono text-orange-400">
                   <span className="flex items-center gap-2">
                     <AlertTriangle size={12} />
-                    PAYMENT_REQUIRED — Оплатите заказ
+                    {t('orders.paymentRequired')}
                   </span>
                 </div>
                 <button
@@ -115,7 +118,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
                   }}
                   className="px-4 py-2 bg-pandora-cyan text-black font-mono text-xs font-bold uppercase hover:bg-pandora-cyan/80 transition-colors"
                 >
-                  PAY_NOW
+                  {t('orders.payNow')}
                 </button>
               </div>
               {order.deadline && (
@@ -131,15 +134,15 @@ const OrderCard: React.FC<OrderCardProps> = ({
             <div className="text-[11px] font-mono text-purple-400">
               <div className="flex items-center gap-2 mb-2">
                 <Check size={12} className="text-green-400" />
-                <span className="text-green-400">PAYMENT CONFIRMED</span>
+                <span className="text-green-400">{t('orders.paymentConfirmed')}</span>
               </div>
               <div className="flex items-center gap-2 text-purple-300 mb-2">
                 <Package size={12} />
-                Товар временно отсутствует на складе. Доставим при поступлении.
+                {t('orders.waitingStockDesc')}
               </div>
               <div className="flex items-center gap-2 text-gray-500 text-[10px]">
                 <Shield size={10} />
-                Автоматический возврат средств при превышении срока доставки
+                {t('orders.autoRefund')}
               </div>
             </div>
           </div>
@@ -151,10 +154,10 @@ const OrderCard: React.FC<OrderCardProps> = ({
             <div className="text-[11px] font-mono text-green-400">
               <div className="flex items-center gap-2">
                 <Shield size={12} />
-                Гарантийный период активен для некоторых аккаунтов
+                {t('orders.warrantyActive')}
               </div>
               <div className="text-[10px] text-gray-500 mt-1">
-                Используйте кнопку REPORT_ISSUE рядом с проблемным аккаунтом
+                {t('orders.reportIssueHint')}
               </div>
             </div>
           </div>
@@ -194,6 +197,3 @@ const OrderCard: React.FC<OrderCardProps> = ({
 };
 
 export default memo(OrderCard);
-
-
-

@@ -342,10 +342,10 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             {/* Active Indicator Line */}
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-pandora-cyan/50 to-transparent opacity-50" />
 
-            <MobileNavItem icon={<LayoutGrid size={20} />} label={t('navbar.catalog')} onClick={() => handleClick(onNavigateHome)} active={activeTab === 'catalog'} />
-            <MobileNavItem icon={<Box size={20} />} label={t('navbar.orders')} onClick={() => handleClick(onNavigateOrders)} active={activeTab === 'orders'} />
-            <MobileNavItem icon={<Trophy size={20} />} label={t('navbar.leaderboard')} onClick={() => handleClick(onNavigateLeaderboard)} active={activeTab === 'leaderboard'} />
-            <MobileNavItem icon={<User size={20} />} label={t('navbar.profile')} onClick={() => handleClick(onNavigateProfile)} active={activeTab === 'profile'} />
+            <MobileNavItem icon={<LayoutGrid size={20} />} label={t('navbar.mobile.catalog')} onClick={() => handleClick(onNavigateHome)} active={activeTab === 'catalog'} />
+            <MobileNavItem icon={<Box size={20} />} label={t('navbar.mobile.orders')} onClick={() => handleClick(onNavigateOrders)} active={activeTab === 'orders'} />
+            <MobileNavItem icon={<Trophy size={20} />} label={t('navbar.mobile.leaderboard')} onClick={() => handleClick(onNavigateLeaderboard)} active={activeTab === 'leaderboard'} />
+            <MobileNavItem icon={<User size={20} />} label={t('navbar.mobile.profile')} onClick={() => handleClick(onNavigateProfile)} active={activeTab === 'profile'} />
         </div>
       </nav>
     </>
