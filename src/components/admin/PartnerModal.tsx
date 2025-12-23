@@ -151,3 +151,12 @@ export default memo(PartnerModal);
 
 
 
+
+
+
+
+
+
+
+
+
