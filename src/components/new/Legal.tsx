@@ -417,7 +417,7 @@ const Legal: React.FC<LegalProps> = ({ doc, onBack }) => {
               {/* Footer Signature */}
               <div className="mt-12 pt-8 border-t border-white/5 flex justify-between items-center text-[10px] font-mono text-gray-600">
                   <span>{t('legalPage.docHash')}: {generateHashId(12)}</span>
-                  <span>{t('legalPage.lastUpdated')}: 2024.12.18</span>
+                  <span>{t('legalPage.lastUpdated')}: 2025.12.23</span>
               </div>
           </div>
 
