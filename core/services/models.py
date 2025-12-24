@@ -70,6 +70,8 @@ class Product(BaseModel):
     duration_days: Optional[int] = None
     instruction_files: Optional[list] = None
     image_url: Optional[str] = None
+    video_url: Optional[str] = None
+    logo_svg_url: Optional[str] = None
     
     @field_validator("price", mode="before")
     @classmethod

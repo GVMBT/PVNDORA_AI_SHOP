@@ -109,6 +109,8 @@ async def get_webapp_product(
             "status": product.status,
             "sales_count": social_proof_data.get("sales_count", 0),
             "image_url": getattr(product, 'image_url', None),
+            "video_url": getattr(product, 'video_url', None),
+            "logo_svg_url": getattr(product, 'logo_svg_url', None),
         },
         "social_proof": social_proof,
         "currency": formatter.currency,
@@ -197,6 +199,8 @@ async def get_webapp_products(
             "categories": getattr(p, 'categories', []) or [],
             "status": p.status,
             "image_url": getattr(p, 'image_url', None),
+            "video_url": getattr(p, 'video_url', None),
+            "logo_svg_url": getattr(p, 'logo_svg_url', None),
         })
     
     return {
