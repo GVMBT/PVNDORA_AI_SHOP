@@ -48,24 +48,24 @@ const vertexShader = `
     float loopHeight = 0.8;
     float yOffset = mod(time * flowSpeed, loopHeight);
     
-    pos.y += yOffset;
+    pos.y += yOffset * 0.5;
     
     // Add some "life" with noise-like movement
-    pos.x += sin(time * 2.0 + pos.y) * 0.03;
-    pos.z += cos(time * 1.5 + pos.x) * 0.03;
+    pos.x += sin(time * 2.0 + pos.y) * 0.05;
+    pos.z += cos(time * 1.5 + pos.x) * 0.05;
     
     // Mouse parallax effect
-    pos.x += uMouseX * 0.5;
-    pos.y += uMouseY * 0.3;
+    pos.x += uMouseX * 0.3;
+    pos.y += uMouseY * 0.2;
     
-    // Calculate alpha (fade out as particle rises)
-    vAlpha = (1.0 - (yOffset / loopHeight)) * (0.5 + 0.5 * sin(time * 5.0));
+    // Alpha always visible (min 0.3)
+    vAlpha = 0.3 + 0.7 * (1.0 - (yOffset / loopHeight)) * (0.5 + 0.5 * sin(time * 3.0));
     
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    // Point size with perspective
-    gl_PointSize = 2.0 * (10.0 / -mvPosition.z);
+    // Bigger point size
+    gl_PointSize = max(3.0, 4.0 * (10.0 / -mvPosition.z));
   }
 `;
 
@@ -81,9 +81,11 @@ const fragmentShader = `
     
     // Soft edges (glow effect)
     float glow = 1.0 - (r * 2.0);
-    glow = pow(glow, 1.5);
+    glow = pow(glow, 1.2);
 
-    gl_FragColor = vec4(uColor, vAlpha * glow);
+    // Ensure minimum visibility
+    float alpha = max(0.2, vAlpha * glow);
+    gl_FragColor = vec4(uColor, alpha);
   }
 `;
 
@@ -342,8 +344,17 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
     initParticles();
 
     // Animation loop
+    let frameCount = 0;
     const animate = () => {
-      if (!clockRef.current || !particleMaterialRef.current || !sceneRef.current || !cameraRef.current || !rendererRef.current) return;
+      if (!clockRef.current || !particleMaterialRef.current || !sceneRef.current || !cameraRef.current || !rendererRef.current) {
+        console.warn('[ProductParticleVisualizer] Animation loop missing refs');
+        return;
+      }
+      
+      frameCount++;
+      if (frameCount === 1) {
+        console.log('[ProductParticleVisualizer] First frame rendered');
+      }
       
       const elapsedTime = clockRef.current.getElapsedTime();
       
