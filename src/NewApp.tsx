@@ -403,8 +403,30 @@ function NewAppInner() {
   }
 
   // Login page - only show when we're SURE user is not authenticated
+  // But allow viewing Legal documents before auth
   if (isAuthenticated === false) {
-    return <LoginPage onLoginSuccess={() => setIsAuthenticated(true)} botUsername={BOT.USERNAME} redirectPath="/" />;
+    // If user wants to view legal docs, show them (even without auth)
+    if (currentView === 'legal') {
+      const Legal = React.lazy(() => import('./components/new/Legal'));
+      return (
+        <React.Suspense fallback={
+          <div className="min-h-screen bg-black flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-pandora-cyan/30 border-t-pandora-cyan rounded-full animate-spin" />
+          </div>
+        }>
+          <Legal doc={legalDoc} onBack={() => setCurrentView('home')} />
+        </React.Suspense>
+      );
+    }
+    
+    return (
+      <LoginPage 
+        onLoginSuccess={() => setIsAuthenticated(true)} 
+        botUsername={BOT.USERNAME} 
+        redirectPath="/"
+        onNavigateLegal={handleNavigateLegal}
+      />
+    );
   }
 
   // Main app

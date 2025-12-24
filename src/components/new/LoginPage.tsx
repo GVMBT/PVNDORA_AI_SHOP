@@ -27,12 +27,14 @@ interface LoginPageProps {
   onLoginSuccess: () => void;
   botUsername?: string;
   redirectPath?: string;
+  onNavigateLegal?: (doc: string) => void;
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ 
   onLoginSuccess,
   botUsername = BOT.USERNAME,
   redirectPath = '/',
+  onNavigateLegal,
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -232,10 +234,23 @@ const LoginPage: React.FC<LoginPageProps> = ({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="mt-8 text-center">
+        {/* Footer - Legal Links */}
+        <div className="mt-8 text-center space-y-2">
           <p className="text-[10px] text-gray-600">
-            By signing in, you agree to our Terms of Service
+            By signing in, you agree to our{' '}
+            <button 
+              onClick={() => onNavigateLegal?.('terms')}
+              className="text-pandora-cyan hover:underline"
+            >
+              Terms of Service
+            </button>
+            {' '}and{' '}
+            <button 
+              onClick={() => onNavigateLegal?.('privacy')}
+              className="text-pandora-cyan hover:underline"
+            >
+              Privacy Policy
+            </button>
           </p>
         </div>
       </motion.div>
