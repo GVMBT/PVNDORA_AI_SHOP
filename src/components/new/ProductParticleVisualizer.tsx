@@ -287,8 +287,10 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
     if (!containerRef.current) return;
 
     const container = containerRef.current;
-    const width = container.clientWidth;
-    const height = container.clientHeight;
+    const width = container.clientWidth || 400;
+    const height = container.clientHeight || 400;
+    
+    console.log('[ProductParticleVisualizer] Container size:', width, 'x', height);
 
     // Scene
     const scene = new THREE.Scene();
@@ -307,8 +309,15 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.left = '0';
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
+    
+    console.log('[ProductParticleVisualizer] Renderer created, canvas:', renderer.domElement.width, 'x', renderer.domElement.height);
 
     // Clock
     const clock = new THREE.Clock();
