@@ -138,8 +138,11 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
     const material = new THREE.MeshBasicMaterial();
     const mesh = new THREE.Mesh(geometry, material);
     
+    console.log('[ProductParticleVisualizer] Mesh geometry vertices:', geometry.attributes.position?.count);
+    
     // Sample surface
     const sampler = new MeshSurfaceSampler(mesh).build();
+    console.log('[ProductParticleVisualizer] Sampler built');
     const count = getParticleCount();
     
     const particlesGeometry = new THREE.BufferGeometry();
@@ -182,6 +185,9 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
     
     const particles = new THREE.Points(particlesGeometry, particleMaterial);
     scene.add(particles);
+    
+    console.log('[ProductParticleVisualizer] Particles created:', count, 'added to scene');
+    console.log('[ProductParticleVisualizer] Scene children:', scene.children.length);
     
     // Cleanup mesh
     material.dispose();
@@ -227,6 +233,8 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
           
           const geometry = new THREE.ExtrudeGeometry(shapes, extrudeSettings);
           
+          console.log('[ProductParticleVisualizer] Extruded geometry vertices:', geometry.attributes.position?.count);
+          
           // Center the geometry
           geometry.computeBoundingBox();
           const box = geometry.boundingBox!;
@@ -239,8 +247,10 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
           box.getSize(size);
           const maxDim = Math.max(size.x, size.y, size.z);
           const scale = 5 / maxDim;
+          console.log('[ProductParticleVisualizer] Geometry size:', size.x, size.y, size.z, 'scale:', scale);
           geometry.scale(scale, -scale, scale); // Flip Y for SVG
           
+          console.log('[ProductParticleVisualizer] Final geometry ready');
           resolve(geometry);
         },
         (progress) => {
