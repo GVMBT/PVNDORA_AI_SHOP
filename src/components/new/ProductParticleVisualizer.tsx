@@ -29,65 +29,70 @@ interface ProductParticleVisualizerProps {
   onError?: (error: Error) => void;
 }
 
-// Vertex shader for sand/dust particles with lighting
+// Vertex shader for Holographic Energy effect
 const vertexShader = `
   uniform float uTime;
   uniform float uMouseX;
   uniform float uMouseY;
   attribute vec3 aRandom;
   attribute vec3 aNormal;
-  varying float vLight;
   varying float vAlpha;
+  varying float vRim;
   
   void main() {
     vec3 pos = position;
     
-    float time = uTime * 2.0;
+    float time = uTime * 1.5;
     
-    // Subtle "breathing" animation along normals
-    pos += aNormal * sin(time + pos.y * 2.0) * 0.02;
+    // Subtle "breathing" / floating animation
+    pos += aNormal * sin(time + pos.y * 2.0) * 0.05;
     
-    // Gentle noise movement
-    pos.x += sin(time * 0.5 + pos.y * 3.0 + aRandom.x * 6.28) * 0.015;
-    pos.z += cos(time * 0.4 + pos.x * 2.0 + aRandom.z * 6.28) * 0.015;
+    // Flowing data stream effect (upwards)
+    float flowOffset = mod(time * 0.2 + aRandom.y * 10.0, 1.0);
+    pos.y += flowOffset * 0.2;
     
     // Mouse parallax
-    pos.x += uMouseX * 0.15;
+    pos.x += uMouseX * 0.2;
     pos.y += uMouseY * 0.1;
     
-    // Fake lighting: light from top-right
-    vec3 lightDir = normalize(vec3(0.5, 1.0, 0.5));
-    float lightIntensity = dot(aNormal, lightDir);
-    vLight = 0.3 + 0.7 * max(0.0, lightIntensity); // Ambient + diffuse
+    // Fresnel / Rim Lighting calculation (edges are brighter)
+    vec3 viewDir = normalize(cameraPosition - pos);
+    float rim = 1.0 - max(0.0, dot(viewDir, aNormal));
+    vRim = pow(rim, 3.0); // Sharpen the rim
     
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    // Small dust-like points
-    gl_PointSize = 2.5 * (50.0 / -mvPosition.z);
+    // Size attenuation (smaller particles, crisp look)
+    gl_PointSize = 1.8 * (50.0 / -mvPosition.z);
     
-    vAlpha = 0.8;
+    // Fade out based on vertical position (top/bottom fade)
+    vAlpha = 1.0;
   }
 `;
 
-// Fragment shader for sand/concrete particles with volume
+// Fragment shader for Holographic glow
 const fragmentShader = `
   uniform vec3 uColor;
-  varying float vLight;
   varying float vAlpha;
+  varying float vRim;
 
   void main() {
-    // Round particle shape
+    // Soft circle shape
     float r = distance(gl_PointCoord, vec2(0.5));
     if (r > 0.5) discard;
     
-    // Soft edges
-    float softEdge = 1.0 - smoothstep(0.3, 0.5, r);
+    // Core glow
+    float glow = 1.0 - (r * 2.0);
+    glow = pow(glow, 2.0);
     
-    // Apply lighting to color (creates 3D volume effect)
-    vec3 finalColor = uColor * vLight;
+    // Mix core color with white rim light
+    vec3 finalColor = mix(uColor, vec3(1.0), vRim * 0.5);
     
-    gl_FragColor = vec4(finalColor, vAlpha * softEdge);
+    // Alpha based on glow and rim
+    float alpha = (0.6 + vRim * 0.4) * glow * vAlpha;
+    
+    gl_FragColor = vec4(finalColor, alpha);
   }
 `;
 
@@ -95,8 +100,8 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
   logoUrl,
   fallbackShape = 'torus',
   text,
-  color = '#00FFFF', // Pandora cyan
-  backgroundColor = '#1a1a2e', // Dark blue-gray for contrast with light particles
+  color = '#00FFFF', // Pandora Cyan
+  backgroundColor = '#050505', // Deep dark
   particleCount: propParticleCount,
   className = '',
   onLoad,
@@ -112,11 +117,11 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
   const mouseRef = useRef({ x: 0, y: 0 });
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Calculate particle count based on device (more particles = denser "sand" look)
+  // Calculate particle count (Balanced for visual quality vs performance)
   const getParticleCount = useCallback(() => {
     if (propParticleCount) return propParticleCount;
     const isMobile = window.innerWidth < 768;
-    return isMobile ? 40000 : 120000; // Much more particles for sand effect
+    return isMobile ? 25000 : 60000;
   }, [propParticleCount]);
 
   // Create fallback geometry
@@ -199,10 +204,10 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
     const particleMaterial = new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
-      blending: THREE.NormalBlending, // Normal blending for "material" look, not glow
+      blending: THREE.AdditiveBlending, // Glow effect is crucial for hologram
       uniforms: {
         uTime: { value: 0 },
-        uColor: { value: new THREE.Color('#e5e7eb') }, // Light gray (sand/concrete)
+        uColor: { value: new THREE.Color(particleColor) },
         uMouseX: { value: 0 },
         uMouseY: { value: 0 },
       },
@@ -275,7 +280,7 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
           const size = new THREE.Vector3();
           box.getSize(size);
           const maxDim = Math.max(size.x, size.y, size.z);
-          const scale = 8 / maxDim; // Larger scale for bigger logo
+          const scale = 6 / maxDim; // Balanced scale
           console.log('[ProductParticleVisualizer] Geometry size:', size.x, size.y, size.z, 'scale:', scale);
           geometry.scale(scale, -scale, scale); // Flip Y for SVG
           
@@ -388,11 +393,11 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
       particleMaterialRef.current.uniforms.uMouseX.value = mouseRef.current.x;
       particleMaterialRef.current.uniforms.uMouseY.value = mouseRef.current.y;
       
-      // Faster rotation for dynamic feel
+      // Elegant rotation
       if (sceneRef.current.children.length > 0) {
         sceneRef.current.children.forEach((child) => {
           if (child instanceof THREE.Points) {
-            child.rotation.y = elapsedTime * 0.15; // 3x faster rotation
+            child.rotation.y = elapsedTime * 0.1;
           }
         });
       }
