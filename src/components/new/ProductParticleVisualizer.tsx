@@ -29,63 +29,65 @@ interface ProductParticleVisualizerProps {
   onError?: (error: Error) => void;
 }
 
-// Vertex shader for flowing particles
+// Vertex shader for sand/dust particles with lighting
 const vertexShader = `
   uniform float uTime;
   uniform float uMouseX;
   uniform float uMouseY;
   attribute vec3 aRandom;
+  attribute vec3 aNormal;
+  varying float vLight;
   varying float vAlpha;
   
   void main() {
     vec3 pos = position;
     
-    // Time offset per particle (randomized)
-    float time = uTime * 2.0 + aRandom.x * 10.0;
+    float time = uTime * 2.0;
     
-    // Flowing effect (particles rise up like smoke/energy)
-    float flowSpeed = 0.3;
-    float loopHeight = 0.8;
-    float yOffset = mod(time * flowSpeed, loopHeight);
+    // Subtle "breathing" animation along normals
+    pos += aNormal * sin(time + pos.y * 2.0) * 0.02;
     
-    pos.y += yOffset * 0.5;
+    // Gentle noise movement
+    pos.x += sin(time * 0.5 + pos.y * 3.0 + aRandom.x * 6.28) * 0.015;
+    pos.z += cos(time * 0.4 + pos.x * 2.0 + aRandom.z * 6.28) * 0.015;
     
-    // Add some "life" with noise-like movement
-    pos.x += sin(time * 2.0 + pos.y) * 0.05;
-    pos.z += cos(time * 1.5 + pos.x) * 0.05;
+    // Mouse parallax
+    pos.x += uMouseX * 0.15;
+    pos.y += uMouseY * 0.1;
     
-    // Mouse parallax effect
-    pos.x += uMouseX * 0.3;
-    pos.y += uMouseY * 0.2;
-    
-    // Alpha always visible (min 0.3)
-    vAlpha = 0.3 + 0.7 * (1.0 - (yOffset / loopHeight)) * (0.5 + 0.5 * sin(time * 3.0));
+    // Fake lighting: light from top-right
+    vec3 lightDir = normalize(vec3(0.5, 1.0, 0.5));
+    float lightIntensity = dot(aNormal, lightDir);
+    vLight = 0.3 + 0.7 * max(0.0, lightIntensity); // Ambient + diffuse
     
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
-    // Bigger point size
-    gl_PointSize = max(3.0, 4.0 * (10.0 / -mvPosition.z));
+    // Small dust-like points
+    gl_PointSize = 2.5 * (50.0 / -mvPosition.z);
+    
+    vAlpha = 0.8;
   }
 `;
 
-// Fragment shader for soft glowing particles
+// Fragment shader for sand/concrete particles with volume
 const fragmentShader = `
   uniform vec3 uColor;
+  varying float vLight;
   varying float vAlpha;
 
   void main() {
-    // Make point a soft circle
+    // Round particle shape
     float r = distance(gl_PointCoord, vec2(0.5));
     if (r > 0.5) discard;
     
-    // Soft edges (glow effect)
-    float glow = 1.0 - (r * 2.0);
-    glow = pow(glow, 1.2);
-
-    // Ensure minimum visibility
-    float alpha = max(0.2, vAlpha * glow);
-    gl_FragColor = vec4(uColor, alpha);
+    // Soft edges
+    float softEdge = 1.0 - smoothstep(0.3, 0.5, r);
+    
+    // Apply lighting to color (creates 3D volume effect)
+    vec3 finalColor = uColor * vLight;
+    
+    gl_FragColor = vec4(finalColor, vAlpha * softEdge);
   }
 `;
 
@@ -94,7 +96,7 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
   fallbackShape = 'torus',
   text,
   color = '#00FFFF', // Pandora cyan
-  backgroundColor = '#0a0a0a',
+  backgroundColor = '#1a1a2e', // Dark blue-gray for contrast with light particles
   particleCount: propParticleCount,
   className = '',
   onLoad,
@@ -110,11 +112,11 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
   const mouseRef = useRef({ x: 0, y: 0 });
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Calculate particle count based on device
+  // Calculate particle count based on device (more particles = denser "sand" look)
   const getParticleCount = useCallback(() => {
     if (propParticleCount) return propParticleCount;
     const isMobile = window.innerWidth < 768;
-    return isMobile ? 8000 : 25000;
+    return isMobile ? 40000 : 120000; // Much more particles for sand effect
   }, [propParticleCount]);
 
   // Create fallback geometry
@@ -130,32 +132,35 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
     }
   }, []);
 
-  // Create particles from geometry
+  // Create particles from geometry with normals for lighting
   const createParticlesFromGeometry = useCallback((
     geometry: THREE.BufferGeometry,
     scene: THREE.Scene,
     particleColor: string
   ) => {
-    // Create mesh for sampling
+    // Create mesh for sampling (with normals)
+    geometry.computeVertexNormals();
     const material = new THREE.MeshBasicMaterial();
     const mesh = new THREE.Mesh(geometry, material);
     
     console.log('[ProductParticleVisualizer] Mesh geometry vertices:', geometry.attributes.position?.count);
     
-    // Sample surface
+    // Sample surface with normals
     const sampler = new MeshSurfaceSampler(mesh).build();
     console.log('[ProductParticleVisualizer] Sampler built');
     const count = getParticleCount();
     
     const particlesGeometry = new THREE.BufferGeometry();
     const positions = new Float32Array(count * 3);
+    const normals = new Float32Array(count * 3);
     const randomness = new Float32Array(count * 3);
     
     const tempPosition = new THREE.Vector3();
+    const tempNormal = new THREE.Vector3();
     let validSamples = 0;
     
     for (let i = 0; i < count; i++) {
-      sampler.sample(tempPosition);
+      sampler.sample(tempPosition, tempNormal);
       
       // Check for valid position (not NaN)
       if (isNaN(tempPosition.x) || isNaN(tempPosition.y) || isNaN(tempPosition.z)) {
@@ -166,6 +171,7 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
         tempPosition.x = r * Math.sin(phi) * Math.cos(theta);
         tempPosition.y = r * Math.sin(phi) * Math.sin(theta);
         tempPosition.z = r * Math.cos(phi);
+        tempNormal.set(0, 1, 0); // Default normal up
       } else {
         validSamples++;
       }
@@ -173,6 +179,10 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
       positions[i * 3] = tempPosition.x;
       positions[i * 3 + 1] = tempPosition.y;
       positions[i * 3 + 2] = tempPosition.z;
+      
+      normals[i * 3] = tempNormal.x;
+      normals[i * 3 + 1] = tempNormal.y;
+      normals[i * 3 + 2] = tempNormal.z;
       
       randomness[i * 3] = Math.random();
       randomness[i * 3 + 1] = Math.random();
@@ -182,16 +192,17 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
     console.log('[ProductParticleVisualizer] Valid samples:', validSamples, 'of', count);
     
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particlesGeometry.setAttribute('aNormal', new THREE.BufferAttribute(normals, 3));
     particlesGeometry.setAttribute('aRandom', new THREE.BufferAttribute(randomness, 3));
     
-    // Create shader material
+    // Create shader material with lighting
     const particleMaterial = new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      blending: THREE.NormalBlending, // Normal blending for "material" look, not glow
       uniforms: {
         uTime: { value: 0 },
-        uColor: { value: new THREE.Color(particleColor) },
+        uColor: { value: new THREE.Color('#e5e7eb') }, // Light gray (sand/concrete)
         uMouseX: { value: 0 },
         uMouseY: { value: 0 },
       },
@@ -260,11 +271,11 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
           box.getCenter(center);
           geometry.translate(-center.x, -center.y, -center.z);
           
-          // Scale to fit
+          // Scale to fit (bigger for more presence)
           const size = new THREE.Vector3();
           box.getSize(size);
           const maxDim = Math.max(size.x, size.y, size.z);
-          const scale = 5 / maxDim;
+          const scale = 8 / maxDim; // Larger scale for bigger logo
           console.log('[ProductParticleVisualizer] Geometry size:', size.x, size.y, size.z, 'scale:', scale);
           geometry.scale(scale, -scale, scale); // Flip Y for SVG
           
@@ -377,11 +388,11 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
       particleMaterialRef.current.uniforms.uMouseX.value = mouseRef.current.x;
       particleMaterialRef.current.uniforms.uMouseY.value = mouseRef.current.y;
       
-      // Slow rotation
+      // Faster rotation for dynamic feel
       if (sceneRef.current.children.length > 0) {
         sceneRef.current.children.forEach((child) => {
           if (child instanceof THREE.Points) {
-            child.rotation.y = elapsedTime * 0.05;
+            child.rotation.y = elapsedTime * 0.15; // 3x faster rotation
           }
         });
       }
