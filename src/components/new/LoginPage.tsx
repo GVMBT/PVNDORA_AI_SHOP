@@ -223,14 +223,14 @@ const LoginPage: React.FC<LoginPageProps> = ({
         </div>
 
         {/* Features */}
-        <div className="mt-6 grid grid-cols-2 gap-4">
+        <div className="mt-6 flex items-center justify-center gap-8">
           <div className="flex items-center gap-2 text-gray-400">
-            <Zap size={14} className="text-pandora-cyan" />
-            <span className="text-xs">Instant access</span>
+            <Zap size={14} className="text-pandora-cyan shrink-0" />
+            <span className="text-xs whitespace-nowrap">Instant access</span>
           </div>
           <div className="flex items-center gap-2 text-gray-400">
-            <Shield size={14} className="text-pandora-cyan" />
-            <span className="text-xs">E2E encrypted</span>
+            <Shield size={14} className="text-pandora-cyan shrink-0" />
+            <span className="text-xs whitespace-nowrap">E2E encrypted</span>
           </div>
         </div>
 
