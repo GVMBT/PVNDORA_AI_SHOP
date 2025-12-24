@@ -20,6 +20,7 @@ export interface ProductData {
   vpn: boolean;
   image: string;
   video?: string;
+  logoSvg?: string; // SVG logo URL for Three.js particle visualizer
   instructions: string;
 }
 
