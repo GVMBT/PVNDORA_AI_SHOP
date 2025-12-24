@@ -194,16 +194,22 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
     return new Promise((resolve, reject) => {
       const loader = new SVGLoader();
       
+      console.log('[ProductParticleVisualizer] Loading SVG:', url);
+      
       loader.load(
         url,
         (data) => {
+          console.log('[ProductParticleVisualizer] SVG loaded, paths:', data.paths.length);
           const paths = data.paths;
           const shapes: THREE.Shape[] = [];
           
-          paths.forEach((path) => {
+          paths.forEach((path, index) => {
             const pathShapes = SVGLoader.createShapes(path);
+            console.log(`[ProductParticleVisualizer] Path ${index}: ${pathShapes.length} shapes`);
             shapes.push(...pathShapes);
           });
+          
+          console.log('[ProductParticleVisualizer] Total shapes:', shapes.length);
           
           if (shapes.length === 0) {
             reject(new Error('No shapes found in SVG'));
@@ -237,8 +243,11 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
           
           resolve(geometry);
         },
-        undefined,
+        (progress) => {
+          console.log('[ProductParticleVisualizer] Loading progress:', progress.loaded);
+        },
         (error) => {
+          console.error('[ProductParticleVisualizer] SVG load error:', error);
           reject(error);
         }
       );
