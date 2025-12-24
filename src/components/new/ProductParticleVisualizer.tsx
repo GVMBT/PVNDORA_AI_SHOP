@@ -16,6 +16,9 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import * as THREE from 'three';
 import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
 import { MeshSurfaceSampler } from 'three/examples/jsm/math/MeshSurfaceSampler.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 
 interface ProductParticleVisualizerProps {
   logoUrl?: string; // SVG logo URL
@@ -29,72 +32,25 @@ interface ProductParticleVisualizerProps {
   onError?: (error: Error) => void;
 }
 
-// Vertex shader for Holographic Energy effect
-const vertexShader = `
-  uniform float uTime;
-  uniform float uMouseX;
-  uniform float uMouseY;
-  attribute vec3 aRandom;
-  attribute vec3 aNormal;
-  varying float vAlpha;
-  varying float vRim;
-  
-  void main() {
-    vec3 pos = position;
-    
-    float time = uTime * 1.5;
-    
-    // Subtle "breathing" / floating animation
-    pos += aNormal * sin(time + pos.y * 2.0) * 0.05;
-    
-    // Flowing data stream effect (upwards)
-    float flowOffset = mod(time * 0.2 + aRandom.y * 10.0, 1.0);
-    pos.y += flowOffset * 0.2;
-    
-    // Mouse parallax
-    pos.x += uMouseX * 0.2;
-    pos.y += uMouseY * 0.1;
-    
-    // Fresnel / Rim Lighting calculation (edges are brighter)
-    vec3 viewDir = normalize(cameraPosition - pos);
-    float rim = 1.0 - max(0.0, dot(viewDir, aNormal));
-    vRim = pow(rim, 3.0); // Sharpen the rim
-    
-    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-    gl_Position = projectionMatrix * mvPosition;
-    
-    // Size attenuation (smaller particles, crisp look)
-    gl_PointSize = 1.8 * (50.0 / -mvPosition.z);
-    
-    // Fade out based on vertical position (top/bottom fade)
-    vAlpha = 1.0;
-  }
-`;
+// Helper to create soft particle texture programmatically
+const createParticleTexture = () => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 32;
+  canvas.height = 32;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.Texture();
 
-// Fragment shader for Holographic glow
-const fragmentShader = `
-  uniform vec3 uColor;
-  varying float vAlpha;
-  varying float vRim;
+  const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)'); // Center
+  gradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.5)'); // Mid
+  gradient.addColorStop(1, 'rgba(0, 0, 0, 0)'); // Edge
 
-  void main() {
-    // Soft circle shape
-    float r = distance(gl_PointCoord, vec2(0.5));
-    if (r > 0.5) discard;
-    
-    // Core glow
-    float glow = 1.0 - (r * 2.0);
-    glow = pow(glow, 2.0);
-    
-    // Mix core color with white rim light
-    vec3 finalColor = mix(uColor, vec3(1.0), vRim * 0.5);
-    
-    // Alpha based on glow and rim
-    float alpha = (0.6 + vRim * 0.4) * glow * vAlpha;
-    
-    gl_FragColor = vec4(finalColor, alpha);
-  }
-`;
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 32, 32);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  return texture;
+};
 
 const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
   logoUrl,
@@ -121,7 +77,7 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
   const getParticleCount = useCallback(() => {
     if (propParticleCount) return propParticleCount;
     const isMobile = window.innerWidth < 768;
-    return isMobile ? 25000 : 60000;
+    return isMobile ? 40000 : 80000; // Balanced for PointsMaterial
   }, [propParticleCount]);
 
   // Create fallback geometry
@@ -197,25 +153,24 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
     console.log('[ProductParticleVisualizer] Valid samples:', validSamples, 'of', count);
     
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    particlesGeometry.setAttribute('aNormal', new THREE.BufferAttribute(normals, 3));
-    particlesGeometry.setAttribute('aRandom', new THREE.BufferAttribute(randomness, 3));
     
-    // Create shader material with lighting
-    const particleMaterial = new THREE.ShaderMaterial({
+    // Create soft particle texture
+    const texture = createParticleTexture();
+    
+    // Create standard PointsMaterial with texture for "expensive" look
+    const particleMaterial = new THREE.PointsMaterial({
+      color: new THREE.Color(particleColor),
+      size: 0.15,          // Adjust based on scale
+      map: texture,
       transparent: true,
+      opacity: 0.8,
+      alphaTest: 0.001,
       depthWrite: false,
-      blending: THREE.AdditiveBlending, // Glow effect is crucial for hologram
-      uniforms: {
-        uTime: { value: 0 },
-        uColor: { value: new THREE.Color(particleColor) },
-        uMouseX: { value: 0 },
-        uMouseY: { value: 0 },
-      },
-      vertexShader,
-      fragmentShader,
+      blending: THREE.AdditiveBlending,
+      sizeAttenuation: true
     });
     
-    particleMaterialRef.current = particleMaterial;
+    particleMaterialRef.current = particleMaterial as any;
     
     const particles = new THREE.Points(particlesGeometry, particleMaterial);
     scene.add(particles);
@@ -335,6 +290,18 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
     
     console.log('[ProductParticleVisualizer] Renderer created, canvas:', renderer.domElement.width, 'x', renderer.domElement.height);
 
+    // Post-processing (Bloom)
+    const renderScene = new RenderPass(scene, camera);
+
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(width, height), 1.5, 0.4, 0.85);
+    bloomPass.threshold = 0.1; // Glow threshold
+    bloomPass.strength = 1.5;  // Glow strength (high for neon look)
+    bloomPass.radius = 0.5;    // Glow radius
+
+    const composer = new EffectComposer(renderer);
+    composer.addPass(renderScene);
+    composer.addPass(bloomPass);
+
     // Clock
     const clock = new THREE.Clock();
     clockRef.current = clock;
@@ -388,21 +355,26 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
       
       const elapsedTime = clockRef.current.getElapsedTime();
       
-      // Update uniforms
-      particleMaterialRef.current.uniforms.uTime.value = elapsedTime;
-      particleMaterialRef.current.uniforms.uMouseX.value = mouseRef.current.x;
-      particleMaterialRef.current.uniforms.uMouseY.value = mouseRef.current.y;
+      // Update custom uniforms if material is shader material
+      if (particleMaterialRef.current instanceof THREE.ShaderMaterial) {
+          particleMaterialRef.current.uniforms.uTime.value = elapsedTime;
+          particleMaterialRef.current.uniforms.uMouseX.value = mouseRef.current.x;
+          particleMaterialRef.current.uniforms.uMouseY.value = mouseRef.current.y;
+      }
       
       // Elegant rotation
       if (sceneRef.current.children.length > 0) {
         sceneRef.current.children.forEach((child) => {
           if (child instanceof THREE.Points) {
             child.rotation.y = elapsedTime * 0.1;
+            
+            // Add subtle floating to the whole object
+            child.position.y = Math.sin(elapsedTime * 0.5) * 0.2;
           }
         });
       }
       
-      rendererRef.current.render(sceneRef.current, cameraRef.current);
+      composer.render();
       animationFrameRef.current = requestAnimationFrame(animate);
     };
     
@@ -419,6 +391,7 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
       cameraRef.current.aspect = newWidth / newHeight;
       cameraRef.current.updateProjectionMatrix();
       rendererRef.current.setSize(newWidth, newHeight);
+      composer.setSize(newWidth, newHeight);
     };
 
     // Handle mouse move
