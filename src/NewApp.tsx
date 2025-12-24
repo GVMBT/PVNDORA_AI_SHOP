@@ -207,6 +207,15 @@ function NewAppInner() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [handleFeedback]);
 
+  const handleLogout = useCallback(async () => {
+    handleFeedback('medium');
+    const { removeSessionToken } = await import('./utils/auth');
+    removeSessionToken();
+    setIsAuthenticated(false);
+    setCurrentView('home');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [handleFeedback]);
+
   const handleProductSelect = useCallback((product: CatalogProduct) => {
     handleFeedback('medium');
     setSelectedProduct(product);
@@ -443,6 +452,7 @@ function NewAppInner() {
           onNavigateLeaderboard={() => navigate('leaderboard')}
           activeTab={getActiveTab()}
           onHaptic={() => handleFeedback('light')}
+          onLogout={handleLogout}
         />
       )}
       

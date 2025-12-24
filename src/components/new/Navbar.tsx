@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AudioEngine } from '../../lib/AudioEngine';
 import { generateShortId } from '../../utils/id';
 import { useLocale } from '../../hooks/useLocale';
+import { removeSessionToken } from '../../utils/auth';
 
 interface NavbarProps {
   showMobile?: boolean;
@@ -16,6 +17,7 @@ interface NavbarProps {
   onNavigateLeaderboard?: () => void;
   activeTab?: 'catalog' | 'orders' | 'profile' | 'leaderboard';
   onHaptic?: () => void;
+  onLogout?: () => void;
 }
 
 // --- UTILITY: TYPEWRITER EFFECT ---
@@ -58,7 +60,8 @@ const NavbarComponent: React.FC<NavbarProps> = ({
     onNavigateProfile, 
     onNavigateLeaderboard,
     activeTab = 'catalog',
-    onHaptic
+    onHaptic,
+    onLogout
 }) => {
   const { t } = useLocale();
   const [isHovered, setIsHovered] = useState(false);
@@ -298,7 +301,19 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                                  <div className="text-xs text-white font-bold"><Typewriter text={t('navbar.online').toUpperCase()} delay={700} /></div>
                              </div>
                          </div>
-                         <button className="flex items-center gap-2 mt-2 text-xs text-red-400 hover:text-red-300 transition-colors font-mono uppercase">
+                         <button 
+                             onClick={() => {
+                                 if (onHaptic) onHaptic();
+                                 if (onLogout) {
+                                     onLogout();
+                                 } else {
+                                     // Fallback: direct logout if no handler provided
+                                     removeSessionToken();
+                                     window.location.reload();
+                                 }
+                             }}
+                             className="flex items-center gap-2 mt-2 text-xs text-red-400 hover:text-red-300 transition-colors font-mono uppercase cursor-pointer"
+                         >
                              <LogOut size={12} /> <Typewriter text={t('navbar.disconnect').toUpperCase()} delay={900} speed={50} />
                          </button>
                      </motion.div>
