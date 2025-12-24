@@ -109,52 +109,107 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
           MOBILE LAYOUT (Compact & Minimal)
           Visible only on small screens. Padded bottom for Navbar.
          ========================================================================= */}
-      <div className="md:hidden py-12 px-6 pb-32 relative z-10">
+      <div className="md:hidden py-10 px-5 pb-32 relative z-10">
           
-          <div className="flex flex-col gap-8">
+          <div className="flex flex-col gap-10">
              
              {/* 1. Compact Brand Header */}
-             <div className="text-center opacity-80">
-                <h2 className="text-xl font-display font-bold text-white tracking-widest">PVNDORA</h2>
-                <div className="text-[10px] text-pandora-cyan font-mono uppercase tracking-widest mt-1">{t('footer.decentralizedMarket')}</div>
+             <div className="text-center">
+                <h2 className="text-2xl font-display font-bold text-white tracking-wider mb-1.5">PVNDORA</h2>
+                <div className="text-[10px] text-pandora-cyan font-mono uppercase tracking-wider leading-tight">{t('footer.decentralizedMarket')}</div>
              </div>
 
              {/* 2. Compact Links Grid (2 Columns) */}
-             <div className="grid grid-cols-2 gap-4 border-y border-white/5 py-8">
+             <div className="grid grid-cols-2 gap-6 border-y border-white/10 py-10">
                 
                 {/* Left: Support */}
-                <div className="space-y-4">
-                    <h4 className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5">
-                        <HelpCircle size={10} /> {t('footer.support')}
+                <div className="space-y-3.5">
+                    <h4 className="text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5 mb-4">
+                        <HelpCircle size={11} className="text-pandora-cyan" /> {t('footer.support')}
                     </h4>
-                    <ul className="space-y-3 text-xs font-mono text-gray-300">
-                        <li><button onClick={() => onNavigate('faq')} className="hover:text-white transition-colors">FAQ</button></li>
-                        <li><button onClick={handleSupportClick} className="hover:text-white transition-colors">{t('footer.contacts')}</button></li>
-                        <li><button onClick={() => onNavigate('payment')} className="hover:text-white transition-colors">{t('footer.paymentInfo')}</button></li>
+                    <ul className="space-y-2.5 text-xs font-mono text-gray-400">
+                        <li>
+                            <button 
+                                onClick={() => onNavigate('faq')} 
+                                className="hover:text-white transition-colors text-left w-full"
+                            >
+                                FAQ
+                            </button>
+                        </li>
+                        <li>
+                            <button 
+                                onClick={handleSupportClick} 
+                                className="hover:text-white transition-colors text-left w-full"
+                            >
+                                {t('footer.contacts')}
+                            </button>
+                        </li>
+                        <li>
+                            <button 
+                                onClick={() => onNavigate('payment')} 
+                                className="hover:text-white transition-colors text-left w-full"
+                            >
+                                {t('footer.paymentInfo')}
+                            </button>
+                        </li>
                     </ul>
                 </div>
 
                 {/* Right: Legal */}
-                <div className="space-y-4 text-right">
-                    <h4 className="text-[10px] font-bold text-gray-500 uppercase flex items-center justify-end gap-1.5">
-                        {t('footer.legal')} <FileText size={10} /> 
+                <div className="space-y-3.5">
+                    <h4 className="text-[10px] font-bold text-white uppercase tracking-wider flex items-center justify-end gap-1.5 mb-4">
+                        {t('footer.legal')} <FileText size={11} className="text-pandora-cyan" />
                     </h4>
-                    <ul className="space-y-3 text-xs font-mono text-gray-300">
-                        <li><button onClick={() => onNavigate('terms')} className="hover:text-white transition-colors">{t('footer.termsOfService')}</button></li>
-                        <li><button onClick={() => onNavigate('privacy')} className="hover:text-white transition-colors">{t('footer.privacyPolicy')}</button></li>
-                        <li><button onClick={() => onNavigate('refund')} className="hover:text-white transition-colors">{t('footer.refundPolicy')}</button></li>
-                        <li><button onClick={() => onNavigate('payment')} className="hover:text-white transition-colors">{t('footer.paymentInfo')}</button></li>
+                    <ul className="space-y-2.5 text-xs font-mono text-gray-400 text-right">
+                        <li>
+                            <button 
+                                onClick={() => onNavigate('terms')} 
+                                className="hover:text-white transition-colors text-right w-full"
+                            >
+                                {t('footer.termsOfService')}
+                            </button>
+                        </li>
+                        <li>
+                            <button 
+                                onClick={() => onNavigate('privacy')} 
+                                className="hover:text-white transition-colors text-right w-full"
+                            >
+                                {t('footer.privacyPolicy')}
+                            </button>
+                        </li>
+                        <li>
+                            <button 
+                                onClick={() => onNavigate('refund')} 
+                                className="hover:text-white transition-colors text-right w-full"
+                            >
+                                {t('footer.refundPolicy')}
+                            </button>
+                        </li>
+                        <li>
+                            <button 
+                                onClick={() => onNavigate('payment')} 
+                                className="hover:text-white transition-colors text-right w-full"
+                            >
+                                {t('footer.paymentInfo')}
+                            </button>
+                        </li>
                     </ul>
                 </div>
              </div>
 
              {/* 3. Bottom Credits */}
-             <div className="flex flex-col items-center gap-2 text-[9px] font-mono text-gray-600 text-center">
-                 <div className="flex gap-4">
-                     <span className="flex items-center gap-1"><Shield size={8} /> {t('footer.sslSecure')}</span>
-                     <span className="flex items-center gap-1"><CreditCard size={8} /> {t('footer.verified')}</span>
+             <div className="flex flex-col items-center gap-3 text-[9px] font-mono text-gray-500 text-center">
+                 <div className="flex items-center gap-5">
+                     <span className="flex items-center gap-1.5">
+                         <Shield size={9} className="text-gray-400" /> 
+                         <span>{t('footer.sslSecure')}</span>
+                     </span>
+                     <span className="flex items-center gap-1.5">
+                         <CreditCard size={9} className="text-gray-400" /> 
+                         <span>{t('footer.verified')}</span>
+                     </span>
                  </div>
-                 <p>© {currentYear} PVNDORA. {t('footer.allSystems')}</p>
+                 <p className="text-gray-600">© {currentYear} PVNDORA. {t('footer.allSystems')}</p>
              </div>
           </div>
 
