@@ -150,9 +150,23 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
     const randomness = new Float32Array(count * 3);
     
     const tempPosition = new THREE.Vector3();
+    let validSamples = 0;
     
     for (let i = 0; i < count; i++) {
       sampler.sample(tempPosition);
+      
+      // Check for valid position (not NaN)
+      if (isNaN(tempPosition.x) || isNaN(tempPosition.y) || isNaN(tempPosition.z)) {
+        // Fallback: random position in a sphere
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const r = 3 * Math.cbrt(Math.random());
+        tempPosition.x = r * Math.sin(phi) * Math.cos(theta);
+        tempPosition.y = r * Math.sin(phi) * Math.sin(theta);
+        tempPosition.z = r * Math.cos(phi);
+      } else {
+        validSamples++;
+      }
       
       positions[i * 3] = tempPosition.x;
       positions[i * 3 + 1] = tempPosition.y;
@@ -162,6 +176,8 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
       randomness[i * 3 + 1] = Math.random();
       randomness[i * 3 + 2] = Math.random();
     }
+    
+    console.log('[ProductParticleVisualizer] Valid samples:', validSamples, 'of', count);
     
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     particlesGeometry.setAttribute('aRandom', new THREE.BufferAttribute(randomness, 3));
