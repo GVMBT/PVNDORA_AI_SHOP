@@ -219,6 +219,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
               className="relative aspect-square w-full bg-[#0a0a0a] border border-white/10 group cursor-crosshair shadow-2xl shadow-black/50 rounded-sm overflow-hidden"
             >
               {/* Visual Layer - Three.js particles or Image */}
+              {/* Debug: log logoSvg value */}
+              {console.log('[ProductDetail] product.logoSvg:', product.logoSvg)}
               <div className="absolute inset-0 transform-style-3d">
                 {product.logoSvg ? (
                   // Three.js Particle Visualizer for products with SVG logos

@@ -29,6 +29,11 @@ function deriveAvailability(apiProduct: APIProduct): ProductAvailability {
  * Adapt a single API product to CatalogProduct format
  */
 export function adaptProduct(apiProduct: APIProduct, currency: string = 'USD'): CatalogProduct {
+  // Debug: log logo_svg_url
+  if (apiProduct.logo_svg_url) {
+    console.log('[productAdapter] logo_svg_url found:', apiProduct.logo_svg_url);
+  }
+  
   return {
     id: apiProduct.id,
     name: apiProduct.name,
