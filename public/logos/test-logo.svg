@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Simple P letter for testing -->
+  <path d="M20 10 L20 90 L35 90 L35 55 L60 55 C80 55 80 10 60 10 Z M35 20 L55 20 C65 20 65 45 55 45 L35 45 Z" fill="white"/>
+</svg>

@@ -27,6 +27,8 @@ export interface APIProduct {
   name: string;
   description: string;
   image_url?: string;
+  video_url?: string; // Video background URL
+  logo_svg_url?: string; // SVG logo for Three.js particle visualizer
   original_price: number;
   price: number;
   price_usd: number;

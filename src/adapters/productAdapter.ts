@@ -47,7 +47,8 @@ export function adaptProduct(apiProduct: APIProduct, currency: string = 'USD'): 
     stock: apiProduct.available_count,
     fulfillment: apiProduct.fulfillment_time_hours || 0,
     sold: apiProduct.sales_count,
-    video: undefined,
+    video: apiProduct.video_url || undefined,
+    logoSvg: apiProduct.logo_svg_url || undefined, // SVG logo for Three.js visualizer
     sku: `MOD-${apiProduct.id.substring(0, 4).toUpperCase()}`,
     version: '2.0',
     status: deriveAvailability(apiProduct),
