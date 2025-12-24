@@ -339,6 +339,10 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
         
         setIsLoaded(true);
         onLoad?.();
+        
+        // Start animation AFTER particles are ready
+        console.log('[ProductParticleVisualizer] Starting animation loop after particles ready');
+        animate();
       } catch (error) {
         console.warn('Failed to load logo, using fallback:', error);
         const geometry = createFallbackGeometry(fallbackShape);
@@ -347,10 +351,11 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
         
         setIsLoaded(true);
         onError?.(error as Error);
+        
+        // Start animation even on fallback
+        animate();
       }
     };
-
-    initParticles();
 
     // Animation loop
     let frameCount = 0;
@@ -385,7 +390,8 @@ const ProductParticleVisualizer: React.FC<ProductParticleVisualizerProps> = ({
       animationFrameRef.current = requestAnimationFrame(animate);
     };
     
-    animate();
+    // Start loading particles (animate will be called after they're ready)
+    initParticles();
 
     // Handle resize
     const handleResize = () => {
