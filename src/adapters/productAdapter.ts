@@ -29,11 +29,6 @@ function deriveAvailability(apiProduct: APIProduct): ProductAvailability {
  * Adapt a single API product to CatalogProduct format
  */
 export function adaptProduct(apiProduct: APIProduct, currency: string = 'USD'): CatalogProduct {
-  // Debug: log logo_svg_url
-  if (apiProduct.logo_svg_url) {
-    console.log('[productAdapter] logo_svg_url found:', apiProduct.logo_svg_url);
-  }
-  
   return {
     id: apiProduct.id,
     name: apiProduct.name,
@@ -52,8 +47,7 @@ export function adaptProduct(apiProduct: APIProduct, currency: string = 'USD'): 
     stock: apiProduct.available_count,
     fulfillment: apiProduct.fulfillment_time_hours || 0,
     sold: apiProduct.sales_count,
-    video: apiProduct.video_url || undefined,
-    logoSvg: apiProduct.logo_svg_url || undefined, // SVG logo for Three.js visualizer
+    video: apiProduct.video_url || undefined, // Video URL for looped product visualization
     sku: `MOD-${apiProduct.id.substring(0, 4).toUpperCase()}`,
     version: '2.0',
     status: deriveAvailability(apiProduct),

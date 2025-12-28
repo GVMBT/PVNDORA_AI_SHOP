@@ -79,7 +79,6 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
                         <li><button onClick={() => onNavigate('terms')} className="hover:text-pandora-cyan transition-colors text-left">{t('footer.termsOfService')}</button></li>
                         <li><button onClick={() => onNavigate('privacy')} className="hover:text-pandora-cyan transition-colors text-left">{t('footer.privacyPolicy')}</button></li>
                         <li><button onClick={() => onNavigate('refund')} className="hover:text-pandora-cyan transition-colors text-left">{t('footer.refundPolicy')}</button></li>
-                        <li><button onClick={() => onNavigate('payment')} className="hover:text-pandora-cyan transition-colors text-left">{t('footer.paymentInfo')}</button></li>
                     </ul>
                 </div>
 
@@ -183,14 +182,6 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
                                 className="hover:text-white transition-colors text-right w-full"
                             >
                                 {t('footer.refundPolicy')}
-                            </button>
-                        </li>
-                        <li>
-                            <button 
-                                onClick={() => onNavigate('payment')} 
-                                className="hover:text-white transition-colors text-right w-full"
-                            >
-                                {t('footer.paymentInfo')}
                             </button>
                         </li>
                     </ul>

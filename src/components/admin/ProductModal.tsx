@@ -172,17 +172,17 @@ const ProductModal: React.FC<ProductModalProps> = ({
                     </div>
                     <div>
                       <label className="text-[10px] text-gray-500 block mb-1 uppercase flex items-center gap-1">
-                        <Sparkles size={10} className="text-pandora-cyan" /> 3D Logo SVG URL
+                        <Sparkles size={10} className="text-pandora-cyan" /> Product Video URL
                       </label>
                       <input 
                         type="text" 
-                        value={editingProduct?.logoSvg || ''}
-                        onChange={(e) => setEditingProduct({...editingProduct, logoSvg: e.target.value})}
+                        value={editingProduct?.video || ''}
+                        onChange={(e) => setEditingProduct({...editingProduct, video: e.target.value})}
                         className="w-full bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none" 
-                        placeholder="https://cdn.example.com/logos/product.svg"
+                        placeholder="https://cdn.example.com/videos/product.webm"
                       />
                       <p className="text-[9px] text-gray-600 mt-1">
-                        SVG логотип для 3D-визуализации на странице товара (Three.js частицы)
+                        Зацикленное видео для визуализации на странице товара (WebM/MP4)
                       </p>
                     </div>
                   </div>

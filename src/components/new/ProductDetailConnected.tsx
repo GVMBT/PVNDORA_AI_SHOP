@@ -42,19 +42,13 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
 
   // Play product open sound when component mounts
   useEffect(() => {
-    // Debug log that won't be tree-shaken
-    (window as any).__PVNDORA_DEBUG__ = { productId, mounted: true };
-    console.warn('[ProductDetailConnected] MOUNTED, productId:', productId);
     AudioEngine.resume();
     AudioEngine.productOpen();
   }, [productId]);
 
   const loadProductData = useCallback(async () => {
     // Fetch detailed product
-    console.warn('[ProductDetailConnected] Loading product:', productId);
     const detail = await getProduct(productId);
-    console.warn('[ProductDetailConnected] Got detail, logoSvg:', detail?.logoSvg);
-    (window as any).__PVNDORA_PRODUCT__ = detail;
     if (detail) {
       setProductData(detail);
     }

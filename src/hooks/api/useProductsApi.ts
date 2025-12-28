@@ -37,11 +37,9 @@ export function useProductsTyped() {
 
   const getProduct = useCallback(async (id: string): Promise<ProductDetailData | null> => {
     try {
-      const response: APIProductResponse = await get(`/products/${id}?language_code=${locale}&currency=${currency}`); // Pass currency explicitly
-      console.log('[useProductsApi] API response logo_svg_url:', response.product?.logo_svg_url);
+      const response: APIProductResponse = await get(`/products/${id}?language_code=${locale}&currency=${currency}`);
       const responseCurrency = response.product?.currency || currency;
       const adapted = adaptProductDetail(response, responseCurrency);
-      console.log('[useProductsApi] Adapted product logoSvg:', adapted.logoSvg);
       return adapted;
     } catch (err) {
       logger.error(`Failed to fetch product ${id}`, err);

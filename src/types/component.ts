@@ -28,7 +28,7 @@ export interface CatalogProduct {
   fulfillment: number; // hours for preorder, 0 for instant
   sold: number; // sales_count
   video?: string;
-  logoSvg?: string; // SVG logo URL for Three.js particle visualizer
+  video?: string; // Video URL for looped product visualization
   sku: string;
   version?: string;
   status: ProductAvailability; // derived from API status + stock
