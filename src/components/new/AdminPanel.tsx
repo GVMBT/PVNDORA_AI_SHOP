@@ -44,6 +44,7 @@ interface AdminPanelProps {
   onBanUser?: (userId: number, ban: boolean) => void;
   onUpdateBalance?: (userId: number, amount: number) => void;
   // Product actions
+  onSaveProduct?: (product: Partial<ProductData>) => Promise<void>;
   onDeleteProduct?: (productId: string) => void;
 }
 
@@ -62,6 +63,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onRefreshTickets,
   onBanUser,
   onUpdateBalance,
+  onSaveProduct,
   onDeleteProduct,
 }) => {
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
@@ -89,9 +91,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsProductModalOpen(true);
   };
 
-  const handleSaveProduct = (product: Partial<ProductData>) => {
-    // TODO: Implement save logic via API
-    logger.debug('Save product', product);
+  const handleSaveProduct = async (product: Partial<ProductData>) => {
+    if (onSaveProduct) {
+      await onSaveProduct(product);
+    }
     setIsProductModalOpen(false);
     setEditingProduct(null);
   };

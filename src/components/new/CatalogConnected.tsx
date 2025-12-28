@@ -9,6 +9,7 @@ import React, { useEffect, useState, useCallback, memo } from 'react';
 import Catalog from './Catalog';
 import { useProductsTyped } from '../../hooks/useApiTyped';
 import { useLocaleContext } from '../../contexts/LocaleContext';
+import { useLocale } from '../../hooks/useLocale';
 import type { CatalogProduct } from '../../types/component';
 
 interface CatalogConnectedProps {
@@ -24,6 +25,7 @@ const CatalogConnected: React.FC<CatalogConnectedProps> = ({
 }) => {
   const { products, getProducts, loading, error } = useProductsTyped();
   const { locale, currency } = useLocaleContext();
+  const { t } = useLocale();
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
@@ -58,7 +60,7 @@ const CatalogConnected: React.FC<CatalogConnectedProps> = ({
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <div className="font-mono text-xs text-gray-500 uppercase tracking-widest">
-            Loading Modules...
+            {t('common.loadingModules')}
           </div>
         </div>
       </div>

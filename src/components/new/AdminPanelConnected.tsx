@@ -25,7 +25,7 @@ interface AdminPanelConnectedProps {
 
 const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => {
   // API hooks
-  const { products, getProducts, deleteProduct } = useAdminProductsTyped();
+  const { products, getProducts, createProduct, updateProduct, deleteProduct } = useAdminProductsTyped();
   const { orders, getOrders } = useAdminOrdersTyped();
   const { users, getUsers, banUser, updateBalance } = useAdminUsersTyped();
   const { analytics, getAnalytics } = useAdminAnalyticsTyped();
@@ -218,6 +218,16 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
   }, [togglePromoActive]);
 
   // Product handlers
+  const handleSaveProduct = useCallback(async (product: any) => {
+    if (product.id) {
+      // Update existing product
+      await updateProduct(product.id, product);
+    } else {
+      // Create new product
+      await createProduct(product);
+    }
+  }, [createProduct, updateProduct]);
+
   const handleDeleteProduct = useCallback(async (productId: string) => {
     await deleteProduct(productId);
   }, [deleteProduct]);
@@ -252,6 +262,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       onRefreshTickets={fetchTickets}
       onBanUser={handleBanUser}
       onUpdateBalance={handleUpdateBalance}
+      onSaveProduct={handleSaveProduct}
       onDeleteProduct={handleDeleteProduct}
     />
   );

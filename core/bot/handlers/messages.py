@@ -157,8 +157,7 @@ async def handle_voice_message(message: Message, db_user: User, bot: Bot):
     """Handle voice messages - temporarily unsupported after agent migration."""
     lang = db_user.language_code if db_user.language_code in ("ru", "en") else "en"
     
-    # Voice support temporarily disabled during agent migration
-    # TODO: Add voice transcription to new LangGraph agent
+    # Voice support disabled - requires Whisper API integration (planned for future release)
     error_text = (
         "Голосовые сообщения временно недоступны. Пожалуйста, напишите текстом."
         if lang == "ru" else

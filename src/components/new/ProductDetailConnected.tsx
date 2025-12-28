@@ -10,6 +10,7 @@ import ProductDetail from './ProductDetail';
 import { useProductsTyped } from '../../hooks/useApiTyped';
 import { useCart } from '../../contexts/CartContext';
 import { useLocaleContext } from '../../contexts/LocaleContext';
+import { useLocale } from '../../hooks/useLocale';
 import { AudioEngine } from '../../lib/AudioEngine';
 import { logger } from '../../utils/logger';
 import type { CatalogProduct, ProductDetailData, ProductReview, ProductFile } from '../../types/component';
@@ -36,6 +37,7 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
   const { getProduct, getProducts, loading, error } = useProductsTyped();
   const { addToCart } = useCart();
   const { locale, currency } = useLocaleContext();
+  const { t } = useLocale();
   const [productData, setProductData] = useState<ProductDetailData | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<CatalogProduct[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -120,7 +122,7 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <div className="font-mono text-xs text-gray-500 uppercase tracking-widest">
-            Loading Module Data...
+            {t('common.loadingModule')}
           </div>
         </div>
       </div>
@@ -133,13 +135,13 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center max-w-md">
           <div className="text-red-500 text-6xl mb-4">⚠</div>
-          <div className="font-mono text-sm text-red-400 mb-2">MODULE_NOT_FOUND</div>
-          <p className="text-gray-500 text-sm">Failed to load module details.</p>
+          <div className="font-mono text-sm text-red-400 mb-2">{t('common.moduleNotFound')}</div>
+          <p className="text-gray-500 text-sm">{t('common.failedToLoad')}</p>
           <button
             onClick={onBack}
             className="mt-6 px-6 py-2 bg-white/10 border border-white/20 text-white text-xs font-mono uppercase hover:bg-white/20 transition-colors"
           >
-            Return to Catalog
+            {t('common.returnToCatalog')}
           </button>
         </div>
       </div>

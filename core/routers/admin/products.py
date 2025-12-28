@@ -86,7 +86,7 @@ async def admin_get_products(admin=Depends(verify_admin)):
             "duration": p.get("duration_days", 30),
             "sold": sold_count,
             "status": p.get("status", "active"),
-            "vpn": False,  # TODO: add to DB if needed
+            "vpn": False,  # VPN requirement flag (can be added to DB when needed)
             "image": p.get("image_url"),
             "instructions": p.get("instructions", ""),
             "created_at": p.get("created_at")

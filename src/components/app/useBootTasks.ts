@@ -9,6 +9,7 @@ import { useMemo } from 'react';
 import { AudioEngine } from '../../lib/AudioEngine';
 import { logger } from '../../utils/logger';
 import { getTelegramInitData } from '../../utils/telegram';
+import { persistSessionTokenFromQuery, getSessionToken, verifySessionToken, removeSessionToken } from '../../utils/auth';
 import type { BootTask } from '../new';
 
 interface UseBootTasksProps {
@@ -37,7 +38,6 @@ export function useBootTasks({ getProducts, getCart, getProfile }: UseBootTasksP
       errorLabel: 'Authentication required',
       critical: false,
       execute: async () => {
-        const { persistSessionTokenFromQuery } = await import('../../utils/auth');
         persistSessionTokenFromQuery();
 
         const initData = getTelegramInitData();
@@ -45,7 +45,6 @@ export function useBootTasks({ getProducts, getCart, getProfile }: UseBootTasksP
           return { authenticated: true, source: 'telegram' };
         }
         
-        const { getSessionToken, verifySessionToken, removeSessionToken } = await import('../../utils/auth');
         const sessionToken = getSessionToken();
         if (sessionToken) {
           const result = await verifySessionToken(sessionToken);

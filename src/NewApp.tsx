@@ -34,7 +34,8 @@ const CheckoutModalConnected = lazyWithRetry(() => import('./components/new/Chec
 
 // Types
 import type { CatalogProduct, NavigationTarget } from './types/component';
-import { getStartParam } from './utils/telegram';
+import { getStartParam, getTelegramInitData } from './utils/telegram';
+import { getSessionToken, verifySessionToken, removeSessionToken } from './utils/auth';
 
 // Hooks
 import { useProductsTyped, useProfileTyped } from './hooks/useApiTyped';
@@ -136,7 +137,6 @@ function NewAppInner() {
     const checkAuth = async () => {
       setIsAuthChecking(true);
       try {
-        const { getTelegramInitData } = await import('./utils/telegram');
         const initData = getTelegramInitData();
         
         if (initData) {
@@ -145,7 +145,6 @@ function NewAppInner() {
           return;
         }
         
-        const { getSessionToken, verifySessionToken, removeSessionToken } = await import('./utils/auth');
         const sessionToken = getSessionToken();
         
         if (sessionToken) {
@@ -207,9 +206,8 @@ function NewAppInner() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [handleFeedback]);
 
-  const handleLogout = useCallback(async () => {
+  const handleLogout = useCallback(() => {
     handleFeedback('medium');
-    const { removeSessionToken } = await import('./utils/auth');
     removeSessionToken();
     setIsAuthenticated(false);
     setCurrentView('home');

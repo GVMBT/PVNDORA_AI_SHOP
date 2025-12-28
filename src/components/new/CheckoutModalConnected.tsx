@@ -14,6 +14,7 @@ import CheckoutModal from './CheckoutModal';
 import { useOrdersTyped, useProfileTyped } from '../../hooks/useApiTyped';
 import { useCart } from '../../contexts/CartContext';
 import { useLocaleContext } from '../../contexts/LocaleContext';
+import { useLocale } from '../../hooks/useLocale';
 import type { CartItem, PaymentMethod } from '../../types/component';
 import type { APICreateOrderRequest } from '../../types/api';
 
@@ -31,6 +32,7 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   const { createOrder, loading: orderLoading, error: orderError } = useOrdersTyped();
   const { profile: contextProfile, getProfile } = useProfileTyped();
   const { setExchangeRate } = useLocaleContext();
+  const { t } = useLocale();
   const [isInitialized, setIsInitialized] = useState(false);
   
   // Store fresh data from API to avoid stale closure issues
@@ -145,7 +147,7 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <div className="font-mono text-xs text-gray-500 uppercase tracking-widest">
-            Loading Cart...
+            {t('common.loadingCart')}
           </div>
         </div>
       </div>

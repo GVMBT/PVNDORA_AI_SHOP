@@ -7,6 +7,7 @@
 import React, { useEffect, useState, useCallback, memo } from 'react';
 import Orders, { RefundContext } from './Orders';
 import { useOrdersTyped, useReviewsTyped } from '../../hooks/useApiTyped';
+import { useLocale } from '../../hooks/useLocale';
 import type { Order } from '../../types/component';
 import { logger } from '../../utils/logger';
 
@@ -45,7 +46,7 @@ const OrdersConnected: React.FC<OrdersConnectedProps> = ({ onBack, onOpenSupport
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <div className="font-mono text-xs text-gray-500 uppercase tracking-widest">
-            Loading Orders...
+            {t('common.loadingOrders')}
           </div>
         </div>
       </div>

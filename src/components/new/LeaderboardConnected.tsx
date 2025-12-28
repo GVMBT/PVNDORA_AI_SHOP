@@ -8,6 +8,7 @@
 import React, { useEffect, useState, useCallback, useRef, memo } from 'react';
 import Leaderboard from './Leaderboard';
 import { useLeaderboardTyped } from '../../hooks/useApiTyped';
+import { useLocale } from '../../hooks/useLocale';
 import { PAGINATION } from '../../config';
 
 interface LeaderboardConnectedProps {
@@ -16,6 +17,7 @@ interface LeaderboardConnectedProps {
 
 const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) => {
   const { leaderboard, getLeaderboard, loadMore, hasMore, loading, error, reset } = useLeaderboardTyped();
+  const { t } = useLocale();
   const [isInitialized, setIsInitialized] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'weekly' | 'all_time'>('all_time');
   const loadingRef = useRef(false);
@@ -59,7 +61,7 @@ const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) =
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <div className="font-mono text-xs text-gray-500 uppercase tracking-widest">
-            Loading Leaderboard...
+            {t('common.loadingLeaderboard')}
           </div>
         </div>
       </div>
