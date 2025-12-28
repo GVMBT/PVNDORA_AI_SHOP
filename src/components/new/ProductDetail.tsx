@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ArrowLeft, ShoppingCart, Shield, Download, FileText, 
   Video, Globe, Star, Cpu, Terminal, CheckCircle, ChevronRight, Plus, HardDrive, Wifi, Lock, Zap, Box, FileKey, Clock, Server, MessageSquare, Minus, Radio, FileCode, Loader2, ArrowRight
@@ -14,9 +14,6 @@ import ProductSpecs from './ProductSpecs';
 import ProductFiles from './ProductFiles';
 import ProductManifest from './ProductManifest';
 import { logger } from '../../utils/logger';
-
-// Lazy load Three.js visualizer (heavy dependency)
-const ProductParticleVisualizer = lazy(() => import('./ProductParticleVisualizer'));
 
 import type { ProductDetailData, ProductFile, ProductReview, CatalogProduct } from '../../types/component';
 
@@ -218,26 +215,20 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
               onMouseLeave={handleMouseLeave}
               className="relative aspect-square w-full bg-[#0a0a0a] border border-white/10 group cursor-crosshair shadow-2xl shadow-black/50 rounded-sm overflow-hidden"
             >
-              {/* Visual Layer - Three.js particles or Image */}
+              {/* Visual Layer - Video Loop or Image */}
               <div className="absolute inset-0 transform-style-3d">
-                {(() => { console.warn('[ProductDetail] logoSvg:', product.logoSvg); return null; })()}
-                {product.logoSvg ? (
-                  // Three.js Particle Visualizer for products with SVG logos
-                  <Suspense fallback={
-                    <div className="w-full h-full flex items-center justify-center bg-black">
-                      <div className="w-8 h-8 border-2 border-pandora-cyan/30 border-t-pandora-cyan rounded-full animate-spin" />
-                    </div>
-                  }>
-                    <ProductParticleVisualizer
-                      logoUrl={product.logoSvg}
-                      fallbackShape="torus"
-                      color="#00FFFF"
-                      backgroundColor="#0a0a0a"
-                      className="w-full h-full"
-                    />
-                  </Suspense>
+                {product.video ? (
+                  // Video Loop for visual simulation
+                  <video
+                    src={product.video}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                  />
                 ) : (
-                  // Standard image for products without SVG
+                  // Standard image for products without video
                   <img 
                     src={product.image} 
                     alt={product.name} 

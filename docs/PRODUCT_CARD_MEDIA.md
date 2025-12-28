@@ -1,50 +1,5 @@
 # Product Media System - Оптимизированные медиа для карточек и страниц товаров
 
-## Обновление: Three.js Particle Visualizer
-
-Добавлен компонент `ProductParticleVisualizer` для страницы товара (ProductDetail).
-Это эффект в стиле IGLOO — частицы формируют форму логотипа продукта.
-
-### Как это работает
-
-1. **Загрузка SVG логотипа** → конвертация в 3D mesh через ExtrudeGeometry
-2. **Surface Sampling** → генерация точек на поверхности логотипа
-3. **Shader Animation** → частицы "текут" вверх как дым/энергия
-4. **Mouse Parallax** → реакция на движение мыши
-
-### Использование
-
-```tsx
-// В ProductDetail.tsx (уже интегрировано)
-<ProductParticleVisualizer
-  logoUrl="/logos/veo3.svg"  // SVG логотип продукта
-  fallbackShape="torus"       // Fallback если SVG не загрузился
-  color="#00FFFF"             // Цвет частиц
-  backgroundColor="#0a0a0a"   // Фон
-/>
-```
-
-### Добавление логотипа продукту
-
-1. Создайте SVG логотип и загрузите в `/public/logos/` или CDN
-2. Добавьте поле `logo_svg_url` в базу данных (таблица `products`)
-3. API вернёт его, и ProductDetail автоматически покажет Three.js визуализацию
-
-### Требования к SVG
-
-- Простые формы (path, rect, circle)
-- Без градиентов и эффектов
-- Предпочтительно: одноцветные контуры
-- Размер: ~100x100 viewBox
-
-### Производительность
-
-- Desktop: ~25,000 частиц
-- Mobile: ~8,000 частиц (автоопределение)
-- Lazy loading: Three.js загружается только при открытии ProductDetail
-
----
-
 # Product Card Media - Оптимизированные медиа для карточек товаров
 
 ## Обзор
@@ -248,7 +203,6 @@ interface ProductData {
 | **Видео (WebM)** | 200-500 KB | ⭐⭐⭐⭐ | Высокий |
 | **Частицы (Canvas)** | +1-2 MB RAM | ⭐⭐⭐ | Средний |
 | **Видео + Частицы** | 200-500 KB + RAM | ⭐⭐⭐ | Максимальный |
-| **Three.js** | +500 KB bundle | ⭐⭐ | Высокий, но тяжелый |
 
 ## Рекомендации
 
