@@ -19,6 +19,7 @@ interface OrdersConnectedProps {
 const OrdersConnected: React.FC<OrdersConnectedProps> = ({ onBack, onOpenSupport }) => {
   const { orders, getOrders, loading, error } = useOrdersTyped();
   const { submitReview } = useReviewsTyped();
+  const { t } = useLocale();
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
