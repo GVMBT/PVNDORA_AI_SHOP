@@ -5,6 +5,7 @@ Payment and notification webhooks.
 All webhooks verify signatures and delegate to QStash workers.
 """
 
+import asyncio
 import json
 import os
 
@@ -653,30 +654,84 @@ async def crystalpay_webhook(request: Request):
             
             publish_to_worker, WorkerEndpoints = get_queue_publisher()
             
-            # Try QStash first, fallback to direct delivery if it fails
-            delivery_result = await publish_to_worker(
-                endpoint=WorkerEndpoints.DELIVER_GOODS,
-                body={"order_id": real_order_id},
-                retries=2,
-                deduplication_id=f"deliver-{real_order_id}"
-            )
+            # Check if this is a discount channel order (delayed delivery 1-4 hours)
+            source_channel = order_data.get("source_channel") if order_data else None
             
-            # FALLBACK: If QStash failed, deliver directly
-            if not delivery_result.get("queued"):
-                logger.warning(f"CrystalPay webhook: QStash failed (error={delivery_result.get('error')}), executing direct delivery for {real_order_id}")
+            if source_channel == "discount":
+                # DISCOUNT BOT: Schedule delayed delivery via QStash (1-4 hours)
+                logger.info(f"CrystalPay webhook: Discount order {real_order_id} - scheduling delayed delivery")
                 try:
-                    from core.routers.workers import _deliver_items_for_order
-                    from core.routers.deps import get_notification_service
-                    notification_service = get_notification_service()
-                    fallback_result = await _deliver_items_for_order(db, notification_service, real_order_id, only_instant=True)
-                    logger.info(f"CrystalPay webhook: Direct delivery completed: {fallback_result}")
-                except Exception as fallback_err:
-                    logger.error(f"CrystalPay webhook: Direct delivery FAILED for {real_order_id}: {fallback_err}", exc_info=True)
-                    # Return 500 to signal CrystalPay to retry
-                    return JSONResponse(
-                        {"error": f"Delivery failed: {str(fallback_err)[:100]}"},
-                        status_code=500
+                    from core.services.domains import DiscountOrderService
+                    
+                    # Get order items to find stock item
+                    order_items = await asyncio.to_thread(
+                        lambda: db.client.table("order_items").select(
+                            "id, product_id"
+                        ).eq("order_id", real_order_id).limit(1).execute()
                     )
+                    
+                    if order_items.data:
+                        order_item = order_items.data[0]
+                        
+                        # Find available stock item
+                        stock_result = await asyncio.to_thread(
+                            lambda: db.client.table("stock_items").select("id").eq(
+                                "product_id", order_item["product_id"]
+                            ).eq("status", "available").is_("sold_at", "null").limit(1).execute()
+                        )
+                        
+                        if stock_result.data:
+                            stock_item_id = stock_result.data[0]["id"]
+                            telegram_id = order_data.get("user_telegram_id")
+                            
+                            # Reserve stock item
+                            await asyncio.to_thread(
+                                lambda: db.client.table("stock_items").update({
+                                    "status": "reserved"
+                                }).eq("id", stock_item_id).execute()
+                            )
+                            
+                            # Schedule delayed delivery
+                            discount_service = DiscountOrderService(db.client)
+                            await discount_service.schedule_delayed_delivery(
+                                order_id=real_order_id,
+                                order_item_id=order_item["id"],
+                                telegram_id=telegram_id,
+                                stock_item_id=stock_item_id
+                            )
+                            
+                            logger.info(f"CrystalPay webhook: Discount delivery scheduled for order {real_order_id}")
+                        else:
+                            logger.warning(f"CrystalPay webhook: No stock for discount order {real_order_id}")
+                except Exception as discount_err:
+                    logger.error(f"CrystalPay webhook: Discount delivery scheduling failed: {discount_err}", exc_info=True)
+                    # Fall through to normal delivery as fallback
+            else:
+                # PREMIUM (PVNDORA): Instant delivery via QStash
+                # Try QStash first, fallback to direct delivery if it fails
+                delivery_result = await publish_to_worker(
+                    endpoint=WorkerEndpoints.DELIVER_GOODS,
+                    body={"order_id": real_order_id},
+                    retries=2,
+                    deduplication_id=f"deliver-{real_order_id}"
+                )
+                
+                # FALLBACK: If QStash failed, deliver directly
+                if not delivery_result.get("queued"):
+                    logger.warning(f"CrystalPay webhook: QStash failed (error={delivery_result.get('error')}), executing direct delivery for {real_order_id}")
+                    try:
+                        from core.routers.workers import _deliver_items_for_order
+                        from core.routers.deps import get_notification_service
+                        notification_service = get_notification_service()
+                        fallback_result = await _deliver_items_for_order(db, notification_service, real_order_id, only_instant=True)
+                        logger.info(f"CrystalPay webhook: Direct delivery completed: {fallback_result}")
+                    except Exception as fallback_err:
+                        logger.error(f"CrystalPay webhook: Direct delivery FAILED for {real_order_id}: {fallback_err}", exc_info=True)
+                        # Return 500 to signal CrystalPay to retry
+                        return JSONResponse(
+                            {"error": f"Delivery failed: {str(fallback_err)[:100]}"},
+                            status_code=500
+                        )
             
             # Calculate referral bonus (non-critical, ignore failures)
             await publish_to_worker(
