@@ -10,7 +10,6 @@ from core.services.database import User, get_database
 from core.services.domains import InsuranceService
 from core.logging import get_logger
 from ..keyboards import (
-    get_categories_keyboard,
     get_products_keyboard,
     get_product_card_keyboard,
 )
@@ -23,39 +22,38 @@ router = Router(name="discount_catalog")
 _products_cache: dict = {}
 
 
-async def get_categories(db) -> list:
-    """Get product categories."""
+async def get_unique_categories(db) -> list:
+    """Extract unique categories from products with discount_price."""
     try:
         result = await asyncio.to_thread(
-            lambda: db.client.table("categories").select("*").eq(
-                "is_active", True
-            ).order("sort_order").execute()
+            lambda: db.client.table("products").select(
+                "categories"
+            ).eq("status", "active").not_.is_("discount_price", "null").execute()
         )
-        return result.data or []
+        
+        # Extract unique categories from all products
+        all_categories = set()
+        for product in (result.data or []):
+            cats = product.get("categories") or []
+            for cat in cats:
+                if cat:
+                    all_categories.add(cat)
+        
+        # Sort and return as list of dicts for compatibility
+        return [{"id": cat, "name": cat} for cat in sorted(all_categories)]
     except Exception as e:
         logger.error(f"Failed to get categories: {e}")
         return []
 
 
-async def get_products_by_category(db, category_id: Optional[str] = None) -> list:
-    """Get products with discount_price and stock count."""
+async def get_all_discount_products(db) -> list:
+    """Get all products with discount_price."""
     try:
-        query = db.client.table("products").select(
-            "id, name, description, discount_price, category_id, status"
-        ).eq("status", "active").not_.is_("discount_price", "null")
-        
-        if category_id:
-            # Find full UUID from short ID
-            cat_result = await asyncio.to_thread(
-                lambda: db.client.table("categories").select("id").ilike(
-                    "id", f"{category_id}%"
-                ).limit(1).execute()
-            )
-            if cat_result.data:
-                full_cat_id = cat_result.data[0]["id"]
-                query = query.eq("category_id", full_cat_id)
-        
-        result = await asyncio.to_thread(lambda: query.execute())
+        result = await asyncio.to_thread(
+            lambda: db.client.table("products").select(
+                "id, name, description, discount_price, categories, status"
+            ).eq("status", "active").not_.is_("discount_price", "null").execute()
+        )
         products = result.data or []
         
         # Get stock counts for each product
@@ -73,6 +71,20 @@ async def get_products_by_category(db, category_id: Optional[str] = None) -> lis
     except Exception as e:
         logger.error(f"Failed to get products: {e}")
         return []
+
+
+async def get_products_by_category(db, category_name: Optional[str] = None) -> list:
+    """Get products with discount_price, optionally filtered by category."""
+    products = await get_all_discount_products(db)
+    
+    if category_name and category_name != "all":
+        # Filter by category (categories is an array field)
+        products = [
+            p for p in products 
+            if category_name in (p.get("categories") or [])
+        ]
+    
+    return products
 
 
 async def get_product_by_id(db, product_id: str) -> Optional[dict]:
@@ -107,96 +119,69 @@ async def get_product_by_id(db, product_id: str) -> Optional[dict]:
 
 @router.message(F.text.in_(["🛒 Каталог", "🛒 Catalog"]))
 async def msg_catalog(message: Message, db_user: User):
-    """Show catalog categories."""
+    """Show catalog - all discount products directly."""
     lang = db_user.language_code
     db = get_database()
     
-    categories = await get_categories(db)
+    # Get all discount products directly (no separate categories table)
+    products = await get_all_discount_products(db)
     
-    if not categories:
-        text = "Категории не найдены." if lang == "ru" else "No categories found."
+    if not products:
+        text = "Товары не найдены." if lang == "ru" else "No products found."
         await message.answer(text)
         return
     
+    # Cache for pagination
+    cache_key = f"{db_user.telegram_id}:all"
+    _products_cache[cache_key] = products
+    
     text = (
-        "📁 <b>Выберите категорию:</b>"
+        "🛒 <b>Каталог товаров:</b>\n\n"
+        "🟢 — в наличии\n"
+        "🟡 — предзаказ"
     ) if lang == "ru" else (
-        "📁 <b>Select a category:</b>"
+        "🛒 <b>Product Catalog:</b>\n\n"
+        "🟢 — in stock\n"
+        "🟡 — pre-order"
     )
     
     await message.answer(
         text,
-        reply_markup=get_categories_keyboard(categories, lang),
+        reply_markup=get_products_keyboard(products, lang, "all", page=0),
         parse_mode=ParseMode.HTML
     )
 
 
-@router.callback_query(F.data == "discount:categories")
-async def cb_categories(callback: CallbackQuery, db_user: User):
-    """Show catalog categories."""
+@router.callback_query(F.data == "discount:catalog")
+async def cb_catalog(callback: CallbackQuery, db_user: User):
+    """Show catalog - all discount products."""
     lang = db_user.language_code
     db = get_database()
     
-    categories = await get_categories(db)
-    
-    text = (
-        "📁 <b>Выберите категорию:</b>"
-    ) if lang == "ru" else (
-        "📁 <b>Select a category:</b>"
-    )
-    
-    await callback.message.edit_text(
-        text,
-        reply_markup=get_categories_keyboard(categories, lang),
-        parse_mode=ParseMode.HTML
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data.startswith("discount:cat:"))
-async def cb_category_selected(callback: CallbackQuery, db_user: User):
-    """Show products in category."""
-    lang = db_user.language_code
-    db = get_database()
-    
-    category_id = callback.data.split(":")[2]
-    
-    products = await get_products_by_category(db, category_id)
+    products = await get_all_discount_products(db)
     
     # Cache for pagination
-    cache_key = f"{db_user.telegram_id}:{category_id}"
+    cache_key = f"{db_user.telegram_id}:all"
     _products_cache[cache_key] = products
     
-    if not products:
-        text = (
-            "В этой категории пока нет товаров."
-        ) if lang == "ru" else (
-            "No products in this category yet."
-        )
-        await callback.message.edit_text(
-            text,
-            reply_markup=get_categories_keyboard(await get_categories(db), lang),
-            parse_mode=ParseMode.HTML
-        )
-        await callback.answer()
-        return
-    
     text = (
-        "🛒 <b>Товары:</b>\n\n"
+        "🛒 <b>Каталог товаров:</b>\n\n"
         "🟢 — в наличии\n"
         "🟡 — предзаказ"
     ) if lang == "ru" else (
-        "🛒 <b>Products:</b>\n\n"
+        "🛒 <b>Product Catalog:</b>\n\n"
         "🟢 — in stock\n"
         "🟡 — pre-order"
     )
     
     await callback.message.edit_text(
         text,
-        reply_markup=get_products_keyboard(products, lang, category_id, page=0),
+        reply_markup=get_products_keyboard(products, lang, "all", page=0),
         parse_mode=ParseMode.HTML
     )
     await callback.answer()
+
+
 
 
 @router.callback_query(F.data.startswith("discount:page:"))
