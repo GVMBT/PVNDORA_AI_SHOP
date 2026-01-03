@@ -115,7 +115,7 @@ def get_products_keyboard(
     # Back button
     back_text = "⬅️ Назад" if lang == "ru" else "⬅️ Back"
     buttons.append([
-        InlineKeyboardButton(text=back_text, callback_data="discount:categories")
+        InlineKeyboardButton(text=back_text, callback_data="discount:catalog")
     ])
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -173,7 +173,7 @@ def get_product_card_keyboard(
     # Back button
     back_text = "⬅️ К каталогу" if lang == "ru" else "⬅️ To catalog"
     buttons.append([
-        InlineKeyboardButton(text=back_text, callback_data="discount:categories")
+        InlineKeyboardButton(text=back_text, callback_data="discount:catalog")
     ])
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)

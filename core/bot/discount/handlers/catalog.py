@@ -88,28 +88,18 @@ async def get_products_by_category(db, category_name: Optional[str] = None) -> l
 
 
 async def get_product_by_id(db, product_id: str) -> Optional[dict]:
-    """Get single product by short ID."""
+    """Get single product by short ID (first 8 chars of UUID)."""
     try:
-        result = await asyncio.to_thread(
-            lambda: db.client.table("products").select("*").ilike(
-                "id", f"{product_id}%"
-            ).limit(1).execute()
-        )
+        # Get all discount products and filter by prefix
+        # Note: .ilike() doesn't work with UUID fields in Supabase PostgREST
+        all_products = await get_all_discount_products(db)
         
-        if not result.data:
-            return None
-        
-        product = result.data[0]
-        
-        # Get stock count
-        stock_result = await asyncio.to_thread(
-            lambda: db.client.table("stock_items").select(
-                "id", count="exact"
-            ).eq("product_id", product["id"]).eq("status", "available").is_(
-                "sold_at", "null"
-            ).execute()
-        )
-        product["available_count"] = stock_result.count if stock_result.count else 0
+        # Filter by UUID prefix (first 8 chars)
+        product = None
+        for p in all_products:
+            if str(p["id"]).startswith(product_id.lower()) or str(p["id"]).startswith(product_id.upper()):
+                product = p
+                break
         
         return product
     except Exception as e:
