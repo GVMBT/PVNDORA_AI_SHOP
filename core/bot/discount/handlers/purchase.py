@@ -45,6 +45,7 @@ async def create_crystalpay_payment(
             "auth_login": CRYSTALPAY_LOGIN,
             "auth_secret": CRYSTALPAY_SECRET,
             "amount": amount,
+            "currency": "USD",  # Discount prices are in USD
             "type": "purchase",
             "description": description,
             "extra": order_id,
