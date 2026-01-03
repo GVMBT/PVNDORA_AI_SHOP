@@ -101,7 +101,13 @@ async def create_crystalpay_payment(
             if response.status_code == 200:
                 data = response.json()
                 if data.get("error", False) is False:
-                    return data.get("url")
+                    invoice_id = data.get("id")
+                    payment_url = data.get("url")
+                    logger.info(f"CrystalPay invoice created: {invoice_id} for order {order_id}")
+                    return {
+                        "url": payment_url,
+                        "invoice_id": invoice_id
+                    }
                 else:
                     logger.error(f"CrystalPay API error: {data}")
         
@@ -260,24 +266,28 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
         if insurance:
             description += f" + {insurance.get('duration_days', 7)}d insurance"
         
-        payment_url = await create_crystalpay_payment(
+        payment_result = await create_crystalpay_payment(
             amount_usd=total_price,
             currency=user_currency,
             order_id=order_id,
             description=description
         )
         
-        if not payment_url:
+        if not payment_result:
             await callback.answer(
                 get_text("discount.order.paymentError", lang),
                 show_alert=True
             )
             return
         
-        # Update order with payment URL
+        payment_url = payment_result["url"]
+        invoice_id = payment_result.get("invoice_id")
+        
+        # Update order with payment URL and invoice_id (critical for webhook lookup!)
         await asyncio.to_thread(
             lambda: db.client.table("orders").update({
-                "payment_url": payment_url
+                "payment_url": payment_url,
+                "payment_id": invoice_id  # Required for webhook to find order
             }).eq("id", order_id).execute()
         )
         
