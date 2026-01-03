@@ -335,8 +335,17 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
           </div>
 
           {/* Return to Telegram Button */}
+          {/* Check URL params to determine which bot to return to */}
           <a
-            href={`https://t.me/${import.meta.env.VITE_BOT_USERNAME || 'pvndora_ai_bot'}`}
+            href={(() => {
+              const urlParams = new URLSearchParams(window.location.search);
+              const source = urlParams.get('source');
+              // If source=discount, return to discount bot, otherwise main bot
+              const botUsername = source === 'discount' 
+                ? (import.meta.env.VITE_DISCOUNT_BOT_USERNAME || 'ai_discount_hub_bot')
+                : (import.meta.env.VITE_BOT_USERNAME || 'pvndora_ai_bot');
+              return `https://t.me/${botUsername}`;
+            })()}
             className="block w-full py-4 bg-[#2AABEE] hover:bg-[#229ED9] text-white font-bold rounded-xl transition-colors mb-4"
           >
             Open Telegram

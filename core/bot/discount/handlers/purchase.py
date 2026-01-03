@@ -48,6 +48,7 @@ async def create_crystalpay_payment(
     """
     try:
         import httpx
+        import os
         
         # Convert amount from USD to target currency if needed
         payment_amount = amount_usd
@@ -65,6 +66,16 @@ async def create_crystalpay_payment(
                 currency = "USD"
                 payment_amount = amount_usd
         
+        # Build callback and redirect URLs
+        base_url = os.environ.get("VERCEL_URL", "")
+        if base_url and not base_url.startswith("http"):
+            base_url = f"https://{base_url}"
+        if not base_url:
+            base_url = os.environ.get("TELEGRAM_WEBHOOK_URL", "").rsplit("/api", 1)[0]
+        
+        callback_url = f"{base_url}/api/webhook/crystalpay"
+        redirect_url = f"{base_url}/payment/result?order_id={order_id}&source=discount"
+        
         payload = {
             "auth_login": CRYSTALPAY_LOGIN,
             "auth_secret": CRYSTALPAY_SECRET,
@@ -73,8 +84,12 @@ async def create_crystalpay_payment(
             "type": "purchase",
             "description": description,
             "extra": order_id,
-            "lifetime": 3600,  # 1 hour
+            "lifetime": 60,  # 1 hour in minutes
+            "callback_url": callback_url,
+            "redirect_url": redirect_url,
         }
+        
+        logger.info(f"CrystalPay discount payment: order={order_id}, callback={callback_url}, redirect={redirect_url}")
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
