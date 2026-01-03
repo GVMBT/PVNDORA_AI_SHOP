@@ -29,7 +29,8 @@ CRYSTALPAY_API_URL = os.environ.get("CRYSTALPAY_API_URL", "https://api.crystalpa
 
 
 async def create_crystalpay_payment(
-    amount: float,
+    amount_usd: float,
+    currency: str,
     order_id: str,
     description: str
 ) -> Optional[str]:
@@ -37,15 +38,37 @@ async def create_crystalpay_payment(
     
     Uses CrystalPay API v3.
     Docs: https://docs.crystalpay.io/
+    
+    Args:
+        amount_usd: Amount in USD (base currency for discount prices)
+        currency: Target currency (USD, RUB, EUR, etc.)
+        order_id: Order ID
+        description: Payment description
     """
     try:
         import httpx
         
+        # Convert amount from USD to target currency if needed
+        payment_amount = amount_usd
+        if currency != "USD":
+            try:
+                from core.db import get_redis
+                from core.services.currency import get_currency_service
+                redis = get_redis()
+                currency_service = get_currency_service(redis)
+                exchange_rate = await currency_service.get_exchange_rate(currency)
+                payment_amount = amount_usd * exchange_rate
+                logger.info(f"CrystalPay: converted ${amount_usd} USD to {payment_amount:.2f} {currency} (rate: {exchange_rate})")
+            except Exception as e:
+                logger.warning(f"Currency conversion failed: {e}, using USD amount")
+                currency = "USD"
+                payment_amount = amount_usd
+        
         payload = {
             "auth_login": CRYSTALPAY_LOGIN,
             "auth_secret": CRYSTALPAY_SECRET,
-            "amount": amount,
-            "currency": "USD",  # Discount prices are in USD
+            "amount": round(payment_amount, 2),
+            "currency": currency,
             "type": "purchase",
             "description": description,
             "extra": order_id,
@@ -193,12 +216,40 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
             }).execute()
         )
         
+        # Determine user currency
+        user_currency = "USD"  # Default
+        try:
+            from core.db import get_redis
+            from core.services.currency import get_currency_service
+            
+            redis = get_redis()
+            currency_service = get_currency_service(redis)
+            
+            # Get user's preferred currency or determine from language
+            preferred_currency = getattr(db_user, 'preferred_currency', None)
+            user_lang = getattr(db_user, 'language_code', 'en') or 'en'
+            
+            user_currency = currency_service.get_user_currency(user_lang, preferred_currency)
+            
+            # CrystalPay supports: USD, RUB, EUR, UAH, TRY, INR, AED
+            supported_currencies = ["USD", "RUB", "EUR", "UAH", "TRY", "INR", "AED"]
+            if user_currency not in supported_currencies:
+                logger.warning(f"User currency {user_currency} not supported by CrystalPay, using USD")
+                user_currency = "USD"
+        except Exception as e:
+            logger.warning(f"Failed to determine user currency: {e}, using USD")
+        
         # Create payment
         description = f"Order {order_id[:8]} - {product.get('name', 'Product')}"
         if insurance:
             description += f" + {insurance.get('duration_days', 7)}d insurance"
         
-        payment_url = await create_crystalpay_payment(total_price, order_id, description)
+        payment_url = await create_crystalpay_payment(
+            amount_usd=total_price,
+            currency=user_currency,
+            order_id=order_id,
+            description=description
+        )
         
         if not payment_url:
             await callback.answer(
@@ -214,22 +265,61 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
             }).eq("id", order_id).execute()
         )
         
+        # Format price in user's currency for display
+        display_amount = total_price
+        display_discount_price = discount_price
+        display_insurance_price = insurance_price
+        display_currency_symbol = "$"
+        exchange_rate = 1.0
+        
+        if user_currency != "USD":
+            try:
+                from core.db import get_redis
+                from core.services.currency import get_currency_service
+                redis = get_redis()
+                currency_service = get_currency_service(redis)
+                exchange_rate = await currency_service.get_exchange_rate(user_currency)
+                display_amount = total_price * exchange_rate
+                display_discount_price = discount_price * exchange_rate
+                display_insurance_price = insurance_price * exchange_rate
+                
+                # Currency symbols
+                currency_symbols = {
+                    "RUB": "₽",
+                    "EUR": "€",
+                    "UAH": "₴",
+                    "TRY": "₺",
+                    "INR": "₹",
+                    "AED": "د.إ"
+                }
+                display_currency_symbol = currency_symbols.get(user_currency, user_currency)
+            except Exception as e:
+                logger.warning(f"Failed to convert price for display: {e}")
+        
         # Send payment message
         text = (
             f"💳 <b>Заказ #{order_id[:8]}</b>\n\n"
             f"Товар: {product.get('name', 'Product')}\n"
-            f"Цена: ${discount_price:.0f}\n"
+            f"Цена: {display_currency_symbol}{display_discount_price:.0f}\n"
+        ) if lang == "ru" else (
+            f"💳 <b>Order #{order_id[:8]}</b>\n\n"
+            f"Product: {product.get('name', 'Product')}\n"
+            f"Price: {display_currency_symbol}{display_discount_price:.0f}\n"
         )
         
         if insurance:
-            text += f"Страховка: +${insurance_price:.0f} ({insurance.get('duration_days')} дней)\n"
+            text += (
+                f"Страховка: +{display_currency_symbol}{display_insurance_price:.0f} ({insurance.get('duration_days')} дней)\n"
+            ) if lang == "ru" else (
+                f"Insurance: +{display_currency_symbol}{display_insurance_price:.0f} ({insurance.get('duration_days')} days)\n"
+            )
         
         text += (
-            f"\n<b>Итого: ${total_price:.0f}</b>\n\n"
+            f"\n<b>Итого: {display_currency_symbol}{display_amount:.0f}</b>\n\n"
             f"⏳ Ссылка действует 1 час.\n"
             f"📦 Доставка через 1-4 часа после оплаты."
         ) if lang == "ru" else (
-            f"\n<b>Total: ${total_price:.0f}</b>\n\n"
+            f"\n<b>Total: {display_currency_symbol}{display_amount:.0f}</b>\n\n"
             f"⏳ Link valid for 1 hour.\n"
             f"📦 Delivery 1-4 hours after payment."
         )
