@@ -65,7 +65,9 @@ def get_products_keyboard(
     lang: str,
     category_id: Optional[str] = None,
     page: int = 0,
-    page_size: int = 5
+    page_size: int = 5,
+    exchange_rate: float = 1.0,
+    currency: str = "USD"
 ) -> InlineKeyboardMarkup:
     """Products list with pagination."""
     buttons = []
@@ -74,14 +76,29 @@ def get_products_keyboard(
     end_idx = start_idx + page_size
     page_products = products[start_idx:end_idx]
     
+    # Currency symbols
+    currency_symbols = {
+        "RUB": "₽",
+        "EUR": "€",
+        "UAH": "₴",
+        "TRY": "₺",
+        "INR": "₹",
+        "AED": "د.إ",
+        "USD": "$"
+    }
+    currency_symbol = currency_symbols.get(currency, currency)
+    
     for p in page_products:
         name = p.get("name", "Product")
-        discount_price = p.get("discount_price", 0)
+        discount_price_usd = float(p.get("discount_price", 0) or 0)
         stock = p.get("available_count", 0)
+        
+        # Convert price
+        display_price = discount_price_usd * exchange_rate
+        price_str = f"{currency_symbol}{display_price:.0f}" if discount_price_usd else "N/A"
         
         # Stock indicator
         stock_emoji = "🟢" if stock > 0 else "🟡"
-        price_str = f"${discount_price:.0f}" if discount_price else "N/A"
         
         buttons.append([
             InlineKeyboardButton(
@@ -130,16 +147,33 @@ def get_product_card_keyboard(
     discount_price: float,
     insurance_options: List[dict],
     lang: str,
-    in_stock: bool = True
+    in_stock: bool = True,
+    exchange_rate: float = 1.0,
+    currency: str = "USD"
 ) -> InlineKeyboardMarkup:
     """Product card with buy and insurance options."""
     buttons = []
     
+    # Currency symbols
+    currency_symbols = {
+        "RUB": "₽",
+        "EUR": "€",
+        "UAH": "₴",
+        "TRY": "₺",
+        "INR": "₹",
+        "AED": "د.إ",
+        "USD": "$"
+    }
+    currency_symbol = currency_symbols.get(currency, currency)
+    
+    # Convert price
+    display_price = discount_price * exchange_rate
+    
     # Buy button
     if in_stock:
-        buy_text = f"💳 Купить — ${discount_price:.0f}" if lang == "ru" else f"💳 Buy — ${discount_price:.0f}"
+        buy_text = f"💳 Купить — {currency_symbol}{display_price:.0f}" if lang == "ru" else f"💳 Buy — {currency_symbol}{display_price:.0f}"
     else:
-        buy_text = f"💳 Предзаказ — ${discount_price:.0f}" if lang == "ru" else f"💳 Pre-order — ${discount_price:.0f}"
+        buy_text = f"💳 Предзаказ — {currency_symbol}{display_price:.0f}" if lang == "ru" else f"💳 Pre-order — {currency_symbol}{display_price:.0f}"
     
     buttons.append([
         InlineKeyboardButton(
@@ -159,9 +193,10 @@ def get_product_card_keyboard(
             ins_id = ins.get("id", "")[:8]
             days = ins.get("duration_days", 7)
             percent = ins.get("price_percent", 50)
-            ins_price = discount_price * (1 + percent / 100)
+            ins_price_usd = discount_price * (1 + percent / 100)
+            ins_price_display = ins_price_usd * exchange_rate
             
-            ins_text = f"+{days}д замена — ${ins_price:.0f}" if lang == "ru" else f"+{days}d replacement — ${ins_price:.0f}"
+            ins_text = f"+{days}д замена — {currency_symbol}{ins_price_display:.0f}" if lang == "ru" else f"+{days}d replacement — {currency_symbol}{ins_price_display:.0f}"
             
             buttons.append([
                 InlineKeyboardButton(

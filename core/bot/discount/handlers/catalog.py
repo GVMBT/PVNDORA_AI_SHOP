@@ -1,6 +1,6 @@
 """Discount bot catalog handlers."""
 import asyncio
-from typing import Optional
+from typing import Optional, Tuple
 
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
@@ -20,6 +20,36 @@ router = Router(name="discount_catalog")
 
 # Cache for pagination
 _products_cache: dict = {}
+
+
+async def get_user_currency_info(db_user: User) -> Tuple[str, float]:
+    """Get user currency and exchange rate."""
+    currency = "USD"
+    exchange_rate = 1.0
+    
+    try:
+        from core.db import get_redis
+        from core.services.currency import get_currency_service
+        
+        redis = get_redis()
+        currency_service = get_currency_service(redis)
+        
+        preferred_currency = getattr(db_user, 'preferred_currency', None)
+        user_lang = getattr(db_user, 'language_code', 'en') or 'en'
+        
+        currency = currency_service.get_user_currency(user_lang, preferred_currency)
+        
+        # CrystalPay supports: USD, RUB, EUR, UAH, TRY, INR, AED
+        supported_currencies = ["USD", "RUB", "EUR", "UAH", "TRY", "INR", "AED"]
+        if currency not in supported_currencies:
+            currency = "USD"
+        
+        if currency != "USD":
+            exchange_rate = await currency_service.get_exchange_rate(currency)
+    except Exception as e:
+        logger.warning(f"Failed to get user currency: {e}")
+    
+    return currency, exchange_rate
 
 
 async def get_unique_categories(db) -> list:
@@ -113,6 +143,9 @@ async def msg_catalog(message: Message, db_user: User):
     lang = db_user.language_code
     db = get_database()
     
+    # Get user currency and exchange rate
+    currency, exchange_rate = await get_user_currency_info(db_user)
+    
     # Get all discount products directly (no separate categories table)
     products = await get_all_discount_products(db)
     
@@ -137,7 +170,7 @@ async def msg_catalog(message: Message, db_user: User):
     
     await message.answer(
         text,
-        reply_markup=get_products_keyboard(products, lang, "all", page=0),
+        reply_markup=get_products_keyboard(products, lang, "all", page=0, exchange_rate=exchange_rate, currency=currency),
         parse_mode=ParseMode.HTML
     )
 
@@ -147,6 +180,9 @@ async def cb_catalog(callback: CallbackQuery, db_user: User):
     """Show catalog - all discount products."""
     lang = db_user.language_code
     db = get_database()
+    
+    # Get user currency and exchange rate
+    currency, exchange_rate = await get_user_currency_info(db_user)
     
     products = await get_all_discount_products(db)
     
@@ -166,7 +202,7 @@ async def cb_catalog(callback: CallbackQuery, db_user: User):
     
     await callback.message.edit_text(
         text,
-        reply_markup=get_products_keyboard(products, lang, "all", page=0),
+        reply_markup=get_products_keyboard(products, lang, "all", page=0, exchange_rate=exchange_rate, currency=currency),
         parse_mode=ParseMode.HTML
     )
     await callback.answer()
@@ -178,6 +214,9 @@ async def cb_catalog(callback: CallbackQuery, db_user: User):
 async def cb_products_page(callback: CallbackQuery, db_user: User):
     """Handle products pagination."""
     lang = db_user.language_code
+    
+    # Get user currency and exchange rate
+    currency, exchange_rate = await get_user_currency_info(db_user)
     
     parts = callback.data.split(":")
     page = int(parts[2])
@@ -205,7 +244,7 @@ async def cb_products_page(callback: CallbackQuery, db_user: User):
     
     await callback.message.edit_text(
         text,
-        reply_markup=get_products_keyboard(products, lang, category_id, page=page),
+        reply_markup=get_products_keyboard(products, lang, category_id, page=page, exchange_rate=exchange_rate, currency=currency),
         parse_mode=ParseMode.HTML
     )
     await callback.answer()
@@ -216,6 +255,9 @@ async def cb_product_selected(callback: CallbackQuery, db_user: User):
     """Show product card."""
     lang = db_user.language_code
     db = get_database()
+    
+    # Get user currency and exchange rate
+    currency, exchange_rate = await get_user_currency_info(db_user)
     
     product_id = callback.data.split(":")[2]
     
@@ -234,8 +276,23 @@ async def cb_product_selected(callback: CallbackQuery, db_user: User):
     
     name = product.get("name", "Product")
     description = product.get("description", "")
-    discount_price = product.get("discount_price", 0)
+    discount_price_usd = float(product.get("discount_price", 0) or 0)
     available = product.get("available_count", 0)
+    
+    # Convert price for display
+    discount_price_display = discount_price_usd * exchange_rate
+    
+    # Currency symbols
+    currency_symbols = {
+        "RUB": "₽",
+        "EUR": "€",
+        "UAH": "₴",
+        "TRY": "₺",
+        "INR": "₹",
+        "AED": "د.إ",
+        "USD": "$"
+    }
+    currency_symbol = currency_symbols.get(currency, currency)
     
     stock_status = "✅ В наличии" if available > 0 else "🟡 Предзаказ"
     if lang != "ru":
@@ -244,12 +301,12 @@ async def cb_product_selected(callback: CallbackQuery, db_user: User):
     text = (
         f"<b>{name}</b>\n\n"
         f"{description[:200]}{'...' if len(description) > 200 else ''}\n\n"
-        f"💰 <b>Цена:</b> ${discount_price:.0f}\n"
+        f"💰 <b>Цена:</b> {currency_symbol}{discount_price_display:.0f}\n"
         f"📦 <b>Статус:</b> {stock_status}\n\n"
     ) if lang == "ru" else (
         f"<b>{name}</b>\n\n"
         f"{description[:200]}{'...' if len(description) > 200 else ''}\n\n"
-        f"💰 <b>Price:</b> ${discount_price:.0f}\n"
+        f"💰 <b>Price:</b> {currency_symbol}{discount_price_display:.0f}\n"
         f"📦 <b>Status:</b> {stock_status}\n\n"
     )
     
@@ -260,10 +317,12 @@ async def cb_product_selected(callback: CallbackQuery, db_user: User):
         text,
         reply_markup=get_product_card_keyboard(
             product["id"],
-            discount_price,
+            discount_price_usd,  # Pass USD price, keyboard will convert
             [{"id": io.id, "duration_days": io.duration_days, "price_percent": io.price_percent} for io in insurance_options],
             lang,
-            in_stock=available > 0
+            in_stock=available > 0,
+            exchange_rate=exchange_rate,
+            currency=currency
         ),
         parse_mode=ParseMode.HTML
     )
