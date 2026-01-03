@@ -38,8 +38,9 @@ class ReferralService:
     Provides clean interface for referral operations.
     """
     
-    # Referral commission percentages by level
-    LEVEL_PERCENTS = {1: 20, 2: 10, 3: 5}
+    # Referral commission percentages by level (fallback, actual values from DB)
+    # NOTE: These are fallback values. Actual percentages loaded from referral_settings table.
+    LEVEL_PERCENTS = {1: 10, 2: 7, 3: 3}
     BOT_USERNAME = "pvndora_ai_bot"
     
     def __init__(self, db):

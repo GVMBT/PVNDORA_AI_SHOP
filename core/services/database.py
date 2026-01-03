@@ -347,10 +347,12 @@ class Database:
     
     # ==================== REFERRAL ====================
     
+    # NOTE: These are fallback values. Actual percentages loaded from referral_settings table.
+    # Primary referral processing is via RPC process_referral_bonus in workers.py
     REFERRAL_LEVELS = [
-        {"level": 1, "percent": 20},
-        {"level": 2, "percent": 10},
-        {"level": 3, "percent": 5},
+        {"level": 1, "percent": 10},
+        {"level": 2, "percent": 7},
+        {"level": 3, "percent": 3},
     ]
     
     async def process_referral_bonus(self, order: Order) -> None:

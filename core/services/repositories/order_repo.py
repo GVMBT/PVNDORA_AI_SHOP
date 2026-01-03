@@ -15,14 +15,18 @@ class OrderRepository(BaseRepository):
         original_price: Optional[float] = None,
         discount_percent: int = 0,
         payment_method: str = "card",
-        payment_gateway: str = "rukassa",
+        payment_gateway: str = "crystalpay",
         user_telegram_id: Optional[int] = None,
         expires_at: Optional[datetime] = None,
-        payment_url: Optional[str] = None
+        payment_url: Optional[str] = None,
+        source_channel: str = "premium"
     ) -> Order:
         """Create new order with payment expiration.
         
         Note: product_id removed - products are stored in order_items table.
+        
+        Args:
+            source_channel: Order origin - 'premium' (PVNDORA), 'discount' (discount bot), 'migrated' (converted user)
         """
         data = {
             "user_id": user_id,
@@ -31,7 +35,8 @@ class OrderRepository(BaseRepository):
             "discount_percent": discount_percent,
             "status": "pending",
             "payment_method": payment_method,
-            "payment_gateway": payment_gateway
+            "payment_gateway": payment_gateway,
+            "source_channel": source_channel
         }
         if user_telegram_id:
             data["user_telegram_id"] = user_telegram_id

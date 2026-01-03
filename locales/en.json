@@ -687,5 +687,45 @@
     "documentId": "DOCUMENT_ID",
     "docHash": "DOC_HASH",
     "lastUpdated": "LAST_UPDATED"
+  },
+
+  "discount": {
+    "welcome": "👋 Welcome!",
+    "catalog": "🛒 Catalog",
+    "myOrders": "📦 My Orders",
+    "help": "❓ Help",
+    "terms": {
+      "title": "📜 Terms of Service",
+      "accept": "✅ Accept Terms",
+      "read": "📄 Read Terms"
+    },
+    "insurance": {
+      "header": "🛡 With Insurance:",
+      "days": "days",
+      "replacement": "replacement"
+    },
+    "order": {
+      "queued": "📦 Order queued",
+      "queuedInfo": "Delivery within 1-4 hours",
+      "delivered": "✅ Order delivered",
+      "problem": "⚠️ Account problem"
+    },
+    "issue": {
+      "loginFailed": "🔐 Can't login",
+      "banned": "🚫 Account banned",
+      "wrongProduct": "❌ Wrong product",
+      "other": "❓ Other",
+      "noInsurance": "⚠️ No insurance",
+      "insuranceExpired": "⚠️ Insurance expired",
+      "replacementApproved": "✅ Replacement approved!",
+      "replacementPending": "⏳ Replacement request submitted"
+    },
+    "offer": {
+      "partner": "💰 Affiliate 10/7/3%",
+      "tryPvndora": "⭐ Try PVNDORA",
+      "instantDelivery": "🚀 Instant delivery",
+      "warranty": "🛡 Warranty on all products",
+      "support247": "🎧 24/7 support"
+    }
   }
 }

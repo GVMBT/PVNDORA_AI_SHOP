@@ -5,6 +5,8 @@
     { "source": "/api/og/:path*", "destination": "/api/og/:path*" },
     { "source": "/api/cron/:path*", "destination": "/api/cron/:path*" },
     { "source": "/api/((?!og/|cron/).*)", "destination": "/api/index.py" },
+    { "source": "/webhook/telegram", "destination": "/api/index.py" },
+    { "source": "/webhook/discount", "destination": "/api/index.py" },
     { "source": "/webhook/(.*)", "destination": "/api/index.py" },
     { "source": "/1plat.txt", "destination": "/1plat.txt" },
     { "source": "/f7f45338-a334-44be-84d7-d15c3770bc97.txt", "destination": "/f7f45338-a334-44be-84d7-d15c3770bc97.txt" },
@@ -44,6 +46,14 @@
     },
     {
       "path": "/api/cron/reengagement",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/low_stock_alert",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/discount_offers",
       "schedule": "0 12 * * *"
     }
   ]

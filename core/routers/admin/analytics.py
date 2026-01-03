@@ -224,3 +224,130 @@ async def admin_get_business_metrics(
         "product_metrics": products.data or [],
         "retention_cohorts": retention.data or []
     }
+
+
+@router.get("/analytics/discount")
+async def admin_get_discount_analytics(
+    days: int = 30,
+    admin=Depends(verify_admin)
+):
+    """Get discount channel analytics and migration funnel metrics."""
+    db = get_database()
+    
+    now = datetime.now(timezone.utc)
+    period_start = now - timedelta(days=days)
+    
+    # 1. Migration stats from view
+    migration_stats = await asyncio.to_thread(
+        lambda: db.client.table("discount_migration_stats").select("*").execute()
+    )
+    
+    # 2. Discount orders stats
+    discount_orders = await asyncio.to_thread(
+        lambda: db.client.table("orders").select(
+            "id, amount, status, created_at", count="exact"
+        ).eq("source_channel", "discount").gte(
+            "created_at", period_start.isoformat()
+        ).execute()
+    )
+    
+    # 3. Insurance sales
+    insurance_items = await asyncio.to_thread(
+        lambda: db.client.table("order_items").select(
+            "id, insurance_id", count="exact"
+        ).not_.is_("insurance_id", "null").execute()
+    )
+    
+    # 4. Replacement stats
+    replacements_pending = await asyncio.to_thread(
+        lambda: db.client.table("insurance_replacements").select(
+            "id", count="exact"
+        ).eq("status", "pending").execute()
+    )
+    
+    replacements_approved = await asyncio.to_thread(
+        lambda: db.client.table("insurance_replacements").select(
+            "id", count="exact"
+        ).in_("status", ["approved", "auto_approved"]).gte(
+            "created_at", period_start.isoformat()
+        ).execute()
+    )
+    
+    replacements_rejected = await asyncio.to_thread(
+        lambda: db.client.table("insurance_replacements").select(
+            "id", count="exact"
+        ).eq("status", "rejected").gte(
+            "created_at", period_start.isoformat()
+        ).execute()
+    )
+    
+    # 5. Promo code stats by trigger
+    promo_stats = await asyncio.to_thread(
+        lambda: db.client.table("promo_codes").select(
+            "source_trigger, current_uses"
+        ).not_.is_("source_trigger", "null").execute()
+    )
+    
+    # Aggregate promo stats by trigger
+    promo_by_trigger = {}
+    for p in (promo_stats.data or []):
+        trigger = p.get("source_trigger", "unknown")
+        if trigger not in promo_by_trigger:
+            promo_by_trigger[trigger] = {"count": 0, "used": 0}
+        promo_by_trigger[trigger]["count"] += 1
+        promo_by_trigger[trigger]["used"] += p.get("current_uses", 0)
+    
+    # 6. Top abusers
+    # Get users with high abuse scores
+    discount_users = await asyncio.to_thread(
+        lambda: db.client.table("users").select(
+            "telegram_id"
+        ).eq("discount_tier_source", True).limit(100).execute()
+    )
+    
+    top_abusers = []
+    for user in (discount_users.data or [])[:20]:  # Check first 20
+        tid = user["telegram_id"]
+        score_result = await asyncio.to_thread(
+            lambda t=tid: db.client.rpc(
+                "get_user_abuse_score",
+                {"p_telegram_id": t}
+            ).execute()
+        )
+        score = score_result.data if score_result.data else 0
+        if score > 30:  # Only include if above threshold
+            top_abusers.append({"telegram_id": tid, "abuse_score": score})
+    
+    top_abusers.sort(key=lambda x: x["abuse_score"], reverse=True)
+    
+    # Calculate totals
+    discount_orders_data = discount_orders.data or []
+    total_discount_revenue = sum(
+        o.get("amount", 0) for o in discount_orders_data 
+        if o.get("status") == "delivered"
+    )
+    total_discount_orders = len([o for o in discount_orders_data if o.get("status") == "delivered"])
+    
+    return {
+        "period_days": days,
+        "migration": migration_stats.data[0] if migration_stats.data else {},
+        "discount_channel": {
+            "total_orders": discount_orders.count if discount_orders.count else 0,
+            "delivered_orders": total_discount_orders,
+            "revenue": round(total_discount_revenue, 2),
+            "avg_order_value": round(total_discount_revenue / max(total_discount_orders, 1), 2)
+        },
+        "insurance": {
+            "items_with_insurance": insurance_items.count if insurance_items.count else 0,
+            "insurance_rate": round(
+                (insurance_items.count or 0) / max(discount_orders.count or 1, 1) * 100, 1
+            )
+        },
+        "replacements": {
+            "pending": replacements_pending.count if replacements_pending.count else 0,
+            "approved": replacements_approved.count if replacements_approved.count else 0,
+            "rejected": replacements_rejected.count if replacements_rejected.count else 0
+        },
+        "promo_codes": promo_by_trigger,
+        "top_abusers": top_abusers[:10]
+    }

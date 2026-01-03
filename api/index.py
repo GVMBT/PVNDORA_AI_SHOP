@@ -320,6 +320,142 @@ async def _process_update_async(bot_instance: Bot, dispatcher: Dispatcher, updat
 # QStash workers moved to core/routers/workers.py
 # Admin endpoints moved to core/routers/admin.py
 
+
+# ==================== DISCOUNT BOT WEBHOOK ====================
+
+# Discount bot configuration
+DISCOUNT_BOT_TOKEN = os.environ.get("DISCOUNT_BOT_TOKEN", "")
+
+discount_bot: Optional[Bot] = None
+discount_dp: Optional[Dispatcher] = None
+
+
+def get_discount_bot() -> Optional[Bot]:
+    """Get or create discount bot instance"""
+    global discount_bot
+    if discount_bot is None and DISCOUNT_BOT_TOKEN:
+        discount_bot = Bot(
+            token=DISCOUNT_BOT_TOKEN,
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+        )
+    return discount_bot
+
+
+def get_discount_dispatcher() -> Optional[Dispatcher]:
+    """Get or create discount dispatcher instance"""
+    global discount_dp
+    if discount_dp is None and DISCOUNT_BOT_TOKEN:
+        from core.bot.discount import (
+            discount_router,
+            DiscountAuthMiddleware,
+            ChannelSubscriptionMiddleware,
+            TermsAcceptanceMiddleware,
+        )
+        
+        discount_dp = Dispatcher()
+        
+        # Register middlewares (order matters!)
+        discount_dp.message.middleware(DiscountAuthMiddleware())
+        discount_dp.message.middleware(ChannelSubscriptionMiddleware())
+        discount_dp.message.middleware(TermsAcceptanceMiddleware())
+        
+        discount_dp.callback_query.middleware(DiscountAuthMiddleware())
+        discount_dp.callback_query.middleware(ChannelSubscriptionMiddleware())
+        
+        # Register discount bot router
+        discount_dp.include_router(discount_router)
+    
+    return discount_dp
+
+
+@app.post("/webhook/discount")
+async def discount_webhook(request: Request, background_tasks: BackgroundTasks):
+    """Handle Discount Bot Telegram webhook updates"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        bot_instance = get_discount_bot()
+        dispatcher = get_discount_dispatcher()
+        
+        if not bot_instance or not dispatcher:
+            logger.error("Discount bot not configured - DISCOUNT_BOT_TOKEN may be missing")
+            return JSONResponse(
+                status_code=200,
+                content={"ok": False, "error": "Discount bot not configured"}
+            )
+        
+        try:
+            data = await request.json()
+        except Exception as e:
+            logger.warning(f"Failed to parse JSON: {e}")
+            return JSONResponse(
+                status_code=200,
+                content={"ok": False, "error": f"Invalid JSON: {str(e)}"}
+            )
+        
+        try:
+            update = Update.model_validate(data, context={"bot": bot_instance})
+        except Exception as e:
+            logger.warning(f"Failed to validate update: {e}")
+            return JSONResponse(
+                status_code=200,
+                content={"ok": False, "error": f"Invalid update: {str(e)}"}
+            )
+        
+        # Process update in background
+        background_tasks.add_task(
+            _process_update_async,
+            bot_instance,
+            dispatcher,
+            update
+        )
+        
+        return JSONResponse(content={"ok": True})
+    
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Discount webhook exception: {error_msg}")
+        return JSONResponse(
+            status_code=200,
+            content={"ok": False, "error": error_msg}
+        )
+
+
+@app.post("/api/webhook/discount/set")
+async def set_discount_webhook():
+    """Set Discount Bot Telegram webhook"""
+    import httpx
+    
+    if not DISCOUNT_BOT_TOKEN:
+        return {"error": "DISCOUNT_BOT_TOKEN not configured"}
+    
+    webhook_url = f"{WEBAPP_URL}/webhook/discount"
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"https://api.telegram.org/bot{DISCOUNT_BOT_TOKEN}/setWebhook",
+                json={
+                    "url": webhook_url,
+                    "allowed_updates": ["message", "callback_query"],
+                    "drop_pending_updates": True
+                }
+            )
+            result = response.json()
+            
+            if result.get("ok"):
+                return {
+                    "ok": True,
+                    "message": "Discount webhook set successfully",
+                    "url": webhook_url
+                }
+            else:
+                return {"ok": False, "error": result.get("description")}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 # ==================== VERCEL EXPORT ====================
 # Vercel automatically detects FastAPI app when 'app' variable is present
 # No need to export handler - FastAPI is auto-detected

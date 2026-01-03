@@ -206,7 +206,7 @@ class UserProfile(UserBase):
     """User profile with stats."""
     balance: float = 0.0
     total_saved: float = 0.0
-    personal_ref_percent: int = 20
+    personal_ref_percent: int = 10  # Default L1 commission (actual from referral_settings)
     is_admin: bool = False
     is_banned: bool = False
     referral_count: int = 0

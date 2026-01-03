@@ -36,9 +36,9 @@ async def admin_get_referral_settings(admin=Depends(verify_admin)):
                 "level1_threshold_usd": 0,
                 "level2_threshold_usd": 250,
                 "level3_threshold_usd": 1000,
-                "level1_commission_percent": 20,
-                "level2_commission_percent": 10,
-                "level3_commission_percent": 5
+                "level1_commission_percent": 10,
+                "level2_commission_percent": 7,
+                "level3_commission_percent": 3
             }
         }
     

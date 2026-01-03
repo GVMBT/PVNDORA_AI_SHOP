@@ -18,7 +18,7 @@ class User(BaseModel):
     interface_language: Optional[str] = None  # User preferred interface language (ru, en, etc.)
     balance: Decimal = Decimal("0")
     referrer_id: Optional[str] = None
-    personal_ref_percent: int = 20
+    personal_ref_percent: int = 10  # Default L1 commission (actual from referral_settings)
     is_admin: bool = False
     is_banned: bool = False
     warnings_count: int = 0

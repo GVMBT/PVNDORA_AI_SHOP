@@ -11,6 +11,12 @@ from .wishlist import WishlistService
 from .referral import ReferralService
 from .support import SupportService
 
+# Discount channel services
+from .insurance import InsuranceService
+from .promo import PromoCodeService, PromoTriggers
+from .discount_orders import DiscountOrderService
+from .offers import OffersService
+
 __all__ = [
     # Legacy domain wrappers
     "UsersDomain",
@@ -23,5 +29,11 @@ __all__ = [
     "WishlistService", 
     "ReferralService",
     "SupportService",
+    # Discount channel
+    "InsuranceService",
+    "PromoCodeService",
+    "PromoTriggers",
+    "DiscountOrderService",
+    "OffersService",
 ]
 

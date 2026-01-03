@@ -22,14 +22,18 @@ class OrdersDomain:
         original_price: Optional[float] = None,
         discount_percent: int = 0,
         payment_method: str = "card",
-        payment_gateway: str = "rukassa",
+        payment_gateway: str = "crystalpay",
         user_telegram_id: Optional[int] = None,
         expires_at: Optional[datetime] = None,
         payment_url: Optional[str] = None,
+        source_channel: str = "premium",
     ) -> Order:
         """Create new order.
         
         Note: product_id removed - products are stored in order_items table.
+        
+        Args:
+            source_channel: Order origin - 'premium' (PVNDORA), 'discount' (discount bot), 'migrated' (converted user)
         """
         return await self.repo.create(
             user_id=user_id,
@@ -41,6 +45,7 @@ class OrdersDomain:
             user_telegram_id=user_telegram_id,
             expires_at=expires_at,
             payment_url=payment_url,
+            source_channel=source_channel,
         )
 
     async def get_by_id(self, order_id: str) -> Optional[Order]:
