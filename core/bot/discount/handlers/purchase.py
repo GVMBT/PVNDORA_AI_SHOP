@@ -72,15 +72,27 @@ async def create_crystalpay_payment(
 
 
 async def get_product_by_short_id(db, short_id: str) -> Optional[dict]:
-    """Get product by short ID."""
+    """Get product by short ID (first 8 chars of UUID)."""
     try:
+        # Get all active products with discount_price (ilike doesn't work with UUID)
         result = await asyncio.to_thread(
-            lambda: db.client.table("products").select("*").ilike(
-                "id", f"{short_id}%"
-            ).limit(1).execute()
+            lambda: db.client.table("products").select("*").eq(
+                "status", "active"
+            ).not_.is_("discount_price", "null").execute()
         )
-        return result.data[0] if result.data else None
-    except Exception:
+        
+        # Filter by UUID prefix (first 8 chars, case-insensitive)
+        products = result.data or []
+        short_id_lower = short_id.lower().replace("-", "")
+        
+        for p in products:
+            product_uuid_str = str(p["id"]).lower().replace("-", "")
+            if product_uuid_str.startswith(short_id_lower):
+                return p
+        
+        return None
+    except Exception as e:
+        logger.error(f"Failed to get product by short ID: {e}")
         return None
 
 
