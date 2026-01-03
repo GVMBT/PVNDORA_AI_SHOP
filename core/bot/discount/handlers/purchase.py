@@ -151,7 +151,7 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
     product = await get_product_by_short_id(db, product_short_id)
     if not product:
         await callback.answer(
-            "Товар не найден" if lang == "ru" else "Product not found",
+            get_text("discount.order.productNotFound", lang),
             show_alert=True
         )
         return
@@ -159,7 +159,7 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
     discount_price = float(product.get("discount_price", 0))
     if discount_price <= 0:
         await callback.answer(
-            "Товар недоступен" if lang == "ru" else "Product unavailable",
+            get_text("discount.order.productUnavailable", lang),
             show_alert=True
         )
         return
@@ -254,7 +254,7 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
         
         if not payment_url:
             await callback.answer(
-                "Ошибка создания платежа" if lang == "ru" else "Payment creation error",
+                get_text("discount.order.paymentError", lang),
                 show_alert=True
             )
             return
@@ -298,32 +298,21 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
                 logger.warning(f"Failed to convert price for display: {e}")
         
         # Send payment message
-        text = (
-            f"💳 <b>Заказ #{order_id[:8]}</b>\n\n"
-            f"Товар: {product.get('name', 'Product')}\n"
-            f"Цена: {display_currency_symbol}{display_discount_price:.0f}\n"
-        ) if lang == "ru" else (
-            f"💳 <b>Order #{order_id[:8]}</b>\n\n"
-            f"Product: {product.get('name', 'Product')}\n"
-            f"Price: {display_currency_symbol}{display_discount_price:.0f}\n"
-        )
+        text = get_text("discount.order.header", lang, order_id=order_id[:8])
+        text += get_text("discount.order.product", lang, name=product.get('name', 'Product')) + "\n"
+        text += get_text("discount.order.price", lang, amount=f"{display_currency_symbol}{display_discount_price:.0f}") + "\n"
         
         if insurance:
-            text += (
-                f"Страховка: +{display_currency_symbol}{display_insurance_price:.0f} ({insurance.get('duration_days')} дней)\n"
-            ) if lang == "ru" else (
-                f"Insurance: +{display_currency_symbol}{display_insurance_price:.0f} ({insurance.get('duration_days')} days)\n"
-            )
+            text += get_text(
+                "discount.order.insurance", 
+                lang, 
+                amount=f"{display_currency_symbol}{display_insurance_price:.0f}",
+                days=insurance.get('duration_days', 7)
+            ) + "\n"
         
-        text += (
-            f"\n<b>Итого: {display_currency_symbol}{display_amount:.0f}</b>\n\n"
-            f"⏳ Ссылка действует 1 час.\n"
-            f"📦 Доставка через 1-4 часа после оплаты."
-        ) if lang == "ru" else (
-            f"\n<b>Total: {display_currency_symbol}{display_amount:.0f}</b>\n\n"
-            f"⏳ Link valid for 1 hour.\n"
-            f"📦 Delivery 1-4 hours after payment."
-        )
+        text += f"\n<b>{get_text('discount.order.total', lang, amount=f'{display_currency_symbol}{display_amount:.0f}')}</b>\n\n"
+        text += get_text("discount.order.linkExpires", lang) + "\n"
+        text += get_text("discount.order.deliveryTime", lang)
         
         await callback.message.edit_text(
             text,
@@ -335,7 +324,7 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
     except Exception as e:
         logger.error(f"Order creation error: {e}")
         await callback.answer(
-            "Ошибка создания заказа" if lang == "ru" else "Order creation error",
+            get_text("discount.order.creationError", lang),
             show_alert=True
         )
 
