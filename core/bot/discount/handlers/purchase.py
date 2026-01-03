@@ -11,6 +11,7 @@ from aiogram.enums import ParseMode
 from core.services.database import User, get_database
 from core.services.domains import InsuranceService, DiscountOrderService
 from core.logging import get_logger
+from core.i18n import get_text
 from ..keyboards import (
     get_payment_keyboard,
     get_order_queued_keyboard,

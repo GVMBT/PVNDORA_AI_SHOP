@@ -61,6 +61,15 @@ class DiscountAuthMiddleware(BaseMiddleware):
                 }).eq("id", db_user.id).execute()
             except Exception as e:
                 logger.error(f"Failed to mark discount_tier_source: {e}")
+        else:
+            # Update language if changed in Telegram
+            new_lang = detect_language(user.language_code)
+            if new_lang != db_user.language_code:
+                try:
+                    await db.update_user_language(user.id, new_lang)
+                    db_user.language_code = new_lang
+                except Exception as e:
+                    logger.warning(f"Failed to update user language: {e}")
         
         # Check if banned
         if db_user.is_banned:
