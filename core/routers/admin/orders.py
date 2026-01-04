@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from core.services.database import get_database
 from core.auth import verify_admin
-from core.services.payments import get_payment_service
+from core.routers.deps import get_payment_service
 from core.logging import get_logger
 from .models import CreateFAQRequest
 
