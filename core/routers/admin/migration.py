@@ -143,12 +143,12 @@ async def get_migration_stats(
     # 7. Promo stats
     promos_result = await asyncio.to_thread(
         lambda: db.client.table("promo_codes").select(
-            "id, is_used"
+            "id, usage_count"
         ).gte("created_at", cutoff_str).execute()
     )
     promos_data = promos_result.data or []
     promos_generated = len(promos_data)
-    promos_used = sum(1 for p in promos_data if p.get("is_used"))
+    promos_used = sum(1 for p in promos_data if (p.get("usage_count", 0) or 0) > 0)
     promo_conversion = (promos_used / promos_generated * 100) if promos_generated > 0 else 0.0
     
     return MigrationStats(
@@ -228,19 +228,31 @@ async def get_top_migrating_products(
     if not discount_user_ids:
         return []
     
-    # Get PVNDORA orders from these users
+    # Get PVNDORA orders from these users via order_items
     product_counts = {}
     for user_id in list(discount_user_ids)[:50]:  # Sample
+        # Get orders first
         orders_result = await asyncio.to_thread(
             lambda uid=user_id: db.client.table("orders").select(
-                "product_id"
+                "id"
             ).eq("user_telegram_id", uid).neq(
                 "source_channel", "discount"
             ).execute()
         )
         
-        for order in (orders_result.data or []):
-            pid = order.get("product_id")
+        order_ids = [o["id"] for o in (orders_result.data or [])]
+        if not order_ids:
+            continue
+        
+        # Get order_items for these orders
+        items_result = await asyncio.to_thread(
+            lambda oids=order_ids: db.client.table("order_items").select(
+                "product_id"
+            ).in_("order_id", oids).execute()
+        )
+        
+        for item in (items_result.data or []):
+            pid = item.get("product_id")
             if pid:
                 product_counts[pid] = product_counts.get(pid, 0) + 1
     

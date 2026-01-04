@@ -48,12 +48,13 @@ async def auto_alloc_entrypoint(request: Request):
     # NOTE: We exclude discount channel orders - they use separate delayed delivery via QStash
     try:
         # First, get order_ids that are NOT from discount channel
-        # Join order_items with orders to filter by source_channel
+        # Join order_items with orders to filter by source_channel and valid statuses
         open_items = await asyncio.to_thread(
             lambda: db.client.table("order_items")
-            .select("order_id, orders!inner(source_channel)")
+            .select("order_id, orders!inner(source_channel, status)")
             .in_("status", ["pending", "prepaid"])
             .neq("orders.source_channel", "discount")
+            .in_("orders.status", ["paid", "prepaid", "partial", "delivered"])
             .order("created_at")
             .limit(200)
             .execute()
