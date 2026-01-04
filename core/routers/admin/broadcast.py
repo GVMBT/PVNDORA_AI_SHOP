@@ -8,7 +8,7 @@ import asyncio
 from typing import List, Optional
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel, Field
 import httpx
 
@@ -74,8 +74,7 @@ async def send_telegram_message(
 
 
 @router.post("", response_model=BroadcastResult)
-@admin_required
-async def send_broadcast(request: BroadcastRequest, admin_user=None):
+async def send_broadcast(request: BroadcastRequest, admin_user=Depends(verify_admin)):
     """
     Send broadcast message to users.
     
@@ -187,8 +186,7 @@ async def send_broadcast(request: BroadcastRequest, admin_user=None):
 
 
 @router.get("/stats")
-@admin_required
-async def get_broadcast_stats(admin_user=None):
+async def get_broadcast_stats(admin_user=Depends(verify_admin)):
     """Get statistics for broadcast targeting."""
     db = get_database()
     

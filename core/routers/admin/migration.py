@@ -10,7 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
-from core.security.admin_auth import verify_admin_user
+from core.auth import verify_admin
 from core.services.database import get_database
 
 router = APIRouter(prefix="/migration", tags=["admin"])
@@ -65,7 +65,7 @@ class MigrationDashboard(BaseModel):
 @router.get("/stats", response_model=MigrationStats)
 async def get_migration_stats(
     days: int = Query(30, ge=1, le=365, description="Period in days"),
-    _admin: dict = Depends(verify_admin_user)
+    admin=Depends(verify_admin)
 ):
     """Get migration statistics for the specified period."""
     db = get_database()
@@ -162,7 +162,7 @@ async def get_migration_stats(
 @router.get("/trend", response_model=list[MigrationTrend])
 async def get_migration_trend(
     days: int = Query(14, ge=1, le=90, description="Period in days"),
-    _admin: dict = Depends(verify_admin_user)
+    admin=Depends(verify_admin)
 ):
     """Get daily migration trend data."""
     db = get_database()
@@ -203,7 +203,7 @@ async def get_migration_trend(
 @router.get("/top-products")
 async def get_top_migrating_products(
     limit: int = Query(10, ge=1, le=50),
-    _admin: dict = Depends(verify_admin_user)
+    admin=Depends(verify_admin)
 ):
     """Get products that most attract discount users to PVNDORA."""
     db = get_database()
