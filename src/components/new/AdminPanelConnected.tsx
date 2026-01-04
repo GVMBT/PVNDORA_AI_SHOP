@@ -90,7 +90,6 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
           reservesUsed: parseFloat(data.reserves_used) || 0,
           reservesAvailable: parseFloat(data.reserves_available) || 0,
         });
-      }
     } catch (err) {
       logger.error('Failed to fetch accounting data', err);
     } finally {
