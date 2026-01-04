@@ -18,6 +18,7 @@ from ..keyboards import (
     get_orders_keyboard,
     get_order_detail_keyboard,
 )
+from .catalog import get_user_currency_info
 
 logger = get_logger(__name__)
 
@@ -377,6 +378,9 @@ async def msg_orders(message: Message, db_user: User):
     db = get_database()
     
     try:
+        # Get user currency info
+        currency, exchange_rate = await get_user_currency_info(db_user)
+        
         # Get user UUID
         user_result = await asyncio.to_thread(
             lambda: db.client.table("users").select("id").eq(
@@ -417,7 +421,7 @@ async def msg_orders(message: Message, db_user: User):
         
         await message.answer(
             text,
-            reply_markup=get_orders_keyboard(orders, lang),
+            reply_markup=get_orders_keyboard(orders, lang, exchange_rate, currency),
             parse_mode=ParseMode.HTML
         )
         
@@ -433,6 +437,9 @@ async def cb_orders(callback: CallbackQuery, db_user: User):
     db = get_database()
     
     try:
+        # Get user currency info
+        currency, exchange_rate = await get_user_currency_info(db_user)
+        
         user_result = await asyncio.to_thread(
             lambda: db.client.table("users").select("id").eq(
                 "telegram_id", db_user.telegram_id
@@ -463,7 +470,7 @@ async def cb_orders(callback: CallbackQuery, db_user: User):
         
         await callback.message.edit_text(
             text,
-            reply_markup=get_orders_keyboard(orders, lang) if orders else None,
+            reply_markup=get_orders_keyboard(orders, lang, exchange_rate, currency) if orders else None,
             parse_mode=ParseMode.HTML
         )
         await callback.answer()
@@ -528,6 +535,17 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User):
         has_insurance = any(item.get("insurance_id") for item in items)
         order["has_insurance"] = has_insurance
         
+        # Get currency info
+        currency, exchange_rate = await get_user_currency_info(db_user)
+        currency_symbols = {
+            "RUB": "₽", "EUR": "€", "UAH": "₴", "TRY": "₺", 
+            "INR": "₹", "AED": "د.إ", "USD": "$"
+        }
+        currency_symbol = currency_symbols.get(currency, currency)
+        
+        amount_usd = float(order.get('amount', 0) or 0)
+        display_amount = amount_usd * exchange_rate
+        
         status_text = {
             "pending": "⏳ Ожидает оплаты" if lang == "ru" else "⏳ Pending payment",
             "paid": "💳 Оплачен" if lang == "ru" else "💳 Paid",
@@ -540,7 +558,7 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User):
         text = (
             f"📦 <b>Заказ #{order['id'][:8]}</b>\n\n"
             f"Статус: {status_text}\n"
-            f"Сумма: ${order['amount']:.0f}\n"
+            f"Сумма: {currency_symbol}{display_amount:.0f}\n"
             f"Создан: {order['created_at'][:10]}\n\n"
         )
         

@@ -240,14 +240,34 @@ def get_order_queued_keyboard(lang: str, order_id: str) -> InlineKeyboardMarkup:
 # Orders
 # ============================================
 
-def get_orders_keyboard(orders: List[dict], lang: str) -> InlineKeyboardMarkup:
+def get_orders_keyboard(
+    orders: List[dict], 
+    lang: str,
+    exchange_rate: float = 1.0,
+    currency: str = "USD"
+) -> InlineKeyboardMarkup:
     """User orders list."""
     buttons = []
+    
+    # Currency symbols
+    currency_symbols = {
+        "RUB": "₽",
+        "EUR": "€",
+        "UAH": "₴",
+        "TRY": "₺",
+        "INR": "₹",
+        "AED": "د.إ",
+        "USD": "$"
+    }
+    currency_symbol = currency_symbols.get(currency, currency)
     
     for order in orders[:10]:  # Show last 10
         order_id = order.get("id", "")[:8]
         status = order.get("status", "unknown")
-        amount = order.get("amount", 0)
+        amount_usd = float(order.get("amount", 0) or 0)
+        
+        # Convert to user currency
+        display_amount = amount_usd * exchange_rate
         
         status_emoji = {
             "pending": "⏳",
@@ -260,7 +280,7 @@ def get_orders_keyboard(orders: List[dict], lang: str) -> InlineKeyboardMarkup:
         
         buttons.append([
             InlineKeyboardButton(
-                text=f"{status_emoji} #{order_id} — ${amount:.0f}",
+                text=f"{status_emoji} #{order_id} — {currency_symbol}{display_amount:.0f}",
                 callback_data=f"discount:order:{order_id}"
             )
         ])
