@@ -7,6 +7,7 @@ from typing import Optional
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 
 from core.services.database import get_database
 from core.i18n import get_text
@@ -321,15 +322,36 @@ class NotificationService:
         if not bot:
             return
         
+        # Get localized messages
+        title = get_text("ticket_rejected_title", language, default=f"❌ Ticket #{ticket_id} Rejected").format(ticket_id=ticket_id)
+        message_text = get_text("ticket_rejected_message", language, default="Unfortunately, your request could not be approved.")
+        reason_text = get_text("ticket_rejected_reason", language, default="Reason: {reason}").format(reason=reason)
+        contact_text = get_text("ticket_rejected_contact", language, default="If you have questions, please contact support.")
+        button_text = get_text("btn_contact_support", language, default="🆘 Contact Support")
+        
         message = (
-            f"❌ <b>Ticket #{ticket_id} Rejected</b>\n\n"
-            f"Unfortunately, your request could not be approved.\n\n"
-            f"<i>Reason: {reason}</i>\n\n"
-            f"If you have questions, please contact support."
+            f"{title}\n\n"
+            f"{message_text}\n\n"
+            f"<i>{reason_text}</i>\n\n"
+            f"{contact_text}"
         )
         
+        # Create keyboard with support button
+        webapp_url = os.environ.get("WEBAPP_URL", "https://pvndora.app")
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text=button_text,
+                web_app=WebAppInfo(url=f"{webapp_url}?startapp=contacts")
+            )]
+        ])
+        
         try:
-            await bot.send_message(chat_id=telegram_id, text=message)
+            await bot.send_message(
+                chat_id=telegram_id, 
+                text=message, 
+                parse_mode=ParseMode.HTML,
+                reply_markup=keyboard
+            )
             logger.info(f"Sent rejection notification to {telegram_id} for ticket {ticket_id}")
         except Exception as e:
             logger.error(f"Failed to send rejection notification to {telegram_id}: {e}")

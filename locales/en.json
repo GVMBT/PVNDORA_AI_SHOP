@@ -361,6 +361,11 @@
   "subscription_expiring": "⏰ Subscription expiring in {days} cycles.",
   "subscription_expired": "⌛ Subscription expired.",
   "reengagement_message": "👋 Operative {name}. New assets available.",
+  "ticket_rejected_title": "❌ Ticket #{ticket_id} Rejected",
+  "ticket_rejected_message": "Unfortunately, your request could not be approved.",
+  "ticket_rejected_reason": "Reason: {reason}",
+  "ticket_rejected_contact": "If you have questions, please contact support.",
+  "btn_contact_support": "🆘 Contact Support",
 
   "btn_shop": "🛒 Registry",
   "btn_buy": "💳 INITIALIZE",
