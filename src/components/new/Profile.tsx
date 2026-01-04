@@ -33,16 +33,20 @@ interface ProfileProps {
   onWithdraw?: () => void;
   onTopUp?: () => void;
   onUpdatePreferences?: (preferred_currency?: string, interface_language?: string) => Promise<{ success: boolean; message: string }>;
+  onSetPartnerMode?: (mode: 'commission' | 'discount') => Promise<{ success: boolean }>;
 }
 
 // --- MAIN COMPONENT ---
 
-const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHaptic, onAdminEnter, onCopyLink, onShare: onShareProp, shareLoading, onWithdraw, onTopUp, onUpdatePreferences }) => {
+const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHaptic, onAdminEnter, onCopyLink, onShare: onShareProp, shareLoading, onWithdraw, onTopUp, onUpdatePreferences, onSetPartnerMode }) => {
   const { t } = useLocale();
   const { copy: copyToClipboard, copied } = useClipboard();
   const [activeTab, setActiveTab] = useState<'network' | 'logs'>('network');
   const [networkLine, setNetworkLine] = useState<1 | 2 | 3>(1);
-  const [rewardMode, setRewardMode] = useState<'cash' | 'discount'>('cash');
+  // Initialize reward mode from profile data (map commission/discount to cash/discount)
+  const [rewardMode, setRewardMode] = useState<'cash' | 'discount'>(
+    propProfile?.partnerMode === 'discount' ? 'discount' : 'cash'
+  );
   
   // DOSSIER STATE
   const [selectedReferralId, setSelectedReferralId] = useState<number | string | null>(null);
@@ -135,10 +139,25 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
       setSelectedReferralId(null);
   }
 
-  const toggleRewardMode = () => {
+  const toggleRewardMode = async () => {
     if (!user.isVip && !user.role.includes('ADMIN')) return;
     if (onHaptic) onHaptic('medium');
-    setRewardMode(prev => prev === 'cash' ? 'discount' : 'cash');
+    
+    const newMode = rewardMode === 'cash' ? 'discount' : 'cash';
+    const apiMode = newMode === 'cash' ? 'commission' : 'discount';
+    
+    // Optimistic update
+    setRewardMode(newMode);
+    
+    // Call API if handler provided
+    if (onSetPartnerMode) {
+      try {
+        await onSetPartnerMode(apiMode);
+      } catch (e) {
+        // Revert on error
+        setRewardMode(rewardMode);
+      }
+    }
   };
 
   return (

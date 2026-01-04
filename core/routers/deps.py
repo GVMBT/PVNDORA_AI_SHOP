@@ -12,6 +12,7 @@ from functools import lru_cache
 if TYPE_CHECKING:
     from core.services.notifications import NotificationService
     from core.services.payments import PaymentService
+    from core.services.admin_alerts import AdminAlertService
     from core.cart import CartManager
     from aiogram import Bot
 
@@ -20,6 +21,7 @@ if TYPE_CHECKING:
 
 _notification_service: Optional["NotificationService"] = None
 _payment_service: Optional["PaymentService"] = None
+_admin_alert_service: Optional["AdminAlertService"] = None
 _cart_manager: Optional["CartManager"] = None
 _bot: Optional["Bot"] = None
 
@@ -40,6 +42,15 @@ def get_payment_service() -> "PaymentService":
         from core.services.payments import PaymentService
         _payment_service = PaymentService()
     return _payment_service
+
+
+def get_admin_alerts() -> "AdminAlertService":
+    """Get or create AdminAlertService singleton (lazy loaded)"""
+    global _admin_alert_service
+    if _admin_alert_service is None:
+        from core.services.admin_alerts import AdminAlertService
+        _admin_alert_service = AdminAlertService()
+    return _admin_alert_service
 
 
 def get_cart_manager_lazy() -> "CartManager":

@@ -3,9 +3,11 @@ RAG Module - Semantic Product Search via Supabase REST API
 
 Uses pgvector through Supabase PostgREST - no direct DB connection needed.
 Works with Supabase Connection Pooler (Transaction mode).
+Embeddings via OpenRouter API (text-embedding-3-large).
 """
 
 import os
+import httpx
 from typing import Optional, List
 
 from core.logging import get_logger
@@ -16,42 +18,63 @@ logger = get_logger(__name__)
 
 # Environment
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 
-# Embedding settings
-EMBEDDING_DIMENSION = 768  # Gemini text-embedding-004
-EMBEDDING_MODEL = "text-embedding-004"
+# OpenRouter Embeddings API
+OPENROUTER_EMBEDDINGS_URL = "https://openrouter.ai/api/v1/embeddings"
+EMBEDDING_MODEL = "text-embedding-3-large"  # OpenAI model via OpenRouter
+EMBEDDING_DIMENSION = 3072  # text-embedding-3-large dimension
 
-# Singletons
-_embedding_client = None
+# HTTP client singleton
+_http_client: Optional[httpx.AsyncClient] = None
+
+
+async def get_http_client() -> httpx.AsyncClient:
+    """Get or create async HTTP client."""
+    global _http_client
+    if _http_client is None:
+        _http_client = httpx.AsyncClient(timeout=30.0)
+    return _http_client
 
 
 async def get_embedding(text: str) -> List[float]:
     """
-    Generate embedding for text using Gemini.
+    Generate embedding for text using OpenRouter API.
     
-    Returns 768-dimensional vector.
+    Uses text-embedding-3-large model (3072 dimensions).
+    Reference: https://openrouter.ai/docs/api/api-reference/embeddings/create-embeddings
     """
-    global _embedding_client
-    
-    if not GEMINI_API_KEY:
+    if not OPENROUTER_API_KEY:
+        logger.warning("RAG not available: missing OPENROUTER_API_KEY")
         return []
     
     try:
-        from google import genai
+        client = await get_http_client()
         
-        if _embedding_client is None:
-            _embedding_client = genai.Client(api_key=GEMINI_API_KEY)
-        
-        # Note: model name without "models/" prefix
-        response = _embedding_client.models.embed_content(
-            model=EMBEDDING_MODEL,
-            contents=text  # 'contents' not 'content'
+        response = await client.post(
+            OPENROUTER_EMBEDDINGS_URL,
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": os.environ.get("WEBAPP_URL", "https://pvndora.com"),
+                "X-Title": "PVNDORA RAG Search",
+            },
+            json={
+                "input": text,
+                "model": EMBEDDING_MODEL,
+            }
         )
         
-        # Response structure: response.embeddings[0].values
-        if response.embeddings and len(response.embeddings) > 0:
-            return list(response.embeddings[0].values)
+        if response.status_code != 200:
+            logger.error(f"OpenRouter embeddings API error: {response.status_code} - {response.text}")
+            return []
+        
+        data = response.json()
+        
+        # Response structure: { data: [{ embedding: [...], index: 0 }], ... }
+        if data.get("data") and len(data["data"]) > 0:
+            embedding = data["data"][0].get("embedding", [])
+            return embedding
         
         return []
         
@@ -86,7 +109,7 @@ class ProductSearch:
     @property
     def is_available(self) -> bool:
         """Check if RAG search is available."""
-        return bool(GEMINI_API_KEY)
+        return bool(OPENROUTER_API_KEY)
     
     async def index_product(
         self,
@@ -102,7 +125,7 @@ class ProductSearch:
         Creates/updates embedding in product_embeddings table.
         """
         if not self.is_available:
-            logger.warning("RAG not available: missing GEMINI_API_KEY")
+            logger.warning("RAG not available: missing OPENROUTER_API_KEY")
             return False
         
         # Build text for embedding

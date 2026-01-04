@@ -27,7 +27,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   onHaptic,
   onAdminEnter,
 }) => {
-  const { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, updatePreferences, loading, error } = useProfileTyped();
+  const { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, updatePreferences, setPartnerMode, loading, error } = useProfileTyped();
   const { hapticFeedback, showConfirm, openLink, showAlert: showTelegramAlert } = useTelegram();
   const { showTopUp, showWithdraw, showAlert: showModalAlert } = useCyberModal();
   const { updateFromProfile, setCurrency, setLocale, currency: contextCurrency } = useLocaleContext();
@@ -299,6 +299,22 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     );
   }
 
+  // Handler for toggling partner reward mode
+  const handleSetPartnerMode = useCallback(async (mode: 'commission' | 'discount') => {
+    try {
+      const result = await setPartnerMode(mode);
+      if (result.success) {
+        hapticFeedback?.('notification', 'success');
+        // Refresh profile to get updated mode
+        await getProfile();
+      }
+      return result;
+    } catch (err) {
+      hapticFeedback?.('notification', 'error');
+      throw err;
+    }
+  }, [setPartnerMode, hapticFeedback, getProfile]);
+
   return (
     <Profile
         profile={convertedProfile || profile}
@@ -311,6 +327,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
         onWithdraw={handleWithdraw}
         onTopUp={handleTopUp}
         onUpdatePreferences={handleUpdatePreferences}
+        onSetPartnerMode={handleSetPartnerMode}
       />
   );
 };

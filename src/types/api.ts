@@ -168,6 +168,8 @@ export interface APIReferralProgram {
   unlocked: boolean;
   status: 'locked' | 'active';
   is_partner: boolean;
+  partner_mode: 'commission' | 'discount';  // Partner reward mode
+  partner_discount_percent: number;  // Discount % given to referrals in discount mode
   effective_level: number; // 0, 1, 2, 3
   level1_unlocked: boolean;
   level2_unlocked: boolean;

@@ -64,6 +64,25 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
   const [sortBy, setSortBy] = useState<SortOption>('popular');
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
+  
+  // Refs for dropdown containers
+  const availabilityRef = React.useRef<HTMLDivElement>(null);
+  const sortRef = React.useRef<HTMLDivElement>(null);
+  
+  // Close dropdowns on outside click
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (availabilityRef.current && !availabilityRef.current.contains(event.target as Node)) {
+        setIsAvailabilityOpen(false);
+      }
+      if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
+        setIsSortOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Use provided products or empty array (no mock data fallback)
   const productsData = propProducts || [];
@@ -164,7 +183,7 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
 
             <div className="flex gap-2 sm:gap-4 overflow-x-auto pb-2 -mb-2 scrollbar-hide">
                 {/* Availability Filter Dropdown */}
-                <div className="relative flex-shrink-0">
+                <div ref={availabilityRef} className="relative flex-shrink-0">
                     <button 
                         onClick={() => { if(onHaptic) onHaptic('light'); setIsAvailabilityOpen(!isAvailabilityOpen); setIsSortOpen(false); }}
                         className="h-full px-3 sm:px-4 py-2 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm whitespace-nowrap"
@@ -194,7 +213,12 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                 ].map((option) => (
                                     <button
                                         key={option.value}
-                                        onClick={() => { if(onHaptic) onHaptic('light'); setActiveAvailability(option.value as AvailabilityFilter); setIsAvailabilityOpen(false); }}
+                                        onClick={(e) => { 
+                                            e.stopPropagation();
+                                            if(onHaptic) onHaptic('light'); 
+                                            setActiveAvailability(option.value as AvailabilityFilter); 
+                                            setIsAvailabilityOpen(false); 
+                                        }}
                                         className="w-full text-left px-4 py-2 text-[10px] uppercase font-mono hover:bg-white/10 hover:text-pandora-cyan flex items-center justify-between"
                                     >
                                         <span className={option.color}>{option.label}</span>
@@ -207,7 +231,7 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                 </div>
 
                 {/* Sort Dropdown */}
-                <div className="relative flex-shrink-0">
+                <div ref={sortRef} className="relative flex-shrink-0">
                     <button 
                         onClick={() => { if(onHaptic) onHaptic('light'); setIsSortOpen(!isSortOpen); setIsAvailabilityOpen(false); }}
                         className="h-full px-3 sm:px-4 py-2 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm whitespace-nowrap"
@@ -235,7 +259,12 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                 ].map((option) => (
                                     <button
                                         key={option.value}
-                                        onClick={() => { if(onHaptic) onHaptic('light'); setSortBy(option.value as SortOption); setIsSortOpen(false); }}
+                                        onClick={(e) => { 
+                                            e.stopPropagation();
+                                            if(onHaptic) onHaptic('light'); 
+                                            setSortBy(option.value as SortOption); 
+                                            setIsSortOpen(false); 
+                                        }}
                                         className="w-full text-left px-4 py-2 text-[10px] uppercase font-mono hover:bg-white/10 hover:text-pandora-cyan flex items-center justify-between"
                                     >
                                         {option.label}

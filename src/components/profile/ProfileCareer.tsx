@@ -4,11 +4,12 @@
  * Displays career progress and level information.
  */
 
-import React, { memo } from 'react';
-import { ShieldCheck, Wifi, Radio, Crown } from 'lucide-react';
+import React, { memo, useState } from 'react';
+import { ShieldCheck, Wifi, Radio, Crown, HelpCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLocale } from '../../hooks/useLocale';
 import type { CareerLevelData } from './types';
+import ReferralExplainerModal from './ReferralExplainerModal';
 
 interface ProfileCareerProps {
   currentLevel: CareerLevelData;
@@ -16,6 +17,8 @@ interface ProfileCareerProps {
   currentTurnover: number;
   maxTurnover: number;
   progressPercent: number;
+  thresholds?: { level2: number; level3: number };
+  commissions?: { level1: number; level2: number; level3: number };
 }
 
 const ProfileCareer: React.FC<ProfileCareerProps> = ({
@@ -24,14 +27,33 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
   currentTurnover,
   maxTurnover,
   progressPercent,
+  thresholds = { level2: 250, level3: 1000 },
+  commissions = { level1: 10, level2: 7, level3: 3 },
 }) => {
-  const { currency, formatPrice } = useLocale();
+  const { currency, formatPrice, t } = useLocale();
+  const [showExplainer, setShowExplainer] = useState(false);
   
   return (
     <div className="mb-12">
       <h3 className="text-xs font-mono text-gray-500 uppercase mb-4 flex items-center gap-2">
-        <ShieldCheck size={14} /> Network Clearance // Career Path
+        <ShieldCheck size={14} /> {t('profile.career.title')}
+        <button 
+          onClick={() => setShowExplainer(true)}
+          className="ml-auto text-pandora-cyan hover:text-white transition-colors flex items-center gap-1 text-[9px]"
+        >
+          <HelpCircle size={12} /> {t('profile.career.howItWorks')}
+        </button>
       </h3>
+      
+      {/* Explainer Modal */}
+      <ReferralExplainerModal
+        isOpen={showExplainer}
+        onClose={() => setShowExplainer(false)}
+        currentLevel={currentLevel.id}
+        currentTurnover={currentTurnover}
+        thresholds={thresholds}
+        commissions={commissions}
+      />
       
       <div className="bg-[#080808] border border-white/10 p-6 md:p-8 relative overflow-hidden group hover:border-white/20 transition-all">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">

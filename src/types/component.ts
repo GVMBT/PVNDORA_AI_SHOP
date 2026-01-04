@@ -173,6 +173,8 @@ export interface ProfileData {
   savedUsd: number;  // USD amount
   role: 'USER' | 'VIP' | 'ADMIN';
   isVip: boolean;
+  partnerMode: 'commission' | 'discount';  // Partner reward mode
+  partnerDiscountPercent: number;  // Discount given to referrals (in discount mode)
   referralLink: string;
   stats: ProfileStats;
   career: CareerProgress;

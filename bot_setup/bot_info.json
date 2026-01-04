@@ -10,125 +10,108 @@
     "ar": "PVNDORA",
     "hi": "PVNDORA"
   },
+  "short_description": {
+    "en": "AI Tools & Digital Assets Hub — ChatGPT, Claude, Midjourney keys and accounts",
+    "ru": "Хаб ИИ-инструментов — ключи и аккаунты ChatGPT, Claude, Midjourney",
+    "uk": "Хаб AI-інструментів — ключі та акаунти ChatGPT, Claude, Midjourney",
+    "de": "KI-Tools & Digitale Assets — ChatGPT, Claude, Midjourney Schlüssel",
+    "fr": "Hub Outils IA — Clés ChatGPT, Claude, Midjourney",
+    "es": "Hub de Herramientas IA — Claves ChatGPT, Claude, Midjourney",
+    "tr": "AI Araçları Hub'ı — ChatGPT, Claude, Midjourney anahtarları",
+    "ar": "مركز أدوات الذكاء الاصطناعي — مفاتيح ChatGPT وClaude وMidjourney",
+    "hi": "AI टूल्स हब — ChatGPT, Claude, Midjourney की चाबियाँ"
+  },
   "description": {
-    "en": "Premium Access to AI Tools & Digital Assets\n\nYour reliable hub for AI technology access. Licensed keys, invites, and ready accounts for SaaS platforms.",
-    "ru": "Премиальный доступ к ИИ-инструментам и цифровым активам\n\nВаш надежный хаб для доступа к технологиям Искусственного Интеллекта. Лицензионные ключи, инвайты и готовые аккаунты.",
-    "uk": "🤖 AI-Консультант з преміум підписок\n\nОтримайте доступ до ChatGPT, Claude, Midjourney та інших!\n\n✨ Миттєва видача\n💰 Найкращі ціни\n🛡️ Гарантія",
-    "de": "🤖 KI-Berater für Premium-Abonnements\n\nZugang zu ChatGPT, Claude, Midjourney und mehr!\n\n✨ Sofortige Lieferung\n💰 Beste Preise\n🛡️ Garantie inklusive",
-    "fr": "🤖 Consultant IA pour abonnements premium\n\nAccédez à ChatGPT, Claude, Midjourney et plus!\n\n✨ Livraison instantanée\n💰 Meilleurs prix\n🛡️ Garantie incluse",
-    "es": "🤖 Consultor IA para suscripciones premium\n\n¡Accede a ChatGPT, Claude, Midjourney y más!\n\n✨ Entrega instantánea\n💰 Mejores precios\n🛡️ Garantía incluida",
-    "tr": "🤖 Premium Abonelikler için AI Danışmanı\n\nChatGPT, Claude, Midjourney ve daha fazlasına erişin!\n\n✨ Anında teslimat\n💰 En iyi fiyatlar\n🛡️ Garanti dahil",
-    "ar": "🤖 مستشار الذكاء الاصطناعي للاشتراكات المميزة\n\nاحصل على وصول إلى ChatGPT و Claude و Midjourney والمزيد!\n\n✨ توصيل فوري\n💰 أفضل الأسعار\n🛡️ ضمان شامل",
-    "hi": "🤖 प्रीमियम सब्सक्रिप्शन के लिए AI सलाहकार\n\nChatGPT, Claude, Midjourney और अधिक तक पहुंच प्राप्त करें!\n\n✨ तुरंत डिलीवरी\n💰 सर्वोत्तम कीमतें\n🛡️ गारंटी शामिल"
+    "en": "Premium Access to AI Tools & Digital Assets\n\nYour reliable hub for AI technology access. Licensed keys, invites, and ready accounts for SaaS platforms.\n\n◈ Instant delivery\n◈ Best prices\n◈ Validity guarantee",
+    "ru": "Премиальный доступ к ИИ-инструментам\n\nВаш надёжный хаб для доступа к технологиям ИИ. Лицензионные ключи, инвайты и готовые аккаунты SaaS.\n\n◈ Мгновенная выдача\n◈ Лучшие цены\n◈ Гарантия валидности",
+    "uk": "Преміальний доступ до AI-інструментів\n\nВаш надійний хаб для доступу до технологій AI. Ліцензійні ключі, інвайти та готові акаунти SaaS.\n\n◈ Миттєва видача\n◈ Найкращі ціни\n◈ Гарантія валідності",
+    "de": "Premium-Zugang zu KI-Tools\n\nIhr zuverlässiger Hub für KI-Technologie. Lizenzschlüssel, Einladungen und fertige SaaS-Konten.\n\n◈ Sofortige Lieferung\n◈ Beste Preise\n◈ Gültigkeitsgarantie",
+    "fr": "Accès Premium aux Outils IA\n\nVotre hub fiable pour la technologie IA. Clés sous licence, invitations et comptes SaaS prêts.\n\n◈ Livraison instantanée\n◈ Meilleurs prix\n◈ Garantie de validité",
+    "es": "Acceso Premium a Herramientas IA\n\nTu hub confiable para tecnología IA. Claves con licencia, invitaciones y cuentas SaaS listas.\n\n◈ Entrega instantánea\n◈ Mejores precios\n◈ Garantía de validez",
+    "tr": "AI Araçlarına Premium Erişim\n\nAI teknolojisi için güvenilir hub'ınız. Lisanslı anahtarlar, davetiyeler ve hazır SaaS hesapları.\n\n◈ Anında teslimat\n◈ En iyi fiyatlar\n◈ Geçerlilik garantisi",
+    "ar": "وصول مميز لأدوات الذكاء الاصطناعي\n\nمركزك الموثوق لتقنية AI. مفاتيح مرخصة ودعوات وحسابات SaaS جاهزة.\n\n◈ توصيل فوري\n◈ أفضل الأسعار\n◈ ضمان الصلاحية",
+    "hi": "AI टूल्स तक प्रीमियम पहुंच\n\nAI तकनीक के लिए आपका विश्वसनीय हब। लाइसेंस्ड कुंजियाँ, आमंत्रण और तैयार SaaS खाते।\n\n◈ तुरंत डिलीवरी\n◈ सर्वोत्तम कीमतें\n◈ वैधता गारंटी"
   },
   "about": {
-    "en": "PVNDORA — Your reliable hub for AI technology access.\n\nWe are a specialized digital distribution service providing seamless access to leading generative AI tools. We eliminate payment barriers and regional restrictions, offering licensed keys, invite links, and ready accounts for SaaS platforms.\n\nOur mission: Make advanced technologies (LLM, image generation, code assistants) accessible to every professional and developer.\n\n✨ Instant digital delivery\n🛡️ Validity guarantee\n💬 Customer support\n\nSupport: @gvmbt158",
-    "ru": "PVNDORA — Ваш надежный хаб для доступа к технологиям Искусственного Интеллекта.\n\nМы специализированный сервис цифровой дистрибуции, обеспечивающий бесшовный доступ к ведущим инструментам генеративного ИИ. Мы устраняем барьеры оплаты и региональные ограничения, предоставляя лицензионные ключи, инвайт-ссылки и готовые учетные записи для работы с SaaS-платформами.\n\nНаша миссия: Сделать передовые технологии (LLM, генерация изображений, ассистенты для кода) доступными для каждого специалиста и разработчика.\n\n✨ Мгновенная цифровая доставка\n🛡️ Гарантия валидности\n💬 Поддержка клиентов\n\nПоддержка: @pvndora_support",
-    "uk": "PVNDORA - Ваш особистий AI-консультант з преміум підписок.\n\nМи надаємо доступ до найкращих AI-сервісів:\n• ChatGPT Plus\n• Claude Pro\n• Midjourney\n• GitHub Copilot\n• І багато іншого!\n\n💬 Просто напишіть, що вам потрібно\n🎯 Отримайте персональні рекомендації\n💳 Безпечна оплата\n📦 Миттєва видача\n\nПідтримка: @pvndora_support",
-    "de": "PVNDORA - Ihr persönlicher KI-Berater für Premium-Abonnements.\n\nWir bieten Zugang zu den besten KI-Diensten:\n• ChatGPT Plus\n• Claude Pro\n• Midjourney\n• GitHub Copilot\n• Und mehr!\n\n💬 Sagen Sie uns einfach, was Sie brauchen\n🎯 Erhalten Sie personalisierte Empfehlungen\n💳 Sichere Zahlung\n📦 Sofortige Lieferung\n\nSupport: @gvmbt158",
-    "fr": "PVNDORA - Votre consultant IA personnel pour les abonnements premium.\n\nNous offrons l'accès aux meilleurs services IA:\n• ChatGPT Plus\n• Claude Pro\n• Midjourney\n• GitHub Copilot\n• Et plus encore!\n\n💬 Dites-nous simplement ce dont vous avez besoin\n🎯 Obtenez des recommandations personnalisées\n💳 Paiement sécurisé\n📦 Livraison instantanée\n\nSupport: @gvmbt158",
-    "es": "PVNDORA - Tu consultor personal de IA para suscripciones premium.\n\nOfrecemos acceso a los mejores servicios de IA:\n• ChatGPT Plus\n• Claude Pro\n• Midjourney\n• GitHub Copilot\n• ¡Y más!\n\n💬 Solo dinos lo que necesitas\n🎯 Obtén recomendaciones personalizadas\n💳 Pago seguro\n📦 Entrega instantánea\n\nSoporte: @pvndora_support",
-    "tr": "PVNDORA - Premium abonelikler için kişisel AI danışmanınız.\n\nEn iyi AI hizmetlerine erişim sağlıyoruz:\n• ChatGPT Plus\n• Claude Pro\n• Midjourney\n• GitHub Copilot\n• Ve daha fazlası!\n\n💬 Sadece neye ihtiyacınız olduğunu söyleyin\n🎯 Kişiselleştirilmiş öneriler alın\n💳 Güvenli ödeme\n📦 Anında teslimat\n\nDestek: @pvndora_support",
-    "ar": "PVNDORA - مستشارك الشخصي للاشتراكات المميزة.\n\nنوفر الوصول إلى أفضل خدمات الذكاء الاصطناعي:\n• ChatGPT Plus\n• Claude Pro\n• Midjourney\n• GitHub Copilot\n• والمزيد!\n\n💬 فقط أخبرنا بما تحتاج\n🎯 احصل على توصيات مخصصة\n💳 دفع آمن\n📦 توصيل فوري\n\nالدعم: @pvndora_support",
-    "hi": "PVNDORA - प्रीमियम सब्सक्रिप्शन के लिए आपका व्यक्तिगत AI सलाहकार।\n\nहम सर्वश्रेष्ठ AI सेवाओं तक पहुंच प्रदान करते हैं:\n• ChatGPT Plus\n• Claude Pro\n• Midjourney\n• GitHub Copilot\n• और भी बहुत कुछ!\n\n💬 बस बताएं आपको क्या चाहिए\n🎯 व्यक्तिगत सिफारिशें प्राप्त करें\n💳 सुरक्षित भुगतान\n📦 तुरंत डिलीवरी\n\nसहायता: @pvndora_support"
+    "en": "╔══════════════════════════════════╗\n           P V N D O R A\n    AI Access Hub • Est. 2024\n╚══════════════════════════════════╝\n\nWe eliminate payment barriers and regional restrictions for AI tools.\n\n▸ ChatGPT Plus & Pro\n▸ Claude Pro\n▸ Midjourney\n▸ GitHub Copilot\n▸ Cursor Pro\n▸ And 50+ more services\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n✦ Instant digital delivery\n✦ Validity guarantee\n✦ 24/7 Support\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nSupport: @pvndora_support",
+    "ru": "╔══════════════════════════════════╗\n           P V N D O R A\n    AI Access Hub • С 2024\n╚══════════════════════════════════╝\n\nМы устраняем барьеры оплаты и региональные ограничения для доступа к ИИ.\n\n▸ ChatGPT Plus & Pro\n▸ Claude Pro\n▸ Midjourney\n▸ GitHub Copilot\n▸ Cursor Pro\n▸ И ещё 50+ сервисов\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n✦ Мгновенная цифровая доставка\n✦ Гарантия валидности\n✦ Поддержка 24/7\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nПоддержка: @pvndora_support",
+    "uk": "╔══════════════════════════════════╗\n           P V N D O R A\n    AI Access Hub • З 2024\n╚══════════════════════════════════╝\n\nМи усуваємо бар'єри оплати та регіональні обмеження для AI.\n\n▸ ChatGPT Plus & Pro\n▸ Claude Pro\n▸ Midjourney\n▸ GitHub Copilot\n▸ Cursor Pro\n▸ І ще 50+ сервісів\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n✦ Миттєва цифрова доставка\n✦ Гарантія валідності\n✦ Підтримка 24/7\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nПідтримка: @pvndora_support",
+    "de": "╔══════════════════════════════════╗\n           P V N D O R A\n    AI Access Hub • Seit 2024\n╚══════════════════════════════════╝\n\nWir beseitigen Zahlungsbarrieren und regionale Beschränkungen für KI.\n\n▸ ChatGPT Plus & Pro\n▸ Claude Pro\n▸ Midjourney\n▸ GitHub Copilot\n▸ Cursor Pro\n▸ Und 50+ weitere\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n✦ Sofortige digitale Lieferung\n✦ Gültigkeitsgarantie\n✦ 24/7 Support\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nSupport: @pvndora_support",
+    "fr": "╔══════════════════════════════════╗\n           P V N D O R A\n    AI Access Hub • Depuis 2024\n╚══════════════════════════════════╝\n\nNous éliminons les barrières de paiement et restrictions régionales pour l'IA.\n\n▸ ChatGPT Plus & Pro\n▸ Claude Pro\n▸ Midjourney\n▸ GitHub Copilot\n▸ Cursor Pro\n▸ Et 50+ autres services\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n✦ Livraison numérique instantanée\n✦ Garantie de validité\n✦ Support 24/7\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nSupport: @pvndora_support",
+    "es": "╔══════════════════════════════════╗\n           P V N D O R A\n    AI Access Hub • Desde 2024\n╚══════════════════════════════════╝\n\nEliminamos barreras de pago y restricciones regionales para IA.\n\n▸ ChatGPT Plus & Pro\n▸ Claude Pro\n▸ Midjourney\n▸ GitHub Copilot\n▸ Cursor Pro\n▸ Y 50+ servicios más\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n✦ Entrega digital instantánea\n✦ Garantía de validez\n✦ Soporte 24/7\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nSoporte: @pvndora_support",
+    "tr": "╔══════════════════════════════════╗\n           P V N D O R A\n    AI Access Hub • 2024'ten beri\n╚══════════════════════════════════╝\n\nAI için ödeme engellerini ve bölgesel kısıtlamaları kaldırıyoruz.\n\n▸ ChatGPT Plus & Pro\n▸ Claude Pro\n▸ Midjourney\n▸ GitHub Copilot\n▸ Cursor Pro\n▸ Ve 50+ daha fazla\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n✦ Anında dijital teslimat\n✦ Geçerlilik garantisi\n✦ 7/24 Destek\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nDestek: @pvndora_support",
+    "ar": "╔══════════════════════════════════╗\n           P V N D O R A\n    AI Access Hub • منذ 2024\n╚══════════════════════════════════╝\n\nنزيل حواجز الدفع والقيود الإقليمية للوصول إلى AI.\n\n▸ ChatGPT Plus & Pro\n▸ Claude Pro\n▸ Midjourney\n▸ GitHub Copilot\n▸ Cursor Pro\n▸ و50+ خدمة أخرى\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n✦ توصيل رقمي فوري\n✦ ضمان الصلاحية\n✦ دعم 24/7\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nالدعم: @pvndora_support",
+    "hi": "╔══════════════════════════════════╗\n           P V N D O R A\n    AI Access Hub • 2024 से\n╚══════════════════════════════════╝\n\nहम AI के लिए भुगतान बाधाओं और क्षेत्रीय प्रतिबंधों को हटाते हैं।\n\n▸ ChatGPT Plus & Pro\n▸ Claude Pro\n▸ Midjourney\n▸ GitHub Copilot\n▸ Cursor Pro\n▸ और 50+ सेवाएं\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n✦ तुरंत डिजिटल डिलीवरी\n✦ वैधता गारंटी\n✦ 24/7 सहायता\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nसहायता: @pvndora_support"
   },
   "commands": [
     {
       "command": "start",
       "description": {
-        "en": "Start the bot",
-        "ru": "Запустить бота",
-        "uk": "Запустити бота",
-        "de": "Bot starten",
-        "fr": "Démarrer le bot",
-        "es": "Iniciar el bot",
-        "tr": "Botu başlat",
-        "ar": "بدء البوت",
-        "hi": "बॉट शुरू करें"
+        "en": "Open Mini App",
+        "ru": "Открыть приложение",
+        "uk": "Відкрити застосунок",
+        "de": "App öffnen",
+        "fr": "Ouvrir l'application",
+        "es": "Abrir aplicación",
+        "tr": "Uygulamayı aç",
+        "ar": "فتح التطبيق",
+        "hi": "ऐप खोलें"
       }
     },
     {
-      "command": "my_orders",
+      "command": "shop",
       "description": {
-        "en": "View purchase history",
-        "ru": "История покупок",
-        "uk": "Історія покупок",
-        "de": "Kaufhistorie anzeigen",
-        "fr": "Voir l'historique des achats",
-        "es": "Ver historial de compras",
-        "tr": "Satın alma geçmişi",
-        "ar": "عرض سجل الشراء",
-        "hi": "खरीद इतिहास देखें"
+        "en": "Browse catalog",
+        "ru": "Каталог товаров",
+        "uk": "Каталог товарів",
+        "de": "Katalog durchsuchen",
+        "fr": "Parcourir le catalogue",
+        "es": "Ver catálogo",
+        "tr": "Kataloğa göz at",
+        "ar": "تصفح الكتالوج",
+        "hi": "कैटलॉग ब्राउज़ करें"
       }
     },
     {
-      "command": "wishlist",
+      "command": "orders",
       "description": {
-        "en": "View saved products",
-        "ru": "Избранное",
-        "uk": "Обране",
-        "de": "Gespeicherte Produkte",
-        "fr": "Produits sauvegardés",
-        "es": "Productos guardados",
-        "tr": "Kaydedilen ürünler",
-        "ar": "المنتجات المحفوظة",
-        "hi": "सहेजे गए उत्पाद"
+        "en": "My orders",
+        "ru": "Мои заказы",
+        "uk": "Мої замовлення",
+        "de": "Meine Bestellungen",
+        "fr": "Mes commandes",
+        "es": "Mis pedidos",
+        "tr": "Siparişlerim",
+        "ar": "طلباتي",
+        "hi": "मेरे ऑर्डर"
+      }
+    },
+    {
+      "command": "profile",
+      "description": {
+        "en": "My profile & balance",
+        "ru": "Профиль и баланс",
+        "uk": "Профіль і баланс",
+        "de": "Profil & Guthaben",
+        "fr": "Profil & solde",
+        "es": "Perfil y saldo",
+        "tr": "Profil & bakiye",
+        "ar": "الملف الشخصي والرصيد",
+        "hi": "प्रोफाइल और बैलेंस"
       }
     },
     {
       "command": "referral",
       "description": {
-        "en": "Get your referral link",
-        "ru": "Получить реферальную ссылку",
-        "uk": "Отримати реферальне посилання",
-        "de": "Empfehlungslink erhalten",
-        "fr": "Obtenir votre lien de parrainage",
-        "es": "Obtener enlace de referido",
-        "tr": "Referans linki al",
-        "ar": "احصل على رابط الإحالة",
-        "hi": "रेफरल लिंक प्राप्त करें"
-      }
-    },
-    {
-      "command": "help",
-      "description": {
-        "en": "Get help",
-        "ru": "Помощь",
-        "uk": "Допомога",
-        "de": "Hilfe",
-        "fr": "Aide",
-        "es": "Ayuda",
-        "tr": "Yardım",
-        "ar": "مساعدة",
-        "hi": "सहायता"
-      }
-    },
-    {
-      "command": "faq",
-      "description": {
-        "en": "Frequently asked questions",
-        "ru": "Часто задаваемые вопросы",
-        "uk": "Часті питання",
-        "de": "Häufig gestellte Fragen",
-        "fr": "Questions fréquentes",
-        "es": "Preguntas frecuentes",
-        "tr": "Sık sorulan sorular",
-        "ar": "الأسئلة الشائعة",
-        "hi": "अक्सर पूछे जाने वाले प्रश्न"
-      }
-    },
-    {
-      "command": "terms",
-      "description": {
-        "en": "Terms of Service",
-        "ru": "Пользовательское соглашение",
-        "uk": "Умови використання",
-        "de": "Nutzungsbedingungen",
-        "fr": "Conditions d'utilisation",
-        "es": "Términos de servicio",
-        "tr": "Kullanım şartları",
-        "ar": "شروط الخدمة",
-        "hi": "सेवा की शर्तें"
+        "en": "Referral program",
+        "ru": "Реферальная программа",
+        "uk": "Реферальна програма",
+        "de": "Empfehlungsprogramm",
+        "fr": "Programme de parrainage",
+        "es": "Programa de referidos",
+        "tr": "Referans programı",
+        "ar": "برنامج الإحالة",
+        "hi": "रेफरल प्रोग्राम"
       }
     },
     {
@@ -140,11 +123,24 @@
         "de": "Support kontaktieren",
         "fr": "Contacter le support",
         "es": "Contactar soporte",
-        "tr": "Destek ile iletişime geç",
+        "tr": "Destek ile iletişim",
         "ar": "اتصل بالدعم",
         "hi": "सहायता से संपर्क करें"
+      }
+    },
+    {
+      "command": "faq",
+      "description": {
+        "en": "FAQ",
+        "ru": "Частые вопросы",
+        "uk": "Часті запитання",
+        "de": "FAQ",
+        "fr": "FAQ",
+        "es": "Preguntas frecuentes",
+        "tr": "SSS",
+        "ar": "الأسئلة الشائعة",
+        "hi": "अक्सर पूछे जाने वाले प्रश्न"
       }
     }
   ]
 }
-

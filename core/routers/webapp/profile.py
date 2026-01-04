@@ -207,6 +207,10 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
             s, THRESHOLD_LEVEL2, THRESHOLD_LEVEL3, COMMISSION_LEVEL1, COMMISSION_LEVEL2, COMMISSION_LEVEL3
         )
     
+    # Add partner mode settings (from user record)
+    referral_program["partner_mode"] = getattr(db_user, 'partner_mode', 'commission') or 'commission'
+    referral_program["partner_discount_percent"] = getattr(db_user, 'partner_discount_percent', 0) or 0
+    
     # Unified currency handling
     from core.db import get_redis
     from core.services.currency_response import CurrencyFormatter
@@ -676,6 +680,8 @@ def _build_default_referral_program(threshold2: float, threshold3: float, comm1:
         "unlocked": False,
         "status": "locked",
         "is_partner": False,
+        "partner_mode": "commission",  # Default partner mode
+        "partner_discount_percent": 0,  # Default discount
         "effective_level": 0,
         "level1_unlocked": False,
         "level2_unlocked": False,

@@ -189,6 +189,8 @@ export function adaptProfile(
     savedUsd: profile.total_saved_usd || profile.total_saved,  // USD amount
     role: profile.is_admin ? 'ADMIN' : (referral_program.is_partner ? 'VIP' : 'USER'),
     isVip: referral_program.is_partner,
+    partnerMode: referral_program.partner_mode || 'commission',
+    partnerDiscountPercent: referral_program.partner_discount_percent || 0,
     referralLink: profile.referral_link,
     stats: {
       referrals: referral_stats.level1_count,

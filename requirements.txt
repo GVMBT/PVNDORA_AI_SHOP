@@ -5,14 +5,11 @@ pydantic>=2.0
 # Telegram Bot
 aiogram>=3.20.0
 
-# AI - OpenRouter (OpenAI-compatible for LLM)
+# AI - OpenRouter (OpenAI-compatible API for LLM + Embeddings)
 openai>=1.0.0
 tenacity>=8.2.0
 
-# AI - Gemini SDK (for embeddings only - RAG search)
-google-genai>=1.0.0
-
-# AI - LangChain/LangGraph Agent (via OpenAI)
+# AI - LangChain/LangGraph Agent (via OpenAI-compatible)
 langchain-openai>=0.2.0
 langgraph>=0.2.0
 langchain-core>=0.3.0

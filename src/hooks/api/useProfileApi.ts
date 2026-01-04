@@ -93,5 +93,17 @@ export function useProfileTyped() {
     }
   }, [put]);
 
-  return { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, updatePreferences, loading, error };
+  const setPartnerMode = useCallback(async (
+    mode: 'commission' | 'discount',
+    discountPercent: number = 15
+  ): Promise<{ success: boolean; mode: string; discount_percent: number; message: string }> => {
+    try {
+      return await post('/partner/mode', { mode, discount_percent: discountPercent });
+    } catch (err) {
+      logger.error('Failed to set partner mode', err);
+      throw err;
+    }
+  }, [post]);
+
+  return { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, updatePreferences, setPartnerMode, loading, error };
 }

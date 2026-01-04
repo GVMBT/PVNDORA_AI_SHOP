@@ -460,6 +460,10 @@
   },
 
   "profile": {
+    "career": {
+      "title": "Network Clearance // Career Path",
+      "howItWorks": "HOW IT WORKS"
+    },
     "title": "OPERATIVE PROFILE",
     "balance": "CREDITS",
     "internalBalance": "INTERNAL BALANCE",
