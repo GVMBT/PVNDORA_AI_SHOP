@@ -335,7 +335,13 @@ async def get_webapp_orders(
     redis = get_redis()
     formatter = await CurrencyFormatter.create(user.id, db, redis)
     
-    orders = await db.get_user_orders(db_user.id, limit=limit, offset=offset)
+    # Exclude discount orders from PVNDORA Mini App (they have their own bot)
+    orders = await db.get_user_orders(
+        db_user.id, 
+        limit=limit, 
+        offset=offset,
+        exclude_source_channel="discount"
+    )
     order_ids = [o.id for o in orders]
     
     # Fetch order_items in bulk

@@ -230,6 +230,18 @@
       "cancelled": "ОТМЕНА",
       "expired": "ИСТЕКЛО",
       "failed": "ОШИБКА"
+    },
+    "itemStatus": {
+      "delivered": "ДОСТАВЛЕНО",
+      "queued": "В ОЧЕРЕДИ",
+      "awaitingPayment": "ОЖИДАНИЕ ОПЛАТЫ",
+      "cancelled": "ОТМЕНЕНО",
+      "provisioning": "ПОДГОТОВКА",
+      "estimatedTime": "РАСЧ. ВРЕМЯ"
+    },
+    "item": {
+      "accessKey": "КЛЮЧ_ДОСТУПА",
+      "deadline": "СРОК"
     }
   },
 

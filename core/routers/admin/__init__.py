@@ -15,6 +15,7 @@ from .rag import router as rag_router
 from .tickets import router as tickets_router
 from .promo import router as promo_router
 from .replacements import router as replacements_router
+from .broadcast import router as broadcast_router
 
 # Create main router
 router = APIRouter(tags=["admin"])
@@ -29,6 +30,7 @@ router.include_router(rag_router)
 router.include_router(tickets_router)
 router.include_router(promo_router)
 router.include_router(replacements_router)
+router.include_router(broadcast_router)
 
 # Export for backward compatibility
 __all__ = ["router"]

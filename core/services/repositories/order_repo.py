@@ -88,11 +88,36 @@ class OrderRepository(BaseRepository):
         
         self.client.table("orders").update(data).eq("id", order_id).execute()
     
-    async def get_by_user(self, user_id: str, limit: int = 10, offset: int = 0) -> List[Order]:
-        """Get user's orders with pagination."""
+    async def get_by_user(
+        self, 
+        user_id: str, 
+        limit: int = 10, 
+        offset: int = 0,
+        source_channel: str = None,
+        exclude_source_channel: str = None
+    ) -> List[Order]:
+        """Get user's orders with pagination.
+        
+        Args:
+            user_id: User database ID
+            limit: Max orders to return
+            offset: Pagination offset
+            source_channel: Filter by source_channel (e.g. 'discount', 'premium')
+            exclude_source_channel: Exclude orders with this source_channel
+        """
         query = self.client.table("orders").select("*").eq(
             "user_id", user_id
-        ).order("created_at", desc=True).limit(limit)
+        )
+        
+        # Filter by source_channel
+        if source_channel:
+            query = query.eq("source_channel", source_channel)
+        
+        # Exclude source_channel (for PVNDORA Mini App - exclude discount orders)
+        if exclude_source_channel:
+            query = query.neq("source_channel", exclude_source_channel)
+        
+        query = query.order("created_at", desc=True).limit(limit)
         
         if offset > 0:
             query = query.range(offset, offset + limit - 1)

@@ -225,6 +225,18 @@
       "cancelled": "ABORTED",
       "expired": "EXPIRED",
       "failed": "ERROR"
+    },
+    "itemStatus": {
+      "delivered": "DELIVERED",
+      "queued": "QUEUED",
+      "awaitingPayment": "AWAITING_PAYMENT",
+      "cancelled": "CANCELLED",
+      "provisioning": "PROVISIONING",
+      "estimatedTime": "EST"
+    },
+    "item": {
+      "accessKey": "ACCESS_KEY",
+      "deadline": "DEADLINE"
     }
   },
 

@@ -7,6 +7,7 @@
 import React, { memo } from 'react';
 import { Check, Clock, AlertTriangle, Activity, Copy, Eye, EyeOff, MessageSquare } from 'lucide-react';
 import { randomChar } from '../../utils/random';
+import { useTranslation } from 'react-i18next';
 
 export interface OrderItemData {
   id: string | number;
@@ -95,6 +96,7 @@ const OrderItem: React.FC<OrderItemProps> = ({
   onOpenReview,
   onOpenSupport,
 }) => {
+  const { t } = useTranslation();
   const isRevealed = revealedKeys.includes(item.id);
 
   return (
@@ -106,7 +108,7 @@ const OrderItem: React.FC<OrderItemProps> = ({
         <div className="text-[10px] font-mono">
           {item.status === 'delivered' && (
             <span className="text-green-500 flex items-center gap-1">
-              <Check size={10} /> DELIVERED
+              <Check size={10} /> {t('orders.itemStatus.delivered')}
             </span>
           )}
           {item.status === 'waiting' && (
@@ -114,18 +116,18 @@ const OrderItem: React.FC<OrderItemProps> = ({
               {/* Show QUEUED only if payment is confirmed */}
               {item.orderRawStatus && item.orderRawStatus !== 'pending' ? (
                 <span className="text-orange-400 flex items-center gap-1">
-                  <Clock size={10} /> QUEUED
+                  <Clock size={10} /> {t('orders.itemStatus.queued')}
                 </span>
               ) : (
                 <span className="text-gray-500 flex items-center gap-1">
-                  <Clock size={10} /> AWAITING_PAYMENT
+                  <Clock size={10} /> {t('orders.itemStatus.awaitingPayment')}
                 </span>
               )}
             </>
           )}
           {item.status === 'cancelled' && (
             <span className="text-red-500 flex items-center gap-1">
-              <AlertTriangle size={10} /> KILLED
+              <AlertTriangle size={10} /> {t('orders.itemStatus.cancelled')}
             </span>
           )}
         </div>
@@ -207,14 +209,14 @@ const OrderItem: React.FC<OrderItemProps> = ({
       {/* === WAITING: Pre-order or Processing === */}
       {item.status === 'waiting' && (
         <div className="mt-2 bg-[#0c0c0c] border border-orange-500/20 p-3">
-          {/* Show PROVISIONING_RESOURCE only if payment is confirmed */}
+          {/* Show PROVISIONING only if payment is confirmed */}
           {item.orderRawStatus && item.orderRawStatus !== 'pending' ? (
             <>
               <div className="flex justify-between text-[10px] font-mono text-orange-400 mb-1">
                 <span className="flex items-center gap-1">
-                  <Activity size={10} /> PROVISIONING_RESOURCE...
+                  <Activity size={10} /> {t('orders.itemStatus.provisioning')}...
                 </span>
-                <span>EST: {item.estimatedDelivery}</span>
+                <span>{t('orders.itemStatus.estimatedTime')}: {item.estimatedDelivery}</span>
               </div>
               
               {/* Progress Bar */}
@@ -227,14 +229,14 @@ const OrderItem: React.FC<OrderItemProps> = ({
               </div>
 
               <p className="text-[10px] text-gray-500 font-mono border-t border-white/5 pt-2 mt-2">
-                &gt; DEADLINE: {item.deadline}
+                &gt; {t('orders.item.deadline')}: {item.deadline}
               </p>
             </>
           ) : (
             /* For unpaid orders, show payment deadline only */
             item.deadline && (
               <p className="text-[10px] text-gray-500 font-mono">
-                &gt; PAYMENT_DEADLINE: {item.deadline}
+                &gt; {t('orders.item.deadline')}: {item.deadline}
               </p>
             )
           )}

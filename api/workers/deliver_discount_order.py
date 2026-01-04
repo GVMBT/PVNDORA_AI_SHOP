@@ -163,50 +163,80 @@ async def deliver_discount_order(request: Request):
     )
     lang = user_result.data.get("language_code", "en") if user_result.data else "en"
     
-    # 5. Send delivery message
-    delivery_text = (
-        f"✅ <b>Заказ доставлен!</b>\n\n"
-        f"Товар: {product_name}\n"
-        f"Заказ: #{order_id[:8]}\n\n"
-        f"<b>Данные доступа:</b>\n"
-        f"<code>{content[:500]}</code>\n\n"
-        f"{'...(обрезано)' if len(content) > 500 else ''}\n\n"
-        f"⚠️ Сохраните эти данные!\n\n"
-        f"Есть проблема? Нажмите «📦 Мои заказы» → выберите заказ → «Проблема»"
-    ) if lang == "ru" else (
-        f"✅ <b>Order Delivered!</b>\n\n"
-        f"Product: {product_name}\n"
-        f"Order: #{order_id[:8]}\n\n"
-        f"<b>Access data:</b>\n"
-        f"<code>{content[:500]}</code>\n\n"
-        f"{'...(truncated)' if len(content) > 500 else ''}\n\n"
-        f"⚠️ Save this data!\n\n"
-        f"Have a problem? Click '📦 My Orders' → select order → 'Problem'"
-    )
+    # 5. Send delivery message (structured format)
+    if lang == "ru":
+        delivery_text = (
+            f"╔══════════════════════════════╗\n"
+            f"     ✅ <b>ЗАКАЗ ДОСТАВЛЕН</b>\n"
+            f"╚══════════════════════════════╝\n\n"
+            f"📦 <b>Товар:</b> {product_name}\n"
+            f"🔖 <b>Заказ:</b> <code>#{order_id[:8]}</code>\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🔐 <b>ДАННЫЕ ДОСТУПА:</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"<code>{content[:500]}</code>"
+            f"{'...(обрезано)' if len(content) > 500 else ''}\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"⚠️ <b>СОХРАНИТЕ ЭТИ ДАННЫЕ!</b>\n\n"
+            f"💬 Проблема? → /orders → выберите заказ"
+        )
+    else:
+        delivery_text = (
+            f"╔══════════════════════════════╗\n"
+            f"      ✅ <b>ORDER DELIVERED</b>\n"
+            f"╚══════════════════════════════╝\n\n"
+            f"📦 <b>Product:</b> {product_name}\n"
+            f"🔖 <b>Order:</b> <code>#{order_id[:8]}</code>\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🔐 <b>ACCESS CREDENTIALS:</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"<code>{content[:500]}</code>"
+            f"{'...(truncated)' if len(content) > 500 else ''}\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"⚠️ <b>SAVE THIS DATA!</b>\n\n"
+            f"💬 Problem? → /orders → select order"
+        )
     
     await send_telegram_message(telegram_id, delivery_text)
     
-    # 6. Send PVNDORA offer (after a short delay conceptually, but inline here)
-    offer_text = (
-        "⭐ <b>Понравилось? Попробуй PVNDORA!</b>\n\n"
-        "В PVNDORA ты получишь:\n"
-        "• 🚀 Мгновенная доставка (без очереди!)\n"
-        "• 🛡 Гарантии на все товары\n"
-        "• 💰 Партнерка 10/7/3% — зарабатывай на рефералах\n"
-        "• 🎧 Круглосуточная поддержка\n\n"
-        "👉 @pvndora_ai_bot"
-    ) if lang == "ru" else (
-        "⭐ <b>Like it? Try PVNDORA!</b>\n\n"
-        "In PVNDORA you get:\n"
-        "• 🚀 Instant delivery (no queue!)\n"
-        "• 🛡 Warranty on all products\n"
-        "• 💰 Affiliate 10/7/3% — earn on referrals\n"
-        "• 🎧 24/7 support\n\n"
-        "👉 @pvndora_ai_bot"
-    )
+    # 6. Send PVNDORA warm-up offer (delay 10-30 seconds for natural feel)
+    await asyncio.sleep(10)
     
-    # Small delay before promo
-    await asyncio.sleep(2)
+    if lang == "ru":
+        offer_text = (
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"💎 <b>ХОЧЕШЬ БОЛЬШЕ?</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"В <b>PVNDORA</b> ты получишь:\n\n"
+            f"⚡️ <b>Мгновенная доставка</b>\n"
+            f"   Без очереди — сразу после оплаты\n\n"
+            f"🛡 <b>Гарантия на всё</b>\n"
+            f"   Замена при любой проблеме\n\n"
+            f"💰 <b>Партнёрка 10/7/3%</b>\n"
+            f"   Приглашай друзей — зарабатывай\n\n"
+            f"🎧 <b>Поддержка 24/7</b>\n"
+            f"   Всегда на связи\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"👉 <b>@pvndora_ai_bot</b> — начни сейчас"
+        )
+    else:
+        offer_text = (
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"💎 <b>WANT MORE?</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"In <b>PVNDORA</b> you get:\n\n"
+            f"⚡️ <b>Instant delivery</b>\n"
+            f"   No queue — right after payment\n\n"
+            f"🛡 <b>Full warranty</b>\n"
+            f"   Replacement for any issue\n\n"
+            f"💰 <b>Affiliate 10/7/3%</b>\n"
+            f"   Invite friends — earn money\n\n"
+            f"🎧 <b>24/7 Support</b>\n"
+            f"   Always here for you\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"👉 <b>@pvndora_ai_bot</b> — start now"
+        )
+    
     await send_telegram_message(telegram_id, offer_text)
     
     return JSONResponse({
