@@ -142,17 +142,17 @@ async def process_paid_order(db, order_id: str, order_data: dict):
                     
                     # Schedule delayed delivery
                     discount_service = DiscountOrderService(db.client)
-                    result = await discount_service.schedule_delayed_delivery(
+                    delivery_task = await discount_service.schedule_delayed_delivery(
                         order_id=order_id,
                         order_item_id=order_item["id"],
                         telegram_id=telegram_id,
                         stock_item_id=stock_item_id
                     )
                     
-                    if result.get("success"):
-                        logger.info(f"Discount order {order_id} scheduled for delayed delivery")
+                    if delivery_task is not None:
+                        logger.info(f"Discount order {order_id} scheduled for delayed delivery in {delivery_task.delay_minutes} minutes")
                     else:
-                        logger.warning(f"Failed to schedule discount delivery: {result}")
+                        logger.warning(f"Failed to schedule discount delivery for order {order_id}")
                 else:
                     logger.warning(f"No stock available for discount order {order_id}")
         else:

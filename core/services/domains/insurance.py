@@ -2,6 +2,7 @@
 
 Handles insurance options, replacements, and abuse prevention.
 """
+import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 from uuid import UUID
@@ -84,11 +85,13 @@ class InsuranceService:
     async def get_options_for_product(self, product_id: str) -> List[InsuranceOption]:
         """Get active insurance options for a product."""
         try:
-            result = await self.client.table("insurance_options").select("*").eq(
-                "product_id", product_id
-            ).eq("is_active", True).execute()
+            result = await asyncio.to_thread(
+                lambda: self.client.table("insurance_options").select("*").eq(
+                    "product_id", product_id
+                ).eq("is_active", True).execute()
+            )
             
-            return [InsuranceOption(**row) for row in result.data]
+            return [InsuranceOption(**row) for row in (result.data or [])]
         except Exception as e:
             logger.error(f"Failed to get insurance options: {e}")
             return []
@@ -110,9 +113,11 @@ class InsuranceService:
         """Attach insurance to an order item and set expiration."""
         try:
             # Get insurance option for duration
-            option_result = await self.client.table("insurance_options").select(
-                "duration_days"
-            ).eq("id", insurance_id).single().execute()
+            option_result = await asyncio.to_thread(
+                lambda: self.client.table("insurance_options").select(
+                    "duration_days"
+                ).eq("id", insurance_id).single().execute()
+            )
             
             if not option_result.data:
                 logger.error(f"Insurance option {insurance_id} not found")
@@ -123,10 +128,12 @@ class InsuranceService:
             expires_at = base_date + timedelta(days=duration_days)
             
             # Update order item
-            await self.client.table("order_items").update({
-                "insurance_id": insurance_id,
-                "insurance_expires_at": expires_at.isoformat()
-            }).eq("id", order_item_id).execute()
+            await asyncio.to_thread(
+                lambda: self.client.table("order_items").update({
+                    "insurance_id": insurance_id,
+                    "insurance_expires_at": expires_at.isoformat()
+                }).eq("id", order_item_id).execute()
+            )
             
             logger.info(f"Attached insurance {insurance_id} to order_item {order_item_id}, expires {expires_at}")
             return True
@@ -143,9 +150,11 @@ class InsuranceService:
             (is_valid, insurance_id, remaining_replacements)
         """
         try:
-            result = await self.client.table("order_items").select(
-                "insurance_id, insurance_expires_at"
-            ).eq("id", order_item_id).single().execute()
+            result = await asyncio.to_thread(
+                lambda: self.client.table("order_items").select(
+                    "insurance_id, insurance_expires_at"
+                ).eq("id", order_item_id).single().execute()
+            )
             
             if not result.data or not result.data.get("insurance_id"):
                 return (False, None, 0)
@@ -159,17 +168,21 @@ class InsuranceService:
                     return (False, insurance_id, 0)
             
             # Get replacements count limit
-            option_result = await self.client.table("insurance_options").select(
-                "replacements_count"
-            ).eq("id", insurance_id).single().execute()
+            option_result = await asyncio.to_thread(
+                lambda: self.client.table("insurance_options").select(
+                    "replacements_count"
+                ).eq("id", insurance_id).single().execute()
+            )
             
             max_replacements = option_result.data.get("replacements_count", 1) if option_result.data else 1
             
             # Count used replacements via RPC
-            count_result = await self.client.rpc(
-                "count_replacements", 
-                {"p_order_item_id": order_item_id}
-            ).execute()
+            count_result = await asyncio.to_thread(
+                lambda: self.client.rpc(
+                    "count_replacements", 
+                    {"p_order_item_id": order_item_id}
+                ).execute()
+            )
             
             used_replacements = count_result.data if count_result.data else 0
             remaining = max(0, max_replacements - used_replacements)
@@ -196,9 +209,11 @@ class InsuranceService:
         """
         try:
             # 1. Get user and check restrictions
-            user_result = await self.client.table("users").select(
-                "id"
-            ).eq("telegram_id", telegram_id).single().execute()
+            user_result = await asyncio.to_thread(
+                lambda: self.client.table("users").select(
+                    "id"
+                ).eq("telegram_id", telegram_id).single().execute()
+            )
             
             if not user_result.data:
                 return ReplacementResult(
@@ -210,10 +225,12 @@ class InsuranceService:
             user_id = user_result.data["id"]
             
             # Check if user can request replacements via RPC
-            can_request = await self.client.rpc(
-                "can_request_replacement",
-                {"p_user_id": user_id}
-            ).execute()
+            can_request = await asyncio.to_thread(
+                lambda: self.client.rpc(
+                    "can_request_replacement",
+                    {"p_user_id": user_id}
+                ).execute()
+            )
             
             if not can_request.data:
                 return ReplacementResult(
@@ -251,9 +268,11 @@ class InsuranceService:
             abuse_score = await self.get_abuse_score(telegram_id)
             
             # Get old stock item
-            oi_result = await self.client.table("order_items").select(
-                "stock_item_id"
-            ).eq("id", order_item_id).single().execute()
+            oi_result = await asyncio.to_thread(
+                lambda: self.client.table("order_items").select(
+                    "stock_item_id"
+                ).eq("id", order_item_id).single().execute()
+            )
             
             old_stock_item_id = oi_result.data.get("stock_item_id") if oi_result.data else None
             
@@ -288,9 +307,11 @@ class InsuranceService:
         """Process auto-approved replacement."""
         try:
             # Get product_id for the order item
-            oi_result = await self.client.table("order_items").select(
-                "product_id"
-            ).eq("id", order_item_id).single().execute()
+            oi_result = await asyncio.to_thread(
+                lambda: self.client.table("order_items").select(
+                    "product_id"
+                ).eq("id", order_item_id).single().execute()
+            )
             
             if not oi_result.data:
                 return ReplacementResult(
@@ -303,11 +324,13 @@ class InsuranceService:
             product_id = oi_result.data["product_id"]
             
             # Find available stock item
-            stock_result = await self.client.table("stock_items").select(
-                "id"
-            ).eq("product_id", product_id).eq("status", "available").is_(
-                "sold_at", "null"
-            ).limit(1).execute()
+            stock_result = await asyncio.to_thread(
+                lambda: self.client.table("stock_items").select(
+                    "id"
+                ).eq("product_id", product_id).eq("status", "available").is_(
+                    "sold_at", "null"
+                ).limit(1).execute()
+            )
             
             if not stock_result.data:
                 # No stock available, hold for review
@@ -330,9 +353,11 @@ class InsuranceService:
                 "processed_at": datetime.now(timezone.utc).isoformat()
             }
             
-            result = await self.client.table("insurance_replacements").insert(
-                replacement_data
-            ).execute()
+            result = await asyncio.to_thread(
+                lambda: self.client.table("insurance_replacements").insert(
+                    replacement_data
+                ).execute()
+            )
             
             if not result.data:
                 return ReplacementResult(
@@ -345,15 +370,19 @@ class InsuranceService:
             replacement_id = result.data[0]["id"]
             
             # Update order item with new stock item
-            await self.client.table("order_items").update({
-                "stock_item_id": new_stock_item_id
-            }).eq("id", order_item_id).execute()
+            await asyncio.to_thread(
+                lambda: self.client.table("order_items").update({
+                    "stock_item_id": new_stock_item_id
+                }).eq("id", order_item_id).execute()
+            )
             
             # Mark new stock item as sold
-            await self.client.table("stock_items").update({
-                "status": "sold",
-                "sold_at": datetime.now(timezone.utc).isoformat()
-            }).eq("id", new_stock_item_id).execute()
+            await asyncio.to_thread(
+                lambda: self.client.table("stock_items").update({
+                    "status": "sold",
+                    "sold_at": datetime.now(timezone.utc).isoformat()
+                }).eq("id", new_stock_item_id).execute()
+            )
             
             logger.info(f"Auto-approved replacement {replacement_id} for order_item {order_item_id}")
             
@@ -395,9 +424,11 @@ class InsuranceService:
                 "status": status
             }
             
-            result = await self.client.table("insurance_replacements").insert(
-                replacement_data
-            ).execute()
+            result = await asyncio.to_thread(
+                lambda: self.client.table("insurance_replacements").insert(
+                    replacement_data
+                ).execute()
+            )
             
             if not result.data:
                 return ReplacementResult(
@@ -433,18 +464,22 @@ class InsuranceService:
         try:
             thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
             
-            result = await self.client.table("insurance_replacements").select(
-                "id", count="exact"
-            ).eq("status", "approved").gte(
-                "created_at", thirty_days_ago
-            ).execute()
+            result = await asyncio.to_thread(
+                lambda: self.client.table("insurance_replacements").select(
+                    "id", count="exact"
+                ).eq("status", "approved").gte(
+                    "created_at", thirty_days_ago
+                ).execute()
+            )
             
             # Also count auto_approved
-            result2 = await self.client.table("insurance_replacements").select(
-                "id", count="exact"
-            ).eq("status", "auto_approved").gte(
-                "created_at", thirty_days_ago
-            ).execute()
+            result2 = await asyncio.to_thread(
+                lambda: self.client.table("insurance_replacements").select(
+                    "id", count="exact"
+                ).eq("status", "auto_approved").gte(
+                    "created_at", thirty_days_ago
+                ).execute()
+            )
             
             count1 = result.count if result.count else 0
             count2 = result2.count if result2.count else 0
@@ -459,10 +494,12 @@ class InsuranceService:
     async def get_abuse_score(self, telegram_id: int) -> int:
         """Get abuse risk score for a user (0-100)."""
         try:
-            result = await self.client.rpc(
-                "get_user_abuse_score",
-                {"p_telegram_id": telegram_id}
-            ).execute()
+            result = await asyncio.to_thread(
+                lambda: self.client.rpc(
+                    "get_user_abuse_score",
+                    {"p_telegram_id": telegram_id}
+                ).execute()
+            )
             
             return result.data if result.data else 0
         except Exception as e:
@@ -490,7 +527,9 @@ class InsuranceService:
             if created_by:
                 data["created_by"] = created_by
             
-            await self.client.table("user_restrictions").insert(data).execute()
+            await asyncio.to_thread(
+                lambda: self.client.table("user_restrictions").insert(data).execute()
+            )
             
             logger.info(f"Added restriction {restriction_type} to user {user_id}")
             return True
@@ -505,9 +544,11 @@ class InsuranceService:
     ) -> bool:
         """Remove a restriction from a user."""
         try:
-            await self.client.table("user_restrictions").delete().eq(
-                "user_id", user_id
-            ).eq("restriction_type", restriction_type).execute()
+            await asyncio.to_thread(
+                lambda: self.client.table("user_restrictions").delete().eq(
+                    "user_id", user_id
+                ).eq("restriction_type", restriction_type).execute()
+            )
             
             logger.info(f"Removed restriction {restriction_type} from user {user_id}")
             return True
@@ -520,11 +561,13 @@ class InsuranceService:
         try:
             now = datetime.now(timezone.utc).isoformat()
             
-            result = await self.client.table("user_restrictions").select("*").eq(
-                "user_id", user_id
-            ).or_(f"expires_at.is.null,expires_at.gt.{now}").execute()
+            result = await asyncio.to_thread(
+                lambda: self.client.table("user_restrictions").select("*").eq(
+                    "user_id", user_id
+                ).or_(f"expires_at.is.null,expires_at.gt.{now}").execute()
+            )
             
-            return [UserRestriction(**row) for row in result.data]
+            return [UserRestriction(**row) for row in (result.data or [])]
         except Exception as e:
             logger.error(f"Failed to get restrictions: {e}")
             return []
@@ -534,13 +577,15 @@ class InsuranceService:
     async def get_pending_replacements(self, limit: int = 50) -> List[InsuranceReplacement]:
         """Get pending replacement requests for admin review."""
         try:
-            result = await self.client.table("insurance_replacements").select(
-                "*"
-            ).eq("status", "pending").order(
-                "created_at", desc=False
-            ).limit(limit).execute()
+            result = await asyncio.to_thread(
+                lambda: self.client.table("insurance_replacements").select(
+                    "*"
+                ).eq("status", "pending").order(
+                    "created_at", desc=False
+                ).limit(limit).execute()
+            )
             
-            return [InsuranceReplacement(**row) for row in result.data]
+            return [InsuranceReplacement(**row) for row in (result.data or [])]
         except Exception as e:
             logger.error(f"Failed to get pending replacements: {e}")
             return []
@@ -554,9 +599,11 @@ class InsuranceService:
         """Approve a pending replacement."""
         try:
             # Get replacement details
-            repl_result = await self.client.table("insurance_replacements").select(
-                "order_item_id"
-            ).eq("id", replacement_id).single().execute()
+            repl_result = await asyncio.to_thread(
+                lambda: self.client.table("insurance_replacements").select(
+                    "order_item_id"
+                ).eq("id", replacement_id).single().execute()
+            )
             
             if not repl_result.data:
                 return False
@@ -565,16 +612,20 @@ class InsuranceService:
             
             # If no stock item provided, find one
             if not new_stock_item_id:
-                oi_result = await self.client.table("order_items").select(
-                    "product_id"
-                ).eq("id", order_item_id).single().execute()
+                oi_result = await asyncio.to_thread(
+                    lambda: self.client.table("order_items").select(
+                        "product_id"
+                    ).eq("id", order_item_id).single().execute()
+                )
                 
                 if oi_result.data:
-                    stock_result = await self.client.table("stock_items").select(
-                        "id"
-                    ).eq("product_id", oi_result.data["product_id"]).eq(
-                        "status", "available"
-                    ).is_("sold_at", "null").limit(1).execute()
+                    stock_result = await asyncio.to_thread(
+                        lambda: self.client.table("stock_items").select(
+                            "id"
+                        ).eq("product_id", oi_result.data["product_id"]).eq(
+                            "status", "available"
+                        ).is_("sold_at", "null").limit(1).execute()
+                    )
                     
                     if stock_result.data:
                         new_stock_item_id = stock_result.data[0]["id"]
@@ -589,21 +640,27 @@ class InsuranceService:
             if new_stock_item_id:
                 update_data["new_stock_item_id"] = new_stock_item_id
             
-            await self.client.table("insurance_replacements").update(
-                update_data
-            ).eq("id", replacement_id).execute()
+            await asyncio.to_thread(
+                lambda: self.client.table("insurance_replacements").update(
+                    update_data
+                ).eq("id", replacement_id).execute()
+            )
             
             # Update order item if we have a new stock item
             if new_stock_item_id:
-                await self.client.table("order_items").update({
-                    "stock_item_id": new_stock_item_id
-                }).eq("id", order_item_id).execute()
+                await asyncio.to_thread(
+                    lambda: self.client.table("order_items").update({
+                        "stock_item_id": new_stock_item_id
+                    }).eq("id", order_item_id).execute()
+                )
                 
                 # Mark stock item as sold
-                await self.client.table("stock_items").update({
-                    "status": "sold",
-                    "sold_at": datetime.now(timezone.utc).isoformat()
-                }).eq("id", new_stock_item_id).execute()
+                await asyncio.to_thread(
+                    lambda: self.client.table("stock_items").update({
+                        "status": "sold",
+                        "sold_at": datetime.now(timezone.utc).isoformat()
+                    }).eq("id", new_stock_item_id).execute()
+                )
             
             logger.info(f"Approved replacement {replacement_id} by admin {admin_user_id}")
             return True
@@ -619,12 +676,14 @@ class InsuranceService:
     ) -> bool:
         """Reject a pending replacement."""
         try:
-            await self.client.table("insurance_replacements").update({
-                "status": "rejected",
-                "rejection_reason": rejection_reason,
-                "processed_by": admin_user_id,
-                "processed_at": datetime.now(timezone.utc).isoformat()
-            }).eq("id", replacement_id).execute()
+            await asyncio.to_thread(
+                lambda: self.client.table("insurance_replacements").update({
+                    "status": "rejected",
+                    "rejection_reason": rejection_reason,
+                    "processed_by": admin_user_id,
+                    "processed_at": datetime.now(timezone.utc).isoformat()
+                }).eq("id", replacement_id).execute()
+            )
             
             logger.info(f"Rejected replacement {replacement_id} by admin {admin_user_id}")
             return True

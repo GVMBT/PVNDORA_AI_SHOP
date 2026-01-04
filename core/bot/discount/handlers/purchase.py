@@ -150,13 +150,27 @@ async def get_insurance_option(db, short_id: str) -> Optional[dict]:
         return None
     
     try:
+        # Get all active insurance options and filter by prefix
+        # (ilike doesn't work with UUID fields in PostgREST)
         result = await asyncio.to_thread(
-            lambda: db.client.table("insurance_options").select("*").ilike(
-                "id", f"{short_id}%"
-            ).limit(1).execute()
+            lambda: db.client.table("insurance_options").select("*").eq(
+                "is_active", True
+            ).execute()
         )
-        return result.data[0] if result.data else None
-    except Exception:
+        
+        if not result.data:
+            return None
+        
+        # Filter by UUID prefix
+        short_id_lower = short_id.lower().replace("-", "")
+        for option in result.data:
+            option_uuid = str(option["id"]).lower().replace("-", "")
+            if option_uuid.startswith(short_id_lower):
+                return option
+        
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to get insurance option: {e}")
         return None
 
 
@@ -468,18 +482,38 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User):
     order_short_id = callback.data.split(":")[2]
     
     try:
-        # Get order
-        order_result = await asyncio.to_thread(
-            lambda: db.client.table("orders").select("*").ilike(
-                "id", f"{order_short_id}%"
-            ).limit(1).execute()
+        # Get user's discount orders and filter by short ID prefix
+        # (ilike doesn't work with UUID fields in PostgREST)
+        user_result = await asyncio.to_thread(
+            lambda: db.client.table("users").select("id").eq(
+                "telegram_id", db_user.telegram_id
+            ).single().execute()
         )
         
-        if not order_result.data:
-            await callback.answer("Заказ не найден" if lang == "ru" else "Order not found", show_alert=True)
+        if not user_result.data:
+            await callback.answer("User not found", show_alert=True)
             return
         
-        order = order_result.data[0]
+        user_uuid = user_result.data["id"]
+        
+        orders_result = await asyncio.to_thread(
+            lambda: db.client.table("orders").select("*").eq(
+                "user_id", user_uuid
+            ).eq("source_channel", "discount").execute()
+        )
+        
+        # Filter by short ID prefix
+        order = None
+        short_id_lower = order_short_id.lower().replace("-", "")
+        for o in (orders_result.data or []):
+            order_uuid = str(o["id"]).lower().replace("-", "")
+            if order_uuid.startswith(short_id_lower):
+                order = o
+                break
+        
+        if not order:
+            await callback.answer("Заказ не найден" if lang == "ru" else "Order not found", show_alert=True)
+            return
         
         # Get order items
         items_result = await asyncio.to_thread(
