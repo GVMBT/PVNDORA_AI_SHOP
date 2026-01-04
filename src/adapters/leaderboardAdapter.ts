@@ -66,15 +66,35 @@ export function adaptLeaderboard(
   _currentUserId?: string, // Not needed anymore, backend sets is_current_user
   currency: string = 'USD' // Currency for formatting saved amounts
 ): LeaderboardUser[] {
-  const { leaderboard } = response;
+  const { leaderboard, user_rank, user_saved } = response;
   
-  // Adapt all leaderboard entries - DO NOT add separate "YOU" entry
-  // The backend already marks the current user with is_current_user: true
-  // Adding a duplicate causes rank conflicts
+  // Adapt all leaderboard entries
   const adaptedUsers = leaderboard.map(entry => ({
     ...adaptLeaderboardEntry(entry),
     currency, // Add currency to each user entry
   }));
+  
+  // Check if current user is already in the list
+  const currentUserInList = adaptedUsers.some(user => user.isMe);
+  
+  // If current user is NOT in the visible list but we have their rank/saved from API,
+  // add them to the list so the sticky footer can show their position
+  if (!currentUserInList && user_rank && user_rank > 0) {
+    adaptedUsers.push({
+      rank: user_rank,
+      name: 'YOU',
+      handle: '@you',
+      marketSpend: user_saved > 0 ? Math.round(user_saved / 0.2) : 0,
+      actualSpend: user_saved > 0 ? Math.round(user_saved / 0.2 - user_saved) : 0,
+      saved: user_saved || 0,
+      modules: 0,
+      trend: 'same',
+      status: 'ONLINE',
+      isMe: true,
+      currency,
+      avatarUrl: `https://ui-avatars.com/api/?name=YOU&background=0d1117&color=00ffff&size=160&font-size=0.4&bold=true`,
+    });
+  }
   
   // Deduplicate by rank (in case backend sends duplicates)
   const seenRanks = new Set<number>();

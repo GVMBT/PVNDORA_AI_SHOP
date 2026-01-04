@@ -558,7 +558,18 @@
       "emptyWithdrawals": "No cashouts",
       "emptyOrders": "No logs",
       "bonusFrom": "Yield ({level})",
-      "order": "Op"
+      "order": "Op",
+      "transaction": {
+        "topup": "Balance top-up",
+        "purchase": "Order payment",
+        "refund": "Refund",
+        "bonus": "Referral bonus",
+        "withdrawal": "Withdrawal",
+        "cashback": "Review cashback",
+        "credit": "Credit",
+        "debit": "Debit"
+      },
+      "noTransactions": "NO_TRANSACTIONS"
     },
     "settings": {
       "title": "INTERFACE CONFIG",

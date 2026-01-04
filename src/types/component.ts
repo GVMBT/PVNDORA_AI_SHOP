@@ -144,6 +144,7 @@ export interface BillingLog {
   source: string;
   amount: string;
   date: string;
+  transactionType?: string;  // For localization: topup, purchase, refund, etc.
 }
 
 export interface ProfileStats {

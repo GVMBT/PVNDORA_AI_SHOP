@@ -153,13 +153,15 @@ const OrderItem: React.FC<OrderItemProps> = ({
               </div>
               
               {/* Key Content */}
-              <div className="flex justify-between items-center mt-2">
-                <div className="font-mono text-sm text-pandora-cyan break-all tracking-wider">
-                  <DecryptText text={item.credentials} revealed={isRevealed} />
+              <div className="flex justify-between items-center mt-2 gap-2">
+                <div className="font-mono text-xs sm:text-sm text-pandora-cyan tracking-wider overflow-hidden min-w-0 flex-1">
+                  <div className="break-all overflow-x-auto scrollbar-hide max-w-full">
+                    <DecryptText text={item.credentials} revealed={isRevealed} />
+                  </div>
                 </div>
                 <button 
                   onClick={() => onCopy(item.credentials!, item.id)}
-                  className="ml-4 p-1.5 bg-white/5 hover:bg-pandora-cyan hover:text-black transition-colors rounded-sm shrink-0"
+                  className="p-1.5 bg-white/5 hover:bg-pandora-cyan hover:text-black transition-colors rounded-sm flex-shrink-0"
                   title="Copy to Clipboard"
                 >
                   {copiedId === item.id ? <Check size={14} /> : <Copy size={14} />}

@@ -59,6 +59,7 @@ function formatBillingLog(
   type: 'INCOME' | 'OUTCOME'
 ): BillingLog {
   const date = new Date(item.created_at);
+  const transactionType = type === 'INCOME' ? 'bonus' : 'withdrawal';
   return {
     id: item.id.substring(0, 8).toUpperCase(),
     type,
@@ -71,6 +72,7 @@ function formatBillingLog(
       hour: '2-digit',
       minute: '2-digit',
     }).replace(',', ''),
+    transactionType,  // For localization
   };
 }
 
@@ -127,6 +129,7 @@ function formatBalanceTransactionLog(
       hour: '2-digit',
       minute: '2-digit',
     }).replace(',', ''),
+    transactionType: tx.type.toLowerCase(),  // For localization
   };
 }
 

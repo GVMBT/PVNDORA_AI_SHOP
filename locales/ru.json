@@ -563,7 +563,18 @@
       "emptyWithdrawals": "Нет выводов",
       "emptyOrders": "Нет логов",
       "bonusFrom": "Доход ({level})",
-      "order": "Опер"
+      "order": "Опер",
+      "transaction": {
+        "topup": "Пополнение баланса",
+        "purchase": "Оплата заказа",
+        "refund": "Возврат средств",
+        "bonus": "Реферальный бонус",
+        "withdrawal": "Вывод средств",
+        "cashback": "Кэшбек за отзыв",
+        "credit": "Зачисление",
+        "debit": "Списание"
+      },
+      "noTransactions": "НЕТ_ТРАНЗАКЦИЙ"
     },
     "settings": {
       "title": "КОНФИГ ИНТЕРФЕЙСА",

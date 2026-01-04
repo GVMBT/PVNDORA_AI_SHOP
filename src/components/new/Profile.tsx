@@ -208,7 +208,11 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
               onNodeClick={handleOpenDossier}
             />
           ) : (
-            <ProfileBilling logs={billingLogs} />
+            <ProfileBilling 
+              logs={billingLogs}
+              currency={user.currency || 'USD'}
+              exchangeRate={user.exchangeRate || 1}
+            />
           )}
         </div>
       </div>

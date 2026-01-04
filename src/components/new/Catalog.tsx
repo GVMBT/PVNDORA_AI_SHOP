@@ -162,20 +162,20 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                 />
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-2 sm:gap-4 overflow-x-auto pb-2 -mb-2 scrollbar-hide">
                 {/* Availability Filter Dropdown */}
-                <div className="relative">
+                <div className="relative flex-shrink-0">
                     <button 
                         onClick={() => { if(onHaptic) onHaptic('light'); setIsAvailabilityOpen(!isAvailabilityOpen); setIsSortOpen(false); }}
-                        className="h-full px-4 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm min-w-[140px] justify-between"
+                        className="h-full px-3 sm:px-4 py-2 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm whitespace-nowrap"
                     >
-                        <span className="uppercase text-[10px] tracking-wider">
+                        <span className="uppercase text-[9px] sm:text-[10px] tracking-wider">
                             {activeAvailability === 'All' && `${t('catalog.availability.label')}: ${t('catalog.availability.all')}`}
                             {activeAvailability === 'Available' && `${t('catalog.availability.label')}: ${t('catalog.availability.available')}`}
                             {activeAvailability === 'On Demand' && `${t('catalog.availability.label')}: ${t('catalog.availability.onDemand')}`}
                             {activeAvailability === 'Discontinued' && `${t('catalog.availability.label')}: ${t('catalog.availability.discontinued')}`}
                         </span>
-                        <ChevronDown size={14} className={`transition-transform ${isAvailabilityOpen ? 'rotate-180' : ''}`} />
+                        <ChevronDown size={14} className={`transition-transform flex-shrink-0 ${isAvailabilityOpen ? 'rotate-180' : ''}`} />
                     </button>
                     
                     <AnimatePresence>
@@ -207,17 +207,17 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                 </div>
 
                 {/* Sort Dropdown */}
-                <div className="relative">
+                <div className="relative flex-shrink-0">
                     <button 
                         onClick={() => { if(onHaptic) onHaptic('light'); setIsSortOpen(!isSortOpen); setIsAvailabilityOpen(false); }}
-                        className="h-full px-4 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm min-w-[160px] justify-between"
+                        className="h-full px-3 sm:px-4 py-2 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm whitespace-nowrap"
                     >
-                        <span className="uppercase text-[10px] tracking-wider">
+                        <span className="uppercase text-[9px] sm:text-[10px] tracking-wider">
                             {sortBy === 'popular' && `${t('catalog.sort.label')}: ${t('catalog.sort.popularity')}`}
                             {sortBy === 'price_asc' && `${t('catalog.sort.label')}: ${t('catalog.sort.priceAsc')}`}
                             {sortBy === 'price_desc' && `${t('catalog.sort.label')}: ${t('catalog.sort.priceDesc')}`}
                         </span>
-                        <ChevronDown size={14} className={`transition-transform ${isSortOpen ? 'rotate-180' : ''}`} />
+                        <ChevronDown size={14} className={`transition-transform flex-shrink-0 ${isSortOpen ? 'rotate-180' : ''}`} />
                     </button>
                     
                     <AnimatePresence>
@@ -248,18 +248,18 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                 </div>
 
                 {/* View Toggle */}
-                <div className="flex bg-[#0a0a0a] border border-white/10 p-1 rounded-sm gap-1">
+                <div className="flex bg-[#0a0a0a] border border-white/10 p-1 rounded-sm gap-1 flex-shrink-0">
                     <button 
                         onClick={() => { if(onHaptic) onHaptic('light'); setViewMode('grid'); }}
-                        className={`p-2 rounded-sm transition-all ${viewMode === 'grid' ? 'bg-white/10 text-pandora-cyan' : 'text-gray-600 hover:text-white'}`}
+                        className={`p-1.5 sm:p-2 rounded-sm transition-all ${viewMode === 'grid' ? 'bg-white/10 text-pandora-cyan' : 'text-gray-600 hover:text-white'}`}
                     >
-                        <Grid size={16} />
+                        <Grid size={14} className="sm:w-4 sm:h-4" />
                     </button>
                     <button 
                         onClick={() => { if(onHaptic) onHaptic('light'); setViewMode('list'); }}
-                        className={`p-2 rounded-sm transition-all ${viewMode === 'list' ? 'bg-white/10 text-pandora-cyan' : 'text-gray-600 hover:text-white'}`}
+                        className={`p-1.5 sm:p-2 rounded-sm transition-all ${viewMode === 'list' ? 'bg-white/10 text-pandora-cyan' : 'text-gray-600 hover:text-white'}`}
                     >
-                        <List size={16} />
+                        <List size={14} className="sm:w-4 sm:h-4" />
                     </button>
                 </div>
             </div>
@@ -270,13 +270,13 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
       <div className="max-w-7xl mx-auto mb-8 border-b border-white/5 pb-1">
          <div className="flex gap-6 overflow-x-auto pb-2 scrollbar-hide">
             {PRODUCT_CATEGORIES.map((cat) => {
+              // Map categories to localization keys
               const categoryKeyMap: Record<string, string> = {
                 All: 'all',
-                Text: 'text',
-                Image: 'image',
-                Video: 'video',
-                Code: 'code',
-                Audio: 'audio',
+                ai: 'ai',
+                dev: 'dev',
+                design: 'design',
+                music: 'music',
               };
               
               const translationKey = categoryKeyMap[cat] || cat.toLowerCase();
