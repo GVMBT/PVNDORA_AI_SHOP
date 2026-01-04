@@ -37,6 +37,14 @@ class BanUserRequest(BaseModel):
     ban: bool
 
 
+class UpdateBalanceRequest(BaseModel):
+    amount: float
+
+
+class UpdateWarningsRequest(BaseModel):
+    count: int
+
+
 # ==================== STOCK MODELS ====================
 
 class AddStockRequest(BaseModel):

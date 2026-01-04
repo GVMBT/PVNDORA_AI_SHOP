@@ -11,6 +11,7 @@ from core.logging import get_logger
 from core.services.database import get_database
 from core.services.money import to_float
 from core.auth import verify_admin
+from core.routers.admin.models import UpdateBalanceRequest, UpdateWarningsRequest
 
 logger = get_logger(__name__)
 
@@ -244,7 +245,7 @@ async def admin_ban_user(
 @router.post("/users/{user_id}/balance")
 async def admin_update_user_balance(
     user_id: str,
-    amount: float,
+    request: UpdateBalanceRequest,
     admin=Depends(verify_admin)
 ):
     """Update user balance (add or subtract)"""
@@ -264,7 +265,7 @@ async def admin_update_user_balance(
             raise HTTPException(status_code=404, detail="User not found")
         
         current_balance = float(user_result.data.get("balance", 0))
-        new_balance = current_balance + amount
+        new_balance = current_balance + request.amount
         
         # Update balance
         await asyncio.to_thread(
@@ -285,7 +286,7 @@ async def admin_update_user_balance(
 @router.post("/users/{user_id}/warnings")
 async def admin_update_warnings(
     user_id: str,
-    count: int,
+    request: UpdateWarningsRequest,
     admin=Depends(verify_admin)
 ):
     """Update user warnings count"""
@@ -294,7 +295,7 @@ async def admin_update_warnings(
     try:
         result = await asyncio.to_thread(
             lambda: db.client.table("users")
-            .update({"warnings_count": count})
+            .update({"warnings_count": request.count})
             .eq("id", user_id)
             .execute()
         )
@@ -302,7 +303,7 @@ async def admin_update_warnings(
         if not result.data:
             raise HTTPException(status_code=404, detail="User not found")
         
-        return {"success": True, "warnings_count": count}
+        return {"success": True, "warnings_count": request.count}
     except HTTPException:
         raise
     except Exception as e:
