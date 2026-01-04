@@ -18,6 +18,7 @@ import { useAdmin } from '../../hooks/useAdmin';
 import { formatRelativeTime, formatDate } from '../../utils/date';
 import { logger } from '../../utils/logger';
 import type { TicketData } from '../admin/types';
+import type { AccountingData } from '../admin';
 
 interface AdminPanelConnectedProps {
   onExit: () => void;
@@ -35,6 +36,8 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
   // Local state
   const [isInitialized, setIsInitialized] = useState(false);
   const [tickets, setTickets] = useState<any[]>([]);
+  const [accountingData, setAccountingData] = useState<AccountingData | undefined>();
+  const [isAccountingLoading, setIsAccountingLoading] = useState(false);
   
   // Ref to store user ID mapping (telegram_id -> UUID)
   const userIdMapRef = useRef<Map<number, string>>(new Map());
@@ -52,6 +55,49 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     }
   }, [getTickets]);
 
+  // Fetch accounting data
+  const fetchAccounting = useCallback(async () => {
+    setIsAccountingLoading(true);
+    try {
+      const response = await fetch('/api/admin/accounting/overview', {
+        headers: {
+          'X-Telegram-Init-Data': localStorage.getItem('telegramInitData') || '',
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAccountingData({
+          totalRevenue: parseFloat(data.total_revenue) || 0,
+          revenueGross: parseFloat(data.total_revenue_gross) || 0,
+          revenueThisMonth: parseFloat(data.revenue_this_month) || 0,
+          revenueToday: parseFloat(data.revenue_today) || 0,
+          totalCogs: parseFloat(data.total_cogs) || 0,
+          totalAcquiringFees: parseFloat(data.total_acquiring_fees) || 0,
+          totalReferralPayouts: parseFloat(data.total_referral_payouts) || 0,
+          totalReserves: parseFloat(data.total_reserves) || 0,
+          totalReviewCashbacks: parseFloat(data.total_review_cashbacks) || 0,
+          totalReplacementCosts: parseFloat(data.total_replacement_costs) || 0,
+          totalOtherExpenses: parseFloat(data.total_other_expenses) || 0,
+          totalInsuranceRevenue: parseFloat(data.total_insurance_revenue) || 0,
+          totalDiscountsGiven: parseFloat(data.total_discounts_given) || 0,
+          totalUserBalances: parseFloat(data.total_user_balances) || 0,
+          pendingWithdrawals: parseFloat(data.pending_withdrawals) || 0,
+          netProfit: parseFloat(data.net_profit) || 0,
+          totalOrders: parseInt(data.total_orders) || 0,
+          ordersThisMonth: parseInt(data.orders_this_month) || 0,
+          ordersToday: parseInt(data.orders_today) || 0,
+          // Reserve tracking
+          reservesUsed: parseFloat(data.reserves_used) || 0,
+          reservesAvailable: parseFloat(data.reserves_available) || 0,
+        });
+      }
+    } catch (err) {
+      logger.error('Failed to fetch accounting data', err);
+    } finally {
+      setIsAccountingLoading(false);
+    }
+  }, []);
+
   // Initial data fetch - only run once on mount
   useEffect(() => {
     let isMounted = true;
@@ -64,7 +110,8 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
           getUsers(50),
           getAnalytics(),
           getPromoCodes(),
-          fetchTickets()
+          fetchTickets(),
+          fetchAccounting()
         ]);
         
         if (isMounted) {
@@ -255,11 +302,14 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       tickets={transformedTickets}
       stats={transformedStats}
       promoCodes={promoCodes}
+      accountingData={accountingData}
       onCreatePromo={handleCreatePromo}
       onUpdatePromo={handleUpdatePromo}
       onDeletePromo={handleDeletePromo}
       onTogglePromoActive={handleTogglePromoActive}
       onRefreshTickets={fetchTickets}
+      onRefreshAccounting={fetchAccounting}
+      isAccountingLoading={isAccountingLoading}
       onBanUser={handleBanUser}
       onUpdateBalance={handleUpdateBalance}
       onSaveProduct={handleSaveProduct}

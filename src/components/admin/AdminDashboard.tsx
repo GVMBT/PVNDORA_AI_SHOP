@@ -1,11 +1,12 @@
 /**
  * AdminDashboard Component
  * 
- * Dashboard view showing statistics and charts.
+ * Операционная панель — быстрые действия и статусы.
+ * Финансы вынесены в Accounting.
  */
 
 import React, { memo } from 'react';
-import { DollarSign, ShoppingBag, Users, LifeBuoy, Wallet, AlertTriangle } from 'lucide-react';
+import { ShoppingBag, Users, LifeBuoy, Clock, TrendingUp, Package } from 'lucide-react';
 import StatCard from './StatCard';
 import type { AdminStats } from './types';
 
@@ -14,7 +15,6 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
-  // Use provided stats or default to 0 (no mocks)
   const displayStats = stats || {
     totalRevenue: 0,
     ordersToday: 0,
@@ -28,23 +28,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
     pendingWithdrawals: 0
   };
 
-  // Format revenue for display (USD)
-  const formatRevenue = (revenue: number): string => {
-    if (revenue >= 1000000) {
-      return `$ ${(revenue / 1000000).toFixed(1)}M`;
-    } else if (revenue >= 1000) {
-      return `$ ${(revenue / 1000).toFixed(1)}K`;
-    }
-    return `$ ${revenue.toFixed(0)}`;
-  };
-
   // Prepare chart data from revenue_by_day
   const chartData = displayStats.revenueByDay || [];
   const maxRevenue = chartData.length > 0 
     ? Math.max(...chartData.map(d => d.amount))
-    : 1; // Avoid division by zero
+    : 1;
 
-  // Generate 12 bars (fill missing days with 0)
   const chartBars = Array.from({ length: 12 }, (_, i) => {
     const date = new Date();
     date.setDate(date.getDate() - (11 - i));
@@ -52,70 +41,100 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
     const dayData = chartData.find(d => d.date === dateStr);
     const amount = dayData?.amount || 0;
     const heightPercent = maxRevenue > 0 ? (amount / maxRevenue) * 100 : 0;
-    return { date: dateStr, amount, height: Math.max(heightPercent, 5) }; // Min 5% for visibility
+    return { date: dateStr, amount, height: Math.max(heightPercent, 5) };
   });
 
   return (
     <div className="space-y-6">
-      {/* Main Metrics */}
+      {/* Операционные метрики */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard 
-          label="Total Revenue" 
-          value={formatRevenue(displayStats.totalRevenue)} 
-          trend="" 
-          icon={<DollarSign size={20} />} 
-        />
-        <StatCard 
-          label="Pending Orders" 
-          value={String(displayStats.pendingOrders || 0)} 
-          trend="Awaiting fulfillment" 
+          label="Заказов сегодня" 
+          value={String(displayStats.ordersToday || 0)} 
+          trend={`${displayStats.ordersWeek || 0} за неделю`}
           icon={<ShoppingBag size={20} />} 
         />
         <StatCard 
-          label="Total Users" 
+          label="Ожидают выдачи" 
+          value={String(displayStats.pendingOrders || 0)} 
+          trend="Требуют внимания" 
+          isNegative={displayStats.pendingOrders > 0}
+          icon={<Package size={20} />} 
+        />
+        <StatCard 
+          label="Пользователей" 
           value={displayStats.totalUsers.toLocaleString()} 
-          trend="" 
+          trend="Всего зарегистрировано" 
           icon={<Users size={20} />} 
         />
         <StatCard 
-          label="Open Tickets" 
+          label="Открытые тикеты" 
           value={String(displayStats.openTickets || 0)} 
-          trend="" 
-          isNegative={false} 
+          trend="Требуют ответа" 
+          isNegative={displayStats.openTickets > 0}
           icon={<LifeBuoy size={20} />} 
         />
       </div>
       
-      {/* Liabilities Section */}
-      <div className="grid grid-cols-2 gap-4">
-        <StatCard 
-          label="User Balances" 
-          value={formatRevenue(displayStats.totalUserBalances || 0)} 
-          trend="Total owed to users" 
-          isNegative={true}
-          hideTrendComparison={true}
-          icon={<Wallet size={20} />} 
-        />
-        <StatCard 
-          label="Pending Withdrawals" 
-          value={formatRevenue(displayStats.pendingWithdrawals || 0)} 
-          trend="Awaiting processing" 
-          isNegative={true}
-          hideTrendComparison={true}
-          icon={<AlertTriangle size={20} />} 
-        />
+      {/* График активности */}
+      <div className="bg-[#0e0e0e] border border-white/10 rounded-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+          <span className="text-xs font-mono text-gray-400 uppercase">Выручка за 12 дней</span>
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <TrendingUp size={12} />
+            <span>${displayStats.totalRevenue?.toFixed(0) || 0} всего</span>
+          </div>
+        </div>
+        <div className="p-6 h-48 flex items-end justify-between gap-2">
+          {chartBars.map((bar, i) => (
+            <div 
+              key={i} 
+              className="flex-1 bg-white/5 hover:bg-pandora-cyan transition-colors rounded-t-sm relative group cursor-pointer" 
+              style={{ height: `${bar.height}%` }}
+            >
+              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-black/90 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                {bar.date.slice(5)}: ${bar.amount.toFixed(0)}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
       
-      {/* Revenue Chart */}
-      <div className="bg-[#0e0e0e] border border-white/10 p-6 rounded-sm h-64 flex items-end justify-between gap-2">
-        {chartBars.map((bar, i) => (
-          <div 
-            key={i} 
-            className="flex-1 bg-white/5 hover:bg-pandora-cyan transition-colors rounded-t-sm relative group" 
-            style={{ height: `${bar.height}%` }}
-            title={`${bar.date}: ₽${bar.amount.toFixed(0)}`}
-          />
-        ))}
+      {/* Быстрые действия */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="bg-[#0e0e0e] border border-white/10 p-4 rounded-sm hover:border-pandora-cyan/50 transition-colors cursor-pointer">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-pandora-cyan/10 rounded-sm flex items-center justify-center">
+              <Package size={18} className="text-pandora-cyan" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-white">Каталог</div>
+              <div className="text-xs text-gray-500">Управление товарами</div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-[#0e0e0e] border border-white/10 p-4 rounded-sm hover:border-pandora-cyan/50 transition-colors cursor-pointer">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-green-500/10 rounded-sm flex items-center justify-center">
+              <TrendingUp size={18} className="text-green-500" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-white">Бухгалтерия</div>
+              <div className="text-xs text-gray-500">P&L и финансы</div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-[#0e0e0e] border border-white/10 p-4 rounded-sm hover:border-pandora-cyan/50 transition-colors cursor-pointer">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-red-500/10 rounded-sm flex items-center justify-center">
+              <Clock size={18} className="text-red-500" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-white">Поддержка</div>
+              <div className="text-xs text-gray-500">{displayStats.openTickets || 0} тикетов</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

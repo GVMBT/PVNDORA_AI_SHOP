@@ -10,6 +10,8 @@ export { default as AdminSupport } from './AdminSupport';
 export { default as AdminPromo } from './AdminPromo';
 export type { PromoCodeData } from './AdminPromo';
 export { default as AdminMigration } from './AdminMigration';
+export { default as AdminAccounting } from './AdminAccounting';
+export type { AccountingData } from './AdminAccounting';
 export { default as AdminSidebar } from './AdminSidebar';
 export { default as AdminHeader } from './AdminHeader';
 export { default as ProductModal } from './ProductModal';

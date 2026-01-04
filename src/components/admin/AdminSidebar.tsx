@@ -15,7 +15,8 @@ import {
   Terminal, 
   Menu,
   Tag,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Calculator
 } from 'lucide-react';
 import AdminNavItem from './AdminNavItem';
 import type { AdminView } from './types';
@@ -78,7 +79,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
         <div className="flex-1 py-6 space-y-1 px-3 mt-16 md:mt-0">
           <AdminNavItem 
             icon={<LayoutDashboard size={18} />} 
-            label="Dashboard" 
+            label="Главная" 
             active={currentView === 'dashboard'} 
             onClick={() => {
               onViewChange('dashboard');
@@ -88,7 +89,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
           />
           <AdminNavItem 
             icon={<Package size={18} />} 
-            label="Catalog & Stock" 
+            label="Каталог" 
             active={currentView === 'catalog'} 
             onClick={() => {
               onViewChange('catalog');
@@ -98,7 +99,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
           />
           <AdminNavItem 
             icon={<BarChart3 size={18} />} 
-            label="Sales & Orders" 
+            label="Заказы" 
             active={currentView === 'sales'} 
             onClick={() => {
               onViewChange('sales');
@@ -108,7 +109,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
           />
           <AdminNavItem 
             icon={<Users size={18} />} 
-            label="Users" 
+            label="Пользователи" 
             active={currentView === 'partners'} 
             onClick={() => {
               onViewChange('partners');
@@ -118,7 +119,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
           />
           <AdminNavItem 
             icon={<LifeBuoy size={18} />} 
-            label="Support" 
+            label="Поддержка" 
             active={currentView === 'support'} 
             onClick={() => {
               onViewChange('support');
@@ -128,7 +129,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
           />
           <AdminNavItem 
             icon={<Tag size={18} />} 
-            label="Promo Codes" 
+            label="Промокоды" 
             active={currentView === 'promo'} 
             onClick={() => {
               onViewChange('promo');
@@ -137,8 +138,18 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
             collapsed={isCollapsed} 
           />
           <AdminNavItem 
+            icon={<Calculator size={18} />} 
+            label="Бухгалтерия" 
+            active={currentView === 'accounting'} 
+            onClick={() => {
+              onViewChange('accounting');
+              onClose();
+            }} 
+            collapsed={isCollapsed} 
+          />
+          <AdminNavItem 
             icon={<ArrowRightLeft size={18} />} 
-            label="Migration" 
+            label="Миграция" 
             active={currentView === 'migration'} 
             onClick={() => {
               onViewChange('migration');

@@ -14,6 +14,7 @@ import {
   AdminSupport,
   AdminPromo,
   AdminMigration,
+  AdminAccounting,
   AdminSidebar,
   AdminHeader,
   ProductModal,
@@ -24,6 +25,7 @@ import {
   type TicketData,
   type AdminStats,
   type PromoCodeData,
+  type AccountingData,
 } from '../admin';
 import { logger } from '../../utils/logger';
 
@@ -36,11 +38,14 @@ interface AdminPanelProps {
   tickets?: TicketData[];
   stats?: AdminStats;
   promoCodes?: PromoCodeData[];
+  accountingData?: AccountingData;
   onCreatePromo?: (data: Omit<PromoCodeData, 'id' | 'usage_count' | 'created_at'>) => Promise<void>;
   onUpdatePromo?: (id: string, data: Partial<PromoCodeData>) => Promise<void>;
   onDeletePromo?: (id: string) => Promise<void>;
   onTogglePromoActive?: (id: string, isActive: boolean) => Promise<void>;
   onRefreshTickets?: () => void;
+  onRefreshAccounting?: () => void;
+  isAccountingLoading?: boolean;
   // User actions
   onBanUser?: (userId: number, ban: boolean) => void;
   onUpdateBalance?: (userId: number, amount: number) => void;
@@ -57,11 +62,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   tickets: propsTickets = [],
   stats: propsStats,
   promoCodes: propsPromoCodes = [],
+  accountingData,
   onCreatePromo,
   onUpdatePromo,
   onDeletePromo,
   onTogglePromoActive,
   onRefreshTickets,
+  onRefreshAccounting,
+  isAccountingLoading,
   onBanUser,
   onUpdateBalance,
   onSaveProduct,
@@ -137,6 +145,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         );
       case 'migration':
         return <AdminMigration />;
+      case 'accounting':
+        return (
+          <AdminAccounting 
+            data={accountingData}
+            onRefresh={onRefreshAccounting}
+            isLoading={isAccountingLoading}
+          />
+        );
       default:
         return null;
     }

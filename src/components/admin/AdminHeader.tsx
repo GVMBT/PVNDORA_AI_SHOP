@@ -13,12 +13,15 @@ interface AdminHeaderProps {
 }
 
 const VIEW_LABELS: Record<AdminView, string> = {
-  dashboard: 'Dashboard',
-  catalog: 'Catalog',
-  sales: 'Sales',
-  partners: 'Users',  // 'partners' view now shows all users
-  support: 'Support',
-  promo: 'Promo Codes',
+  dashboard: 'Главная',
+  catalog: 'Каталог',
+  sales: 'Заказы',
+  users: 'Пользователи',
+  partners: 'Пользователи',
+  support: 'Поддержка',
+  promo: 'Промокоды',
+  migration: 'Миграция',
+  accounting: 'Бухгалтерия',
 };
 
 const AdminHeader: React.FC<AdminHeaderProps> = ({ currentView }) => {
