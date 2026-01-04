@@ -2,8 +2,6 @@
 from typing import List, Optional
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
-from core.i18n import get_text
-
 
 # ============================================
 # Main Menu
@@ -76,26 +74,21 @@ def get_products_keyboard(
     end_idx = start_idx + page_size
     page_products = products[start_idx:end_idx]
     
-    # Currency symbols
-    currency_symbols = {
-        "RUB": "₽",
-        "EUR": "€",
-        "UAH": "₴",
-        "TRY": "₺",
-        "INR": "₹",
-        "AED": "د.إ",
-        "USD": "$"
-    }
-    currency_symbol = currency_symbols.get(currency, currency)
+    # Import currency symbols from single source of truth
+    from core.services.currency import CURRENCY_SYMBOLS, INTEGER_CURRENCIES
+    currency_symbol = CURRENCY_SYMBOLS.get(currency, currency)
     
     for p in page_products:
         name = p.get("name", "Product")
         discount_price_usd = float(p.get("discount_price", 0) or 0)
         stock = p.get("available_count", 0)
         
-        # Convert price
+        # Convert price and format
         display_price = discount_price_usd * exchange_rate
-        price_str = f"{currency_symbol}{display_price:.0f}" if discount_price_usd else "N/A"
+        if currency in INTEGER_CURRENCIES:
+            price_str = f"{int(display_price):,} {currency_symbol}" if discount_price_usd else "N/A"
+        else:
+            price_str = f"{currency_symbol}{display_price:.2f}" if discount_price_usd else "N/A"
         
         # Stock indicator
         stock_emoji = "🟢" if stock > 0 else "🟡"
@@ -154,26 +147,22 @@ def get_product_card_keyboard(
     """Product card with buy and insurance options."""
     buttons = []
     
-    # Currency symbols
-    currency_symbols = {
-        "RUB": "₽",
-        "EUR": "€",
-        "UAH": "₴",
-        "TRY": "₺",
-        "INR": "₹",
-        "AED": "د.إ",
-        "USD": "$"
-    }
-    currency_symbol = currency_symbols.get(currency, currency)
+    # Use currency symbols from single source of truth
+    from core.services.currency import CURRENCY_SYMBOLS, INTEGER_CURRENCIES
+    currency_symbol = CURRENCY_SYMBOLS.get(currency, currency)
     
-    # Convert price
+    # Convert price and format
     display_price = discount_price * exchange_rate
+    if currency in INTEGER_CURRENCIES:
+        price_formatted = f"{int(display_price):,} {currency_symbol}"
+    else:
+        price_formatted = f"{currency_symbol}{display_price:.2f}"
     
     # Buy button
     if in_stock:
-        buy_text = f"💳 Купить — {currency_symbol}{display_price:.0f}" if lang == "ru" else f"💳 Buy — {currency_symbol}{display_price:.0f}"
+        buy_text = f"💳 Купить — {price_formatted}" if lang == "ru" else f"💳 Buy — {price_formatted}"
     else:
-        buy_text = f"💳 Предзаказ — {currency_symbol}{display_price:.0f}" if lang == "ru" else f"💳 Pre-order — {currency_symbol}{display_price:.0f}"
+        buy_text = f"💳 Предзаказ — {price_formatted}" if lang == "ru" else f"💳 Pre-order — {price_formatted}"
     
     buttons.append([
         InlineKeyboardButton(
@@ -249,25 +238,21 @@ def get_orders_keyboard(
     """User orders list."""
     buttons = []
     
-    # Currency symbols
-    currency_symbols = {
-        "RUB": "₽",
-        "EUR": "€",
-        "UAH": "₴",
-        "TRY": "₺",
-        "INR": "₹",
-        "AED": "د.إ",
-        "USD": "$"
-    }
-    currency_symbol = currency_symbols.get(currency, currency)
+    # Use currency symbols from single source of truth
+    from core.services.currency import CURRENCY_SYMBOLS, INTEGER_CURRENCIES
+    currency_symbol = CURRENCY_SYMBOLS.get(currency, currency)
     
     for order in orders[:10]:  # Show last 10
         order_id = order.get("id", "")[:8]
         status = order.get("status", "unknown")
         amount_usd = float(order.get("amount", 0) or 0)
         
-        # Convert to user currency
+        # Convert to user currency and format
         display_amount = amount_usd * exchange_rate
+        if currency in INTEGER_CURRENCIES:
+            amount_formatted = f"{int(display_amount):,} {currency_symbol}"
+        else:
+            amount_formatted = f"{currency_symbol}{display_amount:.2f}"
         
         status_emoji = {
             "pending": "⏳",
@@ -280,7 +265,7 @@ def get_orders_keyboard(
         
         buttons.append([
             InlineKeyboardButton(
-                text=f"{status_emoji} #{order_id} — {currency_symbol}{display_amount:.0f}",
+                text=f"{status_emoji} #{order_id} — {amount_formatted}",
                 callback_data=f"discount:order:{order_id}"
             )
         ])
@@ -292,7 +277,6 @@ def get_order_detail_keyboard(order: dict, lang: str) -> InlineKeyboardMarkup:
     """Order detail actions."""
     order_id = order.get("id", "")[:8]
     status = order.get("status", "")
-    has_insurance = order.get("has_insurance", False)
     
     buttons = []
     

@@ -11,22 +11,38 @@ from core.logging import get_logger
 
 logger = get_logger(__name__)
 
+# =============================================================================
+# SINGLE SOURCE OF TRUTH: Currency Configuration
+# =============================================================================
+
 # Language to Currency mapping
-# Simplified logic: Russian → RUB, all others → USD
+# Russian-speaking regions → RUB, all others → USD for simplicity
 LANGUAGE_TO_CURRENCY: Dict[str, str] = {
     "ru": "RUB",      # Русский → Рубли
-    "be": "RUB",      # Белорусский → Рубли
+    "be": "RUB",      # Белорусский → Рубли  
     "kk": "RUB",      # Казахский → Рубли
-    # All other languages default to USD
-    "uk": "USD",      # Украинский → USD
-    "en": "USD",      # Английский → USD
-    "de": "USD",      # Немецкий → USD
-    "fr": "USD",      # Французский → USD
-    "es": "USD",      # Испанский → USD
-    "tr": "USD",      # Турецкий → USD
-    "ar": "USD",      # Арабский → USD
-    "hi": "USD",      # Хинди → USD
+    # All other languages default to USD for simplicity
+    # (users can override via preferred_currency in profile)
 }
+
+# Currency symbols mapping
+CURRENCY_SYMBOLS: Dict[str, str] = {
+    "USD": "$",
+    "RUB": "₽",
+    "EUR": "€",
+    "UAH": "₴",
+    "TRY": "₺",
+    "INR": "₹",
+    "AED": "د.إ",
+    "GBP": "£",
+    "CNY": "¥",
+    "JPY": "¥",
+    "KRW": "₩",
+    "BRL": "R$",
+}
+
+# Currencies that should be displayed as integers (no decimals)
+INTEGER_CURRENCIES = {"RUB", "UAH", "TRY", "INR", "JPY", "KRW"}
 
 # Note: Exchange rates are fetched from exchangerate-api.com
 # Fallback rates used when API is unavailable (updated periodically)
@@ -292,27 +308,16 @@ class CurrencyService:
             Formatted price string
         """
         decimal_price = to_decimal(price)
-        
-        symbols = {
-            "USD": "$",
-            "RUB": "₽",
-            "EUR": "€",
-            "UAH": "₴",
-            "TRY": "₺",
-            "INR": "₹",
-            "AED": "د.إ",
-        }
-        
-        symbol = symbols.get(currency, currency)
+        symbol = CURRENCY_SYMBOLS.get(currency, currency)
         
         # Format number
-        if currency in ["RUB", "UAH", "TRY", "INR"]:
+        if currency in INTEGER_CURRENCIES:
             formatted = f"{int(round_money(decimal_price, to_int=True)):,}"
         else:
             formatted = f"{to_float(round_money(decimal_price)):,.2f}"
         
-        # Place symbol based on currency
-        if currency in ["USD", "EUR", "GBP"]:
+        # Place symbol based on currency convention
+        if currency in ["USD", "EUR", "GBP", "CNY", "JPY"]:
             return f"{symbol}{formatted}"
         else:
             return f"{formatted} {symbol}"

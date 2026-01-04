@@ -8,9 +8,13 @@ Complete toolset covering all app functionality:
 - User Profile & Referrals
 - Wishlist & Waitlist
 - Support & FAQ
+
+User context (user_id, telegram_id, language, currency) is auto-injected
+via set_user_context() before each agent call.
 """
 import asyncio
 from typing import Optional
+from dataclasses import dataclass
 
 from langchain_core.tools import tool
 
@@ -20,6 +24,17 @@ logger = get_logger(__name__)
 
 # Global DB instance - set during agent initialization
 _db = None
+
+
+# Global user context - set before each agent call
+@dataclass
+class _UserContext:
+    user_id: str = ""
+    telegram_id: int = 0
+    language: str = "en"
+    currency: str = "USD"
+
+_user_ctx = _UserContext()
 
 
 def set_db(db):
@@ -35,52 +50,50 @@ def get_db():
     return _db
 
 
+def set_user_context(user_id: str, telegram_id: int, language: str, currency: str):
+    """Set user context for all tools. Called by agent before each chat."""
+    global _user_ctx
+    _user_ctx = _UserContext(
+        user_id=user_id,
+        telegram_id=telegram_id,
+        language=language,
+        currency=currency
+    )
+    logger.debug(f"User context set: {_user_ctx}")
+
+
+def get_user_context() -> _UserContext:
+    """Get current user context."""
+    return _user_ctx
+
+
 # =============================================================================
 # CATALOG TOOLS
 # =============================================================================
 
 @tool
-async def get_catalog(user_language: str = "en", user_id: str = None) -> dict:
+async def get_catalog() -> dict:
     """
     Get full product catalog with prices and availability.
-    Prices are in USD in database, converted based on user language.
-    
-    Args:
-        user_language: User's language code for currency conversion
-        user_id: User database ID (optional, for getting preferred currency from DB)
+    Prices are automatically converted to user's currency (from context).
     
     Returns:
-        List of all active products with stock status
+        List of all active products with stock status and prices in user's currency
     """
     try:
         from core.db import get_redis
         from core.services.currency import get_currency_service
-        import asyncio
         
         db = get_db()
+        ctx = get_user_context()
         products = await db.get_products(status="active")
         
-        # Get user's preferred currency from DB if user_id provided
-        preferred_currency = None
-        if user_id:
-            try:
-                user_result = await asyncio.to_thread(
-                    lambda: db.client.table("users").select("preferred_currency, language_code").eq("id", user_id).single().execute()
-                )
-                if user_result.data:
-                    preferred_currency = user_result.data.get("preferred_currency")
-                    # Use DB language_code if user_language not provided
-                    if not user_language or user_language == "en":
-                        user_language = user_result.data.get("language_code") or user_language
-            except Exception as e:
-                logger.warning(f"Failed to get user currency from DB: {e}")
-        
-        # Get currency service for conversion
+        # Use context currency (set by agent)
         redis = get_redis()
         currency_service = get_currency_service(redis)
-        target_currency = currency_service.get_user_currency(user_language, preferred_currency)
+        target_currency = ctx.currency
         
-        logger.info(f"Currency conversion: user_id={user_id}, language={user_language}, preferred={preferred_currency}, target={target_currency}")
+        logger.info(f"get_catalog: using context currency={target_currency}")
         
         result_products = []
         for p in products:
@@ -95,7 +108,6 @@ async def get_catalog(user_language: str = "en", user_id: str = None) -> dict:
             else:
                 price_converted = price_usd
             
-            # Use currency service formatter for proper symbol placement
             price_formatted = currency_service.format_price(price_converted, target_currency)
             
             result_products.append({
@@ -122,48 +134,32 @@ async def get_catalog(user_language: str = "en", user_id: str = None) -> dict:
 
 
 @tool
-async def search_products(query: str, user_language: str = "en", user_id: str = None) -> dict:
+async def search_products(query: str) -> dict:
     """
     Search products by name or description.
     Use when user asks about specific products.
+    Prices are automatically converted to user's currency.
     
     Args:
         query: Search query (product name, category, etc.)
-        user_language: User's language for currency conversion
-        user_id: User database ID (optional, for getting preferred currency from DB)
         
     Returns:
-        Matching products with prices converted to user's currency
+        Matching products with prices in user's currency
     """
     try:
         from core.db import get_redis
         from core.services.currency import get_currency_service
-        import asyncio
         
         db = get_db()
+        ctx = get_user_context()
         products = await db.search_products(query)
         
-        # Get user's preferred currency from DB if user_id provided
-        preferred_currency = None
-        if user_id:
-            try:
-                user_result = await asyncio.to_thread(
-                    lambda: db.client.table("users").select("preferred_currency, language_code").eq("id", user_id).single().execute()
-                )
-                if user_result.data:
-                    preferred_currency = user_result.data.get("preferred_currency")
-                    # Use DB language_code if user_language not provided
-                    if not user_language or user_language == "en":
-                        user_language = user_result.data.get("language_code") or user_language
-            except Exception as e:
-                logger.warning(f"Failed to get user currency from DB: {e}")
-        
-        # Currency conversion
+        # Use context currency
         redis = get_redis()
         currency_service = get_currency_service(redis)
-        target_currency = currency_service.get_user_currency(user_language, preferred_currency)
+        target_currency = ctx.currency
         
-        logger.info(f"Currency conversion: user_id={user_id}, language={user_language}, preferred={preferred_currency}, target={target_currency}")
+        logger.info(f"search_products: query='{query}', currency={target_currency}")
         
         result_products = []
         for p in products:
@@ -173,22 +169,20 @@ async def search_products(query: str, user_language: str = "en", user_id: str = 
             if target_currency != "USD":
                 try:
                     price_converted = await currency_service.convert_price(price_usd, target_currency)
-                    logger.debug(f"Converted {price_usd} USD to {price_converted} {target_currency}")
                 except Exception as e:
                     logger.error(f"Currency conversion failed: {e}")
                     price_converted = price_usd
             else:
                 price_converted = price_usd
             
-            # Format price
             price_formatted = currency_service.format_price(price_converted, target_currency)
             
             result_products.append({
                 "id": p.id,
                 "name": p.name,
-                "price": price_converted,  # Converted price for calculations
-                "price_usd": price_usd,  # Original USD price
-                "price_formatted": price_formatted,  # Formatted string (e.g., "60 ₽" or "$60.00")
+                "price": price_converted,
+                "price_usd": price_usd,
+                "price_formatted": price_formatted,
                 "currency": target_currency,
                 "in_stock": p.stock_count > 0,
                 "stock_count": p.stock_count,
@@ -197,6 +191,7 @@ async def search_products(query: str, user_language: str = "en", user_id: str = 
         return {
             "success": True,
             "count": len(result_products),
+            "currency": target_currency,
             "products": result_products
         }
     except Exception as e:
@@ -205,15 +200,13 @@ async def search_products(query: str, user_language: str = "en", user_id: str = 
 
 
 @tool
-async def get_product_details(product_id: str, user_language: str = "en", user_id: str = None) -> dict:
+async def get_product_details(product_id: str) -> dict:
     """
     Get detailed info about a specific product.
-    Prices are in USD, converted based on user language.
+    Prices are automatically converted to user's currency.
     
     Args:
         product_id: Product UUID
-        user_language: User's language for currency conversion
-        user_id: User database ID (optional, for getting preferred currency from DB)
         
     Returns:
         Full product details including description, pricing, availability
@@ -221,29 +214,17 @@ async def get_product_details(product_id: str, user_language: str = "en", user_i
     try:
         from core.db import get_redis
         from core.services.currency import get_currency_service
-        import asyncio
         
         db = get_db()
+        ctx = get_user_context()
         product = await db.get_product_by_id(product_id)
         if not product:
             return {"success": False, "error": "Product not found"}
         
-        # Get user's preferred currency from DB if user_id provided
-        preferred_currency = None
-        if user_id:
-            try:
-                user_result = await asyncio.to_thread(
-                    lambda: db.client.table("users").select("preferred_currency").eq("id", user_id).single().execute()
-                )
-                if user_result.data:
-                    preferred_currency = user_result.data.get("preferred_currency")
-            except Exception as e:
-                logger.warning(f"Failed to get user currency from DB: {e}")
-        
-        # Currency conversion
+        # Use context currency
         redis = get_redis()
         currency_service = get_currency_service(redis)
-        target_currency = currency_service.get_user_currency(user_language, preferred_currency)
+        target_currency = ctx.currency
         
         price_usd = float(product.price or 0)
         
@@ -255,21 +236,16 @@ async def get_product_details(product_id: str, user_language: str = "en", user_i
         else:
             price_converted = price_usd
         
-        # Use currency service formatter for proper symbol placement
         price_formatted = currency_service.format_price(price_converted, target_currency)
         
-        # Availability message
+        # Availability message based on language
+        is_russian = ctx.language in ["ru", "be", "kk"]
         if product.stock_count > 0:
-            availability_en = f"In stock ({product.stock_count}), instant delivery"
-            availability_ru = f"В наличии ({product.stock_count} шт), мгновенная доставка"
+            availability = f"В наличии ({product.stock_count} шт), мгновенная доставка" if is_russian else f"In stock ({product.stock_count}), instant delivery"
         else:
             hours = getattr(product, 'fulfillment_time_hours', 48) or 48
-            availability_en = f"Preorder, delivery in {hours}h"
-            availability_ru = f"Предзаказ, доставка {hours}ч"
+            availability = f"Предзаказ, доставка {hours}ч" if is_russian else f"Preorder, delivery in {hours}h"
         
-        availability = availability_ru if user_language in ["ru", "be", "kk"] else availability_en
-        
-        # Warranty from product
         warranty_hours = getattr(product, "warranty_hours", None)
         
         return {
@@ -295,25 +271,23 @@ async def get_product_details(product_id: str, user_language: str = "en", user_i
 
 
 @tool
-async def check_product_availability(product_name: str, user_language: str = "en", user_id: str = None) -> dict:
+async def check_product_availability(product_name: str) -> dict:
     """
     Check if a product is available for purchase.
     Use before adding to cart or purchasing.
     
     Args:
         product_name: Name or partial name of the product
-        user_language: User's language for currency conversion
-        user_id: User database ID (optional, for getting preferred currency from DB)
         
     Returns:
-        Availability info with price (converted to user's currency)
+        Availability info with price in user's currency
     """
     try:
         from core.db import get_redis
         from core.services.currency import get_currency_service
-        import asyncio
         
         db = get_db()
+        ctx = get_user_context()
         products = await db.search_products(product_name)
         
         if not products:
@@ -323,22 +297,10 @@ async def check_product_availability(product_name: str, user_language: str = "en
                 "message": f"Product '{product_name}' not found"
             }
         
-        # Get user's preferred currency from DB if user_id provided
-        preferred_currency = None
-        if user_id:
-            try:
-                user_result = await asyncio.to_thread(
-                    lambda: db.client.table("users").select("preferred_currency").eq("id", user_id).single().execute()
-                )
-                if user_result.data:
-                    preferred_currency = user_result.data.get("preferred_currency")
-            except Exception as e:
-                logger.warning(f"Failed to get user currency from DB: {e}")
-        
-        # Currency conversion
+        # Use context currency
         redis = get_redis()
         currency_service = get_currency_service(redis)
-        target_currency = currency_service.get_user_currency(user_language, preferred_currency)
+        target_currency = ctx.currency
         
         p = products[0]  # Best match
         price_usd = float(p.price or 0)
@@ -352,7 +314,6 @@ async def check_product_availability(product_name: str, user_language: str = "en
         else:
             price_converted = price_usd
         
-        # Format price
         price_formatted = currency_service.format_price(price_converted, target_currency)
         
         return {
@@ -360,9 +321,9 @@ async def check_product_availability(product_name: str, user_language: str = "en
             "found": True,
             "product_id": p.id,
             "name": p.name,
-            "price": price_converted,  # Converted price
-            "price_usd": price_usd,  # Original USD price
-            "price_formatted": price_formatted,  # Formatted string
+            "price": price_converted,
+            "price_usd": price_usd,
+            "price_formatted": price_formatted,
             "currency": target_currency,
             "in_stock": p.stock_count > 0,
             "stock_count": p.stock_count,
@@ -379,25 +340,38 @@ async def check_product_availability(product_name: str, user_language: str = "en
 # =============================================================================
 
 @tool
-async def get_user_cart(user_telegram_id: int) -> dict:
+async def get_user_cart() -> dict:
     """
     Get user's shopping cart.
     ALWAYS call this before mentioning cart contents.
-    
-    Args:
-        user_telegram_id: User's Telegram ID
+    Uses telegram_id from context.
         
     Returns:
-        Cart with items and totals
+        Cart with items and totals in user's currency
     """
     try:
         from core.cart import get_cart_manager
+        from core.db import get_redis
+        from core.services.currency import get_currency_service
         
+        ctx = get_user_context()
         cart_manager = get_cart_manager()
-        cart = await cart_manager.get_cart(user_telegram_id)
+        cart = await cart_manager.get_cart(ctx.telegram_id)
         
         if not cart or not cart.items:
             return {"success": True, "empty": True, "items": [], "total": 0.0}
+        
+        # Convert totals to user's currency
+        redis = get_redis()
+        currency_service = get_currency_service(redis)
+        target_currency = ctx.currency
+        
+        total_converted = cart.total
+        if target_currency != "USD":
+            try:
+                total_converted = await currency_service.convert_price(cart.total, target_currency)
+            except Exception:
+                pass
         
         return {
             "success": True,
@@ -412,7 +386,10 @@ async def get_user_cart(user_telegram_id: int) -> dict:
                 }
                 for item in cart.items
             ],
-            "total": cart.total,
+            "total": total_converted,
+            "total_usd": cart.total,
+            "total_formatted": currency_service.format_price(total_converted, target_currency),
+            "currency": target_currency,
             "promo_code": cart.promo_code,
         }
     except Exception as e:
@@ -421,12 +398,12 @@ async def get_user_cart(user_telegram_id: int) -> dict:
 
 
 @tool
-async def add_to_cart(user_telegram_id: int, product_id: str, quantity: int = 1) -> dict:
+async def add_to_cart(product_id: str, quantity: int = 1) -> dict:
     """
     Add product to user's cart.
+    Uses telegram_id from context.
     
     Args:
-        user_telegram_id: User's Telegram ID
         product_id: Product UUID
         quantity: How many to add (default 1)
         
@@ -435,8 +412,11 @@ async def add_to_cart(user_telegram_id: int, product_id: str, quantity: int = 1)
     """
     try:
         from core.cart import get_cart_manager
+        from core.db import get_redis
+        from core.services.currency import get_currency_service
         
         db = get_db()
+        ctx = get_user_context()
         product = await db.get_product_by_id(product_id)
         if not product:
             return {"success": False, "error": "Product not found"}
@@ -446,7 +426,7 @@ async def add_to_cart(user_telegram_id: int, product_id: str, quantity: int = 1)
         
         cart_manager = get_cart_manager()
         cart = await cart_manager.add_item(
-            user_telegram_id=user_telegram_id,
+            user_telegram_id=ctx.telegram_id,
             product_id=product_id,
             product_name=product.name,
             quantity=quantity,
@@ -455,11 +435,24 @@ async def add_to_cart(user_telegram_id: int, product_id: str, quantity: int = 1)
             discount_percent=0,
         )
         
+        # Format total in user's currency
+        redis = get_redis()
+        currency_service = get_currency_service(redis)
+        total_converted = cart.total
+        if ctx.currency != "USD":
+            try:
+                total_converted = await currency_service.convert_price(cart.total, ctx.currency)
+            except Exception:
+                pass
+        
+        total_formatted = currency_service.format_price(total_converted, ctx.currency)
+        
         return {
             "success": True,
             "product_name": product.name,
             "quantity": quantity,
-            "cart_total": cart.total,
+            "cart_total": total_converted,
+            "cart_total_formatted": total_formatted,
             "message": f"Added {product.name} to cart"
         }
     except Exception as e:
@@ -468,12 +461,10 @@ async def add_to_cart(user_telegram_id: int, product_id: str, quantity: int = 1)
 
 
 @tool
-async def clear_cart(user_telegram_id: int) -> dict:
+async def clear_cart() -> dict:
     """
     Clear user's shopping cart.
-    
-    Args:
-        user_telegram_id: User's Telegram ID
+    Uses telegram_id from context.
         
     Returns:
         Confirmation
@@ -481,8 +472,9 @@ async def clear_cart(user_telegram_id: int) -> dict:
     try:
         from core.cart import get_cart_manager
         
+        ctx = get_user_context()
         cart_manager = get_cart_manager()
-        await cart_manager.clear_cart(user_telegram_id)
+        await cart_manager.clear_cart(ctx.telegram_id)
         return {"success": True, "message": "Cart cleared"}
     except Exception as e:
         logger.error(f"clear_cart error: {e}")
@@ -490,18 +482,19 @@ async def clear_cart(user_telegram_id: int) -> dict:
 
 
 @tool
-async def apply_promo_code(code: str, user_telegram_id: int) -> dict:
+async def apply_promo_code(code: str) -> dict:
     """
     Apply promo code to cart.
+    Uses telegram_id from context.
     
     Args:
         code: Promo code
-        user_telegram_id: User's Telegram ID
         
     Returns:
         Discount info
     """
     try:
+        ctx = get_user_context()
         db = get_db()
         promo = await db.validate_promo_code(code)
         
@@ -511,7 +504,7 @@ async def apply_promo_code(code: str, user_telegram_id: int) -> dict:
         # Apply to cart
         from core.cart import get_cart_manager
         cart_manager = get_cart_manager()
-        await cart_manager.apply_promo(user_telegram_id, code, promo["discount_percent"])
+        await cart_manager.apply_promo(ctx.telegram_id, code, promo["discount_percent"])
         
         return {
             "success": True,
@@ -530,21 +523,22 @@ async def apply_promo_code(code: str, user_telegram_id: int) -> dict:
 # =============================================================================
 
 @tool
-async def get_user_orders(user_id: str, limit: int = 5) -> dict:
+async def get_user_orders(limit: int = 5) -> dict:
     """
     Get user's order history.
     Use when user asks about their orders.
+    Uses user_id from context.
     
     Args:
-        user_id: User database ID
         limit: Max orders to return
         
     Returns:
         List of orders with status
     """
     try:
+        ctx = get_user_context()
         db = get_db()
-        orders = await db.get_user_orders(user_id, limit=limit)
+        orders = await db.get_user_orders(ctx.user_id, limit=limit)
         
         if not orders:
             return {"success": True, "count": 0, "orders": [], "message": "No orders found"}
@@ -576,6 +570,7 @@ async def get_user_orders(user_id: str, limit: int = 5) -> dict:
                             "product_name": it.get("product_name", "Unknown"),
                             "status": it.get("status", "unknown"),
                             "has_credentials": bool(it.get("delivery_content")),
+                            "item_id": it.get("id", ""),
                         }
                         for it in items_by_order.get(o.id, [])
                     ]
@@ -589,23 +584,24 @@ async def get_user_orders(user_id: str, limit: int = 5) -> dict:
 
 
 @tool
-async def get_order_credentials(user_id: str, order_id_prefix: str) -> dict:
+async def get_order_credentials(order_id_prefix: str) -> dict:
     """
     Get credentials/login data for a delivered order.
     Use when user asks for login/password from their order.
+    Uses user_id from context.
     
     Args:
-        user_id: User database ID
         order_id_prefix: First 8 characters of order ID (e.g. "c7e72095")
         
     Returns:
         Credentials for delivered items
     """
     try:
+        ctx = get_user_context()
         db = get_db()
         
         # Find order by prefix
-        orders = await db.get_user_orders(user_id, limit=20)
+        orders = await db.get_user_orders(ctx.user_id, limit=20)
         order = next((o for o in orders if o.id.startswith(order_id_prefix)), None)
         
         if not order:
@@ -655,15 +651,14 @@ async def get_order_credentials(user_id: str, order_id_prefix: str) -> dict:
 
 
 @tool
-async def resend_order_credentials(user_id: str, order_id_prefix: str, telegram_id: int) -> dict:
+async def resend_order_credentials(order_id_prefix: str) -> dict:
     """
     Resend order credentials to user via Telegram.
     Use when user asks to resend/forward their login/password.
+    Uses user_id and telegram_id from context.
     
     Args:
-        user_id: User database ID  
         order_id_prefix: First 8 characters of order ID
-        telegram_id: User's Telegram ID to send to
         
     Returns:
         Confirmation
@@ -671,9 +666,10 @@ async def resend_order_credentials(user_id: str, order_id_prefix: str, telegram_
     try:
         from core.services.notifications import NotificationService
         
+        ctx = get_user_context()
         # First get credentials
         db = get_db()
-        orders = await db.get_user_orders(user_id, limit=20)
+        orders = await db.get_user_orders(ctx.user_id, limit=20)
         order = next((o for o in orders if o.id.startswith(order_id_prefix)), None)
         
         if not order:
@@ -694,7 +690,7 @@ async def resend_order_credentials(user_id: str, order_id_prefix: str, telegram_
         notification = NotificationService()
         content_text = "\n\n".join(credentials)
         await notification.send_delivery(
-            telegram_id=telegram_id,
+            telegram_id=ctx.telegram_id,
             product_name=f"Заказ {order_id_prefix}",
             content=content_text
         )
@@ -713,14 +709,11 @@ async def resend_order_credentials(user_id: str, order_id_prefix: str, telegram_
 # =============================================================================
 
 @tool
-async def get_user_profile(user_id: str, user_language: str = "en") -> dict:
+async def get_user_profile() -> dict:
     """
     Get user's full profile information.
     Loads thresholds from referral_settings, converts balance to user currency.
-    
-    Args:
-        user_id: User database ID
-        user_language: User's language for currency conversion
+    Uses user_id and currency from context.
         
     Returns:
         Complete profile with balance, career level, stats
@@ -729,6 +722,7 @@ async def get_user_profile(user_id: str, user_language: str = "en") -> dict:
         from core.db import get_redis
         from core.services.currency import get_currency_service
         
+        ctx = get_user_context()
         db = get_db()
         
         # Load referral settings for thresholds
@@ -745,7 +739,7 @@ async def get_user_profile(user_id: str, user_language: str = "en") -> dict:
         
         # Get user from DB
         result = await asyncio.to_thread(
-            lambda: db.client.table("users").select("*").eq("id", user_id).single().execute()
+            lambda: db.client.table("users").select("*").eq("id", ctx.user_id).single().execute()
         )
         
         if not result.data:
@@ -781,14 +775,14 @@ async def get_user_profile(user_id: str, user_language: str = "en") -> dict:
         
         # Count orders
         orders_result = await asyncio.to_thread(
-            lambda: db.client.table("orders").select("id", count="exact").eq("user_id", user_id).execute()
+            lambda: db.client.table("orders").select("id", count="exact").eq("user_id", ctx.user_id).execute()
         )
         orders_count = orders_result.count or 0
         
-        # Currency conversion
+        # Use context currency
         redis = get_redis()
         currency_service = get_currency_service(redis)
-        target_currency = currency_service.get_user_currency(user_language)
+        target_currency = ctx.currency
         
         # Balance is stored in USD, convert if needed
         if target_currency != "USD" and balance > 0:
@@ -834,19 +828,17 @@ async def get_user_profile(user_id: str, user_language: str = "en") -> dict:
 
 
 @tool
-async def get_referral_info(user_id: str, telegram_id: int) -> dict:
+async def get_referral_info() -> dict:
     """
     Get user's referral program info.
     Loads settings from database (referral_settings table).
-    
-    Args:
-        user_id: User database ID
-        telegram_id: User's Telegram ID
+    Uses user_id and telegram_id from context.
         
     Returns:
         Complete referral info with link, earnings, network stats
     """
     try:
+        ctx = get_user_context()
         db = get_db()
         
         # Load referral settings from DB (dynamic, not hardcoded)
@@ -871,7 +863,7 @@ async def get_referral_info(user_id: str, telegram_id: int) -> dict:
             lambda: db.client.table("users").select(
                 "balance, turnover_usd, total_referral_earnings, partner_mode, partner_discount_percent, "
                 "level1_unlocked_at, level2_unlocked_at, level3_unlocked_at, referral_program_unlocked"
-            ).eq("id", user_id).single().execute()
+            ).eq("id", ctx.user_id).single().execute()
         )
         
         if not result.data:
@@ -912,7 +904,7 @@ async def get_referral_info(user_id: str, telegram_id: int) -> dict:
         
         # Line 1 - direct referrals
         l1 = await asyncio.to_thread(
-            lambda: db.client.table("users").select("id", count="exact").eq("referrer_id", user_id).execute()
+            lambda: db.client.table("users").select("id", count="exact").eq("referrer_id", ctx.user_id).execute()
         )
         network["line1"] = l1.count or 0
         
@@ -945,7 +937,7 @@ async def get_referral_info(user_id: str, telegram_id: int) -> dict:
         
         return {
             "success": True,
-            "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{telegram_id}",
+            "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{ctx.telegram_id}",
             "career_level": career_level,
             "line1_unlocked": line1_unlocked,
             "line2_unlocked": line2_unlocked,
@@ -973,24 +965,25 @@ async def get_referral_info(user_id: str, telegram_id: int) -> dict:
 # =============================================================================
 
 @tool
-async def add_to_wishlist(user_id: str, product_id: str) -> dict:
+async def add_to_wishlist(product_id: str) -> dict:
     """
     Add product to user's wishlist (saved for later).
+    Uses user_id from context.
     
     Args:
-        user_id: User database ID
         product_id: Product UUID
         
     Returns:
         Confirmation
     """
     try:
+        ctx = get_user_context()
         db = get_db()
         product = await db.get_product_by_id(product_id)
         if not product:
             return {"success": False, "error": "Product not found"}
         
-        await db.add_to_wishlist(user_id, product_id)
+        await db.add_to_wishlist(ctx.user_id, product_id)
         return {
             "success": True,
             "message": f"{product.name} added to wishlist"
@@ -1001,19 +994,18 @@ async def add_to_wishlist(user_id: str, product_id: str) -> dict:
 
 
 @tool
-async def get_wishlist(user_id: str) -> dict:
+async def get_wishlist() -> dict:
     """
     Get user's wishlist.
-    
-    Args:
-        user_id: User database ID
+    Uses user_id from context.
         
     Returns:
         List of saved products
     """
     try:
+        ctx = get_user_context()
         db = get_db()
-        products = await db.get_wishlist(user_id)
+        products = await db.get_wishlist(ctx.user_id)
         
         return {
             "success": True,
@@ -1033,21 +1025,22 @@ async def get_wishlist(user_id: str) -> dict:
 
 
 @tool
-async def add_to_waitlist(user_id: str, product_name: str) -> dict:
+async def add_to_waitlist(product_name: str) -> dict:
     """
     Add user to waitlist for coming_soon product.
     User will be notified when product becomes available.
+    Uses user_id from context.
     
     Args:
-        user_id: User database ID
         product_name: Product name
         
     Returns:
         Confirmation
     """
     try:
+        ctx = get_user_context()
         db = get_db()
-        await db.add_to_waitlist(user_id, product_name)
+        await db.add_to_waitlist(ctx.user_id, product_name)
         return {
             "success": True,
             "message": f"Added to waitlist for {product_name}. You'll be notified when available."
@@ -1062,21 +1055,22 @@ async def add_to_waitlist(user_id: str, product_name: str) -> dict:
 # =============================================================================
 
 @tool
-async def search_faq(question: str, language: str = "ru") -> dict:
+async def search_faq(question: str) -> dict:
     """
     Search FAQ for answer to common question.
     Use first before creating support ticket.
+    Uses language from context.
     
     Args:
         question: User's question
-        language: Language code
         
     Returns:
         Matching FAQ entry if found
     """
     try:
+        ctx = get_user_context()
         db = get_db()
-        faq_entries = await db.get_faq(language)
+        faq_entries = await db.get_faq(ctx.language)
         
         if not faq_entries:
             return {"success": True, "found": False}
@@ -1101,7 +1095,6 @@ async def search_faq(question: str, language: str = "ru") -> dict:
 
 @tool
 async def create_support_ticket(
-    user_id: str, 
     issue_type: str, 
     message: str, 
     order_id_prefix: Optional[str] = None,
@@ -1110,13 +1103,13 @@ async def create_support_ticket(
     """
     Create support ticket for user's issue.
     All tickets require manual review by admin/support.
+    Uses user_id from context.
     
     IMPORTANT FOR REPLACEMENT TICKETS:
     - You MUST provide order_id_prefix for replacement/refund issues
     - You SHOULD provide item_id for account-specific problems
     
     Args:
-        user_id: User database ID
         issue_type: Type of issue (replacement, refund, technical_issue, other)
         message: Issue description
         order_id_prefix: First 8 chars of related order ID (REQUIRED for replacement/refund)
@@ -1135,6 +1128,7 @@ async def create_support_ticket(
         from datetime import datetime, timezone
         import re
         
+        ctx = get_user_context()
         db = get_db()
         
         order_id = None
@@ -1149,7 +1143,7 @@ async def create_support_ticket(
         
         # If order specified, find order and check warranty status (for info only)
         if order_id_prefix:
-            orders = await db.get_user_orders(user_id, limit=20)
+            orders = await db.get_user_orders(ctx.user_id, limit=20)
             order = next((o for o in orders if o.id.startswith(order_id_prefix)), None)
             
             if order:
@@ -1211,7 +1205,7 @@ async def create_support_ticket(
         
         # Create ticket via support domain - always with status "open"
         result = await db.support_domain.create_ticket(
-            user_id=user_id,
+            user_id=ctx.user_id,
             message=message,
             order_id=order_id,
             item_id=extracted_item_id,
@@ -1238,12 +1232,12 @@ async def create_support_ticket(
 
 
 @tool
-async def request_refund(user_id: str, order_id: str, reason: str) -> dict:
+async def request_refund(order_id: str, reason: str) -> dict:
     """
     Request refund for an order.
+    Uses user_id from context.
     
     Args:
-        user_id: User database ID
         order_id: Order ID (full or prefix)
         reason: Reason for refund
         
@@ -1251,10 +1245,11 @@ async def request_refund(user_id: str, order_id: str, reason: str) -> dict:
         Ticket ID for refund request
     """
     try:
+        ctx = get_user_context()
         db = get_db()
         
         # Find order
-        orders = await db.get_user_orders(user_id, limit=20)
+        orders = await db.get_user_orders(ctx.user_id, limit=20)
         order = next((o for o in orders if o.id.startswith(order_id)), None)
         
         if not order:
@@ -1262,7 +1257,7 @@ async def request_refund(user_id: str, order_id: str, reason: str) -> dict:
         
         # Create refund ticket
         result = await db.create_ticket(
-            user_id=user_id,
+            user_id=ctx.user_id,
             subject=f"Refund Request: {order_id[:8]}",
             message=f"Refund requested for order {order_id[:8]}. Reason: {reason}",
             order_id=order.id
@@ -1283,14 +1278,11 @@ async def request_refund(user_id: str, order_id: str, reason: str) -> dict:
 # =============================================================================
 
 @tool
-async def pay_cart_from_balance(user_telegram_id: int, user_id: str) -> dict:
+async def pay_cart_from_balance() -> dict:
     """
     Pay for cart items using internal balance.
     Use when user says "оплати с баланса", "спиши с баланса", "pay from balance".
-    
-    Args:
-        user_telegram_id: User's Telegram ID
-        user_id: User database ID
+    Uses telegram_id and user_id from context.
         
     Returns:
         Instructions or confirmation
@@ -1298,31 +1290,30 @@ async def pay_cart_from_balance(user_telegram_id: int, user_id: str) -> dict:
     try:
         from core.cart import get_cart_manager
         
+        ctx = get_user_context()
         db = get_db()
         
         # Get cart first
         cart_manager = get_cart_manager()
-        cart = await cart_manager.get_cart(user_telegram_id)
+        cart = await cart_manager.get_cart(ctx.telegram_id)
         
         if not cart or not cart.items:
             return {"success": False, "error": "Корзина пуста. Сначала добавь товары."}
         
         # Check balance
         user_result = await asyncio.to_thread(
-            lambda: db.client.table("users").select("balance, language_code, preferred_currency").eq("id", user_id).single().execute()
+            lambda: db.client.table("users").select("balance, language_code, preferred_currency").eq("id", ctx.user_id).single().execute()
         )
         balance_usd = float(user_result.data.get("balance", 0) or 0) if user_result.data else 0
         
-        # Get user currency for formatting
-        user_lang = user_result.data.get("language_code", "en") if user_result.data else "en"
-        preferred_currency = user_result.data.get("preferred_currency") if user_result.data else None
+        # Use context currency
+        user_currency = ctx.currency
         
         try:
             from core.db import get_redis
             from core.services.currency import get_currency_service
             redis = get_redis()
             currency_service = get_currency_service(redis)
-            user_currency = currency_service.get_user_currency(user_lang, preferred_currency)
             
             # Convert balance and cart total to user currency
             if user_currency != "USD":
@@ -1383,20 +1374,21 @@ async def pay_cart_from_balance(user_telegram_id: int, user_id: str) -> dict:
 
 
 @tool
-async def remove_from_wishlist(user_id: str, product_id: str) -> dict:
+async def remove_from_wishlist(product_id: str) -> dict:
     """
     Remove product from user's wishlist.
+    Uses user_id from context.
     
     Args:
-        user_id: User database ID
         product_id: Product UUID
         
     Returns:
         Confirmation
     """
     try:
+        ctx = get_user_context()
         db = get_db()
-        await db.remove_from_wishlist(user_id, product_id)
+        await db.remove_from_wishlist(ctx.user_id, product_id)
         return {"success": True, "message": "Removed from wishlist"}
     except Exception as e:
         logger.error(f"remove_from_wishlist error: {e}")

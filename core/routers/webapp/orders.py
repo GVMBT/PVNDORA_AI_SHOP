@@ -21,7 +21,7 @@ from core.payments import (
     normalize_gateway, 
     GATEWAY_CURRENCY,
 )
-from core.orders import build_order_payload, build_item_payload, convert_order_prices
+from core.orders import build_order_payload, build_item_payload
 from .models import CreateOrderRequest, OrderResponse, ConfirmPaymentRequest
 
 logger = logging.getLogger(__name__)
@@ -535,6 +535,38 @@ async def _create_cart_order(
         raise HTTPException(status_code=400, detail="Cart is empty")
     
     # Helpers
+    # Check if user was referred by a partner with discount mode
+    async def get_partner_discount() -> int:
+        """
+        Get discount from referrer if they use partner_mode='discount'.
+        Returns discount percent (0 if no discount).
+        """
+        try:
+            if not db_user.referrer_id:
+                return 0
+            
+            referrer_result = await asyncio.to_thread(
+                lambda: db.client.table("users")
+                .select("partner_mode, partner_discount_percent")
+                .eq("id", str(db_user.referrer_id))
+                .single()
+                .execute()
+            )
+            
+            if referrer_result.data:
+                referrer = referrer_result.data
+                if referrer.get("partner_mode") == "discount":
+                    discount = int(referrer.get("partner_discount_percent") or 0)
+                    if discount > 0:
+                        logger.info(f"Partner discount applied: {discount}% from referrer {db_user.referrer_id}")
+                        return discount
+            return 0
+        except Exception as e:
+            logger.warning(f"Failed to get partner discount: {e}")
+            return 0
+    
+    partner_discount = await get_partner_discount()
+    
     async def validate_cart_items(cart_items) -> Tuple[Decimal, Decimal, List[Dict[str, Any]]]:
         """Validate cart items, calculate totals using Decimal, handle stock deficits."""
         total_amount = Decimal("0")
@@ -561,9 +593,12 @@ async def _create_cart_order(
             product_price = to_decimal(product.price)
             original_price = multiply(product_price, item.quantity)
             
+            # Apply discounts in priority: item discount, promo code, partner discount
             discount_percent = item.discount_percent
             if cart.promo_code and cart.promo_discount_percent > 0:
                 discount_percent = max(discount_percent, cart.promo_discount_percent)
+            if partner_discount > 0:
+                discount_percent = max(discount_percent, partner_discount)
             
             # Validate discount is in reasonable range
             discount_percent = max(0, min(100, discount_percent))
@@ -783,11 +818,19 @@ async def _create_cart_order(
             
             # Format error message in user's display currency
             try:
+                from core.db import get_redis
+                from core.services.currency import get_currency_service
+                _redis = get_redis()
+                _currency_service = get_currency_service(_redis)
+                user_lang = getattr(db_user, 'interface_language', None) or (db_user.language_code if db_user and db_user.language_code else user.language_code)
+                _pref_currency = getattr(db_user, 'preferred_currency', None)
+                _user_currency = _currency_service.get_user_currency(user_lang, _pref_currency)
+                
                 # Convert USD values to display currency for user-friendly message
-                balance_display = await currency_service.convert_price(to_float(user_balance_usd), currency, round_to_int=True) if currency != "USD" else to_float(user_balance_usd)
-                amount_display = await currency_service.convert_price(to_float(order_total_usd), currency, round_to_int=True) if currency != "USD" else to_float(order_total_usd)
-                balance_formatted = currency_service.format_price(balance_display, currency)
-                amount_formatted = currency_service.format_price(amount_display, currency)
+                balance_display = await _currency_service.convert_price(to_float(user_balance_usd), _user_currency, round_to_int=True) if _user_currency != "USD" else to_float(user_balance_usd)
+                amount_display = await _currency_service.convert_price(to_float(order_total_usd), _user_currency, round_to_int=True) if _user_currency != "USD" else to_float(order_total_usd)
+                balance_formatted = _currency_service.format_price(balance_display, _user_currency)
+                amount_formatted = _currency_service.format_price(amount_display, _user_currency)
                 error_msg = f"Недостаточно средств на балансе. Доступно: {balance_formatted}, требуется: {amount_formatted}"
             except Exception:
                 # Fallback: show in USD

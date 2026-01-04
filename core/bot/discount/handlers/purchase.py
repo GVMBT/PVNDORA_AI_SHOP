@@ -9,12 +9,11 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.enums import ParseMode
 
 from core.services.database import User, get_database
-from core.services.domains import InsuranceService, DiscountOrderService
+# Removed unused imports: InsuranceService, DiscountOrderService
 from core.logging import get_logger
 from core.i18n import get_text
 from ..keyboards import (
     get_payment_keyboard,
-    get_order_queued_keyboard,
     get_orders_keyboard,
     get_order_detail_keyboard,
 )
@@ -326,16 +325,9 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
                 display_discount_price = discount_price * exchange_rate
                 display_insurance_price = insurance_price * exchange_rate
                 
-                # Currency symbols
-                currency_symbols = {
-                    "RUB": "₽",
-                    "EUR": "€",
-                    "UAH": "₴",
-                    "TRY": "₺",
-                    "INR": "₹",
-                    "AED": "د.إ"
-                }
-                display_currency_symbol = currency_symbols.get(user_currency, user_currency)
+                # Use currency symbols from single source of truth
+                from core.services.currency import CURRENCY_SYMBOLS
+                display_currency_symbol = CURRENCY_SYMBOLS.get(user_currency, user_currency)
             except Exception as e:
                 logger.warning(f"Failed to convert price for display: {e}")
         
@@ -537,11 +529,9 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User):
         
         # Get currency info
         currency, exchange_rate = await get_user_currency_info(db_user)
-        currency_symbols = {
-            "RUB": "₽", "EUR": "€", "UAH": "₴", "TRY": "₺", 
-            "INR": "₹", "AED": "د.إ", "USD": "$"
-        }
-        currency_symbol = currency_symbols.get(currency, currency)
+        # Use currency symbols from single source of truth
+        from core.services.currency import CURRENCY_SYMBOLS
+        currency_symbol = CURRENCY_SYMBOLS.get(currency, currency)
         
         amount_usd = float(order.get('amount', 0) or 0)
         display_amount = amount_usd * exchange_rate

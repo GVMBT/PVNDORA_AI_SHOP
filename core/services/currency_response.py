@@ -1,7 +1,7 @@
 """
 Unified Currency Response System
 
-This module provides a single source of truth for currency handling.
+This module provides CurrencyFormatter for API responses.
 All monetary values are stored in USD and converted for display.
 
 Architecture:
@@ -9,6 +9,9 @@ Architecture:
 - API returns both USD amount and display amount
 - Frontend uses USD for comparisons, display amount for UI
 - Exchange rate is cached in Redis for 1 hour
+
+IMPORTANT: Currency mappings and conversion logic is in core/services/currency.py
+This module uses CurrencyService for all currency operations.
 
 Usage:
     from core.services.currency_response import CurrencyFormatter
@@ -32,41 +35,14 @@ from typing import Dict, Any, Optional, Union, TypedDict
 from dataclasses import dataclass
 
 from core.services.money import to_decimal, to_float, round_money
+# Import from single source of truth
+from core.services.currency import (
+    INTEGER_CURRENCIES, 
+    get_currency_service
+)
 from core.logging import get_logger
 
 logger = get_logger(__name__)
-
-
-# Currency symbols mapping
-CURRENCY_SYMBOLS: Dict[str, str] = {
-    "USD": "$",
-    "RUB": "₽",
-    "EUR": "€",
-    "UAH": "₴",
-    "TRY": "₺",
-    "INR": "₹",
-    "AED": "د.إ",
-    "GBP": "£",
-    "CNY": "¥",
-    "JPY": "¥",
-    "KRW": "₩",
-    "BRL": "R$",
-}
-
-# Currencies that should be displayed as integers (no decimals)
-INTEGER_CURRENCIES = {"RUB", "UAH", "TRY", "INR", "JPY", "KRW"}
-
-# Language to default currency mapping
-LANGUAGE_TO_CURRENCY: Dict[str, str] = {
-    "ru": "RUB",
-    "be": "RUB",
-    "kk": "RUB",
-    "uk": "UAH",
-    "tr": "TRY",
-    "hi": "INR",
-    "ar": "AED",
-    # All others default to USD
-}
 
 
 class AmountResponse(TypedDict):
@@ -81,8 +57,7 @@ class CurrencyFormatter:
     """
     Unified currency formatter for API responses.
     
-    This is the ONLY place where currency conversion logic should exist.
-    All API endpoints should use this for consistent currency handling.
+    Uses CurrencyService from core/services/currency.py for all operations.
     """
     currency: str
     exchange_rate: float
@@ -99,14 +74,8 @@ class CurrencyFormatter:
         """
         Factory method to create CurrencyFormatter for a user.
         
-        Priority for currency:
-        1. preferred_currency param (explicit override)
-        2. User's preferred_currency from DB
-        3. Language-based default
-        4. USD fallback
+        Uses CurrencyService.get_user_currency() for currency determination.
         """
-        from core.services.currency import get_currency_service
-        
         currency = "USD"
         exchange_rate = 1.0
         
@@ -122,19 +91,14 @@ class CurrencyFormatter:
                     user_lang = getattr(db_user, 'interface_language', None) or \
                                getattr(db_user, 'language_code', 'en') or 'en'
             
-            # Determine currency
-            if user_preferred:
-                currency = user_preferred.upper()
-            else:
-                # Language-based fallback
-                lang = user_lang.split("-")[0].lower() if user_lang else "en"
-                currency = LANGUAGE_TO_CURRENCY.get(lang, "USD")
+            # Use CurrencyService for currency determination (single source of truth)
+            currency_service = get_currency_service(redis)
+            currency = currency_service.get_user_currency(user_lang, user_preferred)
             
             logger.info(f"CurrencyFormatter: user={user_telegram_id}, preferred={user_preferred}, currency={currency}")
             
-            # Get exchange rate (CurrencyService handles DB + Redis + API + fallback)
+            # Get exchange rate
             if currency != "USD":
-                currency_service = get_currency_service(redis)
                 exchange_rate = await currency_service.get_exchange_rate(currency)
                 logger.info(f"CurrencyFormatter: got exchange_rate={exchange_rate} for {currency}")
                 
@@ -164,24 +128,13 @@ class CurrencyFormatter:
         return to_float(rounded)
     
     def format(self, amount: Union[float, Decimal, int]) -> str:
-        """Format amount with currency symbol."""
+        """Format amount with currency symbol using CurrencyService."""
         if amount is None:
             amount = 0
-            
-        decimal_amount = to_decimal(amount)
-        symbol = CURRENCY_SYMBOLS.get(self.currency, self.currency)
         
-        # Format number
-        if self.currency in INTEGER_CURRENCIES:
-            formatted = f"{int(round_money(decimal_amount, to_int=True)):,}"
-        else:
-            formatted = f"{to_float(round_money(decimal_amount)):,.2f}"
-        
-        # Place symbol based on currency convention
-        if self.currency in ["USD", "EUR", "GBP", "CNY", "JPY"]:
-            return f"{symbol}{formatted}"
-        else:
-            return f"{formatted} {symbol}"
+        # Use CurrencyService.format_price for consistency
+        currency_service = get_currency_service()
+        return currency_service.format_price(amount, self.currency)
     
     def format_amount(self, amount_usd: Union[float, Decimal, int, str, None]) -> AmountResponse:
         """
@@ -265,16 +218,8 @@ def format_price_simple(
     """
     Simple price formatting without exchange rate.
     For use when you already have the converted amount.
+    Delegates to CurrencyService.format_price for consistency.
     """
-    symbol = CURRENCY_SYMBOLS.get(currency, currency)
-    
-    if currency in INTEGER_CURRENCIES:
-        formatted = f"{int(to_decimal(amount)):,}"
-    else:
-        formatted = f"{to_float(to_decimal(amount)):,.2f}"
-    
-    if currency in ["USD", "EUR", "GBP", "CNY", "JPY"]:
-        return f"{symbol}{formatted}"
-    else:
-        return f"{formatted} {symbol}"
+    currency_service = get_currency_service()
+    return currency_service.format_price(amount, currency)
 

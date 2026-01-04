@@ -3,6 +3,7 @@ LangGraph Shop Agent — Full-Featured & Fault-Tolerant
 
 Complete agent covering all shop functionality with:
 - Persistent chat history from database
+- Auto-injected user context for all tools
 - Redis-based state caching
 - Full error recovery
 - OpenRouter API (gemini-3-flash-preview via OpenAI-compatible endpoint)
@@ -15,7 +16,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import AIMessage
 from langgraph.prebuilt import create_react_agent
 
-from core.agent.tools import get_all_tools, set_db
+from core.agent.tools import get_all_tools, set_db, set_user_context
 from core.agent.prompts import get_system_prompt, format_product_catalog
 from core.logging import get_logger
 
@@ -38,6 +39,17 @@ class AgentResponse:
     payment_url: Optional[str] = None
 
 
+@dataclass
+class UserContext:
+    """User context for tool calls."""
+    user_id: str
+    telegram_id: int
+    language: str
+    currency: str
+    exchange_rate: float = 1.0
+    preferred_currency: Optional[str] = None
+
+
 class ShopAgent:
     """
     LangGraph-based shop agent with full functionality.
@@ -45,7 +57,7 @@ class ShopAgent:
     Features:
     - ReAct pattern for reasoning + acting
     - OpenRouter API (Google Gemini 3 Flash Preview via OpenAI-compatible endpoint)
-    - 23 tools covering all shop features
+    - Auto-injected user context for all tools
     - Persistent chat history from database
     - Fault-tolerant with retries
     """
@@ -129,6 +141,58 @@ class ShopAgent:
         lines.append("\nUse this context to avoid asking redundant questions.\n")
         return "\n".join(lines)
     
+    async def _get_user_context(self, user_id: str, telegram_id: int, language: str) -> UserContext:
+        """Build user context with currency info from DB."""
+        from core.services.currency import get_currency_service, LANGUAGE_TO_CURRENCY
+        from core.db import get_redis
+        
+        currency = "USD"
+        exchange_rate = 1.0
+        preferred_currency = None
+        
+        try:
+            # Get user's preferred currency from DB
+            import asyncio
+            result = await asyncio.to_thread(
+                lambda: self.db.client.table("users")
+                .select("preferred_currency, language_code")
+                .eq("id", user_id)
+                .single()
+                .execute()
+            )
+            
+            if result.data:
+                preferred_currency = result.data.get("preferred_currency")
+                db_language = result.data.get("language_code") or language
+            else:
+                db_language = language
+            
+            # Determine currency using CurrencyService
+            redis = get_redis()
+            currency_service = get_currency_service(redis)
+            currency = currency_service.get_user_currency(db_language, preferred_currency)
+            
+            # Get exchange rate
+            if currency != "USD":
+                exchange_rate = await currency_service.get_exchange_rate(currency)
+                
+            logger.info(f"User context: user_id={user_id}, currency={currency}, rate={exchange_rate}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to get user context: {e}")
+            # Fallback to language-based currency
+            lang = language.split("-")[0].lower() if language else "en"
+            currency = LANGUAGE_TO_CURRENCY.get(lang, "USD")
+        
+        return UserContext(
+            user_id=user_id,
+            telegram_id=telegram_id,
+            language=language,
+            currency=currency,
+            exchange_rate=exchange_rate,
+            preferred_currency=preferred_currency
+        )
+
     async def chat(
         self,
         message: str,
@@ -148,11 +212,21 @@ class ShopAgent:
         Returns:
             AgentResponse with content and metadata
         """
-        # Load product catalog
+        # Build user context with currency info
+        user_ctx = await self._get_user_context(user_id, telegram_id or 0, language)
+        
+        # Set global user context for tools (auto-injection)
+        set_user_context(user_ctx.user_id, user_ctx.telegram_id, user_ctx.language, user_ctx.currency)
+        
+        # Load product catalog with proper currency conversion
         product_catalog = ""
         try:
             products = await self.db.get_products(status="active")
-            product_catalog = format_product_catalog(products, language)
+            product_catalog = await format_product_catalog(
+                products, 
+                language, 
+                exchange_rate=user_ctx.exchange_rate
+            )
         except Exception as e:
             logger.warning(f"Failed to load catalog: {e}")
         
@@ -160,25 +234,17 @@ class ShopAgent:
         history = await self._load_chat_history(user_id, limit=10)
         history_context = self._format_history_for_prompt(history)
         
-        # Build system prompt
-        system_prompt = get_system_prompt(language, product_catalog)
+        # Build system prompt with user context
+        system_prompt = get_system_prompt(
+            language=language, 
+            product_catalog=product_catalog,
+            user_id=user_id,
+            telegram_id=telegram_id or 0,
+            currency=user_ctx.currency
+        )
         
-        # Add user context and history
-        context = f"""
-{history_context}
-## Current User Context
-- user_id: {user_id}
-- telegram_id: {telegram_id or 'unknown'}
-- language: {language}
-
-When using tools:
-- user_id parameter: use "{user_id}" (CRITICAL - required for correct currency conversion!)
-- user_telegram_id parameter: use {telegram_id}
-- telegram_id parameter: use {telegram_id}
-- user_language parameter: use "{language}" (IMPORTANT for currency conversion!)
-- ALWAYS pass both user_id AND user_language to product tools (get_catalog, search_products, get_product_details, check_product_availability)!
-"""
-        full_system = system_prompt + context
+        # Add history context
+        full_system = system_prompt + history_context
         
         # Build messages with history
         messages = [{"role": "system", "content": full_system}]

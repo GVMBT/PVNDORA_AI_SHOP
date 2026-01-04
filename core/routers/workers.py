@@ -569,11 +569,17 @@ async def worker_process_replacement(request: Request):
         # Notify user that replacement is queued
         if user_telegram_id:
             try:
+                # Get product name for notification
+                product_res = await asyncio.to_thread(
+                    lambda: db.client.table("products").select("name").eq("id", product_id).single().execute()
+                )
+                _product_name = product_res.data.get("name", "Product") if product_res.data else "Product"
+                
                 await notification_service.send_message(
                     telegram_id=user_telegram_id,
                     text=(
                         f"⏳ <b>Replacement Queued</b>\n\n"
-                        f"Your replacement for {product_name} has been approved, "
+                        f"Your replacement for {_product_name} has been approved, "
                         f"but no stock is currently available.\n\n"
                         f"You will automatically receive a new account as soon as stock arrives."
                     )

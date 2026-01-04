@@ -282,17 +282,9 @@ async def cb_product_selected(callback: CallbackQuery, db_user: User):
     # Convert price for display
     discount_price_display = discount_price_usd * exchange_rate
     
-    # Currency symbols
-    currency_symbols = {
-        "RUB": "₽",
-        "EUR": "€",
-        "UAH": "₴",
-        "TRY": "₺",
-        "INR": "₹",
-        "AED": "د.إ",
-        "USD": "$"
-    }
-    currency_symbol = currency_symbols.get(currency, currency)
+    # Use currency symbols from single source of truth
+    from core.services.currency import CURRENCY_SYMBOLS
+    currency_symbol = CURRENCY_SYMBOLS.get(currency, currency)
     
     stock_status = "✅ В наличии" if available > 0 else "🟡 Предзаказ"
     if lang != "ru":

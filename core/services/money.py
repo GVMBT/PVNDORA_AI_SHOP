@@ -97,21 +97,13 @@ def format_money(value: Union[str, int, float, Decimal], currency: str = "USD") 
     """
     decimal_value = to_decimal(value)
     
-    symbols = {
-        "USD": "$",
-        "RUB": "₽",
-        "EUR": "€",
-        "UAH": "₴",
-        "TRY": "₺",
-        "INR": "₹",
-        "AED": "د.إ",
-        "GBP": "£",
-    }
+    # Use currency symbols from single source of truth
+    from core.services.currency import CURRENCY_SYMBOLS, INTEGER_CURRENCIES
     
-    symbol = symbols.get(currency, currency)
+    symbol = CURRENCY_SYMBOLS.get(currency, currency)
     
     # Integer currencies
-    if currency in ("RUB", "UAH", "TRY", "INR"):
+    if currency in INTEGER_CURRENCIES:
         formatted = f"{int(round_money(decimal_value, to_int=True)):,}"
     else:
         formatted = f"{round_money(decimal_value):,.2f}"

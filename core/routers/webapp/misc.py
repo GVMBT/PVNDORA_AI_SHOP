@@ -13,8 +13,10 @@ from pydantic import BaseModel
 from core.services.database import get_database
 from core.services.money import to_float
 from core.auth import verify_telegram_auth
+from core.logging import get_logger
 from .models import PromoCheckRequest, WebAppReviewRequest
 
+logger = get_logger(__name__)
 router = APIRouter(tags=["webapp-misc"])
 
 
