@@ -7,7 +7,7 @@
 import React, { memo } from 'react';
 import { Check, Clock, AlertTriangle, Activity, Copy, Eye, EyeOff, MessageSquare } from 'lucide-react';
 import { randomChar } from '../../utils/random';
-import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../hooks/useLocale';
 
 export interface OrderItemData {
   id: string | number;
@@ -96,7 +96,7 @@ const OrderItem: React.FC<OrderItemProps> = ({
   onOpenReview,
   onOpenSupport,
 }) => {
-  const { t } = useTranslation();
+  const { t } = useLocale();
   const isRevealed = revealedKeys.includes(item.id);
 
   return (
