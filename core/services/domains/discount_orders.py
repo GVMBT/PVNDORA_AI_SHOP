@@ -49,7 +49,19 @@ class DiscountOrderService:
         self.client = db_client
         self.qstash_token = os.environ.get("QSTASH_TOKEN", "")
         self.qstash_url = os.environ.get("QSTASH_URL", "https://qstash.upstash.io")
-        self.webhook_base_url = os.environ.get("TELEGRAM_WEBHOOK_URL", "")
+        
+        # Get base URL for worker endpoints (same logic as core/queue.py)
+        webapp_url = os.environ.get("WEBAPP_URL", "")
+        base_url = os.environ.get("BASE_URL", "")
+        
+        if webapp_url:
+            self.base_url = webapp_url.rstrip("/") if webapp_url.startswith("http") else f"https://{webapp_url}"
+        elif base_url:
+            self.base_url = base_url.rstrip("/") if base_url.startswith("http") else f"https://{base_url}"
+        else:
+            # Fallback to TELEGRAM_WEBHOOK_URL and extract base
+            telegram_webhook = os.environ.get("TELEGRAM_WEBHOOK_URL", "https://pvndora.app")
+            self.base_url = telegram_webhook.rsplit("/api", 1)[0].rsplit("/webhook", 1)[0].rstrip("/")
     
     def _calculate_delay(self) -> int:
         """Calculate random delay between MIN and MAX minutes."""
@@ -78,7 +90,7 @@ class DiscountOrderService:
             scheduled_at = datetime.now(timezone.utc) + timedelta(minutes=delay_minutes)
             
             # Construct worker endpoint
-            worker_url = f"{self.webhook_base_url}/api/workers/deliver-discount-order"
+            worker_url = f"{self.base_url}/api/workers/deliver-discount-order"
             
             # QStash publish with delay
             publish_url = f"{self.qstash_url}/v2/publish/{worker_url}"
