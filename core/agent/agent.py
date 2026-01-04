@@ -5,12 +5,13 @@ Complete agent covering all shop functionality with:
 - Persistent chat history from database
 - Redis-based state caching
 - Full error recovery
+- OpenRouter API (gemini-3-flash-preview via OpenAI-compatible endpoint)
 """
 import os
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field
 
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import AIMessage
 from langgraph.prebuilt import create_react_agent
 
@@ -19,6 +20,11 @@ from core.agent.prompts import get_system_prompt, format_product_catalog
 from core.logging import get_logger
 
 logger = get_logger(__name__)
+
+# OpenRouter configuration
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+# Available models: google/gemini-3-flash-preview, google/gemini-2.5-flash, anthropic/claude-3-haiku, etc.
+DEFAULT_MODEL = "google/gemini-3-flash-preview"
 
 
 @dataclass
@@ -38,7 +44,7 @@ class ShopAgent:
     
     Features:
     - ReAct pattern for reasoning + acting
-    - Gemini 2.5 Flash as LLM
+    - OpenRouter API (Google Gemini 3 Flash Preview via OpenAI-compatible endpoint)
     - 23 tools covering all shop features
     - Persistent chat history from database
     - Fault-tolerant with retries
@@ -47,7 +53,7 @@ class ShopAgent:
     def __init__(
         self,
         db,
-        model: str = "gemini-2.5-flash",
+        model: str = DEFAULT_MODEL,
         temperature: float = 0.7,
     ):
         """
@@ -55,7 +61,7 @@ class ShopAgent:
         
         Args:
             db: Database instance
-            model: Gemini model name
+            model: OpenRouter model name (e.g., google/gemini-3-flash-preview)
             temperature: LLM temperature (0.7 = balanced)
         """
         self.db = db
@@ -65,16 +71,25 @@ class ShopAgent:
         # Set DB for tools
         set_db(db)
         
-        # Initialize LLM
-        api_key = os.environ.get("GEMINI_API_KEY")
+        # Initialize LLM via OpenRouter
+        api_key = os.environ.get("OPENROUTER_API_KEY")
         if not api_key:
-            raise ValueError("GEMINI_API_KEY environment variable not set")
+            # Fallback to legacy GEMINI_API_KEY for backward compatibility
+            api_key = os.environ.get("GEMINI_API_KEY")
+            if api_key:
+                logger.warning("Using legacy GEMINI_API_KEY. Please migrate to OPENROUTER_API_KEY.")
+            else:
+                raise ValueError("OPENROUTER_API_KEY environment variable not set")
         
-        self.llm = ChatGoogleGenerativeAI(
+        self.llm = ChatOpenAI(
             model=model,
             temperature=temperature,
-            google_api_key=api_key,
-            convert_system_message_to_human=True,
+            openai_api_key=api_key,
+            openai_api_base=OPENROUTER_BASE_URL,
+            default_headers={
+                "HTTP-Referer": os.environ.get("WEBAPP_URL", "https://pvndora.com"),
+                "X-Title": "PVNDORA Shop Agent",
+            },
         )
         
         # Get tools

@@ -29,12 +29,17 @@ function deriveAvailability(apiProduct: APIProduct): ProductAvailability {
  * Adapt a single API product to CatalogProduct format
  */
 export function adaptProduct(apiProduct: APIProduct, currency: string = 'USD'): CatalogProduct {
+  // Derive categories: use API categories array, fallback to product type
+  const productCategories = (apiProduct.categories && apiProduct.categories.length > 0)
+    ? apiProduct.categories
+    : [apiProduct.type]; // type = 'ai' | 'dev' | 'design' | 'music'
+  
   return {
     id: apiProduct.id,
     name: apiProduct.name,
-    // Legacy single category kept for compatibility; prefer categories[]
-    category: apiProduct.type === 'shared' ? 'Shared' : 'Personal',
-    categories: apiProduct.categories || [],
+    // Legacy single category: use first from categories or type
+    category: productCategories[0] || apiProduct.type,
+    categories: productCategories,
     price: apiProduct.final_price,
     msrp: apiProduct.msrp || apiProduct.original_price,
     currency: apiProduct.currency || currency,

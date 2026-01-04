@@ -77,13 +77,21 @@ export function adaptLeaderboard(
   // Check if current user is already in the list
   const currentUserInList = adaptedUsers.some(user => user.isMe);
   
-  // If current user is NOT in the visible list but we have their rank/saved from API,
-  // add them to the list so the sticky footer can show their position
-  if (!currentUserInList && user_rank && user_rank > 0) {
+  // ALWAYS add current user to the list if not present and we have rank data from API.
+  // This ensures the sticky footer shows even when user is outside top N.
+  // user_rank === null means backend couldn't determine rank (should not happen)
+  if (!currentUserInList && user_rank != null && user_rank > 0) {
+    // Get actual user name from Telegram if available
+    const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    const userName = telegramUser?.first_name || 'YOU';
+    const userHandle = telegramUser?.username ? `@${telegramUser.username}` : '@you';
+    const avatarUrl = telegramUser?.photo_url 
+      || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=0d1117&color=00ffff&size=160&font-size=0.4&bold=true`;
+    
     adaptedUsers.push({
       rank: user_rank,
-      name: 'YOU',
-      handle: '@you',
+      name: userName,
+      handle: userHandle,
       marketSpend: user_saved > 0 ? Math.round(user_saved / 0.2) : 0,
       actualSpend: user_saved > 0 ? Math.round(user_saved / 0.2 - user_saved) : 0,
       saved: user_saved || 0,
@@ -92,7 +100,7 @@ export function adaptLeaderboard(
       status: 'ONLINE',
       isMe: true,
       currency,
-      avatarUrl: `https://ui-avatars.com/api/?name=YOU&background=0d1117&color=00ffff&size=160&font-size=0.4&bold=true`,
+      avatarUrl,
     });
   }
   
