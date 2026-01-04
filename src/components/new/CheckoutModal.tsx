@@ -235,14 +235,15 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 initial={{ opacity: 0, scale: 0.8 }} 
                 animate={{ opacity: 1, scale: 1 }} 
                 exit={{ opacity: 0, scale: 0.8 }}
-                className="py-16 flex flex-col items-center justify-center text-center"
+                className="py-12 sm:py-16 flex flex-col items-center justify-center text-center min-h-[400px]"
               >
-                <div className="relative mb-6">
+                {/* Icon Container with proper spacing */}
+                <div className="relative mb-8 pb-4">
                   <motion.div 
                     initial={{ scale: 0 }} 
                     animate={{ scale: 1 }}
                     transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                    className="w-20 h-20 rounded-full bg-green-500/10 border-2 border-green-500 flex items-center justify-center"
+                    className="w-20 h-20 rounded-full bg-green-500/10 border-2 border-green-500 flex items-center justify-center mx-auto"
                   >
                     <CheckCircle size={48} className="text-green-500" />
                   </motion.div>
@@ -250,20 +251,27 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.5 }}
-                    className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-mono text-green-500 bg-green-900/30 px-2 py-0.5"
+                    className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[10px] font-mono text-green-500 bg-green-900/30 px-2 py-0.5 rounded whitespace-nowrap"
                   >
                     TX_CONFIRMED
                   </motion.div>
                 </div>
-                <h3 className="text-2xl font-display font-bold text-white mb-2">
+                
+                {/* Title with proper spacing */}
+                <h3 className="text-xl sm:text-2xl font-display font-bold text-white mb-3 px-4">
                   TRANSACTION COMPLETE
                 </h3>
-                <p className="text-sm font-mono text-gray-400 max-w-xs mb-8">
-                  Your assets have been securely processed. Check your inventory for delivery status.
+                
+                {/* Description with proper spacing */}
+                <p className="text-xs sm:text-sm font-mono text-gray-400 max-w-xs mb-8 px-4 leading-relaxed">
+                  Your assets have been securely processed.<br className="hidden sm:block" />
+                  <span className="sm:hidden"> </span>Check your inventory for delivery status.
                 </p>
+                
+                {/* Button with proper spacing */}
                 <button 
                   onClick={closeSuccess}
-                  className="bg-white text-black font-bold py-3 px-8 hover:bg-gray-200 transition-colors"
+                  className="bg-white text-black font-bold py-3 px-8 hover:bg-gray-200 transition-colors text-sm sm:text-base"
                 >
                   CLOSE TERMINAL
                 </button>

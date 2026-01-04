@@ -316,12 +316,12 @@
       "selectNode": "SELECT PAYMENT NODE",
       "internal": "INTERNAL",
       "balance": "Balance: {amount}",
-      "crypto": "CRYPTO/P2P",
+      "crypto": "ACQUIRING",
       "gateway": "Gateway",
       "debited": "WILL BE DEBITED FROM YOUR BALANCE",
       "instant": "INSTANT_PROCESSING_ENABLED",
       "externalTitle": "EXTERNAL GATEWAY",
-      "externalDesc": "You will be redirected to the secure CrystalPay terminal to complete the transaction via Cryptocurrency or P2P.",
+      "externalDesc": "You will be redirected to the secure CrystalPay terminal. Available: cryptocurrency, bank cards, and SBP (Fast Payment System). Payment method is selected on the payment gateway side.",
       "confirmDebit": "CONFIRM DEBIT ({amount})",
       "openGateway": "OPEN GATEWAY ({amount})"
     }
