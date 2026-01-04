@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, ShoppingCart, ArrowUpRight, Zap, List, Grid, ChevronDown, Check, Cpu, HardDrive, Disc, Activity, Lock, ScanLine, Crosshair, Binary, Box, Database, Server } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPrice } from '../../utils/currency';
@@ -66,11 +66,11 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
   
   // Refs for dropdown containers
-  const availabilityRef = React.useRef<HTMLDivElement>(null);
-  const sortRef = React.useRef<HTMLDivElement>(null);
+  const availabilityRef = useRef<HTMLDivElement>(null);
+  const sortRef = useRef<HTMLDivElement>(null);
   
   // Close dropdowns on outside click
-  React.useEffect(() => {
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (availabilityRef.current && !availabilityRef.current.contains(event.target as Node)) {
         setIsAvailabilityOpen(false);

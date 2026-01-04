@@ -25,44 +25,34 @@ interface ReferralExplainerModalProps {
   };
 }
 
-// Career levels with cyberpunk naming
+// Career levels - matches profileAdapter.ts naming
 const LEVELS = [
   { 
-    level: 0, 
+    level: 1, 
     name: 'PROXY', 
     color: 'text-gray-400',
     bgColor: 'bg-gray-500/10',
     borderColor: 'border-gray-500/30',
     icon: '📡',
-    description_ru: 'Базовый доступ. Совершите покупку для активации.',
-    description_en: 'Basic access. Make a purchase to activate.'
-  },
-  { 
-    level: 1, 
-    name: 'OPERATOR', 
-    color: 'text-pandora-cyan',
-    bgColor: 'bg-pandora-cyan/10',
-    borderColor: 'border-pandora-cyan/30',
-    icon: '⚡',
-    description_ru: 'Активный оперативник. Доступ к уровню 1.',
-    description_en: 'Active operative. Level 1 access unlocked.'
+    description_ru: 'Стартовый допуск. Доступ к уровню 1 сети.',
+    description_en: 'Entry clearance. Level 1 network access.'
   },
   { 
     level: 2, 
-    name: 'ROOT', 
-    color: 'text-yellow-500',
-    bgColor: 'bg-yellow-500/10',
-    borderColor: 'border-yellow-500/30',
-    icon: '🔓',
-    description_ru: 'Расширенный доступ. Уровни 1-2 разблокированы.',
-    description_en: 'Extended access. Levels 1-2 unlocked.'
+    name: 'OPERATOR', 
+    color: 'text-purple-400',
+    bgColor: 'bg-purple-500/10',
+    borderColor: 'border-purple-500/30',
+    icon: '⚡',
+    description_ru: 'Расширенный допуск. Уровни 1-2 разблокированы.',
+    description_en: 'Extended clearance. Levels 1-2 unlocked.'
   },
   { 
     level: 3, 
-    name: 'SYSADMIN', 
-    color: 'text-red-500',
-    bgColor: 'bg-red-500/10',
-    borderColor: 'border-red-500/30',
+    name: 'ARCHITECT', 
+    color: 'text-yellow-500',
+    bgColor: 'bg-yellow-500/10',
+    borderColor: 'border-yellow-500/30',
     icon: '👑',
     description_ru: 'Максимальный допуск. Все 3 уровня активны.',
     description_en: 'Maximum clearance. All 3 levels active.'
@@ -217,7 +207,7 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                   {LEVELS.map((lvl, i) => {
                     const isCurrentLevel = lvl.level === currentLevel;
                     const isUnlocked = lvl.level <= currentLevel;
-                    const threshold = lvl.level === 2 ? thresholds.level2 : lvl.level === 3 ? thresholds.level3 : 0;
+                    const threshold = lvl.level === 2 ? thresholds.level2 : lvl.level === 3 ? thresholds.level3 : null;
                     
                     return (
                       <div 
@@ -248,7 +238,7 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                             </div>
                           </div>
                           
-                          {threshold > 0 && (
+                          {threshold && (
                             <div className="text-right">
                               <div className="text-xs text-gray-500 font-mono">
                                 {isRu ? 'ПОРОГ' : 'THRESHOLD'}
@@ -269,13 +259,13 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                   <div className="mt-4 p-3 bg-pandora-cyan/5 border border-pandora-cyan/20 rounded-sm">
                     <div className="flex items-center justify-between text-[10px] font-mono text-gray-500 mb-2">
                       <span>{isRu ? 'ВАШ ОБОРОТ' : 'YOUR TURNOVER'}</span>
-                      <span>${currentTurnover.toLocaleString()} / ${(currentLevel === 0 ? 0 : currentLevel === 1 ? thresholds.level2 : thresholds.level3).toLocaleString()}</span>
+                      <span>${currentTurnover.toLocaleString()} / ${(currentLevel === 1 ? thresholds.level2 : thresholds.level3).toLocaleString()}</span>
                     </div>
                     <div className="h-2 bg-black/50 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-gradient-to-r from-pandora-cyan to-white transition-all duration-500"
                         style={{ 
-                          width: `${Math.min(100, (currentTurnover / (currentLevel === 0 ? thresholds.level2 : currentLevel === 1 ? thresholds.level2 : thresholds.level3)) * 100)}%` 
+                          width: `${Math.min(100, (currentTurnover / (currentLevel === 1 ? thresholds.level2 : thresholds.level3)) * 100)}%` 
                         }}
                       />
                     </div>
@@ -291,8 +281,8 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                 <div className="bg-green-500/5 border border-green-500/20 p-4 rounded-sm">
                   <p className="text-sm text-gray-300 leading-relaxed">
                     {isRu 
-                      ? `Ваш реферал покупает подписку за $20. При уровне OPERATOR вы получаете ${commissions.level1}% = $2. Если этот реферал пригласит кого-то, кто тоже купит за $20, вы получите ещё ${commissions.level2}% = $1.40 (при уровне ROOT).`
-                      : `Your referral buys a $20 subscription. At OPERATOR level, you earn ${commissions.level1}% = $2. If that referral invites someone who also buys $20, you earn another ${commissions.level2}% = $1.40 (at ROOT level).`}
+                      ? `Ваш реферал покупает подписку за $20. При уровне PROXY вы получаете ${commissions.level1}% = $2. При уровне OPERATOR вы также получите ${commissions.level2}% = $1.40 с покупок 2-й линии. При ARCHITECT — ещё ${commissions.level3}% с 3-й линии.`
+                      : `Your referral buys a $20 subscription. At PROXY level, you earn ${commissions.level1}% = $2. At OPERATOR level, you also earn ${commissions.level2}% = $1.40 from Level 2 purchases. At ARCHITECT — additional ${commissions.level3}% from Level 3.`}
                   </p>
                 </div>
               </div>
