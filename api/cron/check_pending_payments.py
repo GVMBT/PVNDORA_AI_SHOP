@@ -69,8 +69,7 @@ async def process_paid_order(db, order_id: str, order_data: dict):
         # Update order status to paid
         await asyncio.to_thread(
             lambda: db.client.table("orders").update({
-                "status": "paid",
-                "payment_confirmed_at": datetime.now(timezone.utc).isoformat()
+                "status": "paid"
             }).eq("id", order_id).execute()
         )
         
