@@ -32,6 +32,9 @@ export interface OrderData {
   status: string;
   date: string;
   method: string;
+  payment_id?: string;
+  payment_gateway?: string;
+  expires_at?: string;
 }
 
 export interface UserData {

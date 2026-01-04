@@ -4,13 +4,14 @@
  * Displays a complete order card with header, status banners, and items.
  */
 
-import React, { memo } from 'react';
-import { Check, Clock, AlertTriangle, Package, Shield } from 'lucide-react';
+import React, { memo, useState } from 'react';
+import { Check, Clock, AlertTriangle, Package, Shield, RefreshCw } from 'lucide-react';
 import { formatPrice } from '../../utils/currency';
 import { useLocale } from '../../hooks/useLocale';
 import OrderStatusBadge from './OrderStatusBadge';
 import OrderItem, { type OrderItemData } from './OrderItem';
 import { PaymentCountdown } from './PaymentCountdown';
+import { useOrdersTyped } from '../../hooks/api/useOrdersApi';
 
 export interface RefundContext {
   orderId: string;
@@ -31,6 +32,8 @@ export interface OrderData {
   status: 'paid' | 'processing' | 'refunded';
   items: OrderItemData[];
   payment_url?: string | null;
+  payment_id?: string | null; // Invoice ID for checking payment status
+  payment_gateway?: string | null; // Gateway name
   deadline?: string | null;  // Payment deadline for pending orders
   rawStatus?: RawOrderStatus;
   paymentConfirmed?: boolean;
@@ -59,6 +62,43 @@ const OrderCard: React.FC<OrderCardProps> = ({
   onOpenSupport,
 }) => {
   const { t } = useLocale();
+  const { verifyPayment } = useOrdersTyped();
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false);
+  const [paymentCheckResult, setPaymentCheckResult] = useState<string | null>(null);
+
+  const handleCheckPayment = async () => {
+    if (!order.payment_id || !order.payment_gateway) {
+      setPaymentCheckResult(t('orders.paymentNotChecked'));
+      return;
+    }
+
+    setIsCheckingPayment(true);
+    setPaymentCheckResult(null);
+
+    try {
+      const result = await verifyPayment(order.id);
+      if (result) {
+        if (result.status === 'processed' || result.invoice_state === 'payed') {
+          setPaymentCheckResult('✅ Оплата подтверждена! Обновление статуса...');
+          // Reload page after 2 seconds to show updated status
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        } else {
+          setPaymentCheckResult(`Статус: ${result.invoice_state || result.status}. ${result.message || ''}`);
+        }
+      } else {
+        setPaymentCheckResult('Ошибка проверки оплаты');
+      }
+    } catch (error) {
+      setPaymentCheckResult('Ошибка при проверке оплаты');
+    } finally {
+      setIsCheckingPayment(false);
+    }
+  };
+
+  // Check if payment deadline has expired
+  const isPaymentExpired = order.deadline ? new Date(order.deadline) < new Date() : false;
 
   return (
     <div className="relative group">
@@ -121,6 +161,59 @@ const OrderCard: React.FC<OrderCardProps> = ({
                   {t('orders.payNow')}
                 </button>
               </div>
+              
+              {/* Payment Status Info */}
+              {(order.payment_id || order.payment_gateway) && (
+                <div className="text-[10px] font-mono text-gray-400 space-y-1 border-t border-white/5 pt-2">
+                  {order.payment_id && (
+                    <div className="flex items-center justify-between">
+                      <span>{t('orders.invoiceId')}:</span>
+                      <span className="text-pandora-cyan font-mono">{order.payment_id.substring(0, 12)}...</span>
+                    </div>
+                  )}
+                  {order.payment_gateway && (
+                    <div className="flex items-center justify-between">
+                      <span>{t('orders.gateway')}:</span>
+                      <span className="text-gray-300 uppercase">{order.payment_gateway}</span>
+                    </div>
+                  )}
+                  {isPaymentExpired && (
+                    <div className="flex items-center gap-2 text-red-400">
+                      <AlertTriangle size={10} />
+                      <span>{t('orders.paymentExpired')}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Check Payment Button */}
+              {order.payment_id && order.payment_gateway === 'crystalpay' && (
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={handleCheckPayment}
+                    disabled={isCheckingPayment}
+                    className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-mono text-gray-300 uppercase flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                  >
+                    {isCheckingPayment ? (
+                      <>
+                        <RefreshCw size={10} className="animate-spin" />
+                        {t('orders.checkingPayment')}
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw size={10} />
+                        {t('orders.checkPayment')}
+                      </>
+                    )}
+                  </button>
+                  {paymentCheckResult && (
+                    <div className="text-[9px] font-mono text-gray-400 px-2 py-1 bg-black/20 rounded">
+                      {paymentCheckResult}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {order.deadline && (
                 <PaymentCountdown deadline={order.deadline} />
               )}

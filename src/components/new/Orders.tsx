@@ -101,11 +101,13 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
     if (activeTab === 'all') return true;
     // Active: orders in progress - uses adapted status 'processing'
     if (activeTab === 'active') return order.status === 'processing';
-    // Archived: completed (paid), refunded, or cancelled (including expired/timeout) - finished orders
+    // Log: completed orders (paid/delivered) + pending (awaiting payment) + cancelled/refunded
+    // Pending orders are shown in logs for visibility (they need attention)
     if (activeTab === 'log') {
       return order.status === 'paid' || 
              order.status === 'refunded' || 
-             order.rawStatus === 'cancelled';
+             order.rawStatus === 'cancelled' ||
+             order.rawStatus === 'pending'; // Show pending in logs so they're visible
     }
     return true;
   });

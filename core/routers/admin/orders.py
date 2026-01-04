@@ -7,11 +7,15 @@ import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
 
 from core.services.database import get_database
 from core.auth import verify_admin
+from core.services.payments import get_payment_service
+from core.logging import get_logger
 from .models import CreateFAQRequest
 
+logger = get_logger(__name__)
 router = APIRouter(tags=["admin-orders"])
 
 
@@ -74,6 +78,133 @@ async def admin_get_orders(
         })
     
     return {"orders": formatted_orders}
+
+
+@router.post("/orders/{order_id}/check-payment")
+async def admin_check_payment(
+    order_id: str,
+    admin=Depends(verify_admin)
+):
+    """Check payment status for a pending order via payment gateway API."""
+    db = get_database()
+    
+    # Get order
+    order_result = await asyncio.to_thread(
+        lambda: db.client.table("orders")
+        .select("id, status, payment_id, payment_gateway, payment_method, amount")
+        .eq("id", order_id)
+        .single()
+        .execute()
+    )
+    
+    if not order_result.data:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    order = order_result.data
+    
+    if order.get("status") not in ["pending", "paid", "processing"]:
+        return {
+            "status": order.get("status"),
+            "message": f"Order is already {order.get('status')}, no need to check payment"
+        }
+    
+    payment_id = order.get("payment_id")
+    payment_gateway = order.get("payment_gateway")
+    
+    if not payment_id:
+        return {
+            "status": order.get("status"),
+            "message": "No payment_id found. Order may not have been processed for payment yet."
+        }
+    
+    # Check payment status via gateway
+    if payment_gateway == "crystalpay":
+        try:
+            payment_service = get_payment_service()
+            invoice_info = await payment_service.get_crystalpay_invoice_info(payment_id)
+            
+            state = invoice_info.get("state", "unknown")
+            
+            return {
+                "order_id": order_id,
+                "payment_id": payment_id,
+                "gateway": payment_gateway,
+                "invoice_state": state,
+                "current_status": order.get("status"),
+                "message": f"Invoice state: {state}"
+            }
+        except Exception as e:
+            logger.error(f"Failed to check CrystalPay invoice {payment_id}: {e}")
+            return {
+                "order_id": order_id,
+                "payment_id": payment_id,
+                "gateway": payment_gateway,
+                "error": str(e),
+                "message": f"Failed to check payment status: {e}"
+            }
+    else:
+        return {
+            "order_id": order_id,
+            "payment_id": payment_id,
+            "gateway": payment_gateway,
+            "message": f"Manual payment check not implemented for {payment_gateway}"
+        }
+
+
+class ForceStatusRequest(BaseModel):
+    new_status: str  # "paid", "cancelled", "processing"
+
+
+@router.post("/orders/{order_id}/force-status")
+async def admin_force_order_status(
+    order_id: str,
+    request: ForceStatusRequest,
+    admin=Depends(verify_admin)
+):
+    """Force update order status (admin override). Use with caution."""
+    db = get_database()
+    
+    valid_statuses = ["pending", "paid", "processing", "delivered", "cancelled", "refunded"]
+    if request.new_status not in valid_statuses:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
+        )
+    
+    # Get current order
+    order_result = await asyncio.to_thread(
+        lambda: db.client.table("orders")
+        .select("id, status")
+        .eq("id", order_id)
+        .single()
+        .execute()
+    )
+    
+    if not order_result.data:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    old_status = order_result.data.get("status")
+    
+    # Update status
+    result = await asyncio.to_thread(
+        lambda: db.client.table("orders")
+        .update({"status": request.new_status})
+        .eq("id", order_id)
+        .execute()
+    )
+    
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Failed to update order status")
+    
+    logger.warning(f"Admin force status change: order {order_id} {old_status} -> {request.new_status}")
+    
+    return {
+        "success": True,
+        "order_id": order_id,
+        "old_status": old_status,
+        "new_status": request.new_status,
+        "message": f"Order status updated from {old_status} to {request.new_status}"
+    }
 
 
 # ==================== FAQ ====================

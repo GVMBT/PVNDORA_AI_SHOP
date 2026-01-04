@@ -59,14 +59,14 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
   const fetchAccounting = useCallback(async () => {
     setIsAccountingLoading(true);
     try {
-      const response = await fetch('/api/admin/accounting/overview', {
-        headers: {
-          'X-Telegram-Init-Data': localStorage.getItem('telegramInitData') || '',
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setAccountingData({
+      const { apiRequest } = await import('../../utils/apiClient');
+      const { API } = await import('../../config');
+      const data = await apiRequest<any>(`${API.ADMIN_URL}/accounting/overview`);
+      
+      // Log for debugging
+      logger.info('Accounting data loaded', data);
+      
+      setAccountingData({
           totalRevenue: parseFloat(data.total_revenue) || 0,
           revenueGross: parseFloat(data.total_revenue_gross) || 0,
           revenueThisMonth: parseFloat(data.revenue_this_month) || 0,
@@ -309,6 +309,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       onTogglePromoActive={handleTogglePromoActive}
       onRefreshTickets={fetchTickets}
       onRefreshAccounting={fetchAccounting}
+      onRefreshOrders={getOrders}
       isAccountingLoading={isAccountingLoading}
       onBanUser={handleBanUser}
       onUpdateBalance={handleUpdateBalance}

@@ -115,6 +115,8 @@ export interface APIOrder {
   delivered_at?: string;         // When goods were delivered
   warranty_until?: string;       // Warranty end date
   payment_url?: string;
+  payment_id?: string;            // Invoice ID from payment gateway (for checking status)
+  payment_gateway?: string;       // crystalpay, rukassa, etc. (for checking status)
   items?: APIOrderItem[];
   currency: string;
 }

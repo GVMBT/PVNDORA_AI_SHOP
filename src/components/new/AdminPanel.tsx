@@ -69,6 +69,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onTogglePromoActive,
   onRefreshTickets,
   onRefreshAccounting,
+  onRefreshOrders,
   isAccountingLoading,
   onBanUser,
   onUpdateBalance,
@@ -122,7 +123,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           />
         );
       case 'sales':
-        return <AdminSales orders={propsOrders} />;
+        return <AdminSales orders={propsOrders} onRefresh={onRefreshOrders} />;
       case 'partners':
         return (
           <AdminUsers

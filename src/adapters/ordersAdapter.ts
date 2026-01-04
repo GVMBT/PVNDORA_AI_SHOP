@@ -284,29 +284,31 @@ export function adaptOrder(apiOrder: APIOrder, currency: string = 'USD'): Order 
       orderDeadline = apiOrder.expires_at; // ISO string for reliable parsing
     }
     
-    return {
-      id: apiOrder.id, // Full UUID for API operations
-      displayId: apiOrder.id.substring(0, 8).toUpperCase(), // Short ID for UI
-      date: formatOrderDate(apiOrder.created_at),
-      total: apiOrder.amount_display || apiOrder.amount,
-      currency: apiOrder.currency || currency,
-      status: mapOrderStatus(apiOrder.status),
-      items: apiOrder.items.map(item => adaptOrderItem(
-        item, 
-        apiOrder.status,
-        apiOrder.expires_at,
-        apiOrder.fulfillment_deadline,
-        apiOrder.delivered_at,
-        apiOrder.warranty_until
-      )),
-      payment_url: apiOrder.payment_url || null,
-      deadline: orderDeadline,
-      rawStatus,
-      paymentConfirmed,
-      statusMessage,
-      canCancel,
-      canRequestRefund: canRefund,
-    };
+  return {
+    id: apiOrder.id, // Full UUID for API operations
+    displayId: apiOrder.id.substring(0, 8).toUpperCase(), // Short ID for UI
+    date: formatOrderDate(apiOrder.created_at),
+    total: apiOrder.amount_display || apiOrder.amount,
+    currency: apiOrder.currency || currency,
+    status: mapOrderStatus(apiOrder.status),
+    items: apiOrder.items.map(item => adaptOrderItem(
+      item, 
+      apiOrder.status,
+      apiOrder.expires_at,
+      apiOrder.fulfillment_deadline,
+      apiOrder.delivered_at,
+      apiOrder.warranty_until
+    )),
+    payment_url: apiOrder.payment_url || null,
+    payment_id: apiOrder.payment_id || null,
+    payment_gateway: apiOrder.payment_gateway || null,
+    deadline: orderDeadline,
+    rawStatus,
+    paymentConfirmed,
+    statusMessage,
+    canCancel,
+    canRequestRefund: canRefund,
+  };
   }
   
   // Handle legacy single-item orders
@@ -351,6 +353,8 @@ export function adaptOrder(apiOrder: APIOrder, currency: string = 'USD'): Order 
       warrantyUntil: apiOrder.warranty_until || null,
     }],
     payment_url: apiOrder.payment_url || null,
+    payment_id: apiOrder.payment_id || null,
+    payment_gateway: apiOrder.payment_gateway || null,
     deadline: deadline, // Payment deadline for pending orders
     rawStatus,
     paymentConfirmed,

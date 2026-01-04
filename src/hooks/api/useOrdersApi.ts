@@ -76,5 +76,14 @@ export function useOrdersTyped() {
     }
   }, [post]);
 
-  return { orders, getOrders, createOrder, createOrderFromCart, getPaymentMethods, loading, error };
+  const verifyPayment = useCallback(async (orderId: string): Promise<{ status: string; message?: string; invoice_state?: string } | null> => {
+    try {
+      return await post(`/orders/${orderId}/verify-payment`, {});
+    } catch (err) {
+      logger.error('Failed to verify payment', err);
+      return null;
+    }
+  }, [post]);
+
+  return { orders, getOrders, createOrder, createOrderFromCart, getPaymentMethods, verifyPayment, loading, error };
 }

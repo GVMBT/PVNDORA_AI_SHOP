@@ -185,4 +185,11 @@ def build_order_payload(
     if order.status == "pending" and hasattr(order, 'payment_url') and order.payment_url:
         payload["payment_url"] = order.payment_url
     
+    # Include payment info for pending orders (to check payment status)
+    if order.status == "pending":
+        if hasattr(order, 'payment_id') and order.payment_id:
+            payload["payment_id"] = order.payment_id
+        if hasattr(order, 'payment_gateway') and order.payment_gateway:
+            payload["payment_gateway"] = order.payment_gateway
+    
     return payload
