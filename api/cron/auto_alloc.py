@@ -47,28 +47,41 @@ async def auto_alloc_entrypoint(request: Request):
     # ========== TASK 1: Deliver pending order items ==========
     # NOTE: We exclude discount channel orders - they use separate delayed delivery via QStash
     try:
-        # First, get order_ids that are NOT from discount channel
-        # Join order_items with orders to filter by source_channel and valid statuses
-        open_items = await asyncio.to_thread(
-            lambda: db.client.table("order_items")
-            .select("order_id, orders!inner(source_channel, status)")
-            .in_("status", ["pending", "prepaid"])
-            .neq("orders.source_channel", "discount")
-            .in_("orders.status", ["paid", "prepaid", "partial", "delivered"])
-            .order("created_at")
-            .limit(200)
+        # First, get order_ids that are NOT from discount channel and have valid statuses
+        # Query orders first, then get their order_items
+        valid_orders = await asyncio.to_thread(
+            lambda: db.client.table("orders")
+            .select("id")
+            .neq("source_channel", "discount")
+            .in_("status", ["paid", "prepaid", "partial", "delivered"])
+            .limit(500)
             .execute()
         )
-        order_ids = list({row["order_id"] for row in (open_items.data or [])})
-        results["order_items"]["processed"] = len(order_ids)
+        valid_order_ids = [row["id"] for row in (valid_orders.data or [])]
         
-        for oid in order_ids:
-            try:
-                res = await _deliver_items_for_order(db, notification_service, oid, only_instant=False)
-                if res.get("delivered", 0) > 0:
-                    results["order_items"]["delivered"] += res["delivered"]
-            except Exception as e:
-                logger.error(f"auto_alloc: Failed to deliver order {oid}: {e}")
+        if not valid_order_ids:
+            results["order_items"]["processed"] = 0
+        else:
+            # Get order_items for these orders that are pending/prepaid
+            open_items = await asyncio.to_thread(
+                lambda: db.client.table("order_items")
+                .select("order_id")
+                .in_("order_id", valid_order_ids)
+                .in_("status", ["pending", "prepaid"])
+                .order("created_at")
+                .limit(200)
+                .execute()
+            )
+            order_ids = list({row["order_id"] for row in (open_items.data or [])})
+            results["order_items"]["processed"] = len(order_ids)
+            
+            for oid in order_ids:
+                try:
+                    res = await _deliver_items_for_order(db, notification_service, oid, only_instant=False)
+                    if res.get("delivered", 0) > 0:
+                        results["order_items"]["delivered"] += res["delivered"]
+                except Exception as e:
+                    logger.error(f"auto_alloc: Failed to deliver order {oid}: {e}")
     except Exception as e:
         logger.error(f"auto_alloc: Failed to query open items: {e}")
     
