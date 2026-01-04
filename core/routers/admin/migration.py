@@ -108,18 +108,24 @@ async def get_migration_stats(
     )
     discount_orders = discount_orders_result.count or 0
     
-    # 5. PVNDORA orders from discount users
+    # 5. PVNDORA orders and revenue from discount users
     pvndora_orders_from_discount = 0
+    pvndora_revenue_from_migrated = 0.0
     if migrated_user_ids:
         for user_id in list(migrated_user_ids)[:100]:  # Limit to avoid timeout
             orders_result = await asyncio.to_thread(
                 lambda uid=user_id: db.client.table("orders").select(
-                    "id", count="exact"
+                    "id, amount", count="exact"
                 ).eq("user_telegram_id", uid).neq(
                     "source_channel", "discount"
-                ).gte("created_at", cutoff_str).execute()
+                ).eq("status", "delivered").gte("created_at", cutoff_str).execute()
             )
             pvndora_orders_from_discount += orders_result.count or 0
+            # Sum revenue from delivered orders
+            pvndora_revenue_from_migrated += sum(
+                float(o.get("amount", 0) or 0)
+                for o in (orders_result.data or [])
+            )
     
     # 6. Revenue calculations
     discount_revenue_result = await asyncio.to_thread(
@@ -153,6 +159,7 @@ async def get_migration_stats(
         discount_orders=discount_orders,
         pvndora_orders_from_discount=pvndora_orders_from_discount,
         discount_revenue=round(discount_revenue, 2),
+        pvndora_revenue_from_migrated=round(pvndora_revenue_from_migrated, 2),
         promo_conversion_rate=round(promo_conversion, 2),
         promos_generated=promos_generated,
         promos_used=promos_used
