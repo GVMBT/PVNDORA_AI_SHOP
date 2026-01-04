@@ -111,10 +111,10 @@ async def create_referral_share_link(user=Depends(verify_telegram_auth)):
     
     # Лаконичный caption от первого лица
     if db_user.language_code == "ru":
-        caption_text = "Оплачиваю тарифы нейросетей за 20% от их стоимости"
+        caption_text = "Экономлю на AI-подписках с PVNDORA"
         button_text = "🎁 Попробовать"
     else:
-        caption_text = "Paying for AI subscriptions at 20% of their cost"
+        caption_text = "Saving on AI subscriptions with PVNDORA"
         button_text = "🎁 Try it"
     
     # Using InlineQueryResultPhoto for "Major-style" large image

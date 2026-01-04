@@ -40,13 +40,14 @@ def get_db():
 # =============================================================================
 
 @tool
-async def get_catalog(user_language: str = "en") -> dict:
+async def get_catalog(user_language: str = "en", user_id: str = None) -> dict:
     """
     Get full product catalog with prices and availability.
     Prices are in USD in database, converted based on user language.
     
     Args:
         user_language: User's language code for currency conversion
+        user_id: User database ID (optional, for getting preferred currency from DB)
     
     Returns:
         List of all active products with stock status
@@ -54,14 +55,32 @@ async def get_catalog(user_language: str = "en") -> dict:
     try:
         from core.db import get_redis
         from core.services.currency import get_currency_service
+        import asyncio
         
         db = get_db()
         products = await db.get_products(status="active")
         
+        # Get user's preferred currency from DB if user_id provided
+        preferred_currency = None
+        if user_id:
+            try:
+                user_result = await asyncio.to_thread(
+                    lambda: db.client.table("users").select("preferred_currency, language_code").eq("id", user_id).single().execute()
+                )
+                if user_result.data:
+                    preferred_currency = user_result.data.get("preferred_currency")
+                    # Use DB language_code if user_language not provided
+                    if not user_language or user_language == "en":
+                        user_language = user_result.data.get("language_code") or user_language
+            except Exception as e:
+                logger.warning(f"Failed to get user currency from DB: {e}")
+        
         # Get currency service for conversion
         redis = get_redis()
         currency_service = get_currency_service(redis)
-        target_currency = currency_service.get_user_currency(user_language)
+        target_currency = currency_service.get_user_currency(user_language, preferred_currency)
+        
+        logger.info(f"Currency conversion: user_id={user_id}, language={user_language}, preferred={preferred_currency}, target={target_currency}")
         
         result_products = []
         for p in products:
@@ -103,32 +122,82 @@ async def get_catalog(user_language: str = "en") -> dict:
 
 
 @tool
-async def search_products(query: str) -> dict:
+async def search_products(query: str, user_language: str = "en", user_id: str = None) -> dict:
     """
     Search products by name or description.
     Use when user asks about specific products.
     
     Args:
         query: Search query (product name, category, etc.)
+        user_language: User's language for currency conversion
+        user_id: User database ID (optional, for getting preferred currency from DB)
         
     Returns:
-        Matching products
+        Matching products with prices converted to user's currency
     """
     try:
+        from core.db import get_redis
+        from core.services.currency import get_currency_service
+        import asyncio
+        
         db = get_db()
         products = await db.search_products(query)
+        
+        # Get user's preferred currency from DB if user_id provided
+        preferred_currency = None
+        if user_id:
+            try:
+                user_result = await asyncio.to_thread(
+                    lambda: db.client.table("users").select("preferred_currency, language_code").eq("id", user_id).single().execute()
+                )
+                if user_result.data:
+                    preferred_currency = user_result.data.get("preferred_currency")
+                    # Use DB language_code if user_language not provided
+                    if not user_language or user_language == "en":
+                        user_language = user_result.data.get("language_code") or user_language
+            except Exception as e:
+                logger.warning(f"Failed to get user currency from DB: {e}")
+        
+        # Currency conversion
+        redis = get_redis()
+        currency_service = get_currency_service(redis)
+        target_currency = currency_service.get_user_currency(user_language, preferred_currency)
+        
+        logger.info(f"Currency conversion: user_id={user_id}, language={user_language}, preferred={preferred_currency}, target={target_currency}")
+        
+        result_products = []
+        for p in products:
+            price_usd = float(p.price or 0)
+            
+            # Convert price
+            if target_currency != "USD":
+                try:
+                    price_converted = await currency_service.convert_price(price_usd, target_currency)
+                    logger.debug(f"Converted {price_usd} USD to {price_converted} {target_currency}")
+                except Exception as e:
+                    logger.error(f"Currency conversion failed: {e}")
+                    price_converted = price_usd
+            else:
+                price_converted = price_usd
+            
+            # Format price
+            price_formatted = currency_service.format_price(price_converted, target_currency)
+            
+            result_products.append({
+                "id": p.id,
+                "name": p.name,
+                "price": price_converted,  # Converted price for calculations
+                "price_usd": price_usd,  # Original USD price
+                "price_formatted": price_formatted,  # Formatted string (e.g., "60 ₽" or "$60.00")
+                "currency": target_currency,
+                "in_stock": p.stock_count > 0,
+                "stock_count": p.stock_count,
+            })
+        
         return {
             "success": True,
-            "count": len(products),
-            "products": [
-                {
-                    "id": p.id,
-                    "name": p.name,
-                    "price": p.price,
-                    "in_stock": p.stock_count > 0,
-                }
-                for p in products
-            ]
+            "count": len(result_products),
+            "products": result_products
         }
     except Exception as e:
         logger.error(f"search_products error: {e}")
@@ -136,7 +205,7 @@ async def search_products(query: str) -> dict:
 
 
 @tool
-async def get_product_details(product_id: str, user_language: str = "en") -> dict:
+async def get_product_details(product_id: str, user_language: str = "en", user_id: str = None) -> dict:
     """
     Get detailed info about a specific product.
     Prices are in USD, converted based on user language.
@@ -144,6 +213,7 @@ async def get_product_details(product_id: str, user_language: str = "en") -> dic
     Args:
         product_id: Product UUID
         user_language: User's language for currency conversion
+        user_id: User database ID (optional, for getting preferred currency from DB)
         
     Returns:
         Full product details including description, pricing, availability
@@ -151,16 +221,29 @@ async def get_product_details(product_id: str, user_language: str = "en") -> dic
     try:
         from core.db import get_redis
         from core.services.currency import get_currency_service
+        import asyncio
         
         db = get_db()
         product = await db.get_product_by_id(product_id)
         if not product:
             return {"success": False, "error": "Product not found"}
         
+        # Get user's preferred currency from DB if user_id provided
+        preferred_currency = None
+        if user_id:
+            try:
+                user_result = await asyncio.to_thread(
+                    lambda: db.client.table("users").select("preferred_currency").eq("id", user_id).single().execute()
+                )
+                if user_result.data:
+                    preferred_currency = user_result.data.get("preferred_currency")
+            except Exception as e:
+                logger.warning(f"Failed to get user currency from DB: {e}")
+        
         # Currency conversion
         redis = get_redis()
         currency_service = get_currency_service(redis)
-        target_currency = currency_service.get_user_currency(user_language)
+        target_currency = currency_service.get_user_currency(user_language, preferred_currency)
         
         price_usd = float(product.price or 0)
         
@@ -212,18 +295,24 @@ async def get_product_details(product_id: str, user_language: str = "en") -> dic
 
 
 @tool
-async def check_product_availability(product_name: str) -> dict:
+async def check_product_availability(product_name: str, user_language: str = "en", user_id: str = None) -> dict:
     """
     Check if a product is available for purchase.
     Use before adding to cart or purchasing.
     
     Args:
         product_name: Name or partial name of the product
+        user_language: User's language for currency conversion
+        user_id: User database ID (optional, for getting preferred currency from DB)
         
     Returns:
-        Availability info with price
+        Availability info with price (converted to user's currency)
     """
     try:
+        from core.db import get_redis
+        from core.services.currency import get_currency_service
+        import asyncio
+        
         db = get_db()
         products = await db.search_products(product_name)
         
@@ -234,13 +323,47 @@ async def check_product_availability(product_name: str) -> dict:
                 "message": f"Product '{product_name}' not found"
             }
         
+        # Get user's preferred currency from DB if user_id provided
+        preferred_currency = None
+        if user_id:
+            try:
+                user_result = await asyncio.to_thread(
+                    lambda: db.client.table("users").select("preferred_currency").eq("id", user_id).single().execute()
+                )
+                if user_result.data:
+                    preferred_currency = user_result.data.get("preferred_currency")
+            except Exception as e:
+                logger.warning(f"Failed to get user currency from DB: {e}")
+        
+        # Currency conversion
+        redis = get_redis()
+        currency_service = get_currency_service(redis)
+        target_currency = currency_service.get_user_currency(user_language, preferred_currency)
+        
         p = products[0]  # Best match
+        price_usd = float(p.price or 0)
+        
+        # Convert price
+        if target_currency != "USD":
+            try:
+                price_converted = await currency_service.convert_price(price_usd, target_currency)
+            except Exception:
+                price_converted = price_usd
+        else:
+            price_converted = price_usd
+        
+        # Format price
+        price_formatted = currency_service.format_price(price_converted, target_currency)
+        
         return {
             "success": True,
             "found": True,
             "product_id": p.id,
             "name": p.name,
-            "price": p.price,
+            "price": price_converted,  # Converted price
+            "price_usd": price_usd,  # Original USD price
+            "price_formatted": price_formatted,  # Formatted string
+            "currency": target_currency,
             "in_stock": p.stock_count > 0,
             "stock_count": p.stock_count,
             "status": p.status,

@@ -13,9 +13,9 @@ interface ReferralExplainerModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentLevel?: number;  // 0, 1, 2, 3
-  currentTurnover?: number;  // Current USD turnover
+  currentTurnover?: number;  // Current turnover (already converted to user currency)
   thresholds?: {
-    level2: number;
+    level2: number;  // USD thresholds (will be converted in modal)
     level3: number;
   };
   commissions?: {
@@ -23,6 +23,8 @@ interface ReferralExplainerModalProps {
     level2: number;
     level3: number;
   };
+  currency?: string;  // User's currency (RUB, USD, etc.)
+  exchangeRate?: number;  // Exchange rate for conversion
 }
 
 // Career levels - matches profileAdapter.ts naming
@@ -66,9 +68,22 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
   currentTurnover = 0,
   thresholds = { level2: 250, level3: 1000 },
   commissions = { level1: 10, level2: 7, level3: 3 },
+  currency = 'USD',
+  exchangeRate = 1.0,
 }) => {
-  const { t, locale } = useLocale();
+  const { t, locale, formatPrice } = useLocale();
   const isRu = locale === 'ru';
+  
+  // Convert thresholds from USD to user currency
+  const convertThreshold = (usdThreshold: number): number => {
+    if (currency === 'USD' || !exchangeRate || exchangeRate === 1.0) {
+      return usdThreshold;
+    }
+    return Math.round(usdThreshold * exchangeRate);
+  };
+  
+  const thresholdLevel2 = convertThreshold(thresholds.level2);
+  const thresholdLevel3 = convertThreshold(thresholds.level3);
 
   const getLevelDescription = (lvl: typeof LEVELS[number]) => {
     return isRu ? lvl.description_ru : lvl.description_en;
@@ -207,7 +222,7 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                   {LEVELS.map((lvl, i) => {
                     const isCurrentLevel = lvl.level === currentLevel;
                     const isUnlocked = lvl.level <= currentLevel;
-                    const threshold = lvl.level === 2 ? thresholds.level2 : lvl.level === 3 ? thresholds.level3 : null;
+                    const threshold = lvl.level === 2 ? thresholdLevel2 : lvl.level === 3 ? thresholdLevel3 : null;
                     
                     return (
                       <div 
@@ -244,7 +259,7 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                                 {isRu ? 'ПОРОГ' : 'THRESHOLD'}
                               </div>
                               <div className={`font-bold ${isUnlocked ? 'text-green-500' : 'text-gray-400'}`}>
-                                ${threshold.toLocaleString()}
+                                {formatPrice(threshold, currency)}
                               </div>
                             </div>
                           )}
@@ -255,22 +270,45 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                 </div>
                 
                 {/* Progress to next level */}
-                {currentLevel < 3 && (
-                  <div className="mt-4 p-3 bg-pandora-cyan/5 border border-pandora-cyan/20 rounded-sm">
-                    <div className="flex items-center justify-between text-[10px] font-mono text-gray-500 mb-2">
-                      <span>{isRu ? 'ВАШ ОБОРОТ' : 'YOUR TURNOVER'}</span>
-                      <span>${currentTurnover.toLocaleString()} / ${(currentLevel === 1 ? thresholds.level2 : thresholds.level3).toLocaleString()}</span>
+                {currentLevel < 3 && (() => {
+                  // Determine next level threshold (in USD, then convert)
+                  let nextThresholdUSD: number;
+                  if (currentLevel === 1) {
+                    nextThresholdUSD = thresholds.level2; // PROXY -> OPERATOR
+                  } else if (currentLevel === 2) {
+                    nextThresholdUSD = thresholds.level3; // OPERATOR -> ARCHITECT
+                  } else {
+                    return null; // Already max level
+                  }
+                  
+                  // Convert threshold to user currency
+                  const nextThreshold = convertThreshold(nextThresholdUSD);
+                  
+                  // Calculate progress (cap at 100% if already exceeded)
+                  const progressPercent = Math.min(100, (currentTurnover / nextThreshold) * 100);
+                  
+                  return (
+                    <div className="mt-4 p-3 bg-pandora-cyan/5 border border-pandora-cyan/20 rounded-sm">
+                      <div className="flex items-center justify-between text-[10px] font-mono text-gray-500 mb-2">
+                        <span>{isRu ? 'ВАШ ОБОРОТ' : 'YOUR TURNOVER'}</span>
+                        <span>{formatPrice(currentTurnover, currency)} / {formatPrice(nextThreshold, currency)}</span>
+                      </div>
+                      <div className="h-2 bg-black/50 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-pandora-cyan to-white transition-all duration-500"
+                          style={{ 
+                            width: `${progressPercent}%` 
+                          }}
+                        />
+                      </div>
+                      {progressPercent >= 100 && currentLevel < 3 && (
+                        <div className="mt-2 text-[9px] text-green-500 font-mono text-center">
+                          {isRu ? '✓ Порог достигнут! Обновите профиль.' : '✓ Threshold reached! Refresh profile.'}
+                        </div>
+                      )}
                     </div>
-                    <div className="h-2 bg-black/50 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-pandora-cyan to-white transition-all duration-500"
-                        style={{ 
-                          width: `${Math.min(100, (currentTurnover / (currentLevel === 1 ? thresholds.level2 : thresholds.level3)) * 100)}%` 
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
               
               {/* Examples */}

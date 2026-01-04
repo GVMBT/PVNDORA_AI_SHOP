@@ -51,6 +51,8 @@ export interface CareerProgressData {
   currentTurnover: number;
   currentLevel: CareerLevelData;
   nextLevel?: CareerLevelData;
+  thresholds?: { level2: number; level3: number };  // USD thresholds
+  commissions?: { level1: number; level2: number; level3: number };  // Commission percentages
   progressPercent: number;
 }
 

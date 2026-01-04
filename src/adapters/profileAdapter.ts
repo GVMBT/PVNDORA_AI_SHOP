@@ -203,6 +203,8 @@ export function adaptProfile(
       currentLevel,
       nextLevel,
       progressPercent: calculateProgressPercent(referral_program.turnover_usd, currentLevel),
+      thresholds: referral_program.thresholds_usd,  // USD thresholds (for conversion in UI)
+      commissions: referral_program.commissions_percent || { level1: 10, level2: 7, level3: 3 },  // Commission percentages
     },
     networkTree: [], // Populated via adaptReferralNetwork call
     billingLogs,

@@ -14,11 +14,13 @@ import ReferralExplainerModal from './ReferralExplainerModal';
 interface ProfileCareerProps {
   currentLevel: CareerLevelData;
   nextLevel?: CareerLevelData;
-  currentTurnover: number;
-  maxTurnover: number;
+  currentTurnover: number;  // Already converted to user currency
+  maxTurnover: number;  // Already converted to user currency
   progressPercent: number;
-  thresholds?: { level2: number; level3: number };
+  thresholds?: { level2: number; level3: number };  // USD thresholds
   commissions?: { level1: number; level2: number; level3: number };
+  currency?: string;  // User's currency
+  exchangeRate?: number;  // Exchange rate for threshold conversion
 }
 
 const ProfileCareer: React.FC<ProfileCareerProps> = ({
@@ -29,8 +31,11 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
   progressPercent,
   thresholds = { level2: 250, level3: 1000 },
   commissions = { level1: 10, level2: 7, level3: 3 },
+  currency: propCurrency,
+  exchangeRate = 1.0,
 }) => {
-  const { currency, formatPrice, t } = useLocale();
+  const { currency: localeCurrency, formatPrice, t } = useLocale();
+  const currency = propCurrency || localeCurrency;
   const [showExplainer, setShowExplainer] = useState(false);
   
   return (
@@ -53,6 +58,8 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
         currentTurnover={currentTurnover}
         thresholds={thresholds}
         commissions={commissions}
+        currency={currency}
+        exchangeRate={exchangeRate}
       />
       
       <div className="bg-[#080808] border border-white/10 p-6 md:p-8 relative overflow-hidden group hover:border-white/20 transition-all">

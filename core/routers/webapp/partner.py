@@ -44,10 +44,27 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Check if user is a partner
-    is_partner = getattr(db_user, 'is_partner', False)
-    if not is_partner:
-        raise HTTPException(status_code=403, detail="Partner access required")
+    # Check if user is a partner (from referral_stats_extended view)
+    try:
+        extended_stats_result = await asyncio.to_thread(
+            lambda: db.client.table("referral_stats_extended")
+            .select("is_partner")
+            .eq("user_id", db_user.id)
+            .limit(1)
+            .execute()
+        )
+        
+        is_partner = False
+        if extended_stats_result.data and len(extended_stats_result.data) > 0:
+            is_partner = extended_stats_result.data[0].get("is_partner", False) or False
+        
+        if not is_partner:
+            raise HTTPException(status_code=403, detail="Partner access required")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to check partner status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to verify partner status")
     
     # Get partner analytics from view
     try:
@@ -175,10 +192,27 @@ async def set_partner_mode(request: PartnerModeRequest, user=Depends(verify_tele
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Must be a partner
-    is_partner = getattr(db_user, 'is_partner', False)
-    if not is_partner:
-        raise HTTPException(status_code=403, detail="Partner access required")
+    # Check if user is a partner (from referral_stats_extended view)
+    try:
+        extended_stats_result = await asyncio.to_thread(
+            lambda: db.client.table("referral_stats_extended")
+            .select("is_partner")
+            .eq("user_id", db_user.id)
+            .limit(1)
+            .execute()
+        )
+        
+        is_partner = False
+        if extended_stats_result.data and len(extended_stats_result.data) > 0:
+            is_partner = extended_stats_result.data[0].get("is_partner", False) or False
+        
+        if not is_partner:
+            raise HTTPException(status_code=403, detail="Partner access required")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to check partner status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to verify partner status")
     
     # Validate mode
     if request.mode not in ['commission', 'discount']:
@@ -229,9 +263,26 @@ async def submit_partner_application(request: PartnerApplicationRequest, user=De
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Check if already a partner
-    if getattr(db_user, 'is_partner', False):
-        raise HTTPException(status_code=400, detail="You are already a partner")
+    # Check if already a partner (from referral_stats_extended view)
+    try:
+        extended_stats_result = await asyncio.to_thread(
+            lambda: db.client.table("referral_stats_extended")
+            .select("is_partner")
+            .eq("user_id", db_user.id)
+            .limit(1)
+            .execute()
+        )
+        
+        is_partner = False
+        if extended_stats_result.data and len(extended_stats_result.data) > 0:
+            is_partner = extended_stats_result.data[0].get("is_partner", False) or False
+        
+        if is_partner:
+            raise HTTPException(status_code=400, detail="You are already a partner")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"Failed to check partner status: {e}")
     
     # Check for existing pending application
     existing = await asyncio.to_thread(
@@ -278,14 +329,28 @@ async def get_partner_application_status(user=Depends(verify_telegram_auth)):
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Check if already partner
-    is_partner = getattr(db_user, 'is_partner', False)
-    if is_partner:
-        return {
-            "is_partner": True,
-            "application": None,
-            "message": "You are already a partner"
-        }
+    # Check if already partner (from referral_stats_extended view)
+    try:
+        extended_stats_result = await asyncio.to_thread(
+            lambda: db.client.table("referral_stats_extended")
+            .select("is_partner")
+            .eq("user_id", db_user.id)
+            .limit(1)
+            .execute()
+        )
+        
+        is_partner = False
+        if extended_stats_result.data and len(extended_stats_result.data) > 0:
+            is_partner = extended_stats_result.data[0].get("is_partner", False) or False
+        
+        if is_partner:
+            return {
+                "is_partner": True,
+                "application": None,
+                "message": "You are already a partner"
+            }
+    except Exception as e:
+        logger.warning(f"Failed to check partner status: {e}")
     
     # Get latest application
     result = await asyncio.to_thread(

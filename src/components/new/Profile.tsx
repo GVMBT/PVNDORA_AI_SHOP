@@ -199,6 +199,10 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
           currentTurnover={currentTurnover}
           maxTurnover={maxTurnover}
           progressPercent={progressPercent}
+          thresholds={propProfile.career.thresholds}
+          commissions={propProfile.career.commissions}
+          currency={user.currency}
+          exchangeRate={user.exchangeRate}
         />
 
         {/* System Logs & Scanner */}

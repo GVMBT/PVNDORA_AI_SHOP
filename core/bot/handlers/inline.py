@@ -39,13 +39,13 @@ async def handle_inline_query(query: InlineQuery, db_user: User, bot: Bot):
         results.append(
             InlineQueryResultArticle(
                 id=f"invite_{db_user.id}",
-                title="🎁 Пригласить друга (скидка 20%)",
+                title="🎁 Пригласить друга",
                 description=f"Я сэкономил {int(total_saved)}₽. Поделись ссылкой!",
                 thumbnail_url=f"{WEBAPP_URL}/assets/share-preview.png",
                 input_message_content=InputTextMessageContent(
                     message_text=(
                         f"🚀 <b>Я уже сэкономил {int(total_saved)}₽ на AI-подписках с PVNDORA!</b>\n\n"
-                        f"Залетай и получи скидку 20% на первый заказ 👇"
+                        f"Присоединяйся и получай доступ к лучшим AI-сервисам 👇"
                     ),
                     parse_mode=ParseMode.HTML
                 ),

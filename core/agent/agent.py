@@ -172,10 +172,11 @@ class ShopAgent:
 - language: {language}
 
 When using tools:
-- user_id parameter: use "{user_id}"
+- user_id parameter: use "{user_id}" (CRITICAL - required for correct currency conversion!)
 - user_telegram_id parameter: use {telegram_id}
 - telegram_id parameter: use {telegram_id}
 - user_language parameter: use "{language}" (IMPORTANT for currency conversion!)
+- ALWAYS pass both user_id AND user_language to product tools (get_catalog, search_products, get_product_details, check_product_availability)!
 """
         full_system = system_prompt + context
         

@@ -481,7 +481,7 @@
     "withdrawalHistory": "Cashout Logs",
     "howItWorks": "Algorithm",
     "tip1": "Deploy Uplink to new units",
-    "tip2": "20% share from L1 activity",
+    "tip2": "10% commission from L1 purchases",
     "tip3": "Passive income from L2-L3 nodes",
     "withdrawTitle": "CASHOUT",
     "withdrawDescription": "Select destination protocol",
