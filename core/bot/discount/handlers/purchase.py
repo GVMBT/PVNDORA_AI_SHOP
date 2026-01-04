@@ -549,10 +549,10 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User):
         status_text = {
             "pending": "⏳ Ожидает оплаты" if lang == "ru" else "⏳ Pending payment",
             "paid": "💳 Оплачен" if lang == "ru" else "💳 Paid",
-            "processing": "⚙️ Обработка" if lang == "ru" else "⚙️ Processing",
+            "prepaid": "💳 Ожидает поставки" if lang == "ru" else "💳 Awaiting supply",
             "delivered": "✅ Доставлен" if lang == "ru" else "✅ Delivered",
-            "refunded": "↩️ Возврат" if lang == "ru" else "↩️ Refunded",
-            "expired": "❌ Просрочен" if lang == "ru" else "❌ Expired"
+            "cancelled": "❌ Отменён" if lang == "ru" else "❌ Cancelled",
+            "refunded": "↩️ Возврат" if lang == "ru" else "↩️ Refunded"
         }.get(order["status"], order["status"])
         
         text = (

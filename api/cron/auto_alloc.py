@@ -3,7 +3,7 @@ Auto Allocation Cron Job
 Schedule: */5 * * * * (every 5 minutes) on Pro
 
 Tasks:
-1. Attempt to deliver waiting order_items (pending/prepaid/fulfilling) for all products.
+1. Attempt to deliver waiting order_items (pending/prepaid) for all products.
 2. Process approved replacement tickets waiting for stock.
 """
 import os
@@ -52,7 +52,7 @@ async def auto_alloc_entrypoint(request: Request):
         open_items = await asyncio.to_thread(
             lambda: db.client.table("order_items")
             .select("order_id, orders!inner(source_channel)")
-            .in_("status", ["pending", "prepaid", "fulfilling"])
+            .in_("status", ["pending", "prepaid"])
             .neq("orders.source_channel", "discount")
             .order("created_at")
             .limit(200)

@@ -222,14 +222,11 @@
     },
     "status": {
       "pending": "ОЖИДАНИЕ",
-      "prepaid": "ОПЛАЧЕНО",
-      "fulfilling": "КОМПИЛЯЦИЯ",
-      "ready": "ГОТОВО",
+      "paid": "ОПЛАЧЕНО",
+      "prepaid": "ЖДЁМ ПОСТАВКУ",
       "delivered": "ПЕРЕДАНО",
-      "refunded": "ВОЗВРАТ",
       "cancelled": "ОТМЕНА",
-      "expired": "ИСТЕКЛО",
-      "failed": "ОШИБКА"
+      "refunded": "ВОЗВРАТ"
     },
     "itemStatus": {
       "delivered": "ДОСТАВЛЕНО",

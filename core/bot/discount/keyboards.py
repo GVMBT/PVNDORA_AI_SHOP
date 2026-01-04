@@ -272,10 +272,10 @@ def get_orders_keyboard(
         status_emoji = {
             "pending": "⏳",
             "paid": "💳",
-            "processing": "⚙️",
+            "prepaid": "💳",
             "delivered": "✅",
-            "refunded": "↩️",
-            "expired": "❌"
+            "cancelled": "❌",
+            "refunded": "↩️"
         }.get(status, "❓")
         
         buttons.append([

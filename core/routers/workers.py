@@ -419,8 +419,8 @@ async def worker_calculate_referral(request: Request):
 @router.post("/deliver-batch")
 async def worker_deliver_batch(request: Request):
     """
-    QStash Worker: Try to deliver all waiting items (pending/prepaid/fulfilling), any fulfillment_type.
-    Useful for автоаллоцирования при пополнении стока.
+    QStash Worker: Try to deliver all waiting items (pending/prepaid), any fulfillment_type.
+    Useful for auto-allocation when stock is replenished.
     """
     await verify_qstash(request)  # Verify QStash signature
     

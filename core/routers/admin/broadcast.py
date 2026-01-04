@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 import httpx
 
 from core.services.database import get_database
-from core.auth.session import admin_required
+from core.auth import verify_admin
 from core.logging import get_logger
 
 logger = get_logger(__name__)

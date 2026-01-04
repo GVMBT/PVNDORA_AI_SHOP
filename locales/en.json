@@ -217,14 +217,11 @@
     },
     "status": {
       "pending": "PENDING",
-      "prepaid": "PAID",
-      "fulfilling": "COMPILING",
-      "ready": "READY",
+      "paid": "PAID",
+      "prepaid": "AWAITING_SUPPLY",
       "delivered": "TRANSFERRED",
-      "refunded": "REFUNDED",
       "cancelled": "ABORTED",
-      "expired": "EXPIRED",
-      "failed": "ERROR"
+      "refunded": "REFUNDED"
     },
     "itemStatus": {
       "delivered": "DELIVERED",

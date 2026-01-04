@@ -3,7 +3,7 @@ Refund Expired Prepaid Orders Cron Job
 Schedule: 0 * * * * (every hour)
 
 Tasks:
-1. Find prepaid/fulfilling orders where fulfillment_deadline has passed
+1. Find prepaid orders where fulfillment_deadline has passed
 2. Process refund (update status, notify user)
 3. Release any reserved stock
 """
@@ -45,11 +45,11 @@ async def refund_expired_prepaid_entrypoint(request: Request):
     }
     
     try:
-        # Find prepaid/fulfilling orders with expired fulfillment_deadline
+        # Find prepaid orders with expired fulfillment_deadline
         expired_prepaid = await asyncio.to_thread(
             lambda: db.client.table("orders")
             .select("id, user_id, amount, user_telegram_id, products(name)")
-            .in_("status", ["prepaid", "fulfilling"])
+            .eq("status", "prepaid")
             .lt("fulfillment_deadline", now.isoformat())
             .execute()
         )
