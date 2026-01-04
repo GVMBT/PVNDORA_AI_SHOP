@@ -124,13 +124,13 @@ async def get_migration_stats(
     # 6. Revenue calculations
     discount_revenue_result = await asyncio.to_thread(
         lambda: db.client.table("orders").select(
-            "total_amount"
+            "amount"
         ).eq("source_channel", "discount").eq(
             "status", "delivered"
         ).gte("created_at", cutoff_str).execute()
     )
     discount_revenue = sum(
-        o.get("total_amount", 0) or 0 
+        float(o.get("amount", 0) or 0)
         for o in (discount_revenue_result.data or [])
     )
     
