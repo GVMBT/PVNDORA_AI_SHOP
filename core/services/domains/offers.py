@@ -85,10 +85,22 @@ class OffersService:
     
     # ==================== Offer: Loyal Customer (3+ purchases) ====================
     
+    # Timing: Wait 2-3 days after 3rd purchase before sending loyal offer
+    LOYAL_OFFER_DELAY_DAYS_MIN = 2
+    LOYAL_OFFER_DELAY_DAYS_MAX = 5
+    
     async def find_loyal_customers(self, limit: int = 50) -> List[OfferCandidate]:
-        """Find discount users with 3+ orders who haven't received loyal offer."""
+        """Find discount users with 3+ orders who haven't received loyal offer.
+        
+        Only includes users whose 3rd purchase was 2-5 days ago (timing optimization).
+        """
         try:
-            # Find users with 3+ discount orders
+            # Timing window: 3rd purchase should be 2-5 days ago
+            now = datetime.now(timezone.utc)
+            min_date = now - timedelta(days=self.LOYAL_OFFER_DELAY_DAYS_MAX)
+            max_date = now - timedelta(days=self.LOYAL_OFFER_DELAY_DAYS_MIN)
+            
+            # Try RPC first (if exists)
             result = await asyncio.to_thread(
                 lambda: self.client.rpc("find_loyal_discount_customers", {
                     "min_orders": self.LOYAL_PURCHASE_COUNT,
@@ -106,18 +118,39 @@ class OffersService:
                 
                 candidates = []
                 for user in (result.data or []):
-                    # Count orders
+                    # Get orders sorted by date to find 3rd purchase date
                     orders_result = await asyncio.to_thread(
                         lambda uid=user["id"]: self.client.table("orders").select(
-                            "id", count="exact"
+                            "id, delivered_at"
                         ).eq("user_id", uid).eq(
                             "source_channel", "discount"
-                        ).eq("status", "delivered").execute()
+                        ).eq("status", "delivered").order(
+                            "delivered_at", desc=False
+                        ).execute()
                     )
                     
-                    order_count = orders_result.count if orders_result.count else 0
+                    orders = orders_result.data or []
+                    order_count = len(orders)
                     
                     if order_count >= self.LOYAL_PURCHASE_COUNT:
+                        # Check timing: 3rd purchase date
+                        third_order = orders[self.LOYAL_PURCHASE_COUNT - 1]
+                        third_order_date_str = third_order.get("delivered_at")
+                        third_order_date = None
+                        
+                        if third_order_date_str:
+                            try:
+                                third_order_date = datetime.fromisoformat(
+                                    third_order_date_str.replace("Z", "+00:00")
+                                )
+                                # Only include if 3rd purchase was 2-5 days ago
+                                if not (min_date <= third_order_date <= max_date):
+                                    continue
+                            except (ValueError, AttributeError):
+                                continue  # Skip if date parsing fails
+                        else:
+                            continue  # Skip if no delivery date
+                        
                         # Check if already received loyal promo
                         existing = await self.promo_service.get_promo_by_trigger(
                             user["id"],
@@ -130,7 +163,8 @@ class OffersService:
                                 telegram_id=user["telegram_id"],
                                 language_code=user.get("language_code", "en"),
                                 trigger=PromoTriggers.LOYAL_3_PURCHASES,
-                                order_count=order_count
+                                order_count=order_count,
+                                last_order_date=third_order_date
                             ))
                     
                     if len(candidates) >= limit:
@@ -138,16 +172,28 @@ class OffersService:
                 
                 return candidates
             
-            return [
-                OfferCandidate(
+            # Filter RPC results by timing as well
+            candidates = []
+            for row in result.data:
+                # Check timing if last_order_date is available
+                last_date_str = row.get("last_order_date")
+                if last_date_str:
+                    try:
+                        last_date = datetime.fromisoformat(last_date_str.replace("Z", "+00:00"))
+                        if not (min_date <= last_date <= max_date):
+                            continue
+                    except (ValueError, AttributeError):
+                        pass  # Include if can't parse
+                
+                candidates.append(OfferCandidate(
                     user_id=row["user_id"],
                     telegram_id=row["telegram_id"],
                     language_code=row.get("language_code", "en"),
                     trigger=PromoTriggers.LOYAL_3_PURCHASES,
                     order_count=row.get("order_count", 3)
-                )
-                for row in result.data
-            ]
+                ))
+            
+            return candidates
             
         except Exception as e:
             logger.error(f"Failed to find loyal customers: {e}")

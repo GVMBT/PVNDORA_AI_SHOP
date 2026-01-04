@@ -159,42 +159,84 @@ async def deliver_discount_order(db, order_id: str, order_data: dict):
             
             await send_telegram_message(telegram_id, delivery_text)
             
-            # Send PVNDORA warm-up offer
+            # Get user purchase count for personalization
+            user_orders_result = await asyncio.to_thread(
+                lambda: db.client.table("orders").select("id", count="exact").eq(
+                    "user_telegram_id", telegram_id
+                ).eq("source_channel", "discount").eq("status", "delivered").execute()
+            )
+            purchase_count = user_orders_result.count if user_orders_result.count else 1
+            
+            # Send personalized PVNDORA warm-up offer
             await asyncio.sleep(10)
             
             if lang == "ru":
+                if purchase_count == 1:
+                    progress_text = (
+                        f"🎯 <b>Это твоя первая покупка!</b>\n"
+                        f"   В PVNDORA ты сразу получишь партнёрку\n"
+                        f"   и сможешь зарабатывать 10% с друзей\n"
+                    )
+                elif purchase_count < 3:
+                    remaining = 3 - purchase_count
+                    progress_text = (
+                        f"🎯 <b>Уже {purchase_count} покупок!</b>\n"
+                        f"   Ещё {remaining} — и персональная скидка 50%\n"
+                    )
+                else:
+                    progress_text = (
+                        f"🎯 <b>Ты наш постоянный клиент!</b>\n"
+                        f"   Проверь личные сообщения — там подарок\n"
+                    )
+                
                 offer_text = (
                     f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                    f"💎 <b>ХОЧЕШЬ БОЛЬШЕ?</b>\n"
+                    f"💎 <b>ПОНРАВИЛСЯ {product_name.upper()}?</b>\n"
                     f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                    f"В <b>PVNDORA</b> ты получишь:\n\n"
-                    f"⚡️ <b>Мгновенная доставка</b>\n"
-                    f"   Без очереди — сразу после оплаты\n\n"
-                    f"🛡 <b>Гарантия на всё</b>\n"
-                    f"   Замена при любой проблеме\n\n"
-                    f"💰 <b>Партнёрка 10/7/3%</b>\n"
-                    f"   Приглашай друзей — зарабатывай\n\n"
-                    f"🎧 <b>Поддержка 24/7</b>\n"
-                    f"   Всегда на связи\n\n"
+                    f"{progress_text}\n"
+                    f"В <b>PVNDORA</b> такие товары:\n\n"
+                    f"⚡️ <b>Доставляются мгновенно</b>\n"
+                    f"   Не ждёшь 1-4 часа в очереди\n\n"
+                    f"🛡 <b>С полной гарантией</b>\n"
+                    f"   Проблема? Бесплатная замена\n\n"
+                    f"💰 <b>+ Партнёрка 10/7/3%</b>\n"
+                    f"   Пригласи друга — получи 10% с его покупок\n\n"
                     f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                    f"👉 <b>@pvndora_ai_bot</b> — начни сейчас"
+                    f"👉 <b>@pvndora_ai_bot</b>"
                 )
             else:
+                if purchase_count == 1:
+                    progress_text = (
+                        f"🎯 <b>This is your first purchase!</b>\n"
+                        f"   In PVNDORA you instantly get affiliate\n"
+                        f"   and can earn 10% from friends' orders\n"
+                    )
+                elif purchase_count < 3:
+                    remaining = 3 - purchase_count
+                    progress_text = (
+                        f"🎯 <b>Already {purchase_count} purchases!</b>\n"
+                        f"   {remaining} more — and personal 50% discount\n"
+                    )
+                else:
+                    progress_text = (
+                        f"🎯 <b>You're a loyal customer!</b>\n"
+                        f"   Check your messages — there's a gift\n"
+                    )
+                
                 offer_text = (
                     f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                    f"💎 <b>WANT MORE?</b>\n"
+                    f"💎 <b>LIKED {product_name.upper()}?</b>\n"
                     f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                    f"In <b>PVNDORA</b> you get:\n\n"
-                    f"⚡️ <b>Instant delivery</b>\n"
-                    f"   No queue — right after payment\n\n"
-                    f"🛡 <b>Full warranty</b>\n"
-                    f"   Replacement for any issue\n\n"
-                    f"💰 <b>Affiliate 10/7/3%</b>\n"
-                    f"   Invite friends — earn money\n\n"
-                    f"🎧 <b>24/7 Support</b>\n"
-                    f"   Always here for you\n\n"
+                    f"{progress_text}\n"
+                    f"In <b>PVNDORA</b> such products:\n\n"
+                    f"⚡️ <b>Delivered instantly</b>\n"
+                    f"   No 1-4 hour queue wait\n\n"
+                    f"🛡 <b>With full warranty</b>\n"
+                    f"   Problem? Free replacement\n\n"
+                    f"💰 <b>+ Affiliate 10/7/3%</b>\n"
+                    f"   Invite a friend — get 10% of their purchases\n\n"
                     f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                    f"👉 <b>@pvndora_ai_bot</b> — start now"
+                    f"👉 <b>@pvndora_ai_bot</b>"
                 )
             await send_telegram_message(telegram_id, offer_text)
         
