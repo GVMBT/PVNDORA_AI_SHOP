@@ -29,17 +29,23 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
     """
     logger.info(f"deliver-goods: starting for order {order_id}, only_instant={only_instant}")
     
-    # CRITICAL CHECK: Verify order status - must be paid/prepaid, NOT pending
+    # CRITICAL CHECK: Verify order status and source channel
     try:
         order_check = await asyncio.to_thread(
             lambda: db.client.table("orders")
-            .select("status, payment_method")
+            .select("status, payment_method, source_channel")
             .eq("id", order_id)
             .single()
             .execute()
         )
         if order_check.data:
             order_status = order_check.data.get("status", "").lower()
+            source_channel = order_check.data.get("source_channel", "")
+            
+            # SKIP discount orders - they have separate delayed delivery via QStash worker
+            if source_channel == "discount":
+                logger.info(f"deliver-goods: Order {order_id} is from discount channel - skipping (uses separate delivery)")
+                return {"delivered": 0, "waiting": 0, "note": "discount_channel", "skipped": True}
             
             # If order is still pending, payment is NOT confirmed - DO NOT process
             if order_status == "pending":

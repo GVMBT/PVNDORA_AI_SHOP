@@ -20,9 +20,39 @@ CRYSTALPAY_API_URL = os.environ.get("CRYSTALPAY_API_URL", "https://api.crystalpa
 CRYSTALPAY_LOGIN = os.environ.get("CRYSTALPAY_LOGIN", "")
 CRYSTALPAY_SECRET = os.environ.get("CRYSTALPAY_SECRET", "")
 CRON_SECRET = os.environ.get("CRON_SECRET", "")
+DISCOUNT_BOT_TOKEN = os.environ.get("DISCOUNT_BOT_TOKEN", "")
 
 # ASGI app for Vercel Cron
 app = FastAPI()
+
+
+async def send_discount_payment_confirmation(telegram_id: int, order_id: str):
+    """Send payment confirmation via discount bot."""
+    if not DISCOUNT_BOT_TOKEN:
+        logger.warning("DISCOUNT_BOT_TOKEN not configured")
+        return False
+    
+    text = (
+        f"✅ <b>Оплата получена!</b>\n\n"
+        f"Заказ #{order_id[:8]} оплачен.\n\n"
+        f"⏳ Доставка в течение 1-4 часов.\n"
+        f"Вы получите уведомление когда заказ будет готов."
+    )
+    
+    url = f"https://api.telegram.org/bot{DISCOUNT_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": telegram_id,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload, timeout=10)
+            return response.status_code == 200
+    except Exception as e:
+        logger.error(f"Failed to send discount notification: {e}")
+        return False
 
 
 async def check_invoice_status(invoice_id: str) -> dict:
@@ -137,14 +167,24 @@ async def process_paid_order(db, order_id: str, order_data: dict):
             )
             logger.info(f"Order {order_id} sent to delivery worker")
         
-        # Send notification to user
-        try:
-            from core.bot.handlers.notifications import send_payment_confirmation
-            user_telegram_id = order_data.get("user_telegram_id")
-            if user_telegram_id:
-                await send_payment_confirmation(user_telegram_id, order_id)
-        except Exception as notify_err:
-            logger.warning(f"Failed to send payment notification: {notify_err}")
+        # Send notification to user (only for non-discount orders)
+        # Discount orders get notification via deliver_discount_order worker
+        if source_channel != "discount":
+            try:
+                from core.bot.handlers.notifications import send_payment_confirmation
+                user_telegram_id = order_data.get("user_telegram_id")
+                if user_telegram_id:
+                    await send_payment_confirmation(user_telegram_id, order_id)
+            except Exception as notify_err:
+                logger.warning(f"Failed to send payment notification: {notify_err}")
+        else:
+            # For discount orders, send a simple "payment received, preparing delivery" message
+            try:
+                user_telegram_id = order_data.get("user_telegram_id")
+                if user_telegram_id:
+                    await send_discount_payment_confirmation(user_telegram_id, order_id)
+            except Exception as notify_err:
+                logger.warning(f"Failed to send discount payment notification: {notify_err}")
             
     except Exception as e:
         logger.error(f"Failed to process paid order {order_id}: {e}")
