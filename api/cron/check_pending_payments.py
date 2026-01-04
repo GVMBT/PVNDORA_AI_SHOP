@@ -8,18 +8,21 @@ import os
 import asyncio
 import httpx
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from core.logging import get_logger
 from core.services.database import get_database
 
 logger = get_logger(__name__)
 
-router = APIRouter()
-
 CRYSTALPAY_API_URL = os.environ.get("CRYSTALPAY_API_URL", "https://api.crystalpay.io/v3")
 CRYSTALPAY_LOGIN = os.environ.get("CRYSTALPAY_LOGIN", "")
 CRYSTALPAY_SECRET = os.environ.get("CRYSTALPAY_SECRET", "")
+CRON_SECRET = os.environ.get("CRON_SECRET", "")
+
+# ASGI app for Vercel Cron
+app = FastAPI()
 
 
 async def check_invoice_status(invoice_id: str) -> dict:
@@ -40,6 +43,7 @@ async def check_invoice_status(invoice_id: str) -> dict:
             
             if response.status_code == 200:
                 data = response.json()
+                logger.info(f"CrystalPay invoice {invoice_id} status: {data}")
                 if not data.get("error"):
                     return {
                         "success": True,
@@ -48,6 +52,8 @@ async def check_invoice_status(invoice_id: str) -> dict:
                         "rub_amount": data.get("rub_amount"),
                         "currency": data.get("currency")
                     }
+                else:
+                    logger.warning(f"CrystalPay API error for {invoice_id}: {data}")
         
         return {"success": False, "error": "API error"}
     except Exception as e:
@@ -77,16 +83,49 @@ async def process_paid_order(db, order_id: str, order_data: dict):
             
             delay_seconds = random.randint(3600, 14400)  # 1-4 hours
             
-            discount_service = DiscountOrderService(db.client)
-            result = await discount_service.schedule_delayed_delivery(
-                order_id=order_id,
-                delay_seconds=delay_seconds
+            # Get order_item info
+            order_items = await asyncio.to_thread(
+                lambda: db.client.table("order_items").select(
+                    "id, product_id"
+                ).eq("order_id", order_id).limit(1).execute()
             )
             
-            if result.get("success"):
-                logger.info(f"Discount order {order_id} scheduled for delayed delivery")
-            else:
-                logger.warning(f"Failed to schedule discount delivery: {result}")
+            if order_items.data:
+                order_item = order_items.data[0]
+                
+                # Find available stock item
+                stock_result = await asyncio.to_thread(
+                    lambda: db.client.table("stock_items").select("id").eq(
+                        "product_id", order_item["product_id"]
+                    ).eq("status", "available").is_("sold_at", "null").limit(1).execute()
+                )
+                
+                if stock_result.data:
+                    stock_item_id = stock_result.data[0]["id"]
+                    telegram_id = order_data.get("user_telegram_id")
+                    
+                    # Reserve stock item
+                    await asyncio.to_thread(
+                        lambda: db.client.table("stock_items").update({
+                            "status": "reserved"
+                        }).eq("id", stock_item_id).execute()
+                    )
+                    
+                    # Schedule delayed delivery
+                    discount_service = DiscountOrderService(db.client)
+                    result = await discount_service.schedule_delayed_delivery(
+                        order_id=order_id,
+                        order_item_id=order_item["id"],
+                        telegram_id=telegram_id,
+                        stock_item_id=stock_item_id
+                    )
+                    
+                    if result.get("success"):
+                        logger.info(f"Discount order {order_id} scheduled for delayed delivery")
+                    else:
+                        logger.warning(f"Failed to schedule discount delivery: {result}")
+                else:
+                    logger.warning(f"No stock available for discount order {order_id}")
         else:
             # Premium orders - instant delivery via QStash
             from core.qstash import publish_to_worker, WorkerEndpoints
@@ -112,17 +151,21 @@ async def process_paid_order(db, order_id: str, order_data: dict):
         logger.error(f"Failed to process paid order {order_id}: {e}")
 
 
-@router.get("/api/cron/check-pending-payments")
-@router.post("/api/cron/check-pending-payments")
-async def check_pending_payments():
+@app.get("/api/cron/check_pending_payments")
+async def check_pending_payments(request: Request):
     """
     Check pending CrystalPay orders and update their status.
     
     This is a fallback when webhook doesn't work.
     """
+    # Verify the request is from Vercel Cron
+    auth_header = request.headers.get("Authorization", "")
+    if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    
     if not CRYSTALPAY_LOGIN or not CRYSTALPAY_SECRET:
         logger.warning("CrystalPay credentials not configured")
-        return {"ok": False, "error": "Not configured"}
+        return JSONResponse({"ok": False, "error": "Not configured"})
     
     try:
         db = get_database()
@@ -145,7 +188,8 @@ async def check_pending_payments():
         pending_orders = result.data or []
         
         if not pending_orders:
-            return {"ok": True, "checked": 0, "paid": 0}
+            logger.info("No pending CrystalPay orders to check")
+            return JSONResponse({"ok": True, "checked": 0, "paid": 0})
         
         logger.info(f"Checking {len(pending_orders)} pending CrystalPay orders")
         
@@ -169,22 +213,22 @@ async def check_pending_payments():
                 elif state in ["cancelled", "failed"]:
                     # Invoice cancelled/failed - update order
                     await asyncio.to_thread(
-                        lambda: db.client.table("orders").update({
+                        lambda oid=order_id, s=state: db.client.table("orders").update({
                             "status": "cancelled",
-                            "notes": f"Payment {state}"
-                        }).eq("id", order_id).execute()
+                            "notes": f"Payment {s}"
+                        }).eq("id", oid).execute()
                     )
                     logger.info(f"Order {order_id} marked as cancelled (invoice {state})")
             
             # Small delay between API calls
             await asyncio.sleep(0.2)
         
-        return {
+        return JSONResponse({
             "ok": True,
             "checked": len(pending_orders),
             "paid": paid_count
-        }
+        })
         
     except Exception as e:
         logger.error(f"Check pending payments error: {e}")
-        return {"ok": False, "error": str(e)}
+        return JSONResponse({"ok": False, "error": str(e)})
