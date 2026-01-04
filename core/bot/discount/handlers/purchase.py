@@ -75,7 +75,7 @@ async def create_crystalpay_payment(
         
         callback_url = f"{base_url}/api/webhook/crystalpay"
         # For Telegram bot (not Mini App), redirect to simple page or directly to bot
-        discount_bot_username = os.environ.get("DISCOUNT_BOT_USERNAME", "ai_discount_hub_bot")
+        discount_bot_username = os.environ.get("DISCOUNT_BOT_USERNAME", "hub_discount_bot")
         redirect_url = f"https://t.me/{discount_bot_username}"
         
         payload = {
