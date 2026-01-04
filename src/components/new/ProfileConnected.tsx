@@ -266,6 +266,23 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     }
   }, [updatePreferences, setCurrency, setLocale, getProfile, profile, updateFromProfile, clearCartState]);
 
+  // Handler for toggling partner reward mode
+  // MUST be before conditional returns (React hooks rule)
+  const handleSetPartnerMode = useCallback(async (mode: 'commission' | 'discount') => {
+    try {
+      const result = await setPartnerMode(mode);
+      if (result.success) {
+        hapticFeedback?.('notification', 'success');
+        // Refresh profile to get updated mode
+        await getProfile();
+      }
+      return result;
+    } catch (err) {
+      hapticFeedback?.('notification', 'error');
+      throw err;
+    }
+  }, [setPartnerMode, hapticFeedback, getProfile]);
+
   // Loading state
   if (!isInitialized || loading) {
     return (
@@ -298,22 +315,6 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       </div>
     );
   }
-
-  // Handler for toggling partner reward mode
-  const handleSetPartnerMode = useCallback(async (mode: 'commission' | 'discount') => {
-    try {
-      const result = await setPartnerMode(mode);
-      if (result.success) {
-        hapticFeedback?.('notification', 'success');
-        // Refresh profile to get updated mode
-        await getProfile();
-      }
-      return result;
-    } catch (err) {
-      hapticFeedback?.('notification', 'error');
-      throw err;
-    }
-  }, [setPartnerMode, hapticFeedback, getProfile]);
 
   return (
     <Profile

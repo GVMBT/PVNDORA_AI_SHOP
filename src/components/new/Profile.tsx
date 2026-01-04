@@ -4,7 +4,7 @@
  * Main profile page container that orchestrates all profile views.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { User, ArrowLeft } from 'lucide-react';
 import { AudioEngine } from '../../lib/AudioEngine';
@@ -44,12 +44,18 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
   const [activeTab, setActiveTab] = useState<'network' | 'logs'>('network');
   const [networkLine, setNetworkLine] = useState<1 | 2 | 3>(1);
   // Initialize reward mode from profile data (map commission/discount to cash/discount)
-  const [rewardMode, setRewardMode] = useState<'cash' | 'discount'>(
-    propProfile?.partnerMode === 'discount' ? 'discount' : 'cash'
-  );
+  // Always initialize with 'cash' to maintain hook order consistency
+  const [rewardMode, setRewardMode] = useState<'cash' | 'discount'>('cash');
   
   // DOSSIER STATE
   const [selectedReferralId, setSelectedReferralId] = useState<number | string | null>(null);
+  
+  // Sync reward mode with profile when it changes (useEffect to avoid conditional hook)
+  useEffect(() => {
+    if (propProfile?.partnerMode) {
+      setRewardMode(propProfile.partnerMode === 'discount' ? 'discount' : 'cash');
+    }
+  }, [propProfile?.partnerMode]);
   
   // Use provided profile data only - NO MOCK FALLBACK (production)
   if (!propProfile) {
