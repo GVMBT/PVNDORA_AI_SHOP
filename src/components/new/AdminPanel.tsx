@@ -13,6 +13,7 @@ import {
   AdminUsers,
   AdminSupport,
   AdminPromo,
+  AdminMigration,
   AdminSidebar,
   AdminHeader,
   ProductModal,
@@ -134,6 +135,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             onToggleActive={onTogglePromoActive}
           />
         );
+      case 'migration':
+        return <AdminMigration />;
       default:
         return null;
     }

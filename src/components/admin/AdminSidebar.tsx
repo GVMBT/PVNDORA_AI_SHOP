@@ -14,7 +14,8 @@ import {
   LogOut, 
   Terminal, 
   Menu,
-  Tag
+  Tag,
+  ArrowRightLeft
 } from 'lucide-react';
 import AdminNavItem from './AdminNavItem';
 import type { AdminView } from './types';
@@ -131,6 +132,16 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
             active={currentView === 'promo'} 
             onClick={() => {
               onViewChange('promo');
+              onClose();
+            }} 
+            collapsed={isCollapsed} 
+          />
+          <AdminNavItem 
+            icon={<ArrowRightLeft size={18} />} 
+            label="Migration" 
+            active={currentView === 'migration'} 
+            onClick={() => {
+              onViewChange('migration');
               onClose();
             }} 
             collapsed={isCollapsed} 

@@ -86,7 +86,7 @@ export interface AdminStats {
   pendingWithdrawals?: number;
 }
 
-export type AdminView = 'dashboard' | 'catalog' | 'sales' | 'users' | 'support' | 'promo';
+export type AdminView = 'dashboard' | 'catalog' | 'sales' | 'users' | 'support' | 'promo' | 'migration';
 
 
 
