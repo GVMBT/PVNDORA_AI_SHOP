@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 class InsuranceOption(BaseModel):
     """Insurance option for a product."""
     id: str
-    product_id: str
+    product_id: Optional[str] = None  # NULL = universal option for all products
     duration_days: int
     price_percent: float  # Percentage of discount_price
     replacements_count: int
@@ -83,15 +83,32 @@ class InsuranceService:
     # ==================== Insurance Options ====================
     
     async def get_options_for_product(self, product_id: str) -> List[InsuranceOption]:
-        """Get active insurance options for a product."""
+        """Get active insurance options for a product.
+        
+        Returns product-specific options AND universal options (where product_id IS NULL).
+        """
         try:
-            result = await asyncio.to_thread(
+            # Get product-specific options
+            product_result = await asyncio.to_thread(
                 lambda: self.client.table("insurance_options").select("*").eq(
                     "product_id", product_id
                 ).eq("is_active", True).execute()
             )
             
-            return [InsuranceOption(**row) for row in (result.data or [])]
+            # Get universal options (product_id IS NULL)
+            universal_result = await asyncio.to_thread(
+                lambda: self.client.table("insurance_options").select("*").is_(
+                    "product_id", "null"
+                ).eq("is_active", True).execute()
+            )
+            
+            options = []
+            for row in (product_result.data or []):
+                options.append(InsuranceOption(**row))
+            for row in (universal_result.data or []):
+                options.append(InsuranceOption(**row))
+            
+            return options
         except Exception as e:
             logger.error(f"Failed to get insurance options: {e}")
             return []
