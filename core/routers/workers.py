@@ -395,6 +395,10 @@ async def worker_calculate_referral(request: Request):
             "p_order_amount": amount
         }).execute()
         bonuses = bonus_result.data if bonus_result.data else {}
+        
+        # Send notifications to referrers about earned bonuses
+        await _send_referral_bonus_notifications(db, notification_service, bonuses, user_id, amount)
+        
         return {
             "success": True,
             "turnover": turnover_data,
@@ -414,6 +418,65 @@ async def worker_calculate_referral(request: Request):
             "new_level": new_level,
             "bonuses": "skipped_due_to_error"
         }
+
+
+async def _send_referral_bonus_notifications(
+    db, 
+    notification_service, 
+    bonuses: dict, 
+    buyer_id: str, 
+    purchase_amount: float
+) -> None:
+    """Send notifications to referrers about their earned bonuses."""
+    if not bonuses or not bonuses.get("success"):
+        return
+    
+    try:
+        # Get buyer info for notification
+        buyer_result = await asyncio.to_thread(
+            lambda: db.client.table("users")
+            .select("username, first_name")
+            .eq("id", buyer_id)
+            .single()
+            .execute()
+        )
+        buyer_name = "Реферал"
+        if buyer_result.data:
+            buyer_name = buyer_result.data.get("username") or buyer_result.data.get("first_name") or "Реферал"
+        
+        # Process each level bonus
+        for level in [1, 2, 3]:
+            bonus_key = f"level{level}"
+            bonus_amount = bonuses.get(bonus_key)
+            
+            if bonus_amount and float(bonus_amount) > 0:
+                # Get referrer's telegram_id from referral_bonuses table
+                bonus_record = await asyncio.to_thread(
+                    lambda lvl=level: db.client.table("referral_bonuses")
+                    .select("user_id, users(telegram_id)")
+                    .eq("from_user_id", buyer_id)
+                    .eq("level", lvl)
+                    .eq("eligible", True)
+                    .order("created_at", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+                
+                if bonus_record.data:
+                    referrer_telegram_id = bonus_record.data[0].get("users", {}).get("telegram_id")
+                    if referrer_telegram_id:
+                        try:
+                            await notification_service.send_referral_bonus_notification(
+                                telegram_id=referrer_telegram_id,
+                                bonus_amount=float(bonus_amount),
+                                referral_name=buyer_name,
+                                purchase_amount=purchase_amount,
+                                line=level
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to send referral bonus notification (level {level}): {e}")
+    except Exception as e:
+        logger.warning(f"Failed to send referral bonus notifications: {e}")
 
 
 @router.post("/deliver-batch")

@@ -1,8 +1,11 @@
 """User domain service wrapping UserRepository."""
 from typing import Optional
 
+from core.logging import get_logger
 from core.services.models import User
 from core.services.repositories import UserRepository
+
+logger = get_logger(__name__)
 
 
 class UsersDomain:
@@ -23,11 +26,29 @@ class UsersDomain:
         referrer_telegram_id: Optional[int] = None,
     ) -> User:
         referrer_id = None
+        referrer = None
         if referrer_telegram_id:
             referrer = await self.repo.get_by_telegram_id(referrer_telegram_id)
             if referrer:
                 referrer_id = referrer.id
-        return await self.repo.create(telegram_id, username, first_name, language_code, referrer_id)
+        
+        new_user = await self.repo.create(telegram_id, username, first_name, language_code, referrer_id)
+        
+        # Notify referrer about new referral (best-effort)
+        if referrer and referrer.telegram_id:
+            try:
+                from core.routers.deps import get_notification_service
+                notification_service = get_notification_service()
+                referral_name = username or first_name or f"ID:{telegram_id}"
+                await notification_service.send_new_referral_notification(
+                    telegram_id=referrer.telegram_id,
+                    referral_name=referral_name,
+                    line=1
+                )
+            except Exception as e:
+                logger.warning(f"Failed to send new referral notification: {e}")
+        
+        return new_user
 
     async def update_language(self, telegram_id: int, language_code: str) -> None:
         await self.repo.update_language(telegram_id, language_code)

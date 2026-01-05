@@ -226,9 +226,10 @@ async def deliver_discount_order(request: Request):
                 f"   Ещё {remaining} — и персональная скидка 50%\n"
             )
         else:
+            # User reached 3+ purchases - send loyal offer NOW (not via delayed cron)
             progress_text = (
                 "🎯 <b>Ты наш постоянный клиент!</b>\n"
-                "   Проверь личные сообщения — там подарок\n"
+                "   Смотри ниже — там подарок!\n"
             )
         
         offer_text = (
@@ -260,9 +261,10 @@ async def deliver_discount_order(request: Request):
                 f"   {remaining} more — and personal 50% discount\n"
             )
         else:
+            # User reached 3+ purchases - send loyal offer NOW (not via delayed cron)
             progress_text = (
                 "🎯 <b>You're a loyal customer!</b>\n"
-                "   Check your messages — there's a gift\n"
+                "   Check below — there's a gift!\n"
             )
         
         offer_text = (
@@ -283,9 +285,78 @@ async def deliver_discount_order(request: Request):
     
     await send_telegram_message(telegram_id, offer_text)
     
+    # If user reached 3+ purchases, send loyal promo immediately (not via delayed cron)
+    if purchase_count >= 3:
+        await _send_loyal_promo_if_eligible(user_id, telegram_id, lang, purchase_count)
+    
     return JSONResponse({
         "success": True,
         "order_id": order_id,
         "telegram_id": telegram_id,
         "delivered_at": datetime.now(timezone.utc).isoformat()
     })
+
+
+async def _send_loyal_promo_if_eligible(user_id: str, telegram_id: int, lang: str, purchase_count: int) -> bool:
+    """Send loyal customer promo code immediately after 3rd purchase.
+    
+    Returns True if promo was sent, False otherwise.
+    """
+    from core.services.database import get_database
+    from core.services.domains.promo import get_promo_service, PromoTriggers
+    
+    db = get_database()
+    promo_service = get_promo_service(db.client)
+    
+    try:
+        # Check if already received loyal promo
+        existing = await promo_service.get_promo_by_trigger(user_id, PromoTriggers.LOYAL_3_PURCHASES)
+        if existing:
+            return False  # Already has promo, skip
+        
+        # Generate personal promo code
+        promo_code = await promo_service.generate_personal_promo(
+            user_id=user_id,
+            telegram_id=telegram_id,
+            trigger=PromoTriggers.LOYAL_3_PURCHASES,
+            discount_percent=50
+        )
+        
+        if not promo_code:
+            return False
+        
+        # Send promo message (to PVNDORA bot, not discount bot)
+        text = (
+            f"🎉 <b>Спасибо за доверие!</b>\n\n"
+            f"Вы совершили {purchase_count} покупок — это круто!\n\n"
+            f"В благодарность дарим вам <b>-50% на первую покупку</b> в PVNDORA:\n\n"
+            f"🎁 <b>Промокод: {promo_code}</b>\n\n"
+            f"В PVNDORA вас ждут:\n"
+            f"• 🚀 Мгновенная доставка\n"
+            f"• 🛡 Гарантии на все товары\n"
+            f"• 💰 Партнерка 10/7/3%\n"
+            f"• 🎧 Круглосуточная поддержка\n\n"
+            f"👉 @pvndora_ai_bot"
+        ) if lang == "ru" else (
+            f"🎉 <b>Thank you for your loyalty!</b>\n\n"
+            f"You've made {purchase_count} purchases — awesome!\n\n"
+            f"As a thank you, we're giving you <b>-50% off your first purchase</b> in PVNDORA:\n\n"
+            f"🎁 <b>Promo code: {promo_code}</b>\n\n"
+            f"In PVNDORA you get:\n"
+            f"• 🚀 Instant delivery\n"
+            f"• 🛡 Warranty on all products\n"
+            f"• 💰 Affiliate 10/7/3%\n"
+            f"• 🎧 24/7 support\n\n"
+            f"👉 @pvndora_ai_bot"
+        )
+        
+        # Send to PVNDORA main bot (not discount bot)
+        pvndora_token = TELEGRAM_TOKEN  # Main bot token
+        await send_telegram_message(telegram_id, text, pvndora_token)
+        
+        return True
+        
+    except Exception as e:
+        import logging
+        logging.warning(f"Failed to send loyal promo to {telegram_id}: {e}")
+        return False
