@@ -71,7 +71,7 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
         <div className="flex justify-between items-center mb-2">
           <h3 className="font-display font-bold text-white">INBOX</h3>
           <div className="text-xs font-mono text-gray-500">
-            {tickets.filter(t => t.status === 'OPEN' || t.status === 'open').length} OPEN
+            {tickets.filter(t => t.status?.toUpperCase() === 'OPEN').length} OPEN
           </div>
         </div>
         {tickets.map(t => (
@@ -206,7 +206,7 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
             </div>
             
             {/* Action Buttons */}
-            {selectedTicket.status === 'OPEN' || selectedTicket.status === 'open' ? (
+            {selectedTicket.status?.toUpperCase() === 'OPEN' ? (
               <div className="p-4 border-t border-white/10 space-y-3">
                 <textarea
                   value={comment}

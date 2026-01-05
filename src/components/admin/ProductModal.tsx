@@ -159,7 +159,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-gray-500 block mb-1 uppercase flex items-center gap-1">
+                      <label className="text-[10px] text-gray-500 mb-1 uppercase flex items-center gap-1">
                         <Video size={10} /> Video Instruction URL
                       </label>
                       <input 
@@ -171,7 +171,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-gray-500 block mb-1 uppercase flex items-center gap-1">
+                      <label className="text-[10px] text-gray-500 mb-1 uppercase flex items-center gap-1">
                         <Sparkles size={10} className="text-pandora-cyan" /> Product Video URL
                       </label>
                       <input 

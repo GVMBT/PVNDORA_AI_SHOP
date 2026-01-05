@@ -19,7 +19,6 @@ export interface ProductData {
   sold: number;
   vpn: boolean;
   image: string;
-  video?: string;
   video?: string; // Video URL for looped product visualization
   instructions: string;
 }
