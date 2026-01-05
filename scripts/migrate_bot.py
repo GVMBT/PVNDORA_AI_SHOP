@@ -67,7 +67,7 @@ async def migrate_bot(
     is_discount: bool = False
 ):
     """Perform bot migration."""
-    print(f"Starting bot migration...")
+    print("Starting bot migration...")
     
     # 1. Get new bot info
     print("Getting new bot info...")
@@ -111,11 +111,11 @@ async def migrate_bot(
     
     if is_discount:
         print("1. Update DISCOUNT_BOT_TOKEN in Vercel:")
-        print(f"   vercel env add DISCOUNT_BOT_TOKEN --production")
+        print("   vercel env add DISCOUNT_BOT_TOKEN --production")
         print(f"   Value: {new_token[:20]}...")
     else:
         print("1. Update TELEGRAM_TOKEN in Vercel:")
-        print(f"   vercel env add TELEGRAM_TOKEN --production")
+        print("   vercel env add TELEGRAM_TOKEN --production")
         print(f"   Value: {new_token[:20]}...")
     
     print("\n2. Redeploy the project:")

@@ -10,12 +10,10 @@ import numpy as np
 
 try:
     import librosa
-    import soundfile as sf
 except ImportError:
     print("Installing required packages...")
     os.system(f"{sys.executable} -m pip install librosa soundfile numpy -q")
     import librosa
-    import soundfile as sf
 
 def analyze_audio(file_path: str) -> dict:
     """

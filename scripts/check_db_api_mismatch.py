@@ -9,8 +9,6 @@ This script:
 """
 
 import re
-import subprocess
-import json
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 

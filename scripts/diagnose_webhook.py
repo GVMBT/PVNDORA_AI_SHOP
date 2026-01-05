@@ -46,7 +46,7 @@ async def diagnose():
             return
         
         # 2. Check webhook info
-        print(f"\n2️⃣ Проверка webhook...")
+        print("\n2️⃣ Проверка webhook...")
         try:
             response = await client.get(f"{base_url}/getWebhookInfo")
             result = response.json()
@@ -61,23 +61,23 @@ async def diagnose():
                 print(f"   Ожидающих обновлений: {pending}")
                 
                 if current_url != webhook_url:
-                    print(f"   ⚠️  URL не совпадает!")
+                    print("   ⚠️  URL не совпадает!")
                     print(f"   Ожидается: {webhook_url}")
                     print(f"   Текущий: {current_url}")
                 else:
-                    print(f"   ✅ URL совпадает")
+                    print("   ✅ URL совпадает")
                 
                 if last_error:
                     print(f"   ⚠️  Последняя ошибка ({last_error}): {last_error_msg}")
                 else:
-                    print(f"   ✅ Ошибок нет")
+                    print("   ✅ Ошибок нет")
             else:
                 print(f"   ❌ Ошибка: {result.get('description')}")
         except Exception as e:
             print(f"   ❌ Ошибка: {e}")
         
         # 3. Test webhook endpoint
-        print(f"\n3️⃣ Тест webhook endpoint...")
+        print("\n3️⃣ Тест webhook endpoint...")
         try:
             test_payload = {
                 "update_id": 999999999,
@@ -99,7 +99,7 @@ async def diagnose():
             
             print(f"   Status: {response.status_code}")
             if response.status_code == 200:
-                print(f"   ✅ Endpoint доступен")
+                print("   ✅ Endpoint доступен")
                 result = response.json()
                 if result.get("error"):
                     print(f"   ⚠️  Ответ: {result.get('error')}")
@@ -109,11 +109,11 @@ async def diagnose():
             print(f"   ❌ Ошибка: {e}")
         
         # 4. Recommendations
-        print(f"\n📋 Рекомендации:")
+        print("\n📋 Рекомендации:")
         if current_url != webhook_url:
-            print(f"   1. Обновите webhook: python scripts/set_webhook.py")
+            print("   1. Обновите webhook: python scripts/set_webhook.py")
         if last_error:
-            print(f"   2. Проверьте логи Vercel для деталей ошибки")
+            print("   2. Проверьте логи Vercel для деталей ошибки")
         if pending > 0:
             print(f"   3. Есть {pending} ожидающих обновлений - возможно, webhook не обрабатывает их")
 

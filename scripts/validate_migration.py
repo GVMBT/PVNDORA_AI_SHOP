@@ -9,7 +9,7 @@ Usage:
 import sys
 import re
 from pathlib import Path
-from typing import Set, Dict
+from typing import Set
 
 def extract_view_fields(sql_content: str, view_name: str) -> Set[str]:
     """Extract field names from a CREATE VIEW statement."""
@@ -67,7 +67,7 @@ def find_api_expectations(view_name: str) -> Set[str]:
             
             # Find .get() calls that reference fields
             # Pattern: p.get("field_name") or p.get('field_name')
-            get_pattern = rf'\.get\(["\']([^"\']+)["\']\)'
+            get_pattern = r'\.get\(["\']([^"\']+)["\']\)'
             for match in re.finditer(get_pattern, content):
                 field = match.group(1)
                 # Check if it's in context of this view

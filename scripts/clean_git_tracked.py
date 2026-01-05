@@ -13,7 +13,6 @@ Usage:
 import subprocess
 import sys
 import re
-from pathlib import Path
 
 # Patterns that should be ignored (from .gitignore)
 IGNORE_PATTERNS = [

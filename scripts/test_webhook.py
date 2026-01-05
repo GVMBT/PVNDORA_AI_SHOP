@@ -4,7 +4,6 @@ Usage: python scripts/test_webhook.py
 """
 import asyncio
 import httpx
-import json
 
 async def test_webhook():
     """Test if webhook endpoint is accessible"""
