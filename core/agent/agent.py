@@ -130,15 +130,16 @@ class ShopAgent:
             return ""
         
         lines = ["\n## Recent Conversation History"]
-        for msg in history[-6:]:  # Last 6 messages (3 exchanges)
+        # Expanded to 12 messages (6 exchanges) for better context
+        for msg in history[-12:]:
             role = msg.get("role", "user")
-            content = msg.get("message", "")[:200]  # Truncate long messages
+            content = msg.get("message", "")[:300]  # Allow longer context
             if role == "user":
                 lines.append(f"User: {content}")
             else:
                 lines.append(f"You: {content}")
         
-        lines.append("\nUse this context to avoid asking redundant questions.\n")
+        lines.append("\nUse this context to maintain conversation flow and avoid redundant questions.\n")
         return "\n".join(lines)
     
     async def _get_user_context(self, user_id: str, telegram_id: int, language: str) -> UserContext:
@@ -230,8 +231,8 @@ class ShopAgent:
         except Exception as e:
             logger.warning(f"Failed to load catalog: {e}")
         
-        # Load chat history for context
-        history = await self._load_chat_history(user_id, limit=10)
+        # Load chat history for context (expanded to 20 messages)
+        history = await self._load_chat_history(user_id, limit=20)
         history_context = self._format_history_for_prompt(history)
         
         # Build system prompt with user context
@@ -249,8 +250,8 @@ class ShopAgent:
         # Build messages with history
         messages = [{"role": "system", "content": full_system}]
         
-        # Add recent history as conversation turns
-        for msg in history[-6:]:
+        # Add recent history as conversation turns (expanded to 12 messages)
+        for msg in history[-12:]:
             role = msg.get("role", "user")
             content = msg.get("message", "")
             if role == "user":
