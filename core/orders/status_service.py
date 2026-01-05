@@ -305,7 +305,6 @@ class OrderStatusService:
                     .select("id")
                     .eq("product_id", pid)
                     .eq("status", "available")
-                    .eq("is_sold", False)
                     .limit(1)
                     .execute()
                 )
