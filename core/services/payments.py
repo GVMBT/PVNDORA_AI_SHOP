@@ -1306,7 +1306,6 @@ class PaymentService:
         
         # Build redirect URL based on source
         if is_telegram_miniapp:
-            bot_username = os.environ.get("BOT_USERNAME", "pvndora_ai_bot")
             # CRITICAL: CrystalPay redirect opens in BROWSER, not Mini App
             # Redirect to web page with "Return to Bot" button
             redirect_url = f"{self.base_url}/payment/result?topup_id={topup_id}&source=crystalpay"

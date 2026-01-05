@@ -45,7 +45,7 @@
 | `docs/TEST_DATA_CLEANUP.md` | Одноразовая операция |
 | `REFACTORING_ZONES.md` | Устарел (заменить на этот) |
 | `REFACTORING_ROADMAP.md` | Устарел (заменить на этот) |
-| `ARCHITECTURE_ANALYSIS.md` | Устарел (заменить на PROJECT_MAP) |
+| `ARCHITECTURE_ANALYSIS.md` | ✅ Удалён (заменён на PROJECT_MAP) |
 
 ### 1.2 Deprecated код для удаления
 

@@ -486,7 +486,7 @@ async def worker_process_replacement(request: Request):
     data = await verify_qstash(request)
     ticket_id = data.get("ticket_id")
     item_id = data.get("item_id")
-    order_id = data.get("order_id")
+    # order_id available in data but not used in this worker
     
     if not ticket_id or not item_id:
         return {"error": "ticket_id and item_id required"}
@@ -666,7 +666,7 @@ async def worker_process_replacement(request: Request):
         lambda: db.client.table("tickets")
         .update({
             "status": "closed",
-            "admin_comment": f"Replacement completed automatically. New account delivered."
+            "admin_comment": "Replacement completed automatically. New account delivered."
         })
         .eq("id", ticket_id)
         .execute()
@@ -829,7 +829,7 @@ async def worker_process_review_cashback(request: Request):
         "type": "cashback",
         "amount": cashback,
         "status": "completed",
-        "description": f"5% кэшбек за отзыв",
+        "description": "5% кэшбек за отзыв",
         "reference_id": order_id,
     }).execute()
     

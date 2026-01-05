@@ -333,7 +333,7 @@ async def update_accounting_settings(
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     
-    result = await asyncio.to_thread(
+    await asyncio.to_thread(
         lambda: db.client.table("accounting_settings")
         .update(data)
         .eq("id", "00000000-0000-0000-0000-000000000001")
@@ -400,7 +400,7 @@ async def recalculate_order_expenses(
     """Recalculate expenses for a specific order."""
     db = get_database()
     
-    result = await asyncio.to_thread(
+    await asyncio.to_thread(
         lambda: db.client.rpc(
             "calculate_order_expenses",
             {"p_order_id": order_id}

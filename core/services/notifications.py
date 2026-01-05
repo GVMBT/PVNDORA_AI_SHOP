@@ -253,9 +253,9 @@ class NotificationService:
             .limit(1)
             .execute()
         )
-        language = "en"
+        # language available for future localization
         if user_res.data:
-            language = user_res.data[0].get("language_code", "en") or "en"
+            _ = user_res.data[0].get("language_code", "en") or "en"  # noqa: F841
         
         # Build replacement message
         message = (

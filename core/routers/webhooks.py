@@ -883,7 +883,7 @@ async def crystalpay_topup_webhook(request: Request):
                     # This is safer than adding RUB directly to USD balance
                     if currency == "RUB":
                         amount_usd = amount / 100.0  # Conservative fallback: 100 RUB = 1 USD
-                        logger.warning(f"Using conservative fallback rate for RUB: 100 RUB = 1 USD")
+                        logger.warning("Using conservative fallback rate for RUB: 100 RUB = 1 USD")
                     else:
                         # For other currencies, we can't safely convert
                         logger.error(f"Cannot safely convert {currency} to USD, payment may be lost!")

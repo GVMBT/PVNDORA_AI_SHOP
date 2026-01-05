@@ -34,11 +34,11 @@ async def cmd_start(message: Message, db_user: User, bot: Bot):
     if terms_accepted:
         # Welcome back message
         text = (
-            f"👋 <b>Добро пожаловать!</b>\n\n"
-            f"Выберите раздел в меню ниже."
+            "👋 <b>Добро пожаловать!</b>\n\n"
+            "Выберите раздел в меню ниже."
         ) if lang == "ru" else (
-            f"👋 <b>Welcome!</b>\n\n"
-            f"Choose a section from the menu below."
+            "👋 <b>Welcome!</b>\n\n"
+            "Choose a section from the menu below."
         )
         
         await message.answer(

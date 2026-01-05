@@ -160,7 +160,6 @@ async def resolve_ticket(
         # If APPROVED, trigger automatic processing via QStash
         if approve and new_status == "approved":
             try:
-                from core.queue import publish_to_worker, WorkerEndpoints
                 from core.routers.deps import get_queue_publisher
                 
                 publish_to_worker, WorkerEndpoints = get_queue_publisher()
@@ -188,8 +187,6 @@ async def resolve_ticket(
                 
                 elif issue_type == "refund" and order_id:
                     # Trigger refund worker
-                    from core.services.money import to_float
-                    
                     # Get order amount
                     order_res = await asyncio.to_thread(
                         lambda: db.client.table("orders")
@@ -200,7 +197,7 @@ async def resolve_ticket(
                     )
                     
                     if order_res.data:
-                        amount = to_float(order_res.data.get("amount", 0))
+                        # amount available but usd_rate is hardcoded, so we just use it for worker
                         usd_rate = 100  # Default, should be fetched from currency service
                         
                         await publish_to_worker(
