@@ -267,10 +267,10 @@ async def _send_loyal_promo_if_eligible(user_id: str, telegram_id: int, lang: st
     
     Returns True if promo was sent, False otherwise.
     """
-    from core.services.domains.promo import get_promo_service, PromoTriggers
+    from core.services.domains.promo import PromoCodeService, PromoTriggers
     
     db = get_database()
-    promo_service = get_promo_service(db.client)
+    promo_service = PromoCodeService(db.client)
     
     try:
         # Check if already received loyal promo
