@@ -45,7 +45,7 @@ async def create_payment_wrapper(
     Unified payment creation wrapper for all gateways.
     
     Converts amount to appropriate format for each gateway:
-    - 1Plat: kopecks (integer minor units)
+    - CrystalPay: rubles (float)
     - Others: float rubles
     
     Returns: {"payment_url": str, "invoice_id": str|None}
@@ -53,7 +53,7 @@ async def create_payment_wrapper(
     gateway = normalize_gateway(gateway)
     
     # Convert amount based on gateway requirements and currency
-    if gateway == "1plat":
+    if gateway == "crystalpay":
         payment_amount = to_kopecks(amount)  # minor units
     elif currency == "RUB":
         # Rounding to 2 decimals for RUB unless gateway requires ints (current gateways accept decimals)
@@ -435,7 +435,7 @@ async def create_webapp_order(
     # Determine payment gateway - only needed for external payments
     # For balance payments, gateway is not used
     if payment_method != "balance":
-        payment_gateway = request.payment_gateway or os.environ.get("DEFAULT_PAYMENT_GATEWAY", "rukassa")
+        payment_gateway = request.payment_gateway or os.environ.get("DEFAULT_PAYMENT_GATEWAY", "crystalpay")
         # Normalize + validate gateway configuration
         payment_gateway = validate_gateway_config(payment_gateway)
     else:
@@ -465,65 +465,22 @@ async def create_webapp_order(
 @router.get("/payments/methods")
 async def get_payment_methods(
     user=Depends(verify_telegram_auth),
-    gateway: str = Query(None, description="Payment gateway override (rukassa|crystalpay|1plat|freekassa)"),
+    gateway: str = Query(None, description="Payment gateway (crystalpay)"),
 ):
-    """Get available payment methods based on configured gateway.
+    """Get available payment methods.
     
-    Returns methods with their status (enabled/disabled).
-    Disabled methods are read from RUKASSA_DISABLED_METHODS env (comma-separated).
-    Example: RUKASSA_DISABLED_METHODS=sbp_qr,clever
+    CrystalPay supports card and crypto payments.
     """
-    selected_gateway = (gateway or os.environ.get("DEFAULT_PAYMENT_GATEWAY", "rukassa")).lower()
-    
-    # Rukassa methods (https://lk.rukassa.io)
-    if selected_gateway == "rukassa":
-        # Read disabled methods from env (comma-separated list)
-        disabled_methods_str = os.environ.get("RUKASSA_DISABLED_METHODS", "")
-        disabled_methods = set(m.strip().lower() for m in disabled_methods_str.split(",") if m.strip())
-        
-        # Base methods with min amounts (from Rukassa settings)
-        methods = [
-            {"system_group": "card", "name": "Карта", "icon": "💳", "min_amount": 1000},
-            {"system_group": "sbp", "name": "СБП", "icon": "🏦", "min_amount": 1000},
-            {"system_group": "sbp_qr", "name": "QR-код СБП", "icon": "📱", "min_amount": 10},
-            {"system_group": "crypto", "name": "Криптовалюта", "icon": "₿", "min_amount": 50},
-        ]
-        
-        # Add enabled/disabled status
-        for method in methods:
-            method["enabled"] = method["system_group"] not in disabled_methods
-        
-        return {"systems": methods}
-    
     # CrystalPay methods
-    elif selected_gateway == "crystalpay":
-        # CrystalPay accepts all methods generally, but we can restrict if needed
-        # Assuming all main methods are available via their single payment page
-        methods = [
-            {"system_group": "card", "name": "Банковская карта", "icon": "💳", "enabled": True, "min_amount": 100},
-            {"system_group": "sbp", "name": "СБП", "icon": "🏦", "enabled": True, "min_amount": 100},
-            {"system_group": "crypto", "name": "Криптовалюта", "icon": "₿", "enabled": True, "min_amount": 50},
-        ]
-        return {"systems": methods}
-    
-    # Fallback to 1Plat methods
-    payment_service = get_payment_service()
-    try:
-        data = await payment_service.list_payment_methods()
-        return data
-    except Exception as e:
-        logger.warning(f"Failed to fetch payment methods: {e}")
-        # Return default methods on error
-        return {
-            "systems": [
-                {"system_group": "card", "name": "Карта", "icon": "💳", "enabled": True, "min_amount": 0},
-                {"system_group": "sbp", "name": "СБП", "icon": "🏦", "enabled": True, "min_amount": 0},
-            ]
-        }
+    methods = [
+        {"system_group": "card", "name": "Банковская карта", "icon": "💳", "enabled": True, "min_amount": 100},
+        {"system_group": "crypto", "name": "Криптовалюта", "icon": "₿", "enabled": True, "min_amount": 50},
+    ]
+    return {"systems": methods}
 
 
 async def _create_cart_order(
-    db, db_user, user, payment_service, payment_method: str, payment_gateway: str = "rukassa",
+    db, db_user, user, payment_service, payment_method: str, payment_gateway: str = "crystalpay",
     is_telegram_miniapp: bool = True
 ) -> OrderResponse:
     """Create order from cart items."""
@@ -733,39 +690,6 @@ async def _create_cart_order(
         logger.warning(f"Currency conversion failed, using raw amount: {e}")
         logger.warning(f"Amount in USD: {to_float(total_amount)}, Payment currency: {gateway_currency}")
     
-    # Если Rukassa: попытаться отменить предыдущий незавершённый платёж (антифрод)
-    if payment_gateway == "rukassa":
-        try:
-            result = await asyncio.to_thread(
-                lambda: db.client.table("orders")
-                .select("id,payment_id,status")
-                .eq("user_id", db_user.id)
-                .eq("status", "pending")
-                .order("created_at", desc=True)
-                .limit(1)
-                .execute()
-            )
-            if result.data:
-                prev = result.data[0]
-                prev_payment_id = prev.get("payment_id")
-                if prev_payment_id:
-                    cancel_res = await payment_service.revoke_rukassa_payment(prev_payment_id)
-                    if cancel_res.get("success") and cancel_res.get("status") == "CANCEL":
-                        try:
-                            await asyncio.to_thread(
-                                lambda: db.client.table("orders")
-                                .update({"status": "cancelled"})
-                                .eq("id", prev.get("id"))
-                                .execute()
-                            )
-                        except Exception as e:
-                            logger.warning(f"Failed to mark order {prev.get('id')} cancelled: {e}")
-                    else:
-                        # если revoke не удался, просто логируем; это не должно блокировать создание
-                        logger.info(f"Rukassa revoke skipped: {cancel_res}")
-        except Exception as e:
-            logger.warning(f"Revoke previous Rukassa payment failed: {e}")
-
     # ============================================================
     # Создаём заказ в БД ПЕРЕД обращением к платёжке
     # ============================================================
@@ -923,7 +847,7 @@ async def _create_cart_order(
         )
     
     # ============================================================
-    # ВНЕШНИЙ ПЛАТЁЖ (CrystalPay, Rukassa и т.д.)
+    # ВНЕШНИЙ ПЛАТЁЖ (CrystalPay)
     # ============================================================
     
     # Пытаемся создать платёж уже с реальным order.id
@@ -1021,7 +945,7 @@ async def _create_cart_order(
     return response
 
 
-async def _create_single_order(db, db_user, user, request: CreateOrderRequest, payment_service, payment_method: str, payment_gateway: str = "rukassa") -> OrderResponse:
+async def _create_single_order(db, db_user, user, request: CreateOrderRequest, payment_service, payment_method: str, payment_gateway: str = "crystalpay") -> OrderResponse:
     """
     Create order for single product.
     

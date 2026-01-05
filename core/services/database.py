@@ -144,7 +144,7 @@ class Database:
         original_price: Optional[float] = None,
         discount_percent: int = 0,
         payment_method: str = "card",
-        payment_gateway: str = "rukassa",
+        payment_gateway: str = "crystalpay",
         user_telegram_id: Optional[int] = None,
         expires_at: Optional[datetime] = None,
         payment_url: Optional[str] = None

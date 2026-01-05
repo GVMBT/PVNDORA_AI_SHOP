@@ -12,19 +12,12 @@ logger = logging.getLogger(__name__)
 
 # Gateway configuration requirements
 GATEWAY_ENV_REQUIREMENTS: Dict[str, Tuple[str, ...]] = {
-    PaymentGateway.RUKASSA.value: ("RUKASSA_SHOP_ID", "RUKASSA_TOKEN"),
     PaymentGateway.CRYSTALPAY.value: ("CRYSTALPAY_LOGIN", "CRYSTALPAY_SECRET", "CRYSTALPAY_SALT"),
-    PaymentGateway.FREEKASSA.value: ("FREEKASSA_MERCHANT_ID", "FREEKASSA_SECRET_WORD_1", "FREEKASSA_SECRET_WORD_2"),
-    # For 1Plat we require both shop/merchant id and secret key
-    PaymentGateway.ONEPLAT.value: ("ONEPLAT_SECRET_KEY", "ONEPLAT_SHOP_ID|ONEPLAT_MERCHANT_ID"),
 }
 
 # Human-readable gateway names for error messages
 GATEWAY_NAMES: Dict[str, str] = {
-    PaymentGateway.RUKASSA.value: "Rukassa",
     PaymentGateway.CRYSTALPAY.value: "CrystalPay",
-    PaymentGateway.FREEKASSA.value: "Freekassa",
-    PaymentGateway.ONEPLAT.value: "1Plat",
 }
 
 
@@ -34,31 +27,12 @@ def get_gateway_config(gateway: str) -> Dict[str, Optional[str]]:
     
     Returns dict with env var names as keys and their values (or None if not set).
     """
-    gateway = normalize_gateway(gateway)
-    
-    if gateway == PaymentGateway.RUKASSA.value:
-        return {
-            "shop_id": os.environ.get("RUKASSA_SHOP_ID"),
-            "token": os.environ.get("RUKASSA_TOKEN"),
-        }
-    elif gateway == PaymentGateway.CRYSTALPAY.value:
-        return {
-            "login": os.environ.get("CRYSTALPAY_LOGIN"),
-            "secret": os.environ.get("CRYSTALPAY_SECRET"),
-            "salt": os.environ.get("CRYSTALPAY_SALT"),
-        }
-    elif gateway == PaymentGateway.FREEKASSA.value:
-        return {
-            "merchant_id": os.environ.get("FREEKASSA_MERCHANT_ID"),
-            "secret_word_1": os.environ.get("FREEKASSA_SECRET_WORD_1"),
-            "secret_word_2": os.environ.get("FREEKASSA_SECRET_WORD_2"),
-        }
-    elif gateway == PaymentGateway.ONEPLAT.value:
-        return {
-            "shop_id": os.environ.get("ONEPLAT_SHOP_ID") or os.environ.get("ONEPLAT_MERCHANT_ID"),
-            "secret_key": os.environ.get("ONEPLAT_SECRET_KEY"),
-        }
-    return {}
+    # All gateways map to CrystalPay now
+    return {
+        "login": os.environ.get("CRYSTALPAY_LOGIN"),
+        "secret": os.environ.get("CRYSTALPAY_SECRET"),
+        "salt": os.environ.get("CRYSTALPAY_SALT"),
+    }
 
 
 def validate_gateway_config(gateway: str) -> str:
@@ -81,11 +55,6 @@ def validate_gateway_config(gateway: str) -> str:
     # Check if all required values are present
     missing = []
     for key, value in config.items():
-        # Special case: shop_id may come from two env vars
-        if key == "shop_id":
-            if not value:
-                missing.append("ONEPLAT_SHOP_ID|ONEPLAT_MERCHANT_ID")
-            continue
         if not value:
             missing.append(key)
     
@@ -102,13 +71,10 @@ def validate_gateway_config(gateway: str) -> str:
 
 def is_gateway_configured(gateway: str) -> bool:
     """Check if a gateway is properly configured without raising exceptions."""
-    gateway = normalize_gateway(gateway)
     config = get_gateway_config(gateway)
     return all(value for value in config.values())
 
 
 def get_default_gateway() -> str:
     """Get the default payment gateway from environment."""
-    default = os.environ.get("DEFAULT_PAYMENT_GATEWAY", PaymentGateway.RUKASSA.value)
-    return normalize_gateway(default)
-
+    return PaymentGateway.CRYSTALPAY.value

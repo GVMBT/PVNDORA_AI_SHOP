@@ -89,7 +89,7 @@ async def checkout_cart(payment_method: str = "card") -> dict:
                 }
         
         payment_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
-        payment_gateway = os.environ.get("DEFAULT_PAYMENT_GATEWAY", "rukassa")
+        payment_gateway = os.environ.get("DEFAULT_PAYMENT_GATEWAY", "crystalpay")
         
         order_result = await asyncio.to_thread(
             lambda: db.client.table("orders").insert({

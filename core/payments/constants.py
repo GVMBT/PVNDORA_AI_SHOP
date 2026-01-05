@@ -5,17 +5,12 @@ from typing import Set
 
 class PaymentGateway(str, Enum):
     """Supported payment gateways."""
-    RUKASSA = "rukassa"
     CRYSTALPAY = "crystalpay"
-    FREEKASSA = "freekassa"
-    ONEPLAT = "1plat"
 
 
 class PaymentMethod(str, Enum):
     """Payment methods."""
     CARD = "card"
-    SBP = "sbp"
-    SBP_QR = "sbp_qr"
     CRYPTO = "crypto"
 
 
@@ -47,16 +42,15 @@ class OrderStatus(str, Enum):
 
 # Gateway name aliases (input -> canonical)
 GATEWAY_ALIASES: dict[str, str] = {
-    "rukassa": PaymentGateway.RUKASSA.value,
     "crystalpay": PaymentGateway.CRYSTALPAY.value,
     "crystal_pay": PaymentGateway.CRYSTALPAY.value,
     "crystal-pay": PaymentGateway.CRYSTALPAY.value,
-    "freekassa": PaymentGateway.FREEKASSA.value,
-    "free_kassa": PaymentGateway.FREEKASSA.value,
-    "1plat": PaymentGateway.ONEPLAT.value,
-    "oneplat": PaymentGateway.ONEPLAT.value,
-    "one_plat": PaymentGateway.ONEPLAT.value,
-    "onplat": PaymentGateway.ONEPLAT.value,
+    # Legacy aliases for backward compatibility
+    "rukassa": PaymentGateway.CRYSTALPAY.value,
+    "freekassa": PaymentGateway.CRYSTALPAY.value,
+    "1plat": PaymentGateway.CRYSTALPAY.value,
+    "oneplat": PaymentGateway.CRYSTALPAY.value,
+    "card": PaymentGateway.CRYSTALPAY.value,
 }
 
 # Statuses that indicate delivery completed
@@ -80,16 +74,14 @@ FINAL_STATES: Set[str] = {
 
 # Gateway -> currency map (for payment creation)
 GATEWAY_CURRENCY: dict[str, str] = {
-    PaymentGateway.RUKASSA.value: "RUB",
-    PaymentGateway.CRYSTALPAY.value: "RUB",  # default, CrystalPay supports RUB; switch if USDC configured
-    PaymentGateway.FREEKASSA.value: "USD",   # Freekassa typically in USD (configurable if needed)
-    PaymentGateway.ONEPLAT.value: "RUB",     # 1Plat in RUB minor units
+    PaymentGateway.CRYSTALPAY.value: "RUB",
 }
 
 
 def normalize_gateway(gateway: str) -> str:
     """
     Normalize gateway name to canonical form.
+    All gateways now map to crystalpay.
     
     Args:
         gateway: Gateway name (any case, with aliases)
@@ -99,11 +91,10 @@ def normalize_gateway(gateway: str) -> str:
         
     Example:
         normalize_gateway("CrystalPay") -> "crystalpay"
-        normalize_gateway("oneplat") -> "1plat"
+        normalize_gateway("rukassa") -> "crystalpay"
     """
     if not gateway:
-        return PaymentGateway.RUKASSA.value
+        return PaymentGateway.CRYSTALPAY.value
     
     normalized = gateway.lower().strip()
-    return GATEWAY_ALIASES.get(normalized, normalized)
-
+    return GATEWAY_ALIASES.get(normalized, PaymentGateway.CRYSTALPAY.value)
