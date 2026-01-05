@@ -85,11 +85,23 @@ class InsuranceService:
     async def get_options_for_product(self, product_id: str) -> List[InsuranceOption]:
         """Get active insurance options for a product.
         
-        Returns product-specific options AND universal options (where product_id IS NULL).
+        Returns product-specific options AND universal options (where product_id IS NULL),
+        filtered to exclude insurance longer than product's duration_days.
         """
         try:
-            # Get product-specific options
+            # First, get product's duration_days to filter insurance options
             product_result = await asyncio.to_thread(
+                lambda: self.client.table("products").select(
+                    "duration_days"
+                ).eq("id", product_id).single().execute()
+            )
+            
+            product_duration = None
+            if product_result.data:
+                product_duration = product_result.data.get("duration_days")
+            
+            # Get product-specific options
+            specific_result = await asyncio.to_thread(
                 lambda: self.client.table("insurance_options").select("*").eq(
                     "product_id", product_id
                 ).eq("is_active", True).execute()
@@ -103,10 +115,31 @@ class InsuranceService:
             )
             
             options = []
-            for row in (product_result.data or []):
-                options.append(InsuranceOption(**row))
+            
+            for row in (specific_result.data or []):
+                option = InsuranceOption(**row)
+                # Filter: insurance duration should not exceed product duration
+                if product_duration and option.duration_days > product_duration:
+                    logger.debug(
+                        f"Skipping insurance option {option.id}: "
+                        f"{option.duration_days}d > product {product_duration}d"
+                    )
+                    continue
+                options.append(option)
+            
             for row in (universal_result.data or []):
-                options.append(InsuranceOption(**row))
+                option = InsuranceOption(**row)
+                # Filter: insurance duration should not exceed product duration
+                if product_duration and option.duration_days > product_duration:
+                    logger.debug(
+                        f"Skipping universal insurance option {option.id}: "
+                        f"{option.duration_days}d > product {product_duration}d"
+                    )
+                    continue
+                options.append(option)
+            
+            # Sort by duration_days for consistent display
+            options.sort(key=lambda x: x.duration_days)
             
             return options
         except Exception as e:

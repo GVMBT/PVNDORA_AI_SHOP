@@ -4,7 +4,8 @@
     { "source": "/og/:path*", "destination": "/api/og/:path*" },
     { "source": "/api/og/:path*", "destination": "/api/og/:path*" },
     { "source": "/api/cron/:path*", "destination": "/api/cron/:path*" },
-    { "source": "/api/((?!og/|cron/).*)", "destination": "/api/index.py" },
+    { "source": "/api/workers/:path*", "destination": "/api/workers/:path*" },
+    { "source": "/api/((?!og/|cron/|workers/).*)", "destination": "/api/index.py" },
     { "source": "/webhook/telegram", "destination": "/api/index.py" },
     { "source": "/webhook/discount", "destination": "/api/index.py" },
     { "source": "/webhook/(.*)", "destination": "/api/index.py" },
@@ -20,6 +21,9 @@
       "maxDuration": 30
     },
     "api/cron/*.py": {
+      "maxDuration": 60
+    },
+    "api/workers/*.py": {
       "maxDuration": 60
     }
   },
