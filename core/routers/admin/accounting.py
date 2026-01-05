@@ -6,7 +6,6 @@ P&L reports, expense tracking, and financial overview.
 import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
-from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel

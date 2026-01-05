@@ -5,7 +5,6 @@ Payment and notification webhooks.
 All webhooks verify signatures and delegate to QStash workers.
 """
 
-import asyncio
 import json
 import os
 

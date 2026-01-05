@@ -4,8 +4,7 @@ Handles insurance options, replacements, and abuse prevention.
 """
 import asyncio
 from datetime import datetime, timezone, timedelta
-from typing import Optional, List, Dict, Any
-from uuid import UUID
+from typing import Optional, List
 
 from pydantic import BaseModel
 

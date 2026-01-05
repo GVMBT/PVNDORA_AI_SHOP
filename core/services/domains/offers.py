@@ -5,7 +5,7 @@ Handles automated offer generation and sending.
 import os
 import asyncio
 from datetime import datetime, timezone, timedelta
-from typing import Optional, List, Tuple
+from typing import Optional, List
 import httpx
 
 from pydantic import BaseModel

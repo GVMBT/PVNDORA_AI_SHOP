@@ -12,7 +12,6 @@ Sends alerts for critical business events:
 import os
 import asyncio
 from typing import Optional, List
-from decimal import Decimal
 from datetime import datetime
 
 from aiogram import Bot

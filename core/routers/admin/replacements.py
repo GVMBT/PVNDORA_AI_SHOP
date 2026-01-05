@@ -2,7 +2,6 @@
 import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
-from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel

@@ -5,7 +5,6 @@ Provides statistics on discount bot users migrating to PVNDORA.
 """
 import asyncio
 from datetime import datetime, timezone, timedelta
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel

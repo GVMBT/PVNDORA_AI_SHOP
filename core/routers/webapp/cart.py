@@ -8,7 +8,6 @@ Response format:
 - Frontend uses USD for calculations, display for UI
 """
 import asyncio
-from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 
 from core.logging import get_logger

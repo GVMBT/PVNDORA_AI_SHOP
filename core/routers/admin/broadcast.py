@@ -6,9 +6,8 @@ Allows admin to send messages to all users via Telegram bots.
 import os
 import asyncio
 from typing import List, Optional
-from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 import httpx
 

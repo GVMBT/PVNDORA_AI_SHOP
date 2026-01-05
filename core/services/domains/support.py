@@ -100,7 +100,7 @@ class SupportService:
                     }
                 
                 # Check 2: Rate limiting - too many replacement tickets today?
-                from datetime import datetime, timezone, timedelta
+                from datetime import datetime, timezone
                 today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
                 
                 today_count = await asyncio.to_thread(
