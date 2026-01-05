@@ -6,12 +6,10 @@ Optimized for Vercel Hobby plan (max 12 serverless functions).
 """
 import os
 import sys
-import asyncio
 from pathlib import Path
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 
-from fastapi import FastAPI, Request, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
@@ -40,7 +38,6 @@ try:
         ActivityMiddleware,
         AnalyticsMiddleware
     )
-    from core.services.database import get_database
 except ImportError as e:
     import traceback
     print(f"ERROR: Failed to import modules: {e}")
@@ -48,15 +45,6 @@ except ImportError as e:
     print(f"ERROR: Traceback: {traceback.format_exc()}")
     raise
 
-# Unified authentication
-try:
-    from core.auth import verify_telegram_auth
-except ImportError as e:
-    import traceback
-    print(f"ERROR: Failed to import core modules: {e}")
-    print(f"ERROR: sys.path = {sys.path}")
-    print(f"ERROR: Traceback: {traceback.format_exc()}")
-    raise
 
 
 # ==================== BOT INITIALIZATION ====================

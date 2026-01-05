@@ -215,9 +215,9 @@ async def deliver_discount_order(request: Request):
         # Personalized based on product and purchase count
         if purchase_count == 1:
             progress_text = (
-                f"🎯 <b>Это твоя первая покупка!</b>\n"
-                f"   В PVNDORA ты сразу получишь партнёрку\n"
-                f"   и сможешь зарабатывать 10% с друзей\n"
+                "🎯 <b>Это твоя первая покупка!</b>\n"
+                "   В PVNDORA ты сразу получишь партнёрку\n"
+                "   и сможешь зарабатывать 10% с друзей\n"
             )
         elif purchase_count < 3:
             remaining = 3 - purchase_count
@@ -227,8 +227,8 @@ async def deliver_discount_order(request: Request):
             )
         else:
             progress_text = (
-                f"🎯 <b>Ты наш постоянный клиент!</b>\n"
-                f"   Проверь личные сообщения — там подарок\n"
+                "🎯 <b>Ты наш постоянный клиент!</b>\n"
+                "   Проверь личные сообщения — там подарок\n"
             )
         
         offer_text = (
@@ -249,9 +249,9 @@ async def deliver_discount_order(request: Request):
     else:
         if purchase_count == 1:
             progress_text = (
-                f"🎯 <b>This is your first purchase!</b>\n"
-                f"   In PVNDORA you instantly get affiliate\n"
-                f"   and can earn 10% from friends' orders\n"
+                "🎯 <b>This is your first purchase!</b>\n"
+                "   In PVNDORA you instantly get affiliate\n"
+                "   and can earn 10% from friends' orders\n"
             )
         elif purchase_count < 3:
             remaining = 3 - purchase_count
@@ -261,8 +261,8 @@ async def deliver_discount_order(request: Request):
             )
         else:
             progress_text = (
-                f"🎯 <b>You're a loyal customer!</b>\n"
-                f"   Check your messages — there's a gift\n"
+                "🎯 <b>You're a loyal customer!</b>\n"
+                "   Check your messages — there's a gift\n"
             )
         
         offer_text = (

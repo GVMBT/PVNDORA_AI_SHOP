@@ -300,17 +300,28 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
     if request.method not in ['crypto']:
         raise HTTPException(status_code=400, detail="Invalid payment method. Only TRC20 USDT is supported.")
     
-    await asyncio.to_thread(
+    # Create withdrawal request (balance will be deducted on approval)
+    withdrawal_result = await asyncio.to_thread(
         lambda: db.client.table("withdrawal_requests").insert({
             "user_id": db_user.id, "amount": request.amount,
             "payment_method": request.method, "payment_details": {"details": request.details}
         }).execute()
     )
     
-    # Subtract USD amount from USD balance
-    await asyncio.to_thread(
-        lambda: db.client.table("users").update({"balance": balance_usd - amount_usd}).eq("id", db_user.id).execute()
-    )
+    request_id = withdrawal_result.data[0].get("id") if withdrawal_result.data else "unknown"
+    
+    # Send alert to admins (best-effort, don't fail request if alert fails)
+    try:
+        from core.routers.deps import get_admin_alerts
+        alert_service = get_admin_alerts()
+        await alert_service.alert_withdrawal_request(
+            user_telegram_id=user.id,
+            amount=amount_usd,
+            method=request.method,
+            request_id=request_id
+        )
+    except Exception as e:
+        logger.warning(f"Failed to send withdrawal alert: {e}")
     
     return {"success": True, "message": "Withdrawal request submitted"}
 

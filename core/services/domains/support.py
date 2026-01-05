@@ -196,9 +196,34 @@ class SupportService:
             )
             
             if result.data:
+                ticket_id = result.data[0].get("id")
+                
+                # Send admin alert (best-effort)
+                try:
+                    from core.services.admin_alerts import get_admin_alert_service
+                    # Get user's telegram_id for the alert
+                    user_result = await asyncio.to_thread(
+                        lambda: self.db.client.table("users")
+                        .select("telegram_id")
+                        .eq("id", user_id)
+                        .single()
+                        .execute()
+                    )
+                    tg_id = user_result.data.get("telegram_id", 0) if user_result.data else 0
+                    
+                    alert_service = get_admin_alert_service()
+                    await alert_service.alert_support_ticket(
+                        ticket_id=ticket_id,
+                        user_telegram_id=tg_id,
+                        issue_type=issue_type or "general",
+                        order_id=order_id
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send admin alert for ticket {ticket_id}: {e}")
+                
                 return {
                     "success": True,
-                    "ticket_id": result.data[0].get("id"),
+                    "ticket_id": ticket_id,
                     "message": "Support ticket created"
                 }
             return {"success": False, "reason": "Failed to create ticket"}

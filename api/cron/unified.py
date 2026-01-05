@@ -7,7 +7,7 @@ Tasks:
 2. Auto-allocate stock for paid orders
 3. Update exchange rates (hourly check)
 """
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import os

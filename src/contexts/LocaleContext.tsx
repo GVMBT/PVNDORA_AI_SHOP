@@ -16,7 +16,7 @@ import type { ProfileData } from '../types/component';
 
 // Only RU/EN supported for now (can be extended later)
 type LocaleCode = 'en' | 'ru';
-type CurrencyCode = 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED';
+type CurrencyCode = 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED' | 'GBP';
 
 // Currency symbols
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -72,18 +72,12 @@ function getDefaultLocale(): LocaleCode {
 
 /**
  * Get default currency based on locale
+ * Only RU/EN supported - RU users get RUB, EN users get USD
  */
 function getCurrencyForLocale(locale: LocaleCode): CurrencyCode {
   const localeToCurrency: Record<LocaleCode, CurrencyCode> = {
     'ru': 'RUB',
-    'uk': 'UAH',
     'en': 'USD',
-    'de': 'EUR',
-    'fr': 'EUR',
-    'es': 'EUR',
-    'tr': 'TRY',
-    'ar': 'AED',
-    'hi': 'INR',
   };
   return localeToCurrency[locale] || 'USD';
 }

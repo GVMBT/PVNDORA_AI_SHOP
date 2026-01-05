@@ -2,17 +2,18 @@
 Admin Alert Service - Notifications to administrators via Telegram bot.
 
 Sends alerts for critical business events:
-- Large orders
+- New paid orders
 - Low stock warnings
 - Payment failures
-- Security events
-- Error thresholds
+- Withdrawal requests
+- Support tickets
+- Partner applications
 """
 
 import os
 import asyncio
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
@@ -114,7 +115,7 @@ class AdminAlertService:
             return 0
         
         icon = SEVERITY_ICONS.get(severity, "📢")
-        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         
         # Build alert message
         text = (
@@ -146,23 +147,28 @@ class AdminAlertService:
     
     # ==================== PREDEFINED ALERTS ====================
     
-    async def alert_large_order(
+    async def alert_new_order(
         self,
         order_id: str,
         amount: float,
+        currency: str,
         user_telegram_id: int,
-        product_name: str
+        username: Optional[str],
+        product_name: str,
+        quantity: int = 1
     ) -> int:
-        """Alert admins about large order."""
+        """Alert admins about new paid order."""
+        user_display = f"@{username}" if username else f"ID: {user_telegram_id}"
+        
         return await self.send_alert(
-            title="Крупный заказ",
+            title="💰 Новый заказ оплачен",
             message=(
-                f"Создан заказ на сумму <b>${amount:.2f}</b>\n\n"
-                f"Товар: {product_name}\n"
-                f"Пользователь: <code>{user_telegram_id}</code>"
+                f"<b>{product_name}</b> × {quantity}\n\n"
+                f"Сумма: <b>{amount:.2f} {currency}</b>\n"
+                f"Покупатель: {user_display}"
             ),
             severity=AlertSeverity.INFO,
-            metadata={"order_id": order_id}
+            metadata={"order_id": order_id[:8]}
         )
     
     async def alert_low_stock(
@@ -182,7 +188,7 @@ class AdminAlertService:
                 f"Порог: {threshold} шт."
             ),
             severity=severity,
-            metadata={"product_id": product_id}
+            metadata={"product_id": product_id[:8]}
         )
     
     async def alert_payment_failure(
@@ -199,10 +205,10 @@ class AdminAlertService:
                 f"Не удалось обработать платёж\n\n"
                 f"Сумма: ${amount:.2f}\n"
                 f"Шлюз: {gateway}\n"
-                f"Ошибка: <code>{error}</code>"
+                f"Ошибка: <code>{error[:200]}</code>"
             ),
             severity=AlertSeverity.ERROR,
-            metadata={"order_id": order_id}
+            metadata={"order_id": order_id[:8]}
         )
     
     async def alert_withdrawal_request(
@@ -221,46 +227,7 @@ class AdminAlertService:
                 f"Пользователь: <code>{user_telegram_id}</code>"
             ),
             severity=AlertSeverity.WARNING,
-            metadata={"request_id": request_id}
-        )
-    
-    async def alert_security_event(
-        self,
-        event_type: str,
-        description: str,
-        ip_address: Optional[str] = None,
-        user_telegram_id: Optional[int] = None
-    ) -> int:
-        """Alert admins about security-related events."""
-        metadata = {}
-        if ip_address:
-            metadata["ip"] = ip_address
-        if user_telegram_id:
-            metadata["user"] = user_telegram_id
-            
-        return await self.send_alert(
-            title=f"Безопасность: {event_type}",
-            message=description,
-            severity=AlertSeverity.CRITICAL,
-            metadata=metadata if metadata else None
-        )
-    
-    async def alert_error_threshold(
-        self,
-        error_type: str,
-        error_count: int,
-        time_window: str,
-        sample_error: str
-    ) -> int:
-        """Alert admins when error rate exceeds threshold."""
-        return await self.send_alert(
-            title="Превышен порог ошибок",
-            message=(
-                f"Обнаружено <b>{error_count}</b> ошибок типа <code>{error_type}</code>\n"
-                f"за период: {time_window}\n\n"
-                f"Пример:\n<code>{sample_error[:200]}</code>"
-            ),
-            severity=AlertSeverity.ERROR
+            metadata={"request_id": request_id[:8]}
         )
     
     async def alert_new_partner_application(
@@ -290,9 +257,9 @@ class AdminAlertService:
         order_id: Optional[str] = None
     ) -> int:
         """Alert admins about new support ticket."""
-        metadata = {"ticket_id": ticket_id}
+        metadata = {"ticket_id": ticket_id[:8]}
         if order_id:
-            metadata["order_id"] = order_id
+            metadata["order_id"] = order_id[:8]
             
         return await self.send_alert(
             title="Новый тикет поддержки",
@@ -302,25 +269,6 @@ class AdminAlertService:
             ),
             severity=AlertSeverity.INFO,
             metadata=metadata
-        )
-    
-    async def alert_daily_summary(
-        self,
-        orders_count: int,
-        revenue: float,
-        new_users: int,
-        active_tickets: int
-    ) -> int:
-        """Send daily summary to admins."""
-        return await self.send_alert(
-            title="📊 Дневная сводка",
-            message=(
-                f"<b>Заказы:</b> {orders_count}\n"
-                f"<b>Выручка:</b> ${revenue:.2f}\n"
-                f"<b>Новые пользователи:</b> {new_users}\n"
-                f"<b>Активные тикеты:</b> {active_tickets}"
-            ),
-            severity=AlertSeverity.INFO
         )
 
 

@@ -16,7 +16,8 @@ import {
   Menu,
   Tag,
   ArrowRightLeft,
-  Calculator
+  Calculator,
+  Wallet
 } from 'lucide-react';
 import AdminNavItem from './AdminNavItem';
 import type { AdminView } from './types';
@@ -143,6 +144,16 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
             active={currentView === 'accounting'} 
             onClick={() => {
               onViewChange('accounting');
+              onClose();
+            }} 
+            collapsed={isCollapsed} 
+          />
+          <AdminNavItem 
+            icon={<Wallet size={18} />} 
+            label="Выводы" 
+            active={currentView === 'withdrawals'} 
+            onClick={() => {
+              onViewChange('withdrawals');
               onClose();
             }} 
             collapsed={isCollapsed} 

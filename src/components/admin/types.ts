@@ -88,7 +88,25 @@ export interface AdminStats {
   pendingWithdrawals?: number;
 }
 
-export type AdminView = 'dashboard' | 'catalog' | 'sales' | 'users' | 'partners' | 'support' | 'promo' | 'migration' | 'accounting';
+export interface WithdrawalData {
+  id: string;
+  user_id: string;
+  amount: number;
+  status: 'pending' | 'processing' | 'completed' | 'rejected';
+  payment_method: string;
+  payment_details: { details?: string } | null;
+  admin_comment?: string | null;
+  created_at: string;
+  processed_at?: string | null;
+  processed_by?: string | null;
+  // Extended fields from join
+  username?: string;
+  first_name?: string;
+  telegram_id?: number;
+  user_balance?: number;
+}
+
+export type AdminView = 'dashboard' | 'catalog' | 'sales' | 'users' | 'partners' | 'support' | 'promo' | 'migration' | 'accounting' | 'withdrawals';
 
 
 

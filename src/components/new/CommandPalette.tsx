@@ -2,8 +2,10 @@
 import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronRight, Command, Package, User, Terminal, LogOut, ShoppingCart, Shield } from 'lucide-react';
-import type { CatalogProduct, NavigationTarget } from '../../types/component';
-import type { ViewType } from '../app';
+import type { CatalogProduct, NavigationTarget, ViewType } from '../../types/component';
+
+// Navigation views available in command palette (subset of ViewType)
+type NavView = 'home' | 'orders' | 'profile' | 'leaderboard';
 
 // Command palette item types
 interface CommandItem {
@@ -11,7 +13,7 @@ interface CommandItem {
   label: string;
   icon: React.ReactNode;
   type: 'nav';
-  view: ViewType;
+  view: NavView;
 }
 
 interface ProductItem {
@@ -46,25 +48,25 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onNavi
   }, [isOpen]);
 
   // Filtering Logic - memoized for performance
-  const commands = useMemo(() => [
-      { id: 'home', label: 'Go to Catalog', icon: <Package size={14} />, type: 'nav', view: 'home' },
-      { id: 'orders', label: 'My Orders / Logs', icon: <Terminal size={14} />, type: 'nav', view: 'orders' },
-      { id: 'profile', label: 'Operative Profile', icon: <User size={14} />, type: 'nav', view: 'profile' },
-      { id: 'leaderboard', label: 'Global Leaderboard', icon: <Shield size={14} />, type: 'nav', view: 'leaderboard' },
+  const commands: CommandItem[] = useMemo(() => [
+      { id: 'home', label: 'Go to Catalog', icon: <Package size={14} />, type: 'nav' as const, view: 'home' as const },
+      { id: 'orders', label: 'My Orders / Logs', icon: <Terminal size={14} />, type: 'nav' as const, view: 'orders' as const },
+      { id: 'profile', label: 'Operative Profile', icon: <User size={14} />, type: 'nav' as const, view: 'profile' as const },
+      { id: 'leaderboard', label: 'Global Leaderboard', icon: <Shield size={14} />, type: 'nav' as const, view: 'leaderboard' as const },
   ], []);
 
-  const filteredItems = useMemo(() => {
+  const filteredItems = useMemo((): PaletteItem[] => {
     if (!query) return commands;
     
     const queryLower = query.toLowerCase();
     const filteredCommands = commands.filter(c => c.label.toLowerCase().includes(queryLower));
-    const productResults = products
+    const productResults: ProductItem[] = products
       .filter(p => p.name.toLowerCase().includes(queryLower))
       .map(p => ({ 
           id: `prod-${p.id}`, 
           label: p.name, 
           icon: <ShoppingCart size={14} />, 
-          type: 'product', 
+          type: 'product' as const, 
           product: p 
       }));
     

@@ -14,6 +14,7 @@ import { useLocaleContext } from '../../contexts/LocaleContext';
 import { useLocale } from '../../hooks/useLocale';
 import { useCart } from '../../contexts/CartContext';
 import { logger } from '../../utils/logger';
+import { PartnerApplicationModal, type PartnerApplicationData } from '../profile';
 import type { ProfileData } from '../../types/component';
 
 interface ProfileConnectedProps {
@@ -27,7 +28,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   onHaptic,
   onAdminEnter,
 }) => {
-  const { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, updatePreferences, setPartnerMode, loading, error } = useProfileTyped();
+  const { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, updatePreferences, setPartnerMode, submitPartnerApplication, getPartnerApplicationStatus, loading, error } = useProfileTyped();
   const { hapticFeedback, showConfirm, openLink, showAlert: showTelegramAlert } = useTelegram();
   const { showTopUp, showWithdraw, showAlert: showModalAlert } = useCyberModal();
   const { updateFromProfile, setCurrency, setLocale, currency: contextCurrency } = useLocaleContext();
@@ -36,6 +37,14 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   const [isInitialized, setIsInitialized] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
   const { copy: copyToClipboard } = useClipboard();
+  
+  // Partner application state
+  const [showPartnerModal, setShowPartnerModal] = useState(false);
+  const [partnerApplication, setPartnerApplication] = useState<{
+    status: string;
+    created_at: string;
+    admin_comment?: string;
+  } | null>(null);
 
   // Initial load
   useEffect(() => {
@@ -283,6 +292,54 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     }
   }, [setPartnerMode, hapticFeedback, getProfile]);
 
+  // Handler for opening partner application modal
+  const handleOpenPartnerApplication = useCallback(async () => {
+    if (onHaptic) onHaptic('light');
+    
+    // Check existing application status
+    try {
+      const status = await getPartnerApplicationStatus();
+      if (status.application) {
+        setPartnerApplication({
+          status: status.application.status,
+          created_at: status.application.created_at,
+          admin_comment: status.application.admin_comment,
+        });
+      } else {
+        setPartnerApplication(null);
+      }
+    } catch (err) {
+      // Ignore error, will show form anyway
+      setPartnerApplication(null);
+    }
+    
+    setShowPartnerModal(true);
+  }, [getPartnerApplicationStatus, onHaptic]);
+
+  // Handler for submitting partner application
+  const handleSubmitPartnerApplication = useCallback(async (data: PartnerApplicationData) => {
+    try {
+      const result = await submitPartnerApplication(
+        data.email,
+        data.phone,
+        data.source,
+        data.audienceSize,
+        data.description,
+        data.expectedVolume,
+        data.socialLinks
+      );
+      
+      if (result.success) {
+        hapticFeedback?.('notification', 'success');
+      }
+      
+      return result;
+    } catch (err) {
+      hapticFeedback?.('notification', 'error');
+      return { success: false, message: err instanceof Error ? err.message : 'Ошибка отправки' };
+    }
+  }, [submitPartnerApplication, hapticFeedback]);
+
   // Loading state
   if (!isInitialized || loading) {
     return (
@@ -317,7 +374,8 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   }
 
   return (
-    <Profile
+    <>
+      <Profile
         profile={convertedProfile || profile}
         onBack={onBack}
         onHaptic={onHaptic}
@@ -329,7 +387,17 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
         onTopUp={handleTopUp}
         onUpdatePreferences={handleUpdatePreferences}
         onSetPartnerMode={handleSetPartnerMode}
+        onApplyPartner={handleOpenPartnerApplication}
       />
+      
+      {/* Partner Application Modal */}
+      <PartnerApplicationModal
+        isOpen={showPartnerModal}
+        onClose={() => setShowPartnerModal(false)}
+        onSubmit={handleSubmitPartnerApplication}
+        existingApplication={partnerApplication}
+      />
+    </>
   );
 };
 

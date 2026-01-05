@@ -2,6 +2,16 @@ import { useState, useCallback, useEffect } from 'react';
 import { API } from '../config';
 import { logger } from '../utils/logger';
 import { apiGet, apiRequest, apiPost, apiPut } from '../utils/apiClient';
+import type { TicketData, WithdrawalData } from '../components/admin/types';
+
+// API response types
+interface TicketsResponse {
+  tickets: TicketData[];
+}
+
+interface WithdrawalsResponse {
+  withdrawals: WithdrawalData[];
+}
 
 export function useAdmin() {
   const [loading, setLoading] = useState(false);
@@ -94,13 +104,34 @@ export function useAdmin() {
   }, [adminRequest]);
 
   // Tickets
-  const getTickets = useCallback((status = 'open') => adminRequest(`/tickets?status=${status}`), [adminRequest]);
+  const getTickets = useCallback((status = 'open') => adminRequest<TicketsResponse>(`/tickets?status=${status}`), [adminRequest]);
   const resolveTicket = useCallback((ticketId: string, approve = true, comment?: string) => {
     const params = new URLSearchParams({ approve: approve.toString() });
     if (comment) {
       params.append('comment', comment);
     }
     return adminRequest(`/tickets/${ticketId}/resolve?${params.toString()}`, { method: 'POST' });
+  }, [adminRequest]);
+
+  // Withdrawals
+  const getWithdrawals = useCallback((status = 'pending') => adminRequest<WithdrawalsResponse>(`/withdrawals?status=${status}`), [adminRequest]);
+  const approveWithdrawal = useCallback((withdrawalId: string, comment?: string) => {
+    return adminRequest(`/withdrawals/${withdrawalId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ admin_comment: comment || null })
+    });
+  }, [adminRequest]);
+  const rejectWithdrawal = useCallback((withdrawalId: string, comment?: string) => {
+    return adminRequest(`/withdrawals/${withdrawalId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ admin_comment: comment || null })
+    });
+  }, [adminRequest]);
+  const completeWithdrawal = useCallback((withdrawalId: string, comment?: string) => {
+    return adminRequest(`/withdrawals/${withdrawalId}/complete`, {
+      method: 'POST',
+      body: JSON.stringify({ admin_comment: comment || null })
+    });
   }, [adminRequest]);
 
   // Analytics
@@ -198,6 +229,11 @@ export function useAdmin() {
     // Tickets
     getTickets,
     resolveTicket,
+    // Withdrawals
+    getWithdrawals,
+    approveWithdrawal,
+    rejectWithdrawal,
+    completeWithdrawal,
     // Analytics
     getAnalytics,
     // FAQ

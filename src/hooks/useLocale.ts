@@ -7,12 +7,13 @@ import ru from '../../locales/ru.json';
 
 // Only RU/EN supported for now
 type LocaleCode = 'en' | 'ru';
-type CurrencyCode = 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED';
+type CurrencyCode = 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED' | 'GBP';
 
 const locales: Record<LocaleCode, Record<string, any>> = { en, ru };
 
 interface UseLocaleReturn {
   locale: LocaleCode;
+  language: LocaleCode;  // Alias for locale (backwards compatibility)
   setLocale: (locale: LocaleCode) => void;
   currency: CurrencyCode;
   isRTL: boolean;
@@ -110,6 +111,7 @@ export function useLocale(): UseLocaleReturn {
   
   return {
     locale,
+    language: locale,  // Alias for locale (backwards compatibility)
     setLocale: setLocaleContext,
     currency,
     isRTL,

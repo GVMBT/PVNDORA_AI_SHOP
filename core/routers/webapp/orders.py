@@ -13,7 +13,7 @@ from typing import Dict, Any, Tuple, List, Optional
 from fastapi import APIRouter, HTTPException, Depends, Query, Header
 
 from core.services.database import get_database
-from core.services.money import to_decimal, to_float, round_money, multiply, subtract, divide, to_kopecks
+from core.services.money import to_decimal, to_float, round_money, multiply, subtract, divide
 from core.auth import verify_telegram_auth
 from core.routers.deps import get_payment_service
 from core.payments import (
@@ -53,8 +53,10 @@ async def create_payment_wrapper(
     gateway = normalize_gateway(gateway)
     
     # Convert amount based on gateway requirements and currency
+    # CrystalPay expects amount in major units (rubles), not minor units (kopecks)
     if gateway == "crystalpay":
-        payment_amount = to_kopecks(amount)  # minor units
+        # CrystalPay API expects float rubles, not kopecks
+        payment_amount = to_float(round_money(amount, to_int=(currency == "RUB")))
     elif currency == "RUB":
         # Rounding to 2 decimals for RUB unless gateway requires ints (current gateways accept decimals)
         payment_amount = to_float(round_money(amount))

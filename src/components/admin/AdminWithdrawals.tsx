@@ -1,0 +1,320 @@
+/**
+ * AdminWithdrawals Component
+ * 
+ * Withdrawal requests management view.
+ */
+
+import React, { useState, memo, useCallback } from 'react';
+import { Wallet, ArrowUpRight, Check, X, Send, ExternalLink, Clock } from 'lucide-react';
+import type { WithdrawalData } from './types';
+import { useAdmin } from '../../hooks/useAdmin';
+import { logger } from '../../utils/logger';
+
+interface AdminWithdrawalsProps {
+  withdrawals: WithdrawalData[];
+  onRefresh?: () => void;
+}
+
+const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefresh }) => {
+  const [selectedWithdrawalId, setSelectedWithdrawalId] = useState<string | null>(null);
+  const [comment, setComment] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const { approveWithdrawal, rejectWithdrawal, completeWithdrawal } = useAdmin();
+
+  const selectedWithdrawal = withdrawals.find(w => w.id === selectedWithdrawalId);
+
+  const handleApprove = useCallback(async () => {
+    if (!selectedWithdrawalId) return;
+    
+    setProcessing(true);
+    try {
+      await approveWithdrawal(selectedWithdrawalId, comment.trim() || undefined);
+      setComment('');
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (err) {
+      logger.error('Failed to approve withdrawal', err);
+    } finally {
+      setProcessing(false);
+    }
+  }, [selectedWithdrawalId, comment, approveWithdrawal, onRefresh]);
+
+  const handleReject = useCallback(async () => {
+    if (!selectedWithdrawalId) return;
+    
+    setProcessing(true);
+    try {
+      await rejectWithdrawal(selectedWithdrawalId, comment.trim() || undefined);
+      setComment('');
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (err) {
+      logger.error('Failed to reject withdrawal', err);
+    } finally {
+      setProcessing(false);
+    }
+  }, [selectedWithdrawalId, comment, rejectWithdrawal, onRefresh]);
+
+  const handleComplete = useCallback(async () => {
+    if (!selectedWithdrawalId) return;
+    
+    setProcessing(true);
+    try {
+      await completeWithdrawal(selectedWithdrawalId, comment.trim() || undefined);
+      setComment('');
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (err) {
+      logger.error('Failed to complete withdrawal', err);
+    } finally {
+      setProcessing(false);
+    }
+  }, [selectedWithdrawalId, comment, completeWithdrawal, onRefresh]);
+
+  const getStatusColor = (status: string) => {
+    switch (status?.toUpperCase()) {
+      case 'PENDING': return 'text-yellow-400';
+      case 'PROCESSING': return 'text-blue-400';
+      case 'COMPLETED': return 'text-green-400';
+      case 'REJECTED': return 'text-red-400';
+      default: return 'text-gray-400';
+    }
+  };
+
+  const formatDate = (dateStr?: string | null) => {
+    if (!dateStr) return 'N/A';
+    try {
+      return new Date(dateStr).toLocaleString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const formatAmount = (amount: number) => {
+    return `$${amount.toFixed(2)}`;
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
+      {/* Withdrawal List */}
+      <div className={`${
+        selectedWithdrawalId ? 'hidden lg:block' : 'block'
+      } lg:col-span-1 space-y-4 overflow-y-auto pr-2`}>
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="font-display font-bold text-white">QUEUE</h3>
+          <div className="text-xs font-mono text-gray-500">
+            {withdrawals.filter(w => w.status?.toUpperCase() === 'PENDING').length} PENDING
+          </div>
+        </div>
+        {withdrawals.map(w => (
+          <div 
+            key={w.id} 
+            onClick={() => setSelectedWithdrawalId(w.id)}
+            className={`bg-[#0e0e0e] border p-4 transition-colors cursor-pointer group relative ${
+              selectedWithdrawalId === w.id 
+                ? 'border-pandora-cyan bg-pandora-cyan/5' 
+                : 'border-white/10 hover:border-white/30'
+            }`}
+          >
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-[10px] font-mono text-gray-500">{w.id.slice(0, 8)}</span>
+              <span className={`text-[10px] font-mono ${getStatusColor(w.status)}`}>
+                {w.status?.toUpperCase() || 'PENDING'}
+              </span>
+            </div>
+            <div className="font-bold text-white text-sm mb-1">
+              {formatAmount(w.amount)}
+            </div>
+            <div className="text-xs text-gray-400 mb-1">
+              {w.first_name || w.username || `User ${w.telegram_id || 'Unknown'}`}
+            </div>
+            <div className="text-[10px] font-mono text-gray-600 mt-1">
+              {formatDate(w.created_at)}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Detail Area */}
+      <div className={`${
+        !selectedWithdrawalId ? 'hidden lg:flex' : 'flex'
+      } lg:col-span-2 bg-[#0e0e0e] border border-white/10 flex-col h-full relative`}>
+        {selectedWithdrawal ? (
+          <>
+            <div className="p-4 border-b border-white/10 bg-black/50">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => setSelectedWithdrawalId(null)} 
+                    className="lg:hidden text-gray-500 hover:text-white"
+                  >
+                    <ArrowUpRight className="rotate-[-135deg]" size={20}/>
+                  </button>
+                  <div>
+                    <h3 className="font-bold text-white">
+                      WDR-{selectedWithdrawal.id.slice(0, 8)}
+                    </h3>
+                    <div className="text-[10px] font-mono text-gray-500 mt-1">
+                      {formatDate(selectedWithdrawal.created_at)}
+                    </div>
+                  </div>
+                </div>
+                <div className={`text-[10px] font-mono px-2 py-1 border ${getStatusColor(selectedWithdrawal.status)} border-current/30`}>
+                  {selectedWithdrawal.status?.toUpperCase() || 'PENDING'}
+                </div>
+              </div>
+              
+              {/* Withdrawal Info */}
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <div className="text-gray-500 mb-1">Amount</div>
+                  <div className="text-white font-mono text-lg font-bold">
+                    {formatAmount(selectedWithdrawal.amount)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-gray-500 mb-1">Method</div>
+                  <div className="text-white font-mono uppercase">
+                    {selectedWithdrawal.payment_method || 'CRYPTO'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-gray-500 mb-1">User</div>
+                  <div className="text-white font-mono">
+                    {selectedWithdrawal.first_name || selectedWithdrawal.username || 'Unknown'}
+                  </div>
+                  {selectedWithdrawal.telegram_id && (
+                    <a
+                      href={`tg://user?id=${selectedWithdrawal.telegram_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-pandora-cyan hover:text-pandora-cyan/80 mt-1"
+                    >
+                      <ExternalLink size={12} />
+                      <span className="text-[10px]">Contact in Telegram</span>
+                    </a>
+                  )}
+                </div>
+                <div>
+                  <div className="text-gray-500 mb-1">User Balance</div>
+                  <div className="text-white font-mono">
+                    {selectedWithdrawal.user_balance !== undefined 
+                      ? formatAmount(selectedWithdrawal.user_balance) 
+                      : 'N/A'}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex-1 p-4 overflow-y-auto">
+              {/* Payment Details */}
+              <div className="mb-6">
+                <div className="text-[10px] font-mono text-gray-500 mb-2">PAYMENT DETAILS</div>
+                <div className="bg-black/50 border border-white/10 p-4">
+                  {selectedWithdrawal.payment_details?.details ? (
+                    <div className="font-mono text-sm text-white break-all select-all">
+                      {selectedWithdrawal.payment_details.details}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500">No details provided</div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Admin Comment (if exists) */}
+              {selectedWithdrawal.admin_comment && (
+                <div className="mb-6">
+                  <div className="text-[10px] font-mono text-gray-500 mb-2">ADMIN COMMENT</div>
+                  <div className="bg-pandora-cyan/10 border border-pandora-cyan/30 p-4 text-xs text-gray-300 whitespace-pre-wrap">
+                    {selectedWithdrawal.admin_comment}
+                  </div>
+                </div>
+              )}
+
+              {/* Processed Info */}
+              {selectedWithdrawal.processed_at && (
+                <div className="mb-6">
+                  <div className="text-[10px] font-mono text-gray-500 mb-2">PROCESSED</div>
+                  <div className="text-xs text-gray-400">
+                    {formatDate(selectedWithdrawal.processed_at)}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Action Buttons */}
+            {selectedWithdrawal.status?.toUpperCase() === 'PENDING' ? (
+              <div className="p-4 border-t border-white/10 space-y-3">
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Add comment (optional)..."
+                  className="w-full bg-black border border-white/20 p-3 text-xs text-white outline-none resize-none"
+                  rows={3}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleApprove}
+                    disabled={processing}
+                    className="flex-1 flex items-center justify-center gap-2 bg-green-500/20 border border-green-500/50 text-green-400 px-4 py-2 text-[10px] font-bold font-mono hover:bg-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Check size={14} />
+                    APPROVE
+                  </button>
+                  <button
+                    onClick={handleReject}
+                    disabled={processing}
+                    className="flex-1 flex items-center justify-center gap-2 bg-red-500/20 border border-red-500/50 text-red-400 px-4 py-2 text-[10px] font-bold font-mono hover:bg-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <X size={14} />
+                    REJECT
+                  </button>
+                </div>
+              </div>
+            ) : selectedWithdrawal.status?.toUpperCase() === 'PROCESSING' ? (
+              <div className="p-4 border-t border-white/10 space-y-3">
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Add completion comment (optional)..."
+                  className="w-full bg-black border border-white/20 p-3 text-xs text-white outline-none resize-none"
+                  rows={3}
+                />
+                <button
+                  onClick={handleComplete}
+                  disabled={processing}
+                  className="w-full flex items-center justify-center gap-2 bg-blue-500/20 border border-blue-500/50 text-blue-400 px-4 py-2 text-[10px] font-bold font-mono hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send size={14} />
+                  MARK AS COMPLETED
+                </button>
+              </div>
+            ) : (
+              <div className="p-4 border-t border-white/10">
+                <div className="text-center text-gray-600 text-xs">
+                  Withdrawal is {selectedWithdrawal.status?.toUpperCase()}
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-600 opacity-50">
+            <Wallet size={48} className="mb-4" />
+            <span className="font-mono text-xs uppercase tracking-widest">Select Withdrawal</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default memo(AdminWithdrawals);

@@ -10,6 +10,8 @@ export { default as ProfileBilling } from './ProfileBilling';
 export { default as ReferralDossier } from './ReferralDossier';
 export { default as ReferralExplainerModal } from './ReferralExplainerModal';
 export { default as DecryptedText } from './DecryptedText';
+export { default as PartnerApplicationModal } from './PartnerApplicationModal';
+export type { PartnerApplicationData } from './PartnerApplicationModal';
 export type * from './types';
 
 

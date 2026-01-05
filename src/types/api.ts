@@ -159,6 +159,7 @@ export interface APIProfile {
   is_admin: boolean;
   is_partner: boolean;
   currency: string;
+  interface_language?: string;  // User's preferred interface language (ru, en, etc.)
   // User identity (for web login where initData not available)
   first_name?: string;
   username?: string;
@@ -305,6 +306,10 @@ export interface APICartItem {
   unit_price: number;
   discount_percent: number;
   total_price: number;
+  // Optional display fields
+  final_price?: number;
+  currency?: string;
+  image_url?: string;
   // Base USD amounts for safe calculations
   unit_price_usd?: number;
   final_price_usd?: number;
@@ -328,9 +333,12 @@ export interface APICartResponse {
   promo_discount_percent?: number;
   currency: string;
   exchange_rate?: number; // 1 USD = X currency
+  // Display values (for UI, in user's currency)
+  original_total?: number;
   // Base USD mirrors
   total_usd?: number;
   subtotal_usd?: number;
+  original_total_usd?: number;
   instant_total_usd?: number;
   prepaid_total_usd?: number;
 }

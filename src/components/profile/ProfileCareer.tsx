@@ -5,10 +5,11 @@
  */
 
 import React, { memo, useState } from 'react';
-import { ShieldCheck, Wifi, Radio, Crown, HelpCircle } from 'lucide-react';
+import { ShieldCheck, Wifi, Radio, Crown, HelpCircle, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLocale } from '../../hooks/useLocale';
 import type { CareerLevelData } from './types';
+import type { CurrencyCode } from '../../utils/currency';
 import ReferralExplainerModal from './ReferralExplainerModal';
 
 interface ProfileCareerProps {
@@ -19,8 +20,10 @@ interface ProfileCareerProps {
   progressPercent: number;
   thresholds?: { level2: number; level3: number };  // USD thresholds
   commissions?: { level1: number; level2: number; level3: number };
-  currency?: string;  // User's currency
+  currency?: CurrencyCode;  // User's currency
   exchangeRate?: number;  // Exchange rate for threshold conversion
+  isVip?: boolean;  // Whether user is already a VIP partner
+  onApplyPartner?: () => void;  // Handler for opening partner application
 }
 
 const ProfileCareer: React.FC<ProfileCareerProps> = ({
@@ -33,6 +36,8 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
   commissions = { level1: 10, level2: 7, level3: 3 },
   currency: propCurrency,
   exchangeRate = 1.0,
+  isVip = false,
+  onApplyPartner,
 }) => {
   const { currency: localeCurrency, formatPrice, t } = useLocale();
   const currency = propCurrency || localeCurrency;
@@ -110,6 +115,30 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
             )}
           </div>
         </div>
+        
+        {/* VIP Partner Application Button */}
+        {!isVip && onApplyPartner && (
+          <div className="mt-6 pt-4 border-t border-white/10">
+            <button
+              onClick={onApplyPartner}
+              className="w-full py-3 bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/30 rounded text-amber-400 font-mono text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all group"
+            >
+              <Star size={14} className="group-hover:rotate-12 transition-transform" />
+              Стать VIP-партнёром
+              <Star size={14} className="group-hover:-rotate-12 transition-transform" />
+            </button>
+          </div>
+        )}
+        
+        {isVip && (
+          <div className="mt-6 pt-4 border-t border-white/10 text-center">
+            <div className="inline-flex items-center gap-2 text-amber-400 font-mono text-xs uppercase">
+              <Star size={14} className="text-amber-400" />
+              VIP-партнёр
+              <Star size={14} className="text-amber-400" />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

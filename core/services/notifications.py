@@ -622,4 +622,214 @@ class NotificationService:
                 logger.error(f"Failed to send broadcast to {user['telegram_id']}: {e}")
         
         return sent_count
+    
+    # ==================== WITHDRAWAL NOTIFICATIONS ====================
+    
+    async def send_withdrawal_approved_notification(
+        self,
+        telegram_id: int,
+        amount: float,
+        currency: str,
+        method: str
+    ) -> None:
+        """Notify user that their withdrawal request was approved."""
+        bot = self._get_bot()
+        if not bot:
+            return
+        
+        message = (
+            f"✅ <b>Заявка на вывод одобрена</b>\n\n"
+            f"Сумма: <b>${amount:.2f}</b>\n"
+            f"Метод: {method}\n\n"
+            f"Средства будут отправлены в ближайшее время."
+        )
+        
+        try:
+            await bot.send_message(chat_id=telegram_id, text=message)
+            logger.info(f"Sent withdrawal approved notification to {telegram_id}")
+        except Exception as e:
+            logger.error(f"Failed to send withdrawal approved notification to {telegram_id}: {e}")
+    
+    async def send_withdrawal_rejected_notification(
+        self,
+        telegram_id: int,
+        amount: float,
+        currency: str,
+        reason: str
+    ) -> None:
+        """Notify user that their withdrawal request was rejected."""
+        bot = self._get_bot()
+        if not bot:
+            return
+        
+        message = (
+            f"❌ <b>Заявка на вывод отклонена</b>\n\n"
+            f"Сумма: <b>${amount:.2f}</b>\n\n"
+            f"<i>Причина: {reason}</i>\n\n"
+            f"Средства возвращены на ваш баланс."
+        )
+        
+        try:
+            await bot.send_message(chat_id=telegram_id, text=message)
+            logger.info(f"Sent withdrawal rejected notification to {telegram_id}")
+        except Exception as e:
+            logger.error(f"Failed to send withdrawal rejected notification to {telegram_id}: {e}")
+    
+    async def send_withdrawal_completed_notification(
+        self,
+        telegram_id: int,
+        amount: float,
+        currency: str,
+        method: str
+    ) -> None:
+        """Notify user that their withdrawal has been completed."""
+        bot = self._get_bot()
+        if not bot:
+            return
+        
+        message = (
+            f"💸 <b>Вывод выполнен!</b>\n\n"
+            f"Сумма: <b>${amount:.2f}</b>\n"
+            f"Метод: {method}\n\n"
+            f"Средства отправлены. Спасибо за использование PVNDORA!"
+        )
+        
+        try:
+            await bot.send_message(chat_id=telegram_id, text=message)
+            logger.info(f"Sent withdrawal completed notification to {telegram_id}")
+        except Exception as e:
+            logger.error(f"Failed to send withdrawal completed notification to {telegram_id}: {e}")
+    
+    # ==================== TOPUP NOTIFICATIONS ====================
+    
+    async def send_topup_success_notification(
+        self,
+        telegram_id: int,
+        amount: float,
+        currency: str,
+        new_balance: float
+    ) -> None:
+        """Notify user that their balance was topped up."""
+        bot = self._get_bot()
+        if not bot:
+            return
+        
+        message = (
+            f"💰 <b>Баланс пополнен!</b>\n\n"
+            f"Сумма: <b>{amount:.2f} {currency}</b>\n"
+            f"Новый баланс: <b>${new_balance:.2f}</b>\n\n"
+            f"Спасибо! Теперь вы можете совершать покупки."
+        )
+        
+        try:
+            await bot.send_message(chat_id=telegram_id, text=message)
+            logger.info(f"Sent topup success notification to {telegram_id}")
+        except Exception as e:
+            logger.error(f"Failed to send topup success notification to {telegram_id}: {e}")
+    
+    # ==================== PARTNER APPLICATION NOTIFICATIONS ====================
+    
+    async def send_partner_application_approved_notification(
+        self,
+        telegram_id: int
+    ) -> None:
+        """Notify user that their partner application was approved."""
+        bot = self._get_bot()
+        if not bot:
+            return
+        
+        message = (
+            "🎉 <b>Поздравляем! Вы стали VIP-партнёром PVNDORA!</b>\n\n"
+            "Ваша заявка одобрена.\n\n"
+            "Теперь вам доступны:\n"
+            "• Повышенные комиссии с рефералов\n"
+            "• Персональный менеджер\n"
+            "• Приоритетная поддержка\n\n"
+            "Добро пожаловать в команду! 🚀"
+        )
+        
+        try:
+            await bot.send_message(chat_id=telegram_id, text=message)
+            logger.info(f"Sent partner approved notification to {telegram_id}")
+        except Exception as e:
+            logger.error(f"Failed to send partner approved notification to {telegram_id}: {e}")
+    
+    async def send_partner_application_rejected_notification(
+        self,
+        telegram_id: int,
+        reason: Optional[str] = None
+    ) -> None:
+        """Notify user that their partner application was rejected."""
+        bot = self._get_bot()
+        if not bot:
+            return
+        
+        reason_text = reason or "Ваша заявка не соответствует требованиям партнёрской программы."
+        
+        message = (
+            f"❌ <b>Заявка на VIP-партнёрство отклонена</b>\n\n"
+            f"<i>{reason_text}</i>\n\n"
+            f"Вы можете подать новую заявку позже или связаться с поддержкой для уточнения деталей."
+        )
+        
+        try:
+            await bot.send_message(chat_id=telegram_id, text=message)
+            logger.info(f"Sent partner rejected notification to {telegram_id}")
+        except Exception as e:
+            logger.error(f"Failed to send partner rejected notification to {telegram_id}: {e}")
+    
+    # ==================== REFERRAL NOTIFICATIONS ====================
+    
+    async def send_referral_bonus_notification(
+        self,
+        telegram_id: int,
+        bonus_amount: float,
+        referral_name: str,
+        purchase_amount: float,
+        line: int = 1
+    ) -> None:
+        """Notify referrer about bonus from referral purchase."""
+        bot = self._get_bot()
+        if not bot:
+            return
+        
+        line_text = f"{line}-й линии" if line > 1 else ""
+        
+        message = (
+            f"💸 <b>Реферальный бонус!</b>\n\n"
+            f"Ваш реферал {line_text} {referral_name} совершил покупку на {purchase_amount:.2f}₽\n\n"
+            f"Ваш бонус: <b>+${bonus_amount:.2f}</b>\n\n"
+            f"Бонус зачислен на ваш баланс."
+        )
+        
+        try:
+            await bot.send_message(chat_id=telegram_id, text=message)
+            logger.info(f"Sent referral bonus notification to {telegram_id}")
+        except Exception as e:
+            logger.error(f"Failed to send referral bonus notification to {telegram_id}: {e}")
+    
+    async def send_new_referral_notification(
+        self,
+        telegram_id: int,
+        referral_name: str,
+        line: int = 1
+    ) -> None:
+        """Notify referrer about new referral joining."""
+        bot = self._get_bot()
+        if not bot:
+            return
+        
+        line_text = f"{line}-й линии" if line > 1 else ""
+        
+        message = (
+            f"👤 <b>Новый реферал!</b>\n\n"
+            f"{referral_name} присоединился {line_text} по вашей ссылке.\n\n"
+            f"Вы будете получать бонусы с его покупок!"
+        )
+        
+        try:
+            await bot.send_message(chat_id=telegram_id, text=message)
+            logger.info(f"Sent new referral notification to {telegram_id}")
+        except Exception as e:
+            logger.error(f"Failed to send new referral notification to {telegram_id}: {e}")
 

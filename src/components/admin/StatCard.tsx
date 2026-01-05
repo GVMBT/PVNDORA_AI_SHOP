@@ -10,7 +10,7 @@ import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 interface StatCardProps {
   label: string;
   value: string;
-  trend: string;
+  trend?: string;
   icon: React.ReactNode;
   isNegative?: boolean;
   hideTrendComparison?: boolean;

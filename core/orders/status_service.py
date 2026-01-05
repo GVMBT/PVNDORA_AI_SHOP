@@ -4,12 +4,13 @@ Order Status Management Service
 Centralized service for managing order status transitions.
 Ensures status changes only happen after payment confirmation.
 """
-import logging
 from datetime import datetime, timezone
 from typing import Optional
 import asyncio
 
-logger = logging.getLogger(__name__)
+from core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class OrderStatusService:
@@ -202,6 +203,12 @@ class OrderStatusService:
             
             if not update_result:
                 logger.error(f"[mark_payment_confirmed] FAILED to update order {order_id} status to {final_status}!")
+            else:
+                # Send admin alert for paid orders (best-effort)
+                try:
+                    await self._send_order_alert(order_id, order_amount, user_id)
+                except Exception as e:
+                    logger.warning(f"Failed to send admin alert for order {order_id}: {e}")
             
             # Create balance_transaction record for purchase (for system_log visibility)
             # Only for external payments (not balance) - balance payments already create records via add_to_user_balance
@@ -275,6 +282,60 @@ class OrderStatusService:
             import traceback
             logger.error(f"[mark_payment_confirmed] Traceback: {traceback.format_exc()}")
             raise
+    
+    async def _send_order_alert(self, order_id: str, amount: float, user_id: str) -> None:
+        """Send admin alert for new paid order (best-effort)."""
+        try:
+            from core.services.admin_alerts import get_admin_alert_service
+            
+            # Get order details for alert
+            order_details = await asyncio.to_thread(
+                lambda: self.db.client.table("orders")
+                .select("currency, users(telegram_id, username)")
+                .eq("id", order_id)
+                .single()
+                .execute()
+            )
+            
+            user_data = order_details.data.get("users", {}) or {} if order_details.data else {}
+            telegram_id = user_data.get("telegram_id", 0)
+            username = user_data.get("username")
+            currency = order_details.data.get("currency", "USD") if order_details.data else "USD"
+            
+            # Get product name from order items
+            items_result = await asyncio.to_thread(
+                lambda: self.db.client.table("order_items")
+                .select("quantity, products(name)")
+                .eq("order_id", order_id)
+                .limit(3)
+                .execute()
+            )
+            
+            product_names = []
+            total_qty = 0
+            for item in (items_result.data or []):
+                prod = item.get("products", {}) or {}
+                name = prod.get("name", "Unknown")
+                qty = item.get("quantity", 1)
+                product_names.append(name)
+                total_qty += qty
+            
+            product_display = ", ".join(product_names[:2])
+            if len(product_names) > 2:
+                product_display += f" +{len(product_names) - 2}"
+            
+            alert_service = get_admin_alert_service()
+            await alert_service.alert_new_order(
+                order_id=order_id,
+                amount=float(amount),
+                currency=currency,
+                user_telegram_id=telegram_id,
+                username=username,
+                product_name=product_display or "Unknown",
+                quantity=total_qty
+            )
+        except Exception as e:
+            logger.warning(f"Failed to send order alert: {e}")
     
     async def _check_stock_availability(self, order_id: str) -> bool:
         """Check if order has available stock for instant delivery.

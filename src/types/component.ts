@@ -5,6 +5,8 @@
  * These types define the data shape expected by UI components.
  */
 
+import type { CurrencyCode } from '../utils/currency';
+
 // ==================== CATALOG / PRODUCTS ====================
 
 export type ProductAvailability = 'available' | 'on_demand' | 'discontinued' | 'coming_soon';
@@ -27,7 +29,6 @@ export interface CatalogProduct {
   stock: number;
   fulfillment: number; // hours for preorder, 0 for instant
   sold: number; // sales_count
-  video?: string;
   video?: string; // Video URL for looped product visualization
   sku: string;
   version?: string;
@@ -161,6 +162,8 @@ export interface CareerProgress {
   currentLevel: CareerLevel;
   nextLevel?: CareerLevel;
   progressPercent: number;
+  thresholds?: { level2: number; level3: number };  // USD thresholds for level progression
+  commissions?: { level1: number; level2: number; level3: number };  // Commission percentages per level
 }
 
 export interface ProfileData {
@@ -182,7 +185,7 @@ export interface ProfileData {
   career: CareerProgress;
   networkTree: NetworkNode[];
   billingLogs: BillingLog[];
-  currency: string;
+  currency: CurrencyCode;
   language: string;
   interfaceLanguage?: string; // User's preferred interface language (ru, en, etc.)
   photoUrl?: string;

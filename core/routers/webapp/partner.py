@@ -314,10 +314,25 @@ async def submit_partner_application(request: PartnerApplicationRequest, user=De
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create application")
     
+    application_id = result.data[0]["id"]
+    
+    # Send admin alert (best-effort)
+    try:
+        from core.services.admin_alerts import get_admin_alert_service
+        alert_service = get_admin_alert_service()
+        await alert_service.alert_new_partner_application(
+            user_telegram_id=user.id,
+            username=getattr(user, 'username', None),
+            source=request.source,
+            audience_size=request.audience_size
+        )
+    except Exception as e:
+        logger.warning(f"Failed to send admin alert for partner application: {e}")
+    
     return {
         "success": True,
         "message": "Application submitted successfully",
-        "application_id": result.data[0]["id"]
+        "application_id": application_id
     }
 
 

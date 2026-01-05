@@ -13,7 +13,7 @@ import { logger } from '../../utils/logger';
 /**
  * Admin API request helper - uses /api/admin prefix
  */
-async function adminRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function adminRequest<T>(endpoint: string, options: { method?: string; body?: string } = {}): Promise<T> {
   const url = `${API.ADMIN_URL}${endpoint}`;
   return apiRequest<T>(url, options);
 }

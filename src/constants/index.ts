@@ -49,6 +49,8 @@ export const PAYMENT_STATUS = {
   PENDING: 'pending',
   CANCELLED: 'cancelled',
   REFUNDED: 'refunded',
+  EXPIRED: 'expired',
+  FAILED: 'failed',
   UNKNOWN: 'unknown',
 } as const;
 
@@ -63,6 +65,8 @@ export const PAYMENT_STATUS_MESSAGES: Record<PaymentStatus, { color: string; lab
   pending: { color: 'orange', label: 'PENDING', description: 'Waiting for payment confirmation...' },
   cancelled: { color: 'red', label: 'CANCELLED', description: 'Order was cancelled.' },
   refunded: { color: 'red', label: 'REFUNDED', description: 'Payment has been refunded.' },
+  expired: { color: 'red', label: 'EXPIRED', description: 'Payment link has expired.' },
+  failed: { color: 'red', label: 'FAILED', description: 'Payment failed. Please try again.' },
   unknown: { color: 'gray', label: 'UNKNOWN', description: 'Unable to determine status.' },
 };
 

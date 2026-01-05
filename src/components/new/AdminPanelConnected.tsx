@@ -31,11 +31,12 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
   const { users, getUsers, banUser, updateBalance } = useAdminUsersTyped();
   const { analytics, getAnalytics } = useAdminAnalyticsTyped();
   const { promoCodes, getPromoCodes, createPromoCode, updatePromoCode, deletePromoCode, togglePromoActive } = useAdminPromoTyped();
-  const { getTickets } = useAdmin();
+  const { getTickets, getWithdrawals } = useAdmin();
   
   // Local state
   const [isInitialized, setIsInitialized] = useState(false);
   const [tickets, setTickets] = useState<any[]>([]);
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [accountingData, setAccountingData] = useState<AccountingData | undefined>();
   const [isAccountingLoading, setIsAccountingLoading] = useState(false);
   
@@ -54,6 +55,19 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       setTickets([]);
     }
   }, [getTickets]);
+
+  // Fetch withdrawals - stable callback
+  const fetchWithdrawals = useCallback(async () => {
+    try {
+      const response = await getWithdrawals('all');
+      if (response?.withdrawals) {
+        setWithdrawals(response.withdrawals);
+      }
+    } catch (err) {
+      logger.error('Failed to fetch withdrawals', err);
+      setWithdrawals([]);
+    }
+  }, [getWithdrawals]);
 
   // Fetch accounting data
   const fetchAccounting = useCallback(async () => {
@@ -110,6 +124,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
           getAnalytics(),
           getPromoCodes(),
           fetchTickets(),
+          fetchWithdrawals(),
           fetchAccounting()
         ]);
         
@@ -307,6 +322,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       onDeletePromo={handleDeletePromo}
       onTogglePromoActive={handleTogglePromoActive}
       onRefreshTickets={fetchTickets}
+      onRefreshWithdrawals={fetchWithdrawals}
       onRefreshAccounting={fetchAccounting}
       onRefreshOrders={getOrders}
       isAccountingLoading={isAccountingLoading}

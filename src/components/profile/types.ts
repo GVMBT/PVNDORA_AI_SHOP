@@ -4,6 +4,8 @@
  * Shared type definitions for profile components.
  */
 
+import type { CurrencyCode } from '../../utils/currency';
+
 export interface CareerLevelData {
   id: number;
   label: string;
@@ -70,9 +72,11 @@ export interface ProfileDataProp {
   career: CareerProgressData;
   networkTree: NetworkNodeData[];
   billingLogs: BillingLogData[];
-  currency: string;
+  currency: CurrencyCode;
   language?: string;  // User's interface language (ru, en)
   photoUrl?: string;
+  partnerMode?: 'commission' | 'discount';  // Partner reward mode
+  exchangeRate?: number;  // Currency exchange rate from USD
 }
 
 

@@ -12,6 +12,7 @@ from core.logging import get_logger
 from core.services.database import get_database
 from core.services.money import to_float
 from core.auth import verify_admin
+from core.routers.deps import get_notification_service
 from .models import ReferralSettingsRequest, SetPartnerRequest, ReviewApplicationRequest
 
 logger = get_logger(__name__)
@@ -411,9 +412,10 @@ async def admin_review_application(request: ReviewApplicationRequest, admin=Depe
     """Review (approve/reject) a partner application."""
     db = get_database()
     
+    # Get application with user's telegram_id for notification
     app_result = await asyncio.to_thread(
         lambda: db.client.table("partner_applications").select(
-            "id, user_id, status"
+            "id, user_id, status, telegram_id"
         ).eq("id", request.application_id).single().execute()
     )
     
@@ -424,6 +426,7 @@ async def admin_review_application(request: ReviewApplicationRequest, admin=Depe
         raise HTTPException(status_code=400, detail="Application already reviewed")
     
     user_id = app_result.data["user_id"]
+    user_telegram_id = app_result.data.get("telegram_id")
     new_status = "approved" if request.approve else "rejected"
     
     admin_id = str(admin.id) if admin and admin.id else None
@@ -447,6 +450,22 @@ async def admin_review_application(request: ReviewApplicationRequest, admin=Depe
                 "p_is_partner": True
             }).execute()
         )
+    
+    # Send user notification (best-effort)
+    if user_telegram_id:
+        try:
+            notification_service = get_notification_service()
+            if request.approve:
+                await notification_service.send_partner_application_approved_notification(
+                    telegram_id=user_telegram_id
+                )
+            else:
+                await notification_service.send_partner_application_rejected_notification(
+                    telegram_id=user_telegram_id,
+                    reason=request.admin_comment
+                )
+        except Exception as e:
+            logger.warning(f"Failed to send partner application notification: {e}")
     
     return {
         "success": True,

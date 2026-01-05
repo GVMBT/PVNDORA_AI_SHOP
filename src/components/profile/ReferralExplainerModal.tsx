@@ -8,6 +8,7 @@ import React, { memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Zap, Users, TrendingUp, Percent, DollarSign, Gift, ChevronRight, Shield, Target, ArrowRight, Sparkles } from 'lucide-react';
 import { useLocale } from '../../hooks/useLocale';
+import type { CurrencyCode } from '../../utils/currency';
 
 interface ReferralExplainerModalProps {
   isOpen: boolean;
@@ -23,7 +24,7 @@ interface ReferralExplainerModalProps {
     level2: number;
     level3: number;
   };
-  currency?: string;  // User's currency (RUB, USD, etc.)
+  currency?: CurrencyCode;  // User's currency (RUB, USD, etc.)
   exchangeRate?: number;  // Exchange rate for conversion
 }
 

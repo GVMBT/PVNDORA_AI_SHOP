@@ -331,7 +331,7 @@ class Database:
     
     async def use_promo_code(self, code: str) -> None:
         """Increment promo code usage count."""
-        self.client.rpc("increment_promo_usage", {"promo_code": code.upper()}).execute()
+        self.client.rpc("increment_promo_usage", {"p_code": code.upper()}).execute()
     
     # ==================== FAQ ====================
     

@@ -1,0 +1,224 @@
+"""
+Worker: Process Review Cashback
+Called by QStash after review submission.
+
+This worker:
+1. Validates review exists and cashback not already given
+2. Calculates 5% cashback from order amount
+3. Credits user balance
+4. Creates balance_transaction record
+5. Sends Telegram notification
+"""
+import os
+import asyncio
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
+import httpx
+import json
+
+# ASGI app
+app = FastAPI()
+
+QSTASH_CURRENT_SIGNING_KEY = os.environ.get("QSTASH_CURRENT_SIGNING_KEY", "")
+QSTASH_NEXT_SIGNING_KEY = os.environ.get("QSTASH_NEXT_SIGNING_KEY", "")
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
+
+
+def verify_qstash_signature(request: Request, body: bytes) -> bool:
+    """Verify QStash request signature."""
+    import hashlib
+    import hmac
+    
+    signature = request.headers.get("Upstash-Signature", "")
+    if not signature:
+        return False
+    
+    for key in [QSTASH_CURRENT_SIGNING_KEY, QSTASH_NEXT_SIGNING_KEY]:
+        if not key:
+            continue
+        expected = hmac.new(key.encode(), body, hashlib.sha256).hexdigest()
+        if hmac.compare_digest(signature, expected):
+            return True
+    
+    # In development, allow if no keys configured
+    if not QSTASH_CURRENT_SIGNING_KEY and not QSTASH_NEXT_SIGNING_KEY:
+        return True
+    
+    return False
+
+
+async def send_telegram_message(chat_id: int, text: str) -> bool:
+    """Send a message via Telegram Bot API."""
+    if not TELEGRAM_TOKEN:
+        return False
+    
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload, timeout=10)
+            return response.status_code == 200
+    except Exception:
+        return False
+
+
+@app.post("/api/workers/process-review-cashback")
+async def process_review_cashback(request: Request):
+    """
+    Process 5% cashback for review.
+    
+    Expected payload:
+    {
+        "order_id": "uuid",
+        "user_telegram_id": 123456,
+        "order_amount": 60.0
+    }
+    """
+    body = await request.body()
+    
+    # Verify signature
+    if not verify_qstash_signature(request, body):
+        raise HTTPException(status_code=401, detail="Invalid signature")
+    
+    try:
+        payload = json.loads(body)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    
+    order_id = payload.get("order_id")
+    user_telegram_id = payload.get("user_telegram_id")
+    order_amount = payload.get("order_amount")
+    
+    if not order_id:
+        return JSONResponse({"error": "order_id required"}, status_code=400)
+    
+    from core.services.database import get_database
+    from core.services.money import to_float
+    
+    db = get_database()
+    
+    # Find review by order_id
+    review_result = await asyncio.to_thread(
+        lambda: db.client.table("reviews")
+        .select("id, cashback_given")
+        .eq("order_id", order_id)
+        .limit(1)
+        .execute()
+    )
+    
+    if not review_result.data:
+        return JSONResponse({"error": "Review not found for order"}, status_code=404)
+    
+    review = review_result.data[0]
+    
+    if review.get("cashback_given"):
+        return JSONResponse({"skipped": True, "reason": "Cashback already processed"})
+    
+    # Get user by telegram_id
+    db_user = await db.get_user_by_telegram_id(user_telegram_id) if user_telegram_id else None
+    
+    # Fallback: get user from order
+    if not db_user:
+        order_result = await asyncio.to_thread(
+            lambda: db.client.table("orders")
+            .select("user_id, amount")
+            .eq("id", order_id)
+            .single()
+            .execute()
+        )
+        if not order_result.data:
+            return JSONResponse({"error": "Order not found"}, status_code=404)
+        order_amount = order_amount or to_float(order_result.data["amount"])
+        user_result = await asyncio.to_thread(
+            lambda: db.client.table("users")
+            .select("*")
+            .eq("id", order_result.data["user_id"])
+            .single()
+            .execute()
+        )
+        if not user_result.data:
+            return JSONResponse({"error": "User not found"}, status_code=404)
+        from types import SimpleNamespace
+        db_user = SimpleNamespace(**user_result.data)
+        db_user.id = user_result.data["id"]
+        db_user.telegram_id = user_result.data.get("telegram_id")
+        db_user.balance = user_result.data.get("balance", 0)
+    
+    # Calculate 5% cashback (in USD)
+    if not order_amount:
+        order_result = await asyncio.to_thread(
+            lambda: db.client.table("orders")
+            .select("amount")
+            .eq("id", order_id)
+            .single()
+            .execute()
+        )
+        if order_result.data:
+            order_amount = to_float(order_result.data["amount"])
+        else:
+            return JSONResponse({"error": "Order amount not found"}, status_code=404)
+    
+    cashback = to_float(order_amount) * 0.05
+    
+    # 1. Update user balance
+    current_balance = to_float(db_user.balance or 0)
+    new_balance = current_balance + cashback
+    
+    await asyncio.to_thread(
+        lambda: db.client.table("users")
+        .update({"balance": new_balance})
+        .eq("id", db_user.id)
+        .execute()
+    )
+    
+    # 2. Create balance_transaction for history
+    await asyncio.to_thread(
+        lambda: db.client.table("balance_transactions").insert({
+            "user_id": db_user.id,
+            "type": "cashback",
+            "amount": cashback,
+            "status": "completed",
+            "description": "5% кэшбек за отзыв",
+            "reference_id": order_id,
+            "balance_before": current_balance,
+            "balance_after": new_balance,
+        }).execute()
+    )
+    
+    # 3. Mark review as processed
+    await asyncio.to_thread(
+        lambda: db.client.table("reviews")
+        .update({"cashback_given": True})
+        .eq("id", review["id"])
+        .execute()
+    )
+    
+    # 4. Send Telegram notification to user
+    if db_user.telegram_id:
+        try:
+            notification_text = (
+                f"💰 <b>Кэшбек начислен!</b>\n\n"
+                f"За ваш отзыв вам начислено <b>${cashback:.2f}</b>.\n"
+                f"Новый баланс: <b>${new_balance:.2f}</b>\n\n"
+                f"Спасибо за обратную связь! 🙏"
+            )
+            await send_telegram_message(db_user.telegram_id, notification_text)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to send cashback notification: {e}")
+    
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Cashback processed: user={db_user.telegram_id}, amount=${cashback:.2f}, order={order_id}")
+    
+    return JSONResponse({
+        "success": True,
+        "cashback": cashback,
+        "new_balance": new_balance
+    })

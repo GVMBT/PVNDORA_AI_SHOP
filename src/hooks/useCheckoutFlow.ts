@@ -196,7 +196,7 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
     }
   }, [hapticFeedback, removeCartItem, showAlert]);
 
-  const handleCheckout = useCallback(async (selectedPaymentMethod = 'card') => {
+  const handleCheckout = useCallback(async (selectedPaymentMethod = 'card'): Promise<void> => {
     try {
       hapticFeedback('impact', 'medium');
 
@@ -220,7 +220,7 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
         // Replace current window with payment URL
         // After payment, CrystalPay will redirect to /payment/result for polling
         window.location.href = result.payment_url;
-        return null;
+        return;
       } else {
         await showAlert(t('checkout.orderCreated'));
         onSuccess();

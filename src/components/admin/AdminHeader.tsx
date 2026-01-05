@@ -22,6 +22,7 @@ const VIEW_LABELS: Record<AdminView, string> = {
   promo: 'Промокоды',
   migration: 'Миграция',
   accounting: 'Бухгалтерия',
+  withdrawals: 'Выводы',
 };
 
 const AdminHeader: React.FC<AdminHeaderProps> = ({ currentView }) => {

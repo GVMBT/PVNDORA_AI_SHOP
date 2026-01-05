@@ -108,9 +108,6 @@ async def process_paid_order(db, order_id: str, order_data: dict):
         # For discount orders - schedule delayed delivery
         if source_channel == "discount":
             from core.services.domains import DiscountOrderService
-            import random
-            
-            delay_seconds = random.randint(3600, 14400)  # 1-4 hours
             
             # Get order_item info
             order_items = await asyncio.to_thread(

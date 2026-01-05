@@ -34,11 +34,12 @@ interface ProfileProps {
   onTopUp?: () => void;
   onUpdatePreferences?: (preferred_currency?: string, interface_language?: string) => Promise<{ success: boolean; message: string }>;
   onSetPartnerMode?: (mode: 'commission' | 'discount') => Promise<{ success: boolean }>;
+  onApplyPartner?: () => void;
 }
 
 // --- MAIN COMPONENT ---
 
-const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHaptic, onAdminEnter, onCopyLink, onShare: onShareProp, shareLoading, onWithdraw, onTopUp, onUpdatePreferences, onSetPartnerMode }) => {
+const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHaptic, onAdminEnter, onCopyLink, onShare: onShareProp, shareLoading, onWithdraw, onTopUp, onUpdatePreferences, onSetPartnerMode, onApplyPartner }) => {
   const { t } = useLocale();
   const { copy: copyToClipboard, copied } = useClipboard();
   const [activeTab, setActiveTab] = useState<'network' | 'logs'>('network');
@@ -203,6 +204,8 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
           commissions={propProfile.career.commissions}
           currency={user.currency}
           exchangeRate={user.exchangeRate}
+          isVip={user.isVip}
+          onApplyPartner={onApplyPartner}
         />
 
         {/* System Logs & Scanner */}

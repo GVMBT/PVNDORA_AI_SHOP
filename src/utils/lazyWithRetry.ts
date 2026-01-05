@@ -74,7 +74,8 @@ export function lazyWithRetry<T extends ComponentType<unknown>>(
         
         // This won't actually execute because forceReload() refreshes the page
         // But we need to return something for TypeScript
-        return { default: (() => null) as unknown as T };
+        const placeholder: T = ((): null => null) as unknown as T;
+        return { default: placeholder };
       }
       
       // Re-throw non-chunk errors

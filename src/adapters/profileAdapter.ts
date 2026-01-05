@@ -6,6 +6,21 @@
 
 import type { APIProfileResponse, APIReferralNode, TelegramUser } from '../types/api';
 import type { ProfileData, CareerLevel, BillingLog, NetworkNode } from '../types/component';
+import type { CurrencyCode } from '../utils/currency';
+
+// Valid currency codes for type validation
+const VALID_CURRENCIES: CurrencyCode[] = ['USD', 'RUB', 'EUR', 'UAH', 'TRY', 'INR', 'AED', 'GBP'];
+
+/**
+ * Validate and normalize currency code from API
+ */
+function normalizeCurrency(currency: string | undefined): CurrencyCode {
+  const upperCurrency = (currency || 'USD').toUpperCase();
+  if (VALID_CURRENCIES.includes(upperCurrency as CurrencyCode)) {
+    return upperCurrency as CurrencyCode;
+  }
+  return 'USD'; // Default fallback
+}
 
 // Career levels are built dynamically from API thresholds (referral_settings table)
 // No hardcoded values - thresholds come from referral_program.thresholds_usd
@@ -208,7 +223,7 @@ export function adaptProfile(
     },
     networkTree: [], // Populated via adaptReferralNetwork call
     billingLogs,
-    currency: profile.currency,
+    currency: normalizeCurrency(profile.currency),
     language: profile.interface_language || 'en',
     interfaceLanguage: profile.interface_language || undefined,
     photoUrl,

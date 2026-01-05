@@ -12,6 +12,7 @@ import {
   AdminSales,
   AdminUsers,
   AdminSupport,
+  AdminWithdrawals,
   AdminPromo,
   AdminMigration,
   AdminAccounting,
@@ -23,6 +24,7 @@ import {
   type OrderData,
   type UserData,
   type TicketData,
+  type WithdrawalData,
   type AdminStats,
   type PromoCodeData,
   type AccountingData,
@@ -36,6 +38,7 @@ interface AdminPanelProps {
   orders?: OrderData[];
   users?: UserData[];
   tickets?: TicketData[];
+  withdrawals?: WithdrawalData[];
   stats?: AdminStats;
   promoCodes?: PromoCodeData[];
   accountingData?: AccountingData;
@@ -44,7 +47,9 @@ interface AdminPanelProps {
   onDeletePromo?: (id: string) => Promise<void>;
   onTogglePromoActive?: (id: string, isActive: boolean) => Promise<void>;
   onRefreshTickets?: () => void;
+  onRefreshWithdrawals?: () => void;
   onRefreshAccounting?: () => void;
+  onRefreshOrders?: () => void;
   isAccountingLoading?: boolean;
   // User actions
   onBanUser?: (userId: number, ban: boolean) => void;
@@ -60,6 +65,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   orders: propsOrders = [],
   users: propsUsers = [],
   tickets: propsTickets = [],
+  withdrawals: propsWithdrawals = [],
   stats: propsStats,
   promoCodes: propsPromoCodes = [],
   accountingData,
@@ -68,6 +74,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onDeletePromo,
   onTogglePromoActive,
   onRefreshTickets,
+  onRefreshWithdrawals,
   onRefreshAccounting,
   onRefreshOrders,
   isAccountingLoading,
@@ -134,6 +141,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         );
       case 'support':
         return <AdminSupport tickets={propsTickets} onRefresh={onRefreshTickets} />;
+      case 'withdrawals':
+        return <AdminWithdrawals withdrawals={propsWithdrawals} onRefresh={onRefreshWithdrawals} />;
       case 'promo':
         return (
           <AdminPromo

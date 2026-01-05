@@ -14,7 +14,7 @@ import os
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from core.routers.deps import get_payment_service, get_queue_publisher
+from core.routers.deps import get_payment_service, get_queue_publisher, get_notification_service
 from core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -369,10 +369,10 @@ async def crystalpay_topup_webhook(request: Request):
         amount = float(tx.get("amount") or 0)
         currency = tx.get("currency") or "RUB"
         
-        # Get user current balance
+        # Get user current balance and telegram_id for notification
         user_result = await asyncio.to_thread(
             lambda: db.client.table("users")
-            .select("balance")
+            .select("balance, telegram_id")
             .eq("id", user_id)
             .single()
             .execute()
@@ -383,6 +383,7 @@ async def crystalpay_topup_webhook(request: Request):
             return JSONResponse({"error": "User not found"}, status_code=404)
         
         current_balance = float(user_result.data.get("balance") or 0)
+        user_telegram_id = user_result.data.get("telegram_id")
         
         # Convert to USD if needed (balance is stored in USD)
         amount_usd = amount
@@ -426,6 +427,19 @@ async def crystalpay_topup_webhook(request: Request):
         )
         
         logger.info(f"CrystalPay TOPUP webhook: SUCCESS! User {user_id} balance: {current_balance:.2f} USD -> {new_balance:.2f} USD")
+        
+        # Send user notification (best-effort)
+        if user_telegram_id:
+            try:
+                notification_service = get_notification_service()
+                await notification_service.send_topup_success_notification(
+                    telegram_id=user_telegram_id,
+                    amount=amount,
+                    currency=currency,
+                    new_balance=new_balance
+                )
+            except Exception as e:
+                logger.warning(f"Failed to send topup notification: {e}")
         
         return JSONResponse({"ok": True}, status_code=200)
         

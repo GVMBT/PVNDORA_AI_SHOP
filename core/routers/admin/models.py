@@ -89,3 +89,9 @@ class ReviewApplicationRequest(BaseModel):
     approve: bool
     admin_comment: str | None = None
     level_override: int = 3  # Default to full access for approved partners
+
+
+# ==================== WITHDRAWAL MODELS ====================
+
+class ProcessWithdrawalRequest(BaseModel):
+    admin_comment: str | None = None

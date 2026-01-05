@@ -105,5 +105,55 @@ export function useProfileTyped() {
     }
   }, [post]);
 
-  return { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, updatePreferences, setPartnerMode, loading, error };
+  const submitPartnerApplication = useCallback(async (
+    email: string,
+    phone: string,
+    source: string,
+    audienceSize: string,
+    description: string,
+    expectedVolume?: string,
+    socialLinks?: Record<string, string>
+  ): Promise<{ success: boolean; message: string; application_id?: string }> => {
+    try {
+      return await post('/partner/apply', {
+        email,
+        phone,
+        source,
+        audience_size: audienceSize,
+        description,
+        expected_volume: expectedVolume,
+        social_links: socialLinks
+      });
+    } catch (err) {
+      logger.error('Failed to submit partner application', err);
+      throw err;
+    }
+  }, [post]);
+
+  const getPartnerApplicationStatus = useCallback(async (): Promise<{
+    is_partner: boolean;
+    application: { id: string; status: string; created_at: string; admin_comment?: string } | null;
+    can_apply: boolean;
+  }> => {
+    try {
+      return await get('/partner/application-status');
+    } catch (err) {
+      logger.error('Failed to get partner application status', err);
+      throw err;
+    }
+  }, [get]);
+
+  return { 
+    profile, 
+    getProfile, 
+    requestWithdrawal, 
+    createShareLink, 
+    createTopUp, 
+    updatePreferences, 
+    setPartnerMode,
+    submitPartnerApplication,
+    getPartnerApplicationStatus,
+    loading, 
+    error 
+  };
 }

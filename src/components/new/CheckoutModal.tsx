@@ -225,7 +225,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             {/* === STEP 3: PAYMENT PROCESSING === */}
             {step === 'processing' && (
-              <PaymentProcessing logs={logs} />
+              <PaymentProcessing logs={logs} selectedPayment={selectedPayment} />
             )}
 
             {/* === STEP 4: SUCCESS === */}
