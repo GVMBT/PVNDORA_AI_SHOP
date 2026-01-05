@@ -1,6 +1,6 @@
 # 🗺️ PVNDORA Project Map
 
-**Обновлено:** 2026-01-05  
+**Обновлено:** 2026-01-06  
 **Назначение:** Быстрая навигация по проекту
 
 ---
@@ -154,7 +154,7 @@ pvndora/
 
 | Модуль | Назначение |
 |--------|-----------|
-| `agent/` | AI Agent (Gemini + tools) |
+| `agent/` | AI Agent (Gemini + modular tools) |
 | `auth/` | Авторизация (Telegram, JWT) |
 | `cart/` | Корзина (Redis) |
 | `i18n/` | Локализация |
@@ -207,7 +207,7 @@ pvndora/
 | Доставку заказов | `api/workers/deliver_discount_order.py`, `core/routers/workers.py` |
 | Страховку | `core/services/domains/insurance.py`, `core/bot/discount/handlers/issues.py` |
 | Офферы перелива | `core/services/domains/offers.py`, `api/cron/discount_offers.py` |
-| AI консультанта | `core/agent/agent.py`, `core/agent/tools.py` |
+| AI консультанта | `core/agent/agent.py`, `core/agent/tools/` (модульный пакет) |
 | Партнёрку | `core/services/domains/referral.py`, `src/components/profile/` |
 | Корзину | `core/cart/`, `core/routers/webapp/cart.py` |
 | Админку | `core/routers/admin/`, `src/components/admin/` |
@@ -231,11 +231,17 @@ pvndora/
 | Слой | Файлов | ~Строк кода |
 |------|--------|-------------|
 | API (`api/`) | 14 | ~2,000 |
-| Backend (`core/`) | ~90 | ~15,000 |
+| Backend (`core/`) | ~95 | ~13,500 |
 | Frontend (`src/`) | ~132 | ~18,000 |
-| Docs (`docs/`) | 19 | ~3,500 |
+| Docs (`docs/`) | 10 | ~2,000 |
 | Scripts (`scripts/`) | 21 | ~2,500 |
-| **Всего** | **~276** | **~41,000** |
+| **Всего** | **~272** | **~38,000** |
+
+**Последний рефакторинг:**
+- Удалено ~3,700 строк (1Plat, Freekassa, Rukassa; устаревшая документация)
+- `agent/tools.py` → модульный пакет `agent/tools/` (8 файлов)
+- `payments.py` упрощён: 1610 → 450 строк
+- `webhooks.py` упрощён: 930 → 350 строк
 
 ---
 
@@ -258,22 +264,25 @@ pvndora/
 
 ## 🎯 Приоритеты рефакторинга
 
-### 🔴 Критические
+### ✅ Выполнено
 
-1. ~~Workers routing в vercel.json~~ ✅ Исправлено
-2. ~~Страховка фильтрация~~ ✅ Исправлено
+1. ~~Workers routing в vercel.json~~ ✅
+2. ~~Страховка фильтрация~~ ✅  
+3. ~~Split agent/tools.py в модули~~ ✅
+4. ~~Удалены 1Plat, Freekassa, Rukassa~~ ✅
+5. ~~Очистка устаревшей документации~~ ✅
 
-### 🟡 Средние
+### 🟡 Средние (следующий этап)
 
-3. Объединить `core/services/domains/` и `core/services/repositories/` в единую структуру
-4. Убрать дублирование между `core/services/database.py` и repositories
-5. Стандартизировать error handling
+6. Объединить `core/services/domains/` и `core/services/repositories/` в единую структуру
+7. Убрать дублирование между `core/services/database.py` и repositories
+8. Стандартизировать error handling
 
 ### 🟢 Низкие
 
-6. Добавить barrel exports в frontend (`src/utils/index.ts`)
-7. Унифицировать lazy imports pattern
-8. Улучшить типизацию в frontend
+9. Добавить barrel exports в frontend (`src/utils/index.ts`)
+10. Унифицировать lazy imports pattern
+11. Улучшить типизацию в frontend
 
 ---
 
