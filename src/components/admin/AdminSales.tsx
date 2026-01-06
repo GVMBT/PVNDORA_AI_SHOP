@@ -106,6 +106,7 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
               <th className="p-4">Order ID</th>
               <th className="p-4">User</th>
               <th className="p-4">Product</th>
+              <th className="p-4">Source</th>
               <th className="p-4">Status</th>
               <th className="p-4 text-right">Date</th>
               <th className="p-4 text-right">Actions</th>
@@ -122,6 +123,17 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
                   <td className="p-4 font-bold text-pandora-cyan">{o.id}</td>
                   <td className="p-4 text-gray-400">{o.user}</td>
                   <td className="p-4 font-bold text-white">{o.product}</td>
+                  <td className="p-4">
+                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${
+                      o.source_channel === 'discount' 
+                        ? 'bg-yellow-500/20 text-yellow-400' 
+                        : o.source_channel === 'webapp'
+                        ? 'bg-blue-500/20 text-blue-400'
+                        : 'bg-pandora-cyan/20 text-pandora-cyan'
+                    }`}>
+                      {o.source_channel === 'discount' ? 'DISCOUNT' : o.source_channel === 'webapp' ? 'WEBAPP' : 'PVNDORA'}
+                    </span>
+                  </td>
                   <td className="p-4">
                     <StatusBadge status={o.status} />
                   </td>
@@ -179,7 +191,18 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
               <div className="text-sm text-white font-bold">{o.product}</div>
               <div className="flex justify-between items-center text-xs">
                 <span className="text-gray-400">{o.user}</span>
-                <StatusBadge status={o.status} />
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${
+                    o.source_channel === 'discount' 
+                      ? 'bg-yellow-500/20 text-yellow-400' 
+                      : o.source_channel === 'webapp'
+                      ? 'bg-blue-500/20 text-blue-400'
+                      : 'bg-pandora-cyan/20 text-pandora-cyan'
+                  }`}>
+                    {o.source_channel === 'discount' ? 'DSC' : o.source_channel === 'webapp' ? 'WEB' : 'PVN'}
+                  </span>
+                  <StatusBadge status={o.status} />
+                </div>
               </div>
               {isPending && (
                 <div className="flex gap-2 pt-2 border-t border-white/10">

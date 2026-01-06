@@ -29,48 +29,48 @@
   },
 
   "navbar": {
-    "catalog": "NEURAL CATALOG",
-    "catalogSub": "MODULE REGISTRY",
-    "orders": "OP LOGS",
+    "catalog": "CATALOG",
+    "catalogSub": "PRODUCTS & SERVICES",
+    "orders": "MY ORDERS",
     "ordersSub": "ACCESS KEYS",
-    "leaderboard": "PROTOCOL BYPASS",
-    "leaderboardSub": "NETWORK RANK",
+    "leaderboard": "LEADERBOARD",
+    "leaderboardSub": "TOP SAVERS",
     "profile": "PROFILE",
-    "profileSub": "CONFIGURATION",
+    "profileSub": "SETTINGS",
     "status": "SYSTEM STATUS",
     "online": "ONLINE",
-    "disconnect": "DISCONNECT",
-    "cart": "BUFFER",
+    "disconnect": "LOG OUT",
+    "cart": "CART",
     "mobile": {
       "catalog": "CATALOG",
-      "orders": "LOGS",
-      "leaderboard": "BYPASS",
+      "orders": "ORDERS",
+      "leaderboard": "TOP",
       "profile": "PROFILE"
     }
   },
 
   "catalog": {
-    "title": "NEURAL_MODULES",
+    "title": "CATALOG",
     "header": {
-      "source": "SOURCE: COMPUTE_NODES",
-      "status": "STATUS: OPERATIONAL"
+      "source": "DIGITAL PRODUCTS",
+      "status": "STATUS: ACTIVE"
     },
-    "search": "SEARCH_MODULES...",
-    "creditsRequired": "CREDITS REQUIRED",
+    "search": "SEARCH...",
+    "creditsRequired": "PRICE",
     "card": {
       "warranty": "{hours}H WAR",
       "sold": "{count}+ SOLD",
       "trending": "TRENDING"
     },
-    "all": "All Nodes",
-    "subscription": "Neural Modules",
-    "student": "Edu_Protocol",
-    "trial": "Test_Drive",
-    "shared": "Personal_Node",
+    "all": "All Products",
+    "subscription": "Subscriptions",
+    "student": "Students",
+    "trial": "Trial",
+    "shared": "Personal",
     "key": "Access Keys",
-    "subtitle": "Elite Digital Assets & Compute Power",
-    "empty": "SYSTEM_ERROR: NO_DATA_FOUND",
-    "emptyHint": "Adjust filter parameters and retry sequence.",
+    "subtitle": "Premium AI services at great prices",
+    "empty": "NOTHING FOUND",
+    "emptyHint": "Try adjusting your search filters.",
     "category": {
       "aiSolutions": "AI_CORE",
       "designTools": "VISUAL_SYNTH",

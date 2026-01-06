@@ -323,7 +323,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
                         className="px-8 py-3 bg-pandora-cyan text-black font-display font-bold text-sm tracking-wider hover:bg-white transition-colors shadow-[0_0_20px_rgba(0,255,255,0.3)]"
                         style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
                     >
-                        INITIALIZE UPLINK [ENTER]
+                        АКТИВИРОВАТЬ ПРОТОКОЛ
                     </button>
                 </motion.div>
             ) : (

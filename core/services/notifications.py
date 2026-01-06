@@ -16,6 +16,32 @@ from core.logging import get_logger
 logger = get_logger(__name__)
 
 
+async def get_user_language(telegram_id: int) -> str:
+    """Get user's preferred language from database."""
+    try:
+        db = get_database()
+        result = await asyncio.to_thread(
+            lambda: db.client.table("users")
+            .select("interface_language, language_code")
+            .eq("telegram_id", telegram_id)
+            .limit(1)
+            .execute()
+        )
+        if result.data:
+            # Prefer interface_language, fallback to language_code
+            lang = result.data[0].get("interface_language") or result.data[0].get("language_code") or "en"
+            # Normalize to supported languages (en/ru)
+            return "ru" if lang.lower().startswith("ru") else "en"
+    except Exception as e:
+        logger.warning(f"Failed to get user language for {telegram_id}: {e}")
+    return "en"
+
+
+def _msg(lang: str, ru: str, en: str) -> str:
+    """Return message in user's language."""
+    return ru if lang == "ru" else en
+
+
 class NotificationService:
     """Service for sending notifications and fulfilling orders"""
     
@@ -244,21 +270,13 @@ class NotificationService:
         if not bot:
             return
         
-        # Get user language
-        db = get_database()
-        user_res = await asyncio.to_thread(
-            lambda: db.client.table("users")
-            .select("language_code")
-            .eq("telegram_id", telegram_id)
-            .limit(1)
-            .execute()
-        )
-        # language available for future localization
-        if user_res.data:
-            _ = user_res.data[0].get("language_code", "en") or "en"  # noqa: F841
+        lang = await get_user_language(telegram_id)
         
-        # Build replacement message
-        message = (
+        message = _msg(lang,
+            f"✅ <b>Замена аккаунта выполнена</b>\n\n"
+            f"Товар: {product_name}\n"
+            f"ID товара: {item_id}\n\n"
+            f"Ваш аккаунт заменён. Проверьте заказы для получения новых данных.",
             f"✅ <b>Account Replacement Completed</b>\n\n"
             f"Product: {product_name}\n"
             f"Item ID: {item_id}\n\n"
@@ -286,20 +304,30 @@ class NotificationService:
         if not bot:
             return
         
+        lang = await get_user_language(telegram_id)
+        
         if issue_type == "replacement":
-            message = (
+            message = _msg(lang,
+                f"✅ <b>Тикет #{ticket_id} одобрен</b>\n\n"
+                f"Ваш запрос на замену одобрен.\n"
+                f"Новый аккаунт будет доставлен в ближайшее время.",
                 f"✅ <b>Ticket #{ticket_id} Approved</b>\n\n"
                 f"Your replacement request has been approved.\n"
                 f"A new account will be delivered to you shortly."
             )
         elif issue_type == "refund":
-            message = (
+            message = _msg(lang,
+                f"✅ <b>Тикет #{ticket_id} одобрен</b>\n\n"
+                f"Ваш запрос на возврат одобрен.\n"
+                f"Сумма будет зачислена на ваш баланс.",
                 f"✅ <b>Ticket #{ticket_id} Approved</b>\n\n"
                 f"Your refund request has been approved.\n"
                 f"The amount will be credited to your balance."
             )
         else:
-            message = (
+            message = _msg(lang,
+                f"✅ <b>Тикет #{ticket_id} одобрен</b>\n\n"
+                f"Ваш запрос одобрен и обрабатывается.",
                 f"✅ <b>Ticket #{ticket_id} Approved</b>\n\n"
                 f"Your request has been approved and is being processed."
             )
@@ -502,14 +530,23 @@ class NotificationService:
         if not bot:
             return
         
-        message = (
+        lang = await get_user_language(telegram_id)
+        
+        message = _msg(lang,
             "🎉 <b>Реферальная программа активирована!</b>\n\n"
             "Теперь вы можете приглашать друзей и получать бонусы с их покупок:\n\n"
-            "💰 <b>5%</b> с покупок ваших рефералов\n\n"
+            "💰 <b>10%</b> с покупок ваших рефералов\n\n"
             "📈 <b>Повышайте уровень</b> для открытия дополнительных линий:\n"
-            "• Уровень 2 (от 5,000₽): +2% со 2-й линии\n"
-            "• Уровень 3 (от 15,000₽): +1% с 3-й линии\n\n"
-            "🔗 Ваша реферальная ссылка доступна в профиле!"
+            "• Уровень 2 ($250+): +7% со 2-й линии\n"
+            "• Уровень 3 ($1000+): +3% с 3-й линии\n\n"
+            "🔗 Ваша реферальная ссылка доступна в профиле!",
+            "🎉 <b>Referral Program Activated!</b>\n\n"
+            "You can now invite friends and earn bonuses from their purchases:\n\n"
+            "💰 <b>10%</b> from your referrals' purchases\n\n"
+            "📈 <b>Level up</b> to unlock additional tiers:\n"
+            "• Level 2 ($250+): +7% from tier 2\n"
+            "• Level 3 ($1000+): +3% from tier 3\n\n"
+            "🔗 Your referral link is available in your profile!"
         )
         
         try:
@@ -529,24 +566,39 @@ class NotificationService:
         if not bot:
             return
         
+        lang = await get_user_language(telegram_id)
+        
         if new_level == 2:
-            message = (
+            message = _msg(lang,
                 "🚀 <b>Уровень реферальной программы повышен!</b>\n\n"
                 "Вы достигли <b>Уровня 2</b>!\n\n"
                 "Теперь вы получаете:\n"
-                "• 5% с покупок рефералов 1-й линии\n"
-                "• <b>+2% с покупок рефералов 2-й линии</b>\n\n"
-                "До Уровня 3 осталось набрать 15,000₽ покупок."
+                "• 10% с покупок рефералов 1-й линии\n"
+                "• <b>+7% с покупок рефералов 2-й линии</b>\n\n"
+                "До Уровня 3 осталось набрать $1000 оборота.",
+                "🚀 <b>Referral Level Up!</b>\n\n"
+                "You've reached <b>Level 2</b>!\n\n"
+                "You now earn:\n"
+                "• 10% from tier 1 referrals\n"
+                "• <b>+7% from tier 2 referrals</b>\n\n"
+                "$1000 turnover remaining to Level 3."
             )
         elif new_level == 3:
-            message = (
+            message = _msg(lang,
                 "🏆 <b>Максимальный уровень достигнут!</b>\n\n"
                 "Поздравляем с <b>Уровнем 3</b>!\n\n"
                 "Теперь вы получаете максимальные бонусы:\n"
-                "• 5% с покупок рефералов 1-й линии\n"
-                "• 2% с покупок рефералов 2-й линии\n"
-                "• <b>+1% с покупок рефералов 3-й линии</b>\n\n"
-                "🎉 Вы — VIP партнёр PVNDORA!"
+                "• 10% с покупок рефералов 1-й линии\n"
+                "• 7% с покупок рефералов 2-й линии\n"
+                "• <b>+3% с покупок рефералов 3-й линии</b>\n\n"
+                "🎉 Вы — VIP партнёр PVNDORA!",
+                "🏆 <b>Maximum Level Reached!</b>\n\n"
+                "Congratulations on reaching <b>Level 3</b>!\n\n"
+                "You now earn maximum bonuses:\n"
+                "• 10% from tier 1 referrals\n"
+                "• 7% from tier 2 referrals\n"
+                "• <b>+3% from tier 3 referrals</b>\n\n"
+                "🎉 You're a PVNDORA VIP Partner!"
             )
         else:
             return
@@ -566,11 +618,17 @@ class NotificationService:
         if not bot:
             return
         
-        message = (
+        lang = await get_user_language(telegram_id)
+        
+        message = _msg(lang,
             f"📦 <b>Ваш заказ доставлен!</b>\n\n"
             f"Товар: {product_name}\n\n"
             f"<code>{content}</code>\n\n"
-            f"Спасибо за покупку! Оставьте отзыв и получите 5% кэшбэк."
+            f"Спасибо за покупку! Оставьте отзыв и получите 5% кэшбэк.",
+            f"📦 <b>Your order has been delivered!</b>\n\n"
+            f"Product: {product_name}\n\n"
+            f"<code>{content}</code>\n\n"
+            f"Thank you for your purchase! Leave a review and get 5% cashback."
         )
         
         try:
@@ -581,6 +639,51 @@ class NotificationService:
             )
         except Exception as e:
             logger.error(f"Failed to send delivery notification: {e}")
+    
+    async def send_cashback_notification(
+        self,
+        telegram_id: int,
+        cashback_amount: float,
+        new_balance: float,
+        reason: str = "review"
+    ) -> None:
+        """Send notification about cashback credit."""
+        bot = self._get_bot()
+        if not bot:
+            return
+        
+        lang = await get_user_language(telegram_id)
+        
+        if reason == "review":
+            message = _msg(lang,
+                f"💰 <b>Кэшбек начислен!</b>\n\n"
+                f"За ваш отзыв вам начислено <b>${cashback_amount:.2f}</b>.\n"
+                f"Новый баланс: <b>${new_balance:.2f}</b>\n\n"
+                f"Спасибо за обратную связь! 🙏",
+                f"💰 <b>Cashback credited!</b>\n\n"
+                f"You received <b>${cashback_amount:.2f}</b> for your review.\n"
+                f"New balance: <b>${new_balance:.2f}</b>\n\n"
+                f"Thank you for your feedback! 🙏"
+            )
+        else:
+            message = _msg(lang,
+                f"💰 <b>Кэшбек начислен!</b>\n\n"
+                f"Вам начислено <b>${cashback_amount:.2f}</b>.\n"
+                f"Новый баланс: <b>${new_balance:.2f}</b>",
+                f"💰 <b>Cashback credited!</b>\n\n"
+                f"You received <b>${cashback_amount:.2f}</b>.\n"
+                f"New balance: <b>${new_balance:.2f}</b>"
+            )
+        
+        try:
+            await bot.send_message(
+                chat_id=telegram_id,
+                text=message,
+                parse_mode="HTML"
+            )
+            logger.info(f"Sent cashback notification to {telegram_id}: ${cashback_amount:.2f}")
+        except Exception as e:
+            logger.error(f"Failed to send cashback notification: {e}")
     
     async def send_broadcast(
         self,
@@ -637,11 +740,17 @@ class NotificationService:
         if not bot:
             return
         
-        message = (
+        lang = await get_user_language(telegram_id)
+        
+        message = _msg(lang,
             f"✅ <b>Заявка на вывод одобрена</b>\n\n"
             f"Сумма: <b>${amount:.2f}</b>\n"
             f"Метод: {method}\n\n"
-            f"Средства будут отправлены в ближайшее время."
+            f"Средства будут отправлены в ближайшее время.",
+            f"✅ <b>Withdrawal Request Approved</b>\n\n"
+            f"Amount: <b>${amount:.2f}</b>\n"
+            f"Method: {method}\n\n"
+            f"Funds will be sent shortly."
         )
         
         try:
@@ -662,11 +771,17 @@ class NotificationService:
         if not bot:
             return
         
-        message = (
+        lang = await get_user_language(telegram_id)
+        
+        message = _msg(lang,
             f"❌ <b>Заявка на вывод отклонена</b>\n\n"
             f"Сумма: <b>${amount:.2f}</b>\n\n"
             f"<i>Причина: {reason}</i>\n\n"
-            f"Средства возвращены на ваш баланс."
+            f"Средства возвращены на ваш баланс.",
+            f"❌ <b>Withdrawal Request Rejected</b>\n\n"
+            f"Amount: <b>${amount:.2f}</b>\n\n"
+            f"<i>Reason: {reason}</i>\n\n"
+            f"Funds have been returned to your balance."
         )
         
         try:
@@ -687,11 +802,17 @@ class NotificationService:
         if not bot:
             return
         
-        message = (
+        lang = await get_user_language(telegram_id)
+        
+        message = _msg(lang,
             f"💸 <b>Вывод выполнен!</b>\n\n"
             f"Сумма: <b>${amount:.2f}</b>\n"
             f"Метод: {method}\n\n"
-            f"Средства отправлены. Спасибо за использование PVNDORA!"
+            f"Средства отправлены. Спасибо за использование PVNDORA!",
+            f"💸 <b>Withdrawal Completed!</b>\n\n"
+            f"Amount: <b>${amount:.2f}</b>\n"
+            f"Method: {method}\n\n"
+            f"Funds have been sent. Thank you for using PVNDORA!"
         )
         
         try:
@@ -714,11 +835,17 @@ class NotificationService:
         if not bot:
             return
         
-        message = (
+        lang = await get_user_language(telegram_id)
+        
+        message = _msg(lang,
             f"💰 <b>Баланс пополнен!</b>\n\n"
             f"Сумма: <b>{amount:.2f} {currency}</b>\n"
             f"Новый баланс: <b>${new_balance:.2f}</b>\n\n"
-            f"Спасибо! Теперь вы можете совершать покупки."
+            f"Спасибо! Теперь вы можете совершать покупки.",
+            f"💰 <b>Balance Topped Up!</b>\n\n"
+            f"Amount: <b>{amount:.2f} {currency}</b>\n"
+            f"New balance: <b>${new_balance:.2f}</b>\n\n"
+            f"Thank you! You can now make purchases."
         )
         
         try:
@@ -738,14 +865,23 @@ class NotificationService:
         if not bot:
             return
         
-        message = (
+        lang = await get_user_language(telegram_id)
+        
+        message = _msg(lang,
             "🎉 <b>Поздравляем! Вы стали VIP-партнёром PVNDORA!</b>\n\n"
             "Ваша заявка одобрена.\n\n"
             "Теперь вам доступны:\n"
             "• Повышенные комиссии с рефералов\n"
             "• Персональный менеджер\n"
             "• Приоритетная поддержка\n\n"
-            "Добро пожаловать в команду! 🚀"
+            "Добро пожаловать в команду! 🚀",
+            "🎉 <b>Congratulations! You are now a PVNDORA VIP Partner!</b>\n\n"
+            "Your application has been approved.\n\n"
+            "You now have access to:\n"
+            "• Increased referral commissions\n"
+            "• Personal manager\n"
+            "• Priority support\n\n"
+            "Welcome to the team! 🚀"
         )
         
         try:
@@ -764,12 +900,18 @@ class NotificationService:
         if not bot:
             return
         
-        reason_text = reason or "Ваша заявка не соответствует требованиям партнёрской программы."
+        lang = await get_user_language(telegram_id)
         
-        message = (
+        reason_text_ru = reason or "Ваша заявка не соответствует требованиям партнёрской программы."
+        reason_text_en = reason or "Your application does not meet the partner program requirements."
+        
+        message = _msg(lang,
             f"❌ <b>Заявка на VIP-партнёрство отклонена</b>\n\n"
-            f"<i>{reason_text}</i>\n\n"
-            f"Вы можете подать новую заявку позже или связаться с поддержкой для уточнения деталей."
+            f"<i>{reason_text_ru}</i>\n\n"
+            f"Вы можете подать новую заявку позже или связаться с поддержкой для уточнения деталей.",
+            f"❌ <b>VIP Partnership Application Rejected</b>\n\n"
+            f"<i>{reason_text_en}</i>\n\n"
+            f"You can submit a new application later or contact support for details."
         )
         
         try:
@@ -793,13 +935,20 @@ class NotificationService:
         if not bot:
             return
         
-        line_text = f"{line}-й линии" if line > 1 else ""
+        lang = await get_user_language(telegram_id)
         
-        message = (
+        line_text_ru = f"({line}-й линии) " if line > 1 else ""
+        line_text_en = f"(tier {line}) " if line > 1 else ""
+        
+        message = _msg(lang,
             f"💸 <b>Реферальный бонус!</b>\n\n"
-            f"Ваш реферал {line_text} {referral_name} совершил покупку на {purchase_amount:.2f}₽\n\n"
+            f"Ваш реферал {line_text_ru}{referral_name} совершил покупку на ${purchase_amount:.2f}\n\n"
             f"Ваш бонус: <b>+${bonus_amount:.2f}</b>\n\n"
-            f"Бонус зачислен на ваш баланс."
+            f"Бонус зачислен на ваш баланс.",
+            f"💸 <b>Referral Bonus!</b>\n\n"
+            f"Your referral {line_text_en}{referral_name} made a purchase of ${purchase_amount:.2f}\n\n"
+            f"Your bonus: <b>+${bonus_amount:.2f}</b>\n\n"
+            f"Bonus credited to your balance."
         )
         
         try:
@@ -819,12 +968,18 @@ class NotificationService:
         if not bot:
             return
         
-        line_text = f"{line}-й линии" if line > 1 else ""
+        lang = await get_user_language(telegram_id)
         
-        message = (
+        line_text_ru = f" ({line}-й линии)" if line > 1 else ""
+        line_text_en = f" (tier {line})" if line > 1 else ""
+        
+        message = _msg(lang,
             f"👤 <b>Новый реферал!</b>\n\n"
-            f"{referral_name} присоединился {line_text} по вашей ссылке.\n\n"
-            f"Вы будете получать бонусы с его покупок!"
+            f"{referral_name} присоединился{line_text_ru} по вашей ссылке.\n\n"
+            f"Вы будете получать бонусы с его покупок!",
+            f"👤 <b>New Referral!</b>\n\n"
+            f"{referral_name} joined{line_text_en} via your link.\n\n"
+            f"You'll earn bonuses from their purchases!"
         )
         
         try:

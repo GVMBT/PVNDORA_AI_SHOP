@@ -1,9 +1,13 @@
 """User Repository - User CRUD operations."""
+import asyncio
 from datetime import datetime, timezone
 from typing import Optional
 from .base import BaseRepository
 from core.services.models import User
 from core.services.money import to_decimal, to_float
+from core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class UserRepository(BaseRepository):
@@ -90,7 +94,15 @@ class UserRepository(BaseRepository):
             update_data["interface_language"] = interface_language.lower() if interface_language else None
         
         if update_data:
-            self.client.table("users").update(update_data).eq("telegram_id", telegram_id).execute()
+            logger.info(f"Updating preferences for user {telegram_id}: {update_data}")
+            try:
+                await asyncio.to_thread(
+                    lambda: self.client.table("users").update(update_data).eq("telegram_id", telegram_id).execute()
+                )
+                logger.info(f"Successfully updated preferences for user {telegram_id}")
+            except Exception as e:
+                logger.error(f"Failed to update preferences for user {telegram_id}: {e}", exc_info=True)
+                raise
     
     async def get_admins(self):
         """Get all admin users."""

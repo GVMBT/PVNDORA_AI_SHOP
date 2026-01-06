@@ -33,7 +33,7 @@ async def admin_get_orders(
     
     def execute_query():
         query = db.client.table("orders").select(
-            "id, status, amount, payment_method, payment_gateway, created_at, "
+            "id, status, amount, payment_method, payment_gateway, created_at, source_channel, "
             "users(telegram_id, username, first_name), "
             "order_items(product_id, quantity, products(name))"
         ).order("created_at", desc=True).range(offset, offset + limit - 1)
@@ -74,6 +74,7 @@ async def admin_get_orders(
             "amount": float(order.get("amount", 0)),
             "status": order.get("status", "pending"),
             "payment_method": order.get("payment_method", "unknown"),
+            "source_channel": order.get("source_channel", "main"),  # main, discount, webapp
             "created_at": created_at
         })
     

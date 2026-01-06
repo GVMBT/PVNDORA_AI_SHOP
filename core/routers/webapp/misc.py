@@ -114,37 +114,44 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
     review_id = result.data[0]["id"]
     cashback_amount = to_float(order.amount) * 0.05
     
-    # Trigger QStash worker for cashback processing (creates balance_transaction + notification)
+    # Process cashback immediately (inline, not via QStash - more reliable)
+    new_balance = to_float(db_user.balance) + cashback_amount
+    
+    # 1. Update user balance
+    await asyncio.to_thread(
+        lambda: db.client.table("users").update({"balance": new_balance}).eq("id", db_user.id).execute()
+    )
+    
+    # 2. Create balance_transaction for history
+    await asyncio.to_thread(
+        lambda: db.client.table("balance_transactions").insert({
+            "user_id": db_user.id, "type": "cashback", "amount": cashback_amount,
+            "status": "completed", "description": "5% кэшбек за отзыв", "reference_id": request.order_id
+        }).execute()
+    )
+    
+    # 3. Mark review as processed
+    await asyncio.to_thread(
+        lambda: db.client.table("reviews").update({"cashback_given": True}).eq("id", review_id).execute()
+    )
+    
+    # 4. Send notification (best-effort)
     try:
-        from core.queue import publish_to_worker, WorkerEndpoints
-        await publish_to_worker(
-            endpoint=WorkerEndpoints.PROCESS_REVIEW_CASHBACK,
-            body={
-                "user_telegram_id": db_user.telegram_id,
-                "order_id": request.order_id,
-                "order_amount": to_float(order.amount)
-            }
+        from core.routers.deps import get_notifications
+        notification_service = get_notifications()
+        await notification_service.send_cashback_notification(
+            telegram_id=db_user.telegram_id,
+            cashback_amount=cashback_amount,
+            new_balance=new_balance,
+            reason="review"
         )
     except Exception as e:
-        # Fallback: direct cashback if QStash fails
-        logger.warning(f"QStash failed, direct cashback: {e}")
-        new_balance = to_float(db_user.balance) + cashback_amount
-        await asyncio.to_thread(
-            lambda: db.client.table("users").update({"balance": new_balance}).eq("id", db_user.id).execute()
-        )
-        await asyncio.to_thread(
-            lambda: db.client.table("balance_transactions").insert({
-                "user_id": db_user.id, "type": "cashback", "amount": cashback_amount,
-                "status": "completed", "description": "5% кэшбек за отзыв", "reference_id": request.order_id
-            }).execute()
-        )
-        await asyncio.to_thread(
-            lambda: db.client.table("reviews").update({"cashback_given": True}).eq("id", review_id).execute()
-        )
+        logger.warning(f"Failed to send cashback notification: {e}")
     
     return {
-        "success": True, "review_id": review_id, "cashback_pending": round(cashback_amount, 2),
-        "message": "Кэшбек будет начислен в течение минуты"
+        "success": True, "review_id": review_id, "cashback_amount": round(cashback_amount, 2),
+        "new_balance": round(new_balance, 2),
+        "message": "Кэшбек начислен!"
     }
 
 

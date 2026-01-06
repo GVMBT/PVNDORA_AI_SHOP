@@ -2,6 +2,7 @@
  * Leaderboard API Hook
  * 
  * Type-safe hook for fetching leaderboard with pagination.
+ * Uses user's preferred currency from context.
  */
 
 import React, { useState, useCallback, useRef } from 'react';
@@ -10,10 +11,12 @@ import { logger } from '../../utils/logger';
 import type { APILeaderboardResponse } from '../../types/api';
 import type { LeaderboardUser } from '../../types/component';
 import { adaptLeaderboard } from '../../adapters';
-import { getLanguageCode, getCurrencyForLanguage, PAGINATION } from '../../config';
+import { PAGINATION } from '../../config';
+import { useLocaleContext } from '../../contexts/LocaleContext';
 
 export function useLeaderboardTyped() {
   const { get, loading, error } = useApi();
+  const { currency: contextCurrency } = useLocaleContext();
   const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [currentOffset, setCurrentOffset] = useState(0);
@@ -28,8 +31,8 @@ export function useLeaderboardTyped() {
     try {
       const response: APILeaderboardResponse = await get(`/leaderboard?limit=${limit}&offset=${offset}`);
       const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-      const lang = getLanguageCode();
-      const currency = getCurrencyForLanguage(lang);
+      // Use currency from context (user preference) instead of language-based detection
+      const currency = contextCurrency || 'USD';
       const adapted = adaptLeaderboard(response, telegramUser?.id?.toString(), currency);
       
       loadedOffsetsRef.current.add(offset);
@@ -62,7 +65,7 @@ export function useLeaderboardTyped() {
       logger.error('Failed to fetch leaderboard', err);
       return [];
     }
-  }, [get]);
+  }, [get, contextCurrency]);
 
   const loadMore = useCallback(async () => {
     if (!hasMore || loading) return;

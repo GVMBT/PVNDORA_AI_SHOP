@@ -34,6 +34,7 @@ export interface OrderData {
   payment_id?: string;
   payment_gateway?: string;
   expires_at?: string;
+  source_channel?: 'main' | 'discount' | 'webapp';  // Order source channel
 }
 
 export interface UserData {

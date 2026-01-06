@@ -34,7 +34,7 @@ const CheckoutModalConnected = lazyWithRetry(() => import('./components/new/Chec
 
 // Types
 import type { CatalogProduct, NavigationTarget } from './types/component';
-import { getStartParam, getTelegramInitData } from './utils/telegram';
+import { getStartParam, getTelegramInitData, requestFullscreen, expandWebApp } from './utils/telegram';
 import { getSessionToken, verifySessionToken, removeSessionToken } from './utils/auth';
 
 // Hooks
@@ -169,6 +169,15 @@ function NewAppInner() {
     
     checkAuth();
   }, [isBooted, isAuthenticated, isAuthChecking]);
+
+  // Initialize Telegram Mini App fullscreen mode
+  useEffect(() => {
+    // Request fullscreen for better UX in Telegram Mini App
+    // This works on Bot API 8.0+ with fullsize enabled in BotFather
+    requestFullscreen();
+    // Also expand to full height as fallback for older clients
+    expandWebApp();
+  }, []);
 
   // Initialize Audio and CMD+K
   useEffect(() => {

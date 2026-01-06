@@ -309,3 +309,67 @@ async def admin_update_warnings(
     except Exception as e:
         logger.error(f"Failed to update warnings: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to update warnings")
+
+
+@router.post("/users/{user_id}/vip")
+async def admin_toggle_vip(
+    user_id: str,
+    is_partner: bool = True,
+    partner_level_override: Optional[int] = None,
+    admin=Depends(verify_admin)
+):
+    """
+    Grant or revoke VIP partner status.
+    
+    Args:
+        user_id: UUID of the user
+        is_partner: True to grant VIP, False to revoke
+        partner_level_override: Optional level override (1, 2, or 3)
+    """
+    db = get_database()
+    
+    try:
+        # Validate partner_level_override
+        if partner_level_override is not None and partner_level_override not in [1, 2, 3]:
+            raise HTTPException(status_code=400, detail="partner_level_override must be 1, 2, or 3")
+        
+        update_data = {
+            "is_partner": is_partner,
+        }
+        
+        if is_partner:
+            # If granting VIP, optionally set level override
+            if partner_level_override:
+                update_data["partner_level_override"] = partner_level_override
+            # Also unlock referral program if not already
+            update_data["referral_program_unlocked"] = True
+        else:
+            # If revoking VIP, clear level override
+            update_data["partner_level_override"] = None
+        
+        result = await asyncio.to_thread(
+            lambda: db.client.table("users")
+            .update(update_data)
+            .eq("id", user_id)
+            .execute()
+        )
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Log the action
+        user = result.data[0]
+        username = user.get("username") or user.get("first_name") or "Unknown"
+        logger.info(f"Admin {'granted' if is_partner else 'revoked'} VIP for user {username} (level_override={partner_level_override})")
+        
+        return {
+            "success": True,
+            "is_partner": is_partner,
+            "partner_level_override": partner_level_override if is_partner else None,
+            "message": f"VIP статус {'выдан' if is_partner else 'отозван'}"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to toggle VIP: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update VIP status")

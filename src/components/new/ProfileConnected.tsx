@@ -175,15 +175,17 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   const handleWithdraw = useCallback(() => {
     const currency = contextCurrency || profile?.currency || 'USD';
     const exchangeRate = profile?.exchangeRate || 1.0;
-    const balance = convertedProfile?.balance || 0;
+    // Use USD balance for comparison since minimum is defined in USD
+    const balanceUSD = profile?.balanceUsd || 0;
     
-    const minAmountUSD = 10;
-    const minAmount = currency === 'USD' ? minAmountUSD : minAmountUSD * exchangeRate;
+    // Minimum withdrawal: $5 USD (matches backend MIN_WITHDRAWAL_USD)
+    const minAmountUSD = 5;
     
-    if (balance < minAmount) {
+    if (balanceUSD < minAmountUSD) {
+      // Show minimum in user's preferred currency for clarity
       const minDisplay = currency === 'USD' 
-        ? '$10' 
-        : `${Math.round(minAmount).toLocaleString()} ${currency}`;
+        ? `$${minAmountUSD}` 
+        : `${Math.round(minAmountUSD * exchangeRate).toLocaleString()} ${currency}`;
       showModalAlert(
         t('profile.errors.insufficientFunds'), 
         t('profile.errors.minWithdrawal', { amount: minDisplay }), 
@@ -191,6 +193,10 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       );
       return;
     }
+    
+    // Balance to display in withdrawal modal (in user's currency)
+    const balance = convertedProfile?.balance || 0;
+    const minAmount = currency === 'USD' ? minAmountUSD : Math.round(minAmountUSD * exchangeRate);
     
     if (onHaptic) onHaptic('medium');
     
@@ -205,7 +211,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
         await getProfile();
       },
     });
-  }, [convertedProfile?.balance, contextCurrency, profile?.currency, profile?.exchangeRate, requestWithdrawal, getProfile, hapticFeedback, showWithdraw, showModalAlert, onHaptic, t]);
+  }, [convertedProfile?.balance, contextCurrency, profile?.balanceUsd, profile?.currency, profile?.exchangeRate, requestWithdrawal, getProfile, hapticFeedback, showWithdraw, showModalAlert, onHaptic, t]);
 
   const handleTopUp = useCallback(() => {
     const currency = contextCurrency || profile?.currency || 'USD';
