@@ -212,7 +212,7 @@
     "waitingStockDesc": "Товар временно отсутствует на складе. Доставим при поступлении.",
     "autoRefund": "Автоматический возврат средств при превышении срока доставки",
     "warrantyActive": "Гарантийный период активен для некоторых аккаунтов",
-    "reportIssueHint": "Используйте кнопку REPORT_ISSUE рядом с проблемным аккаунтом",
+    "reportIssueHint": "Используйте кнопку «Сообщить о проблеме» рядом с проблемным аккаунтом",
     "statusMessages": {
       "pending": "ОЖИДАНИЕ_ОПЛАТЫ — Ожидается оплата",
       "prepaid": "ОПЛАТА_ПОДТВЕРЖДЕНА — Оплачено ✓ Товар временно отсутствует на складе. Доставим при поступлении.",
@@ -245,8 +245,13 @@
       "estimatedTime": "РАСЧ. ВРЕМЯ"
     },
     "item": {
-      "accessKey": "КЛЮЧ_ДОСТУПА",
-      "deadline": "СРОК"
+      "accessKey": "КЛЮЧ ДОСТУПА",
+      "accessKeyEncrypted": "ДАННЫЕ ДОСТУПА",
+      "expires": "Истекает",
+      "deadline": "СРОК",
+      "reportIssue": "СООБЩИТЬ О ПРОБЛЕМЕ",
+      "feedbackLogged": "ОТЗЫВ ОСТАВЛЕН",
+      "initializeReview": "ОСТАВИТЬ ОТЗЫВ"
     }
   },
 
@@ -567,18 +572,22 @@
       "unlock": "Открытие: L1 (первая покупка), L2 (${l2}), L3 (${l3})",
       "payouts": "Бонусы начисляются на баланс"
     },
+    "tabs": {
+      "network": "МОЯ СЕТЬ",
+      "history": "ИСТОРИЯ"
+    },
     "billing": {
       "title": "ФИНАНСЫ",
-      "balanceTab": "Кредиты",
-      "bonusesTab": "Доход",
-      "ordersTab": "Логи",
+      "balanceTab": "Баланс",
+      "bonusesTab": "Бонусы",
+      "ordersTab": "История",
       "withdrawalsTab": "Выводы",
-      "currentBalance": "Текущие кредиты",
+      "currentBalance": "Текущий баланс",
       "totalReferral": "Доход сети",
       "totalSaved": "Экономия протокола",
-      "emptyBonuses": "Нет дохода",
+      "emptyBonuses": "Нет бонусов",
       "emptyWithdrawals": "Нет выводов",
-      "emptyOrders": "Нет логов",
+      "emptyOrders": "Нет транзакций",
       "bonusFrom": "Доход ({level})",
       "order": "Опер",
       "transaction": {

@@ -155,7 +155,7 @@ export function adaptProfile(
   response: APIProfileResponse,
   telegramUser?: TelegramUser
 ): ProfileData {
-  const { profile, referral_stats, referral_program, bonus_history, withdrawals, balance_transactions = [] } = response;
+  const { profile, referral_stats, referral_program, bonus_history, withdrawals, balance_transactions = [], currency: responseCurrency, exchange_rate: responseExchangeRate } = response;
   
   const currentLevel = getCurrentLevel(
     referral_program.turnover_usd,
@@ -196,12 +196,12 @@ export function adaptProfile(
     name: firstName,
     handle: username ? `@${username}` : `UID-${telegramId || Date.now()}`,
     id: telegramId ? `UID-${telegramId.toString().slice(-6)}` : `UID-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-    balance: profile.balance,  // Converted for backward compatibility
-    balanceUsd: profile.balance_usd || profile.balance,  // USD amount for frontend conversion
-    earnedRef: profile.total_referral_earnings,  // Converted
-    earnedRefUsd: profile.total_referral_earnings_usd || profile.total_referral_earnings,  // USD amount
-    saved: profile.total_saved,  // Converted
-    savedUsd: profile.total_saved_usd || profile.total_saved,  // USD amount
+    balance: profile.balance,  // Converted to user currency (for display)
+    balanceUsd: profile.balance_usd,  // ALWAYS use balance_usd (USD base amount)
+    earnedRef: profile.total_referral_earnings,  // Converted to user currency
+    earnedRefUsd: profile.total_referral_earnings_usd,  // ALWAYS use _usd suffix (USD base amount)
+    saved: profile.total_saved,  // Converted to user currency
+    savedUsd: profile.total_saved_usd,  // ALWAYS use _usd suffix (USD base amount)
     role: profile.is_admin ? 'ADMIN' : (referral_program.is_partner ? 'VIP' : 'USER'),
     isVip: referral_program.is_partner,
     partnerMode: referral_program.partner_mode || 'commission',
@@ -223,11 +223,11 @@ export function adaptProfile(
     },
     networkTree: [], // Populated via adaptReferralNetwork call
     billingLogs,
-    currency: normalizeCurrency(profile.currency),
+    currency: normalizeCurrency(responseCurrency || profile.currency),  // Currency from root level, fallback to profile
     language: profile.interface_language || 'en',
     interfaceLanguage: profile.interface_language || undefined,
     photoUrl,
-    exchangeRate: response.exchange_rate || 1.0,  // Exchange rate for frontend conversion
+    exchangeRate: responseExchangeRate || response.exchange_rate || 1.0,  // Exchange rate for frontend conversion
   };
 }
 

@@ -9,6 +9,7 @@ import { Wallet, Plus, ArrowUpRight, Network, Share2, Copy, Check, Percent, Refr
 import { formatPrice, getCurrencySymbol } from '../../utils/currency';
 import { useLocaleContext } from '../../contexts/LocaleContext';
 import { useLocale } from '../../hooks/useLocale';
+import { logger } from '../../utils/logger';
 import DecryptedText from './DecryptedText';
 import type { ProfileDataProp } from './types';
 
@@ -57,18 +58,27 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
   // Use currency and locale from context for active state (updates immediately on user action)
   const { currency: contextCurrency, locale: contextLocale } = useLocaleContext();
   const { t } = useLocale();
-  const activeCurrency = contextCurrency || user.currency;
+  const activeCurrency = contextCurrency || user.currency || 'USD';
   
   const handleCurrencyChange = useCallback(async (currency: 'USD' | 'RUB') => {
     if (onHaptic) onHaptic('light');
-    if (onUpdatePreferences) {
-      try {
-        await onUpdatePreferences(currency, undefined);
+    if (!onUpdatePreferences) {
+      logger.warn('onUpdatePreferences not provided to ProfileStats');
+      return;
+    }
+    
+    try {
+      logger.info(`Changing currency to ${currency}`);
+      const result = await onUpdatePreferences(currency, undefined);
+      if (result.success) {
+        logger.info(`Currency changed successfully to ${currency}`);
         if (onHaptic) onHaptic('light');
-        // No reload needed - context will update automatically
-      } catch (err) {
-        // Error handled by logger in parent
+      } else {
+        logger.error(`Failed to change currency: ${result.message}`);
       }
+    } catch (err) {
+      logger.error('Error changing currency', err);
+      // Error handled by logger in parent
     }
   }, [onHaptic, onUpdatePreferences]);
 
@@ -217,22 +227,32 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
                   <span className="text-[9px] font-mono text-gray-600">{t('profile.settings.currency')}:</span>
                   <div className="flex bg-black/50 border border-white/10 rounded-sm overflow-hidden">
                     <button
-                      onClick={() => handleCurrencyChange('USD')}
+                      type="button"
+                      onClick={() => {
+                        logger.info('USD button clicked, current currency:', activeCurrency);
+                        handleCurrencyChange('USD');
+                      }}
+                      disabled={!onUpdatePreferences}
                       className={`px-3 py-1.5 text-[10px] font-mono font-bold transition-all ${
                         activeCurrency === 'USD' 
                           ? 'bg-pandora-cyan text-black' 
                           : 'text-gray-500 hover:text-white hover:bg-white/5'
-                      }`}
+                      } ${!onUpdatePreferences ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                     >
                       USD
                     </button>
                     <button
-                      onClick={() => handleCurrencyChange('RUB')}
+                      type="button"
+                      onClick={() => {
+                        logger.info('RUB button clicked, current currency:', activeCurrency);
+                        handleCurrencyChange('RUB');
+                      }}
+                      disabled={!onUpdatePreferences}
                       className={`px-3 py-1.5 text-[10px] font-mono font-bold transition-all ${
                         activeCurrency === 'RUB' 
                           ? 'bg-pandora-cyan text-black' 
                           : 'text-gray-500 hover:text-white hover:bg-white/5'
-                      }`}
+                      } ${!onUpdatePreferences ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                     >
                       RUB
                     </button>

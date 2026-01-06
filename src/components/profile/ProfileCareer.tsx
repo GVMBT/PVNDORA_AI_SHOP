@@ -118,24 +118,42 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
         
         {/* VIP Partner Application Button */}
         {!isVip && onApplyPartner && (
-          <div className="mt-6 pt-4 border-t border-white/10">
+          <div className="mt-6 pt-4 border-t border-white/10 relative">
+            {/* Glow effect */}
+            <div className="absolute inset-0 bg-pandora-cyan/5 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            
             <button
               onClick={onApplyPartner}
-              className="w-full py-3 bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/30 rounded text-amber-400 font-mono text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all group"
+              className="relative w-full py-3.5 bg-black/50 hover:bg-black/70 border border-pandora-cyan/30 hover:border-pandora-cyan/50 text-pandora-cyan font-mono text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all group overflow-hidden"
             >
-              <Star size={14} className="group-hover:rotate-12 transition-transform" />
-              Стать VIP-партнёром
-              <Star size={14} className="group-hover:-rotate-12 transition-transform" />
+              {/* Corner accents */}
+              <div className="absolute top-0 left-0 w-3 h-3 border-l-2 border-t-2 border-pandora-cyan/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute top-0 right-0 w-3 h-3 border-r-2 border-t-2 border-pandora-cyan/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute bottom-0 left-0 w-3 h-3 border-l-2 border-b-2 border-pandora-cyan/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute bottom-0 right-0 w-3 h-3 border-r-2 border-b-2 border-pandora-cyan/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+              
+              {/* Scanline effect */}
+              <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,rgba(0,255,255,0.03)_0px,rgba(0,255,255,0.03)_1px,transparent_1px,transparent_2px)] pointer-events-none" />
+              
+              {/* Content */}
+              <span className="relative z-10 flex items-center gap-2">
+                <ShieldCheck size={14} className="group-hover:scale-110 transition-transform" />
+                <span className="group-hover:text-white transition-colors">ELITE_OPERATOR // РЕГИСТРАЦИЯ</span>
+                <Star size={12} className="text-pandora-cyan group-hover:rotate-180 transition-transform duration-500" />
+              </span>
+              
+              {/* Hover glow */}
+              <div className="absolute inset-0 bg-pandora-cyan/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
             </button>
           </div>
         )}
         
         {isVip && (
           <div className="mt-6 pt-4 border-t border-white/10 text-center">
-            <div className="inline-flex items-center gap-2 text-amber-400 font-mono text-xs uppercase">
-              <Star size={14} className="text-amber-400" />
-              VIP-партнёр
-              <Star size={14} className="text-amber-400" />
+            <div className="inline-flex items-center gap-2 text-pandora-cyan font-mono text-xs uppercase bg-pandora-cyan/10 border border-pandora-cyan/30 px-4 py-2">
+              <ShieldCheck size={14} />
+              <span>ELITE_OPERATOR // АКТИВЕН</span>
+              <Star size={12} />
             </div>
           </div>
         )}

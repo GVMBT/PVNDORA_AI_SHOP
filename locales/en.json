@@ -207,7 +207,7 @@
     "waitingStockDesc": "Item temporarily out of stock. Will deliver upon arrival.",
     "autoRefund": "Automatic refund if delivery deadline exceeded",
     "warrantyActive": "Warranty period active for some accounts",
-    "reportIssueHint": "Use REPORT_ISSUE button next to the problem account",
+    "reportIssueHint": "Use «Report Issue» button next to the problem account",
     "statusMessages": {
       "pending": "AWAITING_PAYMENT — Awaiting payment",
       "prepaid": "PAYMENT_CONFIRMED — Paid ✓ Item temporarily out of stock. Will deliver upon arrival.",
@@ -240,8 +240,13 @@
       "estimatedTime": "EST"
     },
     "item": {
-      "accessKey": "ACCESS_KEY",
-      "deadline": "DEADLINE"
+      "accessKey": "ACCESS KEY",
+      "accessKeyEncrypted": "ACCESS DATA",
+      "expires": "Expires",
+      "deadline": "DEADLINE",
+      "reportIssue": "REPORT ISSUE",
+      "feedbackLogged": "FEEDBACK SUBMITTED",
+      "initializeReview": "LEAVE REVIEW"
     }
   },
 
@@ -562,18 +567,22 @@
       "unlock": "Unlock: L1 (Init), L2 (${l2}), L3 (${l3})",
       "payouts": "Credits credited to Balance"
     },
+    "tabs": {
+      "network": "MY NETWORK",
+      "history": "HISTORY"
+    },
     "billing": {
       "title": "FINANCE",
-      "balanceTab": "Credits",
-      "bonusesTab": "Yield",
-      "ordersTab": "Logs",
-      "withdrawalsTab": "Cashouts",
-      "currentBalance": "Current Credits",
+      "balanceTab": "Balance",
+      "bonusesTab": "Bonuses",
+      "ordersTab": "History",
+      "withdrawalsTab": "Withdrawals",
+      "currentBalance": "Current Balance",
       "totalReferral": "Network Yield",
       "totalSaved": "Protocol Savings",
-      "emptyBonuses": "No yield yet",
-      "emptyWithdrawals": "No cashouts",
-      "emptyOrders": "No logs",
+      "emptyBonuses": "No bonuses yet",
+      "emptyWithdrawals": "No withdrawals",
+      "emptyOrders": "No transactions",
       "bonusFrom": "Yield ({level})",
       "order": "Op",
       "transaction": {

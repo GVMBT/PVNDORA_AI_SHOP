@@ -140,7 +140,7 @@ const OrderItem: React.FC<OrderItemProps> = ({
           {item.credentials && (
             <div className="bg-black border border-white/10 border-dashed p-3 relative group/key">
               <div className="text-[10px] text-gray-500 font-mono mb-2 flex justify-between items-center border-b border-white/5 pb-2">
-                <span>ACCESS_KEY_ENCRYPTED</span>
+                <span>{t('orders.item.accessKeyEncrypted')}</span>
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => onToggleReveal(item.id)} 
@@ -148,7 +148,7 @@ const OrderItem: React.FC<OrderItemProps> = ({
                   >
                     {isRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
                   </button>
-                  {item.expiry && <span className="text-gray-600">EXP: {item.expiry}</span>}
+                  {item.expiry && <span className="text-gray-600">{t('orders.item.expires')}: {item.expiry}</span>}
                 </div>
               </div>
               
@@ -185,7 +185,7 @@ const OrderItem: React.FC<OrderItemProps> = ({
                 className="flex items-center gap-2 text-[10px] font-bold font-mono text-green-400 border border-green-500/30 px-3 py-1.5 hover:bg-green-500/20 transition-all"
               >
                 <AlertTriangle size={12} />
-                REPORT_ISSUE
+                {t('orders.item.reportIssue')}
               </button>
             )}
             
@@ -193,7 +193,7 @@ const OrderItem: React.FC<OrderItemProps> = ({
             {item.hasReview ? (
               <div className="flex items-center gap-2 text-[10px] font-mono text-gray-500 border border-white/5 px-3 py-1.5 rounded-sm select-none opacity-60">
                 <Check size={12} className="text-pandora-cyan" />
-                FEEDBACK_LOGGED
+                {t('orders.item.feedbackLogged')}
               </div>
             ) : (
               <button 
@@ -201,7 +201,7 @@ const OrderItem: React.FC<OrderItemProps> = ({
                 className="flex items-center gap-2 text-[10px] font-bold font-mono text-pandora-cyan border border-pandora-cyan/30 px-3 py-1.5 hover:bg-pandora-cyan hover:text-black transition-all"
               >
                 <MessageSquare size={12} />
-                INITIALIZE_REVIEW
+                {t('orders.item.initializeReview')}
               </button>
             )}
           </div>

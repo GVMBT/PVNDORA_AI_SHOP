@@ -276,11 +276,17 @@ class NotificationService:
             f"✅ <b>Замена аккаунта выполнена</b>\n\n"
             f"Товар: {product_name}\n"
             f"ID товара: {item_id}\n\n"
-            f"Ваш аккаунт заменён. Проверьте заказы для получения новых данных.",
+            f"Ваш аккаунт заменён. Новые данные доступа доступны в разделе <b>«Мои заказы»</b>:\n"
+            f"1. Откройте раздел «Мои заказы»\n"
+            f"2. Найдите соответствующий заказ\n"
+            f"3. Раскройте ключ доступа для просмотра новых данных",
             f"✅ <b>Account Replacement Completed</b>\n\n"
             f"Product: {product_name}\n"
             f"Item ID: {item_id}\n\n"
-            f"Your account has been replaced. Please check your orders for new credentials."
+            f"Your account has been replaced. New access credentials are available in <b>«My Orders»</b>:\n"
+            f"1. Open «My Orders» section\n"
+            f"2. Find the corresponding order\n"
+            f"3. Reveal the access key to view new credentials"
         )
         
         try:

@@ -137,16 +137,17 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
     
     # 4. Send notification (best-effort)
     try:
-        from core.routers.deps import get_notifications
-        notification_service = get_notifications()
+        from core.routers.deps import get_notification_service
+        notification_service = get_notification_service()
         await notification_service.send_cashback_notification(
             telegram_id=db_user.telegram_id,
             cashback_amount=cashback_amount,
             new_balance=new_balance,
             reason="review"
         )
+        logger.info(f"Cashback notification sent to user {db_user.telegram_id}")
     except Exception as e:
-        logger.warning(f"Failed to send cashback notification: {e}")
+        logger.error(f"Failed to send cashback notification to user {db_user.telegram_id}: {e}", exc_info=True)
     
     return {
         "success": True, "review_id": review_id, "cashback_amount": round(cashback_amount, 2),

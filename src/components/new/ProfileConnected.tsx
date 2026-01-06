@@ -31,7 +31,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   const { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, updatePreferences, setPartnerMode, submitPartnerApplication, getPartnerApplicationStatus, loading, error } = useProfileTyped();
   const { hapticFeedback, showConfirm, openLink, showAlert: showTelegramAlert } = useTelegram();
   const { showTopUp, showWithdraw, showAlert: showModalAlert } = useCyberModal();
-  const { updateFromProfile, setCurrency, setLocale, currency: contextCurrency } = useLocaleContext();
+  const { updateFromProfile, setCurrency, setLocale, setExchangeRate, currency: contextCurrency } = useLocaleContext();
   const { t } = useLocale();
   const { clearCartState } = useCart();
   const [isInitialized, setIsInitialized] = useState(false);
@@ -94,21 +94,27 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     const displayCurrency = contextCurrency || profile.currency || 'USD';
     const exchangeRate = profile.exchangeRate || 1.0;
     
+    // CRITICAL: Always use _usd values for conversion (they are base USD amounts)
+    // profile.balance is already converted to user currency, so we MUST use balanceUsd
+    const balanceUsd = profile.balanceUsd ?? 0;
+    const earnedRefUsd = profile.earnedRefUsd ?? 0;
+    const savedUsd = profile.savedUsd ?? 0;
+    
     // If currency is USD, use USD values directly
     if (displayCurrency === 'USD') {
       return {
         ...profile,
         currency: displayCurrency,
-        balance: profile.balanceUsd || profile.balance,
-        earnedRef: profile.earnedRefUsd || profile.earnedRef,
-        saved: profile.savedUsd || profile.saved,
+        balance: balanceUsd,
+        earnedRef: earnedRefUsd,
+        saved: savedUsd,
       };
     }
     
     // Convert all USD amounts to display currency
-    const convertedBalance = convertUsdToCurrency(profile.balanceUsd || profile.balance, displayCurrency, exchangeRate);
-    const convertedEarnedRef = convertUsdToCurrency(profile.earnedRefUsd || profile.earnedRef, displayCurrency, exchangeRate);
-    const convertedSaved = convertUsdToCurrency(profile.savedUsd || profile.saved, displayCurrency, exchangeRate);
+    const convertedBalance = convertUsdToCurrency(balanceUsd, displayCurrency, exchangeRate);
+    const convertedEarnedRef = convertUsdToCurrency(earnedRefUsd, displayCurrency, exchangeRate);
+    const convertedSaved = convertUsdToCurrency(savedUsd, displayCurrency, exchangeRate);
     const convertedTurnover = convertUsdToCurrency(profile.career.currentTurnover, displayCurrency, exchangeRate);
     
     return {
@@ -239,8 +245,11 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
 
   // CRITICAL: All hooks must be called BEFORE any conditional returns
   const handleUpdatePreferences = useCallback(async (preferred_currency?: string, interface_language?: string) => {
+    logger.info('handleUpdatePreferences called', { preferred_currency, interface_language });
+    
     // Optimistic update: change context IMMEDIATELY (UI updates right away)
     if (preferred_currency) {
+      logger.info('Setting currency optimistically to', preferred_currency);
       setCurrency(preferred_currency as 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED');
       // Clear cart cache when currency changes - cart will be re-fetched with new currency
       clearCartState();
@@ -253,22 +262,31 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     
     try {
       // Update preferences via API (in background)
+      logger.info('Calling updatePreferences API');
       const result = await updatePreferences(preferred_currency, interface_language);
+      logger.info('updatePreferences API result', result);
       
       // Always reload profile when currency changes to get correct exchange_rate for new currency
-      if (preferred_currency && preferred_currency !== profile?.currency) {
+      if (preferred_currency) {
+        logger.info('Reloading profile to get exchange_rate for new currency');
         const updatedProfile = await getProfile(); // Reload to get exchange_rate for new currency
         // Синхронизируем контекст с обновленным профилем
         if (updatedProfile) {
+          logger.info('Updating context from profile with new currency', preferred_currency);
+          // Update context from profile (this will sync exchange rate and other data)
           updateFromProfile(updatedProfile);
+          // Explicitly set currency again to ensure it matches user's selection
+          setCurrency(preferred_currency as 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED');
         }
       }
       
       return result;
     } catch (error) {
+      logger.error('Error updating preferences', error);
       // Rollback on error: restore previous currency/language from profile
       if (profile) {
         if (preferred_currency) {
+          logger.info('Rolling back currency to', profile.currency);
           setCurrency(profile.currency as 'USD' | 'RUB' | 'EUR' | 'UAH' | 'TRY' | 'INR' | 'AED');
         }
         if (interface_language) {
@@ -279,7 +297,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       }
       throw error;
     }
-  }, [updatePreferences, setCurrency, setLocale, getProfile, profile, updateFromProfile, clearCartState]);
+  }, [updatePreferences, setCurrency, setLocale, setExchangeRate, getProfile, profile, clearCartState]);
 
   // Handler for toggling partner reward mode
   // MUST be before conditional returns (React hooks rule)

@@ -56,7 +56,7 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
     <div className="border border-white/10 bg-[#050505] shadow-[0_0_50px_rgba(0,0,0,0.5)]">
       <div className="bg-[#0a0a0a] border-b border-white/10 p-2 px-4">
         <div className="text-[10px] font-mono font-bold uppercase text-pandora-cyan">
-          {t('profile.billing.noTransactions') === 'NO_TRANSACTIONS' ? 'SYSTEM_LOGS' : t('profile.billing.ordersTab').toUpperCase() || 'SYSTEM_LOGS'}
+          {t('profile.billing.title')}
         </div>
       </div>
 

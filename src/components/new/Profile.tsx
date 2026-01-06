@@ -219,7 +219,7 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
                   activeTab === 'network' ? 'text-pandora-cyan' : 'text-gray-600'
                 }`}
               >
-                NETWORK_SCANNER
+                {t('profile.tabs.network')}
               </button>
               <button 
                 onClick={() => { if(onHaptic) onHaptic('light'); setActiveTab('logs'); }} 
@@ -227,7 +227,7 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
                   activeTab === 'logs' ? 'text-pandora-cyan' : 'text-gray-600'
                 }`}
               >
-                SYSTEM_LOGS
+                {t('profile.tabs.history')}
               </button>
             </div>
           </div>
