@@ -151,26 +151,35 @@ async def reengagement_entrypoint(request: Request):
         results["tasks"]["wishlist_reminders_sent"] = wishlist_sent
         
         # 3. Expiring subscription notifications (2-4 days before expiry)
+        # FIX: Query order_items.expires_at (subscription expiry), not orders.expires_at (payment deadline)
         expiry_window_start = now + timedelta(days=2)
         expiry_window_end = now + timedelta(days=4)
         
-        expiring_orders = await asyncio.to_thread(
-            lambda: db.client.table("orders").select(
-                "id,user_id,product_id,expires_at,products(name),users(telegram_id,language_code)"
-            ).eq("status", "completed").gte(
+        expiring_items = await asyncio.to_thread(
+            lambda: db.client.table("order_items").select(
+                "id,order_id,expires_at,products(name),orders(user_telegram_id,users(language_code))"
+            ).eq("status", "delivered").gte(
                 "expires_at", expiry_window_start.isoformat()
             ).lte("expires_at", expiry_window_end.isoformat()).limit(50).execute()
         )
         
         expiry_sent = 0
-        for order in (expiring_orders.data or []):
-            user_data = order.get("users", {})
-            product_data = order.get("products", {})
-            if not user_data or not product_data:
+        notified_users = set()  # Avoid duplicate notifications
+        
+        for item in (expiring_items.data or []):
+            order_data = item.get("orders", {})
+            product_data = item.get("products", {})
+            if not order_data or not product_data:
                 continue
             
+            telegram_id = order_data.get("user_telegram_id")
+            if not telegram_id or telegram_id in notified_users:
+                continue
+            
+            user_data = order_data.get("users", {})
+            
             # Calculate actual days left
-            expires_at_str = order.get("expires_at")
+            expires_at_str = item.get("expires_at")
             if expires_at_str:
                 try:
                     expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
@@ -180,7 +189,7 @@ async def reengagement_entrypoint(request: Request):
             else:
                 days_left = 3
             
-            lang = user_data.get("language_code", "en")
+            lang = user_data.get("language_code", "en") if user_data else "en"
             message = get_text(
                 "subscription_expiring", lang,
                 product=product_data.get("name", ""),
@@ -192,13 +201,14 @@ async def reengagement_entrypoint(request: Request):
                     await client.post(
                         f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
                         json={
-                            "chat_id": user_data["telegram_id"],
+                            "chat_id": telegram_id,
                             "text": message,
                             "parse_mode": "HTML"
                         },
                         timeout=10
                     )
                 expiry_sent += 1
+                notified_users.add(telegram_id)
             except Exception as e:
                 logger.error(f"Failed expiry notification: {e}", exc_info=True)
         

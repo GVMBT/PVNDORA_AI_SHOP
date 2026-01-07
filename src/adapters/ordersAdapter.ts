@@ -100,8 +100,17 @@ function canRequestRefund(rawStatus: RawOrderStatus, warrantyUntil?: string | nu
 
 /**
  * Map API order item status to component status
+ * @param apiStatus - Item status from API
+ * @param orderStatus - Parent order status (overrides item status for cancelled/refunded orders)
  */
-function mapOrderItemStatus(apiStatus: string): OrderItemStatus {
+function mapOrderItemStatus(apiStatus: string, orderStatus?: string): OrderItemStatus {
+  // CRITICAL: If order is cancelled/refunded, all items should show as cancelled
+  // regardless of their individual status in the database
+  const orderStatusLower = orderStatus?.toLowerCase();
+  if (orderStatusLower === 'cancelled' || orderStatusLower === 'refunded') {
+    return 'cancelled';
+  }
+  
   switch (apiStatus) {
     case 'delivered':
       return 'delivered';
@@ -242,7 +251,7 @@ function adaptOrderItem(
     }
   }
   
-  const itemStatus = mapOrderItemStatus(item.status);
+  const itemStatus = mapOrderItemStatus(item.status, orderStatus);
   const canRefund = canItemRequestRefund(item.status, itemDeliveredAt, warrantyUntil);
   
   return {
@@ -339,7 +348,7 @@ export function adaptOrder(apiOrder: APIOrder, currency: string = 'USD'): Order 
       id: apiOrder.id,
       name: apiOrder.product_name,
       type: 'instant',
-      status: mapOrderItemStatus(apiOrder.status),
+      status: mapOrderItemStatus(apiOrder.status, apiOrder.status), // Pass order status to inherit cancelled/refunded
       credentials: null,
       expiry: apiOrder.warranty_until ? new Date(apiOrder.warranty_until).toLocaleDateString('ru-RU') : null,
       hasReview: false,

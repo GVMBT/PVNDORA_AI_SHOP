@@ -42,6 +42,34 @@ def _msg(lang: str, ru: str, en: str) -> str:
     return ru if lang == "ru" else en
 
 
+async def get_referral_settings() -> dict:
+    """Get referral program settings from database."""
+    try:
+        db = get_database()
+        result = await asyncio.to_thread(
+            lambda: db.client.table("referral_settings").select("*").limit(1).execute()
+        )
+        if result.data:
+            s = result.data[0]
+            return {
+                "level1_percent": int(s.get("level1_commission_percent", 10) or 10),
+                "level2_percent": int(s.get("level2_commission_percent", 7) or 7),
+                "level3_percent": int(s.get("level3_commission_percent", 3) or 3),
+                "level2_threshold": int(s.get("level2_threshold_usd", 250) or 250),
+                "level3_threshold": int(s.get("level3_threshold_usd", 1000) or 1000),
+            }
+    except Exception as e:
+        logger.warning(f"Failed to get referral settings: {e}")
+    # Default values
+    return {
+        "level1_percent": 10,
+        "level2_percent": 7,
+        "level3_percent": 3,
+        "level2_threshold": 250,
+        "level3_threshold": 1000,
+    }
+
+
 class NotificationService:
     """Service for sending notifications and fulfilling orders"""
     
@@ -271,28 +299,43 @@ class NotificationService:
             return
         
         lang = await get_user_language(telegram_id)
+        short_id = item_id[:8] if len(item_id) > 8 else item_id
         
         message = _msg(lang,
-            f"✅ <b>Замена аккаунта выполнена</b>\n\n"
-            f"Товар: {product_name}\n"
-            f"ID товара: {item_id}\n\n"
-            f"Ваш аккаунт заменён. Новые данные доступа доступны в разделе <b>«Мои заказы»</b>:\n"
-            f"1. Откройте раздел «Мои заказы»\n"
-            f"2. Найдите соответствующий заказ\n"
-            f"3. Раскройте ключ доступа для просмотра новых данных",
-            f"✅ <b>Account Replacement Completed</b>\n\n"
-            f"Product: {product_name}\n"
-            f"Item ID: {item_id}\n\n"
-            f"Your account has been replaced. New access credentials are available in <b>«My Orders»</b>:\n"
-            f"1. Open «My Orders» section\n"
-            f"2. Find the corresponding order\n"
-            f"3. Reveal the access key to view new credentials"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     🔄 <b>ЗАМЕНА ВЫПОЛНЕНА</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"◈ <b>Товар:</b> {product_name}\n"
+            f"◈ <b>ID:</b> <code>{short_id}</code>\n\n"
+            f"Новые данные доступа готовы.\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"📋 <i>Посмотреть → «Мои заказы»</i>",
+            
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     🔄 <b>REPLACEMENT DONE</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"◈ <b>Product:</b> {product_name}\n"
+            f"◈ <b>ID:</b> <code>{short_id}</code>\n\n"
+            f"New access credentials are ready.\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"📋 <i>View → «My Orders»</i>"
         )
+        
+        # Add WebApp button
+        webapp_url = os.environ.get("WEBAPP_URL", "https://pvndora.com")
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(
+                text="📦 Мои заказы" if lang == "ru" else "📦 My Orders",
+                web_app=WebAppInfo(url=f"{webapp_url}/orders")
+            )
+        ]])
         
         try:
             await bot.send_message(
                 chat_id=telegram_id,
-                text=message
+                text=message,
+                parse_mode="HTML",
+                reply_markup=keyboard
             )
             logger.info(f"Sent replacement notification to {telegram_id}")
         except Exception as e:
@@ -311,35 +354,59 @@ class NotificationService:
             return
         
         lang = await get_user_language(telegram_id)
+        short_id = ticket_id[:8] if len(ticket_id) > 8 else ticket_id
         
         if issue_type == "replacement":
             message = _msg(lang,
-                f"✅ <b>Тикет #{ticket_id} одобрен</b>\n\n"
-                f"Ваш запрос на замену одобрен.\n"
-                f"Новый аккаунт будет доставлен в ближайшее время.",
-                f"✅ <b>Ticket #{ticket_id} Approved</b>\n\n"
-                f"Your replacement request has been approved.\n"
-                f"A new account will be delivered to you shortly."
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                f"     ✓ <b>ТИКЕТ ОДОБРЕН</b>\n"
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                f"<i>#{short_id}</i>\n\n"
+                f"◈ <b>Решение:</b> Замена\n"
+                f"◈ <b>Статус:</b> В обработке\n\n"
+                f"<i>Новый аккаунт придёт в течение 24ч</i>",
+                
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                f"     ✓ <b>TICKET APPROVED</b>\n"
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                f"<i>#{short_id}</i>\n\n"
+                f"◈ <b>Resolution:</b> Replacement\n"
+                f"◈ <b>Status:</b> Processing\n\n"
+                f"<i>New account will arrive within 24h</i>"
             )
         elif issue_type == "refund":
             message = _msg(lang,
-                f"✅ <b>Тикет #{ticket_id} одобрен</b>\n\n"
-                f"Ваш запрос на возврат одобрен.\n"
-                f"Сумма будет зачислена на ваш баланс.",
-                f"✅ <b>Ticket #{ticket_id} Approved</b>\n\n"
-                f"Your refund request has been approved.\n"
-                f"The amount will be credited to your balance."
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                f"     ✓ <b>ТИКЕТ ОДОБРЕН</b>\n"
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                f"<i>#{short_id}</i>\n\n"
+                f"◈ <b>Решение:</b> Возврат средств\n"
+                f"◈ <b>Статус:</b> Зачислено на баланс ✓",
+                
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                f"     ✓ <b>TICKET APPROVED</b>\n"
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                f"<i>#{short_id}</i>\n\n"
+                f"◈ <b>Resolution:</b> Refund\n"
+                f"◈ <b>Status:</b> Credited to balance ✓"
             )
         else:
             message = _msg(lang,
-                f"✅ <b>Тикет #{ticket_id} одобрен</b>\n\n"
-                f"Ваш запрос одобрен и обрабатывается.",
-                f"✅ <b>Ticket #{ticket_id} Approved</b>\n\n"
-                f"Your request has been approved and is being processed."
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                f"     ✓ <b>ТИКЕТ ОДОБРЕН</b>\n"
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                f"<i>#{short_id}</i>\n\n"
+                f"Ваш запрос принят в обработку.",
+                
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                f"     ✓ <b>TICKET APPROVED</b>\n"
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                f"<i>#{short_id}</i>\n\n"
+                f"Your request is being processed."
             )
         
         try:
-            await bot.send_message(chat_id=telegram_id, text=message)
+            await bot.send_message(chat_id=telegram_id, text=message, parse_mode="HTML")
             logger.info(f"Sent approval notification to {telegram_id} for ticket {ticket_id}")
         except Exception as e:
             logger.error(f"Failed to send approval notification to {telegram_id}: {e}")
@@ -356,26 +423,39 @@ class NotificationService:
         if not bot:
             return
         
-        # Get localized messages
-        title = get_text("ticket_rejected_title", language, default=f"❌ Ticket #{ticket_id} Rejected").format(ticket_id=ticket_id)
-        message_text = get_text("ticket_rejected_message", language, default="Unfortunately, your request could not be approved.")
-        reason_text = get_text("ticket_rejected_reason", language, default="Reason: {reason}").format(reason=reason)
-        contact_text = get_text("ticket_rejected_contact", language, default="If you have questions, please contact support.")
-        button_text = get_text("btn_contact_support", language, default="🆘 Contact Support")
+        lang = await get_user_language(telegram_id)
+        short_id = ticket_id[:8] if len(ticket_id) > 8 else ticket_id
         
-        message = (
-            f"{title}\n\n"
-            f"{message_text}\n\n"
-            f"<i>{reason_text}</i>\n\n"
-            f"{contact_text}"
+        message = _msg(lang,
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"      ✗ <b>ТИКЕТ ОТКЛОНЁН</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"<i>#{short_id}</i>\n\n"
+            f"К сожалению, запрос не может быть выполнен.\n\n"
+            f"◈ <b>Причина:</b>\n"
+            f"<i>{reason}</i>\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"Есть вопросы? Напишите в поддержку.",
+            
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"      ✗ <b>TICKET REJECTED</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"<i>#{short_id}</i>\n\n"
+            f"Unfortunately, your request cannot be fulfilled.\n\n"
+            f"◈ <b>Reason:</b>\n"
+            f"<i>{reason}</i>\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"Questions? Contact support."
         )
         
+        button_text = "🆘 Поддержка" if lang == "ru" else "🆘 Support"
+        
         # Create keyboard with support button
-        webapp_url = os.environ.get("WEBAPP_URL", "https://pvndora.app")
+        webapp_url = os.environ.get("WEBAPP_URL", "https://pvndora.com")
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(
                 text=button_text,
-                web_app=WebAppInfo(url=f"{webapp_url}?startapp=contacts")
+                web_app=WebAppInfo(url=f"{webapp_url}/support")
             )]
         ])
         
@@ -537,22 +617,41 @@ class NotificationService:
             return
         
         lang = await get_user_language(telegram_id)
+        settings = await get_referral_settings()
+        l1 = settings["level1_percent"]
+        l2 = settings["level2_percent"]
+        l3 = settings["level3_percent"]
+        t2 = settings["level2_threshold"]
+        t3 = settings["level3_threshold"]
         
         message = _msg(lang,
-            "🎉 <b>Реферальная программа активирована!</b>\n\n"
-            "Теперь вы можете приглашать друзей и получать бонусы с их покупок:\n\n"
-            "💰 <b>10%</b> с покупок ваших рефералов\n\n"
-            "📈 <b>Повышайте уровень</b> для открытия дополнительных линий:\n"
-            "• Уровень 2 ($250+): +7% со 2-й линии\n"
-            "• Уровень 3 ($1000+): +3% с 3-й линии\n\n"
-            "🔗 Ваша реферальная ссылка доступна в профиле!",
-            "🎉 <b>Referral Program Activated!</b>\n\n"
-            "You can now invite friends and earn bonuses from their purchases:\n\n"
-            "💰 <b>10%</b> from your referrals' purchases\n\n"
-            "📈 <b>Level up</b> to unlock additional tiers:\n"
-            "• Level 2 ($250+): +7% from tier 2\n"
-            "• Level 3 ($1000+): +3% from tier 3\n\n"
-            "🔗 Your referral link is available in your profile!"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"   🔗 <b>ПАРТНЁРКА АКТИВИРОВАНА</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"Добро пожаловать в сеть PVNDORA.\n"
+            f"Теперь вы получаете бонусы с покупок друзей.\n\n"
+            f"<b>▸ УРОВЕНЬ 1</b> — активен\n"
+            f"   └ <b>{l1}%</b> с покупок рефералов\n\n"
+            f"<b>▸ УРОВЕНЬ 2</b> — оборот ${t2}+\n"
+            f"   └ +{l2}% со 2-й линии\n\n"
+            f"<b>▸ УРОВЕНЬ 3</b> — оборот ${t3}+\n"
+            f"   └ +{l3}% с 3-й линии\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"📋 <i>Ссылка и статистика — в профиле</i>",
+            
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"   🔗 <b>AFFILIATE ACTIVATED</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"Welcome to the PVNDORA network.\n"
+            f"You now earn bonuses from friends' purchases.\n\n"
+            f"<b>▸ LEVEL 1</b> — active\n"
+            f"   └ <b>{l1}%</b> from referrals\n\n"
+            f"<b>▸ LEVEL 2</b> — turnover ${t2}+\n"
+            f"   └ +{l2}% from tier 2\n\n"
+            f"<b>▸ LEVEL 3</b> — turnover ${t3}+\n"
+            f"   └ +{l3}% from tier 3\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"📋 <i>Link & stats — in your profile</i>"
         )
         
         try:
@@ -573,38 +672,57 @@ class NotificationService:
             return
         
         lang = await get_user_language(telegram_id)
+        settings = await get_referral_settings()
+        l1 = settings["level1_percent"]
+        l2 = settings["level2_percent"]
+        l3 = settings["level3_percent"]
+        t3 = settings["level3_threshold"]
         
         if new_level == 2:
             message = _msg(lang,
-                "🚀 <b>Уровень реферальной программы повышен!</b>\n\n"
-                "Вы достигли <b>Уровня 2</b>!\n\n"
-                "Теперь вы получаете:\n"
-                "• 10% с покупок рефералов 1-й линии\n"
-                "• <b>+7% с покупок рефералов 2-й линии</b>\n\n"
-                "До Уровня 3 осталось набрать $1000 оборота.",
-                "🚀 <b>Referral Level Up!</b>\n\n"
-                "You've reached <b>Level 2</b>!\n\n"
-                "You now earn:\n"
-                "• 10% from tier 1 referrals\n"
-                "• <b>+7% from tier 2 referrals</b>\n\n"
-                "$1000 turnover remaining to Level 3."
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                f"    📈 <b>УРОВЕНЬ ПОВЫШЕН</b>\n"
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                f"Вы достигли <b>Уровня 2</b>.\n"
+                f"Теперь активна 2-я линия рефералов.\n\n"
+                f"<b>▸ ЛИНИЯ 1:</b> {l1}%\n"
+                f"<b>▸ ЛИНИЯ 2:</b> +{l2}% ← новое\n\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"До Уровня 3: оборот ${t3}",
+                
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                f"    📈 <b>LEVEL UP</b>\n"
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                f"You've reached <b>Level 2</b>.\n"
+                f"Tier 2 referrals now active.\n\n"
+                f"<b>▸ TIER 1:</b> {l1}%\n"
+                f"<b>▸ TIER 2:</b> +{l2}% ← new\n\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"To Level 3: ${t3} turnover"
             )
         elif new_level == 3:
             message = _msg(lang,
-                "🏆 <b>Максимальный уровень достигнут!</b>\n\n"
-                "Поздравляем с <b>Уровнем 3</b>!\n\n"
-                "Теперь вы получаете максимальные бонусы:\n"
-                "• 10% с покупок рефералов 1-й линии\n"
-                "• 7% с покупок рефералов 2-й линии\n"
-                "• <b>+3% с покупок рефералов 3-й линии</b>\n\n"
-                "🎉 Вы — VIP партнёр PVNDORA!",
-                "🏆 <b>Maximum Level Reached!</b>\n\n"
-                "Congratulations on reaching <b>Level 3</b>!\n\n"
-                "You now earn maximum bonuses:\n"
-                "• 10% from tier 1 referrals\n"
-                "• 7% from tier 2 referrals\n"
-                "• <b>+3% from tier 3 referrals</b>\n\n"
-                "🎉 You're a PVNDORA VIP Partner!"
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                f"    🏆 <b>МАКСИМУМ ДОСТИГНУТ</b>\n"
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                f"Поздравляем! <b>Уровень 3</b> — это вершина.\n"
+                f"Все три линии активны.\n\n"
+                f"<b>▸ ЛИНИЯ 1:</b> {l1}%\n"
+                f"<b>▸ ЛИНИЯ 2:</b> {l2}%\n"
+                f"<b>▸ ЛИНИЯ 3:</b> +{l3}% ← новое\n\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"💎 <i>Вы — VIP партнёр PVNDORA</i>",
+                
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                f"    🏆 <b>MAXIMUM REACHED</b>\n"
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                f"Congratulations! <b>Level 3</b> — the top.\n"
+                f"All three tiers active.\n\n"
+                f"<b>▸ TIER 1:</b> {l1}%\n"
+                f"<b>▸ TIER 2:</b> {l2}%\n"
+                f"<b>▸ TIER 3:</b> +{l3}% ← new\n\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"💎 <i>You're a PVNDORA VIP Partner</i>"
             )
         else:
             return
@@ -618,7 +736,14 @@ class NotificationService:
         except Exception as e:
             logger.error(f"Failed to send referral level up notification: {e}")
     
-    async def send_delivery(self, telegram_id: int, product_name: str, content: str) -> None:
+    async def send_delivery(
+        self, 
+        telegram_id: int, 
+        product_name: str, 
+        content: str,
+        expires_at: Optional[datetime] = None,
+        order_id: Optional[str] = None
+    ) -> None:
         """Send delivery notification with product credentials."""
         bot = self._get_bot()
         if not bot:
@@ -626,22 +751,67 @@ class NotificationService:
         
         lang = await get_user_language(telegram_id)
         
+        # Format expiration if available
+        expires_info = ""
+        if expires_at:
+            expires_str = expires_at.strftime("%d.%m.%Y")
+            expires_info = _msg(lang,
+                f"\n◈ <b>Активен до:</b> {expires_str}",
+                f"\n◈ <b>Valid until:</b> {expires_str}"
+            )
+        
+        # Order reference
+        order_ref = ""
+        if order_id:
+            short_id = order_id[:8]
+            order_ref = _msg(lang,
+                f"<i>#{short_id}</i>\n",
+                f"<i>#{short_id}</i>\n"
+            )
+        
         message = _msg(lang,
-            f"📦 <b>Ваш заказ доставлен!</b>\n\n"
-            f"Товар: {product_name}\n\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"      💎 <b>ДОСТАВКА ЗАВЕРШЕНА</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"{order_ref}"
+            f"◈ <b>Товар:</b> {product_name}\n"
+            f"◈ <b>Статус:</b> Активирован ✓{expires_info}\n\n"
+            f"🔐 <b>ДАННЫЕ ДОСТУПА</b>\n"
             f"<code>{content}</code>\n\n"
-            f"Спасибо за покупку! Оставьте отзыв и получите 5% кэшбэк.",
-            f"📦 <b>Your order has been delivered!</b>\n\n"
-            f"Product: {product_name}\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"📋 <i>Инструкции и детали — в разделе «Мои заказы»</i>\n\n"
+            f"⭐ Оставьте отзыв → получите <b>5% кэшбэк</b>",
+            
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"      💎 <b>DELIVERY COMPLETE</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"{order_ref}"
+            f"◈ <b>Product:</b> {product_name}\n"
+            f"◈ <b>Status:</b> Activated ✓{expires_info}\n\n"
+            f"🔐 <b>ACCESS CREDENTIALS</b>\n"
             f"<code>{content}</code>\n\n"
-            f"Thank you for your purchase! Leave a review and get 5% cashback."
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"📋 <i>Instructions & details — in «My Orders»</i>\n\n"
+            f"⭐ Leave a review → get <b>5% cashback</b>"
         )
+        
+        # Add WebApp button for viewing order
+        keyboard = None
+        if order_id:
+            webapp_url = os.environ.get("WEBAPP_URL", "https://pvndora.com")
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(
+                    text="📦 Мои заказы" if lang == "ru" else "📦 My Orders",
+                    web_app=WebAppInfo(url=f"{webapp_url}/orders")
+                )
+            ]])
         
         try:
             await bot.send_message(
                 chat_id=telegram_id,
                 text=message,
-                parse_mode="HTML"
+                parse_mode="HTML",
+                reply_markup=keyboard
             )
         except Exception as e:
             logger.error(f"Failed to send delivery notification: {e}")
@@ -662,23 +832,35 @@ class NotificationService:
         
         if reason == "review":
             message = _msg(lang,
-                f"💰 <b>Кэшбек начислен!</b>\n\n"
-                f"За ваш отзыв вам начислено <b>${cashback_amount:.2f}</b>.\n"
-                f"Новый баланс: <b>${new_balance:.2f}</b>\n\n"
-                f"Спасибо за обратную связь! 🙏",
-                f"💰 <b>Cashback credited!</b>\n\n"
-                f"You received <b>${cashback_amount:.2f}</b> for your review.\n"
-                f"New balance: <b>${new_balance:.2f}</b>\n\n"
-                f"Thank you for your feedback! 🙏"
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                f"      💰 <b>КЭШБЕК ЗАЧИСЛЕН</b>\n"
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                f"Спасибо за ваш отзыв!\n\n"
+                f"◈ <b>Начислено:</b> +${cashback_amount:.2f}\n"
+                f"◈ <b>Баланс:</b> ${new_balance:.2f}\n\n"
+                f"<i>Ваше мнение помогает другим оперативникам</i> ✓",
+                
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                f"      💰 <b>CASHBACK CREDITED</b>\n"
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                f"Thank you for your review!\n\n"
+                f"◈ <b>Credited:</b> +${cashback_amount:.2f}\n"
+                f"◈ <b>Balance:</b> ${new_balance:.2f}\n\n"
+                f"<i>Your feedback helps other operatives</i> ✓"
             )
         else:
             message = _msg(lang,
-                f"💰 <b>Кэшбек начислен!</b>\n\n"
-                f"Вам начислено <b>${cashback_amount:.2f}</b>.\n"
-                f"Новый баланс: <b>${new_balance:.2f}</b>",
-                f"💰 <b>Cashback credited!</b>\n\n"
-                f"You received <b>${cashback_amount:.2f}</b>.\n"
-                f"New balance: <b>${new_balance:.2f}</b>"
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                f"      💰 <b>КЭШБЕК ЗАЧИСЛЕН</b>\n"
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                f"◈ <b>Начислено:</b> +${cashback_amount:.2f}\n"
+                f"◈ <b>Баланс:</b> ${new_balance:.2f}",
+                
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                f"      💰 <b>CASHBACK CREDITED</b>\n"
+                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                f"◈ <b>Credited:</b> +${cashback_amount:.2f}\n"
+                f"◈ <b>Balance:</b> ${new_balance:.2f}"
             )
         
         try:
@@ -749,18 +931,25 @@ class NotificationService:
         lang = await get_user_language(telegram_id)
         
         message = _msg(lang,
-            f"✅ <b>Заявка на вывод одобрена</b>\n\n"
-            f"Сумма: <b>${amount:.2f}</b>\n"
-            f"Метод: {method}\n\n"
-            f"Средства будут отправлены в ближайшее время.",
-            f"✅ <b>Withdrawal Request Approved</b>\n\n"
-            f"Amount: <b>${amount:.2f}</b>\n"
-            f"Method: {method}\n\n"
-            f"Funds will be sent shortly."
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     ✓ <b>ВЫВОД ОДОБРЕН</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"◈ <b>Сумма:</b> ${amount:.2f}\n"
+            f"◈ <b>Метод:</b> {method}\n"
+            f"◈ <b>Статус:</b> Ожидает отправки\n\n"
+            f"<i>Средства поступят в течение 24ч</i>",
+            
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     ✓ <b>WITHDRAWAL APPROVED</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"◈ <b>Amount:</b> ${amount:.2f}\n"
+            f"◈ <b>Method:</b> {method}\n"
+            f"◈ <b>Status:</b> Pending send\n\n"
+            f"<i>Funds will arrive within 24h</i>"
         )
         
         try:
-            await bot.send_message(chat_id=telegram_id, text=message)
+            await bot.send_message(chat_id=telegram_id, text=message, parse_mode="HTML")
             logger.info(f"Sent withdrawal approved notification to {telegram_id}")
         except Exception as e:
             logger.error(f"Failed to send withdrawal approved notification to {telegram_id}: {e}")
@@ -780,18 +969,27 @@ class NotificationService:
         lang = await get_user_language(telegram_id)
         
         message = _msg(lang,
-            f"❌ <b>Заявка на вывод отклонена</b>\n\n"
-            f"Сумма: <b>${amount:.2f}</b>\n\n"
-            f"<i>Причина: {reason}</i>\n\n"
-            f"Средства возвращены на ваш баланс.",
-            f"❌ <b>Withdrawal Request Rejected</b>\n\n"
-            f"Amount: <b>${amount:.2f}</b>\n\n"
-            f"<i>Reason: {reason}</i>\n\n"
-            f"Funds have been returned to your balance."
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     ✗ <b>ВЫВОД ОТКЛОНЁН</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"◈ <b>Сумма:</b> ${amount:.2f}\n\n"
+            f"◈ <b>Причина:</b>\n"
+            f"<i>{reason}</i>\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"Средства возвращены на баланс ✓",
+            
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     ✗ <b>WITHDRAWAL REJECTED</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"◈ <b>Amount:</b> ${amount:.2f}\n\n"
+            f"◈ <b>Reason:</b>\n"
+            f"<i>{reason}</i>\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"Funds returned to balance ✓"
         )
         
         try:
-            await bot.send_message(chat_id=telegram_id, text=message)
+            await bot.send_message(chat_id=telegram_id, text=message, parse_mode="HTML")
             logger.info(f"Sent withdrawal rejected notification to {telegram_id}")
         except Exception as e:
             logger.error(f"Failed to send withdrawal rejected notification to {telegram_id}: {e}")
@@ -811,18 +1009,25 @@ class NotificationService:
         lang = await get_user_language(telegram_id)
         
         message = _msg(lang,
-            f"💸 <b>Вывод выполнен!</b>\n\n"
-            f"Сумма: <b>${amount:.2f}</b>\n"
-            f"Метод: {method}\n\n"
-            f"Средства отправлены. Спасибо за использование PVNDORA!",
-            f"💸 <b>Withdrawal Completed!</b>\n\n"
-            f"Amount: <b>${amount:.2f}</b>\n"
-            f"Method: {method}\n\n"
-            f"Funds have been sent. Thank you for using PVNDORA!"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     💸 <b>ВЫВОД ВЫПОЛНЕН</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"◈ <b>Сумма:</b> ${amount:.2f}\n"
+            f"◈ <b>Метод:</b> {method}\n"
+            f"◈ <b>Статус:</b> Отправлено ✓\n\n"
+            f"<i>Спасибо за использование PVNDORA</i>",
+            
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     💸 <b>WITHDRAWAL COMPLETE</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"◈ <b>Amount:</b> ${amount:.2f}\n"
+            f"◈ <b>Method:</b> {method}\n"
+            f"◈ <b>Status:</b> Sent ✓\n\n"
+            f"<i>Thank you for using PVNDORA</i>"
         )
         
         try:
-            await bot.send_message(chat_id=telegram_id, text=message)
+            await bot.send_message(chat_id=telegram_id, text=message, parse_mode="HTML")
             logger.info(f"Sent withdrawal completed notification to {telegram_id}")
         except Exception as e:
             logger.error(f"Failed to send withdrawal completed notification to {telegram_id}: {e}")
@@ -844,18 +1049,23 @@ class NotificationService:
         lang = await get_user_language(telegram_id)
         
         message = _msg(lang,
-            f"💰 <b>Баланс пополнен!</b>\n\n"
-            f"Сумма: <b>{amount:.2f} {currency}</b>\n"
-            f"Новый баланс: <b>${new_balance:.2f}</b>\n\n"
-            f"Спасибо! Теперь вы можете совершать покупки.",
-            f"💰 <b>Balance Topped Up!</b>\n\n"
-            f"Amount: <b>{amount:.2f} {currency}</b>\n"
-            f"New balance: <b>${new_balance:.2f}</b>\n\n"
-            f"Thank you! You can now make purchases."
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     💰 <b>БАЛАНС ПОПОЛНЕН</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"◈ <b>Зачислено:</b> +{amount:.2f} {currency}\n"
+            f"◈ <b>Баланс:</b> ${new_balance:.2f}\n\n"
+            f"<i>Средства доступны для покупок</i> ✓",
+            
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     💰 <b>BALANCE TOPPED UP</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"◈ <b>Credited:</b> +{amount:.2f} {currency}\n"
+            f"◈ <b>Balance:</b> ${new_balance:.2f}\n\n"
+            f"<i>Funds available for purchases</i> ✓"
         )
         
         try:
-            await bot.send_message(chat_id=telegram_id, text=message)
+            await bot.send_message(chat_id=telegram_id, text=message, parse_mode="HTML")
             logger.info(f"Sent topup success notification to {telegram_id}")
         except Exception as e:
             logger.error(f"Failed to send topup success notification to {telegram_id}: {e}")
@@ -874,24 +1084,31 @@ class NotificationService:
         lang = await get_user_language(telegram_id)
         
         message = _msg(lang,
-            "🎉 <b>Поздравляем! Вы стали VIP-партнёром PVNDORA!</b>\n\n"
-            "Ваша заявка одобрена.\n\n"
-            "Теперь вам доступны:\n"
-            "• Повышенные комиссии с рефералов\n"
-            "• Персональный менеджер\n"
-            "• Приоритетная поддержка\n\n"
-            "Добро пожаловать в команду! 🚀",
-            "🎉 <b>Congratulations! You are now a PVNDORA VIP Partner!</b>\n\n"
-            "Your application has been approved.\n\n"
-            "You now have access to:\n"
-            "• Increased referral commissions\n"
-            "• Personal manager\n"
-            "• Priority support\n\n"
-            "Welcome to the team! 🚀"
+            "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            "    🏆 <b>VIP-ПАРТНЁР PVNDORA</b>\n"
+            "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            "Поздравляем! Ваша заявка одобрена.\n\n"
+            "<b>Теперь вам доступны:</b>\n"
+            "▸ Повышенные комиссии\n"
+            "▸ Персональный менеджер\n"
+            "▸ Приоритетная поддержка\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "<i>Добро пожаловать в команду</i> 💎",
+            
+            "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            "    🏆 <b>PVNDORA VIP PARTNER</b>\n"
+            "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            "Congratulations! Your application was approved.\n\n"
+            "<b>You now have access to:</b>\n"
+            "▸ Increased commissions\n"
+            "▸ Personal manager\n"
+            "▸ Priority support\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "<i>Welcome to the team</i> 💎"
         )
         
         try:
-            await bot.send_message(chat_id=telegram_id, text=message)
+            await bot.send_message(chat_id=telegram_id, text=message, parse_mode="HTML")
             logger.info(f"Sent partner approved notification to {telegram_id}")
         except Exception as e:
             logger.error(f"Failed to send partner approved notification to {telegram_id}: {e}")
@@ -908,20 +1125,31 @@ class NotificationService:
         
         lang = await get_user_language(telegram_id)
         
-        reason_text_ru = reason or "Ваша заявка не соответствует требованиям партнёрской программы."
-        reason_text_en = reason or "Your application does not meet the partner program requirements."
+        reason_text_ru = reason or "Заявка не соответствует требованиям программы."
+        reason_text_en = reason or "Application does not meet program requirements."
         
         message = _msg(lang,
-            f"❌ <b>Заявка на VIP-партнёрство отклонена</b>\n\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     ✗ <b>ЗАЯВКА ОТКЛОНЕНА</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"◈ <b>Причина:</b>\n"
             f"<i>{reason_text_ru}</i>\n\n"
-            f"Вы можете подать новую заявку позже или связаться с поддержкой для уточнения деталей.",
-            f"❌ <b>VIP Partnership Application Rejected</b>\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"Подайте повторно позже или\n"
+            f"напишите в поддержку.",
+            
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     ✗ <b>APPLICATION REJECTED</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"◈ <b>Reason:</b>\n"
             f"<i>{reason_text_en}</i>\n\n"
-            f"You can submit a new application later or contact support for details."
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"Reapply later or contact\n"
+            f"support for details."
         )
         
         try:
-            await bot.send_message(chat_id=telegram_id, text=message)
+            await bot.send_message(chat_id=telegram_id, text=message, parse_mode="HTML")
             logger.info(f"Sent partner rejected notification to {telegram_id}")
         except Exception as e:
             logger.error(f"Failed to send partner rejected notification to {telegram_id}: {e}")
@@ -943,22 +1171,31 @@ class NotificationService:
         
         lang = await get_user_language(telegram_id)
         
-        line_text_ru = f"({line}-й линии) " if line > 1 else ""
-        line_text_en = f"(tier {line}) " if line > 1 else ""
+        line_info_ru = f" • линия {line}" if line > 1 else ""
+        line_info_en = f" • tier {line}" if line > 1 else ""
         
         message = _msg(lang,
-            f"💸 <b>Реферальный бонус!</b>\n\n"
-            f"Ваш реферал {line_text_ru}{referral_name} совершил покупку на ${purchase_amount:.2f}\n\n"
-            f"Ваш бонус: <b>+${bonus_amount:.2f}</b>\n\n"
-            f"Бонус зачислен на ваш баланс.",
-            f"💸 <b>Referral Bonus!</b>\n\n"
-            f"Your referral {line_text_en}{referral_name} made a purchase of ${purchase_amount:.2f}\n\n"
-            f"Your bonus: <b>+${bonus_amount:.2f}</b>\n\n"
-            f"Bonus credited to your balance."
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     💸 <b>БОНУС ПОЛУЧЕН</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"Ваш реферал <b>{referral_name}</b>{line_info_ru}\n"
+            f"совершил покупку.\n\n"
+            f"◈ <b>Сумма покупки:</b> ${purchase_amount:.2f}\n"
+            f"◈ <b>Ваш бонус:</b> +${bonus_amount:.2f}\n\n"
+            f"<i>Зачислено на баланс</i> ✓",
+            
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     💸 <b>BONUS RECEIVED</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"Your referral <b>{referral_name}</b>{line_info_en}\n"
+            f"made a purchase.\n\n"
+            f"◈ <b>Purchase:</b> ${purchase_amount:.2f}\n"
+            f"◈ <b>Your bonus:</b> +${bonus_amount:.2f}\n\n"
+            f"<i>Credited to balance</i> ✓"
         )
         
         try:
-            await bot.send_message(chat_id=telegram_id, text=message)
+            await bot.send_message(chat_id=telegram_id, text=message, parse_mode="HTML")
             logger.info(f"Sent referral bonus notification to {telegram_id}")
         except Exception as e:
             logger.error(f"Failed to send referral bonus notification to {telegram_id}: {e}")
@@ -976,20 +1213,27 @@ class NotificationService:
         
         lang = await get_user_language(telegram_id)
         
-        line_text_ru = f" ({line}-й линии)" if line > 1 else ""
-        line_text_en = f" (tier {line})" if line > 1 else ""
+        line_info_ru = f" • линия {line}" if line > 1 else ""
+        line_info_en = f" • tier {line}" if line > 1 else ""
         
         message = _msg(lang,
-            f"👤 <b>Новый реферал!</b>\n\n"
-            f"{referral_name} присоединился{line_text_ru} по вашей ссылке.\n\n"
-            f"Вы будете получать бонусы с его покупок!",
-            f"👤 <b>New Referral!</b>\n\n"
-            f"{referral_name} joined{line_text_en} via your link.\n\n"
-            f"You'll earn bonuses from their purchases!"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     👤 <b>НОВЫЙ РЕФЕРАЛ</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"<b>{referral_name}</b>{line_info_ru}\n"
+            f"присоединился к вашей сети.\n\n"
+            f"<i>Бонусы с его покупок — автоматически</i> ✓",
+            
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     👤 <b>NEW REFERRAL</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"<b>{referral_name}</b>{line_info_en}\n"
+            f"joined your network.\n\n"
+            f"<i>Bonuses from their purchases — automatic</i> ✓"
         )
         
         try:
-            await bot.send_message(chat_id=telegram_id, text=message)
+            await bot.send_message(chat_id=telegram_id, text=message, parse_mode="HTML")
             logger.info(f"Sent new referral notification to {telegram_id}")
         except Exception as e:
             logger.error(f"Failed to send new referral notification to {telegram_id}: {e}")

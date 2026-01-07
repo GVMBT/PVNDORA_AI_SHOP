@@ -290,8 +290,9 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
                 content_block = "\n\n".join(delivered_lines)
                 await notification_service.send_delivery(
                     telegram_id=telegram_id,
-                    product_name=f"Заказ {order_id}",
-                    content=content_block
+                    product_name=f"Заказ #{order_id[:8]}",
+                    content=content_block,
+                    order_id=order_id
                 )
     except Exception as e:
         logger.error(f"deliver-goods: failed to notify for order {order_id}: {e}", exc_info=True)

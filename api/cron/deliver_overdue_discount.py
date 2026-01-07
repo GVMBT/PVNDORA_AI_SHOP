@@ -22,6 +22,34 @@ CRON_SECRET = os.environ.get("CRON_SECRET", "")
 DISCOUNT_BOT_TOKEN = os.environ.get("DISCOUNT_BOT_TOKEN", "")
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 
+# Cache for referral settings
+_referral_settings_cache = None
+
+
+async def get_referral_percentages() -> dict:
+    """Get referral percentages from database (cached)."""
+    global _referral_settings_cache
+    if _referral_settings_cache:
+        return _referral_settings_cache
+    
+    try:
+        db = get_database()
+        result = await asyncio.to_thread(
+            lambda: db.client.table("referral_settings").select("*").limit(1).execute()
+        )
+        if result.data:
+            s = result.data[0]
+            _referral_settings_cache = {
+                "l1": int(s.get("level1_commission_percent", 10) or 10),
+                "l2": int(s.get("level2_commission_percent", 7) or 7),
+                "l3": int(s.get("level3_commission_percent", 3) or 3),
+            }
+            return _referral_settings_cache
+    except Exception as e:
+        logger.warning(f"Failed to get referral settings: {e}")
+    
+    return {"l1": 10, "l2": 7, "l3": 3}
+
 app = FastAPI()
 
 
@@ -107,10 +135,12 @@ async def deliver_discount_order(db, order_id: str, order_data: dict):
                 }).eq("id", stock_item_id).execute()
             )
             
-            # Update order item
+            # Update order item with delivery content and status
             await asyncio.to_thread(
                 lambda: db.client.table("order_items").update({
                     "stock_item_id": stock_item_id,
+                    "delivery_content": content,
+                    "status": "delivered",
                     "delivered_at": datetime.now(timezone.utc).isoformat()
                 }).eq("id", order_item_id).execute()
             )
@@ -167,15 +197,18 @@ async def deliver_discount_order(db, order_id: str, order_data: dict):
             )
             purchase_count = user_orders_result.count if user_orders_result.count else 1
             
+            # Get dynamic referral percentages
+            ref = await get_referral_percentages()
+            
             # Send personalized PVNDORA warm-up offer
             await asyncio.sleep(10)
             
             if lang == "ru":
                 if purchase_count == 1:
                     progress_text = (
-                        "🎯 <b>Это твоя первая покупка!</b>\n"
-                        "   В PVNDORA ты сразу получишь партнёрку\n"
-                        "   и сможешь зарабатывать 10% с друзей\n"
+                        f"🎯 <b>Это твоя первая покупка!</b>\n"
+                        f"   В PVNDORA ты сразу получишь партнёрку\n"
+                        f"   и сможешь зарабатывать {ref['l1']}% с друзей\n"
                     )
                 elif purchase_count < 3:
                     remaining = 3 - purchase_count
@@ -200,17 +233,17 @@ async def deliver_discount_order(db, order_id: str, order_data: dict):
                     f"   Не ждёшь 1-4 часа в очереди\n\n"
                     f"🛡 <b>С полной гарантией</b>\n"
                     f"   Проблема? Бесплатная замена\n\n"
-                    f"💰 <b>+ Партнёрка 10/7/3%</b>\n"
-                    f"   Пригласи друга — получи 10% с его покупок\n\n"
+                    f"💰 <b>+ Партнёрка {ref['l1']}/{ref['l2']}/{ref['l3']}%</b>\n"
+                    f"   Пригласи друга — получи {ref['l1']}% с его покупок\n\n"
                     f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                     f"👉 <b>@pvndora_ai_bot</b>"
                 )
             else:
                 if purchase_count == 1:
                     progress_text = (
-                        "🎯 <b>This is your first purchase!</b>\n"
-                        "   In PVNDORA you instantly get affiliate\n"
-                        "   and can earn 10% from friends' orders\n"
+                        f"🎯 <b>This is your first purchase!</b>\n"
+                        f"   In PVNDORA you instantly get affiliate\n"
+                        f"   and can earn {ref['l1']}% from friends' orders\n"
                     )
                 elif purchase_count < 3:
                     remaining = 3 - purchase_count
@@ -235,8 +268,8 @@ async def deliver_discount_order(db, order_id: str, order_data: dict):
                     f"   No 1-4 hour queue wait\n\n"
                     f"🛡 <b>With full warranty</b>\n"
                     f"   Problem? Free replacement\n\n"
-                    f"💰 <b>+ Affiliate 10/7/3%</b>\n"
-                    f"   Invite a friend — get 10% of their purchases\n\n"
+                    f"💰 <b>+ Affiliate {ref['l1']}/{ref['l2']}/{ref['l3']}%</b>\n"
+                    f"   Invite a friend — get {ref['l1']}% of their purchases\n\n"
                     f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                     f"👉 <b>@pvndora_ai_bot</b>"
                 )
@@ -244,7 +277,15 @@ async def deliver_discount_order(db, order_id: str, order_data: dict):
             
             # If user reached 3+ purchases, send loyal promo immediately
             if purchase_count >= 3:
-                await _send_loyal_promo_if_eligible(user_id, telegram_id, lang, purchase_count)
+                # Get user_id from telegram_id
+                user_lookup = await asyncio.to_thread(
+                    lambda: db.client.table("users").select("id").eq(
+                        "telegram_id", telegram_id
+                    ).single().execute()
+                )
+                if user_lookup.data:
+                    user_id = user_lookup.data.get("id")
+                    await _send_loyal_promo_if_eligible(user_id, telegram_id, lang, purchase_count)
         
         # Update order status
         await asyncio.to_thread(
@@ -289,6 +330,9 @@ async def _send_loyal_promo_if_eligible(user_id: str, telegram_id: int, lang: st
         if not promo_code:
             return False
         
+        # Get dynamic referral percentages
+        ref = await get_referral_percentages()
+        
         # Send promo message to PVNDORA main bot
         text = (
             f"🎉 <b>Спасибо за доверие!</b>\n\n"
@@ -298,7 +342,7 @@ async def _send_loyal_promo_if_eligible(user_id: str, telegram_id: int, lang: st
             f"В PVNDORA вас ждут:\n"
             f"• 🚀 Мгновенная доставка\n"
             f"• 🛡 Гарантии на все товары\n"
-            f"• 💰 Партнерка 10/7/3%\n"
+            f"• 💰 Партнерка {ref['l1']}/{ref['l2']}/{ref['l3']}%\n"
             f"• 🎧 Круглосуточная поддержка\n\n"
             f"👉 @pvndora_ai_bot"
         ) if lang == "ru" else (
@@ -309,7 +353,7 @@ async def _send_loyal_promo_if_eligible(user_id: str, telegram_id: int, lang: st
             f"In PVNDORA you get:\n"
             f"• 🚀 Instant delivery\n"
             f"• 🛡 Warranty on all products\n"
-            f"• 💰 Affiliate 10/7/3%\n"
+            f"• 💰 Affiliate {ref['l1']}/{ref['l2']}/{ref['l3']}%\n"
             f"• 🎧 24/7 support\n\n"
             f"👉 @pvndora_ai_bot"
         )
