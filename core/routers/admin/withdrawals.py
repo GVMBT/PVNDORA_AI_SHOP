@@ -31,7 +31,7 @@ async def get_withdrawals(
     
     try:
         query = db.client.table("withdrawal_requests").select(
-            "*, users(username, first_name, telegram_id, balance)"
+            "*, users!withdrawal_requests_user_id_fkey(username, first_name, telegram_id, balance)"
         ).order("created_at", desc=True).limit(limit).offset(offset)
         
         if status and status != "all":
@@ -65,7 +65,7 @@ async def get_withdrawal(withdrawal_id: str, admin=Depends(verify_admin)):
     try:
         result = await asyncio.to_thread(
             lambda: db.client.table("withdrawal_requests")
-            .select("*, users(username, first_name, telegram_id, balance)")
+            .select("*, users!withdrawal_requests_user_id_fkey(username, first_name, telegram_id, balance)")
             .eq("id", withdrawal_id)
             .single()
             .execute()
@@ -223,7 +223,7 @@ async def reject_withdrawal(
         # Get withdrawal request with user info for notification
         withdrawal_result = await asyncio.to_thread(
             lambda: db.client.table("withdrawal_requests")
-            .select("id, status, user_id, amount, users(telegram_id)")
+            .select("id, status, user_id, amount, users!withdrawal_requests_user_id_fkey(telegram_id)")
             .eq("id", withdrawal_id)
             .single()
             .execute()
@@ -311,7 +311,7 @@ async def complete_withdrawal(
         # Get withdrawal request with user info for notification
         withdrawal_result = await asyncio.to_thread(
             lambda: db.client.table("withdrawal_requests")
-            .select("id, status, amount, payment_method, users(telegram_id)")
+            .select("id, status, amount, payment_method, users!withdrawal_requests_user_id_fkey(telegram_id)")
             .eq("id", withdrawal_id)
             .single()
             .execute()

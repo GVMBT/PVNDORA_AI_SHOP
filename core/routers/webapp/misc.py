@@ -12,6 +12,8 @@ from pydantic import BaseModel
 
 from core.services.database import get_database
 from core.services.money import to_float
+from core.services.currency import CurrencyFormatter
+from core.services.redis import get_redis_service
 from core.auth import verify_telegram_auth
 from core.logging import get_logger
 from .models import PromoCheckRequest, WebAppReviewRequest
@@ -160,8 +162,12 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
 async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: int = 0, user=Depends(verify_telegram_auth)):
     """Get savings leaderboard. Supports period: all, month, week and pagination."""
     db = get_database()
+    redis = get_redis_service()
     LEADERBOARD_SIZE = min(limit, 50)  # Cap at 50
     now = datetime.now(timezone.utc)
+    
+    # Get user's currency formatter for converting amounts
+    formatter = await CurrencyFormatter.create(user.id, db, redis)
     
     date_filter = None
     period_modules_count_map = {}  # Initialize for period-based queries
@@ -266,12 +272,15 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
         return {
             "leaderboard": [], 
             "user_rank": None, 
-            "user_saved": user_saved,
+            "user_saved": formatter.convert(user_saved),
+            "user_saved_usd": user_saved,
             "total_users": total_users, 
             "improved_today": 0,
             "has_more": False,
             "offset": offset,
             "limit": LEADERBOARD_SIZE,
+            "currency": formatter.currency,
+            "exchange_rate": formatter.exchange_rate,
         }
     
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -352,7 +361,8 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
         leaderboard.append({
             "rank": actual_rank,
             "name": display_name, 
-            "total_saved": float(entry.get("total_saved", 0)),
+            "total_saved": formatter.convert(float(entry.get("total_saved", 0))),
+            "total_saved_usd": float(entry.get("total_saved", 0)),
             "is_current_user": is_current,
             "telegram_id": tg_id,  # For avatar lookup
             "photo_url": entry.get("photo_url"),  # User profile photo from Telegram
@@ -393,12 +403,15 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
     return {
         "leaderboard": leaderboard, 
         "user_rank": user_rank, 
-        "user_saved": user_saved,
+        "user_saved": formatter.convert(user_saved),
+        "user_saved_usd": user_saved,
         "total_users": total_users, 
         "improved_today": improved_today,
         "has_more": has_more,
         "offset": offset,
         "limit": LEADERBOARD_SIZE,
+        "currency": formatter.currency,
+        "exchange_rate": formatter.exchange_rate,
     }
 
 

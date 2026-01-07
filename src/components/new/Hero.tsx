@@ -1,19 +1,12 @@
 
 import React, { memo } from 'react';
 import PandoraBox from './PandoraBox';
-import { Terminal, Zap, Unlock, Cpu, Network, Activity, ShieldCheck, Lock } from 'lucide-react';
+import { Cpu, Network, Activity, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLocale } from '../../hooks/useLocale';
 
 const HeroComponent: React.FC = () => {
   const { t } = useLocale();
-
-  const scrollToCatalog = () => {
-    const catalog = document.getElementById('catalog');
-    if (catalog) {
-      catalog.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
 
   return (
     <section className="relative w-full min-h-[100dvh] bg-transparent flex flex-col z-40 overflow-visible">
@@ -88,28 +81,14 @@ const HeroComponent: React.FC = () => {
                 </div>
             </motion.div>
 
-            {/* CTA Button */}
+            {/* Instant Delivery Badge */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.6 }}
-              className="mt-4 sm:mt-0 relative"
+              className="mt-4 sm:mt-0"
             >
-              <button 
-                id="open-pandora"
-                onClick={scrollToCatalog}
-                className="group relative px-8 sm:px-12 py-4 sm:py-5 bg-white text-black font-display font-black text-xs sm:text-sm tracking-[0.2em] uppercase transition-all duration-300 hover:bg-pandora-cyan hover:shadow-[0_0_40px_rgba(0,255,255,0.6)] overflow-hidden clip-path-polygon"
-              >
-                <span className="relative z-10 flex items-center justify-center gap-3">
-                    <Zap size={16} className="fill-black sm:w-[18px] sm:h-[18px]" />
-                    {t('hero.initializeAccess')}
-                </span>
-                
-                {/* Glitch Effect Overlay */}
-                <div className="absolute inset-0 bg-pandora-cyan opacity-0 group-hover:opacity-100 mix-blend-overlay transition-opacity duration-100" />
-              </button>
-              
-              <div className="mt-4 text-[9px] text-gray-600 font-mono flex items-center justify-center gap-2">
+              <div className="text-[9px] text-gray-500 font-mono flex items-center justify-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                   {t('hero.instantDelivery')}
               </div>

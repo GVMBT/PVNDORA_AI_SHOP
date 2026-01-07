@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Trophy, ChevronUp, ChevronDown, User, Crown, ArrowRight, TrendingUp, ShieldCheck, Activity, Zap, Terminal, BarChart3, Lock, ArrowLeft } from 'lucide-react';
 import { formatPrice, getCurrencySymbol } from '../../utils/currency';
 import { useLocale } from '../../hooks/useLocale';
+import { useLocaleContext } from '../../contexts/LocaleContext';
 
 // Type matching LeaderboardUser from types/component
 interface LeaderboardUserData {
@@ -45,6 +46,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
   activeFilter = 'all_time',
 }) => {
   const { t } = useLocale();
+  const { currency: contextCurrency } = useLocaleContext();
   // Use controlled filter from parent or internal state
   const [internalFilter, setInternalFilter] = useState<'weekly' | 'all_time'>('all_time');
   const filter = onFilterChange ? activeFilter : internalFilter;
@@ -75,8 +77,8 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
   // Use provided data - NO MOCK fallback (mock data causes confusion)
   const data = propData || [];
   
-  // Determine currency: use from first user if available, or from props, or default to USD
-  const displayCurrency = data.find(u => u.currency)?.currency || currency || 'USD';
+  // Determine currency: prioritize context currency (user preference), then props, then default to USD
+  const displayCurrency = contextCurrency || currency || 'USD';
   
   // Extract top 3 for podium display (may have less than 3)
   const topThree = data.slice(0, 3);

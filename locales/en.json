@@ -72,14 +72,18 @@
     "empty": "NOTHING FOUND",
     "emptyHint": "Try adjusting your search filters.",
     "category": {
-      "aiSolutions": "AI_CORE",
-      "designTools": "VISUAL_SYNTH",
-      "developerAccess": "DEV_ROOT",
-      "text": "TEXT",
-      "image": "IMAGE",
-      "video": "VIDEO",
-      "code": "CODE",
-      "audio": "AUDIO"
+      "aiSolutions": "AI Models",
+      "designTools": "Design",
+      "developerAccess": "Development",
+      "ai": "AI Models",
+      "design": "Design",
+      "dev": "Development",
+      "music": "Music",
+      "text": "Text",
+      "image": "Images",
+      "video": "Video",
+      "code": "Code",
+      "audio": "Audio"
     },
     "availability": {
       "label": "STATUS",
@@ -784,5 +788,33 @@
       "warranty": "🛡 Warranty on all products",
       "support247": "🎧 24/7 support"
     }
+  },
+  "modal": {
+    "topUp": {
+      "title": "Top Up Balance",
+      "currentBalance": "Current balance",
+      "amount": "Top up amount",
+      "button": "Top Up"
+    },
+    "withdraw": {
+      "title": "Withdraw Funds",
+      "availableBalance": "Available balance",
+      "amount": "Withdrawal amount",
+      "method": "Withdrawal method",
+      "cryptoDescription": "Cryptocurrency withdrawal",
+      "walletAddress": "Wallet address",
+      "walletPlaceholder": "TRC20 USDT wallet address",
+      "button": "Withdraw"
+    },
+    "errors": {
+      "enterAmount": "Enter a valid amount",
+      "minAmount": "Minimum amount",
+      "maxAmount": "Maximum amount",
+      "insufficientFunds": "Insufficient funds",
+      "enterDetails": "Enter wallet details"
+    },
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "ok": "OK"
   }
 }

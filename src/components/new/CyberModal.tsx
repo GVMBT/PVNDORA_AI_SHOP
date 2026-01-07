@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, AlertTriangle, CheckCircle, Info, Wallet, ArrowUpRight, Plus, Loader2 } from 'lucide-react';
 import { getCurrencySymbol } from '../../utils/currency';
 import { useLocaleContext } from '../../contexts/LocaleContext';
+import { useLocale } from '../../hooks/useLocale';
 
 // ==================== TYPES ====================
 
@@ -87,6 +88,7 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
   const [withdrawDetails, setWithdrawDetails] = useState('');
   const [error, setError] = useState<string | null>(null);
   const { currency: contextCurrency } = useLocaleContext();
+  const { t } = useLocale();
   
   // Convert preset amounts from USD to user currency
   // Base presets: 5, 10, 20, 50 USD (reasonable amounts for top-up)
@@ -127,23 +129,23 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
     if (state.type === 'topup' || state.type === 'withdraw') {
       const amount = parseFloat(inputValue);
       if (isNaN(amount) || amount <= 0) {
-        setError('Введите корректную сумму');
+        setError(t('modal.errors.enterAmount'));
         return;
       }
       if (state.minAmount && amount < state.minAmount) {
-        setError(`Минимальная сумма: ${state.minAmount} ${state.currency}`);
+        setError(`${t('modal.errors.minAmount')}: ${state.minAmount} ${state.currency}`);
         return;
       }
       if (state.maxAmount && amount > state.maxAmount) {
-        setError(`Максимальная сумма: ${state.maxAmount} ${state.currency}`);
+        setError(`${t('modal.errors.maxAmount')}: ${state.maxAmount} ${state.currency}`);
         return;
       }
       if (state.type === 'withdraw' && state.balance && amount > state.balance) {
-        setError('Недостаточно средств');
+        setError(t('modal.errors.insufficientFunds'));
         return;
       }
       if (state.type === 'withdraw' && !withdrawDetails.trim()) {
-        setError('Укажите реквизиты');
+        setError(t('modal.errors.enterDetails'));
         return;
       }
     }
@@ -233,7 +235,7 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
                 <div className="space-y-4">
                   {/* Balance Display */}
                   <div className="bg-white/5 border border-white/10 p-4 rounded">
-                    <div className="text-[10px] text-gray-500 font-mono uppercase mb-1">CURRENT_BALANCE</div>
+                    <div className="text-[10px] text-gray-500 font-mono uppercase mb-1">{t('modal.topUp.currentBalance')}</div>
                     <div className="text-2xl font-display font-bold text-pandora-cyan">
                       {state.balance?.toLocaleString()} {currencySymbol}
                     </div>
@@ -241,7 +243,7 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
                   
                   {/* Amount Input */}
                   <div>
-                    <label className="text-[10px] text-gray-500 font-mono uppercase mb-2 block">TOP_UP_AMOUNT</label>
+                    <label className="text-[10px] text-gray-500 font-mono uppercase mb-2 block">{t('modal.topUp.amount')}</label>
                     <div className="relative">
                       <input
                         type="number"
@@ -280,7 +282,7 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
                 <div className="space-y-4">
                   {/* Balance Display */}
                   <div className="bg-white/5 border border-white/10 p-4 rounded">
-                    <div className="text-[10px] text-gray-500 font-mono uppercase mb-1">AVAILABLE_BALANCE</div>
+                    <div className="text-[10px] text-gray-500 font-mono uppercase mb-1">{t('modal.withdraw.availableBalance')}</div>
                     <div className="text-2xl font-display font-bold text-green-500">
                       {state.balance?.toLocaleString()} {currencySymbol}
                     </div>
@@ -288,7 +290,7 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
                   
                   {/* Amount Input */}
                   <div>
-                    <label className="text-[10px] text-gray-500 font-mono uppercase mb-2 block">WITHDRAW_AMOUNT</label>
+                    <label className="text-[10px] text-gray-500 font-mono uppercase mb-2 block">{t('modal.withdraw.amount')}</label>
                     <div className="relative">
                       <input
                         type="number"
@@ -306,13 +308,13 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
                   
                   {/* Method Selection - Only Crypto (TRC20 USDT) */}
                   <div>
-                    <label className="text-[10px] text-gray-500 font-mono uppercase mb-2 block">PAYMENT_METHOD</label>
+                    <label className="text-[10px] text-gray-500 font-mono uppercase mb-2 block">{t('modal.withdraw.method')}</label>
                     <div className="bg-purple-500/20 border border-purple-500 p-4 rounded">
                       <div className="flex items-center gap-3">
                         <span className="text-2xl">₿</span>
                         <div>
                           <div className="text-sm font-mono font-bold text-purple-400">TRC20 USDT</div>
-                          <div className="text-[10px] text-gray-500 font-mono">Cryptocurrency withdrawal</div>
+                          <div className="text-[10px] text-gray-500 font-mono">{t('modal.withdraw.cryptoDescription')}</div>
                         </div>
                       </div>
                     </div>
@@ -321,13 +323,13 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
                   {/* Details Input */}
                   <div>
                     <label className="text-[10px] text-gray-500 font-mono uppercase mb-2 block">
-                      WALLET_ADDRESS
+                      {t('modal.withdraw.walletAddress')}
                     </label>
                     <input
                       type="text"
                       value={withdrawDetails}
                       onChange={(e) => setWithdrawDetails(e.target.value)}
-                      placeholder="TRC20 USDT wallet address"
+                      placeholder={t('modal.withdraw.walletPlaceholder')}
                       className="w-full bg-black border border-white/20 focus:border-purple-500 px-4 py-3 text-white font-mono outline-none transition-colors"
                     />
                   </div>
@@ -366,7 +368,7 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
                   onClick={onClose}
                   className="flex-1 py-3 bg-white/5 border border-white/10 text-gray-400 text-xs font-bold uppercase tracking-wider hover:bg-white/10 hover:text-white transition-colors"
                 >
-                  CANCEL
+                  {t('modal.cancel')}
                 </button>
               )}
               <button
@@ -386,10 +388,10 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
                   <>
                     {state.type === 'topup' && <Plus size={14} />}
                     {state.type === 'withdraw' && <ArrowUpRight size={14} />}
-                    {state.type === 'topup' ? 'TOP UP' :
-                     state.type === 'withdraw' ? 'WITHDRAW' :
-                     state.type === 'alert' ? 'OK' :
-                     'CONFIRM'}
+                    {state.type === 'topup' ? t('modal.topUp.button') :
+                     state.type === 'withdraw' ? t('modal.withdraw.button') :
+                     state.type === 'alert' ? t('modal.ok') :
+                     t('modal.confirm')}
                   </>
                 )}
               </button>

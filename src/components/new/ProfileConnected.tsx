@@ -399,7 +399,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
 
   return (
     <>
-      <Profile
+    <Profile
         profile={convertedProfile || profile}
         onBack={onBack}
         onHaptic={onHaptic}

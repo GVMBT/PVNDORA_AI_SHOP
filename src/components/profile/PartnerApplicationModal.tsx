@@ -5,7 +5,7 @@
  * Matches PVNDORA's sci-fi neon aesthetic.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Loader2, CheckCircle, AlertCircle, Shield, Zap, Users, Trophy } from 'lucide-react';
 
@@ -72,6 +72,22 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Reset form state when modal opens
+  useEffect(() => {
+    if (isOpen && !existingApplication) {
+      setSubmitted(false);
+      setError(null);
+      setFormData({
+        email: '',
+        phone: '',
+        source: '',
+        audienceSize: '',
+        description: '',
+        expectedVolume: '',
+      });
+    }
+  }, [isOpen, existingApplication]);
 
   const handleChange = useCallback((field: keyof PartnerApplicationData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
