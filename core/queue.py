@@ -212,14 +212,35 @@ async def verify_qstash_request(request: Request) -> dict:
     body = await request.body()
     
     # Build full URL for verification (QStash JWT includes URL)
+    # IMPORTANT: Vercel may change URL format, so we try multiple variants
     url = str(request.url)
     
-    if not verify_qstash_signature(body, signature, url):
-        logger.error(f"QStash verification failed for URL: {url}")
-        raise HTTPException(status_code=401, detail="Invalid QStash signature")
+    logger.info(f"QStash verify: url={url}, has_signature={bool(signature)}, body_len={len(body)}")
     
-    import json
-    return json.loads(body)
+    # Try verification with original URL first
+    if verify_qstash_signature(body, signature, url):
+        import json
+        return json.loads(body)
+    
+    # Try without query params (QStash may not include them)
+    url_no_query = url.split("?")[0]
+    if url_no_query != url and verify_qstash_signature(body, signature, url_no_query):
+        logger.info(f"QStash verified with URL without query params")
+        import json
+        return json.loads(body)
+    
+    # Try with production URL (WEBAPP_URL)
+    if WEBAPP_URL:
+        path = request.url.path
+        prod_url = f"https://{WEBAPP_URL.replace('https://', '').replace('http://', '')}{path}"
+        if verify_qstash_signature(body, signature, prod_url):
+            logger.info(f"QStash verified with production URL: {prod_url}")
+            import json
+            return json.loads(body)
+    
+    # All verification attempts failed
+    logger.error(f"QStash verification FAILED for all URL variants. Original URL: {url}")
+    raise HTTPException(status_code=401, detail="Invalid QStash signature")
 
 
 def qstash_protected(func):
