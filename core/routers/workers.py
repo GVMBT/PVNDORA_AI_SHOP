@@ -570,7 +570,8 @@ async def worker_process_replacement(request: Request):
         .execute()
     )
     
-    if not item_res.data:
+    if not item_res.data or len(item_res.data) == 0:
+        logger.error(f"process-replacement: Order item {item_id} not found")
         return {"error": "Order item not found"}
     
     item_data = item_res.data[0]
