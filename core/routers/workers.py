@@ -965,10 +965,11 @@ async def worker_send_broadcast(request: Request):
     
     # Get appropriate bot
     import os
+    import httpx
     from aiogram import Bot
     from aiogram.client.default import DefaultBotProperties
     from aiogram.enums import ParseMode
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, BufferedInputFile
     
     if target_bot == "discount":
         token = os.environ.get("DISCOUNT_BOT_TOKEN", "")
@@ -979,6 +980,29 @@ async def worker_send_broadcast(request: Request):
         return {"error": f"Bot token not configured for {target_bot}"}
     
     bot = Bot(token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    
+    # CRITICAL: file_id from Admin Bot doesn't work with other bots!
+    # We need to download the file and re-upload it
+    media_bytes = None
+    if media_file_id and media_type:
+        admin_token = os.environ.get("ADMIN_BOT_TOKEN", "")
+        if admin_token:
+            try:
+                admin_bot = Bot(token=admin_token)
+                file = await admin_bot.get_file(media_file_id)
+                file_path = file.file_path
+                # Download file from Telegram servers
+                file_url = f"https://api.telegram.org/file/bot{admin_token}/{file_path}"
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(file_url)
+                    if response.status_code == 200:
+                        media_bytes = response.content
+                        logger.info(f"Broadcast {broadcast_id}: Downloaded media file, size={len(media_bytes)} bytes")
+                    else:
+                        logger.error(f"Broadcast {broadcast_id}: Failed to download media, status={response.status_code}")
+                await admin_bot.session.close()
+            except Exception as e:
+                logger.error(f"Broadcast {broadcast_id}: Failed to download media from admin bot: {e}")
     
     sent = 0
     failed = 0
@@ -1034,7 +1058,25 @@ async def worker_send_broadcast(request: Request):
                     keyboard = InlineKeyboardMarkup(inline_keyboard=rows)
             
             try:
-                if media_file_id and media_type == "photo":
+                # Use downloaded media bytes if available, otherwise try file_id
+                if media_bytes and media_type == "photo":
+                    await bot.send_photo(
+                        chat_id=telegram_id,
+                        photo=BufferedInputFile(media_bytes, filename="broadcast.jpg"),
+                        caption=text,
+                        parse_mode=parse_mode_str,
+                        reply_markup=keyboard
+                    )
+                elif media_bytes and media_type == "video":
+                    await bot.send_video(
+                        chat_id=telegram_id,
+                        video=BufferedInputFile(media_bytes, filename="broadcast.mp4"),
+                        caption=text,
+                        parse_mode=parse_mode_str,
+                        reply_markup=keyboard
+                    )
+                elif media_file_id and media_type == "photo":
+                    # Fallback to file_id (may fail if from different bot)
                     await bot.send_photo(
                         chat_id=telegram_id,
                         photo=media_file_id,
@@ -1050,7 +1092,16 @@ async def worker_send_broadcast(request: Request):
                         parse_mode=parse_mode_str,
                         reply_markup=keyboard
                     )
+                elif media_bytes and media_type == "animation":
+                    await bot.send_animation(
+                        chat_id=telegram_id,
+                        animation=BufferedInputFile(media_bytes, filename="broadcast.gif"),
+                        caption=text,
+                        parse_mode=parse_mode_str,
+                        reply_markup=keyboard
+                    )
                 elif media_file_id and media_type == "animation":
+                    # Fallback to file_id
                     await bot.send_animation(
                         chat_id=telegram_id,
                         animation=media_file_id,
@@ -1149,7 +1200,7 @@ async def worker_send_broadcast(request: Request):
                 lambda: db.client.table("broadcast_messages")
                 .update({
                     "status": "sent",
-                    "finished_at": datetime.now(timezone.utc).isoformat()
+                    "completed_at": datetime.now(timezone.utc).isoformat()
                 })
                 .eq("id", broadcast_id)
                 .execute()
