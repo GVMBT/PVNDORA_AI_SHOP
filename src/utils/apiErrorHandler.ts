@@ -30,7 +30,7 @@ export function parseApiError(error: unknown, endpoint?: string): ApiError {
     let message = error.message;
     
     // Remove technical prefixes
-    message = message.replace(/^(1Plat|Rukassa) API error:\s*/i, '');
+    message = message.replace(/^CrystalPay API error:\s*/i, '');
     
     // Handle specific status codes
     if (status === 429) {

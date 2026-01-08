@@ -45,12 +45,6 @@ GATEWAY_ALIASES: dict[str, str] = {
     "crystalpay": PaymentGateway.CRYSTALPAY.value,
     "crystal_pay": PaymentGateway.CRYSTALPAY.value,
     "crystal-pay": PaymentGateway.CRYSTALPAY.value,
-    # Legacy aliases for backward compatibility
-    "rukassa": PaymentGateway.CRYSTALPAY.value,
-    "freekassa": PaymentGateway.CRYSTALPAY.value,
-    "1plat": PaymentGateway.CRYSTALPAY.value,
-    "oneplat": PaymentGateway.CRYSTALPAY.value,
-    "card": PaymentGateway.CRYSTALPAY.value,
 }
 
 # Statuses that indicate delivery completed
@@ -91,7 +85,6 @@ def normalize_gateway(gateway: str) -> str:
         
     Example:
         normalize_gateway("CrystalPay") -> "crystalpay"
-        normalize_gateway("rukassa") -> "crystalpay"
     """
     if not gateway:
         return PaymentGateway.CRYSTALPAY.value

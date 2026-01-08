@@ -65,7 +65,7 @@ export async function apiRequest<T = unknown>(
 
       // Handle specific status codes
       if (response.status === 429) {
-        errorMessage = errorMessage.replace(/^(1Plat|Rukassa) API error:\s*/i, '');
+        errorMessage = errorMessage.replace(/^CrystalPay API error:\s*/i, '');
         if (!errorMessage || errorMessage === `HTTP ${response.status}`) {
           errorMessage = 'Слишком много запросов. Подождите минуту и попробуйте снова.';
         }

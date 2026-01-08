@@ -101,7 +101,7 @@ export interface Order {
   items: OrderItem[];
   payment_url?: string | null; // Payment URL for pending orders
   payment_id?: string | null; // Invoice ID for checking payment status
-  payment_gateway?: string | null; // Gateway name (crystalpay, rukassa, etc.)
+  payment_gateway?: string | null; // Gateway name (crystalpay)
   deadline?: string | null;    // Payment deadline for pending orders (ISO string or formatted)
 
   // Extended status info for better UX
@@ -237,7 +237,7 @@ export interface CartData {
   promoDiscountPercent?: number;
 }
 
-export type PaymentMethod = 'internal' | 'rukassa' | 'crystalpay';
+export type PaymentMethod = 'internal' | 'crystalpay';
 
 // ==================== SUPPORT ====================
 

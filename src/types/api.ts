@@ -132,7 +132,7 @@ export interface APICreateOrderRequest {
   quantity?: number;
   promo_code?: string;
   payment_method?: 'card' | 'sbp' | 'crypto' | 'balance';
-  payment_gateway?: 'rukassa' | 'crystalpay' | '1plat' | 'freekassa';
+  payment_gateway?: 'crystalpay';
   use_cart?: boolean;
 }
 

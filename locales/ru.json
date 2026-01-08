@@ -436,7 +436,7 @@
     "methods": "Поддерживаемые протоколы",
     "methodsText": "Visa, Mastercard, MIR, СБП, Crypto (BTC, USDT, ETH).",
     "process": "Процесс",
-    "processText": "Защищенное SSL соединение. Шлюз 1Plat.",
+    "processText": "Защищенное SSL соединение. CrystalPay Gateway.",
     "security": "Безопасность",
     "securityText": "Шифрование PCI DSS. Анонимно.",
     "questions": "Ошибка?",

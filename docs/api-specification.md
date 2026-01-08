@@ -110,26 +110,22 @@ Content-Type: application/json
 }
 ```
 
-### 2. POST /api/webhook/1plat
+### 2. POST /api/webhook/crystalpay
 
-Webhook от платежной системы 1Plat.
+Webhook от платежной системы CrystalPay.
 
 **Request:**
 ```http
-POST /api/webhook/1plat
+POST /api/webhook/crystalpay
 Content-Type: application/json
 
 {
-  "signature": "...",
-  "signature_v2": "...",
-  "payment_id": "123",
-  "guid": "guid",
-  "merchant_id": "543",
-  "user_id": "1111",
-  "status": 1,
-  "amount": 14500,
-  "amount_to_pay": 14500,
-  "amount_to_shop": 12325
+  "id": "invoice_id",
+  "signature": "sha1(id + ':' + salt)",
+  "state": "payed",
+  "extra": "order_id",
+  "amount": 100.50,
+  "currency": "RUB"
 }
 ```
 

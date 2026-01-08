@@ -207,8 +207,8 @@ async def get_currency_rate(target_currency: str) -> float:
 ```python
 def get_payment_provider(currency: str, language: str) -> str:
     """Определение платежного провайдера"""
-    # Используется только 1Plat для всех регионов
-    return "1plat"
+    # Используется только CrystalPay для всех регионов
+    return "crystalpay"
 ```
 
 ### Конвертация для Платежа

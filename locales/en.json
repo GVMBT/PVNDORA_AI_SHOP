@@ -435,7 +435,7 @@
     "methods": "Supported Protocols",
     "methodsText": "Visa, Mastercard, MIR, FPS, Crypto (BTC, USDT, ETH).",
     "process": "Process",
-    "processText": "Secure SSL Connection. 1Plat Gateway.",
+    "processText": "Secure SSL Connection. CrystalPay Gateway.",
     "security": "Security",
     "securityText": "PCI DSS Encrypted. Anonymous.",
     "questions": "Error?",

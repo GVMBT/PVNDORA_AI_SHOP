@@ -43,7 +43,7 @@ def to_kopecks(value: Union[str, int, float, Decimal]) -> int:
     """
     Convert decimal amount to minor units (kopecks/cents).
     
-    Used for payment APIs that expect integer minor units (e.g., 1Plat).
+    Used for payment APIs that expect integer minor units.
     
     Args:
         value: Amount in major units (e.g., 100.50 RUB)
