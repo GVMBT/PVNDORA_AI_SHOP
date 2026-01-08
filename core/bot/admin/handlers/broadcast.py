@@ -12,6 +12,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramBadRequest
 
 from core.services.database import get_database
 from core.logging import get_logger
@@ -19,6 +20,27 @@ from ..states import BroadcastStates
 
 logger = get_logger(__name__)
 router = Router(name="broadcast")
+
+
+async def safe_edit_text(callback: CallbackQuery, text: str, **kwargs) -> bool:
+    """
+    Safely edit message text, ignoring 'message is not modified' errors.
+    Returns True if edited successfully, False if message was not modified.
+    """
+    try:
+        await callback.message.edit_text(text, **kwargs)
+        return True
+    except TelegramBadRequest as e:
+        error_msg = str(e).lower()
+        if "message is not modified" in error_msg:
+            # Message already has the same content - not an error
+            logger.debug(f"Message not modified (already correct): {callback.data}")
+            return False
+        # Re-raise other BadRequest errors
+        raise
+    except Exception as e:
+        logger.error(f"Failed to edit message: {e}")
+        raise
 
 # Constants
 TARGET_BOTS = {
@@ -230,7 +252,8 @@ async def cb_select_bot(callback: CallbackQuery, state: FSMContext):
     
     await state.update_data(target_bot=bot_key)
     
-    await callback.message.edit_text(
+    await safe_edit_text(
+        callback,
         "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
         "     📢 <b>НОВАЯ РАССЫЛКА</b>\n"
         "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
@@ -257,7 +280,7 @@ async def cb_select_audience(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     await state.update_data(target_audience=aud_key)
     
-    await callback.message.edit_text(
+    await safe_edit_text(callback,
         "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
         "     📢 <b>НОВАЯ РАССЫЛКА</b>\n"
         "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
@@ -291,7 +314,7 @@ async def cb_select_language(callback: CallbackQuery, state: FSMContext):
         
         await state.update_data(target_languages=selected, current_content_lang=selected[0])
         
-        await callback.message.edit_text(
+        await safe_edit_text(callback,
             "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             "     📢 <b>НОВАЯ РАССЫЛКА</b>\n"
             "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
@@ -380,7 +403,7 @@ async def cb_content_action(callback: CallbackQuery, state: FSMContext):
     
     if action == "done":
         # All content entered, move to media
-        await callback.message.edit_text(
+        await safe_edit_text(callback,
             "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             "     📢 <b>НОВАЯ РАССЫЛКА</b>\n"
             "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
@@ -398,7 +421,7 @@ async def cb_content_action(callback: CallbackQuery, state: FSMContext):
         existing = content.get(action, {}).get("text", "")
         hint = f"\n\n<i>Текущий текст:\n<code>{existing[:200]}...</code></i>" if existing else ""
         
-        await callback.message.edit_text(
+        await safe_edit_text(callback,
             f"📝 Введите текст для {LANGUAGE_FLAGS.get(action, '🌐')} <b>{action.upper()}</b>:{hint}",
             parse_mode=ParseMode.HTML,
             reply_markup=get_content_keyboard(target_languages, action, filled)
@@ -445,7 +468,7 @@ async def msg_media_video(message: Message, state: FSMContext):
 @router.callback_query(BroadcastStates.upload_media, F.data == "bc:media:skip")
 async def cb_skip_media(callback: CallbackQuery, state: FSMContext):
     """Skip media upload"""
-    await callback.message.edit_text(
+    await safe_edit_text(callback,
         "🔘 <b>Шаг 6/6:</b> Добавить кнопки?\n\n"
         "<i>Формат: <code>Текст RU | Текст EN | URL</code></i>",
         parse_mode=ParseMode.HTML,
@@ -517,7 +540,7 @@ async def cb_buttons_done(callback: CallbackQuery, state: FSMContext):
     media = data.get("media_type", "Нет")
     buttons_count = len(data.get("buttons", []))
     
-    await callback.message.edit_text(
+    await safe_edit_text(callback,
         "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
         "     📋 <b>ПРЕВЬЮ РАССЫЛКИ</b>\n"
         "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
@@ -609,7 +632,7 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
     
     await state.clear()
     
-    await callback.message.edit_text(
+    await safe_edit_text(callback,
         "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
         "     🚀 <b>РАССЫЛКА ЗАПУЩЕНА</b>\n"
         "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
@@ -633,7 +656,7 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
 async def cb_cancel(callback: CallbackQuery, state: FSMContext):
     """Cancel broadcast creation"""
     await state.clear()
-    await callback.message.edit_text("❌ Рассылка отменена.")
+    await safe_edit_text(callback,"❌ Рассылка отменена.")
     await callback.answer()
 
 
@@ -644,7 +667,7 @@ async def cb_back(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     
     if target == "bot":
-        await callback.message.edit_text(
+        await safe_edit_text(callback,
             "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             "     📢 <b>НОВАЯ РАССЫЛКА</b>\n"
             "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
@@ -655,7 +678,7 @@ async def cb_back(callback: CallbackQuery, state: FSMContext):
         await state.set_state(BroadcastStates.select_bot)
     
     elif target == "audience":
-        await callback.message.edit_text(
+        await safe_edit_text(callback,
             "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             "     📢 <b>НОВАЯ РАССЫЛКА</b>\n"
             "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
@@ -667,7 +690,7 @@ async def cb_back(callback: CallbackQuery, state: FSMContext):
         await state.set_state(BroadcastStates.select_audience)
     
     elif target == "languages":
-        await callback.message.edit_text(
+        await safe_edit_text(callback,
             "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             "     📢 <b>НОВАЯ РАССЫЛКА</b>\n"
             "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
@@ -685,7 +708,7 @@ async def cb_back(callback: CallbackQuery, state: FSMContext):
         filled = {lang: lang in content for lang in target_languages}
         current = target_languages[0] if target_languages else "ru"
         
-        await callback.message.edit_text(
+        await safe_edit_text(callback,
             f"📝 <b>Шаг 4/6:</b> Введите текст для {LANGUAGE_FLAGS.get(current, '🌐')} <b>{current.upper()}</b>:",
             parse_mode=ParseMode.HTML,
             reply_markup=get_content_keyboard(target_languages, current, filled)
@@ -693,7 +716,7 @@ async def cb_back(callback: CallbackQuery, state: FSMContext):
         await state.set_state(BroadcastStates.enter_content)
     
     elif target == "media":
-        await callback.message.edit_text(
+        await safe_edit_text(callback,
             "📷 <b>Шаг 5/6:</b> Загрузите медиа (фото/видео)\n\n"
             "<i>Или нажмите \"Пропустить\" для текстовой рассылки</i>",
             parse_mode=ParseMode.HTML,
@@ -702,7 +725,7 @@ async def cb_back(callback: CallbackQuery, state: FSMContext):
         await state.set_state(BroadcastStates.upload_media)
     
     elif target == "buttons":
-        await callback.message.edit_text(
+        await safe_edit_text(callback,
             "🔘 <b>Шаг 6/6:</b> Добавить кнопки?\n\n"
             "<i>Формат: <code>Текст RU | Текст EN | URL</code></i>",
             parse_mode=ParseMode.HTML,
