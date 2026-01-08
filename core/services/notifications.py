@@ -494,10 +494,14 @@ class NotificationService:
         if not telegram_id:
             return
         
+        # Supplier notifications are in Russian (suppliers are Russian-speaking)
         message = (
-            f"💰 <b>Продажа!</b>\n\n"
-            f"Товар: {product_name}\n"
-            f"Сумма: {amount}₽"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     💰 <b>ПРОДАЖА</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"◈ <b>Товар:</b> {product_name}\n"
+            f"◈ <b>Сумма:</b> ${amount:.2f}\n\n"
+            f"<i>Поступило на ваш счёт</i> ✓"
         )
         
         try:
@@ -711,7 +715,7 @@ class NotificationService:
                 f"<b>▸ ЛИНИЯ 2:</b> {l2}%\n"
                 f"<b>▸ ЛИНИЯ 3:</b> +{l3}% ← новое\n\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"💎 <i>Вы — VIP партнёр PVNDORA</i>",
+                f"💎 <i>Максимальный реферальный уровень</i>",
                 
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
                 f"    🏆 <b>MAXIMUM REACHED</b>\n"
@@ -722,7 +726,7 @@ class NotificationService:
                 f"<b>▸ TIER 2:</b> {l2}%\n"
                 f"<b>▸ TIER 3:</b> +{l3}% ← new\n\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"💎 <i>You're a PVNDORA VIP Partner</i>"
+                f"💎 <i>Max referral level achieved</i>"
             )
         else:
             return

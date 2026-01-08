@@ -276,8 +276,8 @@
     "processing": "Processing...",
     "orderCreated": "Order created! Redirecting to payment..."
   },
-  "waitlist_notify_in_stock": "🎉 The product {product} you were waiting for is back in stock! You can order it right now.",
-  "waitlist_notify_prepaid": "🎉 The product {product} you were waiting for is available again! You can order prepaid (on-demand) or get it instantly if in stock.",
+  "waitlist_notify_in_stock": "🎉 СИГНАЛ ВИЯВЛЕНО: {product} тепер ONLINE.",
+  "waitlist_notify_prepaid": "🎉 {product} доступний для Запиту.",
   "reengagement_message": "👋 Hey {name}! Long time no see. We have new AI subscriptions and discounts. Check it out when you have a moment!",
   "btn_preorder": "📦 Pre-order",
   "preorder_confirm": "📦 **{product}**\n💰 Price: {price}₽\n⏱ Fulfillment: {hours} hours\n\nClick below to proceed with payment:",
