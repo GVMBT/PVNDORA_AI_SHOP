@@ -194,10 +194,6 @@ class NotificationService:
             language=language
         )
         
-        # Notify supplier if configured
-        if stock_item.supplier_id:
-            await self._notify_supplier(stock_item.supplier_id, product.name, order.amount)
-        
         # Process referral bonus
         await db.process_referral_bonus(order)
         
@@ -470,44 +466,6 @@ class NotificationService:
         except Exception as e:
             logger.error(f"Failed to send rejection notification to {telegram_id}: {e}")
     
-    async def _notify_supplier(
-        self,
-        supplier_id: str,
-        product_name: str,
-        amount: float
-    ) -> None:
-        """Notify supplier about sale"""
-        db = get_database()
-        bot = self._get_bot()
-        
-        if not bot:
-            return
-        
-        # Get supplier
-        supplier_result = db.client.table("suppliers").select("telegram_id,name").eq("id", supplier_id).execute()
-        if not supplier_result.data:
-            return
-        
-        supplier = supplier_result.data[0]
-        telegram_id = supplier.get("telegram_id")
-        
-        if not telegram_id:
-            return
-        
-        # Supplier notifications are in Russian (suppliers are Russian-speaking)
-        message = (
-            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
-            f"     💰 <b>ПРОДАЖА</b>\n"
-            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-            f"◈ <b>Товар:</b> {product_name}\n"
-            f"◈ <b>Сумма:</b> ${amount:.2f}\n\n"
-            f"<i>Поступило на ваш счёт</i> ✓"
-        )
-        
-        try:
-            await bot.send_message(chat_id=telegram_id, text=message)
-        except Exception as e:
-            logger.error(f"Failed to notify supplier {supplier_id}: {e}")
     
     # ==================== SCHEDULED NOTIFICATIONS ====================
     
@@ -707,26 +665,28 @@ class NotificationService:
         elif new_level == 3:
             message = _msg(lang,
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
-                f"    🏆 <b>МАКСИМУМ ДОСТИГНУТ</b>\n"
+                f"    🏆 <b>ПРОТОКОЛ ЗАВЕРШЁН</b>\n"
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-                f"Поздравляем! <b>Уровень 3</b> — это вершина.\n"
-                f"Все три линии активны.\n\n"
+                f"Поздравляем, оперативник!\n"
+                f"<b>Уровень 3</b> — предел сети.\n"
+                f"Все линии доступа активны.\n\n"
                 f"<b>▸ ЛИНИЯ 1:</b> {l1}%\n"
                 f"<b>▸ ЛИНИЯ 2:</b> {l2}%\n"
                 f"<b>▸ ЛИНИЯ 3:</b> +{l3}% ← новое\n\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"💎 <i>Максимальный реферальный уровень</i>",
+                f"💎 <i>Все протоколы разблокированы</i>",
                 
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
-                f"    🏆 <b>MAXIMUM REACHED</b>\n"
+                f"    🏆 <b>PROTOCOL COMPLETE</b>\n"
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-                f"Congratulations! <b>Level 3</b> — the top.\n"
-                f"All three tiers active.\n\n"
+                f"Congratulations, operative!\n"
+                f"<b>Level 3</b> — network limit.\n"
+                f"All access lines active.\n\n"
                 f"<b>▸ TIER 1:</b> {l1}%\n"
                 f"<b>▸ TIER 2:</b> {l2}%\n"
                 f"<b>▸ TIER 3:</b> +{l3}% ← new\n\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"💎 <i>Max referral level achieved</i>"
+                f"💎 <i>All protocols unlocked</i>"
             )
         else:
             return
