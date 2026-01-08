@@ -18,7 +18,7 @@ interface OrdersProps {
   orders?: OrderData[];
   onBack: () => void;
   onOpenSupport?: (context?: RefundContext) => void;
-  onSubmitReview?: (orderId: string, rating: number, text?: string) => Promise<void>;
+  onSubmitReview?: (orderId: string, rating: number, text?: string, orderItemId?: string) => Promise<void>;
 }
 
 const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSupport, onSubmitReview }) => {
@@ -76,11 +76,12 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
       setIsSubmitting(true);
       try {
         // If onSubmitReview prop is provided, use it (real API)
+        // Pass itemId as order_item_id so backend knows which specific product to review
         if (onSubmitReview) {
-          await onSubmitReview(reviewModal.orderId, rating, reviewText || undefined);
+          await onSubmitReview(reviewModal.orderId, rating, reviewText || undefined, String(reviewModal.itemId));
         }
 
-        // Update local state to show "Reviewed" status
+        // Update local state to show "Reviewed" status for THIS specific item only
         const updatedOrders = ordersState.map(order => ({
             ...order,
             items: order.items.map(item => 

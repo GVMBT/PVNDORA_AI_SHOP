@@ -72,7 +72,7 @@ async def check_webapp_promo(request: PromoCheckRequest, user=Depends(verify_tel
 
 @router.post("/reviews")
 async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify_telegram_auth)):
-    """Submit a product review. Awards 5% cashback."""
+    """Submit a product review. Awards 5% cashback per review."""
     db = get_database()
     
     if not 1 <= request.rating <= 5:
@@ -90,18 +90,38 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
     if order.status not in ["delivered", "partial"]:
         raise HTTPException(status_code=400, detail="Can only review completed orders")
     
-    existing = await asyncio.to_thread(
-        lambda: db.client.table("reviews").select("id").eq("order_id", request.order_id).execute()
-    )
-    if existing.data:
-        raise HTTPException(status_code=400, detail="Order already reviewed")
-    
-    # Get product_id from order_items (source of truth)
+    # Get order items to determine product_id
     order_items = await db.get_order_items_by_order(request.order_id)
-    product_id = order_items[0].get("product_id") if order_items else None
+    if not order_items:
+        raise HTTPException(status_code=400, detail="Order has no products")
+    
+    # Determine which product is being reviewed
+    product_id = None
+    if request.product_id:
+        # Client specified which product to review
+        product_id = request.product_id
+    elif request.order_item_id:
+        # Client specified which order_item to review
+        for item in order_items:
+            if item.get("id") == request.order_item_id:
+                product_id = item.get("product_id")
+                break
+    else:
+        # Fallback: first item in order (legacy behavior for single-item orders)
+        product_id = order_items[0].get("product_id")
     
     if not product_id:
-        raise HTTPException(status_code=400, detail="Order has no products")
+        raise HTTPException(status_code=400, detail="Product not found in order")
+    
+    # Check if THIS specific product in THIS order already has a review
+    existing = await asyncio.to_thread(
+        lambda: db.client.table("reviews").select("id")
+            .eq("order_id", request.order_id)
+            .eq("product_id", product_id)
+            .execute()
+    )
+    if existing.data:
+        raise HTTPException(status_code=400, detail="This product already has a review")
     
     result = await asyncio.to_thread(
         lambda: db.client.table("reviews").insert({

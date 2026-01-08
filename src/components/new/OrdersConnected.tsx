@@ -30,9 +30,10 @@ const OrdersConnected: React.FC<OrdersConnectedProps> = ({ onBack, onOpenSupport
     init();
   }, [getOrders]);
 
-  const handleSubmitReview = useCallback(async (orderId: string, rating: number, text?: string) => {
+  const handleSubmitReview = useCallback(async (orderId: string, rating: number, text?: string, orderItemId?: string) => {
     try {
-      await submitReview(orderId, rating, text);
+      // Pass orderItemId so backend knows which specific product to review
+      await submitReview(orderId, rating, text, undefined, orderItemId);
       // Refresh orders to update hasReview status
       await getOrders();
     } catch (err) {

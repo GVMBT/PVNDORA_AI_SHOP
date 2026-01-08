@@ -366,15 +366,18 @@ async def get_webapp_orders(
     except Exception as e:
         logger.warning(f"Failed to load products map: {e}")
     
-    # Fetch reviews for orders
-    reviews_by_order = {}
+    # Fetch reviews for orders - track by (order_id, product_id) pair
+    # because a review is for a specific product within an order
+    reviews_by_order_product = {}
     try:
         if order_ids:
             reviews_res = await asyncio.to_thread(
-                lambda: db.client.table("reviews").select("order_id").in_("order_id", order_ids).execute()
+                lambda: db.client.table("reviews").select("order_id, product_id").in_("order_id", order_ids).execute()
             )
             for r in (reviews_res.data or []):
-                reviews_by_order[r["order_id"]] = True
+                # Key by (order_id, product_id) tuple
+                key = (r["order_id"], r.get("product_id"))
+                reviews_by_order_product[key] = True
     except Exception as e:
         logger.warning(f"Failed to load reviews: {e}")
     
@@ -385,7 +388,8 @@ async def get_webapp_orders(
         pid = it.get("product_id")
         prod = products_map.get(pid, {})
         order_id = it.get("order_id")
-        has_review = reviews_by_order.get(order_id, False)
+        # Check if THIS specific product in THIS order has a review
+        has_review = reviews_by_order_product.get((order_id, pid), False)
         item_payload = build_item_payload(it, prod, has_review=has_review)
         items_by_order[order_id].append(item_payload)
     

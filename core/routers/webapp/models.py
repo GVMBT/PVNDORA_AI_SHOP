@@ -91,6 +91,8 @@ class WebAppReviewRequest(BaseModel):
     order_id: str
     rating: int
     text: str | None = None
+    product_id: str | None = None  # Optional: specific product to review (for multi-item orders)
+    order_item_id: str | None = None  # Optional: specific order item to review
 
 
 # ==================== PARTNER MODELS ====================

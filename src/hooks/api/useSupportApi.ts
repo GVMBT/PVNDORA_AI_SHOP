@@ -15,10 +15,18 @@ export function useReviewsTyped() {
   const submitReview = useCallback(async (
     orderId: string,
     rating: number,
-    text?: string
+    text?: string,
+    productId?: string,  // Optional: specific product to review (for multi-item orders)
+    orderItemId?: string  // Optional: specific order item to review
   ): Promise<{ success: boolean; review_id?: string }> => {
     try {
-      return await post('/reviews', { order_id: orderId, rating, text });
+      return await post('/reviews', { 
+        order_id: orderId, 
+        rating, 
+        text,
+        product_id: productId,
+        order_item_id: orderItemId
+      });
     } catch (err) {
       logger.error('Failed to submit review', err);
       throw err;
