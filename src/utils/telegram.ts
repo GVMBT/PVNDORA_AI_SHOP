@@ -61,12 +61,18 @@ export function getStartParam(): string | null {
  * Request fullscreen (for better UX in Telegram)
  * 
  * Expands the WebApp to full screen height.
+ * Note: Requires Bot API 8.0+ and "fullsize" enabled in BotFather settings.
  */
 export function requestFullscreen(): void {
   const tg = getTelegramWebApp();
   // requestFullscreen is available in newer Bot API versions
   if (tg && 'requestFullscreen' in tg) {
-    (tg as unknown as { requestFullscreen: () => void }).requestFullscreen();
+    try {
+      (tg as unknown as { requestFullscreen: () => void }).requestFullscreen();
+    } catch {
+      // WebAppMethodUnsupported - fullscreen not available in this context
+      // (e.g., Mini App not configured for fullscreen in BotFather)
+    }
   }
 }
 
