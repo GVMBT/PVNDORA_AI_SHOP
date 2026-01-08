@@ -98,8 +98,13 @@ class AuthMiddleware(BaseMiddleware):
                     if last_update:
                         try:
                             if isinstance(last_update, str):
-                                from dateutil.parser import isoparse
-                                last_update = isoparse(last_update)
+                                # Use built-in fromisoformat (Python 3.7+) instead of dateutil
+                                # Handle 'Z' suffix (UTC) - convert to +00:00 format
+                                iso_str = last_update.replace('Z', '+00:00') if last_update.endswith('Z') else last_update
+                                last_update = datetime.fromisoformat(iso_str)
+                                # Ensure timezone-aware
+                                if last_update.tzinfo is None:
+                                    last_update = last_update.replace(tzinfo=timezone.utc)
                             age = datetime.now(timezone.utc) - last_update
                             if age > timedelta(hours=6):
                                 should_refresh = True
