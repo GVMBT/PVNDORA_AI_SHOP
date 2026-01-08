@@ -1135,6 +1135,24 @@ async def worker_send_broadcast(request: Request):
                 error_msg = str(e)
                 logger.warning(f"Broadcast to {telegram_id} failed: {error_msg}")
                 
+                # Check if user is permanently unreachable
+                is_blocked = any(phrase in error_msg.lower() for phrase in [
+                    "bot was blocked by the user",
+                    "chat not found",
+                    "user is deactivated",
+                    "forbidden: bot can't initiate"
+                ])
+                
+                if is_blocked:
+                    # Mark user as unreachable for future broadcasts
+                    await asyncio.to_thread(
+                        lambda uid=user_id: db.client.table("users")
+                        .update({"bot_blocked_at": datetime.now(timezone.utc).isoformat()})
+                        .eq("id", uid)
+                        .execute()
+                    )
+                    logger.info(f"Marked user {user_id} as blocked (telegram_id={telegram_id})")
+                
                 # Update recipient status with error
                 await asyncio.to_thread(
                     lambda uid=user_id, err=error_msg: db.client.table("broadcast_recipients")

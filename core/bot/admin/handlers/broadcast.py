@@ -898,8 +898,8 @@ async def _get_recipients_list(db, target_bot: str, audience: str, languages: Op
     """Get full list of recipients based on targeting criteria"""
     query = db.client.table("users").select("id, telegram_id, language_code")
     
-    # Base filters
-    query = query.eq("is_banned", False).eq("do_not_disturb", False)
+    # Base filters - exclude banned, DND, and blocked users
+    query = query.eq("is_banned", False).eq("do_not_disturb", False).is_("bot_blocked_at", "null")
     
     # Bot-specific filter
     if target_bot == "discount":
