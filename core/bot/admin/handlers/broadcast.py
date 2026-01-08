@@ -501,6 +501,17 @@ async def msg_button_input(message: Message, state: FSMContext):
         return
     
     data = await state.get_data()
+    
+    # Validate that we have required data
+    if not data.get("target_bot") or not data.get("target_audience"):
+        await message.answer(
+            "⚠️ Данные рассылки потеряны.\n\n"
+            "Начните заново: /broadcast",
+            parse_mode=ParseMode.HTML
+        )
+        await state.clear()
+        return
+    
     buttons = data.get("buttons", [])
     
     if len(parts) == 2:
@@ -533,12 +544,25 @@ async def cb_buttons_done(callback: CallbackQuery, state: FSMContext):
     """Finish buttons step"""
     data = await state.get_data()
     
+    # Debug: log state data
+    logger.debug(f"cb_buttons_done: state data keys = {list(data.keys())}")
+    logger.debug(f"cb_buttons_done: target_bot = {data.get('target_bot')}, target_audience = {data.get('target_audience')}")
+    
     # Validate required fields
     target_bot = data.get("target_bot")
     target_audience = data.get("target_audience")
     
     if not target_bot or not target_audience:
-        await callback.answer("Ошибка: данные рассылки не найдены. Начните заново.", show_alert=True)
+        # Try to restore from callback data or provide better error message
+        logger.warning(f"Missing broadcast data in state. Available keys: {list(data.keys())}")
+        await callback.answer(
+            "⚠️ Данные рассылки потеряны.\n\n"
+            "Возможные причины:\n"
+            "• Слишком долгая пауза между шагами\n"
+            "• Перезапуск сервера\n\n"
+            "Начните рассылку заново: /broadcast",
+            show_alert=True
+        )
         await state.clear()
         return
     
