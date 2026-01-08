@@ -257,7 +257,7 @@ async def cb_select_bot(callback: CallbackQuery, state: FSMContext):
         "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
         "     📢 <b>НОВАЯ РАССЫЛКА</b>\n"
         "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-        f"🤖 Бот: <b>{TARGET_BOTS[bot_key]}</b>\n\n"
+        f"🤖 Бот: <b>{TARGET_BOTS.get(bot_key, bot_key)}</b>\n\n"
         "🎯 <b>Шаг 2/6:</b> Выберите аудиторию:",
         parse_mode=ParseMode.HTML,
         reply_markup=get_audience_keyboard()
@@ -280,12 +280,14 @@ async def cb_select_audience(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     await state.update_data(target_audience=aud_key)
     
+    target_bot = data.get("target_bot", "?")
+    
     await safe_edit_text(callback,
         "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
         "     📢 <b>НОВАЯ РАССЫЛКА</b>\n"
         "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-        f"🤖 Бот: <b>{TARGET_BOTS[data['target_bot']]}</b>\n"
-        f"🎯 Аудитория: <b>{AUDIENCES[aud_key]}</b>\n\n"
+        f"🤖 Бот: <b>{TARGET_BOTS.get(target_bot, target_bot)}</b>\n"
+        f"🎯 Аудитория: <b>{AUDIENCES.get(aud_key, aud_key)}</b>\n\n"
         "🌐 <b>Шаг 3/6:</b> Выберите языки:\n"
         "<i>(можно выбрать несколько)</i>",
         parse_mode=ParseMode.HTML,
@@ -314,12 +316,15 @@ async def cb_select_language(callback: CallbackQuery, state: FSMContext):
         
         await state.update_data(target_languages=selected, current_content_lang=selected[0])
         
+        target_bot = data.get("target_bot", "?")
+        target_audience = data.get("target_audience", "?")
+        
         await safe_edit_text(callback,
             "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             "     📢 <b>НОВАЯ РАССЫЛКА</b>\n"
             "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-            f"🤖 Бот: <b>{TARGET_BOTS[data['target_bot']]}</b>\n"
-            f"🎯 Аудитория: <b>{AUDIENCES[data['target_audience']]}</b>\n"
+            f"🤖 Бот: <b>{TARGET_BOTS.get(target_bot, target_bot)}</b>\n"
+            f"🎯 Аудитория: <b>{AUDIENCES.get(target_audience, target_audience)}</b>\n"
             f"🌐 Языки: <b>{', '.join(selected)}</b>\n\n"
             f"📝 <b>Шаг 4/6:</b> Введите текст для {LANGUAGE_FLAGS.get(selected[0], '🌐')} <b>{selected[0].upper()}</b>:\n\n"
             "<i>Поддерживается HTML форматирование.\n"
@@ -528,14 +533,23 @@ async def cb_buttons_done(callback: CallbackQuery, state: FSMContext):
     """Finish buttons step"""
     data = await state.get_data()
     
+    # Validate required fields
+    target_bot = data.get("target_bot")
+    target_audience = data.get("target_audience")
+    
+    if not target_bot or not target_audience:
+        await callback.answer("Ошибка: данные рассылки не найдены. Начните заново.", show_alert=True)
+        await state.clear()
+        return
+    
     # Count recipients
     db = get_database()
-    recipients = await _count_recipients(db, data["target_bot"], data["target_audience"], data.get("target_languages"))
+    recipients = await _count_recipients(db, target_bot, target_audience, data.get("target_languages"))
     
     await state.update_data(total_recipients=recipients)
     
-    bot_name = TARGET_BOTS.get(data["target_bot"], "?")
-    aud_name = AUDIENCES.get(data["target_audience"], "?")
+    bot_name = TARGET_BOTS.get(target_bot, "?")
+    aud_name = AUDIENCES.get(target_audience, "?")
     langs = ", ".join(data.get("target_languages", [])) or "Все"
     media = data.get("media_type", "Нет")
     buttons_count = len(data.get("buttons", []))
@@ -610,16 +624,26 @@ async def cb_preview_language(callback: CallbackQuery, state: FSMContext, bot: B
 async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str):
     """Send broadcast immediately"""
     data = await state.get_data()
+    
+    # Validate required fields
+    target_bot = data.get("target_bot")
+    target_audience = data.get("target_audience")
+    
+    if not target_bot or not target_audience:
+        await callback.answer("Ошибка: данные рассылки не найдены. Начните заново.", show_alert=True)
+        await state.clear()
+        return
+    
     db = get_database()
     
     # Create broadcast record
     broadcast_data = {
-        "target_bot": data["target_bot"],
+        "target_bot": target_bot,
         "content": data.get("content", {}),
         "media_type": data.get("media_type"),
         "media_file_id": data.get("media_file_id"),
         "buttons": data.get("buttons", []),
-        "target_audience": data["target_audience"],
+        "target_audience": target_audience,
         "target_languages": data.get("target_languages"),
         "status": "sending",
         "started_at": datetime.now(timezone.utc).isoformat(),
