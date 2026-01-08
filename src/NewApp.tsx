@@ -173,10 +173,14 @@ function NewAppInner() {
   // Initialize Telegram Mini App fullscreen mode
   useEffect(() => {
     // Request fullscreen for better UX in Telegram Mini App
-    // This works on Bot API 8.0+ with fullsize enabled in BotFather
-    requestFullscreen();
+    // Uses modern @telegram-apps/sdk with automatic fallback
+    requestFullscreen().catch(() => {
+      // Silently ignore if not available
+    });
     // Also expand to full height as fallback for older clients
-    expandWebApp();
+    expandWebApp().catch(() => {
+      // Silently ignore if not available
+    });
   }, []);
 
   // Initialize Audio and CMD+K

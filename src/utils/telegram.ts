@@ -60,41 +60,57 @@ export function getStartParam(): string | null {
 /**
  * Request fullscreen (for better UX in Telegram)
  * 
- * Expands the WebApp to full screen height.
- * Note: Requires Bot API 8.0+ (SDK 6.9+) and "fullsize" enabled in BotFather settings.
+ * Uses modern @telegram-apps/sdk for fullscreen support.
+ * Automatically checks availability and handles errors gracefully.
  */
-export function requestFullscreen(): void {
+export async function requestFullscreen(): Promise<void> {
+  try {
+    // Use modern SDK if available
+    const { requestFullscreen: sdkRequestFullscreen } = await import('@telegram-apps/sdk');
+    
+    if (sdkRequestFullscreen.isAvailable()) {
+      await sdkRequestFullscreen();
+      return;
+    }
+  } catch {
+    // SDK not available or not in Telegram context, fallback to legacy
+  }
+  
+  // Fallback to legacy WebApp API
   const tg = getTelegramWebApp();
   if (!tg) return;
   
   // Check if method exists
   if (!('requestFullscreen' in tg)) return;
   
-  // Check SDK version if available (requestFullscreen requires SDK 6.9+)
-  if (tg.version) {
-    try {
-      const version = String(tg.version);
-      const [major, minor] = version.split('.').map(Number);
-      const isSupported = (major > 6) || (major === 6 && minor >= 9);
-      if (!isSupported) return;
-    } catch {
-      // If version parsing fails, try anyway (fallback)
-    }
-  }
-  
   // Try to call requestFullscreen (may throw if not configured in BotFather)
   try {
     (tg as unknown as { requestFullscreen: () => void }).requestFullscreen();
   } catch {
     // Silently ignore - method not available or not configured
-    // (e.g., Mini App not configured for fullscreen in BotFather)
   }
 }
 
 /**
  * Expand WebApp to full height
+ * 
+ * Uses modern @telegram-apps/sdk expandViewport if available,
+ * falls back to legacy expand() method.
  */
-export function expandWebApp(): void {
+export async function expandWebApp(): Promise<void> {
+  try {
+    // Use modern SDK if available
+    const { expandViewport } = await import('@telegram-apps/sdk');
+    
+    if (expandViewport.isAvailable()) {
+      expandViewport();
+      return;
+    }
+  } catch {
+    // SDK not available, fallback to legacy
+  }
+  
+  // Fallback to legacy WebApp API
   const tg = getTelegramWebApp();
   if (tg?.expand) {
     tg.expand();

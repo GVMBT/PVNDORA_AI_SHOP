@@ -14,6 +14,7 @@
         "@radix-ui/react-slot": "^1.2.4",
         "@resvg/resvg-js": "^2.6.2",
         "@tanstack/react-virtual": "^3.13.13",
+        "@telegram-apps/sdk": "^3.11.8",
         "clsx": "^2.1.1",
         "framer-motion": "^12.23.26",
         "lucide-react": "^0.559.0",
