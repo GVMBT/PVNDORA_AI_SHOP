@@ -715,32 +715,57 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
         )
     
     # Queue broadcast worker via QStash (batches of 50-100 users)
-    from core.queue import publish_to_worker, WorkerEndpoints
+    from core.queue import publish_to_worker, WorkerEndpoints, get_base_url
+    import os
+    
+    # Verify BASE_URL/WEBAPP_URL is set for QStash
+    base_url = get_base_url()
+    if not base_url or base_url == "http://localhost:8000":
+        logger.error(f"Broadcast {broadcast_id}: BASE_URL/WEBAPP_URL not set! QStash will fail.")
+        await callback.answer("❌ Ошибка: BASE_URL не настроен. Рассылка не может быть отправлена.", show_alert=True)
+        return
+    
+    logger.info(f"Broadcast {broadcast_id}: Using base_url={base_url} for QStash workers")
     
     user_batches = []
     batch_size = 80  # Optimal batch size for rate limiting
     for i in range(0, len(recipients), batch_size):
         batch = recipients[i:i + batch_size]
-        user_ids = [u["id"] for u in batch]
+        user_ids = [str(u["id"]) for u in batch]  # Ensure UUIDs are strings
         user_batches.append(user_ids)
     
     # Queue each batch
     queued_count = 0
+    failed_queues = []
+    
+    logger.info(f"Broadcast {broadcast_id}: Starting to queue {len(user_batches)} batches to QStash (endpoint: {WorkerEndpoints.SEND_BROADCAST})")
+    
     for batch_idx, user_ids in enumerate(user_batches):
-        result = await publish_to_worker(
-            endpoint=WorkerEndpoints.SEND_BROADCAST,
-            body={
-                "broadcast_id": broadcast_id,
-                "user_ids": user_ids,
-                "target_bot": target_bot
-            },
-            retries=2,
-            deduplication_id=f"broadcast_{broadcast_id}_batch_{batch_idx}"
-        )
-        if result.get("queued"):
-            queued_count += 1
+        try:
+            logger.info(f"Broadcast {broadcast_id}: Queuing batch {batch_idx + 1}/{len(user_batches)} with {len(user_ids)} users")
+            result = await publish_to_worker(
+                endpoint=WorkerEndpoints.SEND_BROADCAST,
+                body={
+                    "broadcast_id": broadcast_id,
+                    "user_ids": user_ids,
+                    "target_bot": target_bot
+                },
+                retries=2,
+                deduplication_id=f"broadcast_{broadcast_id}_batch_{batch_idx}"
+            )
+            if result.get("queued"):
+                queued_count += 1
+                logger.info(f"Broadcast {broadcast_id}: Batch {batch_idx + 1} queued successfully, message_id={result.get('message_id')}")
+            else:
+                failed_queues.append(batch_idx + 1)
+                logger.error(f"Broadcast {broadcast_id}: Batch {batch_idx + 1} failed to queue: {result.get('error')}")
+        except Exception as e:
+            failed_queues.append(batch_idx + 1)
+            logger.error(f"Broadcast {broadcast_id}: Exception while queuing batch {batch_idx + 1}: {e}")
     
     logger.info(f"Broadcast {broadcast_id}: {queued_count}/{len(user_batches)} batches queued, {len(recipients)} total recipients")
+    if failed_queues:
+        logger.warning(f"Broadcast {broadcast_id}: Failed to queue batches: {failed_queues}")
     
     await callback.answer("🚀 Рассылка запущена!")
 

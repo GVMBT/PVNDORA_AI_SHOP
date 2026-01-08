@@ -921,17 +921,28 @@ async def worker_send_broadcast(request: Request):
     - user_ids: Batch пользователей (50-100 за раз)
     - target_bot: 'pvndora' or 'discount'
     """
-    data = await verify_qstash(request)
+    logger.info(f"Worker send-broadcast called")
+    try:
+        data = await verify_qstash(request)
+        logger.info(f"QStash verified, data keys: {list(data.keys())}")
+    except Exception as e:
+        logger.error(f"QStash verification failed: {e}")
+        return {"error": f"QStash verification failed: {str(e)}"}
+    
     broadcast_id = data.get("broadcast_id")
     user_ids = data.get("user_ids", [])
     target_bot = data.get("target_bot", "pvndora")
     
+    logger.info(f"Broadcast worker: broadcast_id={broadcast_id}, user_ids_count={len(user_ids)}, target_bot={target_bot}")
+    
     if not broadcast_id or not user_ids:
+        logger.error(f"Broadcast worker: missing required fields - broadcast_id={broadcast_id}, user_ids_count={len(user_ids) if user_ids else 0}")
         return {"error": "broadcast_id and user_ids required"}
     
     db = get_database()
     
     # Get broadcast template
+    logger.info(f"Fetching broadcast {broadcast_id} from database")
     broadcast_result = await asyncio.to_thread(
         lambda: db.client.table("broadcast_messages")
         .select("*")
@@ -941,7 +952,10 @@ async def worker_send_broadcast(request: Request):
     )
     
     if not broadcast_result.data:
+        logger.error(f"Broadcast {broadcast_id} not found in database")
         return {"error": "Broadcast not found"}
+    
+    logger.info(f"Broadcast {broadcast_id} found: status={broadcast_result.data.get('status')}, recipients={broadcast_result.data.get('total_recipients')}")
     
     broadcast = broadcast_result.data
     content = broadcast.get("content", {})
@@ -1100,21 +1114,47 @@ async def worker_send_broadcast(request: Request):
         )
         
         # Check if broadcast is complete (all recipients processed)
-        total_recipients = broadcast.get("total_recipients", 0)
-        total_processed = new_sent_count + new_failed_count
+        # Query actual counts from DB instead of relying on broadcast data
+        total_recipients_result = await asyncio.to_thread(
+            lambda: db.client.table("broadcast_recipients")
+            .select("id", count="exact")
+            .eq("broadcast_id", broadcast_id)
+            .execute()
+        )
+        total_sent_result = await asyncio.to_thread(
+            lambda: db.client.table("broadcast_recipients")
+            .select("id", count="exact")
+            .eq("broadcast_id", broadcast_id)
+            .eq("status", "sent")
+            .execute()
+        )
+        total_failed_result = await asyncio.to_thread(
+            lambda: db.client.table("broadcast_recipients")
+            .select("id", count="exact")
+            .eq("broadcast_id", broadcast_id)
+            .eq("status", "failed")
+            .execute()
+        )
         
-        if total_processed >= total_recipients:
+        total_recipients = total_recipients_result.count or 0
+        total_sent_in_db = total_sent_result.count or 0
+        total_failed_in_db = total_failed_result.count or 0
+        total_processed = total_sent_in_db + total_failed_in_db
+        
+        logger.info(f"Broadcast {broadcast_id}: DB counts - total={total_recipients}, sent={total_sent_in_db}, failed={total_failed_in_db}, processed={total_processed}")
+        
+        if total_processed >= total_recipients and total_recipients > 0:
             # All recipients processed - mark as completed
             await asyncio.to_thread(
                 lambda: db.client.table("broadcast_messages")
                 .update({
                     "status": "sent",
-                    "completed_at": datetime.now(timezone.utc).isoformat()
+                    "finished_at": datetime.now(timezone.utc).isoformat()
                 })
                 .eq("id", broadcast_id)
                 .execute()
             )
-            logger.info(f"Broadcast {broadcast_id} completed: {new_sent_count} sent, {new_failed_count} failed")
+            logger.info(f"Broadcast {broadcast_id} completed: {total_sent_in_db} sent, {total_failed_in_db} failed")
         
     finally:
         await bot.session.close()

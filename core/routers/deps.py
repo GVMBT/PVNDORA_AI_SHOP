@@ -92,10 +92,10 @@ def get_qstash_verifier():
     return verify_qstash_request
 
 
-async def verify_qstash(request) -> bool:
-    """Verify QStash request signature"""
+async def verify_qstash(request):
+    """Verify QStash request signature and return parsed body"""
     verify_fn = get_qstash_verifier()
-    return await verify_fn(request)
+    return await verify_fn(request)  # Returns dict with parsed JSON body
 
 
 # ==================== QUEUE PUBLISHING ====================
