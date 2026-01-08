@@ -19,6 +19,53 @@ logger = get_logger(__name__)
 router = Router()
 
 
+# ==================== CHANNEL SUBSCRIPTION ====================
+
+@router.callback_query(F.data == "pvndora:check_sub")
+async def callback_check_subscription(callback: CallbackQuery, db_user: User, bot: Bot):
+    """Re-check channel subscription."""
+    from core.bot.middlewares import REQUIRED_CHANNEL
+    
+    lang = db_user.language_code
+    
+    try:
+        member = await bot.get_chat_member(chat_id=REQUIRED_CHANNEL, user_id=db_user.telegram_id)
+        
+        if member.status in ("left", "kicked"):
+            await callback.answer(
+                "Вы ещё не подписались на канал!" if lang == "ru" else "You haven't subscribed yet!",
+                show_alert=True
+            )
+            return
+        
+        # Subscribed - confirm and suggest /start
+        await callback.message.delete()
+        
+        text = (
+            "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            "     ✅ <b>ПОДПИСКА ПОДТВЕРЖДЕНА</b>\n"
+            "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            "Добро пожаловать в PVNDORA!\n"
+            "Нажмите /start для начала."
+        ) if lang == "ru" else (
+            "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            "     ✅ <b>SUBSCRIPTION CONFIRMED</b>\n"
+            "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            "Welcome to PVNDORA!\n"
+            "Press /start to begin."
+        )
+        
+        await callback.message.answer(text, parse_mode=ParseMode.HTML)
+        await callback.answer()
+        
+    except Exception as e:
+        logger.error(f"Failed to check subscription: {e}")
+        await callback.answer(
+            "Ошибка проверки" if lang == "ru" else "Check error", 
+            show_alert=True
+        )
+
+
 # ==================== SIMPLE CALLBACKS ====================
 
 @router.callback_query(F.data.startswith("waitlist:"))

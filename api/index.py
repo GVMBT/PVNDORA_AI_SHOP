@@ -34,6 +34,7 @@ try:
     from core.bot.handlers import router as bot_router
     from core.bot.middlewares import (
         AuthMiddleware,
+        ChannelSubscriptionMiddleware,
         LanguageMiddleware, 
         ActivityMiddleware,
         AnalyticsMiddleware
@@ -74,12 +75,15 @@ def get_dispatcher() -> Dispatcher:
         dp = Dispatcher()
         
         # Register middlewares (order matters!)
+        # Auth first, then subscription check, then language/activity
         dp.message.middleware(AuthMiddleware())
+        dp.message.middleware(ChannelSubscriptionMiddleware())
         dp.message.middleware(LanguageMiddleware())
         dp.message.middleware(ActivityMiddleware())
         dp.message.middleware(AnalyticsMiddleware())
         
         dp.callback_query.middleware(AuthMiddleware())
+        dp.callback_query.middleware(ChannelSubscriptionMiddleware())
         dp.callback_query.middleware(LanguageMiddleware())
         dp.callback_query.middleware(ActivityMiddleware())
         

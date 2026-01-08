@@ -1,10 +1,17 @@
 """Telegram Bot Middlewares"""
+import os
 from typing import Callable, Dict, Any, Awaitable
-from aiogram import BaseMiddleware
-from aiogram.types import Message, CallbackQuery, TelegramObject
+from aiogram import BaseMiddleware, Bot
+from aiogram.types import Message, CallbackQuery, TelegramObject, InlineKeyboardMarkup, InlineKeyboardButton
 
 from core.services.database import get_database
 from core.i18n import detect_language
+from core.logging import get_logger
+
+logger = get_logger(__name__)
+
+# Required channel for subscription check (set via env var)
+REQUIRED_CHANNEL = os.environ.get("PVNDORA_REQUIRED_CHANNEL", "@pvndora_news")
 
 
 class AuthMiddleware(BaseMiddleware):
@@ -111,6 +118,95 @@ class AuthMiddleware(BaseMiddleware):
         
         # Add user to data for handlers
         data["db_user"] = db_user
+        
+        return await handler(event, data)
+
+
+class ChannelSubscriptionMiddleware(BaseMiddleware):
+    """
+    Require channel subscription before using the bot.
+    This helps with retention and protects against bans.
+    """
+    
+    # Commands that don't require subscription
+    EXEMPT_COMMANDS = {"/start", "/help"}
+    EXEMPT_CALLBACKS = {"pvndora:check_sub"}
+    
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: Dict[str, Any]
+    ) -> Any:
+        # Check exemptions
+        if isinstance(event, Message):
+            if event.text and any(event.text.startswith(cmd) for cmd in self.EXEMPT_COMMANDS):
+                return await handler(event, data)
+        elif isinstance(event, CallbackQuery):
+            if event.data and any(cb in event.data for cb in self.EXEMPT_CALLBACKS):
+                return await handler(event, data)
+        
+        user = None
+        if isinstance(event, Message):
+            user = event.from_user
+        elif isinstance(event, CallbackQuery):
+            user = event.from_user
+        
+        if not user:
+            return await handler(event, data)
+        
+        bot: Bot = data.get("bot")
+        if not bot or not REQUIRED_CHANNEL:
+            return await handler(event, data)
+        
+        try:
+            member = await bot.get_chat_member(chat_id=REQUIRED_CHANNEL, user_id=user.id)
+            
+            if member.status in ("left", "kicked"):
+                # Not subscribed - show subscription required message
+                db_user = data.get("db_user")
+                lang = db_user.language_code if db_user else "en"
+                
+                text = (
+                    f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                    f"     📢 <b>ТРЕБУЕТСЯ ПОДПИСКА</b>\n"
+                    f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                    f"Для доступа к боту подпишитесь\n"
+                    f"на наш канал {REQUIRED_CHANNEL}\n\n"
+                    f"<i>После подписки нажмите кнопку ниже</i>"
+                ) if lang == "ru" else (
+                    f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                    f"     📢 <b>SUBSCRIPTION REQUIRED</b>\n"
+                    f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                    f"Please subscribe to our channel\n"
+                    f"{REQUIRED_CHANNEL} to use this bot.\n\n"
+                    f"<i>After subscribing, click the button below</i>"
+                )
+                
+                keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(
+                        text="📢 Подписаться" if lang == "ru" else "📢 Subscribe",
+                        url=f"https://t.me/{REQUIRED_CHANNEL.lstrip('@')}"
+                    )],
+                    [InlineKeyboardButton(
+                        text="✅ Я подписался" if lang == "ru" else "✅ I subscribed",
+                        callback_data="pvndora:check_sub"
+                    )]
+                ])
+                
+                if isinstance(event, Message):
+                    await event.answer(text, reply_markup=keyboard, parse_mode="HTML")
+                elif isinstance(event, CallbackQuery):
+                    await event.answer(
+                        "Подпишитесь на канал!" if lang == "ru" else "Subscribe first!", 
+                        show_alert=True
+                    )
+                
+                return  # Stop processing
+                
+        except Exception as e:
+            logger.warning(f"Failed to check channel subscription: {e}")
+            # Continue anyway on error
         
         return await handler(event, data)
 
