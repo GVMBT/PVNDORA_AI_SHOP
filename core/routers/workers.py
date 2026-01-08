@@ -671,7 +671,18 @@ async def worker_process_replacement(request: Request):
         .execute()
     )
     
-    product = product_res.data[0] if product_res.data else {}
+    if not product_res.data or len(product_res.data) == 0:
+        logger.error(f"process-replacement: Product {product_id} not found")
+        # Rollback stock reservation
+        await asyncio.to_thread(
+            lambda: db.client.table("stock_items")
+            .update({"status": "available", "reserved_at": None, "sold_at": None})
+            .eq("id", stock_id)
+            .execute()
+        )
+        return {"error": f"Product {product_id} not found"}
+    
+    product = product_res.data[0]
     duration_days = product.get("duration_days")
     product_name = product.get("name", "Product")
     
