@@ -647,127 +647,163 @@ async def cb_preview_language(callback: CallbackQuery, state: FSMContext, bot: B
 
 @router.callback_query(BroadcastStates.preview, F.data == "bc:send:now")
 async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str):
-    """Send broadcast immediately"""
-    data = await state.get_data()
+    """Send broadcast immediately.
     
-    # Validate required fields
-    target_bot = data.get("target_bot")
-    target_audience = data.get("target_audience")
+    CRITICAL: In Vercel serverless, function may be killed after response.
+    So we MUST do all QStash queueing BEFORE sending response to user.
+    """
+    # Show loading state immediately
+    await callback.answer("⏳ Подготовка рассылки...", show_alert=False)
     
-    if not target_bot or not target_audience:
-        await callback.answer("Ошибка: данные рассылки не найдены. Начните заново.", show_alert=True)
-        await state.clear()
-        return
-    
-    db = get_database()
-    
-    # Create broadcast record
-    broadcast_data = {
-        "target_bot": target_bot,
-        "content": data.get("content", {}),
-        "media_type": data.get("media_type"),
-        "media_file_id": data.get("media_file_id"),
-        "buttons": data.get("buttons", []),
-        "target_audience": target_audience,
-        "target_languages": data.get("target_languages"),
-        "status": "sending",
-        "started_at": datetime.now(timezone.utc).isoformat(),
-        "total_recipients": data.get("total_recipients", 0),
-        "created_by": admin_id
-    }
-    
-    result = db.client.table("broadcast_messages").insert(broadcast_data).execute()
-    broadcast_id = result.data[0]["id"]
-    
-    await state.clear()
-    
-    await safe_edit_text(callback,
-        "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
-        "     🚀 <b>РАССЫЛКА ЗАПУЩЕНА</b>\n"
-        "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-        f"📊 ID: <code>{broadcast_id[:8]}</code>\n"
-        f"👥 Получателей: ~{data.get('total_recipients', 0):,}\n\n"
-        "<i>Рассылка обрабатывается в фоне.\n"
-        "Используйте /broadcasts для отслеживания.</i>",
-        parse_mode=ParseMode.HTML
-    )
-    
-    # Get recipients and create broadcast_recipients records
-    recipients = await _get_recipients_list(db, target_bot, target_audience, data.get("target_languages"))
-    
-    # Create recipient records
-    recipient_records = []
-    for user in recipients:
-        recipient_records.append({
-            "broadcast_id": broadcast_id,
-            "user_id": user["id"],
-            "telegram_id": user["telegram_id"],
-            "language_code": user.get("language_code", "en"),
-            "status": "pending"
-        })
-    
-    # Insert recipients in batches
-    batch_size = 100
-    for i in range(0, len(recipient_records), batch_size):
-        batch = recipient_records[i:i + batch_size]
-        await asyncio.to_thread(
-            lambda b=batch: db.client.table("broadcast_recipients").insert(b).execute()
-        )
-    
-    # Queue broadcast worker via QStash (batches of 50-100 users)
-    from core.queue import publish_to_worker, WorkerEndpoints, get_base_url
-    import os
-    
-    # Verify BASE_URL/WEBAPP_URL is set for QStash
-    base_url = get_base_url()
-    if not base_url or base_url == "http://localhost:8000":
-        logger.error(f"Broadcast {broadcast_id}: BASE_URL/WEBAPP_URL not set! QStash will fail.")
-        await callback.answer("❌ Ошибка: BASE_URL не настроен. Рассылка не может быть отправлена.", show_alert=True)
-        return
-    
-    logger.info(f"Broadcast {broadcast_id}: Using base_url={base_url} for QStash workers")
-    
-    user_batches = []
-    batch_size = 80  # Optimal batch size for rate limiting
-    for i in range(0, len(recipients), batch_size):
-        batch = recipients[i:i + batch_size]
-        user_ids = [str(u["id"]) for u in batch]  # Ensure UUIDs are strings
-        user_batches.append(user_ids)
-    
-    # Queue each batch
-    queued_count = 0
-    failed_queues = []
-    
-    logger.info(f"Broadcast {broadcast_id}: Starting to queue {len(user_batches)} batches to QStash (endpoint: {WorkerEndpoints.SEND_BROADCAST})")
-    
-    for batch_idx, user_ids in enumerate(user_batches):
-        try:
-            logger.info(f"Broadcast {broadcast_id}: Queuing batch {batch_idx + 1}/{len(user_batches)} with {len(user_ids)} users")
-            result = await publish_to_worker(
-                endpoint=WorkerEndpoints.SEND_BROADCAST,
-                body={
-                    "broadcast_id": broadcast_id,
-                    "user_ids": user_ids,
-                    "target_bot": target_bot
-                },
-                retries=2,
-                deduplication_id=f"broadcast_{broadcast_id}_batch_{batch_idx}"
+    try:
+        data = await state.get_data()
+        
+        # Validate required fields
+        target_bot = data.get("target_bot")
+        target_audience = data.get("target_audience")
+        
+        if not target_bot or not target_audience:
+            await safe_edit_text(callback, "❌ Ошибка: данные рассылки не найдены. Начните заново с /broadcast")
+            await state.clear()
+            return
+        
+        # Import QStash utilities early to catch import errors
+        from core.queue import publish_to_worker, WorkerEndpoints, get_base_url
+        
+        # Verify BASE_URL/WEBAPP_URL is set for QStash BEFORE any work
+        base_url = get_base_url()
+        if not base_url or base_url == "http://localhost:8000":
+            logger.error(f"Broadcast: BASE_URL/WEBAPP_URL not set! base_url={base_url}")
+            await safe_edit_text(callback, "❌ Ошибка конфигурации: BASE_URL не настроен. Рассылка невозможна.")
+            await state.clear()
+            return
+        
+        logger.info(f"Broadcast: Starting, base_url={base_url}, target_bot={target_bot}, audience={target_audience}")
+        
+        db = get_database()
+        
+        # 1. Get recipients FIRST (before creating broadcast record)
+        logger.info(f"Broadcast: Fetching recipients...")
+        recipients = await _get_recipients_list(db, target_bot, target_audience, data.get("target_languages"))
+        
+        if not recipients:
+            await safe_edit_text(callback, "❌ Нет получателей для выбранной аудитории.")
+            await state.clear()
+            return
+        
+        logger.info(f"Broadcast: Found {len(recipients)} recipients")
+        
+        # 2. Create broadcast record
+        broadcast_data = {
+            "target_bot": target_bot,
+            "content": data.get("content", {}),
+            "media_type": data.get("media_type"),
+            "media_file_id": data.get("media_file_id"),
+            "buttons": data.get("buttons", []),
+            "target_audience": target_audience,
+            "target_languages": data.get("target_languages"),
+            "status": "sending",
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "total_recipients": len(recipients),
+            "created_by": admin_id
+        }
+        
+        result = db.client.table("broadcast_messages").insert(broadcast_data).execute()
+        broadcast_id = result.data[0]["id"]
+        logger.info(f"Broadcast {broadcast_id}: Created in DB")
+        
+        # 3. Create recipient records
+        recipient_records = []
+        for user in recipients:
+            recipient_records.append({
+                "broadcast_id": broadcast_id,
+                "user_id": user["id"],
+                "telegram_id": user["telegram_id"],
+                "language_code": user.get("language_code", "en"),
+                "status": "pending"
+            })
+        
+        # Insert recipients in batches
+        batch_size = 100
+        for i in range(0, len(recipient_records), batch_size):
+            batch = recipient_records[i:i + batch_size]
+            await asyncio.to_thread(
+                lambda b=batch: db.client.table("broadcast_recipients").insert(b).execute()
             )
-            if result.get("queued"):
-                queued_count += 1
-                logger.info(f"Broadcast {broadcast_id}: Batch {batch_idx + 1} queued successfully, message_id={result.get('message_id')}")
-            else:
+        logger.info(f"Broadcast {broadcast_id}: {len(recipient_records)} recipient records created")
+        
+        # 4. Queue to QStash (THE CRITICAL PART - must happen before response)
+        user_batches = []
+        qstash_batch_size = 80
+        for i in range(0, len(recipients), qstash_batch_size):
+            batch = recipients[i:i + qstash_batch_size]
+            user_ids = [str(u["id"]) for u in batch]
+            user_batches.append(user_ids)
+        
+        queued_count = 0
+        failed_queues = []
+        
+        logger.info(f"Broadcast {broadcast_id}: Queueing {len(user_batches)} batches to QStash...")
+        
+        for batch_idx, user_ids in enumerate(user_batches):
+            try:
+                qstash_result = await publish_to_worker(
+                    endpoint=WorkerEndpoints.SEND_BROADCAST,
+                    body={
+                        "broadcast_id": broadcast_id,
+                        "user_ids": user_ids,
+                        "target_bot": target_bot
+                    },
+                    retries=2,
+                    deduplication_id=f"broadcast_{broadcast_id}_batch_{batch_idx}"
+                )
+                if qstash_result.get("queued"):
+                    queued_count += 1
+                    logger.info(f"Broadcast {broadcast_id}: Batch {batch_idx + 1} queued, msg_id={qstash_result.get('message_id')}")
+                else:
+                    failed_queues.append(batch_idx + 1)
+                    logger.error(f"Broadcast {broadcast_id}: Batch {batch_idx + 1} FAILED: {qstash_result.get('error')}")
+            except Exception as e:
                 failed_queues.append(batch_idx + 1)
-                logger.error(f"Broadcast {broadcast_id}: Batch {batch_idx + 1} failed to queue: {result.get('error')}")
-        except Exception as e:
-            failed_queues.append(batch_idx + 1)
-            logger.error(f"Broadcast {broadcast_id}: Exception while queuing batch {batch_idx + 1}: {e}")
-    
-    logger.info(f"Broadcast {broadcast_id}: {queued_count}/{len(user_batches)} batches queued, {len(recipients)} total recipients")
-    if failed_queues:
-        logger.warning(f"Broadcast {broadcast_id}: Failed to queue batches: {failed_queues}")
-    
-    await callback.answer("🚀 Рассылка запущена!")
+                logger.error(f"Broadcast {broadcast_id}: Batch {batch_idx + 1} EXCEPTION: {e}")
+        
+        logger.info(f"Broadcast {broadcast_id}: {queued_count}/{len(user_batches)} batches queued successfully")
+        
+        # 5. Clear state
+        await state.clear()
+        
+        # 6. NOW send response to user (AFTER all work is done)
+        if failed_queues:
+            await safe_edit_text(callback,
+                "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                "     ⚠️ <b>РАССЫЛКА ЧАСТИЧНО ЗАПУЩЕНА</b>\n"
+                "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                f"📊 ID: <code>{broadcast_id[:8]}</code>\n"
+                f"👥 Получателей: {len(recipients)}\n"
+                f"✅ Очередей создано: {queued_count}/{len(user_batches)}\n"
+                f"❌ Ошибок: {len(failed_queues)}\n\n"
+                "<i>Часть рассылки может не отправиться.</i>",
+                parse_mode=ParseMode.HTML
+            )
+        else:
+            await safe_edit_text(callback,
+                "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+                "     🚀 <b>РАССЫЛКА ЗАПУЩЕНА</b>\n"
+                "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+                f"📊 ID: <code>{broadcast_id[:8]}</code>\n"
+                f"👥 Получателей: {len(recipients)}\n"
+                f"📦 Очередей: {queued_count}\n\n"
+                "<i>Рассылка обрабатывается.\n"
+                "Используйте /broadcasts для отслеживания.</i>",
+                parse_mode=ParseMode.HTML
+            )
+        
+        logger.info(f"Broadcast {broadcast_id}: Handler completed successfully")
+        
+    except Exception as e:
+        logger.error(f"Broadcast CRITICAL ERROR: {e}", exc_info=True)
+        await safe_edit_text(callback, f"❌ Критическая ошибка: {str(e)[:200]}")
+        await state.clear()
 
 
 # ==================== NAVIGATION ====================
