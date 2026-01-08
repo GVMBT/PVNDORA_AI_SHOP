@@ -1,0 +1,62 @@
+"""
+Admin Bot Middlewares
+
+Restricts access to authorized admins only.
+"""
+from typing import Callable, Dict, Any, Awaitable
+from aiogram import BaseMiddleware
+from aiogram.types import Message, CallbackQuery, TelegramObject
+
+from core.services.database import get_database
+from core.logging import get_logger
+
+logger = get_logger(__name__)
+
+
+class AdminAuthMiddleware(BaseMiddleware):
+    """
+    Verify that the user is an admin before processing any request.
+    Uses the `is_admin` field from the users table.
+    """
+
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: Dict[str, Any]
+    ) -> Any:
+        user = None
+        if isinstance(event, Message):
+            user = event.from_user
+        elif isinstance(event, CallbackQuery):
+            user = event.from_user
+
+        if not user:
+            return  # Ignore events without user
+
+        telegram_id = user.id
+        
+        # Check if user is admin in database
+        db = get_database()
+        result = db.client.table("users").select("id, telegram_id, username, is_admin").eq("telegram_id", telegram_id).execute()
+        
+        if not result.data or not result.data[0].get("is_admin"):
+            # Not an admin - send rejection message
+            logger.warning(f"Unauthorized admin bot access attempt from {telegram_id}")
+            
+            if isinstance(event, Message):
+                await event.answer(
+                    "⛔ <b>Доступ запрещён</b>\n\n"
+                    "Этот бот доступен только администраторам PVNDORA.",
+                    parse_mode="HTML"
+                )
+            elif isinstance(event, CallbackQuery):
+                await event.answer("⛔ Доступ запрещён", show_alert=True)
+            
+            return  # Block further processing
+        
+        # Admin verified - inject db_user into data
+        data["db_user"] = result.data[0]
+        data["admin_id"] = result.data[0]["id"]
+        
+        return await handler(event, data)

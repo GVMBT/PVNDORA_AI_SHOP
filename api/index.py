@@ -448,6 +448,133 @@ async def set_discount_webhook():
         return {"ok": False, "error": str(e)}
 
 
+# ==================== ADMIN BOT WEBHOOK ====================
+
+# Admin bot configuration
+ADMIN_BOT_TOKEN = os.environ.get("ADMIN_BOT_TOKEN", "")
+
+admin_bot: Optional[Bot] = None
+admin_dp: Optional[Dispatcher] = None
+
+
+def get_admin_bot() -> Optional[Bot]:
+    """Get or create admin bot instance"""
+    global admin_bot
+    if admin_bot is None and ADMIN_BOT_TOKEN:
+        admin_bot = Bot(
+            token=ADMIN_BOT_TOKEN,
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+        )
+    return admin_bot
+
+
+def get_admin_dispatcher() -> Optional[Dispatcher]:
+    """Get or create admin dispatcher instance"""
+    global admin_dp
+    if admin_dp is None and ADMIN_BOT_TOKEN:
+        from aiogram.fsm.storage.memory import MemoryStorage
+        from core.bot.admin import router as admin_bot_router, AdminAuthMiddleware
+        
+        admin_dp = Dispatcher(storage=MemoryStorage())
+        
+        # Register middleware - only admin auth required
+        admin_dp.message.middleware(AdminAuthMiddleware())
+        admin_dp.callback_query.middleware(AdminAuthMiddleware())
+        
+        # Register admin bot router
+        admin_dp.include_router(admin_bot_router)
+    
+    return admin_dp
+
+
+@app.post("/webhook/admin")
+async def admin_webhook(request: Request, background_tasks: BackgroundTasks):
+    """Handle Admin Bot Telegram webhook updates"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        bot_instance = get_admin_bot()
+        dispatcher = get_admin_dispatcher()
+        
+        if not bot_instance or not dispatcher:
+            logger.error("Admin bot not configured - ADMIN_BOT_TOKEN may be missing")
+            return JSONResponse(
+                status_code=200,
+                content={"ok": False, "error": "Admin bot not configured"}
+            )
+        
+        try:
+            data = await request.json()
+        except Exception as e:
+            logger.warning(f"Failed to parse JSON: {e}")
+            return JSONResponse(
+                status_code=200,
+                content={"ok": False, "error": f"Invalid JSON: {str(e)}"}
+            )
+        
+        try:
+            update = Update.model_validate(data, context={"bot": bot_instance})
+        except Exception as e:
+            logger.warning(f"Failed to validate update: {e}")
+            return JSONResponse(
+                status_code=200,
+                content={"ok": False, "error": f"Invalid update: {str(e)}"}
+            )
+        
+        # Process update in background
+        background_tasks.add_task(
+            _process_update_async,
+            bot_instance,
+            dispatcher,
+            update
+        )
+        
+        return JSONResponse(content={"ok": True})
+    
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Admin webhook exception: {error_msg}")
+        return JSONResponse(
+            status_code=200,
+            content={"ok": False, "error": error_msg}
+        )
+
+
+@app.post("/api/webhook/admin/set")
+async def set_admin_webhook():
+    """Set Admin Bot Telegram webhook"""
+    import httpx
+    
+    if not ADMIN_BOT_TOKEN:
+        return {"error": "ADMIN_BOT_TOKEN not configured"}
+    
+    webhook_url = f"{WEBAPP_URL}/webhook/admin"
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"https://api.telegram.org/bot{ADMIN_BOT_TOKEN}/setWebhook",
+                json={
+                    "url": webhook_url,
+                    "allowed_updates": ["message", "callback_query"],
+                    "drop_pending_updates": True
+                }
+            )
+            result = response.json()
+            
+            if result.get("ok"):
+                return {
+                    "ok": True,
+                    "message": "Admin webhook set successfully",
+                    "url": webhook_url
+                }
+            else:
+                return {"ok": False, "error": result.get("description")}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 # ==================== VERCEL EXPORT ====================
 # Vercel automatically detects FastAPI app when 'app' variable is present
 # No need to export handler - FastAPI is auto-detected

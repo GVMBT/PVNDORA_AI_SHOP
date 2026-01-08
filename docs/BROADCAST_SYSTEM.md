@@ -493,11 +493,32 @@ file_id = message.photo[-1].file_id
 
 ---
 
-## TODO
+## Статус реализации
 
-- [ ] Создать таблицу `broadcast_messages`
-- [ ] Создать worker `/api/workers/send-broadcast`
-- [ ] Добавить endpoint `/api/admin/broadcast`
-- [ ] Реализовать построение локализованной клавиатуры
-- [ ] Добавить поддержку персонализации (`{name}`, `{balance}`)
-- [ ] Admin UI для создания рассылок
+- [x] Создать таблицу `broadcast_messages` и `broadcast_recipients`
+- [x] Создать worker `/api/workers/send-broadcast`
+- [x] Admin Bot (`@pvndora_admin_bot`) с FSM для создания рассылок
+- [x] Реализовать построение локализованной клавиатуры
+- [x] Добавить поддержку персонализации (`{name}`)
+- [ ] Admin UI (web panel) для создания рассылок
+- [ ] Добавить поддержку расписания рассылок (scheduled_at)
+- [ ] Интеграция с QStash для батчинга больших рассылок
+
+## Настройка Admin Bot
+
+1. Создайте бота через @BotFather
+2. Добавьте токен в переменные окружения: `ADMIN_BOT_TOKEN=...`
+3. Установите webhook: `POST /api/webhook/admin/set`
+4. Убедитесь, что ваш telegram_id в таблице users с `is_admin=true`
+
+## Команды Admin Bot
+
+| Команда | Описание |
+|---------|----------|
+| `/start` | Приветствие |
+| `/help` | Список команд |
+| `/broadcast` | Создать новую рассылку (FSM flow) |
+| `/broadcasts` | Список последних рассылок |
+| `/stats` | Общая статистика проекта |
+| `/users` | Аналитика пользователей |
+| `/stock` | Состояние склада |

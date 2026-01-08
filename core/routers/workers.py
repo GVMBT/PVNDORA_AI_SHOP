@@ -908,3 +908,197 @@ async def worker_process_review_cashback(request: Request):
     
     return {"success": True, "cashback": cashback, "new_balance": new_balance}
 
+
+# ==================== BROADCAST WORKER ====================
+
+@router.post("/send-broadcast")
+async def worker_send_broadcast(request: Request):
+    """
+    QStash Worker: Send broadcast message to batch of users.
+    
+    Accepts:
+    - broadcast_id: ID рассылки
+    - user_ids: Batch пользователей (50-100 за раз)
+    - target_bot: 'pvndora' or 'discount'
+    """
+    data = await verify_qstash(request)
+    broadcast_id = data.get("broadcast_id")
+    user_ids = data.get("user_ids", [])
+    target_bot = data.get("target_bot", "pvndora")
+    
+    if not broadcast_id or not user_ids:
+        return {"error": "broadcast_id and user_ids required"}
+    
+    db = get_database()
+    
+    # Get broadcast template
+    broadcast_result = await asyncio.to_thread(
+        lambda: db.client.table("broadcast_messages")
+        .select("*")
+        .eq("id", broadcast_id)
+        .single()
+        .execute()
+    )
+    
+    if not broadcast_result.data:
+        return {"error": "Broadcast not found"}
+    
+    broadcast = broadcast_result.data
+    content = broadcast.get("content", {})
+    buttons = broadcast.get("buttons", [])
+    media_file_id = broadcast.get("media_file_id")
+    media_type = broadcast.get("media_type")
+    
+    # Get appropriate bot
+    import os
+    from aiogram import Bot
+    from aiogram.client.default import DefaultBotProperties
+    from aiogram.enums import ParseMode
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+    
+    if target_bot == "discount":
+        token = os.environ.get("DISCOUNT_BOT_TOKEN", "")
+    else:
+        token = os.environ.get("TELEGRAM_TOKEN", "")
+    
+    if not token:
+        return {"error": f"Bot token not configured for {target_bot}"}
+    
+    bot = Bot(token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    
+    sent = 0
+    failed = 0
+    
+    try:
+        for user_id in user_ids:
+            # Get user data
+            user_result = await asyncio.to_thread(
+                lambda uid=user_id: db.client.table("users")
+                .select("telegram_id, language_code, first_name")
+                .eq("id", uid)
+                .single()
+                .execute()
+            )
+            
+            if not user_result.data:
+                failed += 1
+                continue
+            
+            user = user_result.data
+            lang = user.get("language_code", "en")
+            telegram_id = user.get("telegram_id")
+            first_name = user.get("first_name", "")
+            
+            if not telegram_id:
+                failed += 1
+                continue
+            
+            # Get localized message (fallback to English, then first available)
+            msg_data = content.get(lang) or content.get("en") or (list(content.values())[0] if content else {})
+            text = msg_data.get("text", "")
+            parse_mode_str = msg_data.get("parse_mode", "HTML")
+            
+            # Personalize message
+            text = text.replace("{name}", first_name or "")
+            
+            # Build keyboard
+            keyboard = None
+            if buttons:
+                rows = []
+                for btn in buttons:
+                    text_dict = btn.get("text", {})
+                    btn_text = text_dict.get(lang) or text_dict.get("en") or (list(text_dict.values())[0] if text_dict else "Button")
+                    
+                    if "url" in btn:
+                        rows.append([InlineKeyboardButton(text=btn_text, url=btn["url"])])
+                    elif "web_app" in btn:
+                        rows.append([InlineKeyboardButton(text=btn_text, web_app=WebAppInfo(url=btn["web_app"]["url"]))])
+                    elif "callback_data" in btn:
+                        rows.append([InlineKeyboardButton(text=btn_text, callback_data=btn["callback_data"])])
+                
+                if rows:
+                    keyboard = InlineKeyboardMarkup(inline_keyboard=rows)
+            
+            try:
+                if media_file_id and media_type == "photo":
+                    await bot.send_photo(
+                        chat_id=telegram_id,
+                        photo=media_file_id,
+                        caption=text,
+                        parse_mode=parse_mode_str,
+                        reply_markup=keyboard
+                    )
+                elif media_file_id and media_type == "video":
+                    await bot.send_video(
+                        chat_id=telegram_id,
+                        video=media_file_id,
+                        caption=text,
+                        parse_mode=parse_mode_str,
+                        reply_markup=keyboard
+                    )
+                elif media_file_id and media_type == "animation":
+                    await bot.send_animation(
+                        chat_id=telegram_id,
+                        animation=media_file_id,
+                        caption=text,
+                        parse_mode=parse_mode_str,
+                        reply_markup=keyboard
+                    )
+                else:
+                    await bot.send_message(
+                        chat_id=telegram_id,
+                        text=text,
+                        parse_mode=parse_mode_str,
+                        reply_markup=keyboard
+                    )
+                sent += 1
+                
+                # Update recipient status
+                await asyncio.to_thread(
+                    lambda uid=user_id: db.client.table("broadcast_recipients")
+                    .update({
+                        "status": "sent",
+                        "sent_at": datetime.now(timezone.utc).isoformat()
+                    })
+                    .eq("broadcast_id", broadcast_id)
+                    .eq("user_id", uid)
+                    .execute()
+                )
+                
+            except Exception as e:
+                failed += 1
+                error_msg = str(e)
+                logger.warning(f"Broadcast to {telegram_id} failed: {error_msg}")
+                
+                # Update recipient status with error
+                await asyncio.to_thread(
+                    lambda uid=user_id, err=error_msg: db.client.table("broadcast_recipients")
+                    .update({
+                        "status": "failed",
+                        "error_message": err[:500]
+                    })
+                    .eq("broadcast_id", broadcast_id)
+                    .eq("user_id", uid)
+                    .execute()
+                )
+            
+            # Rate limiting - 30 messages per second max for bots
+            await asyncio.sleep(0.035)
+        
+        # Update broadcast stats
+        await asyncio.to_thread(
+            lambda: db.client.table("broadcast_messages")
+            .update({
+                "sent_count": broadcast.get("sent_count", 0) + sent,
+                "failed_count": broadcast.get("failed_count", 0) + failed
+            })
+            .eq("id", broadcast_id)
+            .execute()
+        )
+        
+    finally:
+        await bot.session.close()
+    
+    logger.info(f"Broadcast {broadcast_id}: sent={sent}, failed={failed}")
+    return {"sent": sent, "failed": failed}
+
