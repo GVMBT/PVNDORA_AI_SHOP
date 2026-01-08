@@ -12,8 +12,8 @@ from pydantic import BaseModel
 
 from core.services.database import get_database
 from core.services.money import to_float
-from core.services.currency import CurrencyFormatter
-from core.services.redis import get_redis_service
+from core.services.currency_response import CurrencyFormatter
+from core.db import get_redis
 from core.auth import verify_telegram_auth
 from core.logging import get_logger
 from .models import PromoCheckRequest, WebAppReviewRequest
@@ -162,7 +162,7 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
 async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: int = 0, user=Depends(verify_telegram_auth)):
     """Get savings leaderboard. Supports period: all, month, week and pagination."""
     db = get_database()
-    redis = get_redis_service()
+    redis = get_redis()
     LEADERBOARD_SIZE = min(limit, 50)  # Cap at 50
     now = datetime.now(timezone.utc)
     
