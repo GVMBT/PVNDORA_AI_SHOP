@@ -197,6 +197,9 @@ class NotificationService:
         # Process referral bonus
         await db.process_referral_bonus(order)
         
+        # Note: Supplier notifications are handled via QStash worker /api/workers/notify-supplier
+        # This is called separately when needed, not during direct delivery
+        
         # Log analytics event
         await db.log_event(
             user_id=order.user_id,
@@ -465,6 +468,59 @@ class NotificationService:
             logger.info(f"Sent rejection notification to {telegram_id} for ticket {ticket_id}")
         except Exception as e:
             logger.error(f"Failed to send rejection notification to {telegram_id}: {e}")
+    
+    async def _notify_supplier(
+        self,
+        supplier_id: str,
+        product_name: str,
+        amount: float
+    ) -> None:
+        """
+        Notify supplier about sale.
+        
+        This method is called via QStash worker /api/workers/notify-supplier
+        when a stock item with supplier_id is sold.
+        """
+        db = get_database()
+        bot = self._get_bot()
+        
+        if not bot:
+            return
+        
+        # Get supplier
+        supplier_result = await asyncio.to_thread(
+            lambda: db.client.table("suppliers").select("telegram_id,name").eq("id", supplier_id).execute()
+        )
+        if not supplier_result.data:
+            logger.warning(f"Supplier {supplier_id} not found")
+            return
+        
+        supplier = supplier_result.data[0]
+        telegram_id = supplier.get("telegram_id")
+        
+        if not telegram_id:
+            logger.warning(f"Supplier {supplier_id} has no telegram_id")
+            return
+        
+        # Supplier notifications are in Russian (suppliers are Russian-speaking)
+        message = (
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     💰 <b>ПРОДАЖА</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"◈ <b>Товар:</b> {product_name}\n"
+            f"◈ <b>Сумма:</b> ${amount:.2f}\n\n"
+            f"<i>Поступило на ваш счёт</i> ✓"
+        )
+        
+        try:
+            await bot.send_message(
+                chat_id=telegram_id,
+                text=message,
+                parse_mode="HTML"
+            )
+            logger.info(f"Sent sale notification to supplier {supplier_id}")
+        except Exception as e:
+            logger.error(f"Failed to notify supplier {supplier_id}: {e}")
     
     
     # ==================== SCHEDULED NOTIFICATIONS ====================

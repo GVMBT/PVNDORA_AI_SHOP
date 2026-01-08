@@ -516,28 +516,70 @@ async def worker_deliver_batch(request: Request):
 @router.post("/notify-supplier")
 async def worker_notify_supplier(request: Request):
     """
-    QStash Worker: Notify supplier about low stock.
+    QStash Worker: Notify supplier about sale.
+    
+    According to API spec, accepts:
+    - order_id: Order ID
+    - product_id: Product ID
+    - supplier_id: Supplier ID
+    
+    Sends notification to supplier about the sale.
     """
     data = await verify_qstash(request)
+    order_id = data.get("order_id")
     product_id = data.get("product_id")
-    threshold = data.get("threshold", 3)
+    supplier_id = data.get("supplier_id")
     
-    if not product_id:
-        return {"error": "product_id required"}
+    if not supplier_id:
+        return {"error": "supplier_id required"}
+    
+    if not order_id or not product_id:
+        return {"error": "order_id and product_id required"}
     
     db = get_database()
+    notification_service = get_notification_service()
     
-    # Check current stock
-    stock = db.client.table("stock_items").select("id").eq(
-        "product_id", product_id
-    ).eq("status", "available").execute()
-    
-    if len(stock.data) <= threshold:
-        # Log low stock alert (in production, send to admin)
-        logger.warning(f"LOW STOCK ALERT: Product {product_id} has only {len(stock.data)} items")
-        return {"alerted": True, "stock_count": len(stock.data)}
-    
-    return {"skipped": True, "stock_count": len(stock.data)}
+    try:
+        # Get order and product info
+        order_result = await asyncio.to_thread(
+            lambda: db.client.table("orders")
+            .select("amount")
+            .eq("id", order_id)
+            .single()
+            .execute()
+        )
+        
+        product_result = await asyncio.to_thread(
+            lambda: db.client.table("products")
+            .select("name")
+            .eq("id", product_id)
+            .single()
+            .execute()
+        )
+        
+        if not order_result.data or not product_result.data:
+            return {"error": "Order or product not found"}
+        
+        order_amount = order_result.data.get("amount", 0)
+        product_name = product_result.data.get("name", "Unknown Product")
+        
+        # Notify supplier
+        await notification_service._notify_supplier(
+            supplier_id=supplier_id,
+            product_name=product_name,
+            amount=order_amount
+        )
+        
+        return {
+            "success": True,
+            "supplier_id": supplier_id,
+            "order_id": order_id,
+            "product_name": product_name
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to notify supplier {supplier_id} for order {order_id}: {e}")
+        return {"error": str(e)}
 
 
 @router.post("/process-replacement")
