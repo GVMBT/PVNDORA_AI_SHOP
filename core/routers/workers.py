@@ -1086,15 +1086,35 @@ async def worker_send_broadcast(request: Request):
             await asyncio.sleep(0.035)
         
         # Update broadcast stats
+        new_sent_count = broadcast.get("sent_count", 0) + sent
+        new_failed_count = broadcast.get("failed_count", 0) + failed
+        
         await asyncio.to_thread(
             lambda: db.client.table("broadcast_messages")
             .update({
-                "sent_count": broadcast.get("sent_count", 0) + sent,
-                "failed_count": broadcast.get("failed_count", 0) + failed
+                "sent_count": new_sent_count,
+                "failed_count": new_failed_count
             })
             .eq("id", broadcast_id)
             .execute()
         )
+        
+        # Check if broadcast is complete (all recipients processed)
+        total_recipients = broadcast.get("total_recipients", 0)
+        total_processed = new_sent_count + new_failed_count
+        
+        if total_processed >= total_recipients:
+            # All recipients processed - mark as completed
+            await asyncio.to_thread(
+                lambda: db.client.table("broadcast_messages")
+                .update({
+                    "status": "sent",
+                    "completed_at": datetime.now(timezone.utc).isoformat()
+                })
+                .eq("id", broadcast_id)
+                .execute()
+            )
+            logger.info(f"Broadcast {broadcast_id} completed: {new_sent_count} sent, {new_failed_count} failed")
         
     finally:
         await bot.session.close()

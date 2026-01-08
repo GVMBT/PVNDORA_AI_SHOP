@@ -4,8 +4,9 @@ Broadcast Handlers for Admin Bot
 Implements the /broadcast command and FSM flow for creating mailings.
 """
 import json
+import asyncio
 from typing import Optional, Dict, Any, List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
@@ -691,9 +692,55 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
         parse_mode=ParseMode.HTML
     )
     
-    # Queue broadcast worker via QStash (would be implemented in workers.py)
-    # For now, log the action
-    logger.info(f"Broadcast {broadcast_id} queued for sending")
+    # Get recipients and create broadcast_recipients records
+    recipients = await _get_recipients_list(db, target_bot, target_audience, data.get("target_languages"))
+    
+    # Create recipient records
+    recipient_records = []
+    for user in recipients:
+        recipient_records.append({
+            "broadcast_id": broadcast_id,
+            "user_id": user["id"],
+            "telegram_id": user["telegram_id"],
+            "language_code": user.get("language_code", "en"),
+            "status": "pending"
+        })
+    
+    # Insert recipients in batches
+    batch_size = 100
+    for i in range(0, len(recipient_records), batch_size):
+        batch = recipient_records[i:i + batch_size]
+        await asyncio.to_thread(
+            lambda b=batch: db.client.table("broadcast_recipients").insert(b).execute()
+        )
+    
+    # Queue broadcast worker via QStash (batches of 50-100 users)
+    from core.queue import publish_to_worker, WorkerEndpoints
+    
+    user_batches = []
+    batch_size = 80  # Optimal batch size for rate limiting
+    for i in range(0, len(recipients), batch_size):
+        batch = recipients[i:i + batch_size]
+        user_ids = [u["id"] for u in batch]
+        user_batches.append(user_ids)
+    
+    # Queue each batch
+    queued_count = 0
+    for batch_idx, user_ids in enumerate(user_batches):
+        result = await publish_to_worker(
+            endpoint=WorkerEndpoints.SEND_BROADCAST,
+            body={
+                "broadcast_id": broadcast_id,
+                "user_ids": user_ids,
+                "target_bot": target_bot
+            },
+            retries=2,
+            deduplication_id=f"broadcast_{broadcast_id}_batch_{batch_idx}"
+        )
+        if result.get("queued"):
+            queued_count += 1
+    
+    logger.info(f"Broadcast {broadcast_id}: {queued_count}/{len(user_batches)} batches queued, {len(recipients)} total recipients")
     
     await callback.answer("🚀 Рассылка запущена!")
 
@@ -786,11 +833,9 @@ async def cb_back(callback: CallbackQuery, state: FSMContext):
 
 # ==================== HELPER FUNCTIONS ====================
 
-async def _count_recipients(db, target_bot: str, audience: str, languages: Optional[List[str]]) -> int:
-    """Count recipients based on targeting criteria"""
-    from datetime import timedelta
-    
-    query = db.client.table("users").select("id", count="exact")
+async def _get_recipients_list(db, target_bot: str, audience: str, languages: Optional[List[str]]) -> List[Dict[str, Any]]:
+    """Get full list of recipients based on targeting criteria"""
+    query = db.client.table("users").select("id, telegram_id, language_code")
     
     # Base filters
     query = query.eq("is_banned", False).eq("do_not_disturb", False)
@@ -807,13 +852,44 @@ async def _count_recipients(db, target_bot: str, audience: str, languages: Optio
         query = query.lt("last_activity_at", (now - timedelta(days=7)).isoformat())
     elif audience == "vip":
         query = query.eq("is_partner", True)
+    elif audience == "buyers":
+        # Users with at least one delivered order - use subquery
+        buyers_result = await asyncio.to_thread(
+            lambda: db.client.table("orders")
+            .select("user_id")
+            .eq("status", "delivered")
+            .execute()
+        )
+        buyer_ids = list(set(o["user_id"] for o in (buyers_result.data or [])))
+        if buyer_ids:
+            query = query.in_("id", buyer_ids)
+        else:
+            # No buyers - return empty list
+            return []
+    elif audience == "non_buyers":
+        # Users without delivered orders
+        buyers_result = await asyncio.to_thread(
+            lambda: db.client.table("orders")
+            .select("user_id")
+            .eq("status", "delivered")
+            .execute()
+        )
+        buyer_ids = list(set(o["user_id"] for o in (buyers_result.data or [])))
+        if buyer_ids:
+            query = query.not_.in_("id", buyer_ids)
     
     # Language filter
     if languages:
         query = query.in_("language_code", languages)
     
-    result = query.execute()
-    return result.count or 0
+    result = await asyncio.to_thread(lambda: query.execute())
+    return result.data or []
+
+
+async def _count_recipients(db, target_bot: str, audience: str, languages: Optional[List[str]]) -> int:
+    """Count recipients based on targeting criteria"""
+    recipients = await _get_recipients_list(db, target_bot, audience, languages)
+    return len(recipients)
 
 
 def _build_keyboard(buttons: List[Dict], lang: str) -> Optional[InlineKeyboardMarkup]:
