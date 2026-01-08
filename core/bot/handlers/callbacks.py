@@ -55,7 +55,8 @@ async def callback_check_subscription(callback: CallbackQuery, db_user: User, bo
             "Press /start to begin."
         )
         
-        await callback.message.answer(text, parse_mode=ParseMode.HTML)
+        # Send directly to user (not via deleted message context)
+        await bot.send_message(chat_id=callback.from_user.id, text=text, parse_mode=ParseMode.HTML)
         await callback.answer()
         
     except Exception as e:
