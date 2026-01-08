@@ -345,4 +345,3 @@ async def callback_preorder(callback: CallbackQuery, db_user: User, bot: Bot):
         parse_mode=ParseMode.MARKDOWN
     )
     await callback.answer()
-
