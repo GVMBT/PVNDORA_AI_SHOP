@@ -67,19 +67,27 @@ export function requestFullscreen(): void {
   const tg = getTelegramWebApp();
   if (!tg) return;
   
-  // Check if method exists and SDK version supports it (6.9+)
-  // requestFullscreen is available in Bot API 8.0+ / SDK 6.9+
-  const version = tg.version || '0.0.0';
-  const [major, minor] = version.split('.').map(Number);
-  const isSupported = (major > 6) || (major === 6 && minor >= 9);
+  // Check if method exists
+  if (!('requestFullscreen' in tg)) return;
   
-  if ('requestFullscreen' in tg && isSupported) {
+  // Check SDK version if available (requestFullscreen requires SDK 6.9+)
+  if (tg.version) {
     try {
-      (tg as unknown as { requestFullscreen: () => void }).requestFullscreen();
+      const version = String(tg.version);
+      const [major, minor] = version.split('.').map(Number);
+      const isSupported = (major > 6) || (major === 6 && minor >= 9);
+      if (!isSupported) return;
     } catch {
-      // Silently ignore - method not available in this context
-      // (e.g., Mini App not configured for fullscreen in BotFather)
+      // If version parsing fails, try anyway (fallback)
     }
+  }
+  
+  // Try to call requestFullscreen (may throw if not configured in BotFather)
+  try {
+    (tg as unknown as { requestFullscreen: () => void }).requestFullscreen();
+  } catch {
+    // Silently ignore - method not available or not configured
+    // (e.g., Mini App not configured for fullscreen in BotFather)
   }
 }
 
