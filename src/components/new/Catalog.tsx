@@ -69,22 +69,28 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
   const availabilityRef = useRef<HTMLDivElement>(null);
   const sortRef = useRef<HTMLDivElement>(null);
   
-  // Close dropdowns on outside click
+  // Close dropdowns on outside click - only when dropdowns are open
   useEffect(() => {
+    if (!isAvailabilityOpen && !isSortOpen) return;
+    
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (availabilityRef.current && !availabilityRef.current.contains(target)) {
-        setIsAvailabilityOpen(false);
-      }
-      if (sortRef.current && !sortRef.current.contains(target)) {
-        setIsSortOpen(false);
-      }
+      
+      // Small delay to allow toggle to complete first
+      setTimeout(() => {
+        if (isAvailabilityOpen && availabilityRef.current && !availabilityRef.current.contains(target)) {
+          setIsAvailabilityOpen(false);
+        }
+        if (isSortOpen && sortRef.current && !sortRef.current.contains(target)) {
+          setIsSortOpen(false);
+        }
+      }, 0);
     };
     
-    // Use mousedown to catch clicks before they bubble
-    document.addEventListener('mousedown', handleClickOutside, true);
-    return () => document.removeEventListener('mousedown', handleClickOutside, true);
-  }, []);
+    // Use click event (not mousedown) to allow button click to complete first
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [isAvailabilityOpen, isSortOpen]);
 
   // Use provided products or empty array (no mock data fallback)
   const productsData = propProducts || [];
@@ -189,12 +195,13 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                     <button 
                         type="button"
                         onClick={(e) => { 
+                            e.preventDefault();
                             e.stopPropagation();
                             if(onHaptic) onHaptic('light'); 
-                            setIsAvailabilityOpen(!isAvailabilityOpen); 
+                            setIsAvailabilityOpen(prev => !prev); 
                             setIsSortOpen(false); 
                         }}
-                        className="h-full px-3 sm:px-4 py-2 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm whitespace-nowrap"
+                        className="h-full px-3 sm:px-4 py-2 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm whitespace-nowrap touch-manipulation"
                     >
                         <span className="uppercase text-[9px] sm:text-[10px] tracking-wider">
                             {activeAvailability === 'All' && `${t('catalog.availability.label')}: ${t('catalog.availability.all')}`}
@@ -211,8 +218,8 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                 initial={{ opacity: 0, y: -10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                className="absolute top-full left-0 right-0 mt-2 bg-[#0a0a0a] border border-white/20 z-[100] shadow-xl shadow-black/80"
+                                onClick={(e) => e.stopPropagation()}
+                                className="absolute top-full left-0 min-w-full mt-2 bg-[#0a0a0a] border border-white/20 z-[100] shadow-xl shadow-black/80"
                             >
                                 {[
                                     { label: t('catalog.availability.all'), value: 'All', color: 'text-gray-400' },
@@ -244,12 +251,13 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                     <button 
                         type="button"
                         onClick={(e) => { 
+                            e.preventDefault();
                             e.stopPropagation();
                             if(onHaptic) onHaptic('light'); 
-                            setIsSortOpen(!isSortOpen); 
+                            setIsSortOpen(prev => !prev); 
                             setIsAvailabilityOpen(false); 
                         }}
-                        className="h-full px-3 sm:px-4 py-2 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm whitespace-nowrap"
+                        className="h-full px-3 sm:px-4 py-2 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm whitespace-nowrap touch-manipulation"
                     >
                         <span className="uppercase text-[9px] sm:text-[10px] tracking-wider">
                             {sortBy === 'popular' && `${t('catalog.sort.label')}: ${t('catalog.sort.popularity')}`}
@@ -265,8 +273,8 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                 initial={{ opacity: 0, y: -10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                className="absolute top-full left-0 right-0 mt-2 bg-[#0a0a0a] border border-white/20 z-[100] shadow-xl shadow-black/80"
+                                onClick={(e) => e.stopPropagation()}
+                                className="absolute top-full left-0 min-w-full mt-2 bg-[#0a0a0a] border border-white/20 z-[100] shadow-xl shadow-black/80"
                             >
                                 {[
                                     { label: t('catalog.sort.popularity'), value: 'popular' },

@@ -83,34 +83,40 @@ const CartSummary: React.FC<CartSummaryProps> = ({
       animate={{ opacity: 1, x: 0 }} 
       exit={{ opacity: 0, x: -20 }}
     >
-      <div className="space-y-4">
+      <div className="space-y-3">
         {cart.map((item) => {
           const quantity = item.quantity || 1;
           return (
             <div 
               key={item.id} 
-              className="flex items-center justify-between bg-white/5 border border-white/10 p-4 rounded-sm hover:border-pandora-cyan/30 transition-colors"
+              className="bg-white/5 border border-white/10 p-3 rounded-sm hover:border-pandora-cyan/30 transition-colors"
             >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-black border border-white/10 rounded-sm overflow-hidden relative">
+              {/* Top Row: Image, Name, Delete */}
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-black border border-white/10 rounded-sm overflow-hidden flex-shrink-0">
                   <img src={item.image} className="w-full h-full object-cover grayscale" alt={item.name} />
-                  {quantity > 1 && (
-                    <div className="absolute top-0 right-0 bg-pandora-cyan text-black text-[9px] font-bold w-4 h-4 flex items-center justify-center">
-                      {quantity}
-                    </div>
-                  )}
                 </div>
-                <div>
-                  <div className="font-bold text-white text-sm">{item.name}</div>
-                  <div className="text-[10px] text-gray-500 font-mono flex items-center gap-2">
-                    {item.category} MODULE
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-white text-sm truncate">{item.name}</div>
+                  <div className="text-[10px] text-gray-500 font-mono uppercase">
+                    {item.category}
                   </div>
                 </div>
+                <button 
+                  type="button"
+                  onClick={() => onRemoveItem(item.id)} 
+                  className="text-gray-600 hover:text-red-500 transition-colors p-1 flex-shrink-0"
+                  aria-label="Remove item"
+                >
+                  <Trash2 size={14} />
+                </button>
               </div>
-              <div className="flex items-center gap-4">
+              
+              {/* Bottom Row: Quantity Controls + Price */}
+              <div className="flex items-center justify-between">
                 {/* Quantity Controls */}
                 {onUpdateQuantity ? (
-                  <div className="flex items-center gap-2 bg-black/50 border border-white/10 rounded-sm">
+                  <div className="flex items-center bg-black/50 border border-white/10 rounded-sm">
                     <button
                       type="button"
                       onClick={() => {
@@ -119,52 +125,40 @@ const CartSummary: React.FC<CartSummaryProps> = ({
                         }
                       }}
                       disabled={quantity <= 1}
-                      className="p-1.5 text-gray-400 hover:text-pandora-cyan disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-pandora-cyan disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       aria-label="Decrease quantity"
                     >
-                      <Minus size={14} />
+                      <Minus size={12} />
                     </button>
-                    <span className="px-2 py-1 text-sm font-mono text-white min-w-[2rem] text-center">
+                    <span className="w-8 h-8 flex items-center justify-center text-sm font-mono text-white border-x border-white/10">
                       {quantity}
                     </span>
                     <button
                       type="button"
                       onClick={() => onUpdateQuantity(item.id, quantity + 1)}
-                      className="p-1.5 text-gray-400 hover:text-pandora-cyan transition-colors"
+                      className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-pandora-cyan transition-colors"
                       aria-label="Increase quantity"
                     >
-                      <Plus size={14} />
+                      <Plus size={12} />
                     </button>
                   </div>
                 ) : (
-                  quantity > 1 && (
-                    <div className="text-[10px] text-gray-500 font-mono">
-                      x{quantity}
-                    </div>
-                  )
+                  <div className="text-[10px] text-gray-500 font-mono">
+                    {quantity > 1 ? `x${quantity}` : ''}
+                  </div>
                 )}
                 
                 {/* Price */}
-                <div className="text-right min-w-[80px]">
-                  <div className="font-mono text-pandora-cyan">
+                <div className="text-right">
+                  <div className="font-mono text-pandora-cyan font-bold">
                     {formatPrice(item.price * quantity, item.currency || currency)}
                   </div>
                   {quantity > 1 && (
                     <div className="text-[9px] text-gray-500">
-                      {formatPrice(item.price, item.currency || currency)} ea
+                      {formatPrice(item.price, item.currency || currency)} / шт
                     </div>
                   )}
                 </div>
-                
-                {/* Remove Button */}
-                <button 
-                  type="button"
-                  onClick={() => onRemoveItem(item.id)} 
-                  className="text-gray-600 hover:text-red-500 transition-colors p-1"
-                  aria-label="Remove item"
-                >
-                  <Trash2 size={16} />
-                </button>
               </div>
             </div>
           );

@@ -6,7 +6,7 @@
 
 import React, { useState, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Plus, Terminal, Image as ImageIcon, Upload, Video, Sparkles } from 'lucide-react';
+import { X, Save, Plus, Terminal, Image as ImageIcon, Upload, Video } from 'lucide-react';
 import type { ProductData } from './types';
 
 interface ProductModalProps {
@@ -31,7 +31,9 @@ const ProductModal: React.FC<ProductModalProps> = ({
       name: '',
       price: 0,
       stock: 0,
-      category: 'Text',
+      category: 'ai',
+      status: 'active',
+      type: 'instant',
       image: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=800&auto=format&fit=crop',
     }
   );
@@ -144,11 +146,11 @@ const ProductModal: React.FC<ProductModalProps> = ({
                     />
                   </div>
 
-                  {/* Video Input */}
+                  {/* URLs Section */}
                   <div className="flex-1 space-y-3">
                     <div>
                       <label className="text-[10px] text-gray-500 block mb-1 uppercase">
-                        Image URL (Fallback)
+                        Image URL
                       </label>
                       <input 
                         type="text" 
@@ -160,29 +162,17 @@ const ProductModal: React.FC<ProductModalProps> = ({
                     </div>
                     <div>
                       <label className="text-[10px] text-gray-500 mb-1 uppercase flex items-center gap-1">
-                        <Video size={10} /> Video Instruction URL
+                        <Video size={10} /> Video URL (optional)
                       </label>
                       <input 
                         type="text" 
                         value={editingProduct?.video || ''}
                         onChange={(e) => setEditingProduct({...editingProduct, video: e.target.value})}
                         className="w-full bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none" 
-                        placeholder="https://youtube.com/..."
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-gray-500 mb-1 uppercase flex items-center gap-1">
-                        <Sparkles size={10} className="text-pandora-cyan" /> Product Video URL
-                      </label>
-                      <input 
-                        type="text" 
-                        value={editingProduct?.video || ''}
-                        onChange={(e) => setEditingProduct({...editingProduct, video: e.target.value})}
-                        className="w-full bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none" 
-                        placeholder="https://cdn.example.com/videos/product.webm"
+                        placeholder="https://youtube.com/... or .webm/.mp4"
                       />
                       <p className="text-[9px] text-gray-600 mt-1">
-                        Зацикленное видео для визуализации на странице товара (WebM/MP4)
+                        Видео инструкция или визуализация товара
                       </p>
                     </div>
                   </div>
@@ -253,25 +243,27 @@ const ProductModal: React.FC<ProductModalProps> = ({
               <div>
                 <label className="text-[10px] text-gray-500 block mb-1 uppercase">Category</label>
                 <select 
-                  value={editingProduct?.category || 'Text'}
+                  value={editingProduct?.category || 'ai'}
                   onChange={(e) => setEditingProduct({...editingProduct, category: e.target.value})}
                   className="w-full bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none"
                 >
-                  <option>Text</option>
-                  <option>Video</option>
-                  <option>Image</option>
-                  <option>Code</option>
-                  <option>Audio</option>
+                  <option value="ai">AI & Text</option>
+                  <option value="dev">Development</option>
+                  <option value="design">Design & Image</option>
+                  <option value="music">Audio & Music</option>
                 </select>
               </div>
-              <div className="flex items-center gap-2 border border-white/20 p-2 bg-black">
-                <input 
-                  type="checkbox" 
-                  checked={editingProduct?.vpn || false}
-                  onChange={(e) => setEditingProduct({...editingProduct, vpn: e.target.checked})}
-                  className="accent-pandora-cyan w-4 h-4" 
-                />
-                <label className="text-xs text-white uppercase font-bold">VPN Required</label>
+              <div>
+                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Status</label>
+                <select 
+                  value={editingProduct?.status || 'active'}
+                  onChange={(e) => setEditingProduct({...editingProduct, status: e.target.value})}
+                  className="w-full bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="discontinued">Discontinued</option>
+                </select>
               </div>
 
               <div>

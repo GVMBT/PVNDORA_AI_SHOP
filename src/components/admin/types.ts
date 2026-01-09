@@ -7,19 +7,19 @@
 export interface ProductData {
   id: string | number;
   name: string;
-  category: string;
+  category: string;  // ai, dev, design, music
   description: string;
   price: number;
   msrp: number;
-  type: string;
-  stock: number;
-  fulfillment: number;
-  warranty: number;
-  duration: number;
-  sold: number;
-  vpn: boolean;
-  image: string;
-  video?: string; // Video URL for looped product visualization
+  type: string;  // instant, preorder
+  stock: number;  // Calculated from stock_items
+  fulfillment: number;  // fulfillment_time_hours
+  warranty: number;  // warranty_hours
+  duration: number;  // duration_days
+  sold: number;  // Calculated from sold stock_items
+  status?: string;  // active, inactive, discontinued
+  image: string;  // image_url
+  video?: string;  // Video URL
   instructions: string;
 }
 
