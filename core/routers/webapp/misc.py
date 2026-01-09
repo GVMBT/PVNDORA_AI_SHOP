@@ -141,9 +141,32 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
         )
     except Exception as e:
         error_str = str(e)
+        error_type = type(e).__name__
+        
         # Handle duplicate key constraint violation (race condition)
-        if "23505" in error_str or "duplicate key" in error_str.lower():
+        # Supabase returns 409 Conflict or APIError/PostgrestError with 23505 code
+        is_duplicate = False
+        
+        # Check error code/status if available (postgrest APIError has code/status_code)
+        if hasattr(e, 'code'):
+            if e.code == 409 or str(e.code) == "23505" or "23505" in str(e.code):
+                is_duplicate = True
+        if hasattr(e, 'status_code'):
+            if e.status_code == 409:
+                is_duplicate = True
+        
+        # Check error message for conflict indicators
+        if not is_duplicate:
+            is_duplicate = any(
+                keyword in error_str.lower() 
+                for keyword in ["23505", "duplicate key", "unique constraint", "already exists", "conflict"]
+            )
+        
+        if is_duplicate:
+            logger.info(f"Review already exists for order {request.order_id}, product {product_id}")
             raise HTTPException(status_code=400, detail="Вы уже оставили отзыв на этот товар")
+        
+        logger.error(f"Error creating review: {error_type}: {error_str}")
         raise HTTPException(status_code=500, detail=f"Ошибка при создании отзыва: {error_str}")
     
     if not result.data or len(result.data) == 0:
