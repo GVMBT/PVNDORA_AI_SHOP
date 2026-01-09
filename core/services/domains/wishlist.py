@@ -2,6 +2,13 @@
 Wishlist Domain Service
 
 Handles user wishlist operations.
+Currently used only for stock notifications (waitlist_notify_in_stock).
+
+TODO: Add UI for wishlist management in the frontend.
+User should be able to:
+- View wishlist items
+- Add/remove items from wishlist
+- Receive notifications when items come back in stock
 """
 import asyncio
 from typing import List, Dict, Any
