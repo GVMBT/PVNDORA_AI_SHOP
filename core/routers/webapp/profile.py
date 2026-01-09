@@ -381,20 +381,26 @@ async def create_topup(
     # Create pending transaction record
     current_balance = float(db_user.balance) if db_user.balance else 0
     
+    # Convert amount to USD for storage (all balances/transactions in USD)
+    amount_usd = request.amount
+    if currency != "USD" and formatter.exchange_rate > 0:
+        amount_usd = request.amount / formatter.exchange_rate
+    
     try:
         tx_result = await asyncio.to_thread(
             lambda: db.client.table("balance_transactions").insert({
                 "user_id": db_user.id,
                 "type": "topup",
-                "amount": request.amount,
-                "currency": currency,
+                "amount": amount_usd,  # Store in USD!
+                "currency": "USD",  # Always USD for consistency
                 "balance_before": current_balance,
                 "balance_after": current_balance,  # Will be updated on completion
                 "status": "pending",
-                "description": f"Balance top-up: {request.amount} {currency}",
+                "description": "Пополнение баланса",
                 "metadata": {
                     "original_currency": currency,
                     "original_amount": request.amount,
+                    "exchange_rate": formatter.exchange_rate,
                 }
             }).execute()
         )
