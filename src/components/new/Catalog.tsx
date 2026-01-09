@@ -69,9 +69,19 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
   const availabilityRef = useRef<HTMLDivElement>(null);
   const sortRef = useRef<HTMLDivElement>(null);
   
-  // Close dropdowns on outside click - using pointerdown for better mobile support
+  // Flag to prevent immediate close after toggle
+  const justToggledRef = useRef(false);
+  
+  // Close dropdowns on outside click
+  // Using 'click' event (fires after pointerdown) to avoid race conditions with toggle buttons
   useEffect(() => {
-    const handleClickOutside = (event: PointerEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      // Skip if we just toggled
+      if (justToggledRef.current) {
+        justToggledRef.current = false;
+        return;
+      }
+      
       const target = event.target as HTMLElement;
       
       // Skip if target is within either dropdown
@@ -84,8 +94,13 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
       setIsSortOpen(false);
     };
     
-    document.addEventListener('pointerdown', handleClickOutside);
-    return () => document.removeEventListener('pointerdown', handleClickOutside);
+    // Use both click and touchend for comprehensive coverage
+    document.addEventListener('click', handleClickOutside, true);
+    document.addEventListener('touchend', handleClickOutside, true);
+    return () => {
+      document.removeEventListener('click', handleClickOutside, true);
+      document.removeEventListener('touchend', handleClickOutside, true);
+    };
   }, []);
 
   // Use provided products or empty array (no mock data fallback)
@@ -190,9 +205,10 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                 <div ref={availabilityRef} className="relative flex-shrink-0 z-50">
                     <button 
                         type="button"
-                        onPointerDown={(e) => { 
+                        onClick={(e) => { 
                             e.preventDefault();
                             e.stopPropagation();
+                            justToggledRef.current = true;
                             if(onHaptic) onHaptic('light'); 
                             setIsAvailabilityOpen(prev => !prev); 
                             setIsSortOpen(false); 
@@ -225,9 +241,10 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                 ].map((option) => (
                                     <button
                                         key={option.value}
-                                        onPointerDown={(e) => { 
+                                        onClick={(e) => { 
                                             e.preventDefault();
                                             e.stopPropagation();
+                                            justToggledRef.current = true;
                                             if(onHaptic) onHaptic('light'); 
                                             setActiveAvailability(option.value as AvailabilityFilter); 
                                             setIsAvailabilityOpen(false); 
@@ -247,9 +264,10 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                 <div ref={sortRef} className="relative flex-shrink-0 z-50">
                     <button 
                         type="button"
-                        onPointerDown={(e) => { 
+                        onClick={(e) => { 
                             e.preventDefault();
                             e.stopPropagation();
+                            justToggledRef.current = true;
                             if(onHaptic) onHaptic('light'); 
                             setIsSortOpen(prev => !prev); 
                             setIsAvailabilityOpen(false); 
@@ -280,9 +298,10 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                 ].map((option) => (
                                     <button
                                         key={option.value}
-                                        onPointerDown={(e) => { 
+                                        onClick={(e) => { 
                                             e.preventDefault();
                                             e.stopPropagation();
+                                            justToggledRef.current = true;
                                             if(onHaptic) onHaptic('light'); 
                                             setSortBy(option.value as SortOption); 
                                             setIsSortOpen(false); 

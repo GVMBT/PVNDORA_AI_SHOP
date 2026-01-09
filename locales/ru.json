@@ -284,7 +284,11 @@
     "loading": "Сканирование...",
     "rank": "Ранг",
     "modules": "модулей",
-    "vacant": "СВОБОДНО"
+    "vacant": "СВОБОДНО",
+    "weekly": "НЕДЕЛЯ",
+    "allTime": "ВСЁ ВРЕМЯ",
+    "participant": "УЧАСТНИК",
+    "purchases": "ПОКУПОК"
   },
 
   "faq": {

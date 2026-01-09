@@ -283,7 +283,11 @@
     "loading": "Scanning...",
     "rank": "Rank",
     "modules": "modules",
-    "vacant": "VACANT"
+    "vacant": "VACANT",
+    "weekly": "WEEKLY",
+    "allTime": "ALL TIME",
+    "participant": "OPERATIVE",
+    "purchases": "PURCHASES"
   },
 
   "faq": {

@@ -115,16 +115,8 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
   const hasRank2 = topThree.length >= 2;
   const hasRank3 = topThree.length >= 3;
 
-  // Calculate efficiency percentage
-  const calculateEfficiency = (market: number, saved: number) => {
-      if (!market || market <= 0) return 0;
-      return Math.round((saved / market) * 100);
-  };
-
-  // Aggregate totals for header stats (replace hardcoded mock)
+  // Aggregate totals for header stats
   const totalSavedAggregate = data.reduce((acc, u) => acc + (u.saved || 0), 0);
-  const totalMarketAggregate = data.reduce((acc, u) => acc + (u.marketSpend || 0), 0);
-  const totalEfficiency = calculateEfficiency(totalMarketAggregate, totalSavedAggregate);
 
   // Empty state when no data
   if (data.length === 0 && !isLoadingMore) {
@@ -189,7 +181,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                             <ShieldCheck size={10} className="text-pandora-cyan" /> {t('leaderboard.corporateLoss')}
                         </div>
                         <div className="text-xl sm:text-2xl md:text-3xl font-mono font-bold text-white tracking-tight tabular-nums break-all sm:break-normal">
-                            {formatPrice(totalSavedAggregate, displayCurrency)}<span className="text-gray-600">{totalEfficiency ? ` // ${totalEfficiency}%` : ''}</span>
+                            {formatPrice(totalSavedAggregate, displayCurrency)}
                         </div>
                     </div>
                     {/* Decorative Corner */}
@@ -276,14 +268,10 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                                 <h3 className="font-display font-bold text-xl sm:text-2xl text-white tracking-wide">{topThree[0].name}</h3>
                                 <div className="text-sm font-mono text-pandora-cyan mb-6">{topThree[0].handle}</div>
 
-                                <div className="w-full grid grid-cols-2 gap-2">
-                                    <div className="bg-pandora-cyan/10 border border-pandora-cyan/30 p-2 rounded-sm overflow-hidden">
-                                        <div className="text-[9px] text-pandora-cyan uppercase font-bold truncate">Saved</div>
-                                        <div className="text-base sm:text-xl font-bold text-white whitespace-normal break-all sm:break-normal leading-tight">{formatPrice(topThree[0].saved, topThree[0].currency || displayCurrency)}</div>
-                                    </div>
-                                    <div className="bg-white/5 border border-white/10 p-2 rounded-sm overflow-hidden">
-                                        <div className="text-[9px] text-gray-500 uppercase font-bold truncate">Efficiency</div>
-                                        <div className="text-base sm:text-xl font-bold text-white">{calculateEfficiency(topThree[0].marketSpend, topThree[0].saved)}%</div>
+                                <div className="w-full">
+                                    <div className="bg-pandora-cyan/10 border border-pandora-cyan/30 p-3 rounded-sm overflow-hidden text-center">
+                                        <div className="text-[9px] text-pandora-cyan uppercase font-bold truncate">{t('leaderboard.totalSaved')}</div>
+                                        <div className="text-lg sm:text-2xl font-bold text-white whitespace-normal break-all sm:break-normal leading-tight">{formatPrice(topThree[0].saved, topThree[0].currency || displayCurrency)}</div>
                                     </div>
                                 </div>
                              </div>
@@ -347,13 +335,13 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                             onClick={() => handleFilterChange('weekly')}
                             className={`px-3 py-1.5 text-[9px] font-mono font-bold uppercase transition-colors ${filter === 'weekly' ? 'bg-white/10 text-white' : 'text-gray-600 hover:text-gray-400'}`}
                         >
-                            Weekly
+                            {t('leaderboard.weekly')}
                         </button>
                         <button 
                             onClick={() => handleFilterChange('all_time')}
                             className={`px-3 py-1.5 text-[9px] font-mono font-bold uppercase transition-colors ${filter === 'all_time' ? 'bg-white/10 text-white' : 'text-gray-600 hover:text-gray-400'}`}
                         >
-                            All Time
+                            {t('leaderboard.allTime')}
                         </button>
                     </div>
                 </div>
@@ -361,80 +349,64 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                 {/* List Header */}
                 <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-2 text-[10px] font-mono text-gray-500 uppercase tracking-wider">
                     <div className="col-span-1 text-center">#</div>
-                    <div className="col-span-4">Operative</div>
-                    <div className="col-span-5">Savings Efficiency (Market vs Actual)</div>
-                    <div className="col-span-2 text-right">Net Profit</div>
+                    <div className="col-span-5">{t('leaderboard.participant')}</div>
+                    <div className="col-span-3 text-center">{t('leaderboard.purchases')}</div>
+                    <div className="col-span-3 text-right">{t('leaderboard.totalSaved')}</div>
                 </div>
 
-                {/* Rows (Native) */}
+                {/* Rows */}
                 <div className="space-y-2">
-                    {restList.map((user) => {
-                        const efficiency = calculateEfficiency(user.marketSpend, user.saved);
-                        return (
-                            <div key={user.rank} className="group relative bg-[#0a0a0a] border border-white/5 hover:border-pandora-cyan/50 transition-all duration-300">
-                                <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-pandora-cyan opacity-0 group-hover:opacity-100 transition-opacity" />
-                                
-                                <div className="grid grid-cols-12 gap-4 items-center p-4">
-                                    {/* Rank */}
-                                    <div className="col-span-2 md:col-span-1 text-center font-display font-bold text-gray-600 group-hover:text-white transition-colors">
-                                        {user.rank.toString().padStart(2, '0')}
-                                    </div>
+                    {restList.map((user) => (
+                        <div key={user.rank} className="group relative bg-[#0a0a0a] border border-white/5 hover:border-pandora-cyan/50 transition-all duration-300">
+                            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-pandora-cyan opacity-0 group-hover:opacity-100 transition-opacity" />
+                            
+                            <div className="grid grid-cols-12 gap-4 items-center p-4">
+                                {/* Rank */}
+                                <div className="col-span-2 md:col-span-1 text-center font-display font-bold text-gray-600 group-hover:text-white transition-colors">
+                                    {user.rank.toString().padStart(2, '0')}
+                                </div>
 
-                                    {/* Identity */}
-                                    <div className="col-span-10 md:col-span-4 flex items-center gap-4">
-                                        <div className="w-8 h-8 bg-white/5 rounded-sm flex items-center justify-center border border-white/10 shrink-0 overflow-hidden">
-                                            {user.avatarUrl ? (
-                                                <img 
-                                                    src={user.avatarUrl} 
-                                                    alt={user.name} 
-                                                    className="w-full h-full object-cover"
-                                                    onError={(e) => {
-                                                        (e.target as HTMLImageElement).style.display = 'none';
-                                                        (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                                                    }}
-                                                />
-                                            ) : null}
-                                            <User size={14} className={`text-gray-500 group-hover:text-pandora-cyan ${user.avatarUrl ? 'hidden' : ''}`} />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <div className="text-sm font-bold text-white group-hover:text-pandora-cyan transition-colors flex items-center gap-2 truncate">
-                                                {user.name}
-                                                {user.status === 'ONLINE' && <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shrink-0" />}
-                                            </div>
-                                            <div className="text-[10px] font-mono text-gray-600 truncate">{user.modules} modules installed</div>
-                                        </div>
-                                    </div>
-
-                                    {/* Visual Bar (Savings Visualization) */}
-                                    <div className="col-span-12 md:col-span-5 mt-2 md:mt-0">
-                                        <div className="flex justify-between text-[9px] font-mono text-gray-500 mb-1">
-                                            <span>MARKET: <span className="line-through decoration-red-500/50">{user.marketSpend.toLocaleString()}</span></span>
-                                            <span className="text-pandora-cyan">SAVED: {efficiency}%</span>
-                                        </div>
-                                        <div className="h-2 w-full bg-white/5 rounded-sm overflow-hidden flex relative">
-                                            <div className="absolute inset-0 bg-white/5" />
-                                            <div 
-                                                className="h-full bg-gray-600" 
-                                                style={{ width: `${100 - efficiency}%` }} 
+                                {/* Identity */}
+                                <div className="col-span-10 md:col-span-5 flex items-center gap-4">
+                                    <div className="w-8 h-8 bg-white/5 rounded-sm flex items-center justify-center border border-white/10 shrink-0 overflow-hidden">
+                                        {user.avatarUrl ? (
+                                            <img 
+                                                src={user.avatarUrl} 
+                                                alt={user.name} 
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => {
+                                                    (e.target as HTMLImageElement).style.display = 'none';
+                                                    (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                                                }}
                                             />
-                                            <div 
-                                                className="h-full bg-pandora-cyan shadow-[0_0_10px_#00FFFF]" 
-                                                style={{ width: `${efficiency}%` }} 
-                                            />
-                                        </div>
+                                        ) : null}
+                                        <User size={14} className={`text-gray-500 group-hover:text-pandora-cyan ${user.avatarUrl ? 'hidden' : ''}`} />
                                     </div>
-
-                                    {/* Net Savings */}
-                                    <div className="col-span-12 md:col-span-2 text-right mt-2 md:mt-0 flex justify-between md:block items-center">
-                                        <span className="md:hidden text-[10px] text-gray-500 font-mono uppercase">Net Profit:</span>
-                                        <div className="font-display font-bold text-white text-lg group-hover:text-pandora-cyan transition-colors">
-                                            {formatPrice(user.saved, user.currency || displayCurrency)}
+                                    <div className="min-w-0">
+                                        <div className="text-sm font-bold text-white group-hover:text-pandora-cyan transition-colors flex items-center gap-2 truncate">
+                                            {user.name}
+                                            {user.status === 'ONLINE' && <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shrink-0" />}
                                         </div>
+                                        <div className="text-[10px] font-mono text-gray-600 truncate">{user.handle}</div>
+                                    </div>
+                                </div>
+
+                                {/* Purchases count */}
+                                <div className="col-span-6 md:col-span-3 text-center mt-2 md:mt-0">
+                                    <span className="md:hidden text-[10px] text-gray-500 font-mono uppercase mr-2">{t('leaderboard.purchases')}:</span>
+                                    <span className="font-mono text-gray-400">{user.modules}</span>
+                                </div>
+
+                                {/* Total Saved */}
+                                <div className="col-span-6 md:col-span-3 text-right mt-2 md:mt-0 flex justify-end md:block items-center">
+                                    <span className="md:hidden text-[10px] text-gray-500 font-mono uppercase mr-2">{t('leaderboard.totalSaved')}:</span>
+                                    <div className="font-display font-bold text-white text-lg group-hover:text-pandora-cyan transition-colors">
+                                        {formatPrice(user.saved, user.currency || displayCurrency)}
                                     </div>
                                 </div>
                             </div>
-                        );
-                    })}
+                        </div>
+                    ))}
                     
                     {/* Infinite scroll trigger - placed at end of list */}
                     {onLoadMore && hasMore && (

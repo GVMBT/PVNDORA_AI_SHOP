@@ -109,8 +109,9 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
     }
   };
 
-  const formatAmount = (amount: number) => {
-    return `$${amount.toFixed(2)}`;
+  const formatAmount = (amount: number, showCurrency = true) => {
+    // All amounts in admin panel are in USD (base currency)
+    return showCurrency ? `$${amount.toFixed(2)} USD` : `$${amount.toFixed(2)}`;
   };
 
   return (

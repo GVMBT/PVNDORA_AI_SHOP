@@ -301,10 +301,18 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
         raise HTTPException(status_code=400, detail="Invalid payment method. Only TRC20 USDT is supported.")
     
     # Create withdrawal request (balance will be deducted on approval)
+    # IMPORTANT: Store amount in USD (base currency) for consistent processing
     withdrawal_result = await asyncio.to_thread(
         lambda: db.client.table("withdrawal_requests").insert({
-            "user_id": db_user.id, "amount": request.amount,
-            "payment_method": request.method, "payment_details": {"details": request.details}
+            "user_id": db_user.id, 
+            "amount": round(amount_usd, 2),  # Store in USD!
+            "payment_method": request.method, 
+            "payment_details": {
+                "details": request.details,
+                "original_amount": request.amount,  # Keep original for reference
+                "original_currency": formatter.currency,
+                "exchange_rate": formatter.exchange_rate
+            }
         }).execute()
     )
     
@@ -317,10 +325,10 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
         await alert_service.alert_withdrawal_request(
             user_telegram_id=user.id,
             username=db_user.username,
-            amount=amount_usd,
+            amount=round(amount_usd, 2),  # Alert amount in USD
             method=request.method,
             request_id=request_id,
-            user_balance=float(db_user.balance) if db_user.balance else 0
+            user_balance=balance_usd  # Already in USD
         )
     except Exception as e:
         logger.warning(f"Failed to send withdrawal alert: {e}")
