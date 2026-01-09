@@ -784,14 +784,39 @@ class NotificationService:
         telegram_id: int,
         cashback_amount: float,
         new_balance: float,
+        currency: str = "USD",
         reason: str = "review"
     ) -> None:
-        """Send notification about cashback credit."""
+        """Send notification about cashback credit.
+        
+        Args:
+            telegram_id: User's Telegram ID
+            cashback_amount: Cashback amount in user's balance_currency
+            new_balance: New balance in user's balance_currency
+            currency: User's balance currency (RUB, USD, etc.) - CRITICAL!
+            reason: Reason for cashback (review, etc.)
+        """
         bot = self._get_bot()
         if not bot:
             return
         
         lang = await get_user_language(telegram_id)
+        
+        # Format amounts with correct currency symbol
+        from core.services.currency import get_currency_service, CURRENCY_SYMBOLS
+        currency_service = get_currency_service()
+        
+        # Format cashback amount
+        if currency in ["RUB", "UAH", "TRY", "INR"]:
+            cashback_formatted = f"{int(cashback_amount)} {CURRENCY_SYMBOLS.get(currency, currency)}"
+        else:
+            cashback_formatted = f"{cashback_amount:.2f} {CURRENCY_SYMBOLS.get(currency, currency)}"
+        
+        # Format balance
+        if currency in ["RUB", "UAH", "TRY", "INR"]:
+            balance_formatted = f"{int(new_balance)} {CURRENCY_SYMBOLS.get(currency, currency)}"
+        else:
+            balance_formatted = f"{new_balance:.2f} {CURRENCY_SYMBOLS.get(currency, currency)}"
         
         if reason == "review":
             message = _msg(lang,
@@ -799,16 +824,16 @@ class NotificationService:
                 f"      💰 <b>КЭШБЕК ЗАЧИСЛЕН</b>\n"
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
                 f"Спасибо за ваш отзыв!\n\n"
-                f"◈ <b>Начислено:</b> +${cashback_amount:.2f}\n"
-                f"◈ <b>Баланс:</b> ${new_balance:.2f}\n\n"
+                f"◈ <b>Начислено:</b> +{cashback_formatted}\n"
+                f"◈ <b>Баланс:</b> {balance_formatted}\n\n"
                 f"<i>Ваше мнение помогает другим оперативникам</i> ✓",
                 
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
                 f"      💰 <b>CASHBACK CREDITED</b>\n"
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
                 f"Thank you for your review!\n\n"
-                f"◈ <b>Credited:</b> +${cashback_amount:.2f}\n"
-                f"◈ <b>Balance:</b> ${new_balance:.2f}\n\n"
+                f"◈ <b>Credited:</b> +{cashback_formatted}\n"
+                f"◈ <b>Balance:</b> {balance_formatted}\n\n"
                 f"<i>Your feedback helps other operatives</i> ✓"
             )
         else:
@@ -816,14 +841,14 @@ class NotificationService:
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
                 f"      💰 <b>КЭШБЕК ЗАЧИСЛЕН</b>\n"
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-                f"◈ <b>Начислено:</b> +${cashback_amount:.2f}\n"
-                f"◈ <b>Баланс:</b> ${new_balance:.2f}",
+                f"◈ <b>Начислено:</b> +{cashback_formatted}\n"
+                f"◈ <b>Баланс:</b> {balance_formatted}",
                 
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
                 f"      💰 <b>CASHBACK CREDITED</b>\n"
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-                f"◈ <b>Credited:</b> +${cashback_amount:.2f}\n"
-                f"◈ <b>Balance:</b> ${new_balance:.2f}"
+                f"◈ <b>Credited:</b> +{cashback_formatted}\n"
+                f"◈ <b>Balance:</b> {balance_formatted}"
             )
         
         try:
@@ -832,7 +857,7 @@ class NotificationService:
                 text=message,
                 parse_mode="HTML"
             )
-            logger.info(f"Sent cashback notification to {telegram_id}: ${cashback_amount:.2f}")
+            logger.info(f"Sent cashback notification to {telegram_id}: {cashback_formatted}")
         except Exception as e:
             logger.error(f"Failed to send cashback notification: {e}")
     

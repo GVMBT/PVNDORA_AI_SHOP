@@ -235,10 +235,39 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                   <span className="text-[10px] bg-white/5 px-2 py-1 rounded">{PRODUCT_CATEGORY_LABELS[p.category] || p.category}</span>
                 </td>
                 <td className="p-4">
-                  <div>{p.price} ₽</div>
-                  {p.msrp && (
-                    <div className="text-[10px] text-gray-500 line-through">{p.msrp} ₽</div>
-                  )}
+                  {/* Display price: use anchor price for RUB if available, otherwise show USD base price */}
+                  {(() => {
+                    // Check if anchor price for RUB exists
+                    const hasAnchorPrice = p.prices && typeof p.prices === 'object' && 'RUB' in p.prices;
+                    const displayPrice = hasAnchorPrice ? p.prices.RUB : p.price;
+                    const displayCurrency = hasAnchorPrice ? '₽' : '$';
+                    const isAnchor = hasAnchorPrice;
+                    
+                    return (
+                      <div className={isAnchor ? 'text-blue-400' : 'text-white'}>
+                        {displayPrice} {displayCurrency}
+                        {!isAnchor && <span className="text-[9px] text-gray-600 ml-1">(USD)</span>}
+                      </div>
+                    );
+                  })()}
+                  {/* Display MSRP: use anchor MSRP for RUB if available, otherwise show USD base MSRP */}
+                  {(() => {
+                    const hasAnchorMsrp = p.msrp_prices && typeof p.msrp_prices === 'object' && 'RUB' in p.msrp_prices;
+                    const displayMsrp = hasAnchorMsrp ? p.msrp_prices.RUB : p.msrp;
+                    const currentPrice = (p.prices && typeof p.prices === 'object' && 'RUB' in p.prices) 
+                      ? p.prices.RUB 
+                      : p.price;
+                    
+                    // Only show MSRP if it's greater than current price
+                    if (!displayMsrp || displayMsrp <= currentPrice) return null;
+                    
+                    const displayCurrency = hasAnchorMsrp ? '₽' : '$';
+                    return (
+                      <div className="text-[10px] text-gray-500 line-through">
+                        {displayMsrp} {displayCurrency}
+                      </div>
+                    );
+                  })()}
                 </td>
                 <td className="p-4">
                   <StockIndicator stock={p.stock} />
@@ -292,7 +321,14 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
               </div>
               <div>
                 <div className="font-bold text-white mb-1">{p.name}</div>
-                <div className="text-xs text-gray-500 mb-2">{PRODUCT_CATEGORY_LABELS[p.category] || p.category} • {p.price} ₽</div>
+                <div className="text-xs text-gray-500 mb-2">
+                  {PRODUCT_CATEGORY_LABELS[p.category] || p.category} • {(() => {
+                    const hasAnchorPrice = p.prices && typeof p.prices === 'object' && 'RUB' in p.prices;
+                    const displayPrice = hasAnchorPrice ? p.prices.RUB : p.price;
+                    const displayCurrency = hasAnchorPrice ? '₽' : '$';
+                    return `${displayPrice} ${displayCurrency}`;
+                  })()}
+                </div>
                 <StockIndicator stock={p.stock} />
               </div>
             </div>

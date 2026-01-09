@@ -498,6 +498,71 @@ const ProductModal: React.FC<ProductModalProps> = ({
                     </p>
                   </div>
                 </div>
+                
+                {/* MSRP Anchor Prices */}
+                <div className="mt-6 pt-6 border-t border-blue-500/10">
+                  <h5 className="text-[10px] text-blue-300 uppercase mb-3 flex items-center gap-2">
+                    MSRP (зачёркнутая цена) по валютам
+                  </h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] text-blue-300 block mb-1 uppercase">MSRP в рублях (RUB)</label>
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">₽</span>
+                        <input 
+                          type="number" 
+                          value={editingProduct?.msrp_prices?.RUB || ''}
+                          onChange={(e) => {
+                            const value = e.target.value ? Number(e.target.value) : undefined;
+                            const newMsrpPrices = { ...(editingProduct?.msrp_prices || {}) };
+                            if (value !== undefined && value > 0) {
+                              newMsrpPrices.RUB = value;
+                            } else {
+                              delete newMsrpPrices.RUB;
+                            }
+                            setEditingProduct({...editingProduct, msrp_prices: Object.keys(newMsrpPrices).length > 0 ? newMsrpPrices : undefined});
+                          }}
+                          className="w-full bg-black border border-blue-400/30 p-2.5 pl-6 text-sm text-blue-300 font-mono focus:border-blue-400 outline-none rounded-sm line-through" 
+                          step="1"
+                          min={0}
+                          placeholder="Авто из USD MSRP"
+                        />
+                      </div>
+                      <p className="text-[9px] text-gray-600 mt-1">
+                        Фиксированный MSRP для RU/BY/KZ пользователей
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-blue-300 block mb-1 uppercase">MSRP в долларах (USD) — перезапись</label>
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">$</span>
+                        <input 
+                          type="number" 
+                          value={editingProduct?.msrp_prices?.USD || ''}
+                          onChange={(e) => {
+                            const value = e.target.value ? Number(e.target.value) : undefined;
+                            const newMsrpPrices = { ...(editingProduct?.msrp_prices || {}) };
+                            if (value !== undefined && value > 0) {
+                              newMsrpPrices.USD = value;
+                            } else {
+                              delete newMsrpPrices.USD;
+                            }
+                            setEditingProduct({...editingProduct, msrp_prices: Object.keys(newMsrpPrices).length > 0 ? newMsrpPrices : undefined});
+                          }}
+                          className="w-full bg-black border border-blue-400/30 p-2.5 pl-6 text-sm text-blue-300 font-mono focus:border-blue-400 outline-none rounded-sm line-through" 
+                          step="0.01"
+                          min={0}
+                          placeholder="Использовать базовый MSRP"
+                        />
+                      </div>
+                      <p className="text-[9px] text-gray-600 mt-1">
+                        Опционально: перезаписать базовый MSRP для USD пользователей
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
                 <div className="mt-3 p-2 bg-blue-500/5 border border-blue-500/10 rounded-sm">
                   <p className="text-[10px] text-blue-300 font-mono">
                     ℹ️ Якорные цены позволяют задать "красивую" фиксированную цену (990 ₽ вместо 987.34 ₽).

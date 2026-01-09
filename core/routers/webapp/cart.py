@@ -29,12 +29,16 @@ async def _format_cart_response(cart, db, user_telegram_id: int):
     
     Response includes:
     - *_usd fields: values in USD for calculations
-    - * fields: values in user's currency for display
+    - * fields: values in user's currency for display (using anchor prices!)
     - currency: user's preferred currency
     - exchange_rate: for frontend fallback conversion
     """
     redis = get_redis()
     formatter = await CurrencyFormatter.create(user_telegram_id, db, redis)
+    
+    # Get currency service for anchor pricing
+    from core.services.currency import get_currency_service
+    currency_service = get_currency_service(redis)
     
     if not cart:
         return {
@@ -65,10 +69,38 @@ async def _format_cart_response(cart, db, user_telegram_id: int):
     
     items_with_details = []
     for item, product in zip(cart.items, products):
-        # USD values (base)
+        # USD values (base) - stored in cart
         unit_price_usd = to_float(item.unit_price)
         final_price_usd = to_float(item.final_price)
         total_price_usd = to_float(item.total_price)
+        
+        # CRITICAL: Use anchor prices for display, NOT conversion from USD
+        # This ensures prices match catalog display (which uses anchor prices)
+        if product:
+            product_dict = {
+                "price": product.price,
+                "prices": getattr(product, 'prices', None) or {}
+            }
+            # Get anchor price in user's currency
+            anchor_price = float(await currency_service.get_anchor_price(product_dict, formatter.currency))
+            
+            # Apply same discount that was applied in cart
+            discount_multiplier = 1 - (to_float(item.discount_percent) / 100)
+            anchor_final_price = anchor_price * discount_multiplier
+            
+            # Round for integer currencies
+            if formatter.currency in ["RUB", "UAH", "TRY", "INR"]:
+                anchor_final_price = round(anchor_final_price)
+            
+            # Display prices using anchor prices
+            unit_price_display = anchor_final_price / item.quantity if item.quantity > 0 else anchor_final_price
+            final_price_display = anchor_final_price
+            total_price_display = anchor_final_price * item.quantity
+        else:
+            # Fallback to conversion if product not found
+            unit_price_display = formatter.convert(unit_price_usd)
+            final_price_display = formatter.convert(final_price_usd)
+            total_price_display = formatter.convert(total_price_usd)
         
         items_with_details.append({
             "product_id": item.product_id,
@@ -82,16 +114,44 @@ async def _format_cart_response(cart, db, user_telegram_id: int):
             "unit_price_usd": unit_price_usd,
             "final_price_usd": final_price_usd,
             "total_price_usd": total_price_usd,
-            # Display values (for UI)
-            "unit_price": formatter.convert(unit_price_usd),
-            "final_price": formatter.convert(final_price_usd),
-            "total_price": formatter.convert(total_price_usd),
+            # Display values (for UI) - using anchor prices!
+            "unit_price": unit_price_display,
+            "final_price": final_price_display,
+            "total_price": total_price_display,
             # Currency (for this item)
             "currency": formatter.currency,
         })
     
     # Calculate original total (before promo) if promo applied
     original_total_usd = to_float(cart.subtotal) if cart.promo_code else to_float(cart.total)
+    
+    # CRITICAL: Calculate display totals using anchor prices from items, NOT conversion from USD
+    # This ensures totals match item prices (which use anchor prices)
+    total_display = sum(item["total_price"] for item in items_with_details)
+    subtotal_display = sum(item["total_price"] for item in items_with_details)  # Before promo (if promo exists, it's applied at cart level)
+    instant_total_display = sum(
+        item["unit_price"] * item["instant_quantity"] for item in items_with_details
+    )
+    prepaid_total_display = sum(
+        item["unit_price"] * item["prepaid_quantity"] for item in items_with_details
+    )
+    
+    # Apply cart-level promo discount to subtotal if promo exists
+    if cart.promo_code and cart.promo_discount_percent > 0:
+        promo_multiplier = 1 - (to_float(cart.promo_discount_percent) / 100)
+        total_display = subtotal_display * promo_multiplier
+        original_total_display = subtotal_display
+    else:
+        total_display = subtotal_display
+        original_total_display = subtotal_display
+    
+    # Round totals for integer currencies
+    if formatter.currency in ["RUB", "UAH", "TRY", "INR"]:
+        total_display = round(total_display)
+        subtotal_display = round(subtotal_display)
+        instant_total_display = round(instant_total_display)
+        prepaid_total_display = round(prepaid_total_display)
+        original_total_display = round(original_total_display)
     
     return {
         "cart": {
@@ -106,12 +166,12 @@ async def _format_cart_response(cart, db, user_telegram_id: int):
         "instant_total_usd": to_float(cart.instant_total),
         "prepaid_total_usd": to_float(cart.prepaid_total),
         "original_total_usd": original_total_usd,
-        # Display values (for UI)
-        "total": formatter.convert(cart.total),
-        "subtotal": formatter.convert(cart.subtotal),
-        "instant_total": formatter.convert(cart.instant_total),
-        "prepaid_total": formatter.convert(cart.prepaid_total),
-        "original_total": formatter.convert(original_total_usd),
+        # Display values (for UI) - using anchor prices from items!
+        "total": total_display,
+        "subtotal": subtotal_display,
+        "instant_total": instant_total_display,
+        "prepaid_total": prepaid_total_display,
+        "original_total": original_total_display,
         # Promo
         "promo_code": cart.promo_code,
         "promo_discount_percent": cart.promo_discount_percent,

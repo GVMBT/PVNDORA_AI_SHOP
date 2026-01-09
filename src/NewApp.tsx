@@ -42,6 +42,7 @@ import { useProductsTyped, useProfileTyped } from './hooks/useApiTyped';
 import { useCart } from './contexts/CartContext';
 import { useTelegram } from './hooks/useTelegram';
 import { LocaleProvider } from './contexts/LocaleContext';
+import { useLocale } from './hooks/useLocale';
 
 // Audio Engine
 import { AudioEngine } from './lib/AudioEngine';
@@ -124,6 +125,7 @@ function NewAppInner() {
   const { profile, getProfile } = useProfileTyped();
   const { cart, getCart, addToCart, removeCartItem } = useCart();
   const { user: telegramUser } = useTelegram();
+  const { t } = useLocale();
   
   // Boot tasks
   const bootTasks = useBootTasks({ getProducts, getCart, getProfile });
@@ -266,8 +268,8 @@ function NewAppInner() {
     setCurrentView('orders');
     window.scrollTo({ top: 0, behavior: 'smooth' });
     AudioEngine.transaction();
-    hud.success('TRANSACTION COMPLETE', 'Assets transferred to your account');
-  }, [getCart, hud]);
+    hud.success(t('checkout.success.title'), t('checkout.success.description1'));
+  }, [getCart, hud, t]);
 
   // Handle external payment - show PaymentResult with polling in Mini App
   const handleAwaitingPayment = useCallback((orderId: string) => {

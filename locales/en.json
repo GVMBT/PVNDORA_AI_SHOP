@@ -308,7 +308,7 @@
   },
 
   "checkout": {
-    "title": "CHECKOUT",
+    "title": "SYSTEM_CHECKOUT",
     "quantity": "Qty",
     "unitPrice": "Unit Cost",
     "promoCode": "Override Code",
@@ -333,6 +333,17 @@
     "cartEmpty": "BUFFER EMPTY",
     "returnToCatalog": "RETURN TO REGISTRY",
     "each": "ea",
+    "success": {
+      "title": "TRANSACTION COMPLETE",
+      "status": "TX_CONFIRMED",
+      "description1": "Your assets have been securely processed.",
+      "description2": "Check your inventory for delivery status.",
+      "button": "CLOSE TERMINAL"
+    },
+    "footer": {
+      "secureChannel": "SECURE_CHANNEL",
+      "session": "SESSION"
+    },
     "payment": {
       "selectNode": "SELECT PAYMENT NODE",
       "internal": "INTERNAL",
@@ -826,6 +837,15 @@
     },
     "cancel": "Cancel",
     "confirm": "Confirm",
-    "ok": "OK"
+    "ok": "OK",
+    "review": {
+      "title": "Submit Evaluation",
+      "target": "TARGET",
+      "qualityAssessment": "Quality Assessment",
+      "placeholder": "Describe your experience with this module...",
+      "chars": "CHARS",
+      "button": "SUBMIT",
+      "uploading": "UPLOADING..."
+    }
   }
 }

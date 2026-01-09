@@ -9,6 +9,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, Terminal, MessageSquare, ChevronDown, Activity, RefreshCw, Trash2, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAIChatTyped } from '../../hooks/useApiTyped';
+import { useLocale } from '../../hooks/useLocale';
 
 interface SupportChatConnectedProps {
   isOpen: boolean;
@@ -46,6 +47,7 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
   initialContext = null
 }) => {
   const { sendMessage, getHistory, clearHistory, loading } = useAIChatTyped();
+  const { t } = useLocale();
   const [messages, setMessages] = useState<DisplayMessage[]>(INITIAL_MESSAGES);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -399,7 +401,7 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
             <div className="bg-black/80 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-sm shadow-xl">
               <div className="text-[10px] font-bold text-pandora-cyan font-mono tracking-widest whitespace-nowrap flex items-center gap-2">
                 <Activity size={10} className="animate-pulse" />
-                SYSTEM_ONLINE
+                {t('support.systemOnline')}
               </div>
             </div>
             <div className="w-6 h-px bg-gradient-to-r from-white/20 to-pandora-cyan/50" />

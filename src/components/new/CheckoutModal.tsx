@@ -11,6 +11,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle, Server } from 'lucide-react';
 import { formatPrice } from '../../utils/currency';
+import { useLocale } from '../../hooks/useLocale';
 import CartSummary from './CartSummary';
 import PaymentMethodSelector from './PaymentMethodSelector';
 import PaymentProcessing from './PaymentProcessing';
@@ -64,10 +65,12 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onApplyPromo,
   onRemovePromo,
 }) => {
+  const { t } = useLocale();
   const [step, setStep] = useState<'cart' | 'payment' | 'processing' | 'success'>('cart');
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>('crystalpay');
   const [logs, setLogs] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [sessionId] = useState(() => Math.random().toString(36).substring(2, 8).toUpperCase());
 
   // Calculate totals from cart items if not provided
   const { total, totalUsd } = useMemo(() => {
@@ -185,7 +188,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
         <div className="flex items-center justify-between p-6 border-b border-white/10 bg-[#0a0a0a] relative z-20">
           <h2 className="text-xl font-display font-bold text-white flex items-center gap-2">
             <span className="w-1.5 h-6 bg-pandora-cyan block" />
-            SYSTEM_CHECKOUT // V.2.1
+            {t('checkout.title')}
           </h2>
           <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
             <X size={24} />
@@ -256,19 +259,19 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     transition={{ delay: 0.5 }}
                     className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[10px] font-mono text-green-500 bg-green-900/30 px-2 py-0.5 rounded whitespace-nowrap"
                   >
-                    TX_CONFIRMED
+                    {t('checkout.success.status')}
                   </motion.div>
                 </div>
                 
                 {/* Title with proper spacing */}
                 <h3 className="text-xl sm:text-2xl font-display font-bold text-white mb-3 px-4">
-                  TRANSACTION COMPLETE
+                  {t('checkout.success.title')}
                 </h3>
                 
                 {/* Description with proper spacing */}
                 <p className="text-xs sm:text-sm font-mono text-gray-400 max-w-xs mb-8 px-4 leading-relaxed">
-                  Your assets have been securely processed.<br className="hidden sm:block" />
-                  <span className="sm:hidden"> </span>Check your inventory for delivery status.
+                  {t('checkout.success.description1')}<br className="hidden sm:block" />
+                  <span className="sm:hidden"> </span>{t('checkout.success.description2')}
                 </p>
                 
                 {/* Button with proper spacing */}
@@ -276,7 +279,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   onClick={closeSuccess}
                   className="bg-white text-black font-bold py-3 px-8 hover:bg-gray-200 transition-colors text-sm sm:text-base"
                 >
-                  CLOSE TERMINAL
+                  {t('checkout.success.button')}
                 </button>
               </motion.div>
             )}
@@ -288,10 +291,10 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
         <div className="p-4 bg-[#0a0a0a] border-t border-white/10 flex justify-between items-center text-[10px] font-mono text-gray-600 relative z-20">
           <div className="flex items-center gap-2">
             <Server size={10} />
-            <span>SECURE_CHANNEL</span>
+            <span>{t('checkout.footer.secureChannel')}</span>
           </div>
           <div className="flex items-center gap-4">
-            <span>SESSION: {Math.random().toString(36).substring(2, 8).toUpperCase()}</span>
+            <span>{t('checkout.footer.session')}: {sessionId}</span>
           </div>
         </div>
       </motion.div>

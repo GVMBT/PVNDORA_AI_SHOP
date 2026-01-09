@@ -173,21 +173,62 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
         raise HTTPException(status_code=500, detail="Ошибка при создании отзыва")
     
     review_id = result.data[0]["id"]
-    cashback_amount = to_float(order.amount) * 0.05
     
-    # Process cashback immediately (inline, not via QStash - more reliable)
-    new_balance = to_float(db_user.balance) + cashback_amount
+    # CRITICAL: Calculate cashback in user's balance_currency, NOT in USD
+    # Use fiat_amount if available (what user actually paid), otherwise convert from USD
+    balance_currency = getattr(db_user, 'balance_currency', 'USD') or 'USD'
     
-    # 1. Update user balance
+    from core.db import get_redis
+    from core.services.currency import get_currency_service
+    redis = get_redis()
+    currency_service = get_currency_service(redis)
+    
+    # Determine cashback base amount
+    if hasattr(order, 'fiat_amount') and order.fiat_amount:
+        # Use fiat_amount (what user actually paid in their currency)
+        cashback_base = to_float(order.fiat_amount)
+    else:
+        # Fallback: convert from USD amount
+        cashback_base_usd = to_float(order.amount)
+        if balance_currency == "USD":
+            cashback_base = cashback_base_usd
+        else:
+            rate = await currency_service.get_exchange_rate(balance_currency)
+            cashback_base = cashback_base_usd * rate
+    
+    # Calculate 5% cashback in user's balance_currency
+    cashback_amount = cashback_base * 0.05
+    
+    # Round for integer currencies
+    if balance_currency in ["RUB", "UAH", "TRY", "INR"]:
+        cashback_amount = round(cashback_amount)
+    else:
+        cashback_amount = round(cashback_amount, 2)
+    
+    # Use add_to_user_balance RPC for atomic balance update
+    from core.services.money import to_float as money_to_float
+    current_balance = to_float(db_user.balance) if db_user.balance else 0.0
+    new_balance = current_balance + cashback_amount
+    
+    # 1. Update user balance atomically using RPC
     await asyncio.to_thread(
-        lambda: db.client.table("users").update({"balance": new_balance}).eq("id", db_user.id).execute()
+        lambda: db.client.rpc("add_to_user_balance", {
+            "p_user_id": str(db_user.id),
+            "p_amount": money_to_float(cashback_amount),
+            "p_reason": f"5% кэшбек за отзыв (заказ {request.order_id})"
+        }).execute()
     )
     
-    # 2. Create balance_transaction for history
+    # 2. Create balance_transaction for history (amount in balance_currency!)
     await asyncio.to_thread(
         lambda: db.client.table("balance_transactions").insert({
-            "user_id": db_user.id, "type": "cashback", "amount": cashback_amount,
-            "status": "completed", "description": "5% кэшбек за отзыв", "reference_id": request.order_id
+            "user_id": db_user.id, 
+            "type": "cashback", 
+            "amount": cashback_amount,  # In balance_currency
+            "currency": balance_currency,  # User's balance currency
+            "status": "completed", 
+            "description": "5% кэшбек за отзыв", 
+            "reference_id": request.order_id
         }).execute()
     )
     
@@ -196,7 +237,7 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
         lambda: db.client.table("reviews").update({"cashback_given": True}).eq("id", review_id).execute()
     )
     
-    # 4. Send notification (best-effort)
+    # 4. Send notification (best-effort) - pass balance_currency
     try:
         from core.routers.deps import get_notification_service
         notification_service = get_notification_service()
@@ -204,9 +245,10 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
             telegram_id=db_user.telegram_id,
             cashback_amount=cashback_amount,
             new_balance=new_balance,
+            currency=balance_currency,  # Pass balance_currency!
             reason="review"
         )
-        logger.info(f"Cashback notification sent to user {db_user.telegram_id}")
+        logger.info(f"Cashback notification sent to user {db_user.telegram_id}: {cashback_amount} {balance_currency}")
     except Exception as e:
         logger.error(f"Failed to send cashback notification to user {db_user.telegram_id}: {e}", exc_info=True)
     
