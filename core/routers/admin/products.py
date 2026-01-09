@@ -23,19 +23,41 @@ async def admin_create_product(request: CreateProductRequest, admin=Depends(veri
     """Create a new product"""
     db = get_database()
     
+    product_data = {
+        "name": request.name,
+        "description": request.description,
+        
+        # Category → type in DB
+        "type": request.category,
+        
+        # Pricing
+        "price": request.price,
+        "msrp": request.msrp or request.price,
+        "discount_price": request.discountPrice,
+        "cost_price": request.costPrice,
+        
+        # Fulfillment
+        "fulfillment_type": request.fulfillmentType,
+        "fulfillment_time_hours": request.fulfillment,
+        
+        # Product Settings
+        "warranty_hours": request.warranty,
+        "duration_days": request.duration,
+        "status": request.status,
+        
+        # Prepayment
+        "requires_prepayment": request.requiresPrepayment,
+        "prepayment_percent": request.prepaymentPercent,
+        
+        # Media
+        "image_url": request.image,
+        
+        # Content
+        "instructions": request.instructions,
+    }
+    
     result = await asyncio.to_thread(
-        lambda: db.client.table("products").insert({
-            "name": request.name,
-            "description": request.description,
-            "price": request.price,
-            "type": request.type,
-            "fulfillment_time_hours": request.fulfillment_time_hours,
-            "warranty_hours": request.warranty_hours,
-            "instructions": request.instructions,
-            "msrp": request.msrp,
-            "duration_days": request.duration_days,
-            "status": "active"
-        }).execute()
+        lambda: db.client.table("products").insert(product_data).execute()
     )
     
     if result.data:
@@ -76,19 +98,41 @@ async def admin_get_products(admin=Depends(verify_admin)):
             "id": p["id"],
             "name": p["name"],
             "description": p.get("description", ""),
-            "category": p.get("type", "ai"),  # type -> category
+            
+            # Category (type in DB → category in frontend)
+            "category": p.get("type", "ai"),
+            
+            # Pricing
             "price": float(p.get("price", 0)),
             "msrp": float(p.get("msrp") or p.get("price", 0)),
-            "type": "instant" if p.get("fulfillment_type") == "auto" else "preorder",
-            "stock": stock_count,
+            "discountPrice": float(p.get("discount_price") or 0),
+            "costPrice": float(p.get("cost_price") or 0),
+            
+            # Fulfillment
+            "fulfillmentType": p.get("fulfillment_type", "auto"),
             "fulfillment": p.get("fulfillment_time_hours", 1),
+            
+            # Product Settings
             "warranty": p.get("warranty_hours", 168),
             "duration": p.get("duration_days", 30),
-            "sold": sold_count,
             "status": p.get("status", "active"),
-            "vpn": False,  # VPN requirement flag (can be added to DB when needed)
+            
+            # Prepayment
+            "requiresPrepayment": p.get("requires_prepayment", False),
+            "prepaymentPercent": p.get("prepayment_percent", 100),
+            
+            # Stock (read-only, calculated)
+            "stock": stock_count,
+            "sold": sold_count,
+            
+            # Media
             "image": p.get("image_url"),
+            "video": None,  # TODO: Add video_url to DB if needed
+            
+            # Content
             "instructions": p.get("instructions", ""),
+            
+            # Timestamps
             "created_at": p.get("created_at")
         })
     
@@ -100,18 +144,41 @@ async def admin_update_product(product_id: str, request: CreateProductRequest, a
     """Update a product"""
     db = get_database()
     
+    update_data = {
+        "name": request.name,
+        "description": request.description,
+        
+        # Category → type in DB
+        "type": request.category,
+        
+        # Pricing
+        "price": request.price,
+        "msrp": request.msrp or request.price,
+        "discount_price": request.discountPrice,
+        "cost_price": request.costPrice,
+        
+        # Fulfillment
+        "fulfillment_type": request.fulfillmentType,
+        "fulfillment_time_hours": request.fulfillment,
+        
+        # Product Settings
+        "warranty_hours": request.warranty,
+        "duration_days": request.duration,
+        "status": request.status,
+        
+        # Prepayment
+        "requires_prepayment": request.requiresPrepayment,
+        "prepayment_percent": request.prepaymentPercent,
+        
+        # Media
+        "image_url": request.image,
+        
+        # Content
+        "instructions": request.instructions,
+    }
+    
     result = await asyncio.to_thread(
-        lambda: db.client.table("products").update({
-            "name": request.name,
-            "description": request.description,
-            "price": request.price,
-            "type": request.type,
-            "fulfillment_time_hours": request.fulfillment_time_hours,
-            "warranty_hours": request.warranty_hours,
-            "instructions": request.instructions,
-            "msrp": request.msrp,
-            "duration_days": request.duration_days
-        }).eq("id", product_id).execute()
+        lambda: db.client.table("products").update(update_data).eq("id", product_id).execute()
     )
     
     return {"success": True, "updated": len(result.data) > 0}

@@ -23,20 +23,41 @@ export interface AdminProduct {
   id: string;
   name: string;
   description: string;
-  category: string;
+  
+  // Category (maps to `type` in DB)
+  category: string;  // ai, dev, design, music
+  
+  // Pricing
   price: number;
   msrp: number;
-  type: 'instant' | 'preorder';
-  stock: number;
-  fulfillment: number;
-  warranty: number;
-  duration: number;
-  sold: number;
+  discountPrice?: number;  // Price for discount channel
+  costPrice?: number;  // Cost for accounting
+  
+  // Fulfillment
+  fulfillmentType?: string;  // 'auto' or 'manual'
+  fulfillment: number;  // fulfillment_time_hours
+  
+  // Product Settings
+  warranty: number;  // warranty_hours
+  duration: number;  // duration_days
   status: 'active' | 'inactive' | 'discontinued';
-  vpn: boolean;
+  
+  // Prepayment
+  requiresPrepayment?: boolean;
+  prepaymentPercent?: number;
+  
+  // Stock (read-only, calculated)
+  stock: number;
+  sold: number;
+  
+  // Media
   image?: string;
   video?: string;
+  
+  // Content
   instructions?: string;
+  
+  // Timestamps
   created_at?: string;
 }
 

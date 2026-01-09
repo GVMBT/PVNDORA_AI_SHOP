@@ -10,15 +10,53 @@ from pydantic import BaseModel
 # ==================== PRODUCT MODELS ====================
 
 class CreateProductRequest(BaseModel):
+    """
+    Product creation/update request.
+    
+    Field mapping (frontend → DB):
+    - category → type (ai, dev, design, music)
+    - fulfillmentType → fulfillment_type (auto, manual)
+    - price → price
+    - msrp → msrp
+    - discountPrice → discount_price
+    - costPrice → cost_price
+    - fulfillment → fulfillment_time_hours
+    - warranty → warranty_hours
+    - duration → duration_days
+    - requiresPrepayment → requires_prepayment
+    - prepaymentPercent → prepayment_percent
+    """
     name: str
-    description: str
-    price: float
-    type: str = "subscription"
-    fulfillment_time_hours: int = 0
-    warranty_hours: int = 168
-    instructions: str = ""
+    description: str = ""
+    
+    # Category (maps to `type` in DB)
+    category: str = "ai"  # ai, dev, design, music
+    
+    # Pricing
+    price: float = 0
     msrp: Optional[float] = None
-    duration_days: Optional[int] = None
+    discountPrice: Optional[float] = None  # discount_price
+    costPrice: Optional[float] = None  # cost_price
+    
+    # Fulfillment
+    fulfillmentType: str = "auto"  # fulfillment_type: auto, manual
+    fulfillment: int = 0  # fulfillment_time_hours
+    
+    # Product Settings
+    warranty: int = 168  # warranty_hours
+    duration: int = 30  # duration_days
+    status: str = "active"
+    
+    # Prepayment
+    requiresPrepayment: bool = False
+    prepaymentPercent: int = 100
+    
+    # Media
+    image: Optional[str] = None  # image_url
+    video: Optional[str] = None
+    
+    # Content
+    instructions: str = ""
 
 
 # ==================== FAQ MODELS ====================

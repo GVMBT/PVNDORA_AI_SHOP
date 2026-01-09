@@ -7,20 +7,43 @@
 export interface ProductData {
   id: string | number;
   name: string;
-  category: string;  // ai, dev, design, music
   description: string;
-  price: number;
-  msrp: number;
-  type: string;  // instant, preorder
-  stock: number;  // Calculated from stock_items
-  fulfillment: number;  // fulfillment_time_hours
+  
+  // Category (maps to `type` in DB)
+  category: string;  // ai, dev, design, music
+  
+  // Pricing
+  price: number;  // Main price (USD)
+  msrp: number;  // Strike-through price (shown if > price)
+  discountPrice?: number;  // Price for discount channel
+  costPrice?: number;  // Cost for accounting
+  
+  // Fulfillment
+  fulfillmentType?: string;  // 'auto' (from stock_items) or 'manual'
+  fulfillment: number;  // fulfillment_time_hours (for on-demand orders)
+  
+  // Product Settings
   warranty: number;  // warranty_hours
   duration: number;  // duration_days
-  sold: number;  // Calculated from sold stock_items
   status?: string;  // active, inactive, discontinued
+  
+  // Prepayment (for on-demand)
+  requiresPrepayment?: boolean;
+  prepaymentPercent?: number;
+  
+  // Stock (read-only, calculated from stock_items)
+  stock: number;
+  sold: number;
+  
+  // Media
   image: string;  // image_url
-  video?: string;  // Video URL
+  video?: string;
+  
+  // Content
   instructions: string;
+  
+  // Timestamps
+  created_at?: string;
 }
 
 export interface OrderData {
