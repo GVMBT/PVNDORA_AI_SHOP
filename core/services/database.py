@@ -312,7 +312,12 @@ class Database:
     # ==================== PROMO CODES ====================
     
     async def validate_promo_code(self, code: str) -> Optional[Dict]:
-        """Validate and get promo code details."""
+        """Validate and get promo code details.
+        
+        Returns promo code with product_id:
+        - product_id IS NULL: applies to entire cart
+        - product_id IS NOT NULL: applies only to that specific product
+        """
         result = self.client.table("promo_codes").select("*").eq(
             "code", code.upper()
         ).eq("is_active", True).execute()
@@ -327,6 +332,7 @@ class Database:
         if promo.get("usage_limit") and promo["usage_count"] >= promo["usage_limit"]:
             return None
         
+        # product_id is included in the result (can be NULL for cart-wide promos)
         return promo
     
     async def use_promo_code(self, code: str) -> None:

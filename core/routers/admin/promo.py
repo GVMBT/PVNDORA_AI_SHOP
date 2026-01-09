@@ -22,6 +22,7 @@ class PromoCodeCreate(BaseModel):
     expires_at: Optional[str] = None
     usage_limit: Optional[int] = None
     is_active: bool = True
+    product_id: Optional[str] = None  # NULL = cart-wide, NOT NULL = product-specific
 
 
 class PromoCodeUpdate(BaseModel):
@@ -30,6 +31,7 @@ class PromoCodeUpdate(BaseModel):
     expires_at: Optional[str] = None
     usage_limit: Optional[int] = None
     is_active: Optional[bool] = None
+    product_id: Optional[str] = None  # NULL = cart-wide, NOT NULL = product-specific
 
 
 class PromoCodeResponse(BaseModel):
@@ -40,6 +42,7 @@ class PromoCodeResponse(BaseModel):
     usage_limit: Optional[int]
     usage_count: int
     is_active: bool
+    product_id: Optional[str] = None  # NULL = cart-wide, NOT NULL = product-specific
     created_at: str
 
 
@@ -60,6 +63,7 @@ async def list_promo_codes(admin=Depends(verify_admin)) -> List[dict]:
                 "usage_limit": p.get("usage_limit"),
                 "usage_count": p.get("usage_count", 0),
                 "is_active": p.get("is_active", True),
+                "product_id": p.get("product_id"),  # NULL = cart-wide, NOT NULL = product-specific
                 "created_at": p.get("created_at"),
             }
             for p in (result.data or [])
@@ -80,6 +84,12 @@ async def create_promo_code(request: PromoCodeCreate, admin=Depends(verify_admin
         raise HTTPException(status_code=400, detail="Promo code already exists")
     
     try:
+        # Validate product_id if provided
+        if request.product_id:
+            product_check = db.client.table("products").select("id").eq("id", request.product_id).execute()
+            if not product_check.data:
+                raise HTTPException(status_code=400, detail=f"Product {request.product_id} not found")
+        
         data = {
             "code": request.code.upper(),
             "discount_percent": request.discount_percent,
@@ -91,6 +101,8 @@ async def create_promo_code(request: PromoCodeCreate, admin=Depends(verify_admin
             data["expires_at"] = request.expires_at
         if request.usage_limit:
             data["usage_limit"] = request.usage_limit
+        if request.product_id:
+            data["product_id"] = request.product_id  # NULL = cart-wide, NOT NULL = product-specific
         
         result = db.client.table("promo_codes").insert(data).execute()
         
@@ -106,6 +118,7 @@ async def create_promo_code(request: PromoCodeCreate, admin=Depends(verify_admin
             "usage_limit": p.get("usage_limit"),
             "usage_count": 0,
             "is_active": p.get("is_active", True),
+            "product_id": p.get("product_id"),  # NULL = cart-wide, NOT NULL = product-specific
             "created_at": p.get("created_at"),
         }
     except HTTPException:
@@ -121,6 +134,13 @@ async def update_promo_code(promo_id: str, request: PromoCodeUpdate, admin=Depen
     db = get_database()
     
     try:
+        # Validate product_id if provided
+        if request.product_id is not None:
+            if request.product_id:
+                product_check = db.client.table("products").select("id").eq("id", request.product_id).execute()
+                if not product_check.data:
+                    raise HTTPException(status_code=400, detail=f"Product {request.product_id} not found")
+        
         update_data = {}
         
         if request.code is not None:
@@ -133,6 +153,8 @@ async def update_promo_code(promo_id: str, request: PromoCodeUpdate, admin=Depen
             update_data["usage_limit"] = request.usage_limit
         if request.is_active is not None:
             update_data["is_active"] = request.is_active
+        if request.product_id is not None:
+            update_data["product_id"] = request.product_id  # NULL = cart-wide, NOT NULL = product-specific
         
         if not update_data:
             raise HTTPException(status_code=400, detail="No fields to update")
@@ -151,6 +173,7 @@ async def update_promo_code(promo_id: str, request: PromoCodeUpdate, admin=Depen
             "usage_limit": p.get("usage_limit"),
             "usage_count": p.get("usage_count", 0),
             "is_active": p.get("is_active", True),
+            "product_id": p.get("product_id"),  # NULL = cart-wide, NOT NULL = product-specific
             "created_at": p.get("created_at"),
         }
     except HTTPException:

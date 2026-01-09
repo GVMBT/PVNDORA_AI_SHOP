@@ -100,16 +100,27 @@ class Cart:
     
     @property
     def subtotal(self) -> Decimal:
-        """Subtotal before promo code."""
+        """Subtotal after item-level discounts but before cart-level promo code."""
+        # Calculate subtotal with item-level discounts (from CartItem.final_price)
         return sum(item.total_price for item in self.items)
     
     @property
     def total(self) -> Decimal:
-        """Final total after promo code discount."""
+        """Final total after all discounts.
+        
+        Calculation order:
+        1. Apply item-level discounts (CartItem.discount_percent) -> item.final_price
+        2. Apply cart-level promo discount (Cart.promo_discount_percent) -> final total
+        """
+        # Step 1: Subtotal already includes item-level discounts (from CartItem.final_price)
+        subtotal_after_items = self.subtotal
+        
+        # Step 2: Apply cart-level promo discount (if promo_code is cart-wide, not product-specific)
         if self.promo_discount_percent > 0:
             multiplier = subtract(Decimal("1"), divide(self.promo_discount_percent, Decimal("100")))
-            return round_money(multiply(self.subtotal, multiplier))
-        return self.subtotal
+            return round_money(multiply(subtotal_after_items, multiplier))
+        
+        return subtotal_after_items
     
     def to_dict(self) -> dict:
         """Convert to dictionary for Redis storage."""

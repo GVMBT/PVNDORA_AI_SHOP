@@ -56,14 +56,22 @@ async def get_webapp_faq(language_code: str = "en", user=Depends(verify_telegram
 
 @router.post("/promo/check")
 async def check_webapp_promo(request: PromoCheckRequest, user=Depends(verify_telegram_auth)):
-    """Check if promo code is valid."""
+    """Check if promo code is valid.
+    
+    Returns product_id if promo is product-specific:
+    - product_id IS NULL: applies to entire cart
+    - product_id IS NOT NULL: applies only to that product
+    """
     db = get_database()
     code = request.code.strip().upper()
     promo = await db.validate_promo_code(code)
     
     if promo:
         return {
-            "valid": True, "code": code, "discount_percent": promo["discount_percent"],
+            "valid": True, 
+            "code": code, 
+            "discount_percent": promo["discount_percent"],
+            "product_id": promo.get("product_id"),  # NULL = cart-wide, NOT NULL = product-specific
             "expires_at": promo.get("expires_at"),
             "usage_remaining": (promo.get("usage_limit") or 999) - (promo.get("usage_count") or 0)
         }

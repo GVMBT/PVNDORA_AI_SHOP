@@ -265,6 +265,10 @@ async def apply_promo_code(code: str) -> dict:
     Apply promo code to cart.
     Uses telegram_id from context.
     
+    Supports both cart-wide and product-specific promo codes:
+    - If promo.product_id is NULL: applies to entire cart
+    - If promo.product_id is set: applies only to that product in cart
+    
     Args:
         code: Promo code
         
@@ -279,16 +283,53 @@ async def apply_promo_code(code: str) -> dict:
         if not promo:
             return {"success": False, "valid": False, "message": "Invalid or expired promo code"}
         
+        product_id = promo.get("product_id")  # NULL = cart-wide, NOT NULL = product-specific
+        
+        # For product-specific promos, verify product is in cart
+        if product_id:
+            from core.cart import get_cart_manager
+            cart_manager = get_cart_manager()
+            cart = await cart_manager.get_cart(ctx.telegram_id)
+            if cart is None:
+                return {"success": False, "valid": False, "message": "Cart is empty"}
+            
+            # Check if product is in cart
+            product_in_cart = any(item.product_id == product_id for item in cart.items)
+            if not product_in_cart:
+                return {
+                    "success": False, 
+                    "valid": False, 
+                    "message": f"Promo code is valid only for product {product_id}, which is not in your cart"
+                }
+        
         from core.cart import get_cart_manager
         cart_manager = get_cart_manager()
-        await cart_manager.apply_promo(ctx.telegram_id, code, promo["discount_percent"])
+        try:
+            cart = await cart_manager.apply_promo_code(
+                ctx.telegram_id, 
+                code, 
+                promo["discount_percent"],
+                product_id=product_id  # Pass product_id (can be None for cart-wide)
+            )
+        except ValueError as e:
+            return {"success": False, "valid": False, "message": str(e)}
+        
+        if cart is None:
+            return {"success": False, "valid": False, "message": "Cart is empty"}
+        
+        message = f"Promo code applied! {promo['discount_percent']}% discount"
+        if product_id:
+            message += f" (applied to product {product_id})"
+        else:
+            message += " (applied to entire cart)"
         
         return {
             "success": True,
             "valid": True,
             "code": code.upper(),
             "discount_percent": promo["discount_percent"],
-            "message": f"Promo code applied! {promo['discount_percent']}% discount"
+            "product_id": product_id,  # NULL = cart-wide, NOT NULL = product-specific
+            "message": message
         }
     except Exception as e:
         logger.error(f"apply_promo_code error: {e}")

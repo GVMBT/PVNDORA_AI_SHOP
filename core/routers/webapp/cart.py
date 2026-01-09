@@ -235,7 +235,12 @@ async def remove_cart_item(product_id: str, user=Depends(verify_telegram_auth)):
 
 @router.post("/cart/promo/apply")
 async def apply_cart_promo(request: ApplyPromoRequest, user=Depends(verify_telegram_auth)):
-    """Apply promo code to cart."""
+    """Apply promo code to cart.
+    
+    Supports both cart-wide and product-specific promo codes:
+    - If promo.product_id is NULL: applies to entire cart
+    - If promo.product_id is set: applies only to that product in cart
+    """
     from core.cart import get_cart_manager
     
     db = get_database()
@@ -244,12 +249,38 @@ async def apply_cart_promo(request: ApplyPromoRequest, user=Depends(verify_teleg
     if not promo:
         raise HTTPException(status_code=400, detail="Invalid or expired promo code")
     
+    product_id = promo.get("product_id")  # NULL = cart-wide, NOT NULL = product-specific
+    
+    # For product-specific promos, verify product is in cart
+    if product_id:
+        cart_manager = get_cart_manager()
+        cart = await cart_manager.get_cart(user.id)
+        if cart is None:
+            raise HTTPException(status_code=400, detail="Cart is empty")
+        
+        # Check if product is in cart
+        product_in_cart = any(item.product_id == product_id for item in cart.items)
+        if not product_in_cart:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Promo code is valid only for product {product_id}, which is not in your cart"
+            )
+    
     cart_manager = get_cart_manager()
-    cart = await cart_manager.apply_promo_code(user.id, code, promo["discount_percent"])
+    try:
+        cart = await cart_manager.apply_promo_code(
+            user.id,  # user.id is telegram_id
+            code, 
+            promo["discount_percent"],
+            product_id=product_id  # Pass product_id (can be None for cart-wide)
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
     if cart is None:
         raise HTTPException(status_code=400, detail="Cart is empty")
     
-    return await _format_cart_response(cart, db, user.id)
+    return await _format_cart_response(cart, db, user.id)  # user.id is telegram_id
 
 
 @router.post("/cart/promo/remove")

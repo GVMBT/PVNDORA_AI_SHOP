@@ -33,6 +33,8 @@ class PromoCode(BaseModel):
     target_user_id: Optional[str] = None
     is_personal: bool = False
     source_trigger: Optional[str] = None
+    # Product-specific promo code
+    product_id: Optional[str] = None  # NULL = applies to entire cart, NOT NULL = only to this product
     created_at: datetime
 
 
@@ -42,6 +44,7 @@ class PromoValidationResult(BaseModel):
     code: Optional[str] = None
     discount_percent: int = 0
     discount_amount: Optional[float] = None
+    product_id: Optional[str] = None  # NULL = cart-wide, NOT NULL = product-specific
     error_message: Optional[str] = None
 
 
@@ -247,7 +250,8 @@ class PromoCodeService:
                 valid=True,
                 code=promo["code"],
                 discount_percent=promo.get("discount_percent", 0),
-                discount_amount=promo.get("discount_amount")
+                discount_amount=promo.get("discount_amount"),
+                product_id=promo.get("product_id")  # NULL = cart-wide, NOT NULL = product-specific
             )
             
         except Exception as e:

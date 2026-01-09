@@ -185,27 +185,67 @@ class CartManager:
         self,
         user_telegram_id: int,
         promo_code: str,
-        discount_percent: float
+        discount_percent: float,
+        product_id: Optional[str] = None
     ) -> Optional[Cart]:
-        """Apply promo code to cart."""
+        """Apply promo code to cart.
+        
+        Args:
+            user_telegram_id: User's Telegram ID
+            promo_code: Promo code string
+            discount_percent: Discount percentage
+            product_id: If provided, apply discount only to this product (item-level).
+                       If None, apply discount to entire cart (cart-level).
+        
+        Returns:
+            Updated cart or None if cart is empty
+        """
         cart = await self.get_cart(user_telegram_id)
         if cart is None:
             return None
         
-        cart.promo_code = promo_code
-        cart.promo_discount_percent = to_decimal(discount_percent)
+        if product_id:
+            # Product-specific promo: apply discount to matching items only
+            found = False
+            for item in cart.items:
+                if item.product_id == product_id:
+                    item.discount_percent = to_decimal(discount_percent)
+                    found = True
+            
+            if not found:
+                raise ValueError(f"Product {product_id} not found in cart")
+            
+            # Store promo code info for reference (item-level)
+            cart.promo_code = promo_code
+            cart.promo_discount_percent = to_decimal(0)  # Cart-level discount = 0 for product-specific
+        else:
+            # Cart-wide promo: apply discount to entire cart
+            # Remove any item-level discounts from previous product-specific promos
+            for item in cart.items:
+                item.discount_percent = to_decimal(0)
+            
+            cart.promo_code = promo_code
+            cart.promo_discount_percent = to_decimal(discount_percent)
         
         await self.save_cart(cart)
         return cart
     
     async def remove_promo_code(self, user_telegram_id: int) -> Optional[Cart]:
-        """Remove promo code from cart."""
+        """Remove promo code from cart.
+        
+        Removes both cart-level and item-level discounts.
+        """
         cart = await self.get_cart(user_telegram_id)
         if cart is None:
             return None
         
+        # Remove cart-level promo
         cart.promo_code = None
         cart.promo_discount_percent = to_decimal(0)
+        
+        # Remove item-level discounts (from product-specific promos)
+        for item in cart.items:
+            item.discount_percent = to_decimal(0)
         
         await self.save_cart(cart)
         return cart
