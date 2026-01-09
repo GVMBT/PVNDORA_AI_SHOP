@@ -103,7 +103,7 @@ async def approve_withdrawal(
         # Get withdrawal request
         withdrawal_result = await asyncio.to_thread(
             lambda: db.client.table("withdrawal_requests")
-            .select("id, user_id, amount, status")
+            .select("id, user_id, amount, status, payment_method, wallet_address")
             .eq("id", withdrawal_id)
             .single()
             .execute()
@@ -121,6 +121,8 @@ async def approve_withdrawal(
         
         user_id = withdrawal["user_id"]
         amount = float(withdrawal["amount"])
+        payment_method = withdrawal.get("payment_method", "crypto")
+        wallet_address = withdrawal.get("wallet_address", "")
         
         # Get user balance and telegram_id for notification
         user_result = await asyncio.to_thread(
@@ -186,12 +188,19 @@ async def approve_withdrawal(
         # Send user notification (best-effort)
         if user_telegram_id:
             try:
+                # Format method display name
+                method_display = {
+                    "crypto": "TRC20 USDT",
+                    "usdt_trc20": "TRC20 USDT",
+                    "card": "Банковская карта",
+                }.get(payment_method, payment_method.upper())
+                
                 notification_service = get_notification_service()
                 await notification_service.send_withdrawal_approved_notification(
                     telegram_id=user_telegram_id,
                     amount=amount,
                     currency="USD",
-                    method="requested method"
+                    method=method_display
                 )
             except Exception as e:
                 logger.warning(f"Failed to send withdrawal approved notification: {e}")

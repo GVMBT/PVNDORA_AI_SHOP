@@ -70,24 +70,33 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
             </div>
           ) : (
             localizedLogs.map((log, i) => (
-              <div key={i} className="grid grid-cols-12 gap-2 px-4 py-3 hover:bg-white/5 transition-colors items-center">
-                <div className="col-span-3 sm:col-span-2 text-gray-500 text-[10px] sm:text-xs truncate">{log.id}</div>
-                <div className="col-span-2 sm:col-span-2">
-                  <span className={`px-1 text-[8px] sm:text-[9px] border whitespace-nowrap ${
-                    log.type === 'INCOME' ? 'text-green-500 border-green-500/30' :
-                    log.type === 'OUTCOME' ? 'text-blue-500 border-blue-500/30' :
-                    'text-cyan-500 border-cyan-500/30'
+              <div key={i} className="px-4 py-3 hover:bg-white/5 transition-colors">
+                {/* Row 1: ID, Type, Amount */}
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-gray-500 text-[10px] font-mono shrink-0">{log.id}</span>
+                    <span className={`px-1 text-[8px] border whitespace-nowrap shrink-0 ${
+                      log.type === 'INCOME' ? 'text-green-500 border-green-500/30' :
+                      log.type === 'OUTCOME' ? 'text-blue-500 border-blue-500/30' :
+                      'text-cyan-500 border-cyan-500/30'
+                    }`}>
+                      {typeLabels[log.type] || log.type}
+                    </span>
+                  </div>
+                  <div className={`font-bold text-xs shrink-0 ${
+                    log.type === 'INCOME' ? 'text-green-400' : 'text-white'
                   }`}>
-                    {typeLabels[log.type] || log.type}
+                    {log.formattedAmount}
+                  </div>
+                </div>
+                {/* Row 2: Source + Date */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-gray-300 text-[10px] truncate" title={log.localizedSource}>
+                    {log.localizedSource}
                   </span>
-                </div>
-                <div className="col-span-4 sm:col-span-5 text-gray-300 truncate text-[10px] sm:text-xs" title={log.localizedSource}>
-                  {log.localizedSource}
-                </div>
-                <div className={`col-span-3 sm:col-span-3 text-right font-bold text-[10px] sm:text-xs ${
-                  log.type === 'INCOME' ? 'text-green-400' : 'text-white'
-                }`}>
-                  {log.formattedAmount}
+                  <span className="text-gray-500 text-[9px] shrink-0">
+                    {log.date}
+                  </span>
                 </div>
               </div>
             ))

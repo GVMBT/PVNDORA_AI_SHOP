@@ -129,17 +129,25 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
             .execute()
     )
     if existing.data:
-        raise HTTPException(status_code=400, detail="This product already has a review")
+        raise HTTPException(status_code=400, detail="Вы уже оставили отзыв на этот товар")
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("reviews").insert({
-            "user_id": db_user.id, "order_id": request.order_id, "product_id": product_id,
-            "rating": request.rating, "text": request.text, "cashback_given": False
-        }).execute()
-    )
+    # Insert with race condition handling
+    try:
+        result = await asyncio.to_thread(
+            lambda: db.client.table("reviews").insert({
+                "user_id": db_user.id, "order_id": request.order_id, "product_id": product_id,
+                "rating": request.rating, "text": request.text, "cashback_given": False
+            }).execute()
+        )
+    except Exception as e:
+        error_str = str(e)
+        # Handle duplicate key constraint violation (race condition)
+        if "23505" in error_str or "duplicate key" in error_str.lower():
+            raise HTTPException(status_code=400, detail="Вы уже оставили отзыв на этот товар")
+        raise HTTPException(status_code=500, detail=f"Ошибка при создании отзыва: {error_str}")
     
     if not result.data or len(result.data) == 0:
-        raise HTTPException(status_code=500, detail="Failed to create review")
+        raise HTTPException(status_code=500, detail="Ошибка при создании отзыва")
     
     review_id = result.data[0]["id"]
     cashback_amount = to_float(order.amount) * 0.05

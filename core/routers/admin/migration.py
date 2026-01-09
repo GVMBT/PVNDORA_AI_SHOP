@@ -262,7 +262,7 @@ async def get_top_migrating_products(
     for product_id, count in sorted_products:
         product_result = await asyncio.to_thread(
             lambda pid=product_id: db.client.table("products").select(
-                "name, category"
+                "name, type"
             ).eq("id", pid).single().execute()
         )
         
@@ -270,7 +270,7 @@ async def get_top_migrating_products(
             top_products.append({
                 "product_id": product_id,
                 "name": product_result.data.get("name", "Unknown"),
-                "category": product_result.data.get("category", "Unknown"),
+                "category": product_result.data.get("type", "Unknown"),
                 "migration_orders": count
             })
     

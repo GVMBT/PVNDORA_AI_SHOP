@@ -64,9 +64,12 @@ async def redis_setex(key: str, seconds: int, value: str) -> bool:
     if not UPSTASH_REDIS_URL or not UPSTASH_REDIS_TOKEN:
         return False
     try:
+        from urllib.parse import quote
+        # URL encode the value to handle special characters like : + .
+        encoded_value = quote(value, safe='')
         async with httpx.AsyncClient() as client:
             resp = await client.get(
-                f"{UPSTASH_REDIS_URL}/setex/{key}/{seconds}/{value}",
+                f"{UPSTASH_REDIS_URL}/setex/{key}/{seconds}/{encoded_value}",
                 headers={"Authorization": f"Bearer {UPSTASH_REDIS_TOKEN}"},
                 timeout=5
             )
@@ -102,25 +105,61 @@ async def send_telegram_message(chat_id: str, text: str) -> bool:
 
 
 def format_stock_alert(products: list) -> str:
-    """Format stock alert message."""
-    lines = ["<b>⚠️ Low Stock Alert</b>\n"]
+    """Format stock alert message in Russian with actionable instructions."""
+    
+    # Group by status for better readability
+    out_of_stock = []
+    critical = []
+    low = []
     
     for p in products:
-        status_emoji = {
-            "prepaid_only": "🔴",
-            "critical": "🟠",
-            "low": "🟡"
-        }.get(p.get("stock_status"), "⚪")
-        
-        name = p.get("name", "Unknown")
-        count = p.get("available_count", 0)
-        discount_price = p.get("discount_price")
-        
-        price_str = f" (${discount_price})" if discount_price else ""
-        
-        lines.append(f"{status_emoji} <b>{name}</b>{price_str}: {count} items")
+        status = p.get("stock_status", "low")
+        if status == "prepaid_only":
+            out_of_stock.append(p)
+        elif status == "critical":
+            critical.append(p)
+        else:
+            low.append(p)
     
-    lines.append(f"\n<i>Checked at {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}</i>")
+    lines = ["<b>📦 КОНТРОЛЬ ЗАПАСОВ</b>\n"]
+    
+    # Out of stock - urgent
+    if out_of_stock:
+        lines.append("🔴 <b>НЕТ В НАЛИЧИИ</b> — требуется срочное пополнение:")
+        for p in out_of_stock:
+            name = p.get("name", "Неизвестно")
+            discount_price = p.get("discount_price")
+            price_str = f" (${discount_price})" if discount_price else ""
+            lines.append(f"   • {name}{price_str}")
+        lines.append("")
+    
+    # Critical - action needed
+    if critical:
+        lines.append("🟠 <b>КРИТИЧЕСКИ МАЛО</b> (1-2 шт) — пополнить в ближайшее время:")
+        for p in critical:
+            name = p.get("name", "Неизвестно")
+            count = p.get("available_count", 0)
+            lines.append(f"   • {name}: {count} шт")
+        lines.append("")
+    
+    # Low stock - warning
+    if low:
+        lines.append("🟡 <b>ЗАКАНЧИВАЕТСЯ</b> (3-5 шт) — запланировать пополнение:")
+        for p in low:
+            name = p.get("name", "Неизвестно")
+            count = p.get("available_count", 0)
+            lines.append(f"   • {name}: {count} шт")
+        lines.append("")
+    
+    # Action summary
+    total = len(out_of_stock) + len(critical) + len(low)
+    lines.append("━━━━━━━━━━━━━━━━━━━━")
+    lines.append(f"📊 <b>Итого:</b> {total} товаров требуют внимания")
+    
+    if out_of_stock:
+        lines.append(f"⚡ <b>Действие:</b> Добавить сток для {len(out_of_stock)} товаров")
+    
+    lines.append(f"\n<i>🕐 {datetime.now(timezone.utc).strftime('%d.%m.%Y %H:%M')} UTC</i>")
     
     return "\n".join(lines)
 
