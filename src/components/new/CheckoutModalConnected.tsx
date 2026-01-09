@@ -68,9 +68,10 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   const cart = freshCart || contextCart;
   const profile = freshProfile || contextProfile;
 
-  const handleRemoveItem = useCallback(async (productId: string) => {
+  const handleRemoveItem = useCallback(async (productId: string | number) => {
     try {
-      const updatedCart = await removeCartItem(productId);
+      // Ensure productId is string for API call
+      const updatedCart = await removeCartItem(String(productId));
       setFreshCart(updatedCart);
       if (!updatedCart || !updatedCart.items || updatedCart.items.length === 0) {
         onClose();
