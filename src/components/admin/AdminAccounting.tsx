@@ -125,7 +125,10 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
   onAddExpense,
   isLoading = false
 }) => {
-  const [period, setPeriod] = useState<'today' | 'month' | 'all'>('all');
+  const [period, setPeriod] = useState<'today' | 'month' | 'all' | 'custom'>('all');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   
   const d = data || {
     totalRevenue: 0,
@@ -174,21 +177,52 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
         </h3>
         <div className="flex items-center gap-2">
           {/* Селектор периода */}
-          <div className="flex bg-[#0e0e0e] border border-white/10 rounded-sm overflow-hidden">
-            {(['today', 'month', 'all'] as const).map((p) => (
+          <div className="flex flex-wrap bg-[#0e0e0e] border border-white/10 rounded-sm overflow-hidden">
+            {(['today', 'month', 'all', 'custom'] as const).map((p) => (
               <button
                 key={p}
-                onClick={() => setPeriod(p)}
+                onClick={() => {
+                  setPeriod(p);
+                  if (p === 'custom') setShowDatePicker(true);
+                }}
                 className={`px-3 py-1.5 text-xs font-mono uppercase transition-colors ${
                   period === p 
                     ? 'bg-pandora-cyan text-black' 
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
-                {p === 'today' ? 'Сегодня' : p === 'month' ? 'Месяц' : 'Всё время'}
+                {p === 'today' ? 'Сегодня' : p === 'month' ? 'Месяц' : p === 'all' ? 'Всё' : 'Период'}
               </button>
             ))}
           </div>
+          
+          {/* Custom Date Range */}
+          {showDatePicker && period === 'custom' && (
+            <div className="flex items-center gap-2 bg-[#0e0e0e] border border-white/10 px-2 py-1 rounded-sm">
+              <input
+                type="date"
+                value={customFrom}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                className="bg-transparent text-xs text-white border-none outline-none"
+              />
+              <span className="text-gray-500">—</span>
+              <input
+                type="date"
+                value={customTo}
+                onChange={(e) => setCustomTo(e.target.value)}
+                className="bg-transparent text-xs text-white border-none outline-none"
+              />
+              <button
+                onClick={() => {
+                  // TODO: Trigger onRefresh with customFrom/customTo params
+                  if (onRefresh) onRefresh();
+                }}
+                className="text-xs text-pandora-cyan hover:underline"
+              >
+                ОК
+              </button>
+            </div>
+          )}
           {onAddExpense && (
             <button
               onClick={onAddExpense}

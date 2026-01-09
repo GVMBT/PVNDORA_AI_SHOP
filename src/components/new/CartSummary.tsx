@@ -89,75 +89,97 @@ const CartSummary: React.FC<CartSummaryProps> = ({
           return (
             <div 
               key={item.id} 
-              className="bg-white/5 border border-white/10 p-3 rounded-sm hover:border-pandora-cyan/30 transition-colors"
+              className="group bg-white/[0.03] border border-white/10 p-3 rounded-sm hover:border-pandora-cyan/30 transition-all duration-300"
             >
-              {/* Top Row: Image, Name, Delete */}
-              <div className="flex items-start gap-3 mb-3">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-black border border-white/10 rounded-sm overflow-hidden flex-shrink-0">
-                  <img src={item.image} className="w-full h-full object-cover grayscale" alt={item.name} />
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                {/* Product Info: Image, Name, Category */}
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-black border border-white/10 rounded-sm overflow-hidden flex-shrink-0">
+                    <img 
+                      src={item.image} 
+                      className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" 
+                      alt={item.name} 
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-white text-sm sm:text-base truncate group-hover:text-pandora-cyan transition-colors">
+                      {item.name}
+                    </div>
+                    <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">
+                      {item.category}
+                    </div>
+                  </div>
+                  
+                  {/* Trash for Mobile Only */}
+                  <button 
+                    type="button"
+                    onClick={() => onRemoveItem(item.id)} 
+                    className="sm:hidden text-gray-600 hover:text-red-500 transition-colors p-1 flex-shrink-0"
+                    aria-label="Remove item"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-white text-sm truncate">{item.name}</div>
-                  <div className="text-[10px] text-gray-500 font-mono uppercase">
-                    {item.category}
-                  </div>
-                </div>
-                <button 
-                  type="button"
-                  onClick={() => onRemoveItem(item.id)} 
-                  className="text-gray-600 hover:text-red-500 transition-colors p-1 flex-shrink-0"
-                  aria-label="Remove item"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-              
-              {/* Bottom Row: Quantity Controls + Price */}
-              <div className="flex items-center justify-between">
-                {/* Quantity Controls */}
-                {onUpdateQuantity ? (
-                  <div className="flex items-center bg-black/50 border border-white/10 rounded-sm">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (quantity > 1) {
-                          onUpdateQuantity(item.id, quantity - 1);
-                        }
-                      }}
-                      disabled={quantity <= 1}
-                      className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-pandora-cyan disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                      aria-label="Decrease quantity"
-                    >
-                      <Minus size={12} />
-                    </button>
-                    <span className="w-8 h-8 flex items-center justify-center text-sm font-mono text-white border-x border-white/10">
-                      {quantity}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onUpdateQuantity(item.id, quantity + 1)}
-                      className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-pandora-cyan transition-colors"
-                      aria-label="Increase quantity"
-                    >
-                      <Plus size={12} />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="text-[10px] text-gray-500 font-mono">
-                    {quantity > 1 ? `x${quantity}` : ''}
-                  </div>
-                )}
                 
-                {/* Price */}
-                <div className="text-right">
-                  <div className="font-mono text-pandora-cyan font-bold">
-                    {formatPrice(item.price * quantity, item.currency || currency)}
-                  </div>
-                  {quantity > 1 && (
-                    <div className="text-[9px] text-gray-500">
-                      {formatPrice(item.price, item.currency || currency)} / шт
+                {/* Controls & Price Section */}
+                <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-8 pt-3 sm:pt-0 border-t border-white/5 sm:border-0">
+                  {/* Quantity Controls */}
+                  {onUpdateQuantity ? (
+                    <div className="flex items-center bg-black/50 border border-white/10 rounded-sm overflow-hidden h-8 sm:h-9">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (quantity > 1) {
+                            onUpdateQuantity(item.id, quantity - 1);
+                          }
+                        }}
+                        disabled={quantity <= 1}
+                        className="w-8 h-full flex items-center justify-center text-gray-400 hover:text-pandora-cyan hover:bg-white/5 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                        aria-label="Decrease quantity"
+                      >
+                        <Minus size={12} />
+                      </button>
+                      <span className="w-8 h-full flex items-center justify-center text-xs font-mono text-white border-x border-white/10">
+                        {quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onUpdateQuantity(item.id, quantity + 1)}
+                        className="w-8 h-full flex items-center justify-center text-gray-400 hover:text-pandora-cyan hover:bg-white/5 transition-colors"
+                        aria-label="Increase quantity"
+                      >
+                        <Plus size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-gray-500 font-mono bg-white/5 px-2 py-1 rounded-sm">
+                      QTY: {quantity}
                     </div>
                   )}
+                  
+                  {/* Price & Delete (Desktop) */}
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="font-mono text-pandora-cyan font-bold text-sm sm:text-base whitespace-nowrap">
+                        {formatPrice(item.price * quantity, item.currency || currency)}
+                      </div>
+                      {quantity > 1 && (
+                        <div className="text-[9px] text-gray-500 font-mono tracking-tighter">
+                          {formatPrice(item.price, item.currency || currency)} / {t('checkout.each')}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Trash for Desktop Only */}
+                    <button 
+                      type="button"
+                      onClick={() => onRemoveItem(item.id)} 
+                      className="hidden sm:flex text-gray-600 hover:text-red-500 transition-colors p-2 flex-shrink-0 items-center justify-center hover:bg-red-500/10 rounded-sm"
+                      aria-label="Remove item"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

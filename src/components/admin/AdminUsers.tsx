@@ -1,32 +1,42 @@
 /**
  * AdminUsers Component
  * 
- * Users management view - displays all users with management actions.
+ * Управление пользователями - отображение и действия.
  */
 
 import React, { useState, memo, useMemo } from 'react';
-import { Search, Ban, DollarSign, AlertTriangle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Ban, DollarSign, Crown, X, Check, ExternalLink } from 'lucide-react';
 import type { UserData } from './types';
+import { apiRequest } from '../../utils/apiClient';
+import { API } from '../../config';
+import { logger } from '../../utils/logger';
 
 interface AdminUsersProps {
   users: UserData[];
   onBanUser?: (userId: number, ban: boolean) => void;
   onUpdateBalance?: (userId: number, amount: number) => void;
+  onRefresh?: () => void;
 }
 
 const AdminUsers: React.FC<AdminUsersProps> = ({
   users,
   onBanUser,
   onUpdateBalance,
+  onRefresh,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'USER' | 'VIP' | 'ADMIN'>('ALL');
+  const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+  const [vipLevel, setVipLevel] = useState(3);
+  const [processing, setProcessing] = useState(false);
+  const [balanceModal, setBalanceModal] = useState<UserData | null>(null);
+  const [balanceAmount, setBalanceAmount] = useState('');
 
   // Filter users
   const filteredUsers = useMemo(() => {
     let result = users;
 
-    // Search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       result = result.filter(u => 
@@ -35,7 +45,6 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
       );
     }
 
-    // Role filter
     if (roleFilter !== 'ALL') {
       result = result.filter(u => u.role === roleFilter);
     }
@@ -44,7 +53,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
   }, [users, searchQuery, roleFilter]);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { 
+    return new Intl.NumberFormat('ru-RU', { 
       style: 'currency', 
       currency: 'USD',
       minimumFractionDigits: 0,
@@ -63,6 +72,55 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
     }
   };
 
+  // Set VIP status manually
+  const handleSetVIP = async (isPartner: boolean) => {
+    if (!selectedUser) return;
+    setProcessing(true);
+    
+    try {
+      await apiRequest(`${API.ADMIN_URL}/users/${selectedUser.username}/vip`, {
+        method: 'POST',
+        body: JSON.stringify({
+          is_partner: isPartner,
+          partner_level_override: isPartner ? vipLevel : null
+        })
+      });
+      
+      setSelectedUser(null);
+      setVipLevel(3);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      logger.error('Failed to set VIP status', err);
+      alert('Ошибка при изменении VIP статуса');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Update balance
+  const handleUpdateBalance = async () => {
+    if (!balanceModal || !balanceAmount) return;
+    const amount = parseFloat(balanceAmount);
+    if (isNaN(amount)) return;
+    
+    setProcessing(true);
+    try {
+      await apiRequest(`${API.ADMIN_URL}/users/${balanceModal.id}/balance`, {
+        method: 'POST',
+        body: JSON.stringify({ amount })
+      });
+      
+      setBalanceModal(null);
+      setBalanceAmount('');
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      logger.error('Failed to update balance', err);
+      alert('Ошибка при обновлении баланса');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -73,7 +131,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
             type="text" 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by username or ID..." 
+            placeholder="Поиск по имени или ID..." 
             className="w-full bg-black border border-white/20 pl-9 pr-4 py-2 text-xs font-mono text-white focus:border-pandora-cyan outline-none" 
           />
         </div>
@@ -88,7 +146,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                   : 'bg-transparent text-gray-400 border-white/20 hover:border-white/40'
               }`}
             >
-              {role}
+              {role === 'ALL' ? 'Все' : role}
             </button>
           ))}
         </div>
@@ -97,19 +155,19 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-[#0e0e0e] border border-white/10 p-4">
-          <div className="text-[10px] text-gray-500 uppercase mb-1">Total Users</div>
+          <div className="text-[10px] text-gray-500 uppercase mb-1">Всего</div>
           <div className="text-2xl font-bold text-white">{users.length}</div>
         </div>
         <div className="bg-[#0e0e0e] border border-white/10 p-4">
-          <div className="text-[10px] text-gray-500 uppercase mb-1">VIP Users</div>
+          <div className="text-[10px] text-gray-500 uppercase mb-1">VIP</div>
           <div className="text-2xl font-bold text-yellow-400">{users.filter(u => u.role === 'VIP').length}</div>
         </div>
         <div className="bg-[#0e0e0e] border border-white/10 p-4">
-          <div className="text-[10px] text-gray-500 uppercase mb-1">Banned</div>
+          <div className="text-[10px] text-gray-500 uppercase mb-1">Заблокировано</div>
           <div className="text-2xl font-bold text-red-400">{users.filter(u => u.isBanned).length}</div>
         </div>
         <div className="bg-[#0e0e0e] border border-white/10 p-4">
-          <div className="text-[10px] text-gray-500 uppercase mb-1">Active Today</div>
+          <div className="text-[10px] text-gray-500 uppercase mb-1">Активных сегодня</div>
           <div className="text-2xl font-bold text-green-400">—</div>
         </div>
       </div>
@@ -119,20 +177,20 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
         <table className="w-full text-left text-xs font-mono">
           <thead className="bg-white/5 text-gray-400 uppercase">
             <tr>
-              <th className="p-4">Username</th>
-              <th className="p-4">Role</th>
-              <th className="p-4">Balance</th>
-              <th className="p-4">Orders</th>
-              <th className="p-4">Total Spent</th>
-              <th className="p-4">Status</th>
-              <th className="p-4 text-right">Actions</th>
+              <th className="p-4">Пользователь</th>
+              <th className="p-4">Роль</th>
+              <th className="p-4">Баланс</th>
+              <th className="p-4">Заказы</th>
+              <th className="p-4">Потрачено</th>
+              <th className="p-4">Статус</th>
+              <th className="p-4 text-right">Действия</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5 text-gray-300">
             {filteredUsers.length === 0 ? (
               <tr>
                 <td colSpan={7} className="p-8 text-center text-gray-500">
-                  No users found
+                  Пользователи не найдены
                 </td>
               </tr>
             ) : (
@@ -143,9 +201,10 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                       href={`https://t.me/${u.username}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-bold text-white hover:text-pandora-cyan transition-colors"
+                      className="font-bold text-white hover:text-pandora-cyan transition-colors inline-flex items-center gap-1"
                     >
                       @{u.username}
+                      <ExternalLink size={10} className="opacity-50" />
                     </a>
                     <div className="text-[10px] text-gray-600">ID: {u.id}</div>
                   </td>
@@ -164,7 +223,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                   <td className="p-4">
                     {u.isBanned ? (
                       <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30">
-                        BANNED
+                        BLOCKED
                       </span>
                     ) : (
                       <span className="text-[10px] px-2 py-0.5 bg-green-500/20 text-green-400 border border-green-500/30">
@@ -175,11 +234,22 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button 
-                        onClick={() => onUpdateBalance?.(u.id, 0)}
+                        onClick={() => setBalanceModal(u)}
                         className="p-1.5 border border-white/10 hover:border-pandora-cyan hover:text-pandora-cyan transition-colors"
-                        title="Adjust Balance"
+                        title="Изменить баланс"
                       >
                         <DollarSign size={14} />
+                      </button>
+                      <button 
+                        onClick={() => setSelectedUser(u)}
+                        className={`p-1.5 border transition-colors ${
+                          u.role === 'VIP'
+                            ? 'border-yellow-500/30 text-yellow-400 hover:border-yellow-500'
+                            : 'border-white/10 text-gray-400 hover:border-yellow-500 hover:text-yellow-400'
+                        }`}
+                        title="Управление VIP"
+                      >
+                        <Crown size={14} />
                       </button>
                       <button 
                         onClick={() => onBanUser?.(u.id, !u.isBanned)}
@@ -188,7 +258,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                             ? 'border-green-500/30 text-green-400 hover:border-green-500' 
                             : 'border-red-500/30 text-red-400 hover:border-red-500'
                         }`}
-                        title={u.isBanned ? 'Unban User' : 'Ban User'}
+                        title={u.isBanned ? 'Разблокировать' : 'Заблокировать'}
                       >
                         <Ban size={14} />
                       </button>
@@ -205,7 +275,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
       <div className="md:hidden space-y-4">
         {filteredUsers.length === 0 ? (
           <div className="bg-[#0e0e0e] border border-white/10 p-8 text-center text-gray-500">
-            No users found
+            Пользователи не найдены
           </div>
         ) : (
           filteredUsers.map(u => (
@@ -229,7 +299,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                   {getRoleBadge(u.role)}
                   {u.isBanned && (
                     <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30">
-                      BANNED
+                      BLOCKED
                     </span>
                   )}
                 </div>
@@ -237,44 +307,223 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
               
               <div className="grid grid-cols-3 gap-2 text-center mb-3">
                 <div>
-                  <div className="text-[10px] text-gray-500">Balance</div>
+                  <div className="text-[10px] text-gray-500">Баланс</div>
                   <div className="text-sm font-bold text-pandora-cyan">{formatCurrency(u.balance)}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-gray-500">Orders</div>
+                  <div className="text-[10px] text-gray-500">Заказы</div>
                   <div className="text-sm font-bold text-white">{u.purchases}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] text-gray-500">Spent</div>
+                  <div className="text-[10px] text-gray-500">Потрачено</div>
                   <div className="text-sm font-bold text-white">{formatCurrency(u.spent)}</div>
                 </div>
               </div>
               
               <div className="flex gap-2">
                 <button 
-                  onClick={() => onUpdateBalance?.(u.id, 0)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2 text-[10px] bg-white/5 hover:bg-pandora-cyan hover:text-black transition-colors"
+                  onClick={() => setBalanceModal(u)}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 text-[10px] bg-white/5 hover:bg-pandora-cyan hover:text-black transition-colors uppercase font-bold"
                 >
-                  <DollarSign size={12} /> Balance
+                  <DollarSign size={12} /> Баланс
+                </button>
+                <button 
+                  onClick={() => setSelectedUser(u)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] uppercase font-bold ${
+                    u.role === 'VIP'
+                      ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500 hover:text-black'
+                      : 'bg-white/5 hover:bg-yellow-500 hover:text-black'
+                  } transition-colors`}
+                >
+                  <Crown size={12} /> VIP
                 </button>
                 <button 
                   onClick={() => onBanUser?.(u.id, !u.isBanned)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] transition-colors ${
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] uppercase font-bold transition-colors ${
                     u.isBanned 
                       ? 'bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-black' 
                       : 'bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-black'
                   }`}
                 >
-                  <Ban size={12} /> {u.isBanned ? 'Unban' : 'Ban'}
+                  <Ban size={12} /> {u.isBanned ? 'Разбан' : 'Бан'}
                 </button>
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* VIP Modal */}
+      <AnimatePresence>
+        {selectedUser && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+            <div 
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
+              onClick={() => !processing && setSelectedUser(null)} 
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-sm bg-[#080808] border border-white/20 p-6 shadow-2xl"
+            >
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Crown size={18} className="text-yellow-500" />
+                    Управление VIP
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    @{selectedUser.username}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => !processing && setSelectedUser(null)}
+                  className="text-gray-500 hover:text-white"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Current Status */}
+              <div className="bg-white/5 p-3 border border-white/10 mb-4">
+                <div className="text-[10px] text-gray-500 uppercase mb-1">Текущий статус</div>
+                <div className="flex items-center gap-2">
+                  {getRoleBadge(selectedUser.role)}
+                  {selectedUser.role === 'VIP' && (
+                    <span className="text-xs text-gray-400">Уровень {selectedUser.level || '?'}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* VIP Level Selection */}
+              {selectedUser.role !== 'VIP' && (
+                <div className="mb-4">
+                  <label className="text-[10px] text-gray-500 uppercase mb-1 block">
+                    Уровень VIP
+                  </label>
+                  <select
+                    value={vipLevel}
+                    onChange={(e) => setVipLevel(Number(e.target.value))}
+                    className="w-full bg-black border border-white/20 p-2 text-white text-sm focus:border-pandora-cyan outline-none"
+                  >
+                    <option value={1}>Уровень 1 (базовый)</option>
+                    <option value={2}>Уровень 2</option>
+                    <option value={3}>Уровень 3 (полный)</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                {selectedUser.role === 'VIP' ? (
+                  <button
+                    onClick={() => handleSetVIP(false)}
+                    disabled={processing}
+                    className="flex-1 py-2.5 bg-red-500 text-white font-bold text-sm hover:bg-red-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <X size={16} />
+                    Отозвать VIP
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleSetVIP(true)}
+                    disabled={processing}
+                    className="flex-1 py-2.5 bg-yellow-500 text-black font-bold text-sm hover:bg-yellow-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <Crown size={16} />
+                    Назначить VIP
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Balance Modal */}
+      <AnimatePresence>
+        {balanceModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+            <div 
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
+              onClick={() => !processing && setBalanceModal(null)} 
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-sm bg-[#080808] border border-white/20 p-6 shadow-2xl"
+            >
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <DollarSign size={18} className="text-pandora-cyan" />
+                    Изменить баланс
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    @{balanceModal.username}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => !processing && setBalanceModal(null)}
+                  className="text-gray-500 hover:text-white"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Current Balance */}
+              <div className="bg-white/5 p-3 border border-white/10 mb-4">
+                <div className="text-[10px] text-gray-500 uppercase mb-1">Текущий баланс</div>
+                <div className="text-xl font-bold text-pandora-cyan">
+                  {formatCurrency(balanceModal.balance)}
+                </div>
+              </div>
+
+              {/* Amount Input */}
+              <div className="mb-4">
+                <label className="text-[10px] text-gray-500 uppercase mb-1 block">
+                  Сумма (+ или -)
+                </label>
+                <input
+                  type="number"
+                  value={balanceAmount}
+                  onChange={(e) => setBalanceAmount(e.target.value)}
+                  placeholder="10.00 или -5.00"
+                  step="0.01"
+                  className="w-full bg-black border border-white/20 p-2.5 text-white text-sm focus:border-pandora-cyan outline-none"
+                />
+                <p className="text-[9px] text-gray-600 mt-1">
+                  Положительное число для пополнения, отрицательное для списания
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleUpdateBalance}
+                  disabled={processing || !balanceAmount}
+                  className="flex-1 py-2.5 bg-pandora-cyan text-black font-bold text-sm hover:bg-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <Check size={16} />
+                  Применить
+                </button>
+                <button
+                  onClick={() => setBalanceModal(null)}
+                  disabled={processing}
+                  className="flex-1 py-2.5 bg-white/10 text-white font-bold text-sm hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
+                >
+                  <X size={16} />
+                  Отмена
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
 
 export default memo(AdminUsers);
-

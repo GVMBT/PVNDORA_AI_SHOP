@@ -307,6 +307,25 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     );
   }
 
+  // Transform withdrawals for admin panel
+  const transformedWithdrawals = useMemo(() => 
+    withdrawals.map((w: any) => ({
+      id: w.id,
+      user_id: w.user_id,
+      telegram_id: w.telegram_id,
+      username: w.username,
+      first_name: w.first_name,
+      amount: w.amount || 0,
+      payment_method: w.payment_method,
+      payment_details: w.payment_details,
+      status: w.status || 'pending',
+      admin_comment: w.admin_comment,
+      created_at: w.created_at,
+      processed_at: w.processed_at,
+      user_balance: w.user_balance
+    }))
+  , [withdrawals]);
+
   return (
     <AdminPanel 
       onExit={onExit}
@@ -314,6 +333,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       orders={transformedOrders}
       users={transformedUsers}
       tickets={transformedTickets}
+      withdrawals={transformedWithdrawals}
       stats={transformedStats}
       promoCodes={promoCodes}
       accountingData={accountingData}
