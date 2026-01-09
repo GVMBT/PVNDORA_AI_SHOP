@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS reviews (
     cashback_paid BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     
-    -- One review per order
-    UNIQUE(order_id)
+    -- One review per product per order
+    UNIQUE(order_id, product_id)
 );
 
 -- Indexes for reviews
