@@ -765,50 +765,54 @@ async def _create_cart_order(
         )
     
     # ============================================================
-    # ОПЛАТА С БАЛАНСА: Проверка и списание ДО внешнего платежа
-    # CRITICAL: Balance is stored in USD, so compare and deduct in USD!
+    # ОПЛАТА С БАЛАНСА: Проверка и списание
+    # Balance is stored in user's balance_currency (RUB or USD)
     # ============================================================
     if payment_method == "balance":
-        user_balance_usd = to_decimal(db_user.balance) if db_user.balance else Decimal("0")
+        from core.db import get_redis
+        from core.services.currency import get_currency_service
+        
+        _redis = get_redis()
+        _currency_service = get_currency_service(_redis)
+        
+        # Get user's balance in their local currency
+        user_balance = to_decimal(db_user.balance) if db_user.balance else Decimal("0")
+        balance_currency = getattr(db_user, 'balance_currency', 'USD') or 'USD'
+        
+        # Get order total in user's balance currency
         order_total_usd = to_decimal(total_amount)  # total_amount is in USD
         
-        # Compare in USD to avoid currency mismatch
-        if user_balance_usd < order_total_usd:
+        if balance_currency == "USD":
+            order_total_in_balance_currency = order_total_usd
+        else:
+            # Convert USD order total to user's balance currency
+            rate = await _currency_service.get_exchange_rate(balance_currency)
+            order_total_in_balance_currency = to_decimal(to_float(order_total_usd) * rate)
+            # Round for integer currencies
+            if balance_currency in ["RUB", "UAH", "TRY", "INR"]:
+                order_total_in_balance_currency = to_decimal(round(to_float(order_total_in_balance_currency)))
+        
+        # Compare in user's balance currency
+        if user_balance < order_total_in_balance_currency:
             # Удаляем заказ, если баланс недостаточен
             await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())
             
-            # Format error message in user's display currency
-            try:
-                from core.db import get_redis
-                from core.services.currency import get_currency_service
-                _redis = get_redis()
-                _currency_service = get_currency_service(_redis)
-                user_lang = getattr(db_user, 'interface_language', None) or (db_user.language_code if db_user and db_user.language_code else user.language_code)
-                _pref_currency = getattr(db_user, 'preferred_currency', None)
-                _user_currency = _currency_service.get_user_currency(user_lang, _pref_currency)
-                
-                # Convert USD values to display currency for user-friendly message
-                balance_display = await _currency_service.convert_price(to_float(user_balance_usd), _user_currency, round_to_int=True) if _user_currency != "USD" else to_float(user_balance_usd)
-                amount_display = await _currency_service.convert_price(to_float(order_total_usd), _user_currency, round_to_int=True) if _user_currency != "USD" else to_float(order_total_usd)
-                balance_formatted = _currency_service.format_price(balance_display, _user_currency)
-                amount_formatted = _currency_service.format_price(amount_display, _user_currency)
-                error_msg = f"Недостаточно средств на балансе. Доступно: {balance_formatted}, требуется: {amount_formatted}"
-            except Exception:
-                # Fallback: show in USD
-                error_msg = f"Недостаточно средств на балансе. Доступно: ${to_float(user_balance_usd):.2f}, требуется: ${to_float(order_total_usd):.2f}"
+            balance_formatted = _currency_service.format_price(to_float(user_balance), balance_currency)
+            amount_formatted = _currency_service.format_price(to_float(order_total_in_balance_currency), balance_currency)
+            error_msg = f"Недостаточно средств на балансе. Доступно: {balance_formatted}, требуется: {amount_formatted}"
             
             raise HTTPException(status_code=400, detail=error_msg)
         
-        # Deduct from balance in USD (not converted amount!)
+        # Deduct from balance in user's balance currency
         try:
             await asyncio.to_thread(
                 lambda: db.client.rpc("add_to_user_balance", {
                     "p_user_id": db_user.id,
-                    "p_amount": -to_float(order_total_usd),  # Deduct USD amount
+                    "p_amount": -to_float(order_total_in_balance_currency),
                     "p_reason": f"Payment for order {order.id}"
                 }).execute()
             )
-            logger.info(f"Balance deducted ${to_float(order_total_usd):.2f} USD for order {order.id}")
+            logger.info(f"Balance deducted {to_float(order_total_in_balance_currency):.2f} {balance_currency} for order {order.id}")
         except Exception as e:
             # Откатываем заказ при ошибке списания
             await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())

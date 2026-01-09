@@ -366,13 +366,13 @@ async def crystalpay_topup_webhook(request: Request):
             return JSONResponse({"ok": True}, status_code=200)
         
         user_id = tx.get("user_id")
-        amount = float(tx.get("amount") or 0)
-        currency = tx.get("currency") or "RUB"
+        payment_amount = float(tx.get("amount") or 0)
+        payment_currency = tx.get("currency") or "RUB"
         
-        # Get user current balance and telegram_id for notification
+        # Get user current balance, balance_currency and telegram_id
         user_result = await asyncio.to_thread(
             lambda: db.client.table("users")
-            .select("balance, telegram_id")
+            .select("balance, balance_currency, telegram_id")
             .eq("id", user_id)
             .single()
             .execute()
@@ -383,28 +383,42 @@ async def crystalpay_topup_webhook(request: Request):
             return JSONResponse({"error": "User not found"}, status_code=404)
         
         current_balance = float(user_result.data.get("balance") or 0)
+        balance_currency = user_result.data.get("balance_currency") or "USD"
         user_telegram_id = user_result.data.get("telegram_id")
         
-        # Convert to USD if needed (balance is stored in USD)
-        amount_usd = amount
-        if currency != "USD":
+        # Convert payment to user's balance currency if needed
+        from core.db import get_redis
+        from core.services.currency import get_currency_service
+        redis = get_redis()
+        currency_service = get_currency_service(redis)
+        
+        if payment_currency == balance_currency:
+            # Same currency, add directly
+            amount_to_add = payment_amount
+            logger.info(f"Top-up: {payment_amount} {payment_currency} (same as balance currency)")
+        else:
+            # Need to convert
             try:
-                from core.db import get_redis
-                from core.services.currency import get_currency_service
-                redis = get_redis()
-                currency_service = get_currency_service(redis)
-                rate = await currency_service.get_exchange_rate(currency)
-                if rate and rate > 0 and rate != 1.0:
-                    amount_usd = amount / rate
-                    logger.info(f"Top-up conversion: {amount} {currency} → {amount_usd:.2f} USD")
-                elif currency == "RUB":
-                    amount_usd = amount / 100.0  # Conservative fallback
-                    logger.warning("Using conservative fallback rate for RUB")
+                # Get rates for both currencies
+                payment_rate = await currency_service.get_exchange_rate(payment_currency) if payment_currency != "USD" else 1.0
+                balance_rate = await currency_service.get_exchange_rate(balance_currency) if balance_currency != "USD" else 1.0
+                
+                # Convert: payment_currency → USD → balance_currency
+                amount_usd = payment_amount / payment_rate if payment_rate > 0 else payment_amount
+                amount_to_add = amount_usd * balance_rate
+                
+                logger.info(f"Top-up conversion: {payment_amount} {payment_currency} → {amount_usd:.2f} USD → {amount_to_add:.2f} {balance_currency}")
             except Exception as e:
                 logger.error(f"Currency conversion failed: {e}")
                 raise
         
-        new_balance = current_balance + amount_usd
+        # Round appropriately for the balance currency
+        if balance_currency in ["RUB", "UAH", "TRY", "INR"]:
+            amount_to_add = round(amount_to_add, 2)
+        else:
+            amount_to_add = round(amount_to_add, 2)
+        
+        new_balance = current_balance + amount_to_add
         
         # Update user balance
         await asyncio.to_thread(
@@ -426,7 +440,7 @@ async def crystalpay_topup_webhook(request: Request):
             .execute()
         )
         
-        logger.info(f"CrystalPay TOPUP webhook: SUCCESS! User {user_id} balance: {current_balance:.2f} USD -> {new_balance:.2f} USD")
+        logger.info(f"CrystalPay TOPUP webhook: SUCCESS! User {user_id} balance: {current_balance:.2f} {balance_currency} -> {new_balance:.2f} {balance_currency}")
         
         # Send user notification (best-effort)
         if user_telegram_id:

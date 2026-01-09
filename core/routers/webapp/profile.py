@@ -218,26 +218,38 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     redis = get_redis()
     formatter = await CurrencyFormatter.create(user.id, db, redis)
     
-    # Get USD amounts (base currency in DB)
-    balance_usd = float(db_user.balance) if db_user.balance else 0
+    # Get user's balance in their local currency
+    # IMPORTANT: balance is stored in balance_currency (RUB for ru users, USD for others)
+    balance_in_local = float(db_user.balance) if db_user.balance else 0
+    balance_currency = getattr(db_user, 'balance_currency', 'USD') or 'USD'
+    
+    # Convert balance to USD for calculations (if needed)
+    from core.services.currency import get_currency_service
+    currency_service = get_currency_service(redis)
+    
+    if balance_currency == 'USD':
+        balance_usd = balance_in_local
+    else:
+        # Convert from local currency to USD
+        rate = await currency_service.get_exchange_rate(balance_currency)
+        balance_usd = balance_in_local / rate if rate > 0 else balance_in_local
+    
+    # Other USD amounts (referral earnings and saved are tracked in USD)
     total_referral_earnings_usd = float(db_user.total_referral_earnings) if hasattr(db_user, 'total_referral_earnings') and db_user.total_referral_earnings else 0
     total_saved_usd = float(db_user.total_saved) if db_user.total_saved else 0
     
-    # Get user's balance currency
-    balance_currency = getattr(db_user, 'balance_currency', 'USD') or 'USD'
-    
     return {
         "profile": {
-            # USD values (for calculations - ALWAYS use these for math)
-            "balance_usd": balance_usd,
+            # USD values (for calculations)
+            "balance_usd": round(balance_usd, 2),
             "total_referral_earnings_usd": total_referral_earnings_usd,
             "total_saved_usd": total_saved_usd,
-            # Display values (for UI - these are in user's currency)
-            "balance": formatter.convert(balance_usd),
+            # Display values in user's balance currency (NOT converted!)
+            "balance": balance_in_local,
             "total_referral_earnings": formatter.convert(total_referral_earnings_usd),
             "total_saved": formatter.convert(total_saved_usd),
             # Formatted strings (ready for display)
-            "balance_formatted": formatter.format(formatter.convert(balance_usd)),
+            "balance_formatted": currency_service.format_price(balance_in_local, balance_currency),
             "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{user.id}",
             "created_at": db_user.created_at.isoformat() if db_user.created_at else None,
             "is_admin": db_user.is_admin or False,

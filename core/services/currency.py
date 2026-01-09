@@ -405,20 +405,22 @@ class CurrencyService:
     
     def get_balance_currency(self, language_code: Optional[str] = None) -> str:
         """
-        Get default balance currency for new users.
+        Determine balance currency for a user based on Telegram language.
         
-        IMPORTANT: Balance is ALWAYS stored in USD.
-        This method is deprecated - use 'USD' directly.
-        Users can convert their balance via /profile/convert-balance endpoint.
+        Used for NEW users to set their balance_currency on registration.
+        Balance is stored in the user's local currency (RUB for Russian-speaking,
+        USD for others).
         
         Args:
-            language_code: Ignored (kept for backwards compatibility)
+            language_code: User's Telegram language code (ru, en, de, etc.)
             
         Returns:
-            Always returns 'USD'
+            Currency code: RUB for ru/be/kk, USD for others
         """
-        # Balance is always in USD
-        # Users can convert via explicit action if needed
+        if language_code:
+            lang = language_code.split("-")[0].lower()
+            if lang in ["ru", "be", "kk"]:
+                return "RUB"
         return "USD"
     
     async def convert_to_base_currency(
