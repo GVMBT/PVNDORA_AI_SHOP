@@ -158,13 +158,34 @@ async def approve_withdrawal(
             }).eq("id", withdrawal_id).execute()
         )
         
-        # Deduct balance using RPC function (atomic operation with transaction log)
+        # Deduct balance and create withdrawal transaction (atomic operation)
+        new_balance = current_balance - amount
         try:
+            # Update balance directly (no RPC to avoid duplicate transaction)
             await asyncio.to_thread(
-                lambda: db.client.rpc("add_to_user_balance", {
-                    "p_user_id": user_id,
-                    "p_amount": -amount,  # Negative amount = deduction
-                    "p_reason": f"Withdrawal request {withdrawal_id[:8]}"
+                lambda: db.client.table("users")
+                .update({"balance": new_balance})
+                .eq("id", user_id)
+                .execute()
+            )
+            
+            # Create withdrawal transaction with correct type
+            await asyncio.to_thread(
+                lambda: db.client.table("balance_transactions").insert({
+                    "user_id": user_id,
+                    "type": "withdrawal",  # Correct type instead of 'debit'!
+                    "amount": amount,
+                    "currency": "USD",
+                    "balance_before": current_balance,
+                    "balance_after": new_balance,
+                    "status": "completed",
+                    "description": "Вывод средств",
+                    "reference_type": "withdrawal_request",
+                    "reference_id": withdrawal_id,
+                    "metadata": {
+                        "payment_method": payment_method,
+                        "wallet_address": wallet_address,
+                    }
                 }).execute()
             )
         except Exception as e:
