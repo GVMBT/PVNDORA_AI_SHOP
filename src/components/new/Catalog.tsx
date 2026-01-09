@@ -69,28 +69,24 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
   const availabilityRef = useRef<HTMLDivElement>(null);
   const sortRef = useRef<HTMLDivElement>(null);
   
-  // Close dropdowns on outside click - only when dropdowns are open
+  // Close dropdowns on outside click - using pointerdown for better mobile support
   useEffect(() => {
-    if (!isAvailabilityOpen && !isSortOpen) return;
-    
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
+    const handleClickOutside = (event: PointerEvent) => {
+      const target = event.target as HTMLElement;
       
-      // Small delay to allow toggle to complete first
-      setTimeout(() => {
-        if (isAvailabilityOpen && availabilityRef.current && !availabilityRef.current.contains(target)) {
-          setIsAvailabilityOpen(false);
-        }
-        if (isSortOpen && sortRef.current && !sortRef.current.contains(target)) {
-          setIsSortOpen(false);
-        }
-      }, 0);
+      // Skip if target is within either dropdown
+      if (availabilityRef.current?.contains(target) || sortRef.current?.contains(target)) {
+        return;
+      }
+      
+      // Close both dropdowns
+      setIsAvailabilityOpen(false);
+      setIsSortOpen(false);
     };
     
-    // Use click event (not mousedown) to allow button click to complete first
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [isAvailabilityOpen, isSortOpen]);
+    document.addEventListener('pointerdown', handleClickOutside);
+    return () => document.removeEventListener('pointerdown', handleClickOutside);
+  }, []);
 
   // Use provided products or empty array (no mock data fallback)
   const productsData = propProducts || [];
@@ -194,14 +190,14 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                 <div ref={availabilityRef} className="relative flex-shrink-0 z-50">
                     <button 
                         type="button"
-                        onClick={(e) => { 
+                        onPointerDown={(e) => { 
                             e.preventDefault();
                             e.stopPropagation();
                             if(onHaptic) onHaptic('light'); 
                             setIsAvailabilityOpen(prev => !prev); 
                             setIsSortOpen(false); 
                         }}
-                        className="h-full px-3 sm:px-4 py-2 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm whitespace-nowrap touch-manipulation"
+                        className="h-full px-3 sm:px-4 py-2 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm whitespace-nowrap touch-manipulation select-none"
                     >
                         <span className="uppercase text-[9px] sm:text-[10px] tracking-wider">
                             {activeAvailability === 'All' && `${t('catalog.availability.label')}: ${t('catalog.availability.all')}`}
@@ -229,13 +225,14 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                 ].map((option) => (
                                     <button
                                         key={option.value}
-                                        onClick={(e) => { 
+                                        onPointerDown={(e) => { 
+                                            e.preventDefault();
                                             e.stopPropagation();
                                             if(onHaptic) onHaptic('light'); 
                                             setActiveAvailability(option.value as AvailabilityFilter); 
                                             setIsAvailabilityOpen(false); 
                                         }}
-                                        className="w-full text-left px-4 py-2 text-[10px] uppercase font-mono hover:bg-white/10 hover:text-pandora-cyan flex items-center justify-between"
+                                        className="w-full text-left px-4 py-3 text-[10px] uppercase font-mono hover:bg-white/10 hover:text-pandora-cyan flex items-center justify-between select-none"
                                     >
                                         <span className={option.color}>{option.label}</span>
                                         {activeAvailability === option.value && <Check size={12} className="text-pandora-cyan" />}
@@ -250,14 +247,14 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                 <div ref={sortRef} className="relative flex-shrink-0 z-50">
                     <button 
                         type="button"
-                        onClick={(e) => { 
+                        onPointerDown={(e) => { 
                             e.preventDefault();
                             e.stopPropagation();
                             if(onHaptic) onHaptic('light'); 
                             setIsSortOpen(prev => !prev); 
                             setIsAvailabilityOpen(false); 
                         }}
-                        className="h-full px-3 sm:px-4 py-2 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm whitespace-nowrap touch-manipulation"
+                        className="h-full px-3 sm:px-4 py-2 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm whitespace-nowrap touch-manipulation select-none"
                     >
                         <span className="uppercase text-[9px] sm:text-[10px] tracking-wider">
                             {sortBy === 'popular' && `${t('catalog.sort.label')}: ${t('catalog.sort.popularity')}`}
@@ -283,13 +280,14 @@ const Catalog: React.FC<CatalogProps> = ({ products: propProducts, onSelectProdu
                                 ].map((option) => (
                                     <button
                                         key={option.value}
-                                        onClick={(e) => { 
+                                        onPointerDown={(e) => { 
+                                            e.preventDefault();
                                             e.stopPropagation();
                                             if(onHaptic) onHaptic('light'); 
                                             setSortBy(option.value as SortOption); 
                                             setIsSortOpen(false); 
                                         }}
-                                        className="w-full text-left px-4 py-2 text-[10px] uppercase font-mono hover:bg-white/10 hover:text-pandora-cyan flex items-center justify-between"
+                                        className="w-full text-left px-4 py-3 text-[10px] uppercase font-mono hover:bg-white/10 hover:text-pandora-cyan flex items-center justify-between select-none"
                                     >
                                         {option.label}
                                         {sortBy === option.value && <Check size={12} className="text-pandora-cyan" />}

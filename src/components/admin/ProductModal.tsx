@@ -1,26 +1,23 @@
 /**
  * ProductModal Component
  * 
- * Modal for creating/editing products.
+ * Модальное окно создания/редактирования товара.
  * 
- * Field mapping (Frontend → Database):
+ * Маппинг полей (Frontend → База данных):
  * - category → type (ai, dev, design, music)
  * - fulfillmentType → fulfillment_type (auto, manual)
  * - price → price
- * - msrp → msrp (strike-through price, shown when msrp > price)
- * - discountPrice → discount_price (price for discount channel)
- * - costPrice → cost_price (cost for accounting)
- * - warranty → warranty_hours
+ * - msrp → msrp (зачёркнутая цена)
+ * - discountPrice → discount_price (цена для скидочного канала)
+ * - costPrice → cost_price (себестоимость)
+ * - warranty → warranty_hours (хранится в часах, UI показывает дни)
  * - duration → duration_days
- * - fulfillment → fulfillment_time_hours (time for on-demand orders)
- * - status → status (active, inactive, discontinued)
- * - requiresPrepayment → requires_prepayment
- * - prepaymentPercent → prepayment_percent
+ * - fulfillment → fulfillment_time_hours
  * 
- * Note: Delivery type (instant/preorder) is determined automatically:
- * - If stock > 0 → INSTANT_DEPLOY
- * - If stock = 0 && fulfillment > 0 → ON_DEMAND (preorder)
- * - If stock = 0 && fulfillment = 0 → DISCONTINUED
+ * Тип доставки определяется автоматически:
+ * - Сток > 0 → INSTANT (мгновенная выдача)
+ * - Сток = 0 && fulfillment > 0 → ON_DEMAND (предзаказ)
+ * - Сток = 0 && fulfillment = 0 → NO_STOCK (недоступен)
  */
 
 import React, { useState, useRef, memo, useEffect } from 'react';
@@ -88,17 +85,23 @@ const ProductModal: React.FC<ProductModalProps> = ({
     fileInputRef.current?.click();
   };
 
-  // Determine delivery type based on stock (read-only display)
+  // Конвертация гарантии: UI (дни) ↔ DB (часы)
+  const warrantyDays = Math.floor((editingProduct?.warranty || 0) / 24);
+  const setWarrantyDays = (days: number) => {
+    setEditingProduct({ ...editingProduct, warranty: days * 24 });
+  };
+
+  // Определение типа доставки (только для отображения)
   const getDeliveryType = () => {
     const stock = editingProduct?.stock || 0;
     const fulfillment = editingProduct?.fulfillment || 0;
     
     if (stock > 0) {
-      return { label: 'INSTANT', color: 'text-green-500', bg: 'bg-green-500/10 border-green-500/30' };
+      return { label: 'INSTANT', color: 'text-green-500', bg: 'bg-green-500/10 border-green-500/30', desc: `${stock} ед. на складе → мгновенная выдача` };
     } else if (fulfillment > 0) {
-      return { label: 'ON_DEMAND', color: 'text-yellow-500', bg: 'bg-yellow-500/10 border-yellow-500/30' };
+      return { label: 'ON_DEMAND', color: 'text-yellow-500', bg: 'bg-yellow-500/10 border-yellow-500/30', desc: `Нет на складе → предзаказ (~${fulfillment}ч)` };
     } else {
-      return { label: 'NO_STOCK', color: 'text-red-500', bg: 'bg-red-500/10 border-red-500/30' };
+      return { label: 'NO_STOCK', color: 'text-red-500', bg: 'bg-red-500/10 border-red-500/30', desc: 'Сток не настроен' };
     }
   };
 
@@ -119,11 +122,11 @@ const ProductModal: React.FC<ProductModalProps> = ({
           exit={{ scale: 0.9, opacity: 0 }}
           className="relative w-full max-w-3xl bg-[#080808] border border-white/20 p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
         >
-          {/* Header */}
+          {/* Заголовок */}
           <div className="flex justify-between items-center mb-6">
             <div>
               <h3 className="text-xl font-display font-bold text-white">
-                {editingProduct?.id ? `EDIT: ${editingProduct.name}` : 'NEW PRODUCT'}
+                {editingProduct?.id ? `РЕДАКТИРОВАНИЕ: ${editingProduct.name}` : 'НОВЫЙ ТОВАР'}
               </h3>
               {editingProduct?.id && (
                 <p className="text-[10px] text-gray-500 font-mono mt-1">ID: {editingProduct.id}</p>
@@ -134,36 +137,29 @@ const ProductModal: React.FC<ProductModalProps> = ({
             </button>
           </div>
 
-          {/* Delivery Type Indicator (Auto-calculated) */}
+          {/* Индикатор типа доставки (автоматический) */}
           <div className={`mb-6 p-3 border ${deliveryType.bg} rounded-sm flex items-center justify-between`}>
             <div className="flex items-center gap-3">
               <Zap size={16} className={deliveryType.color} />
               <div>
                 <span className={`text-xs font-mono font-bold ${deliveryType.color}`}>
-                  DEPLOY_MODE: {deliveryType.label}
+                  РЕЖИМ_ДОСТАВКИ: {deliveryType.label}
                 </span>
-                <p className="text-[10px] text-gray-500 mt-0.5">
-                  {editingProduct?.stock && editingProduct.stock > 0 
-                    ? `${editingProduct.stock} units in stock → instant delivery`
-                    : editingProduct?.fulfillment && editingProduct.fulfillment > 0
-                      ? `No stock → on-demand (~${editingProduct.fulfillment}h)`
-                      : 'No stock configured'
-                  }
-                </p>
+                <p className="text-[10px] text-gray-500 mt-0.5">{deliveryType.desc}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-[10px] text-gray-500">
               <Info size={12} />
-              Auto-calculated
+              Авто
             </div>
           </div>
 
-          {/* Tabs */}
+          {/* Вкладки */}
           <div className="flex gap-1 border-b border-white/10 mb-6">
             {[
-              { id: 'general' as const, label: 'General', icon: Package },
-              { id: 'pricing' as const, label: 'Pricing', icon: DollarSign },
-              { id: 'inventory' as const, label: 'Inventory', icon: Terminal },
+              { id: 'general' as const, label: 'Основное', icon: Package },
+              { id: 'pricing' as const, label: 'Цены', icon: DollarSign },
+              { id: 'inventory' as const, label: 'Склад', icon: Terminal },
             ].map(tab => (
               <button 
                 key={tab.id}
@@ -180,16 +176,16 @@ const ProductModal: React.FC<ProductModalProps> = ({
             ))}
           </div>
 
-          {/* Tab Content */}
+          {/* Содержимое вкладок */}
           {activeTab === 'general' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Media Section */}
+              {/* Медиа */}
               <div className="col-span-1 md:col-span-2 bg-[#050505] p-4 border border-white/10 rounded-sm">
                 <h4 className="text-xs font-mono text-gray-500 uppercase mb-3 flex items-center gap-2">
-                  <ImageIcon size={14} /> Media Assets
+                  <ImageIcon size={14} /> Медиа
                 </h4>
                 <div className="flex gap-4 items-start">
-                  {/* Image Upload Area */}
+                  {/* Загрузка изображения */}
                   <div 
                     className="relative group w-32 h-32 bg-black border border-white/20 flex items-center justify-center cursor-pointer hover:border-pandora-cyan transition-colors rounded-sm" 
                     onClick={triggerFileInput}
@@ -198,12 +194,12 @@ const ProductModal: React.FC<ProductModalProps> = ({
                       <img 
                         src={editingProduct.image} 
                         className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity rounded-sm" 
-                        alt="Product" 
+                        alt="Товар" 
                       />
                     ) : (
                       <div className="text-center text-gray-500 group-hover:text-pandora-cyan">
                         <Upload size={24} className="mx-auto mb-1" />
-                        <span className="text-[9px] uppercase">Upload</span>
+                        <span className="text-[9px] uppercase">Загрузить</span>
                       </div>
                     )}
                     <input 
@@ -215,11 +211,11 @@ const ProductModal: React.FC<ProductModalProps> = ({
                     />
                   </div>
 
-                  {/* URLs Section */}
+                  {/* URL */}
                   <div className="flex-1 space-y-3">
                     <div>
                       <label className="text-[10px] text-gray-500 block mb-1 uppercase">
-                        Image URL
+                        URL изображения
                       </label>
                       <input 
                         type="text" 
@@ -231,92 +227,92 @@ const ProductModal: React.FC<ProductModalProps> = ({
                     </div>
                     <div>
                       <label className="text-[10px] text-gray-500 mb-1 uppercase flex items-center gap-1">
-                        <Video size={10} /> Video URL (optional)
+                        <Video size={10} /> URL видео (опционально)
                       </label>
                       <input 
                         type="text" 
                         value={editingProduct?.video || ''}
                         onChange={(e) => setEditingProduct({...editingProduct, video: e.target.value})}
                         className="w-full bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm" 
-                        placeholder="https://youtube.com/... or .webm/.mp4"
+                        placeholder="https://youtube.com/... или .webm/.mp4"
                       />
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Product Name */}
+              {/* Название */}
               <div className="col-span-1 md:col-span-2">
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Product Name *</label>
+                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Название товара *</label>
                 <input 
                   type="text" 
                   value={editingProduct?.name || ''}
                   onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})}
                   className="w-full bg-black border border-white/20 p-2.5 text-sm text-white focus:border-pandora-cyan outline-none rounded-sm" 
-                  placeholder="e.g. Cursor IDE (7 day)"
+                  placeholder="например: Cursor IDE (7 дней)"
                 />
               </div>
 
-              {/* Description */}
+              {/* Описание */}
               <div className="col-span-1 md:col-span-2">
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Description</label>
+                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Описание</label>
                 <textarea 
                   value={editingProduct?.description || ''}
                   onChange={(e) => setEditingProduct({...editingProduct, description: e.target.value})}
                   className="w-full h-20 bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none resize-none rounded-sm" 
-                  placeholder="Product description..." 
+                  placeholder="Описание товара..." 
                 />
               </div>
 
-              {/* Category */}
+              {/* Категория */}
               <div>
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Category *</label>
+                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Категория *</label>
                 <select 
                   value={editingProduct?.category || 'ai'}
                   onChange={(e) => setEditingProduct({...editingProduct, category: e.target.value})}
                   className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
                 >
-                  <option value="ai">AI & Text</option>
-                  <option value="dev">Development</option>
-                  <option value="design">Design & Image</option>
-                  <option value="music">Audio & Music</option>
+                  <option value="ai">AI & Текст</option>
+                  <option value="dev">Разработка</option>
+                  <option value="design">Дизайн & Графика</option>
+                  <option value="music">Аудио & Музыка</option>
                 </select>
               </div>
 
-              {/* Status */}
+              {/* Статус */}
               <div>
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Status</label>
+                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Статус</label>
                 <select 
                   value={editingProduct?.status || 'active'}
                   onChange={(e) => setEditingProduct({...editingProduct, status: e.target.value})}
                   className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
                 >
-                  <option value="active">Active (Visible)</option>
-                  <option value="inactive">Inactive (Hidden)</option>
-                  <option value="discontinued">Discontinued</option>
+                  <option value="active">Активен (виден)</option>
+                  <option value="inactive">Неактивен (скрыт)</option>
+                  <option value="discontinued">Снят с продажи</option>
                 </select>
               </div>
 
-              {/* Fulfillment Type */}
+              {/* Тип выдачи */}
               <div>
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Fulfillment Type</label>
+                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Тип выдачи</label>
                 <select 
                   value={editingProduct?.fulfillmentType || 'auto'}
                   onChange={(e) => setEditingProduct({...editingProduct, fulfillmentType: e.target.value})}
                   className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
                 >
-                  <option value="auto">Auto (from stock_items)</option>
-                  <option value="manual">Manual (admin delivers)</option>
+                  <option value="auto">Автоматически (из склада)</option>
+                  <option value="manual">Вручную (админ отправляет)</option>
                 </select>
                 <p className="text-[9px] text-gray-600 mt-1">
-                  Auto: credentials from stock_items • Manual: admin sends manually
+                  Авто: данные из stock_items • Вручную: админ отправляет сам
                 </p>
               </div>
 
-              {/* Fulfillment Time (for on-demand) */}
+              {/* Время выполнения (для предзаказов) */}
               <div>
                 <label className="text-[10px] text-gray-500 block mb-1 uppercase flex items-center gap-1">
-                  <Clock size={10} /> Fulfillment Time (hours)
+                  <Clock size={10} /> Время выполнения (часов)
                 </label>
                 <input 
                   type="number" 
@@ -326,13 +322,13 @@ const ProductModal: React.FC<ProductModalProps> = ({
                   min={0}
                 />
                 <p className="text-[9px] text-gray-600 mt-1">
-                  Time to fulfill on-demand orders (0 = instant only)
+                  Для предзаказов (0 = только при наличии стока)
                 </p>
               </div>
 
-              {/* Duration */}
+              {/* Срок действия */}
               <div>
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Duration (days)</label>
+                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Срок действия (дней)</label>
                 <input 
                   type="number" 
                   value={editingProduct?.duration || 30}
@@ -341,33 +337,33 @@ const ProductModal: React.FC<ProductModalProps> = ({
                   min={1}
                 />
                 <p className="text-[9px] text-gray-600 mt-1">
-                  Subscription/license duration
+                  Длительность подписки/лицензии
                 </p>
               </div>
 
-              {/* Warranty */}
+              {/* Гарантия */}
               <div>
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Warranty (hours)</label>
+                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Гарантия (дней)</label>
                 <input 
                   type="number" 
-                  value={editingProduct?.warranty || 168}
-                  onChange={(e) => setEditingProduct({...editingProduct, warranty: Number(e.target.value)})}
+                  value={warrantyDays}
+                  onChange={(e) => setWarrantyDays(Number(e.target.value))}
                   className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm" 
                   min={0}
                 />
                 <p className="text-[9px] text-gray-600 mt-1">
-                  Replacement guarantee period (168h = 7 days)
+                  Период гарантийной замены
                 </p>
               </div>
 
-              {/* Instructions */}
+              {/* Инструкции */}
               <div className="col-span-1 md:col-span-2">
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Access Instructions</label>
+                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Инструкция по активации</label>
                 <textarea 
                   value={editingProduct?.instructions || ''}
                   onChange={(e) => setEditingProduct({...editingProduct, instructions: e.target.value})}
                   className="w-full h-24 bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none resize-none rounded-sm font-mono" 
-                  placeholder="1. Go to https://...&#10;2. Enter credentials&#10;3. ..." 
+                  placeholder="1. Перейдите на https://...&#10;2. Введите данные&#10;3. ..." 
                 />
               </div>
             </div>
@@ -375,14 +371,14 @@ const ProductModal: React.FC<ProductModalProps> = ({
 
           {activeTab === 'pricing' && (
             <div className="space-y-6">
-              {/* Main Pricing */}
+              {/* Основные цены */}
               <div className="bg-[#050505] p-4 border border-white/10 rounded-sm">
                 <h4 className="text-xs font-mono text-gray-500 uppercase mb-4 flex items-center gap-2">
-                  <DollarSign size={14} /> Main Pricing
+                  <DollarSign size={14} /> Цены
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">Price (USD) *</label>
+                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">Цена (USD) *</label>
                     <div className="relative">
                       <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">$</span>
                       <input 
@@ -395,12 +391,12 @@ const ProductModal: React.FC<ProductModalProps> = ({
                       />
                     </div>
                     <p className="text-[9px] text-gray-600 mt-1">
-                      Main selling price
+                      Основная цена продажи
                     </p>
                   </div>
                   
                   <div>
-                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">MSRP (Strike Price)</label>
+                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">MSRP (зачёркнутая)</label>
                     <div className="relative">
                       <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">$</span>
                       <input 
@@ -413,12 +409,12 @@ const ProductModal: React.FC<ProductModalProps> = ({
                       />
                     </div>
                     <p className="text-[9px] text-gray-600 mt-1">
-                      Original price (crossed out if &gt; price)
+                      Показывается зачёркнутой если &gt; цены
                     </p>
                   </div>
                   
                   <div>
-                    <label className="text-[10px] text-yellow-500 block mb-1 uppercase">Discount Channel Price</label>
+                    <label className="text-[10px] text-yellow-500 block mb-1 uppercase">Цена скидочного канала</label>
                     <div className="relative">
                       <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">$</span>
                       <input 
@@ -431,20 +427,20 @@ const ProductModal: React.FC<ProductModalProps> = ({
                       />
                     </div>
                     <p className="text-[9px] text-gray-600 mt-1">
-                      Price for discount bot channel
+                      Цена для скидочного бота
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Cost & Margin */}
+              {/* Себестоимость и маржа */}
               <div className="bg-[#050505] p-4 border border-white/10 rounded-sm">
                 <h4 className="text-xs font-mono text-gray-500 uppercase mb-4 flex items-center gap-2">
-                  <Terminal size={14} /> Cost & Margin (Internal)
+                  <Terminal size={14} /> Себестоимость и маржа (внутреннее)
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">Cost Price (USD)</label>
+                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">Себестоимость (USD)</label>
                     <div className="relative">
                       <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">$</span>
                       <input 
@@ -457,12 +453,12 @@ const ProductModal: React.FC<ProductModalProps> = ({
                       />
                     </div>
                     <p className="text-[9px] text-gray-600 mt-1">
-                      Your acquisition cost
+                      Ваши затраты на единицу
                     </p>
                   </div>
                   
                   <div>
-                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">Margin</label>
+                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">Маржа</label>
                     <div className="p-2.5 bg-black/50 border border-white/10 rounded-sm">
                       {editingProduct?.price && editingProduct?.costPrice ? (
                         <>
@@ -478,44 +474,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
                       )}
                     </div>
                     <p className="text-[9px] text-gray-600 mt-1">
-                      Calculated: price - cost
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Prepayment Settings */}
-              <div className="bg-[#050505] p-4 border border-white/10 rounded-sm">
-                <h4 className="text-xs font-mono text-gray-500 uppercase mb-4 flex items-center gap-2">
-                  <Clock size={14} /> Prepayment (On-Demand)
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3 p-3 bg-black border border-white/20 rounded-sm">
-                    <input 
-                      type="checkbox" 
-                      id="requiresPrepayment"
-                      checked={editingProduct?.requiresPrepayment || false}
-                      onChange={(e) => setEditingProduct({...editingProduct, requiresPrepayment: e.target.checked})}
-                      className="accent-pandora-cyan w-4 h-4" 
-                    />
-                    <label htmlFor="requiresPrepayment" className="text-xs text-white uppercase font-bold cursor-pointer">
-                      Requires Prepayment
-                    </label>
-                  </div>
-                  
-                  <div>
-                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">Prepayment %</label>
-                    <input 
-                      type="number" 
-                      value={editingProduct?.prepaymentPercent || 100}
-                      onChange={(e) => setEditingProduct({...editingProduct, prepaymentPercent: Number(e.target.value)})}
-                      className="w-full bg-black border border-white/20 p-2.5 text-sm text-white font-mono focus:border-pandora-cyan outline-none rounded-sm disabled:opacity-50" 
-                      min={0}
-                      max={100}
-                      disabled={!editingProduct?.requiresPrepayment}
-                    />
-                    <p className="text-[9px] text-gray-600 mt-1">
-                      % to pay upfront for preorders
+                      Рассчитывается: цена - себестоимость
                     </p>
                   </div>
                 </div>
@@ -525,21 +484,21 @@ const ProductModal: React.FC<ProductModalProps> = ({
 
           {activeTab === 'inventory' && (
             <div className="space-y-4">
-              {/* Current Stock Info */}
+              {/* Текущий сток */}
               <div className="bg-[#050505] p-4 border border-white/10 rounded-sm">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h4 className="text-xs font-mono text-gray-500 uppercase mb-1">Current Stock</h4>
+                    <h4 className="text-xs font-mono text-gray-500 uppercase mb-1">Текущий сток</h4>
                     <span className={`text-2xl font-mono font-bold ${
                       (editingProduct?.stock || 0) > 0 ? 'text-green-500' : 'text-red-500'
                     }`}>
                       {editingProduct?.stock || 0}
                     </span>
-                    <span className="text-xs text-gray-500 ml-2">units available</span>
+                    <span className="text-xs text-gray-500 ml-2">единиц доступно</span>
                   </div>
                   {editingProduct?.sold && editingProduct.sold > 0 && (
                     <div className="text-right">
-                      <h4 className="text-xs font-mono text-gray-500 uppercase mb-1">Sold</h4>
+                      <h4 className="text-xs font-mono text-gray-500 uppercase mb-1">Продано</h4>
                       <span className="text-2xl font-mono font-bold text-pandora-cyan">
                         {editingProduct.sold}
                       </span>
@@ -547,70 +506,68 @@ const ProductModal: React.FC<ProductModalProps> = ({
                   )}
                 </div>
                 <p className="text-[9px] text-gray-600 mt-3 border-t border-white/10 pt-3">
-                  Stock is calculated from stock_items table. Add credentials below to increase stock.
+                  Сток считается из таблицы stock_items. Добавьте данные ниже для пополнения.
                 </p>
               </div>
 
-              {/* Bulk Upload */}
+              {/* Массовая загрузка */}
               <div className="bg-[#050505] p-4 border border-green-500/20 rounded-sm">
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-xs font-mono text-green-500 flex items-center gap-2">
-                    <Terminal size={12} /> BULK CREDENTIAL UPLOAD
+                    <Terminal size={12} /> МАССОВАЯ ЗАГРУЗКА ДАННЫХ
                   </span>
                   <span className="text-[10px] text-gray-500 font-mono">
-                    {inventoryText.split('\n').filter(l => l.trim()).length} ITEMS DETECTED
+                    {inventoryText.split('\n').filter(l => l.trim()).length} ЗАПИСЕЙ
                   </span>
                 </div>
                 <textarea 
                   value={inventoryText}
                   onChange={(e) => setInventoryText(e.target.value)}
-                  placeholder={`Paste credentials here, one per line:
+                  placeholder={`Вставьте данные, по одному на строку:
 user@email.com:password123
 api_key_abc123
 license_key_xyz789`}
                   className="w-full h-48 bg-black border border-white/10 p-3 text-xs font-mono text-green-400 focus:border-green-500/50 outline-none resize-none rounded-sm"
                 />
                 <p className="text-[9px] text-gray-600 mt-2">
-                  Each line = 1 stock item. Will be added via /api/admin/stock/bulk endpoint.
+                  Каждая строка = 1 единица стока. Добавляется через API /api/admin/stock/bulk
                 </p>
               </div>
               
               <div className="flex justify-end">
                 <button 
                   onClick={() => {
-                    // This should trigger the bulk upload API
-                    // For now, just show count
                     const lines = inventoryText.split('\n').filter(l => l.trim());
                     if (lines.length > 0) {
-                      alert(`Will add ${lines.length} items via API.\nNote: Save product first, then use Inventory tab to add stock.`);
+                      alert(`Будет добавлено ${lines.length} единиц через API.\nПримечание: сначала сохраните товар.`);
                     }
                   }}
                   disabled={!inventoryText.trim()}
                   className="bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-black disabled:text-gray-500 font-bold py-2 px-6 text-xs uppercase flex items-center gap-2 rounded-sm transition-colors"
                 >
-                  <Plus size={14} /> Add to Stock
+                  <Plus size={14} /> Добавить на склад
                 </button>
               </div>
             </div>
           )}
 
-          {/* Footer */}
+          {/* Подвал */}
           <div className="mt-8 pt-4 border-t border-white/10 flex justify-between items-center">
             <p className="text-[10px] text-gray-600">
-              * Required fields
+              * Обязательные поля
             </p>
             <div className="flex gap-3">
               <button 
                 onClick={onClose} 
                 className="px-4 py-2 border border-white/10 text-xs font-bold text-gray-400 hover:text-white hover:border-white/30 rounded-sm transition-colors"
               >
-                CANCEL
+                ОТМЕНА
               </button>
               <button 
                 onClick={() => onSave(editingProduct)} 
                 className="px-6 py-2 bg-pandora-cyan text-black text-xs font-bold hover:bg-white flex items-center gap-2 rounded-sm transition-colors"
               >
-                <Save size={14} /> SAVE PRODUCT
+                <Save size={14} /> СОХРАНИТЬ
               </button>
             </div>
           </div>

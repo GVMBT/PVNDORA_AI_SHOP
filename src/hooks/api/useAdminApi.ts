@@ -42,10 +42,6 @@ export interface AdminProduct {
   duration: number;  // duration_days
   status: 'active' | 'inactive' | 'discontinued';
   
-  // Prepayment
-  requiresPrepayment?: boolean;
-  prepaymentPercent?: number;
-  
   // Stock (read-only, calculated)
   stock: number;
   sold: number;

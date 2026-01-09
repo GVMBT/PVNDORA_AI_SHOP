@@ -43,13 +43,9 @@ class CreateProductRequest(BaseModel):
     fulfillment: int = 0  # fulfillment_time_hours
     
     # Product Settings
-    warranty: int = 168  # warranty_hours
+    warranty: int = 168  # warranty_hours (stored in hours, UI shows days)
     duration: int = 30  # duration_days
     status: str = "active"
-    
-    # Prepayment
-    requiresPrepayment: bool = False
-    prepaymentPercent: int = 100
     
     # Media
     image: Optional[str] = None  # image_url

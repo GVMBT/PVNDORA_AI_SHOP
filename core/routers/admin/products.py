@@ -45,10 +45,6 @@ async def admin_create_product(request: CreateProductRequest, admin=Depends(veri
         "duration_days": request.duration,
         "status": request.status,
         
-        # Prepayment
-        "requires_prepayment": request.requiresPrepayment,
-        "prepayment_percent": request.prepaymentPercent,
-        
         # Media
         "image_url": request.image,
         
@@ -117,10 +113,6 @@ async def admin_get_products(admin=Depends(verify_admin)):
             "duration": p.get("duration_days", 30),
             "status": p.get("status", "active"),
             
-            # Prepayment
-            "requiresPrepayment": p.get("requires_prepayment", False),
-            "prepaymentPercent": p.get("prepayment_percent", 100),
-            
             # Stock (read-only, calculated)
             "stock": stock_count,
             "sold": sold_count,
@@ -165,10 +157,6 @@ async def admin_update_product(product_id: str, request: CreateProductRequest, a
         "warranty_hours": request.warranty,
         "duration_days": request.duration,
         "status": request.status,
-        
-        # Prepayment
-        "requires_prepayment": request.requiresPrepayment,
-        "prepayment_percent": request.prepaymentPercent,
         
         # Media
         "image_url": request.image,

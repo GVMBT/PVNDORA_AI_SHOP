@@ -27,10 +27,6 @@ export interface ProductData {
   duration: number;  // duration_days
   status?: string;  // active, inactive, discontinued
   
-  // Prepayment (for on-demand)
-  requiresPrepayment?: boolean;
-  prepaymentPercent?: number;
-  
   // Stock (read-only, calculated from stock_items)
   stock: number;
   sold: number;
