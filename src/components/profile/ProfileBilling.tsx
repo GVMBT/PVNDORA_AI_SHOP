@@ -49,9 +49,9 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
 
   // Localized type labels
   const typeLabels: Record<string, string> = {
-    INCOME: language === 'ru' ? 'ДОХОД' : 'INCOME',
-    OUTCOME: language === 'ru' ? 'РАСХОД' : 'OUTCOME',
-    SYSTEM: language === 'ru' ? 'СИСТЕМА' : 'SYSTEM',
+    INCOME: t('profile.billing.transaction.income'),
+    OUTCOME: t('profile.billing.transaction.outcome'),
+    SYSTEM: t('profile.billing.transaction.system'),
   };
 
   return (

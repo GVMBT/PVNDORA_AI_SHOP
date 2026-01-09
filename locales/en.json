@@ -547,6 +547,10 @@
     "pendingRewards": "Pending Packets",
     "network": {
       "title": "MY NETWORK",
+      "scanner": "NETWORK_SCANNER",
+      "lineLabel": "LINE {line}",
+      "noData": "NO_DATA_ON_LINE_{line}",
+      "commission": "COMMISSION",
       "level": "LVL {level}",
       "locked": "LOCKED",
       "empty": "NO DOWNLINKS",
@@ -594,6 +598,9 @@
       "bonusFrom": "Yield ({level})",
       "order": "Op",
       "transaction": {
+        "income": "INCOME",
+        "outcome": "OUTCOME",
+        "system": "SYSTEM",
         "topup": "Balance top-up",
         "purchase": "Order payment",
         "refund": "Refund",

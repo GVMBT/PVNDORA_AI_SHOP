@@ -236,6 +236,8 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
             <ProfileNetwork
               nodes={networkTree}
               networkLine={networkLine}
+              currency={user.currency || 'USD'}
+              exchangeRate={user.exchangeRate || 1}
               onLineChange={changeLine}
               onNodeClick={handleOpenDossier}
             />
