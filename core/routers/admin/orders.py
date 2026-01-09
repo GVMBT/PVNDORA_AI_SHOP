@@ -33,7 +33,7 @@ async def admin_get_orders(
     
     def execute_query():
         query = db.client.table("orders").select(
-            "id, status, amount, payment_method, payment_gateway, created_at, source_channel, "
+            "id, status, amount, fiat_amount, fiat_currency, payment_method, payment_gateway, created_at, source_channel, "
             "users(telegram_id, username, first_name), "
             "order_items(product_id, quantity, products(name))"
         ).order("created_at", desc=True).range(offset, offset + limit - 1)
@@ -66,12 +66,18 @@ async def admin_get_orders(
         
         created_at = order.get("created_at")
         
+        # Fiat fields
+        fiat_amount = order.get("fiat_amount")
+        fiat_currency = order.get("fiat_currency")
+        
         formatted_orders.append({
             "id": order.get("id"),  # Full UUID for API compatibility
             "user_id": user_data.get("telegram_id"),
             "user_handle": user_handle,
             "product_name": product_name,
             "amount": float(order.get("amount", 0)),
+            "fiat_amount": float(fiat_amount) if fiat_amount is not None else None,
+            "fiat_currency": fiat_currency,
             "status": order.get("status", "pending"),
             "payment_method": order.get("payment_method", "unknown"),
             "source_channel": order.get("source_channel", "main"),  # main, discount, webapp

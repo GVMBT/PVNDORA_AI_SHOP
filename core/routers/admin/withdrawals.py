@@ -361,7 +361,7 @@ async def complete_withdrawal(
         # Get withdrawal request with user info for notification
         withdrawal_result = await asyncio.to_thread(
             lambda: db.client.table("withdrawal_requests")
-            .select("id, status, amount, payment_method, users!withdrawal_requests_user_id_fkey(telegram_id)")
+            .select("id, status, amount, amount_to_pay, payment_method, users!withdrawal_requests_user_id_fkey(telegram_id)")
             .eq("id", withdrawal_id)
             .single()
             .execute()
@@ -377,7 +377,8 @@ async def complete_withdrawal(
                 detail=f"Withdrawal must be in 'processing' status to be completed. Current status: {withdrawal['status']}"
             )
         
-        amount = float(withdrawal["amount"])
+        # Use amount_to_pay (USDT) if available, else legacy amount
+        amount_to_pay = float(withdrawal.get("amount_to_pay") or withdrawal["amount"])
         payment_method = withdrawal.get("payment_method", "unknown")
         user_telegram_id = withdrawal.get("users", {}).get("telegram_id") if withdrawal.get("users") else None
         
@@ -403,8 +404,8 @@ async def complete_withdrawal(
                 notification_service = get_notification_service()
                 await notification_service.send_withdrawal_completed_notification(
                     telegram_id=user_telegram_id,
-                    amount=amount,
-                    currency="USD",
+                    amount=amount_to_pay,
+                    currency="USDT",
                     method=payment_method
                 )
             except Exception as e:

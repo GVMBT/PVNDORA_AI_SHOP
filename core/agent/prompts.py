@@ -107,11 +107,11 @@ User may send message with this format:
 ```
 Extract Order ID and Item ID → create replacement ticket immediately.
 
-## CURRENCY RULES
-- Database stores prices in **USD**
-- Tools automatically convert to user's currency ({currency})
-- **ALWAYS use `price_formatted` field from tool responses exactly as-is**
-- NEVER format prices yourself — use what tools return
+    ## CURRENCY RULES
+    - Prices are shown in **{currency}**
+    - Tools automatically handle currency conversion
+    - **ALWAYS use `price_formatted` field from tool responses exactly as-is**
+    - NEVER format prices yourself — use what tools return
 
 ## REFERRAL SYSTEM (get values from get_referral_info)
 - Career levels: LOCKED → PROXY → OPERATOR → ARCHITECT
@@ -185,19 +185,13 @@ async def format_product_catalog(products: list, language: str = "en", exchange_
     out_of_stock = []
     
     for p in products:
-        price_usd = float(getattr(p, "price", 0) or 0)
         stock = getattr(p, "stock_count", 0) or 0
         name = getattr(p, "name", "Unknown")
         pid = getattr(p, "id", "")
         
-        # Convert price using exchange rate
-        if currency != "USD" and exchange_rate > 1:
-            price_converted = price_usd * exchange_rate
-        else:
-            price_converted = price_usd
-        
-        # Format price using CurrencyService
-        price_str = currency_service.format_price(price_converted, currency)
+        # Use Anchor Price
+        price_val = await currency_service.get_anchor_price(p, currency)
+        price_str = currency_service.format_price(price_val, currency)
         
         entry = f"• {name} | {price_str} | ID: {pid}"
         
