@@ -144,6 +144,8 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     return () => { isMounted = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ALL useMemo hooks MUST be before any conditional returns (Rules of Hooks)
+  
   // Memoized transformations
   const transformedProducts = useMemo(() => 
     products.map(p => ({
@@ -224,6 +226,25 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     }))
   , [tickets]);
 
+  // Transform withdrawals for admin panel - MUST be before conditional return
+  const transformedWithdrawals = useMemo(() => 
+    withdrawals.map((w: any) => ({
+      id: w.id,
+      user_id: w.user_id,
+      telegram_id: w.telegram_id,
+      username: w.username,
+      first_name: w.first_name,
+      amount: w.amount || 0,
+      payment_method: w.payment_method,
+      payment_details: w.payment_details,
+      status: w.status || 'pending',
+      admin_comment: w.admin_comment,
+      created_at: w.created_at,
+      processed_at: w.processed_at,
+      user_balance: w.user_balance
+    }))
+  , [withdrawals]);
+
   const transformedStats = useMemo(() => {
     if (!analytics) return undefined;
     return {
@@ -293,38 +314,19 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     await deleteProduct(productId);
   }, [deleteProduct]);
 
-  // Loading state
+  // Loading state - AFTER all hooks
   if (!isInitialized) {
     return (
       <div className="fixed inset-0 z-[100] bg-[#050505] flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <div className="font-mono text-xs text-gray-500 uppercase tracking-widest">
-            Initializing Admin Terminal...
+            Загрузка админ-панели...
           </div>
         </div>
       </div>
     );
   }
-
-  // Transform withdrawals for admin panel
-  const transformedWithdrawals = useMemo(() => 
-    withdrawals.map((w: any) => ({
-      id: w.id,
-      user_id: w.user_id,
-      telegram_id: w.telegram_id,
-      username: w.username,
-      first_name: w.first_name,
-      amount: w.amount || 0,
-      payment_method: w.payment_method,
-      payment_details: w.payment_details,
-      status: w.status || 'pending',
-      admin_comment: w.admin_comment,
-      created_at: w.created_at,
-      processed_at: w.processed_at,
-      user_balance: w.user_balance
-    }))
-  , [withdrawals]);
 
   return (
     <AdminPanel 

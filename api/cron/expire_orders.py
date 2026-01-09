@@ -5,7 +5,7 @@ Schedule: */5 * * * * (every 5 minutes)
 Tasks:
 1. Cancel pending orders that have expired (expires_at < now)
 2. Release reserved stock items for cancelled orders
-3. Handle stale orders without expires_at (fallback: older than 60 min)
+3. Handle stale orders without expires_at (fallback: older than 15 min - matches payment timeout)
 """
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request
@@ -75,8 +75,8 @@ async def expire_orders_entrypoint(request: Request):
         results["tasks"]["expired_orders"] = cancelled_count
         results["tasks"]["released_stock"] = released_stock_count
         
-        # 2. Get stale pending orders without expires_at (fallback: older than 60 min)
-        stale_orders = await db._orders.get_pending_stale(minutes=60)
+        # 2. Get stale pending orders without expires_at (fallback: older than 15 min - matches payment timeout)
+        stale_orders = await db._orders.get_pending_stale(minutes=15)
         stale_cancelled = 0
         
         for order in stale_orders:

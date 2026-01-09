@@ -68,8 +68,8 @@ async def unified_cron_entrypoint(request: Request):
             except Exception as e:
                 logger.error(f"Failed to expire order {order.id}: {e}")
         
-        # Also handle stale orders (no expires_at, older than 60 min)
-        stale_orders = await db._orders.get_pending_stale(minutes=60)
+        # Also handle stale orders (no expires_at, older than 15 min - matches payment timeout)
+        stale_orders = await db._orders.get_pending_stale(minutes=15)
         for order in stale_orders:
             try:
                 if order.stock_item_id:

@@ -22,13 +22,11 @@ interface AdminUsersProps {
 const AdminUsers: React.FC<AdminUsersProps> = ({
   users,
   onBanUser,
-  onUpdateBalance,
   onRefresh,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'USER' | 'VIP' | 'ADMIN'>('ALL');
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
-  const [vipLevel, setVipLevel] = useState(3);
   const [processing, setProcessing] = useState(false);
   const [balanceModal, setBalanceModal] = useState<UserData | null>(null);
   const [balanceAmount, setBalanceAmount] = useState('');
@@ -72,25 +70,27 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
     }
   };
 
-  // Set VIP status manually
-  const handleSetVIP = async (isPartner: boolean) => {
+  // Toggle VIP status (simple on/off, VIP always gets full access with ARCHITECT status)
+  const handleToggleVIP = async () => {
     if (!selectedUser) return;
     setProcessing(true);
+    
+    const isCurrentlyVIP = selectedUser.role === 'VIP';
     
     try {
       await apiRequest(`${API.ADMIN_URL}/users/${selectedUser.username}/vip`, {
         method: 'POST',
         body: JSON.stringify({
-          is_partner: isPartner,
-          partner_level_override: isPartner ? vipLevel : null
+          is_partner: !isCurrentlyVIP,
+          // VIP always gets full access (level 3) - no partial levels
+          partner_level_override: !isCurrentlyVIP ? 3 : null
         })
       });
       
       setSelectedUser(null);
-      setVipLevel(3);
       if (onRefresh) onRefresh();
     } catch (err) {
-      logger.error('Failed to set VIP status', err);
+      logger.error('Failed to toggle VIP status', err);
       alert('Ошибка при изменении VIP статуса');
     } finally {
       setProcessing(false);
@@ -247,7 +247,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                             ? 'border-yellow-500/30 text-yellow-400 hover:border-yellow-500'
                             : 'border-white/10 text-gray-400 hover:border-yellow-500 hover:text-yellow-400'
                         }`}
-                        title="Управление VIP"
+                        title={u.role === 'VIP' ? 'Отозвать VIP' : 'Назначить VIP'}
                       >
                         <Crown size={14} />
                       </button>
@@ -353,7 +353,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
         )}
       </div>
 
-      {/* VIP Modal */}
+      {/* VIP Modal - Simplified toggle */}
       <AnimatePresence>
         {selectedUser && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
@@ -371,7 +371,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                 <div>
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <Crown size={18} className="text-yellow-500" />
-                    Управление VIP
+                    VIP Статус
                   </h3>
                   <p className="text-xs text-gray-500 mt-1">
                     @{selectedUser.username}
@@ -386,56 +386,54 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
               </div>
 
               {/* Current Status */}
-              <div className="bg-white/5 p-3 border border-white/10 mb-4">
-                <div className="text-[10px] text-gray-500 uppercase mb-1">Текущий статус</div>
-                <div className="flex items-center gap-2">
+              <div className="bg-white/5 p-4 border border-white/10 mb-6">
+                <div className="text-[10px] text-gray-500 uppercase mb-2">Текущий статус</div>
+                <div className="flex items-center gap-3">
                   {getRoleBadge(selectedUser.role)}
                   {selectedUser.role === 'VIP' && (
-                    <span className="text-xs text-gray-400">Уровень {selectedUser.level || '?'}</span>
+                    <span className="text-xs text-yellow-400">ARCHITECT • Полный доступ</span>
                   )}
                 </div>
               </div>
 
-              {/* VIP Level Selection */}
-              {selectedUser.role !== 'VIP' && (
-                <div className="mb-4">
-                  <label className="text-[10px] text-gray-500 uppercase mb-1 block">
-                    Уровень VIP
-                  </label>
-                  <select
-                    value={vipLevel}
-                    onChange={(e) => setVipLevel(Number(e.target.value))}
-                    className="w-full bg-black border border-white/20 p-2 text-white text-sm focus:border-pandora-cyan outline-none"
-                  >
-                    <option value={1}>Уровень 1 (базовый)</option>
-                    <option value={2}>Уровень 2</option>
-                    <option value={3}>Уровень 3 (полный)</option>
-                  </select>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex gap-3">
+              {/* Info about VIP */}
+              <div className="text-xs text-gray-500 mb-6 p-3 bg-black/50 border border-white/10">
                 {selectedUser.role === 'VIP' ? (
-                  <button
-                    onClick={() => handleSetVIP(false)}
-                    disabled={processing}
-                    className="flex-1 py-2.5 bg-red-500 text-white font-bold text-sm hover:bg-red-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    <X size={16} />
-                    Отозвать VIP
-                  </button>
+                  <>
+                    <p className="mb-2">VIP пользователь имеет:</p>
+                    <ul className="list-disc list-inside space-y-1 text-gray-400">
+                      <li>Статус ARCHITECT</li>
+                      <li>Все реферальные уровни открыты</li>
+                      <li>Максимальные комиссии</li>
+                    </ul>
+                  </>
                 ) : (
-                  <button
-                    onClick={() => handleSetVIP(true)}
-                    disabled={processing}
-                    className="flex-1 py-2.5 bg-yellow-500 text-black font-bold text-sm hover:bg-yellow-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    <Crown size={16} />
-                    Назначить VIP
-                  </button>
+                  <p>VIP статус даёт пользователю ARCHITECT ранг, открытые реферальные уровни и максимальные комиссии.</p>
                 )}
               </div>
+
+              {/* Toggle Button */}
+              <button
+                onClick={handleToggleVIP}
+                disabled={processing}
+                className={`w-full py-3 font-bold text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
+                  selectedUser.role === 'VIP'
+                    ? 'bg-red-500 text-white hover:bg-red-400'
+                    : 'bg-yellow-500 text-black hover:bg-yellow-400'
+                }`}
+              >
+                {selectedUser.role === 'VIP' ? (
+                  <>
+                    <X size={16} />
+                    Отозвать VIP статус
+                  </>
+                ) : (
+                  <>
+                    <Crown size={16} />
+                    Назначить VIP статус
+                  </>
+                )}
+              </button>
             </motion.div>
           </div>
         )}

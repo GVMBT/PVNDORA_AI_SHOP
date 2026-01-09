@@ -50,7 +50,6 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
   const [loadingApplications, setLoadingApplications] = useState(false);
   const [selectedApp, setSelectedApp] = useState<PartnerApplication | null>(null);
   const [reviewComment, setReviewComment] = useState('');
-  const [reviewLevel, setReviewLevel] = useState(3);
   const [processing, setProcessing] = useState(false);
   const [filter, setFilter] = useState<'pending' | 'all'>('pending');
 
@@ -87,7 +86,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
           application_id: selectedApp.id,
           approve,
           admin_comment: reviewComment || null,
-          level_override: approve ? reviewLevel : null
+          level_override: approve ? 3 : null  // VIP always gets level 3 (full access)
         })
       });
       
@@ -425,20 +424,14 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
               {/* Review Section - only for pending */}
               {selectedApp.status === 'pending' ? (
                 <div className="space-y-4">
-                  {/* VIP Level */}
-                  <div>
-                    <label className="text-[10px] text-gray-500 uppercase mb-1 block">
-                      Уровень VIP (при одобрении)
-                    </label>
-                    <select
-                      value={reviewLevel}
-                      onChange={(e) => setReviewLevel(Number(e.target.value))}
-                      className="w-full bg-black border border-white/20 p-2 text-white text-sm focus:border-pandora-cyan outline-none"
-                    >
-                      <option value={1}>Уровень 1 (базовый)</option>
-                      <option value={2}>Уровень 2</option>
-                      <option value={3}>Уровень 3 (полный)</option>
-                    </select>
+                  {/* VIP Info */}
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 p-3 text-xs text-yellow-400">
+                    <p className="font-bold mb-1">При одобрении пользователь получит:</p>
+                    <ul className="list-disc list-inside text-yellow-400/80 space-y-1">
+                      <li>Статус VIP / ARCHITECT</li>
+                      <li>Все реферальные уровни открыты</li>
+                      <li>Максимальные комиссии</li>
+                    </ul>
                   </div>
 
                   {/* Comment */}
