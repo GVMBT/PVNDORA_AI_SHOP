@@ -77,6 +77,9 @@ class ConvertBalanceRequest(BaseModel):
     target_currency: str  # USD, RUB, EUR, etc.
 
 
+class WithdrawalPreviewRequest(BaseModel):
+    amount: float
+
 class WithdrawalRequest(BaseModel):
     amount: float
     method: str  # card, phone, crypto

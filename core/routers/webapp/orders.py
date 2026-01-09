@@ -723,9 +723,17 @@ async def _create_cart_order(
         # Note: We already used the rate (implicitly) in get_anchor_price if no anchor was set,
         # but we capture it here for the record.
         exchange_rate_snapshot = await currency_service.snapshot_rate(gateway_currency)
+        
+        # CRITICAL: Recalculate base USD amount from the realized Fiat amount
+        # This ensures P&L reflects the actual value received (e.g. 400 RUB / 90 = $4.44),
+        # rather than the list price (e.g. $5.00) which might be different due to anchor pricing.
+        if exchange_rate_snapshot > 0:
+            # Round to 2 decimal places for USD storage
+            total_amount = round_money(divide(fiat_amount, to_decimal(exchange_rate_snapshot)))
+            
         logger.info(f"Order created: {to_float(total_amount)} USD | {to_float(fiat_amount)} {fiat_currency} (Rate: {exchange_rate_snapshot})")
     except Exception as e:
-        logger.warning(f"Failed to snapshot rate: {e}")
+        logger.warning(f"Failed to snapshot rate or recalculate USD amount: {e}")
         exchange_rate_snapshot = 1.0
 
     

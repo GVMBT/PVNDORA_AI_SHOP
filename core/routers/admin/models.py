@@ -19,6 +19,7 @@ class CreateProductRequest(BaseModel):
     - price → price (base USD price)
     - prices → prices (anchor prices JSONB, e.g. {"RUB": 990, "USD": 10.50})
     - msrp → msrp
+    - msrp_prices → msrp_prices (anchor MSRP)
     - discountPrice → discount_price
     - costPrice → cost_price
     - fulfillment → fulfillment_time_hours
@@ -37,6 +38,7 @@ class CreateProductRequest(BaseModel):
     price: float = 0  # Base USD price
     prices: Optional[dict] = None  # Anchor prices: {"RUB": 990, "USD": 10.50}
     msrp: Optional[float] = None
+    msrp_prices: Optional[dict] = None  # Anchor MSRP: {"RUB": 1290}
     discountPrice: Optional[float] = None  # discount_price
     costPrice: Optional[float] = None  # cost_price
     

@@ -38,6 +38,13 @@ interface ModalConfig {
   balance?: number;
   minAmount?: number;
   maxAmount?: number;
+  previewWithdrawal?: (amount: number) => Promise<{
+    amount_requested: number;
+    amount_usdt_gross: number;
+    network_fee: number;
+    amount_usdt_net: number;
+    can_withdraw: boolean;
+  }>;
   
   // Buttons
   buttons?: ModalButton[];
@@ -59,7 +66,20 @@ interface CyberModalContextType {
   showModal: (config: ModalConfig) => void;
   hideModal: () => void;
   showTopUp: (config: { currency: string; balance: number; minAmount: number; onConfirm: (amount: number) => Promise<void> }) => void;
-  showWithdraw: (config: { currency: string; balance: number; minAmount: number; onConfirm: (amount: number, method: string, details: string) => Promise<void> }) => void;
+  showWithdraw: (config: { 
+    currency: string; 
+    balance: number; 
+    minAmount: number; 
+    maxAmount?: number;
+    previewWithdrawal?: (amount: number) => Promise<{
+      amount_requested: number;
+      amount_usdt_gross: number;
+      network_fee: number;
+      amount_usdt_net: number;
+      can_withdraw: boolean;
+    }>;
+    onConfirm: (amount: number, method: string, details: string) => Promise<void> 
+  }) => void;
   showConfirm: (title: string, message: string, onConfirm: () => void) => void;
   showAlert: (title: string, message: string, icon?: 'warning' | 'success' | 'info') => void;
 }
@@ -87,6 +107,13 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
   const [withdrawMethod, setWithdrawMethod] = useState<'crypto'>('crypto');
   const [withdrawDetails, setWithdrawDetails] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [withdrawPreview, setWithdrawPreview] = useState<{
+    amount_usdt_gross: number;
+    network_fee: number;
+    amount_usdt_net: number;
+    can_withdraw: boolean;
+  } | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
   const { currency: contextCurrency } = useLocaleContext();
   const { t } = useLocale();
   
@@ -121,8 +148,30 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
       setWithdrawMethod('crypto');
       setWithdrawDetails('');
       setError(null);
+      setWithdrawPreview(null);
     }
   }, [state.isOpen, state.defaultValue, state.minAmount]);
+
+  // Fetch withdrawal preview when amount changes (for withdraw modal only)
+  useEffect(() => {
+    if (state.type === 'withdraw' && state.isOpen && state.previewWithdrawal && inputValue) {
+      const amount = parseFloat(inputValue);
+      if (!isNaN(amount) && amount > 0 && amount <= (state.balance || 0)) {
+        setLoadingPreview(true);
+        state.previewWithdrawal(amount)
+          .then(preview => {
+            setWithdrawPreview(preview);
+            setLoadingPreview(false);
+          })
+          .catch(err => {
+            console.error('Failed to preview withdrawal:', err);
+            setLoadingPreview(false);
+          });
+      } else {
+        setWithdrawPreview(null);
+      }
+    }
+  }, [state.type, state.isOpen, state.previewWithdrawal, state.balance, inputValue]);
 
   const handleSubmit = async () => {
     // Validate for topup/withdraw
@@ -140,9 +189,19 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
         setError(`${t('modal.errors.maxAmount')}: ${state.maxAmount} ${state.currency}`);
         return;
       }
-      if (state.type === 'withdraw' && state.balance && amount > state.balance) {
-        setError(t('modal.errors.insufficientFunds'));
-        return;
+      if (state.type === 'withdraw') {
+        if (state.balance && amount > state.balance) {
+          setError(t('modal.errors.insufficientFunds'));
+          return;
+        }
+        if (withdrawPreview && !withdrawPreview.can_withdraw) {
+          setError('Сумма слишком мала. После комиссии вы получите менее 8.5 USDT (требование биржи: минимум 10 USD).');
+          return;
+        }
+        if (!withdrawDetails || !withdrawDetails.trim()) {
+          setError('Укажите адрес кошелька');
+          return;
+        }
       }
       if (state.type === 'withdraw' && !withdrawDetails.trim()) {
         setError(t('modal.errors.enterDetails'));
@@ -290,21 +349,64 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
                   
                   {/* Amount Input */}
                   <div>
-                    <label className="text-[10px] text-gray-500 font-mono uppercase mb-2 block">{t('modal.withdraw.amount')}</label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[10px] text-gray-500 font-mono uppercase">{t('modal.withdraw.amount')}</label>
+                      {state.maxAmount && state.maxAmount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setInputValue(state.maxAmount!.toString());
+                          }}
+                          className="text-[10px] text-purple-400 font-mono uppercase hover:text-purple-300 transition-colors"
+                        >
+                          {t('modal.withdraw.max') || 'МАКС'}
+                        </button>
+                      )}
+                    </div>
                     <div className="relative">
                       <input
                         type="number"
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         placeholder={`Min: ${state.minAmount}`}
-                        max={state.balance}
-                        className="w-full bg-black border border-white/20 focus:border-purple-500 px-4 py-3 text-white font-mono text-lg outline-none transition-colors"
+                        max={state.maxAmount || state.balance}
+                        min={state.minAmount}
+                        className="w-full bg-black border border-white/20 focus:border-purple-500 px-4 py-3 pr-16 text-white font-mono text-lg outline-none transition-colors"
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-mono">
                         {currencySymbol}
                       </span>
                     </div>
                   </div>
+
+                  {/* Withdrawal Preview (Fees and Final Amount) */}
+                  {state.type === 'withdraw' && withdrawPreview && !loadingPreview && parseFloat(inputValue) > 0 && (
+                    <div className="bg-white/5 border border-white/10 p-4 rounded space-y-2">
+                      <div className="text-[10px] text-gray-500 font-mono uppercase mb-2">{t('modal.withdraw.preview') || 'РАСЧЁТ ВЫВОДА'}</div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400 font-mono">Сумма (USDT):</span>
+                        <span className="text-white font-mono font-bold">{withdrawPreview.amount_usdt_gross.toFixed(2)} USDT</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400 font-mono">Комиссия сети:</span>
+                        <span className="text-orange-400 font-mono">-{withdrawPreview.network_fee.toFixed(2)} USDT</span>
+                      </div>
+                      <div className="border-t border-white/10 pt-2 mt-2 flex justify-between">
+                        <span className="text-gray-300 font-mono font-bold">К получению:</span>
+                        <span className="text-green-400 font-mono font-bold text-lg">{withdrawPreview.amount_usdt_net.toFixed(2)} USDT</span>
+                      </div>
+                      {!withdrawPreview.can_withdraw && (
+                        <div className="mt-2 px-2 py-1 bg-orange-500/10 border border-orange-500/30 text-orange-400 text-xs font-mono">
+                          ⚠ После комиссии сумма слишком мала. Минимум: 8.5 USDT (требование биржи: 10 USD)
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {state.type === 'withdraw' && loadingPreview && (
+                    <div className="bg-white/5 border border-white/10 p-4 rounded text-center">
+                      <Loader2 size={16} className="animate-spin mx-auto text-purple-400" />
+                    </div>
+                  )}
                   
                   {/* Method Selection - Only Crypto (TRC20 USDT) */}
                   <div>
@@ -451,6 +553,14 @@ export const CyberModalProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     currency: string;
     balance: number;
     minAmount: number;
+    maxAmount?: number;
+    previewWithdrawal?: (amount: number) => Promise<{
+      amount_requested: number;
+      amount_usdt_gross: number;
+      network_fee: number;
+      amount_usdt_net: number;
+      can_withdraw: boolean;
+    }>;
     onConfirm: (amount: number, method: string, details: string) => Promise<void>;
   }) => {
     setModalState({
@@ -460,9 +570,10 @@ export const CyberModalProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       currency: config.currency,
       balance: config.balance,
       minAmount: config.minAmount,
-      maxAmount: config.balance,
+      maxAmount: config.maxAmount || config.balance,
       inputType: 'number',
       onConfirm: config.onConfirm,
+      previewWithdrawal: config.previewWithdrawal,
       isOpen: true,
       isLoading: false,
     });

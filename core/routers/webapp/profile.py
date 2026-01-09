@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from core.logging import get_logger
 from core.services.database import get_database
 from core.auth import verify_telegram_auth
-from .models import WithdrawalRequest, UpdatePreferencesRequest, TopUpRequest, ConvertBalanceRequest
+from .models import WithdrawalRequest, WithdrawalPreviewRequest, UpdatePreferencesRequest, TopUpRequest, ConvertBalanceRequest
 
 logger = get_logger(__name__)
 
@@ -273,6 +273,64 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     }
 
 
+@router.post("/profile/withdraw/preview")
+async def preview_withdrawal(request: WithdrawalPreviewRequest, user=Depends(verify_telegram_auth)):
+    """
+    Preview withdrawal calculation: shows fees and final USDT payout before creating request.
+    """
+    from core.db import get_redis
+    from core.services.currency_response import CurrencyFormatter
+    from core.services.currency import get_currency_service
+    
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    balance = float(db_user.balance) if db_user.balance else 0
+    balance_currency = getattr(db_user, 'balance_currency', None) or 'USD'
+    
+    redis = get_redis()
+    currency_service = get_currency_service(redis)
+    
+    # Import centralized withdrawal constants
+    from core.services.currency import NETWORK_FEE_USDT, MIN_USDT_AFTER_FEES
+    
+    amount = request.amount
+    
+    # Calculate USDT payout (uses constants from currency service)
+    withdrawal_calc = await currency_service.calculate_withdrawal_usdt(
+        amount_in_balance_currency=amount,
+        balance_currency=balance_currency
+    )
+    
+    # Calculate minimum withdrawal amount (uses constants from currency service)
+    min_withdrawal = await currency_service.calculate_min_withdrawal_amount(
+        balance_currency=balance_currency
+    )
+    
+    # Calculate maximum withdrawal amount (uses constants from currency service)
+    max_withdrawal = await currency_service.calculate_max_withdrawal_amount(
+        balance=balance,
+        balance_currency=balance_currency
+    )
+    
+    return {
+        "amount_requested": amount,
+        "amount_requested_currency": balance_currency,
+        "amount_usd": withdrawal_calc["amount_usd"],
+        "amount_usdt_gross": withdrawal_calc["amount_usdt_gross"],
+        "network_fee": NETWORK_FEE_USDT,
+        "amount_usdt_net": withdrawal_calc["amount_usdt"],
+        "exchange_rate": withdrawal_calc["exchange_rate"],
+        "usdt_rate": withdrawal_calc["usdt_rate"],
+        "can_withdraw": amount <= balance and withdrawal_calc["amount_usdt"] >= MIN_USDT_AFTER_FEES,
+        "min_amount": min_withdrawal["min_amount"],
+        "max_amount": max_withdrawal["max_amount"],
+        "max_usdt_net": max_withdrawal["max_usdt_net"]
+    }
+
+
 @router.post("/profile/withdraw")
 async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_telegram_auth)):
     """
@@ -301,44 +359,38 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
     # Get currency formatter for display
     formatter = await CurrencyFormatter.create(user.id, db, redis)
     
-    # Network fee for TRC20 (typically 1-2 USDT)
-    NETWORK_FEE_USDT = 1.5
+    # Import centralized withdrawal constants (single source of truth)
+    from core.services.currency import NETWORK_FEE_USDT, MIN_USDT_AFTER_FEES, MIN_WITHDRAWAL_USD
     
-    # Minimum withdrawal: 5 USD equivalent (after fees, user should get at least ~3.5 USDT)
-    MIN_WITHDRAWAL_USD = 5.0
-    
-    # Calculate USDT payout with snapshot
+    # Calculate USDT payout with snapshot (uses constants from currency service)
     withdrawal_calc = await currency_service.calculate_withdrawal_usdt(
         amount_in_balance_currency=request.amount,
-        balance_currency=balance_currency,
-        network_fee=NETWORK_FEE_USDT
+        balance_currency=balance_currency
     )
     
     amount_usd = withdrawal_calc["amount_usd"]
     amount_to_pay_usdt = withdrawal_calc["amount_usdt"]
+    amount_usdt_gross = withdrawal_calc["amount_usdt_gross"]
     exchange_rate = withdrawal_calc["exchange_rate"]
     usdt_rate = withdrawal_calc["usdt_rate"]
     
-    # Validate minimum withdrawal
-    if amount_usd < MIN_WITHDRAWAL_USD:
-        min_in_user_currency = MIN_WITHDRAWAL_USD * exchange_rate if balance_currency != "USD" else MIN_WITHDRAWAL_USD
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Minimum withdrawal is {formatter.format(min_in_user_currency)}"
-        )
-    
-    # Check balance (balance is in user's balance_currency)
+    # Check balance first (balance is in user's balance_currency)
     if request.amount > balance:
         raise HTTPException(
             status_code=400, 
             detail=f"Insufficient balance. Available: {formatter.format(balance)}, requested: {formatter.format(request.amount)}"
         )
     
-    # Ensure user gets at least some USDT after fees
-    if amount_to_pay_usdt <= 0:
+    # Validate minimum withdrawal: user must receive at least MIN_USDT_AFTER_FEES after network fee
+    if amount_to_pay_usdt < MIN_USDT_AFTER_FEES:
+        # Calculate minimum amount in user's currency
+        # min_usdt_gross = MIN_USDT_AFTER_FEES + NETWORK_FEE_USDT = 10.0 USDT (exchange requirement: 10 USD)
+        min_usdt_gross = MIN_USDT_AFTER_FEES + NETWORK_FEE_USDT
+        min_usd = min_usdt_gross * usdt_rate  # Typically 10.0 USD
+        min_in_user_currency = min_usd * exchange_rate if balance_currency != "USD" else min_usd
         raise HTTPException(
-            status_code=400,
-            detail=f"Amount too small. After network fee ({NETWORK_FEE_USDT} USDT), payout would be zero."
+            status_code=400, 
+            detail=f"Минимальная сумма вывода: {formatter.format(min_in_user_currency)}. После комиссии сети ({NETWORK_FEE_USDT} USDT) вы получите минимум {MIN_USDT_AFTER_FEES} USDT (требование биржи: минимум 10 USD)."
         )
     
     if request.method not in ['crypto']:
@@ -366,7 +418,7 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
             "balance_currency": balance_currency,
             "exchange_rate": exchange_rate,  # 1 USD = X balance_currency
             "usdt_rate": usdt_rate,  # 1 USDT = X USD
-            "network_fee": NETWORK_FEE_USDT,
+            "network_fee": NETWORK_FEE_USDT,  # From centralized constant
             "wallet_address": wallet_address,
             # Legacy (for backwards compatibility)
             "payment_details": {

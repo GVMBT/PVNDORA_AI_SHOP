@@ -480,7 +480,7 @@ class CurrencyService:
         self,
         amount_in_balance_currency: Union[float, Decimal],
         balance_currency: str,
-        network_fee: float = 1.5
+        network_fee: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Calculate withdrawal payout in USDT.
@@ -500,6 +500,9 @@ class CurrencyService:
                 - usdt_rate: USDT/USD rate used
                 - network_fee: Network fee applied
         """
+        if network_fee is None:
+            network_fee = NETWORK_FEE_USDT
+        
         amount_decimal = to_decimal(amount_in_balance_currency)
         
         # Get exchange rate (1 USD = X balance_currency)
@@ -528,6 +531,115 @@ class CurrencyService:
             "usdt_rate": usdt_rate,
             "network_fee": network_fee
         }
+    
+    async def calculate_min_withdrawal_amount(
+        self,
+        balance_currency: str,
+        min_usdt_after_fees: Optional[float] = None,
+        network_fee: Optional[float] = None,
+        usdt_rate: Optional[float] = None
+    ) -> Dict[str, Any]:
+        """
+        Calculate minimum withdrawal amount in user's balance currency.
+        
+        Formula: min_amount = (min_usdt_after_fees + network_fee) / usdt_rate * exchange_rate
+        
+        Args:
+            balance_currency: User's balance currency (RUB, USD, etc.)
+            min_usdt_after_fees: Minimum USDT user must receive after fees (defaults to MIN_USDT_AFTER_FEES constant)
+            network_fee: TRC20 network fee in USDT (defaults to NETWORK_FEE_USDT constant)
+            usdt_rate: USDT/USD rate (if None, fetched from service)
+            
+        Returns:
+            Dict with:
+                - min_amount: Minimum amount in balance_currency
+                - min_usd: Minimum amount in USD
+                - min_usdt_gross: Minimum USDT before fees
+                - exchange_rate: Currency to USD rate used
+        """
+        if min_usdt_after_fees is None:
+            min_usdt_after_fees = MIN_USDT_AFTER_FEES
+        if network_fee is None:
+            network_fee = NETWORK_FEE_USDT
+        
+        # Get USDT rate if not provided
+        if usdt_rate is None:
+            usdt_rate = await self.get_usdt_rate()
+        
+        # Calculate minimum USD: (8.5 + 1.5) * 1.0 = 10.0 USD
+        min_usdt_gross = min_usdt_after_fees + network_fee
+        min_usd = min_usdt_gross * usdt_rate
+        
+        # Get exchange rate (1 USD = X balance_currency)
+        if balance_currency == "USD":
+            exchange_rate = 1.0
+        else:
+            exchange_rate = await self.get_exchange_rate(balance_currency)
+        
+        # Calculate minimum in user's currency
+        min_amount = min_usd * exchange_rate
+        
+        return {
+            "min_amount": round(min_amount, 2),
+            "min_usd": round(min_usd, 2),
+            "min_usdt_gross": round(min_usdt_gross, 2),
+            "min_usdt_after_fees": min_usdt_after_fees,
+            "network_fee": network_fee,
+            "exchange_rate": exchange_rate,
+            "usdt_rate": usdt_rate
+        }
+    
+    async def calculate_max_withdrawal_amount(
+        self,
+        balance: float,
+        balance_currency: str,
+        network_fee: Optional[float] = None,
+        min_usdt_after_fees: Optional[float] = None
+    ) -> Dict[str, Any]:
+        """
+        Calculate maximum withdrawal amount user can withdraw from their balance.
+        Ensures that after fees, user gets at least min_usdt_after_fees.
+        
+        Returns:
+            Dict with:
+                - max_amount: Maximum amount in balance_currency
+                - max_usdt_net: Maximum USDT user will receive after fees
+                - withdrawal_calc: Full calculation result
+        """
+        if network_fee is None:
+            network_fee = NETWORK_FEE_USDT
+        if min_usdt_after_fees is None:
+            min_usdt_after_fees = MIN_USDT_AFTER_FEES
+        
+        # Calculate what user would get if they withdraw their full balance
+        withdrawal_calc = await self.calculate_withdrawal_usdt(
+            amount_in_balance_currency=balance,
+            balance_currency=balance_currency,
+            network_fee=network_fee
+        )
+        
+        # If after fees user gets less than minimum, return 0
+        if withdrawal_calc["amount_usdt"] < min_usdt_after_fees:
+            return {
+                "max_amount": 0.0,
+                "max_usdt_net": 0.0,
+                "withdrawal_calc": withdrawal_calc,
+                "can_withdraw": False
+            }
+        
+        return {
+            "max_amount": balance,
+            "max_usdt_net": withdrawal_calc["amount_usdt"],
+            "withdrawal_calc": withdrawal_calc,
+            "can_withdraw": True
+        }
+
+
+# ==================== WITHDRAWAL CONSTANTS ====================
+# Centralized withdrawal configuration (single source of truth)
+NETWORK_FEE_USDT = 1.5  # TRC20 network fee
+MIN_USDT_AFTER_FEES = 8.5  # Minimum USDT user must receive after fees (exchange requirement: 10 USD total)
+MIN_WITHDRAWAL_USD = MIN_USDT_AFTER_FEES + NETWORK_FEE_USDT  # 10.0 USD total (8.5 + 1.5)
 
 
 # Global instance (will be initialized with Redis if available)

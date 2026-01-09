@@ -47,6 +47,30 @@ export function useProfileTyped() {
     }
   }, [get]);
 
+  const previewWithdrawal = useCallback(async (
+    amount: number
+  ): Promise<{
+    amount_requested: number;
+    amount_requested_currency: string;
+    amount_usd: number;
+    amount_usdt_gross: number;
+    network_fee: number;
+    amount_usdt_net: number;
+    exchange_rate: number;
+    usdt_rate: number;
+    can_withdraw: boolean;
+    min_amount: number;
+    max_amount: number;
+    max_usdt_net: number;
+  }> => {
+    try {
+      return await post('/profile/withdraw/preview', { amount });
+    } catch (err) {
+      logger.error('Failed to preview withdrawal', err);
+      throw err;
+    }
+  }, [post]);
+
   const requestWithdrawal = useCallback(async (
     amount: number,
     method: string,
@@ -146,6 +170,7 @@ export function useProfileTyped() {
   return { 
     profile, 
     getProfile, 
+    previewWithdrawal,
     requestWithdrawal, 
     createShareLink, 
     createTopUp, 

@@ -28,7 +28,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   onHaptic,
   onAdminEnter,
 }) => {
-  const { profile, getProfile, requestWithdrawal, createShareLink, createTopUp, updatePreferences, setPartnerMode, submitPartnerApplication, getPartnerApplicationStatus, loading, error } = useProfileTyped();
+  const { profile, getProfile, previewWithdrawal, requestWithdrawal, createShareLink, createTopUp, updatePreferences, setPartnerMode, submitPartnerApplication, getPartnerApplicationStatus, loading, error } = useProfileTyped();
   const { hapticFeedback, showConfirm, openLink, showAlert: showTelegramAlert } = useTelegram();
   const { showTopUp, showWithdraw, showAlert: showModalAlert } = useCyberModal();
   const { updateFromProfile, setCurrency, setLocale, setExchangeRate, currency: contextCurrency } = useLocaleContext();
@@ -158,46 +158,56 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     }
   }, [onHaptic, createShareLink, handleCopyLink]);
 
-  const handleWithdraw = useCallback(() => {
+  const handleWithdraw = useCallback(async () => {
     const currency = contextCurrency || profile?.currency || 'USD';
-    const exchangeRate = profile?.exchangeRate || 1.0;
-    // Use USD balance for comparison since minimum is defined in USD
-    const balanceUSD = profile?.balanceUsd || 0;
+    const balance = convertedProfile?.balance || 0;
     
-    // Minimum withdrawal: $5 USD (matches backend MIN_WITHDRAWAL_USD)
-    const minAmountUSD = 5;
-    
-    if (balanceUSD < minAmountUSD) {
-      // Show minimum in user's preferred currency for clarity
-      const minDisplay = currency === 'USD' 
-        ? `$${minAmountUSD}` 
-        : `${Math.round(minAmountUSD * exchangeRate).toLocaleString()} ${currency}`;
+    if (balance <= 0) {
       showModalAlert(
         t('profile.errors.insufficientFunds'), 
-        t('profile.errors.minWithdrawal', { amount: minDisplay }), 
+        t('profile.errors.insufficientBalance'), 
         'warning'
       );
       return;
     }
     
-    // Balance to display in withdrawal modal (in user's currency)
-    const balance = convertedProfile?.balance || 0;
-    const minAmount = currency === 'USD' ? minAmountUSD : Math.round(minAmountUSD * exchangeRate);
-    
-    if (onHaptic) onHaptic('medium');
-    
-    showWithdraw({
-      currency,
-      balance,
-      minAmount,
-      onConfirm: async (amount: number, method: string, details: string) => {
-        await requestWithdrawal(amount, method, details);
-        hapticFeedback?.('notification', 'success');
-        showModalAlert(t('profile.withdraw.submittedTitle'), t('profile.withdraw.submittedDesc'), 'success');
-        await getProfile();
-      },
-    });
-  }, [convertedProfile?.balance, contextCurrency, profile?.balanceUsd, profile?.currency, profile?.exchangeRate, requestWithdrawal, getProfile, hapticFeedback, showWithdraw, showModalAlert, onHaptic, t]);
+    try {
+      // Get preview with full balance to calculate min/max
+      const preview = await previewWithdrawal(balance);
+      
+      if (!preview.can_withdraw || preview.max_amount <= 0) {
+        showModalAlert(
+          t('profile.errors.insufficientFunds'), 
+          t('profile.errors.minWithdrawal', { amount: preview.min_amount.toLocaleString() }), 
+          'warning'
+        );
+        return;
+      }
+      
+      if (onHaptic) onHaptic('medium');
+      
+      showWithdraw({
+        currency,
+        balance,
+        minAmount: preview.min_amount,
+        maxAmount: preview.max_amount,
+        previewWithdrawal,
+        onConfirm: async (amount: number, method: string, details: string) => {
+          await requestWithdrawal(amount, method, details);
+          hapticFeedback?.('notification', 'success');
+          showModalAlert(t('profile.withdraw.submittedTitle'), t('profile.withdraw.submittedDesc'), 'success');
+          await getProfile();
+        },
+      });
+    } catch (err) {
+      logger.error('Failed to preview withdrawal', err);
+      showModalAlert(
+        t('profile.errors.error'), 
+        'Не удалось загрузить информацию о выводе. Попробуйте позже.',
+        'warning'
+      );
+    }
+  }, [convertedProfile?.balance, contextCurrency, profile?.currency, previewWithdrawal, requestWithdrawal, getProfile, hapticFeedback, showWithdraw, showModalAlert, onHaptic, t]);
 
   const handleTopUp = useCallback(() => {
     const currency = contextCurrency || profile?.currency || 'USD';
