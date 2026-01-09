@@ -187,25 +187,26 @@ async def resolve_ticket(
                 
                 elif issue_type == "refund" and order_id:
                     # Trigger refund worker
-                    # Get order amount
+                    # Get order amount and exchange rate snapshot
                     order_res = await asyncio.to_thread(
                         lambda: db.client.table("orders")
-                        .select("amount, user_telegram_id")
+                        .select("amount, user_telegram_id, exchange_rate_snapshot, fiat_currency")
                         .eq("id", order_id)
                         .single()
                         .execute()
                     )
                     
                     if order_res.data:
-                        # amount available but usd_rate is hardcoded, so we just use it for worker
-                        usd_rate = 100  # Default, should be fetched from currency service
+                        # Use exchange rate from order snapshot (or default to 1.0 for USD)
+                        usd_rate = float(order_res.data.get("exchange_rate_snapshot") or 1.0)
                         
                         await publish_to_worker(
                             WorkerEndpoints.PROCESS_REFUND,
                             {
                                 "order_id": order_id,
                                 "reason": comment or "Refund approved by admin",
-                                "usd_rate": usd_rate
+                                "usd_rate": usd_rate,
+                                "fiat_currency": order_res.data.get("fiat_currency", "USD")
                             }
                         )
                         logger.info(f"Triggered refund worker for ticket {ticket_id}, order {order_id}")

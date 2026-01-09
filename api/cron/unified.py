@@ -135,17 +135,16 @@ async def unified_cron_entrypoint(request: Request):
         logger.error(f"Auto-alloc task failed: {e}")
     
     # ========== TASK 3: Update Exchange Rates (hourly) ==========
+    # NOTE: Exchange rates are updated by separate cron: /api/cron/update_exchange_rates
+    # This task is deprecated - rates should be updated via dedicated endpoint
+    # to avoid conflicts and ensure proper error handling
     try:
-        # Only run on the hour (minute == 0 or 5)
-        if now.minute < 10:
-            from core.services.currency import CurrencyService
-            
-            currency_service = CurrencyService()
-            updated = await currency_service.update_rates_if_stale()
-            results["tasks"]["exchange_rates_updated"] = updated
+        # Exchange rates are handled by update_exchange_rates.py cron
+        # No need to update here - rates are fetched hourly by dedicated cron
+        results["tasks"]["exchange_rates_updated"] = "handled_by_separate_cron"
     except Exception as e:
         results["tasks"]["exchange_rates_error"] = str(e)
-        logger.error(f"Exchange rates update failed: {e}")
+        logger.error(f"Exchange rates check failed: {e}")
     
     results["success"] = True
     return JSONResponse(results)

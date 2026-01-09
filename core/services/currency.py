@@ -405,21 +405,20 @@ class CurrencyService:
     
     def get_balance_currency(self, language_code: Optional[str] = None) -> str:
         """
-        Determine balance currency for a user based on language.
+        Get default balance currency for new users.
         
-        This is used for NEW users to set their balance_currency.
-        Existing users keep their current balance_currency.
+        IMPORTANT: Balance is ALWAYS stored in USD.
+        This method is deprecated - use 'USD' directly.
+        Users can convert their balance via /profile/convert-balance endpoint.
         
         Args:
-            language_code: User's Telegram language code
+            language_code: Ignored (kept for backwards compatibility)
             
         Returns:
-            Currency code (RUB for ru/be/kk, USD for others)
+            Always returns 'USD'
         """
-        if language_code:
-            lang = language_code.split("-")[0].lower()
-            if lang in ["ru", "be", "kk"]:
-                return "RUB"
+        # Balance is always in USD
+        # Users can convert via explicit action if needed
         return "USD"
     
     async def convert_to_base_currency(
@@ -446,6 +445,87 @@ class CurrencyService:
         
         # amount / rate = USD
         return round_money(to_decimal(amount) / to_decimal(rate))
+    
+    # =========================================================================
+    # USDT Methods (for withdrawals)
+    # =========================================================================
+    
+    async def get_usdt_rate(self) -> float:
+        """
+        Get current USDT/USD exchange rate.
+        
+        USDT is a stablecoin pegged to USD, so rate is typically ~1.0
+        but can vary slightly (0.99-1.01).
+        
+        Returns:
+            USDT rate (1 USDT = X USD)
+        """
+        # Try to get from cache/DB first
+        if self.redis:
+            try:
+                cached = await self._get_cached_rate("USDT")
+                if cached:
+                    return float(cached)
+            except Exception:
+                pass
+        
+        # USDT is a stablecoin, typically 1:1 with USD
+        # For production, you might want to fetch from CoinGecko/Binance API
+        # For now, use 1.0 as default (stable assumption)
+        return 1.0
+    
+    async def calculate_withdrawal_usdt(
+        self,
+        amount_in_balance_currency: Union[float, Decimal],
+        balance_currency: str,
+        network_fee: float = 1.5
+    ) -> Dict[str, Any]:
+        """
+        Calculate withdrawal payout in USDT.
+        
+        Formula: amount_to_pay = (amount / exchange_rate / usdt_rate) - network_fee
+        
+        Args:
+            amount_in_balance_currency: Amount in user's balance currency (e.g., 5000 RUB)
+            balance_currency: User's balance currency (RUB, USD, etc.)
+            network_fee: TRC20 network fee in USDT (default 1.5)
+            
+        Returns:
+            Dict with:
+                - amount_usd: Equivalent in USD
+                - amount_usdt: Final USDT payout after fees
+                - exchange_rate: Currency to USD rate used
+                - usdt_rate: USDT/USD rate used
+                - network_fee: Network fee applied
+        """
+        amount_decimal = to_decimal(amount_in_balance_currency)
+        
+        # Get exchange rate (1 USD = X balance_currency)
+        if balance_currency == "USD":
+            exchange_rate = 1.0
+        else:
+            exchange_rate = await self.get_exchange_rate(balance_currency)
+        
+        # Get USDT rate (typically 1.0)
+        usdt_rate = await self.get_usdt_rate()
+        
+        # Calculate USD equivalent
+        amount_usd = to_float(amount_decimal / to_decimal(exchange_rate))
+        
+        # Calculate USDT amount (before fees)
+        amount_usdt_gross = amount_usd / usdt_rate
+        
+        # Apply network fee
+        amount_usdt_net = max(0, amount_usdt_gross - network_fee)
+        
+        return {
+            "amount_usd": round(amount_usd, 2),
+            "amount_usdt": round(amount_usdt_net, 2),
+            "amount_usdt_gross": round(amount_usdt_gross, 2),
+            "exchange_rate": exchange_rate,
+            "usdt_rate": usdt_rate,
+            "network_fee": network_fee
+        }
 
 
 # Global instance (will be initialized with Redis if available)

@@ -96,14 +96,19 @@ async def approve_withdrawal(
     request: ProcessWithdrawalRequest,
     admin=Depends(verify_admin)
 ):
-    """Approve a withdrawal request and deduct balance."""
+    """
+    Approve a withdrawal request and deduct balance.
+    
+    Uses snapshot pricing: amount_debited is in user's balance currency,
+    amount_to_pay is fixed USDT amount to send.
+    """
     db = get_database()
     
     try:
-        # Get withdrawal request
+        # Get withdrawal request with all snapshot fields
         withdrawal_result = await asyncio.to_thread(
             lambda: db.client.table("withdrawal_requests")
-            .select("id, user_id, amount, status, payment_method, wallet_address")
+            .select("id, user_id, amount, amount_debited, amount_to_pay, balance_currency, exchange_rate, status, payment_method, wallet_address, network_fee")
             .eq("id", withdrawal_id)
             .single()
             .execute()
@@ -120,14 +125,19 @@ async def approve_withdrawal(
             )
         
         user_id = withdrawal["user_id"]
-        amount = float(withdrawal["amount"])
+        
+        # Use snapshot fields if available, fallback to legacy 'amount' (USD)
+        amount_debited = float(withdrawal.get("amount_debited") or withdrawal["amount"])
+        balance_currency = withdrawal.get("balance_currency") or "USD"
+        amount_to_pay_usdt = float(withdrawal.get("amount_to_pay") or withdrawal["amount"])
+        
         payment_method = withdrawal.get("payment_method", "crypto")
         wallet_address = withdrawal.get("wallet_address", "")
         
         # Get user balance and telegram_id for notification
         user_result = await asyncio.to_thread(
             lambda: db.client.table("users")
-            .select("balance, telegram_id")
+            .select("balance, balance_currency, telegram_id")
             .eq("id", user_id)
             .single()
             .execute()
@@ -137,11 +147,14 @@ async def approve_withdrawal(
             raise HTTPException(status_code=404, detail="User not found")
         
         current_balance = float(user_result.data.get("balance", 0))
+        user_balance_currency = user_result.data.get("balance_currency") or "USD"
         user_telegram_id = user_result.data.get("telegram_id")
-        if current_balance < amount:
+        
+        # Check balance (amount_debited is in user's balance currency)
+        if current_balance < amount_debited:
             raise HTTPException(
                 status_code=400,
-                detail=f"Insufficient balance. User has ${current_balance:.2f}, requested ${amount:.2f}"
+                detail=f"Insufficient balance. User has {current_balance:.2f} {user_balance_currency}, requested {amount_debited:.2f} {balance_currency}"
             )
         
         admin_id = str(admin.id) if admin and admin.id else None
@@ -158,10 +171,10 @@ async def approve_withdrawal(
             }).eq("id", withdrawal_id).execute()
         )
         
-        # Deduct balance and create withdrawal transaction (atomic operation)
-        new_balance = current_balance - amount
+        # Deduct balance (amount_debited in user's currency)
+        new_balance = current_balance - amount_debited
         try:
-            # Update balance directly (no RPC to avoid duplicate transaction)
+            # Update balance directly
             await asyncio.to_thread(
                 lambda: db.client.table("users")
                 .update({"balance": new_balance})
@@ -169,22 +182,25 @@ async def approve_withdrawal(
                 .execute()
             )
             
-            # Create withdrawal transaction with correct type
+            # Create withdrawal transaction with correct currency
             await asyncio.to_thread(
                 lambda: db.client.table("balance_transactions").insert({
                     "user_id": user_id,
-                    "type": "withdrawal",  # Correct type instead of 'debit'!
-                    "amount": amount,
-                    "currency": "USD",
+                    "type": "withdrawal",
+                    "amount": amount_debited,  # Amount in user's currency
+                    "currency": balance_currency,  # User's balance currency
                     "balance_before": current_balance,
                     "balance_after": new_balance,
                     "status": "completed",
-                    "description": "Вывод средств",
+                    "description": f"Вывод {amount_to_pay_usdt:.2f} USDT на {wallet_address[:8]}...",
                     "reference_type": "withdrawal_request",
                     "reference_id": withdrawal_id,
                     "metadata": {
                         "payment_method": payment_method,
                         "wallet_address": wallet_address,
+                        "usdt_amount": amount_to_pay_usdt,
+                        "exchange_rate": withdrawal.get("exchange_rate"),
+                        "network_fee": withdrawal.get("network_fee")
                     }
                 }).execute()
             )
@@ -204,24 +220,17 @@ async def approve_withdrawal(
                 detail="Failed to deduct balance. Withdrawal request remains pending."
             )
         
-        logger.info(f"Admin {admin_id} approved withdrawal {withdrawal_id}, amount ${amount:.2f}")
+        logger.info(f"Admin {admin_id} approved withdrawal {withdrawal_id}: {amount_debited:.2f} {balance_currency} → {amount_to_pay_usdt:.2f} USDT to {wallet_address}")
         
         # Send user notification (best-effort)
         if user_telegram_id:
             try:
-                # Format method display name
-                method_display = {
-                    "crypto": "TRC20 USDT",
-                    "usdt_trc20": "TRC20 USDT",
-                    "card": "Банковская карта",
-                }.get(payment_method, payment_method.upper())
-                
                 notification_service = get_notification_service()
                 await notification_service.send_withdrawal_approved_notification(
                     telegram_id=user_telegram_id,
-                    amount=amount,
-                    currency="USD",
-                    method=method_display
+                    amount=amount_to_pay_usdt,  # Show USDT amount!
+                    currency="USDT",
+                    method=f"TRC20 ({wallet_address[:8]}...)"
                 )
             except Exception as e:
                 logger.warning(f"Failed to send withdrawal approved notification: {e}")
@@ -230,7 +239,9 @@ async def approve_withdrawal(
             "success": True,
             "withdrawal_id": withdrawal_id,
             "status": "processing",
-            "message": "Withdrawal approved and balance deducted"
+            "message": f"Withdrawal approved. Please send {amount_to_pay_usdt:.2f} USDT to {wallet_address}",
+            "amount_to_pay": amount_to_pay_usdt,
+            "wallet_address": wallet_address
         }
     
     except HTTPException:
@@ -246,14 +257,19 @@ async def reject_withdrawal(
     request: ProcessWithdrawalRequest,
     admin=Depends(verify_admin)
 ):
-    """Reject a withdrawal request. No balance deduction needed (balance wasn't deducted on creation)."""
+    """
+    Reject a withdrawal request.
+    
+    If status was 'processing' (balance already deducted), returns balance to user.
+    Uses amount_debited for correct currency handling.
+    """
     db = get_database()
     
     try:
-        # Get withdrawal request with user info for notification
+        # Get withdrawal request with snapshot fields
         withdrawal_result = await asyncio.to_thread(
             lambda: db.client.table("withdrawal_requests")
-            .select("id, status, user_id, amount, users!withdrawal_requests_user_id_fkey(telegram_id)")
+            .select("id, status, user_id, amount, amount_debited, amount_to_pay, balance_currency, users!withdrawal_requests_user_id_fkey(telegram_id)")
             .eq("id", withdrawal_id)
             .single()
             .execute()
@@ -270,7 +286,11 @@ async def reject_withdrawal(
             )
         
         user_id = withdrawal["user_id"]
-        amount = float(withdrawal["amount"])
+        # Use snapshot fields if available
+        amount_debited = float(withdrawal.get("amount_debited") or withdrawal["amount"])
+        balance_currency = withdrawal.get("balance_currency") or "USD"
+        amount_to_pay = float(withdrawal.get("amount_to_pay") or withdrawal["amount"])
+        
         user_telegram_id = withdrawal.get("users", {}).get("telegram_id") if withdrawal.get("users") else None
         
         admin_id = str(admin.id) if admin and admin.id else None
@@ -279,15 +299,15 @@ async def reject_withdrawal(
         
         # If status was processing, we need to return balance
         if withdrawal["status"] == "processing":
-            # Return balance
+            # Return balance (in user's currency)
             await asyncio.to_thread(
                 lambda: db.client.rpc("add_to_user_balance", {
                     "p_user_id": user_id,
-                    "p_amount": amount,  # Positive amount = return
+                    "p_amount": amount_debited,  # Return in user's currency
                     "p_reason": f"Withdrawal request {withdrawal_id[:8]} rejected"
                 }).execute()
             )
-            logger.info(f"Returned ${amount:.2f} to user {user_id} after withdrawal rejection")
+            logger.info(f"Returned {amount_debited:.2f} {balance_currency} to user {user_id} after withdrawal rejection")
         
         # Update withdrawal status to rejected
         await asyncio.to_thread(
@@ -307,8 +327,8 @@ async def reject_withdrawal(
                 notification_service = get_notification_service()
                 await notification_service.send_withdrawal_rejected_notification(
                     telegram_id=user_telegram_id,
-                    amount=amount,
-                    currency="USD",
+                    amount=amount_to_pay,  # Show USDT amount user would have received
+                    currency="USDT",
                     reason=request.admin_comment or "Заявка отклонена администратором"
                 )
             except Exception as e:

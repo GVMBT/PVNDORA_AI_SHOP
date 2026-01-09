@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from core.logging import get_logger
 from core.services.database import get_database
 from core.auth import verify_telegram_auth
-from .models import WithdrawalRequest, UpdatePreferencesRequest, TopUpRequest
+from .models import WithdrawalRequest, UpdatePreferencesRequest, TopUpRequest, ConvertBalanceRequest
 
 logger = get_logger(__name__)
 
@@ -263,82 +263,140 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
 
 @router.post("/profile/withdraw")
 async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_telegram_auth)):
-    """Request balance withdrawal."""
+    """
+    Request balance withdrawal to TRC20 USDT.
+    
+    Uses snapshot pricing: exchange rate is fixed at request creation time.
+    Admin sees fixed USDT amount to pay, regardless of rate changes.
+    """
     from core.db import get_redis
     from core.services.currency_response import CurrencyFormatter
+    from core.services.currency import get_currency_service
     
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    balance_usd = float(db_user.balance) if db_user.balance else 0
+    # Get user's balance and balance_currency
+    balance = float(db_user.balance) if db_user.balance else 0
+    balance_currency = getattr(db_user, 'balance_currency', None) or 'USD'
     
-    # Get currency formatter for user
+    # Get currency service for USDT calculation
     redis = get_redis()
+    currency_service = get_currency_service(redis)
+    
+    # Get currency formatter for display
     formatter = await CurrencyFormatter.create(user.id, db, redis)
     
-    # Minimum withdrawal: 5 USD equivalent
+    # Network fee for TRC20 (typically 1-2 USDT)
+    NETWORK_FEE_USDT = 1.5
+    
+    # Minimum withdrawal: 5 USD equivalent (after fees, user should get at least ~3.5 USDT)
     MIN_WITHDRAWAL_USD = 5.0
-    min_withdrawal_display = formatter.convert(MIN_WITHDRAWAL_USD)
     
-    # Convert withdrawal amount from user currency to USD for balance check
-    # Balance is stored in USD, so we need to convert input to USD
-    if formatter.currency != "USD" and formatter.exchange_rate > 0:
-        amount_usd = request.amount / formatter.exchange_rate
-    else:
-        amount_usd = request.amount
+    # Calculate USDT payout with snapshot
+    withdrawal_calc = await currency_service.calculate_withdrawal_usdt(
+        amount_in_balance_currency=request.amount,
+        balance_currency=balance_currency,
+        network_fee=NETWORK_FEE_USDT
+    )
     
+    amount_usd = withdrawal_calc["amount_usd"]
+    amount_to_pay_usdt = withdrawal_calc["amount_usdt"]
+    exchange_rate = withdrawal_calc["exchange_rate"]
+    usdt_rate = withdrawal_calc["usdt_rate"]
+    
+    # Validate minimum withdrawal
     if amount_usd < MIN_WITHDRAWAL_USD:
+        min_in_user_currency = MIN_WITHDRAWAL_USD * exchange_rate if balance_currency != "USD" else MIN_WITHDRAWAL_USD
         raise HTTPException(
             status_code=400, 
-            detail=f"Minimum withdrawal is {formatter.format(min_withdrawal_display)}"
+            detail=f"Minimum withdrawal is {formatter.format(min_in_user_currency)}"
         )
     
-    if amount_usd > balance_usd:
-        balance_display = formatter.convert(balance_usd)
+    # Check balance (balance is in user's balance_currency)
+    if request.amount > balance:
         raise HTTPException(
             status_code=400, 
-            detail=f"Insufficient balance. Available: {formatter.format(balance_display)}, requested: {formatter.format(request.amount)}"
+            detail=f"Insufficient balance. Available: {formatter.format(balance)}, requested: {formatter.format(request.amount)}"
+        )
+    
+    # Ensure user gets at least some USDT after fees
+    if amount_to_pay_usdt <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Amount too small. After network fee ({NETWORK_FEE_USDT} USDT), payout would be zero."
         )
     
     if request.method not in ['crypto']:
         raise HTTPException(status_code=400, detail="Invalid payment method. Only TRC20 USDT is supported.")
     
-    # Create withdrawal request (balance will be deducted on approval)
-    # IMPORTANT: Store amount in USD (base currency) for consistent processing
+    # Extract wallet address from details
+    wallet_address = request.details.strip() if request.details else None
+    if not wallet_address:
+        raise HTTPException(status_code=400, detail="Wallet address is required")
+    
+    # Basic TRC20 address validation (starts with T, 34 characters)
+    if not wallet_address.startswith('T') or len(wallet_address) != 34:
+        raise HTTPException(status_code=400, detail="Invalid TRC20 wallet address format")
+    
+    # Create withdrawal request with SNAPSHOT pricing
+    # amount_to_pay is FIXED - admin will pay exactly this USDT amount
     withdrawal_result = await asyncio.to_thread(
         lambda: db.client.table("withdrawal_requests").insert({
-            "user_id": db_user.id, 
-            "amount": round(amount_usd, 2),  # Store in USD!
-            "payment_method": request.method, 
+            "user_id": db_user.id,
+            "amount": round(amount_usd, 2),  # USD equivalent (for legacy/reporting)
+            "payment_method": request.method,
+            # NEW: Snapshot fields
+            "amount_debited": round(request.amount, 2),  # What user sees (in their currency)
+            "amount_to_pay": round(amount_to_pay_usdt, 2),  # FIXED USDT to pay
+            "balance_currency": balance_currency,
+            "exchange_rate": exchange_rate,  # 1 USD = X balance_currency
+            "usdt_rate": usdt_rate,  # 1 USDT = X USD
+            "network_fee": NETWORK_FEE_USDT,
+            "wallet_address": wallet_address,
+            # Legacy (for backwards compatibility)
             "payment_details": {
-                "details": request.details,
-                "original_amount": request.amount,  # Keep original for reference
-                "original_currency": formatter.currency,
-                "exchange_rate": formatter.exchange_rate
+                "details": wallet_address,
+                "original_amount": request.amount,
+                "original_currency": balance_currency,
+                "exchange_rate": exchange_rate,
+                "usdt_payout": amount_to_pay_usdt
             }
         }).execute()
     )
     
     request_id = withdrawal_result.data[0].get("id") if withdrawal_result.data else "unknown"
     
-    # Send alert to admins (best-effort, don't fail request if alert fails)
+    # Send alert to admins (best-effort)
     try:
         from core.routers.deps import get_admin_alerts
         alert_service = get_admin_alerts()
         await alert_service.alert_withdrawal_request(
             user_telegram_id=user.id,
             username=db_user.username,
-            amount=round(amount_usd, 2),  # Alert amount in USD
-            method=request.method,
+            amount=round(amount_to_pay_usdt, 2),  # Alert USDT amount!
+            method=f"TRC20 USDT ({wallet_address[:8]}...)",
             request_id=request_id,
-            user_balance=balance_usd  # Already in USD
+            user_balance=balance
         )
     except Exception as e:
         logger.warning(f"Failed to send withdrawal alert: {e}")
     
-    return {"success": True, "message": "Withdrawal request submitted"}
+    return {
+        "success": True, 
+        "message": "Withdrawal request submitted",
+        "details": {
+            "amount_debited": request.amount,
+            "amount_debited_currency": balance_currency,
+            "amount_to_pay": amount_to_pay_usdt,
+            "amount_to_pay_currency": "USDT",
+            "network_fee": NETWORK_FEE_USDT,
+            "exchange_rate": exchange_rate,
+            "wallet_address": wallet_address
+        }
+    }
 
 
 @router.post("/profile/topup")
@@ -557,6 +615,121 @@ async def update_preferences(request: UpdatePreferencesRequest, user=Depends(ver
     )
     
     return {"success": True, "message": "Preferences updated"}
+
+
+@router.post("/profile/convert-balance")
+async def convert_balance(request: ConvertBalanceRequest, user=Depends(verify_telegram_auth)):
+    """
+    Convert user balance to a different currency.
+    
+    WARNING: This is a one-way conversion. The balance will be physically
+    converted using the current exchange rate. Use with caution.
+    
+    Example: 10 USD → 900 RUB (at rate 90)
+    """
+    from core.db import get_redis
+    from core.services.currency import get_currency_service
+    
+    req = request
+    
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    current_balance = float(db_user.balance) if db_user.balance else 0
+    current_currency = getattr(db_user, 'balance_currency', 'USD') or 'USD'
+    target_currency = req.target_currency.upper()
+    
+    # Validate target currency
+    valid_currencies = ["USD", "RUB", "EUR"]
+    if target_currency not in valid_currencies:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid target currency. Valid options: {', '.join(valid_currencies)}"
+        )
+    
+    # No conversion needed if same currency
+    if current_currency == target_currency:
+        return {
+            "success": True,
+            "message": "Balance is already in target currency",
+            "balance": current_balance,
+            "currency": current_currency
+        }
+    
+    # Prevent conversion with zero balance
+    if current_balance <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot convert zero balance"
+        )
+    
+    # Get currency service
+    redis = get_redis()
+    currency_service = get_currency_service(redis)
+    
+    # Calculate new balance
+    if current_currency == "USD":
+        # USD → Other: multiply by rate
+        rate = await currency_service.get_exchange_rate(target_currency)
+        new_balance = current_balance * rate
+    else:
+        # Other → USD: divide by rate
+        rate = await currency_service.get_exchange_rate(current_currency)
+        new_balance_usd = current_balance / rate
+        
+        if target_currency == "USD":
+            new_balance = new_balance_usd
+        else:
+            # Other → USD → Other
+            target_rate = await currency_service.get_exchange_rate(target_currency)
+            new_balance = new_balance_usd * target_rate
+    
+    # Round appropriately
+    if target_currency in ["RUB", "UAH", "TRY", "INR"]:
+        new_balance = round(new_balance)
+    else:
+        new_balance = round(new_balance, 2)
+    
+    # Update balance and currency in database
+    await asyncio.to_thread(
+        lambda: db.client.table("users").update({
+            "balance": new_balance,
+            "balance_currency": target_currency
+        }).eq("telegram_id", user.id).execute()
+    )
+    
+    # Log the conversion
+    await asyncio.to_thread(
+        lambda: db.client.table("balance_transactions").insert({
+            "user_id": db_user.id,
+            "type": "conversion",
+            "amount": new_balance,
+            "currency": target_currency,
+            "balance_before": current_balance,
+            "balance_after": new_balance,
+            "status": "completed",
+            "description": f"Конвертация {current_balance:.2f} {current_currency} → {new_balance:.2f} {target_currency}",
+            "metadata": {
+                "from_currency": current_currency,
+                "to_currency": target_currency,
+                "exchange_rate": rate if current_currency == "USD" else (1/rate if target_currency == "USD" else None)
+            }
+        }).execute()
+    )
+    
+    logger.info(f"User {user.id} converted balance: {current_balance:.2f} {current_currency} → {new_balance:.2f} {target_currency}")
+    
+    return {
+        "success": True,
+        "message": f"Balance converted to {target_currency}",
+        "previous_balance": current_balance,
+        "previous_currency": current_currency,
+        "new_balance": new_balance,
+        "new_currency": target_currency,
+        "exchange_rate": rate if current_currency == "USD" else 1/rate
+    }
 
 
 @router.get("/referral/network")

@@ -72,73 +72,53 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isInitialized, getProfile]);          
 
-  // Helper function to convert USD to target currency
-  // MUST be defined FIRST - used by convertedProfile
-  const convertUsdToCurrency = useCallback((amountUsd: number, targetCurrency: string, exchangeRate: number): number => {
-    if (targetCurrency === 'USD' || !exchangeRate || exchangeRate === 1.0) {
-      return amountUsd;
-    }
-    // Round to integer for RUB, UAH, TRY, INR; keep 2 decimals for others
-    const converted = amountUsd * exchangeRate;
-    if (['RUB', 'UAH', 'TRY', 'INR'].includes(targetCurrency)) {
-      return Math.round(converted);
-    }
-    return Math.round(converted * 100) / 100;
-  }, []);
-
-  // Convert profile balance to current currency (for display)
-  // MUST be defined BEFORE callbacks that use it (handleWithdraw, handleTopUp)
+  // Convert USD values to display currency
+  // Uses balanceUsd (always USD from backend) and converts to contextCurrency
+  // This handles the case when user changes currency in UI settings
   const convertedProfile = useMemo(() => {
     if (!profile) return null;
     
+    // Use context currency if set, otherwise profile currency, default to USD
     const displayCurrency = contextCurrency || profile.currency || 'USD';
     const exchangeRate = profile.exchangeRate || 1.0;
     
-    // CRITICAL: Always use _usd values for conversion (they are base USD amounts)
-    // profile.balance is already converted to user currency, so we MUST use balanceUsd
+    // Always use _usd values (base amounts from DB) for conversion
     const balanceUsd = profile.balanceUsd ?? 0;
     const earnedRefUsd = profile.earnedRefUsd ?? 0;
     const savedUsd = profile.savedUsd ?? 0;
     
-    // If currency is USD, use USD values directly
-    if (displayCurrency === 'USD') {
-      return {
-        ...profile,
-        currency: displayCurrency,
-        balance: balanceUsd,
-        earnedRef: earnedRefUsd,
-        saved: savedUsd,
-      };
-    }
-    
-    // Convert all USD amounts to display currency
-    const convertedBalance = convertUsdToCurrency(balanceUsd, displayCurrency, exchangeRate);
-    const convertedEarnedRef = convertUsdToCurrency(earnedRefUsd, displayCurrency, exchangeRate);
-    const convertedSaved = convertUsdToCurrency(savedUsd, displayCurrency, exchangeRate);
-    const convertedTurnover = convertUsdToCurrency(profile.career.currentTurnover, displayCurrency, exchangeRate);
+    // Helper for conversion
+    const convert = (usd: number): number => {
+      if (displayCurrency === 'USD' || exchangeRate === 1.0) return usd;
+      const converted = usd * exchangeRate;
+      // Round integer currencies
+      return ['RUB', 'UAH', 'TRY', 'INR'].includes(displayCurrency) 
+        ? Math.round(converted) 
+        : Math.round(converted * 100) / 100;
+    };
     
     return {
       ...profile,
       currency: displayCurrency,
-      balance: convertedBalance,
-      earnedRef: convertedEarnedRef,
-      saved: convertedSaved,
+      balance: convert(balanceUsd),
+      earnedRef: convert(earnedRefUsd),
+      saved: convert(savedUsd),
       career: {
         ...profile.career,
-        currentTurnover: convertedTurnover,
+        currentTurnover: convert(profile.career.currentTurnover),
         currentLevel: {
           ...profile.career.currentLevel,
-          min: convertUsdToCurrency(profile.career.currentLevel.min, displayCurrency, exchangeRate),
-          max: profile.career.currentLevel.max === Infinity ? Infinity : convertUsdToCurrency(profile.career.currentLevel.max, displayCurrency, exchangeRate),
+          min: convert(profile.career.currentLevel.min),
+          max: profile.career.currentLevel.max === Infinity ? Infinity : convert(profile.career.currentLevel.max),
         },
         nextLevel: profile.career.nextLevel ? {
           ...profile.career.nextLevel,
-          min: convertUsdToCurrency(profile.career.nextLevel.min, displayCurrency, exchangeRate),
-          max: profile.career.nextLevel.max === Infinity ? Infinity : convertUsdToCurrency(profile.career.nextLevel.max, displayCurrency, exchangeRate),
+          min: convert(profile.career.nextLevel.min),
+          max: profile.career.nextLevel.max === Infinity ? Infinity : convert(profile.career.nextLevel.max),
         } : undefined,
       },
     };
-  }, [profile, contextCurrency, convertUsdToCurrency]);
+  }, [profile, contextCurrency]);
 
   const handleCopyLink = useCallback(async () => {
     if (!profile?.referralLink) return;

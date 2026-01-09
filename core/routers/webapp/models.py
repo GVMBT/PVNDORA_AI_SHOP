@@ -72,6 +72,11 @@ class UpdatePreferencesRequest(BaseModel):
     interface_language: Optional[str] = None  # ru, en, etc.
 
 
+class ConvertBalanceRequest(BaseModel):
+    """Request to convert user balance to a different currency."""
+    target_currency: str  # USD, RUB, EUR, etc.
+
+
 class WithdrawalRequest(BaseModel):
     amount: float
     method: str  # card, phone, crypto
