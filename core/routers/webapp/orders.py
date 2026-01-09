@@ -93,11 +93,20 @@ async def persist_order(
     payment_method: str,
     payment_gateway: str,
     user_telegram_id: int,
-    expires_at: datetime
+    expires_at: datetime,
+    # New currency snapshot fields
+    fiat_amount: Optional[Decimal] = None,
+    fiat_currency: Optional[str] = None,
+    exchange_rate_snapshot: Optional[float] = None,
 ):
     """Create order record in database.
     
     Note: product_id removed - products are stored in order_items table.
+    
+    Args:
+        fiat_amount: Amount in user's currency (what they see/pay)
+        fiat_currency: User's currency code (RUB, USD, etc.)
+        exchange_rate_snapshot: Exchange rate at order creation (1 USD = X fiat)
     """
     return await db.create_order(
         user_id=user_id,
@@ -107,7 +116,10 @@ async def persist_order(
         payment_method=payment_method,
         payment_gateway=payment_gateway,
         user_telegram_id=user_telegram_id,
-        expires_at=expires_at
+        expires_at=expires_at,
+        fiat_amount=to_float(fiat_amount) if fiat_amount else None,
+        fiat_currency=fiat_currency,
+        exchange_rate_snapshot=exchange_rate_snapshot,
     )
 
 
@@ -677,24 +689,38 @@ async def _create_cart_order(
         except Exception as e:
             logger.warning(f"Failed to get user currency for CrystalPay: {e}, using default: {gateway_currency}")
     
-    # Конвертация суммы в валюту платежа
+    # Конвертация суммы в валюту платежа и создание currency snapshot
     payable_amount = to_decimal(total_amount)
+    exchange_rate_snapshot = 1.0  # Default for USD
+    fiat_currency = gateway_currency
+    fiat_amount = to_decimal(total_amount)
+    
     try:
         from core.db import get_redis
         from core.services.currency import get_currency_service
         currency_redis = get_redis()
         currency_service = get_currency_service(currency_redis)
+        
+        # Get and snapshot the exchange rate
+        exchange_rate_snapshot = await currency_service.snapshot_rate(gateway_currency)
+        
         # Конвертация из базовой валюты (USD) в валюту платежа
         if gateway_currency != "USD":
             original_amount_usd = to_float(total_amount)
             converted_amount = await currency_service.convert_price(total_amount, gateway_currency, round_to_int=True)
             payable_amount = to_decimal(converted_amount)
-            logger.info(f"Currency conversion for order: {original_amount_usd} USD -> {to_float(payable_amount)} {gateway_currency}")
+            fiat_amount = payable_amount
+            logger.info(f"Currency conversion for order: {original_amount_usd} USD -> {to_float(payable_amount)} {gateway_currency} (rate: {exchange_rate_snapshot})")
         else:
+            fiat_amount = total_amount
             logger.info(f"No currency conversion needed: {to_float(total_amount)} USD")
     except Exception as e:
         logger.warning(f"Currency conversion failed, using raw amount: {e}")
         logger.warning(f"Amount in USD: {to_float(total_amount)}, Payment currency: {gateway_currency}")
+        # Fallback: use USD as fiat currency
+        fiat_currency = "USD"
+        fiat_amount = total_amount
+        exchange_rate_snapshot = 1.0
     
     # ============================================================
     # Создаём заказ в БД ПЕРЕД обращением к платёжке
@@ -708,17 +734,22 @@ async def _create_cart_order(
         discount_pct = max(0, min(100, int(round_money(multiply(discount_ratio, Decimal("100")), to_int=True))))
     
     # Создаём заказ в БД (реальный order_id) ДО обращения к платёжке
+    # Now includes currency snapshot for accurate accounting
     payment_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
     order = await persist_order(
         db=db,
         user_id=db_user.id, 
-        amount=total_amount, 
+        amount=total_amount,  # Always in USD (base currency)
         original_price=total_original,
         discount_percent=discount_pct,
         payment_method=payment_method,
         payment_gateway=payment_gateway,
         user_telegram_id=user.id,  # Telegram ID для webhook доставки
-        expires_at=payment_expires_at
+        expires_at=payment_expires_at,
+        # Currency snapshot fields
+        fiat_amount=fiat_amount,
+        fiat_currency=fiat_currency,
+        exchange_rate_snapshot=exchange_rate_snapshot,
     )
     
     # Создаём строки order_items СРАЗУ после создания заказа (нужны для balance check)

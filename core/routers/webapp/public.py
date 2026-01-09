@@ -3,6 +3,7 @@ WebApp Public Router
 
 Public endpoints that don't require authentication.
 All prices include both USD and display values for unified currency handling.
+Supports anchor pricing (fixed prices per currency).
 """
 import asyncio
 from typing import Optional
@@ -11,6 +12,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from core.services.database import get_database
 from core.services.currency_response import CurrencyFormatter
+from core.services.currency import get_currency_service
 from core.db import get_redis
 from core.logging import get_logger
 
@@ -25,7 +27,11 @@ async def get_webapp_product(
     language_code: Optional[str] = Query(None, description="User language code for currency conversion"),
     currency: Optional[str] = Query(None, description="User preferred currency (USD, RUB, EUR, etc.)")
 ):
-    """Get product with discount and social proof for Mini App."""
+    """Get product with discount and social proof for Mini App.
+    
+    Uses anchor pricing: if product has fixed price in user's currency, uses that.
+    Otherwise falls back to dynamic conversion from USD.
+    """
     db = get_database()
     product = await db.get_product_by_id(product_id)
     
@@ -49,10 +55,24 @@ async def get_webapp_product(
         language_code=language_code
     )
     
+    # Get currency service for anchor pricing
+    currency_service = get_currency_service(redis)
+    
     # USD values (base)
     price_usd = float(product.price)
     final_price_usd = price_usd * (1 - discount_percent / 100)
     msrp_usd = float(product.msrp) if hasattr(product, 'msrp') and product.msrp else None
+    
+    # Get anchor price (fixed or converted)
+    product_dict = {
+        "price": product.price,
+        "prices": getattr(product, 'prices', None) or {}
+    }
+    anchor_price = float(await currency_service.get_anchor_price(product_dict, formatter.currency))
+    is_anchor_price = currency_service.has_anchor_price(product_dict, formatter.currency)
+    
+    # Apply discount to anchor price
+    anchor_final_price = anchor_price * (1 - discount_percent / 100)
     
     fulfillment_time_hours = getattr(product, 'fulfillment_time_hours', 48)
     
@@ -84,14 +104,15 @@ async def get_webapp_product(
             "price_usd": price_usd,
             "final_price_usd": final_price_usd,
             "msrp_usd": msrp_usd,
-            # Display values (for UI)
-            "original_price": formatter.convert(price_usd),
-            "price": formatter.convert(price_usd),
-            "final_price": formatter.convert(final_price_usd),
+            # Display values (for UI) - now using anchor prices
+            "original_price": anchor_price,
+            "price": anchor_price,
+            "final_price": anchor_final_price,
             "msrp": formatter.convert(msrp_usd) if msrp_usd else None,
             # Currency info
             "currency": formatter.currency,
             "exchange_rate": formatter.exchange_rate,
+            "is_anchor_price": is_anchor_price,  # True if price is fixed, False if dynamically converted
             # Other fields
             "discount_percent": discount_percent,
             "warranty_days": product.warranty_hours // 24 if hasattr(product, 'warranty_hours') and product.warranty_hours else 0,
@@ -123,7 +144,11 @@ async def get_webapp_products(
     language_code: Optional[str] = Query(None, description="User language code for currency conversion"),
     currency: Optional[str] = Query(None, description="User preferred currency (USD, RUB, EUR, etc.)")
 ):
-    """Get all active products for Mini App catalog."""
+    """Get all active products for Mini App catalog.
+    
+    Uses anchor pricing: if product has fixed price in user's currency, uses that.
+    Otherwise falls back to dynamic conversion from USD.
+    """
     db = get_database()
     products = await db.get_products(status="active")
     
@@ -136,6 +161,9 @@ async def get_webapp_products(
         preferred_currency=currency,
         language_code=language_code
     )
+    
+    # Get currency service for anchor pricing
+    currency_service = get_currency_service(redis)
     
     # Batch fetch social proof data
     product_ids = [p.id for p in products]
@@ -165,6 +193,17 @@ async def get_webapp_products(
         final_price_usd = price_usd * (1 - discount_percent / 100)
         msrp_usd = float(p.msrp) if hasattr(p, 'msrp') and p.msrp else None
         
+        # Get anchor price (fixed or converted)
+        product_dict = {
+            "price": p.price,
+            "prices": getattr(p, 'prices', None) or {}
+        }
+        anchor_price = float(await currency_service.get_anchor_price(product_dict, formatter.currency))
+        is_anchor_price = currency_service.has_anchor_price(product_dict, formatter.currency)
+        
+        # Apply discount to anchor price
+        anchor_final_price = anchor_price * (1 - discount_percent / 100)
+        
         warranty_days = p.warranty_hours // 24 if hasattr(p, 'warranty_hours') and p.warranty_hours else 0
         duration_days = getattr(p, 'duration_days', None)
         fulfillment_time_hours = getattr(p, 'fulfillment_time_hours', 48)
@@ -177,13 +216,14 @@ async def get_webapp_products(
             "price_usd": price_usd,
             "final_price_usd": final_price_usd,
             "msrp_usd": msrp_usd,
-            # Display values (for UI)
-            "original_price": formatter.convert(price_usd),
-            "price": formatter.convert(price_usd),
-            "final_price": formatter.convert(final_price_usd),
+            # Display values (for UI) - now using anchor prices
+            "original_price": anchor_price,
+            "price": anchor_price,
+            "final_price": anchor_final_price,
             "msrp": formatter.convert(msrp_usd) if msrp_usd else None,
             # Currency
             "currency": formatter.currency,
+            "is_anchor_price": is_anchor_price,
             # Other fields
             "discount_percent": discount_percent,
             "warranty_days": warranty_days,

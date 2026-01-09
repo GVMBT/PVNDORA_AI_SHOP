@@ -16,7 +16,8 @@ class CreateProductRequest(BaseModel):
     Field mapping (frontend → DB):
     - category → type (ai, dev, design, music)
     - fulfillmentType → fulfillment_type (auto, manual)
-    - price → price
+    - price → price (base USD price)
+    - prices → prices (anchor prices JSONB, e.g. {"RUB": 990, "USD": 10.50})
     - msrp → msrp
     - discountPrice → discount_price
     - costPrice → cost_price
@@ -33,7 +34,8 @@ class CreateProductRequest(BaseModel):
     category: str = "ai"  # ai, dev, design, music
     
     # Pricing
-    price: float = 0
+    price: float = 0  # Base USD price
+    prices: Optional[dict] = None  # Anchor prices: {"RUB": 990, "USD": 10.50}
     msrp: Optional[float] = None
     discountPrice: Optional[float] = None  # discount_price
     costPrice: Optional[float] = None  # cost_price

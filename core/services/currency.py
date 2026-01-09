@@ -2,9 +2,10 @@
 Currency Conversion Service
 
 Handles currency conversion based on user language and caches exchange rates.
+Supports anchor pricing (fixed prices per currency) and rate snapshots for orders.
 """
 from decimal import Decimal
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, Any
 
 from core.services.money import to_decimal, to_float, round_money
 from core.logging import get_logger
@@ -321,6 +322,130 @@ class CurrencyService:
             return f"{symbol}{formatted}"
         else:
             return f"{formatted} {symbol}"
+    
+    # =========================================================================
+    # Anchor Pricing Methods (NEW)
+    # =========================================================================
+    
+    async def get_anchor_price(
+        self, 
+        product: Union[Dict[str, Any], Any], 
+        target_currency: str
+    ) -> Decimal:
+        """
+        Get product price in target currency using anchor prices.
+        
+        Priority:
+        1. Fixed anchor price from product.prices[currency] (if set)
+        2. Fallback: convert from USD price
+        
+        Args:
+            product: Product dict or object with 'price' and optional 'prices' (JSONB)
+            target_currency: Target currency code (RUB, USD, etc.)
+            
+        Returns:
+            Price in target currency as Decimal
+        """
+        # Handle both dict and object
+        if hasattr(product, '__getitem__'):
+            prices = product.get("prices") or {}
+            base_price = product.get("price", 0)
+        else:
+            prices = getattr(product, "prices", None) or {}
+            base_price = getattr(product, "price", 0)
+        
+        # Check for anchor price in target currency
+        if prices and target_currency in prices:
+            anchor_price = prices[target_currency]
+            if anchor_price is not None:
+                logger.debug(f"Using anchor price for {target_currency}: {anchor_price}")
+                return to_decimal(anchor_price)
+        
+        # Fallback: convert from USD
+        if target_currency == "USD":
+            return to_decimal(base_price)
+        
+        converted = await self.convert_price(base_price, target_currency)
+        return to_decimal(converted)
+    
+    def has_anchor_price(self, product: Union[Dict[str, Any], Any], currency: str) -> bool:
+        """
+        Check if product has a fixed anchor price for given currency.
+        
+        Args:
+            product: Product dict or object
+            currency: Currency code to check
+            
+        Returns:
+            True if anchor price exists, False otherwise
+        """
+        if hasattr(product, '__getitem__'):
+            prices = product.get("prices") or {}
+        else:
+            prices = getattr(product, "prices", None) or {}
+        
+        return prices and currency in prices and prices[currency] is not None
+    
+    async def snapshot_rate(self, currency: str) -> float:
+        """
+        Get current exchange rate for snapshotting in orders.
+        
+        This rate should be stored with the order for accurate
+        historical accounting.
+        
+        Args:
+            currency: Currency code
+            
+        Returns:
+            Exchange rate (1 USD = X currency)
+        """
+        if currency == "USD":
+            return 1.0
+        return await self.get_exchange_rate(currency)
+    
+    def get_balance_currency(self, language_code: Optional[str] = None) -> str:
+        """
+        Determine balance currency for a user based on language.
+        
+        This is used for NEW users to set their balance_currency.
+        Existing users keep their current balance_currency.
+        
+        Args:
+            language_code: User's Telegram language code
+            
+        Returns:
+            Currency code (RUB for ru/be/kk, USD for others)
+        """
+        if language_code:
+            lang = language_code.split("-")[0].lower()
+            if lang in ["ru", "be", "kk"]:
+                return "RUB"
+        return "USD"
+    
+    async def convert_to_base_currency(
+        self, 
+        amount: Union[float, Decimal, str, int],
+        from_currency: str
+    ) -> Decimal:
+        """
+        Convert amount from any currency to USD (base currency).
+        
+        Args:
+            amount: Amount in source currency
+            from_currency: Source currency code
+            
+        Returns:
+            Amount in USD as Decimal
+        """
+        if from_currency == "USD":
+            return to_decimal(amount)
+        
+        rate = await self.get_exchange_rate(from_currency)
+        if rate == 0:
+            rate = 1.0
+        
+        # amount / rate = USD
+        return round_money(to_decimal(amount) / to_decimal(rate))
 
 
 # Global instance (will be initialized with Redis if available)

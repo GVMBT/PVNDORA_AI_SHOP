@@ -17,6 +17,7 @@ class User(BaseModel):
     preferred_currency: Optional[str] = None  # User preferred currency (RUB, USD, EUR, etc.)
     interface_language: Optional[str] = None  # User preferred interface language (ru, en, etc.)
     balance: Decimal = Decimal("0")
+    balance_currency: str = "USD"  # Currency of user's balance (RUB, USD)
     referrer_id: Optional[str] = None
     personal_ref_percent: int = 10  # Default L1 commission (actual from referral_settings)
     is_admin: bool = False
@@ -54,7 +55,8 @@ class Product(BaseModel):
     id: str
     name: str
     description: Optional[str] = None
-    price: Decimal
+    price: Decimal  # Base price in USD
+    prices: Optional[dict] = None  # Anchor prices: {"RUB": 990, "USD": 10.50}
     type: str  # student, trial, shared, key
     status: str = "active"
     warranty_hours: int = 24
@@ -112,7 +114,7 @@ class Order(BaseModel):
     delivery_content: Optional[str] = None  # Use order_items instead
     delivery_instructions: Optional[str] = None  # Use order_items instead
     # Active fields
-    amount: Decimal
+    amount: Decimal  # Always in USD (base currency for accounting)
     original_price: Optional[Decimal] = None
     discount_percent: int = 0
     status: str = "pending"
@@ -128,11 +130,15 @@ class Order(BaseModel):
     payment_url: Optional[str] = None
     order_type: Optional[str] = "instant"
     fulfillment_deadline: Optional[datetime] = None
+    # Currency snapshot fields (for accurate accounting)
+    fiat_amount: Optional[Decimal] = None  # Amount in user's currency
+    fiat_currency: Optional[str] = None  # User's currency code (RUB, USD, etc.)
+    exchange_rate_snapshot: Optional[Decimal] = None  # Rate at order creation (1 USD = X fiat)
     
     class Config:
         extra = "ignore"  # Ignore unknown fields from DB
     
-    @field_validator("amount", "original_price", mode="before")
+    @field_validator("amount", "original_price", "fiat_amount", "exchange_rate_snapshot", mode="before")
     @classmethod
     def convert_amount_to_decimal(cls, v):
         return _to_decimal(v) if v is not None else None

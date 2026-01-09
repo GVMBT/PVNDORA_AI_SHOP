@@ -13,7 +13,8 @@ export interface ProductData {
   category: string;  // ai, dev, design, music
   
   // Pricing
-  price: number;  // Main price (USD)
+  price: number;  // Base price (USD)
+  prices?: Record<string, number>;  // Anchor prices: {RUB: 990, USD: 10.50}
   msrp: number;  // Strike-through price (shown if > price)
   discountPrice?: number;  // Price for discount channel
   costPrice?: number;  // Cost for accounting

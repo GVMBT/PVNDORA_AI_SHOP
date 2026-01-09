@@ -27,6 +27,13 @@ function deriveAvailability(apiProduct: APIProduct): ProductAvailability {
 
 /**
  * Adapt a single API product to CatalogProduct format
+ * 
+ * IMPORTANT: The API now returns anchor prices (fixed or converted).
+ * - final_price: Price in user's currency (anchor if set, otherwise converted from USD)
+ * - is_anchor_price: true if price is fixed (won't change with exchange rate)
+ * - price_usd: Base USD price (for backend calculations only)
+ * 
+ * Frontend should NOT do any currency conversion - just display final_price as-is.
  */
 export function adaptProduct(apiProduct: APIProduct, currency: string = 'USD'): CatalogProduct {
   // Derive categories: use API categories array, fallback to product type
@@ -40,6 +47,7 @@ export function adaptProduct(apiProduct: APIProduct, currency: string = 'USD'): 
     // Legacy single category: use first from categories or type
     category: productCategories[0] || apiProduct.type,
     categories: productCategories,
+    // Use final_price from API - already in user's currency (anchor or converted)
     price: apiProduct.final_price,
     msrp: apiProduct.msrp || apiProduct.original_price,
     currency: apiProduct.currency || currency,

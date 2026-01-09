@@ -29,13 +29,16 @@ export interface APIProduct {
   image_url?: string;
   video_url?: string; // Video background URL
   logo_svg_url?: string; // SVG logo (deprecated, use video_url instead)
-  original_price: number;
-  price: number;
-  price_usd: number;
+  original_price: number; // Display price in user's currency
+  price: number; // Display price in user's currency
+  price_usd: number; // Base USD price (for backend calculations only)
   msrp?: number;
-  currency: string;
+  currency: string; // User's currency code
+  exchange_rate?: number; // Current exchange rate (1 USD = X currency)
   discount_percent: number;
-  final_price: number;
+  final_price: number; // Final price after discounts (in user's currency)
+  final_price_usd?: number; // Final price in USD (for backend)
+  is_anchor_price?: boolean; // True if price is fixed (won't change with exchange rate)
   warranty_days: number;
   duration_days?: number;
   available_count: number;
@@ -67,8 +70,9 @@ export interface APIProductDetailed extends APIProduct {
 
 export interface APIProductsResponse {
   products: APIProduct[];
-  count: number;
+  count?: number;
   currency?: string; // Currency code for price display
+  exchange_rate?: number; // Current exchange rate (1 USD = X currency)
 }
 
 export interface APIProductResponse {

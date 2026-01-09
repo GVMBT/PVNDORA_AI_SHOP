@@ -19,7 +19,11 @@ class OrderRepository(BaseRepository):
         user_telegram_id: Optional[int] = None,
         expires_at: Optional[datetime] = None,
         payment_url: Optional[str] = None,
-        source_channel: str = "premium"
+        source_channel: str = "premium",
+        # Currency snapshot fields
+        fiat_amount: Optional[float] = None,
+        fiat_currency: Optional[str] = None,
+        exchange_rate_snapshot: Optional[float] = None,
     ) -> Order:
         """Create new order with payment expiration.
         
@@ -27,6 +31,9 @@ class OrderRepository(BaseRepository):
         
         Args:
             source_channel: Order origin - 'premium' (PVNDORA), 'discount' (discount bot), 'migrated' (converted user)
+            fiat_amount: Amount in user's currency (what they see/pay)
+            fiat_currency: User's currency code (RUB, USD, etc.)
+            exchange_rate_snapshot: Exchange rate at order creation (1 USD = X fiat)
         """
         data = {
             "user_id": user_id,
@@ -44,6 +51,14 @@ class OrderRepository(BaseRepository):
             data["expires_at"] = expires_at.isoformat()
         if payment_url:
             data["payment_url"] = payment_url
+        
+        # Currency snapshot fields
+        if fiat_amount is not None:
+            data["fiat_amount"] = fiat_amount
+        if fiat_currency:
+            data["fiat_currency"] = fiat_currency
+        if exchange_rate_snapshot is not None:
+            data["exchange_rate_snapshot"] = exchange_rate_snapshot
         
         # Debug: ensure product_id is not in data
         if "product_id" in data:

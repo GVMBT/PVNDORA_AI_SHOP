@@ -374,7 +374,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
               {/* Основные цены */}
               <div className="bg-[#050505] p-4 border border-white/10 rounded-sm">
                 <h4 className="text-xs font-mono text-gray-500 uppercase mb-4 flex items-center gap-2">
-                  <DollarSign size={14} /> Цены
+                  <DollarSign size={14} /> Базовые цены (USD)
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
@@ -391,7 +391,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
                       />
                     </div>
                     <p className="text-[9px] text-gray-600 mt-1">
-                      Основная цена продажи
+                      Основная цена (база для конвертации)
                     </p>
                   </div>
                   
@@ -430,6 +430,79 @@ const ProductModal: React.FC<ProductModalProps> = ({
                       Цена для скидочного бота
                     </p>
                   </div>
+                </div>
+              </div>
+
+              {/* Якорные цены */}
+              <div className="bg-[#050505] p-4 border border-blue-500/20 rounded-sm">
+                <h4 className="text-xs font-mono text-blue-400 uppercase mb-4 flex items-center gap-2">
+                  <DollarSign size={14} /> Фиксированные цены по валютам (Anchor Prices)
+                </h4>
+                <p className="text-[10px] text-gray-500 mb-4">
+                  Если задана — используется фиксированная цена. Если пусто — автоматическая конвертация из USD.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] text-blue-400 block mb-1 uppercase">Цена в рублях (RUB)</label>
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">₽</span>
+                      <input 
+                        type="number" 
+                        value={editingProduct?.prices?.RUB || ''}
+                        onChange={(e) => {
+                          const value = e.target.value ? Number(e.target.value) : undefined;
+                          const newPrices = { ...(editingProduct?.prices || {}) };
+                          if (value !== undefined && value > 0) {
+                            newPrices.RUB = value;
+                          } else {
+                            delete newPrices.RUB;
+                          }
+                          setEditingProduct({...editingProduct, prices: Object.keys(newPrices).length > 0 ? newPrices : undefined});
+                        }}
+                        className="w-full bg-black border border-blue-500/30 p-2.5 pl-6 text-sm text-blue-400 font-mono focus:border-blue-500 outline-none rounded-sm" 
+                        step="1"
+                        min={0}
+                        placeholder="Авто из USD"
+                      />
+                    </div>
+                    <p className="text-[9px] text-gray-600 mt-1">
+                      Фиксированная цена для RU/BY/KZ пользователей
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-blue-400 block mb-1 uppercase">Цена в долларах (USD) — перезапись</label>
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">$</span>
+                      <input 
+                        type="number" 
+                        value={editingProduct?.prices?.USD || ''}
+                        onChange={(e) => {
+                          const value = e.target.value ? Number(e.target.value) : undefined;
+                          const newPrices = { ...(editingProduct?.prices || {}) };
+                          if (value !== undefined && value > 0) {
+                            newPrices.USD = value;
+                          } else {
+                            delete newPrices.USD;
+                          }
+                          setEditingProduct({...editingProduct, prices: Object.keys(newPrices).length > 0 ? newPrices : undefined});
+                        }}
+                        className="w-full bg-black border border-blue-500/30 p-2.5 pl-6 text-sm text-blue-400 font-mono focus:border-blue-500 outline-none rounded-sm" 
+                        step="0.01"
+                        min={0}
+                        placeholder="Использовать базовую"
+                      />
+                    </div>
+                    <p className="text-[9px] text-gray-600 mt-1">
+                      Опционально: перезаписать базовую для USD пользователей
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 p-2 bg-blue-500/5 border border-blue-500/10 rounded-sm">
+                  <p className="text-[10px] text-blue-300 font-mono">
+                    ℹ️ Якорные цены позволяют задать "красивую" фиксированную цену (990 ₽ вместо 987.34 ₽).
+                    Цена не будет меняться при колебаниях курса.
+                  </p>
                 </div>
               </div>
 

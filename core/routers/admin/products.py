@@ -31,7 +31,8 @@ async def admin_create_product(request: CreateProductRequest, admin=Depends(veri
         "type": request.category,
         
         # Pricing
-        "price": request.price,
+        "price": request.price,  # Base USD price
+        "prices": request.prices or {},  # Anchor prices (JSONB)
         "msrp": request.msrp or request.price,
         "discount_price": request.discountPrice,
         "cost_price": request.costPrice,
@@ -99,7 +100,8 @@ async def admin_get_products(admin=Depends(verify_admin)):
             "category": p.get("type", "ai"),
             
             # Pricing
-            "price": float(p.get("price", 0)),
+            "price": float(p.get("price", 0)),  # Base USD price
+            "prices": p.get("prices") or {},  # Anchor prices (JSONB)
             "msrp": float(p.get("msrp") or p.get("price", 0)),
             "discountPrice": float(p.get("discount_price") or 0),
             "costPrice": float(p.get("cost_price") or 0),
@@ -144,7 +146,8 @@ async def admin_update_product(product_id: str, request: CreateProductRequest, a
         "type": request.category,
         
         # Pricing
-        "price": request.price,
+        "price": request.price,  # Base USD price
+        "prices": request.prices or {},  # Anchor prices (JSONB)
         "msrp": request.msrp or request.price,
         "discount_price": request.discountPrice,
         "cost_price": request.costPrice,

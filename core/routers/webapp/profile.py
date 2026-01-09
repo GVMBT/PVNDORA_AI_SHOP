@@ -223,6 +223,9 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     total_referral_earnings_usd = float(db_user.total_referral_earnings) if hasattr(db_user, 'total_referral_earnings') and db_user.total_referral_earnings else 0
     total_saved_usd = float(db_user.total_saved) if db_user.total_saved else 0
     
+    # Get user's balance currency
+    balance_currency = getattr(db_user, 'balance_currency', 'USD') or 'USD'
+    
     return {
         "profile": {
             # USD values (for calculations - ALWAYS use these for math)
@@ -244,13 +247,15 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
             "username": db_user.username,
             "telegram_id": db_user.telegram_id,
             "photo_url": getattr(db_user, 'photo_url', None),
+            # Balance currency (user's wallet currency)
+            "balance_currency": balance_currency,
         },
         "referral_program": referral_program,
         "referral_stats": referral_stats,
         "bonus_history": bonus_result.data or [],
         "withdrawals": withdrawal_result.data or [],
         "balance_transactions": balance_transactions_result.data or [],
-        # Currency info (for frontend)
+        # Currency info (for frontend display)
         "currency": formatter.currency,
         "exchange_rate": formatter.exchange_rate,
     }
