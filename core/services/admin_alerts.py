@@ -116,20 +116,21 @@ class AdminAlertService:
         
         icon = SEVERITY_ICONS.get(severity, "📢")
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        local_time = datetime.now().strftime("%H:%M")
         
-        # Build alert message
+        # Build structured alert message
         text = (
-            f"{icon} <b>{title}</b>\n\n"
-            f"{message}\n\n"
+            f"{icon} <b>{title}</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"{message}\n"
         )
         
         if metadata:
-            text += "<i>Metadata:</i>\n"
+            text += "\n<b>Детали:</b>\n"
             for k, v in metadata.items():
                 text += f"• <code>{k}</code>: {v}\n"
-            text += "\n"
         
-        text += f"<i>⏰ {timestamp}</i>"
+        text += f"\n<i>⏰ {timestamp} ({local_time})</i>"
         
         sent_count = 0
         for admin_id in admin_ids:
@@ -163,9 +164,10 @@ class AdminAlertService:
         return await self.send_alert(
             title="💰 Новый заказ оплачен",
             message=(
-                f"<b>{product_name}</b> × {quantity}\n\n"
-                f"Сумма: <b>{amount:.2f} {currency}</b>\n"
-                f"Покупатель: {user_display}"
+                f"<b>Товар:</b> {product_name}\n"
+                f"<b>Количество:</b> {quantity}\n"
+                f"<b>Сумма:</b> {amount:.2f} {currency}\n"
+                f"<b>Покупатель:</b> {user_display}"
             ),
             severity=AlertSeverity.INFO,
             metadata={"order_id": order_id[:8]}
@@ -180,12 +182,15 @@ class AdminAlertService:
     ) -> int:
         """Alert admins about low stock."""
         severity = AlertSeverity.WARNING if current_stock > 0 else AlertSeverity.ERROR
+        status_icon = "🔴" if current_stock == 0 else "⚠️"
+        status_text = "Товар закончился!" if current_stock == 0 else "Низкий запас"
+        
         return await self.send_alert(
-            title="Низкий запас товара" if current_stock > 0 else "Товар закончился!",
+            title=f"{status_icon} {status_text}",
             message=(
-                f"<b>{product_name}</b>\n\n"
-                f"Остаток: <b>{current_stock}</b> шт.\n"
-                f"Порог: {threshold} шт."
+                f"<b>Товар:</b> {product_name}\n"
+                f"<b>Остаток:</b> <b>{current_stock}</b> шт.\n"
+                f"<b>Порог:</b> {threshold} шт."
             ),
             severity=severity,
             metadata={"product_id": product_id[:8]}
@@ -200,12 +205,11 @@ class AdminAlertService:
     ) -> int:
         """Alert admins about payment processing failure."""
         return await self.send_alert(
-            title="Ошибка оплаты",
+            title="🔴 Ошибка оплаты",
             message=(
-                f"Не удалось обработать платёж\n\n"
-                f"Сумма: ${amount:.2f}\n"
-                f"Шлюз: {gateway}\n"
-                f"Ошибка: <code>{error[:200]}</code>"
+                f"<b>Сумма:</b> ${amount:.2f}\n"
+                f"<b>Шлюз:</b> {gateway}\n"
+                f"<b>Ошибка:</b> <code>{error[:200]}</code>"
             ),
             severity=AlertSeverity.ERROR,
             metadata={"order_id": order_id[:8]}
@@ -214,20 +218,29 @@ class AdminAlertService:
     async def alert_withdrawal_request(
         self,
         user_telegram_id: int,
+        username: Optional[str],
         amount: float,
         method: str,
-        request_id: str
+        request_id: str,
+        user_balance: Optional[float] = None
     ) -> int:
         """Alert admins about new withdrawal request."""
+        user_display = f"@{username}" if username else f"ID: {user_telegram_id}"
+        
+        message = (
+            f"<b>Сумма:</b> ${amount:.2f}\n"
+            f"<b>Метод:</b> {method.upper()}\n"
+            f"<b>Пользователь:</b> {user_display}"
+        )
+        
+        if user_balance is not None:
+            message += f"\n<b>Баланс:</b> ${user_balance:.2f}"
+        
         return await self.send_alert(
-            title="Запрос на вывод средств",
-            message=(
-                f"Новый запрос на вывод <b>${amount:.2f}</b>\n\n"
-                f"Метод: {method}\n"
-                f"Пользователь: <code>{user_telegram_id}</code>"
-            ),
+            title="💸 Запрос на вывод средств",
+            message=message,
             severity=AlertSeverity.WARNING,
-            metadata={"request_id": request_id[:8]}
+            metadata={"request_id": request_id[:8], "user_id": str(user_telegram_id)}
         )
     
     async def alert_new_partner_application(
@@ -238,15 +251,17 @@ class AdminAlertService:
         audience_size: str
     ) -> int:
         """Alert admins about new partner application."""
+        user_display = f"@{username}" if username else f"ID: {user_telegram_id}"
+        
         return await self.send_alert(
-            title="Заявка на партнёрство",
+            title="🏆 Заявка на партнёрство",
             message=(
-                f"Новая заявка на VIP-партнёрство\n\n"
-                f"Пользователь: {'@' + username if username else 'N/A'} (<code>{user_telegram_id}</code>)\n"
-                f"Источник аудитории: {source}\n"
-                f"Размер аудитории: {audience_size}"
+                f"<b>Пользователь:</b> {user_display}\n"
+                f"<b>Источник:</b> {source}\n"
+                f"<b>Аудитория:</b> {audience_size}"
             ),
-            severity=AlertSeverity.INFO
+            severity=AlertSeverity.INFO,
+            metadata={"user_id": str(user_telegram_id)}
         )
     
     async def alert_support_ticket(
@@ -262,10 +277,10 @@ class AdminAlertService:
             metadata["order_id"] = order_id[:8]
             
         return await self.send_alert(
-            title="Новый тикет поддержки",
+            title="🎫 Новый тикет поддержки",
             message=(
-                f"Создан тикет типа <b>{issue_type}</b>\n\n"
-                f"Пользователь: <code>{user_telegram_id}</code>"
+                f"<b>Тип:</b> {issue_type}\n"
+                f"<b>Пользователь:</b> <code>{user_telegram_id}</code>"
             ),
             severity=AlertSeverity.INFO,
             metadata=metadata

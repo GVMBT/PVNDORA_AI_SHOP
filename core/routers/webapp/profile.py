@@ -316,9 +316,11 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
         alert_service = get_admin_alerts()
         await alert_service.alert_withdrawal_request(
             user_telegram_id=user.id,
+            username=db_user.username,
             amount=amount_usd,
             method=request.method,
-            request_id=request_id
+            request_id=request_id,
+            user_balance=float(db_user.balance) if db_user.balance else 0
         )
     except Exception as e:
         logger.warning(f"Failed to send withdrawal alert: {e}")
