@@ -298,25 +298,44 @@ async def preview_withdrawal(request: WithdrawalPreviewRequest, user=Depends(ver
     
     amount = request.amount
     
-    # Calculate USDT payout (uses constants from currency service)
-    withdrawal_calc = await currency_service.calculate_withdrawal_usdt(
-        amount_in_balance_currency=amount,
-        balance_currency=balance_currency
-    )
-    
     # Calculate minimum withdrawal amount (uses constants from currency service)
     min_withdrawal = await currency_service.calculate_min_withdrawal_amount(
         balance_currency=balance_currency
     )
     
     # Calculate maximum withdrawal amount (uses constants from currency service)
+    # This checks if user can withdraw ANY amount (at least minimum)
     max_withdrawal = await currency_service.calculate_max_withdrawal_amount(
         balance=balance,
         balance_currency=balance_currency
     )
     
+    # Use requested amount, or full balance for preview
+    amount_to_calc = amount if amount > 0 else balance
+    
+    # Calculate USDT payout for amount_to_calc
+    withdrawal_calc = await currency_service.calculate_withdrawal_usdt(
+        amount_in_balance_currency=amount_to_calc,
+        balance_currency=balance_currency
+    )
+    
+    # Check if user can withdraw: 
+    # 1. They can withdraw at least minimum amount (from max_withdrawal)
+    # 2. If specific amount requested, validate it meets minimum USDT after fees
+    can_withdraw_any = max_withdrawal.get("can_withdraw", False) and max_withdrawal["max_amount"] > 0
+    # For specific amount: validate it's within balance and meets minimum USDT
+    # If amount=0 (preview), use max_withdrawal result
+    if amount > 0:
+        can_withdraw_requested = (
+            amount <= balance and 
+            withdrawal_calc["amount_usdt"] >= MIN_USDT_AFTER_FEES
+        )
+    else:
+        # For preview (amount=0), use max_withdrawal result
+        can_withdraw_requested = can_withdraw_any
+    
     return {
-        "amount_requested": amount,
+        "amount_requested": amount_to_calc,
         "amount_requested_currency": balance_currency,
         "amount_usd": withdrawal_calc["amount_usd"],
         "amount_usdt_gross": withdrawal_calc["amount_usdt_gross"],
@@ -324,7 +343,7 @@ async def preview_withdrawal(request: WithdrawalPreviewRequest, user=Depends(ver
         "amount_usdt_net": withdrawal_calc["amount_usdt"],
         "exchange_rate": withdrawal_calc["exchange_rate"],
         "usdt_rate": withdrawal_calc["usdt_rate"],
-        "can_withdraw": amount <= balance and withdrawal_calc["amount_usdt"] >= MIN_USDT_AFTER_FEES,
+        "can_withdraw": can_withdraw_any and can_withdraw_requested,
         "min_amount": min_withdrawal["min_amount"],
         "max_amount": max_withdrawal["max_amount"],
         "max_usdt_net": max_withdrawal["max_usdt_net"]

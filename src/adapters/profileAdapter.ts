@@ -196,8 +196,9 @@ export function adaptProfile(
     name: firstName,
     handle: username ? `@${username}` : `UID-${telegramId || Date.now()}`,
     id: telegramId ? `UID-${telegramId.toString().slice(-6)}` : `UID-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-    balance: profile.balance,  // Converted to user currency (for display)
+    balance: profile.balance,  // Balance in user's balance_currency (RUB for ru users, USD for others)
     balanceUsd: profile.balance_usd,  // ALWAYS use balance_usd (USD base amount)
+    balanceCurrency: profile.balance_currency || profile.currency || 'USD',  // CRITICAL: Currency of actual balance
     earnedRef: profile.total_referral_earnings,  // Converted to user currency
     earnedRefUsd: profile.total_referral_earnings_usd,  // ALWAYS use _usd suffix (USD base amount)
     saved: profile.total_saved,  // Converted to user currency

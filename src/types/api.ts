@@ -152,8 +152,9 @@ export interface APICreateOrderResponse {
 // ==================== PROFILE ====================
 
 export interface APIProfile {
-  balance: number;  // Converted to user currency (for backward compatibility)
+  balance: number;  // Balance in user's balance_currency (RUB for ru users, USD for others)
   balance_usd: number;  // Base USD amount (for frontend conversion)
+  balance_currency?: string;  // Currency of user's actual balance (RUB, USD, etc.)
   total_referral_earnings: number;  // Converted
   total_referral_earnings_usd: number;  // USD amount
   total_saved: number;  // Converted

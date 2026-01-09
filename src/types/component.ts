@@ -172,6 +172,7 @@ export interface ProfileData {
   id: string;
   balance: number;  // Converted to user currency (for display)
   balanceUsd: number;  // Base USD amount (for frontend conversion)
+  balanceCurrency?: string;  // Currency of user's actual balance (RUB, USD, etc.) - CRITICAL for withdrawals
   earnedRef: number;  // Converted
   earnedRefUsd: number;  // USD amount
   saved: number;  // Converted

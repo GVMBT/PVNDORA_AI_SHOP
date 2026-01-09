@@ -274,7 +274,8 @@ const Modal: React.FC<{ state: ModalState; onClose: () => void; onSubmit: (value
                   <h3 className="text-lg font-display font-bold text-white uppercase tracking-wider">
                     {state.title}
                   </h3>
-                  {state.message && (
+                  {/* Show message in header only for non-alert/confirm types (like prompt) */}
+                  {state.message && state.type !== 'alert' && state.type !== 'confirm' && (
                     <p className="text-xs text-gray-500 font-mono mt-1">{state.message}</p>
                   )}
                 </div>

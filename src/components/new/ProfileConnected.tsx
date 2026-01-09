@@ -32,7 +32,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   const { hapticFeedback, showConfirm, openLink, showAlert: showTelegramAlert } = useTelegram();
   const { showTopUp, showWithdraw, showAlert: showModalAlert } = useCyberModal();
   const { updateFromProfile, setCurrency, setLocale, setExchangeRate, currency: contextCurrency } = useLocaleContext();
-  const { t } = useLocale();
+  const { t, formatPrice } = useLocale();
   const { clearCartState } = useCart();
   const [isInitialized, setIsInitialized] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
@@ -82,6 +82,10 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     const displayCurrency = contextCurrency || profile.currency || 'USD';
     const exchangeRate = profile.exchangeRate || 1.0;
     
+    // CRITICAL: Save original balance in balance_currency BEFORE conversion
+    // profile.balance from backend is already in balance_currency (RUB for ru users, USD for others)
+    const originalBalanceInBalanceCurrency = profile.balance || 0;
+    
     // Always use _usd values (base amounts from DB) for conversion
     const balanceUsd = profile.balanceUsd ?? 0;
     const earnedRefUsd = profile.earnedRefUsd ?? 0;
@@ -100,7 +104,11 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     return {
       ...profile,
       currency: displayCurrency,
+      // For display: use converted balance
       balance: convert(balanceUsd),
+      // CRITICAL: Keep original balance in balance_currency for withdrawals
+      // This is the actual balance stored in DB in user's balance_currency
+      balanceInBalanceCurrency: originalBalanceInBalanceCurrency,
       earnedRef: convert(earnedRefUsd),
       saved: convert(savedUsd),
       career: {
@@ -160,9 +168,14 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
 
   const handleWithdraw = useCallback(async () => {
     const currency = contextCurrency || profile?.currency || 'USD';
-    const balance = convertedProfile?.balance || 0;
+    // CRITICAL: Use original balance in balance_currency, NOT converted balance
+    // balance_currency is the actual currency of user's balance in DB (RUB for ru users, USD for others)
+    const balanceCurrency = profile?.balanceCurrency || profile?.currency || 'USD';
+    // Get original balance in balance_currency (before conversion to display currency)
+    // convertedProfile.balanceInBalanceCurrency contains the actual balance from DB
+    const originalBalance = convertedProfile?.balanceInBalanceCurrency ?? profile?.balance ?? 0;
     
-    if (balance <= 0) {
+    if (originalBalance <= 0) {
       showModalAlert(
         t('profile.errors.insufficientFunds'), 
         t('profile.errors.insufficientBalance'), 
@@ -172,13 +185,18 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     }
     
     try {
-      // Get preview with full balance to calculate min/max
-      const preview = await previewWithdrawal(balance);
+      // Get preview with original balance in balance_currency (NOT converted to display currency)
+      const preview = await previewWithdrawal(originalBalance);
       
       if (!preview.can_withdraw || preview.max_amount <= 0) {
+        // Format min_amount with currency from response (min_amount is in balance_currency)
+        const minAmountFormatted = formatPrice(
+          preview.min_amount, 
+          preview.amount_requested_currency || currency
+        );
         showModalAlert(
           t('profile.errors.insufficientFunds'), 
-          t('profile.errors.minWithdrawal', { amount: preview.min_amount.toLocaleString() }), 
+          t('profile.errors.minWithdrawal', { amount: minAmountFormatted }), 
           'warning'
         );
         return;
@@ -186,11 +204,14 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       
       if (onHaptic) onHaptic('medium');
       
+      // Use converted balance for UI display (in display currency)
+      const displayBalance = convertedProfile?.balance || 0;
+      
       showWithdraw({
-        currency,
-        balance,
-        minAmount: preview.min_amount,
-        maxAmount: preview.max_amount,
+        currency: preview.amount_requested_currency || currency,  // Use balance_currency from backend
+        balance: originalBalance,  // Use original balance in balance_currency for validation
+        minAmount: preview.min_amount,  // Already in balance_currency
+        maxAmount: preview.max_amount,  // Already in balance_currency
         previewWithdrawal,
         onConfirm: async (amount: number, method: string, details: string) => {
           await requestWithdrawal(amount, method, details);
