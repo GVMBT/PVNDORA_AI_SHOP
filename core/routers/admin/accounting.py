@@ -81,6 +81,44 @@ async def get_financial_overview(admin=Depends(verify_admin)):
     data["reserves_used"] = float(reserves.get("total_used", 0))
     data["reserves_available"] = float(reserves.get("total_available", 0))
     
+    # Get currency breakdown for all delivered orders
+    try:
+        orders_result = await asyncio.to_thread(
+            lambda: db.client.table("orders")
+            .select("fiat_currency, fiat_amount, amount")
+            .eq("status", "delivered")
+            .execute()
+        )
+        
+        orders = orders_result.data or []
+        currency_breakdown = {}
+        
+        for order in orders:
+            currency = order.get("fiat_currency") or "USD"
+            if currency not in currency_breakdown:
+                currency_breakdown[currency] = {
+                    "orders_count": 0,
+                    "revenue_usd": 0.0,
+                    "revenue_fiat": 0.0
+                }
+            currency_breakdown[currency]["orders_count"] += 1
+            currency_breakdown[currency]["revenue_usd"] += float(order.get("amount", 0))
+            fiat_amount = order.get("fiat_amount")
+            if fiat_amount is not None:
+                currency_breakdown[currency]["revenue_fiat"] += float(fiat_amount)
+            else:
+                currency_breakdown[currency]["revenue_fiat"] += float(order.get("amount", 0))
+        
+        # Round values
+        for currency in currency_breakdown:
+            currency_breakdown[currency]["revenue_usd"] = round(currency_breakdown[currency]["revenue_usd"], 2)
+            currency_breakdown[currency]["revenue_fiat"] = round(currency_breakdown[currency]["revenue_fiat"], 2)
+        
+        data["currency_breakdown"] = currency_breakdown
+    except Exception as e:
+        logger.warning(f"Failed to get currency breakdown: {e}")
+        data["currency_breakdown"] = {}
+    
     return data
 
 
@@ -558,10 +596,10 @@ async def get_accounting_report(
     else:
         start_date = now - timedelta(days=365)
     
-    # Get orders with expenses
+    # Get orders with expenses and currency snapshot fields
     orders_result = await asyncio.to_thread(
         lambda: db.client.table("orders")
-        .select("id, amount, original_price, discount_percent, created_at, order_expenses(*)")
+        .select("id, amount, original_price, discount_percent, created_at, fiat_currency, fiat_amount, exchange_rate_snapshot, order_expenses(*)")
         .eq("status", "delivered")
         .gte("created_at", start_date.isoformat())
         .execute()
@@ -569,7 +607,41 @@ async def get_accounting_report(
     
     orders = orders_result.data or []
     
-    # Calculate totals
+    # Group orders by currency for breakdown
+    orders_by_currency = {}
+    for order in orders:
+        # Use fiat_currency if available, otherwise default to "USD"
+        currency = order.get("fiat_currency") or "USD"
+        if currency not in orders_by_currency:
+            orders_by_currency[currency] = {
+                "orders": [],
+                "revenue_usd": 0.0,
+                "revenue_gross_usd": 0.0,
+                "revenue_fiat": 0.0,  # Real amount in payment currency
+                "orders_count": 0
+            }
+        orders_by_currency[currency]["orders"].append(order)
+        orders_by_currency[currency]["revenue_usd"] += float(order.get("amount", 0))
+        orders_by_currency[currency]["revenue_gross_usd"] += float(order.get("original_price", order.get("amount", 0)))
+        fiat_amount = order.get("fiat_amount")
+        if fiat_amount is not None:
+            orders_by_currency[currency]["revenue_fiat"] += float(fiat_amount)
+        else:
+            # Fallback: if no fiat_amount, assume it's USD (equal to amount)
+            orders_by_currency[currency]["revenue_fiat"] += float(order.get("amount", 0))
+        orders_by_currency[currency]["orders_count"] += 1
+    
+    # Build currency_breakdown for response
+    currency_breakdown = {}
+    for currency, data in orders_by_currency.items():
+        currency_breakdown[currency] = {
+            "orders_count": data["orders_count"],
+            "revenue_usd": round(data["revenue_usd"], 2),
+            "revenue_fiat": round(data["revenue_fiat"], 2),
+            "revenue_gross_usd": round(data["revenue_gross_usd"], 2)
+        }
+    
+    # Calculate totals (same as before for backward compatibility)
     revenue = sum(float(o.get("amount", 0)) for o in orders)
     revenue_gross = sum(float(o.get("original_price", o.get("amount", 0))) for o in orders)
     total_discounts = revenue_gross - revenue
@@ -638,6 +710,9 @@ async def get_accounting_report(
         "start_date": start_date.isoformat(),
         "end_date": now.isoformat(),
         "orders_count": len(orders),
+        
+        # Currency breakdown
+        "currency_breakdown": currency_breakdown,
         
         # Income Statement
         "income_statement": {

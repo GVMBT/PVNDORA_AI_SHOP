@@ -366,8 +366,12 @@ async def crystalpay_topup_webhook(request: Request):
             return JSONResponse({"ok": True}, status_code=200)
         
         user_id = tx.get("user_id")
-        payment_amount = float(tx.get("amount") or 0)
-        payment_currency = tx.get("currency") or "RUB"
+        
+        # Get payment details from metadata (what user actually paid)
+        # Transaction amount/currency is in balance_currency (what gets credited)
+        tx_metadata = tx.get("metadata") or {}
+        payment_amount = float(tx_metadata.get("payment_amount") or tx.get("amount") or 0)
+        payment_currency = tx_metadata.get("payment_currency") or tx.get("currency") or "RUB"
         
         # Get user current balance, balance_currency and telegram_id
         user_result = await asyncio.to_thread(
@@ -414,9 +418,9 @@ async def crystalpay_topup_webhook(request: Request):
         
         # Round appropriately for the balance currency
         if balance_currency in ["RUB", "UAH", "TRY", "INR"]:
-            amount_to_add = round(amount_to_add, 2)
+            amount_to_add = round(amount_to_add)  # Integer currencies - round to whole number
         else:
-            amount_to_add = round(amount_to_add, 2)
+            amount_to_add = round(amount_to_add, 2)  # Decimal currencies - round to 2 decimal places
         
         new_balance = current_balance + amount_to_add
         
@@ -448,8 +452,8 @@ async def crystalpay_topup_webhook(request: Request):
                 notification_service = get_notification_service()
                 await notification_service.send_topup_success_notification(
                     telegram_id=user_telegram_id,
-                    amount=amount,
-                    currency=currency,
+                    amount=amount_to_add,  # Amount actually credited to balance
+                    currency=balance_currency,  # Currency of user's balance
                     new_balance=new_balance
                 )
             except Exception as e:

@@ -59,6 +59,15 @@ export interface AccountingData {
   // Reserve usage (optional)
   reservesUsed?: number;
   reservesAvailable?: number;
+  
+  // Currency breakdown (optional)
+  currencyBreakdown?: {
+    [currency: string]: {
+      orders_count: number;
+      revenue_usd: number;
+      revenue_fiat: number;
+    };
+  };
 }
 
 interface AdminAccountingProps {
@@ -243,6 +252,38 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
           )}
         </div>
       </div>
+
+      {/* Currency Breakdown */}
+      {d.currencyBreakdown && Object.keys(d.currencyBreakdown).length > 0 && (
+        <div className="bg-[#0e0e0e] border border-white/10 p-4 rounded-sm">
+          <div className="flex items-center gap-2 text-gray-400 text-xs uppercase mb-3">
+            <CreditCard size={14} />
+            Разбивка по валютам
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {Object.entries(d.currencyBreakdown).map(([currency, stats]) => (
+              <div key={currency} className="bg-[#1a1a1a] border border-white/5 p-3 rounded-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-bold text-white">{currency}</span>
+                  <span className="text-xs text-gray-500">{stats.orders_count} заказов</span>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-400">Выручка (USD):</span>
+                    <span className="text-white font-mono">${stats.revenue_usd.toFixed(2)}</span>
+                  </div>
+                  {currency !== 'USD' && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-400">Выручка ({currency}):</span>
+                      <span className="text-white font-mono">{stats.revenue_fiat.toFixed(currency === 'RUB' ? 0 : 2)} {currency}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Ключевые метрики */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

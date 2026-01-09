@@ -505,29 +505,48 @@ async def create_topup(
     payment_amount = request.amount
     payment_currency = currency
     
-    # Create pending transaction record
+    # Get user's balance_currency (currency of their actual balance)
+    balance_currency = getattr(db_user, 'balance_currency', 'USD') or 'USD'
     current_balance = float(db_user.balance) if db_user.balance else 0
     
-    # Convert amount to USD for storage (all balances/transactions in USD)
-    amount_usd = request.amount
-    if currency != "USD" and formatter.exchange_rate > 0:
-        amount_usd = request.amount / formatter.exchange_rate
+    # Convert payment amount to user's balance_currency if needed
+    from core.services.currency import get_currency_service
+    currency_service = get_currency_service(redis)
     
+    if currency == balance_currency:
+        # Same currency, use directly
+        amount_to_credit = request.amount
+    else:
+        # Convert: payment_currency → USD → balance_currency
+        payment_rate = await currency_service.get_exchange_rate(currency) if currency != "USD" else 1.0
+        balance_rate = await currency_service.get_exchange_rate(balance_currency) if balance_currency != "USD" else 1.0
+        amount_usd = request.amount / payment_rate if payment_rate > 0 else request.amount
+        amount_to_credit = amount_usd * balance_rate
+    
+    # Round appropriately for balance currency
+    if balance_currency in ["RUB", "UAH", "TRY", "INR"]:
+        amount_to_credit = round(amount_to_credit, 2)
+    else:
+        amount_to_credit = round(amount_to_credit, 2)
+    
+    # Create pending transaction record in user's balance_currency
     try:
         tx_result = await asyncio.to_thread(
             lambda: db.client.table("balance_transactions").insert({
                 "user_id": db_user.id,
                 "type": "topup",
-                "amount": amount_usd,  # Store in USD!
-                "currency": "USD",  # Always USD for consistency
+                "amount": amount_to_credit,  # Store in balance_currency!
+                "currency": balance_currency,  # User's actual balance currency
                 "balance_before": current_balance,
-                "balance_after": current_balance,  # Will be updated on completion
+                "balance_after": current_balance,  # Will be updated on completion by webhook
                 "status": "pending",
-                "description": "Пополнение баланса",
+                "description": f"Пополнение баланса {request.amount} {currency}",
                 "metadata": {
-                    "original_currency": currency,
-                    "original_amount": request.amount,
-                    "exchange_rate": formatter.exchange_rate,
+                    "payment_currency": currency,
+                    "payment_amount": request.amount,
+                    "balance_currency": balance_currency,
+                    "credit_amount": amount_to_credit,
+                    "exchange_rate": formatter.exchange_rate if currency != balance_currency else 1.0,
                 }
             }).execute()
         )

@@ -248,14 +248,19 @@ async def admin_update_user_balance(
     request: UpdateBalanceRequest,
     admin=Depends(verify_admin)
 ):
-    """Update user balance (add or subtract)"""
+    """
+    Update user balance (add or subtract).
+    
+    IMPORTANT: Amount is in user's balance_currency (not USD).
+    If user has balance_currency=RUB, amount should be in RUB.
+    """
     db = get_database()
     
     try:
-        # Get current balance
+        # Get current balance and balance_currency
         user_result = await asyncio.to_thread(
             lambda: db.client.table("users")
-            .select("balance")
+            .select("balance, balance_currency, telegram_id")
             .eq("id", user_id)
             .single()
             .execute()
@@ -265,17 +270,45 @@ async def admin_update_user_balance(
             raise HTTPException(status_code=404, detail="User not found")
         
         current_balance = float(user_result.data.get("balance", 0))
+        balance_currency = user_result.data.get("balance_currency") or "USD"
         new_balance = current_balance + request.amount
         
-        # Update balance
-        await asyncio.to_thread(
-            lambda: db.client.table("users")
-            .update({"balance": new_balance})
-            .eq("id", user_id)
-            .execute()
-        )
+        # Use RPC function to update balance and log transaction atomically
+        # RPC function handles currency correctly and prevents negative balance
+        try:
+            await asyncio.to_thread(
+                lambda: db.client.rpc("add_to_user_balance", {
+                    "p_user_id": user_id,
+                    "p_amount": request.amount,  # Amount in user's balance_currency
+                    "p_reason": f"Admin manual adjustment (admin_id: {admin.get('id', 'unknown')})"
+                }).execute()
+            )
+            
+            # Get updated balance to return
+            updated_user = await asyncio.to_thread(
+                lambda: db.client.table("users")
+                .select("balance")
+                .eq("id", user_id)
+                .single()
+                .execute()
+            )
+            new_balance = float(updated_user.data.get("balance", 0)) if updated_user.data else current_balance
+        except Exception as e:
+            error_msg = str(e).lower()
+            if "negative" in error_msg or "insufficient" in error_msg:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot set negative balance. Current: {current_balance} {balance_currency}"
+                )
+            logger.error(f"Failed to update balance via RPC: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to update user balance")
         
-        return {"success": True, "old_balance": current_balance, "new_balance": new_balance}
+        return {
+            "success": True,
+            "old_balance": current_balance,
+            "new_balance": new_balance,
+            "currency": balance_currency
+        }
     except HTTPException:
         raise
     except Exception as e:

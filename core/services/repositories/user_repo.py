@@ -31,13 +31,20 @@ class UserRepository(BaseRepository):
         language_code: str = "en",
         referrer_id: Optional[str] = None
     ) -> User:
-        """Create new user."""
+        """Create new user with balance_currency determined by language_code."""
+        from core.services.currency import CurrencyService
+        
+        # Determine balance_currency based on language_code (ru/be/kk → RUB, others → USD)
+        currency_service = CurrencyService()
+        balance_currency = currency_service.get_balance_currency(language_code)
+        
         data = {
             "telegram_id": telegram_id,
             "username": username,
             "first_name": first_name,
             "language_code": language_code,
             "referrer_id": referrer_id,
+            "balance_currency": balance_currency,  # Set based on language_code
             "last_activity_at": datetime.now(timezone.utc).isoformat()
         }
         result = self.client.table("users").insert(data).execute()

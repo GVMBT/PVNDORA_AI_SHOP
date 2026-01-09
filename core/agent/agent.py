@@ -152,32 +152,48 @@ class ShopAgent:
         preferred_currency = None
         
         try:
-            # Get user's preferred currency from DB
+            # Get user's balance_currency (actual currency of their balance) and preferred_currency from DB
             import asyncio
             result = await asyncio.to_thread(
                 lambda: self.db.client.table("users")
-                .select("preferred_currency, language_code")
+                .select("balance_currency, preferred_currency, language_code")
                 .eq("id", user_id)
                 .single()
                 .execute()
             )
             
             if result.data:
+                # Use balance_currency as primary source (actual currency of user's balance)
+                # This ensures AI uses the currency that matches user's actual balance
+                balance_currency_db = result.data.get("balance_currency") or "USD"
                 preferred_currency = result.data.get("preferred_currency")
                 db_language = result.data.get("language_code") or language
+                
+                # If user has balance_currency set, use it (this is their actual account currency)
+                # Otherwise fallback to preferred_currency or language-based currency
+                if balance_currency_db and balance_currency_db != "USD":
+                    currency = balance_currency_db
+                elif preferred_currency:
+                    currency = preferred_currency
+                else:
+                    # Determine currency using CurrencyService based on language
+                    redis = get_redis()
+                    currency_service = get_currency_service(redis)
+                    currency = currency_service.get_user_currency(db_language, None)
             else:
                 db_language = language
+                # Fallback to language-based currency
+                redis = get_redis()
+                currency_service = get_currency_service(redis)
+                currency = currency_service.get_user_currency(db_language, None)
             
-            # Determine currency using CurrencyService
+            # Get exchange rate for display currency
             redis = get_redis()
             currency_service = get_currency_service(redis)
-            currency = currency_service.get_user_currency(db_language, preferred_currency)
-            
-            # Get exchange rate
             if currency != "USD":
                 exchange_rate = await currency_service.get_exchange_rate(currency)
                 
-            logger.info(f"User context: user_id={user_id}, currency={currency}, rate={exchange_rate}")
+            logger.info(f"User context: user_id={user_id}, currency={currency} (from balance_currency), rate={exchange_rate}")
             
         except Exception as e:
             logger.warning(f"Failed to get user context: {e}")

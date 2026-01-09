@@ -6,10 +6,14 @@ Order creation, payment processing, balance payments.
 import asyncio
 import os
 from datetime import datetime, timezone, timedelta
+from decimal import Decimal
+from typing import Dict, Any, Tuple, List, Optional
 
 from langchain_core.tools import tool
 
 from core.logging import get_logger
+from core.services.money import to_decimal, to_float, round_money, multiply, subtract, divide
+from core.payments import GATEWAY_CURRENCY
 from .base import get_db, get_user_context
 
 logger = get_logger(__name__)
@@ -36,6 +40,7 @@ async def checkout_cart(payment_method: str = "card") -> dict:
         from core.cart import get_cart_manager
         from core.db import get_redis
         from core.services.currency import get_currency_service
+        from core.routers.webapp.orders import persist_order, persist_order_items
         
         ctx = get_user_context()
         db = get_db()
@@ -49,9 +54,10 @@ async def checkout_cart(payment_method: str = "card") -> dict:
                 "action": "show_catalog"
             }
         
+        # Get user with balance_currency and referrer_id for partner discount
         user_result = await asyncio.to_thread(
             lambda: db.client.table("users")
-            .select("id, balance, preferred_currency, language_code")
+            .select("id, balance, balance_currency, preferred_currency, language_code, referrer_id, interface_language")
             .eq("telegram_id", ctx.telegram_id)
             .single()
             .execute()
@@ -62,125 +68,301 @@ async def checkout_cart(payment_method: str = "card") -> dict:
         
         db_user = user_result.data
         user_id = db_user["id"]
-        balance_usd = float(db_user.get("balance", 0) or 0)
+        balance_currency = db_user.get("balance_currency") or "USD"
+        user_balance = to_decimal(db_user.get("balance", 0) or 0)
         
-        cart_total_usd = float(cart.total)
-        
-        if payment_method == "balance":
-            if balance_usd < cart_total_usd:
-                redis = get_redis()
-                currency_service = get_currency_service(redis)
+        # Get partner discount (if user was referred by partner with discount mode)
+        async def get_partner_discount() -> int:
+            """Get discount from referrer if they use partner_mode='discount'."""
+            try:
+                referrer_id = db_user.get("referrer_id")
+                if not referrer_id:
+                    return 0
                 
-                if ctx.currency != "USD":
-                    balance_display = await currency_service.convert_price(balance_usd, ctx.currency)
-                    cart_display = await currency_service.convert_price(cart_total_usd, ctx.currency)
-                else:
-                    balance_display = balance_usd
-                    cart_display = cart_total_usd
+                referrer_result = await asyncio.to_thread(
+                    lambda: db.client.table("users")
+                    .select("partner_mode, partner_discount_percent")
+                    .eq("id", str(referrer_id))
+                    .single()
+                    .execute()
+                )
                 
-                return {
-                    "success": False,
-                    "error": "Недостаточно средств на балансе",
-                    "balance": balance_display,
-                    "cart_total": cart_display,
-                    "shortage": cart_display - balance_display,
-                    "message": f"Баланс: {currency_service.format_price(balance_display, ctx.currency)}, нужно: {currency_service.format_price(cart_display, ctx.currency)}. Используй оплату картой.",
-                    "action": "suggest_card_payment"
-                }
+                if referrer_result.data:
+                    referrer = referrer_result.data
+                    if referrer.get("partner_mode") == "discount":
+                        discount = int(referrer.get("partner_discount_percent") or 0)
+                        if discount > 0:
+                            logger.info(f"Partner discount applied: {discount}% from referrer {referrer_id}")
+                            return discount
+                return 0
+            except Exception as e:
+                logger.warning(f"Failed to get partner discount: {e}")
+                return 0
         
-        payment_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+        partner_discount = await get_partner_discount()
+        
+        # 1. Determine target currency for Anchor Pricing
+        # If paying with balance, use balance_currency.
+        # If paying with gateway, use gateway currency (usually RUB for CrystalPay if user is RU, else USD/etc)
+        redis = get_redis()
+        currency_service = get_currency_service(redis)
+        
         payment_gateway = os.environ.get("DEFAULT_PAYMENT_GATEWAY", "crystalpay")
-        
-        order_result = await asyncio.to_thread(
-            lambda: db.client.table("orders").insert({
-                "user_id": user_id,
-                "amount": cart_total_usd,
-                "original_price": float(cart.subtotal),
-                "discount_percent": 0,
-                "status": "pending",
-                "payment_method": payment_method,
-                "payment_gateway": payment_gateway if payment_method != "balance" else None,
-                "user_telegram_id": ctx.telegram_id,
-                "expires_at": payment_expires_at.isoformat(),
-                "source_channel": "premium"
-            }).execute()
-        )
-        
-        if not order_result.data:
-            return {"success": False, "error": "Failed to create order"}
-        
-        order = order_result.data[0]
-        order_id = order["id"]
-        
-        order_items = []
-        for item in cart.items:
-            stock_result = await asyncio.to_thread(
-                lambda pid=item.product_id: db.client.table("stock_items")
-                .select("id")
-                .eq("product_id", pid)
-                .eq("status", "available")
-                .limit(1)
-                .execute()
-            )
-            
-            stock_item_id = stock_result.data[0]["id"] if stock_result.data else None
-            
-            order_items.append({
-                "order_id": order_id,
-                "product_id": item.product_id,
-                "stock_item_id": stock_item_id,
-                "quantity": item.quantity,
-                "price": float(item.unit_price),
-                "discount_percent": int(item.discount_percent),
-                "fulfillment_type": "instant" if item.instant_quantity > 0 else "preorder",
-                "status": "pending"
-            })
-        
-        await asyncio.to_thread(
-            lambda: db.client.table("order_items").insert(order_items).execute()
-        )
+        target_currency = "USD"
         
         if payment_method == "balance":
-            new_balance = balance_usd - cart_total_usd
-            await asyncio.to_thread(
-                lambda: db.client.table("users")
-                .update({"balance": new_balance})
-                .eq("id", user_id)
-                .execute()
-            )
+            target_currency = balance_currency
+        elif payment_gateway == "crystalpay":
+            try:
+                # Get user's currency from profile
+                user_lang = db_user.get("interface_language") or db_user.get("language_code") or ctx.currency
+                preferred_currency = db_user.get("preferred_currency")
+                user_currency = currency_service.get_user_currency(user_lang, preferred_currency)
+                
+                supported_currencies = ["USD", "RUB", "EUR", "UAH", "TRY", "INR", "AED"]
+                if user_currency in supported_currencies:
+                    target_currency = user_currency
+                else:
+                    target_currency = GATEWAY_CURRENCY.get("crystalpay", "RUB")
+            except Exception:
+                target_currency = "RUB"
+        else:
+            target_currency = GATEWAY_CURRENCY.get(payment_gateway or "", "RUB")
+        
+        gateway_currency = target_currency
+        
+        # 2. Validate cart items and calculate totals using Anchor Prices
+        async def validate_cart_items(cart_items, target_curr, curr_service) -> Tuple[Decimal, Decimal, Decimal, List[Dict[str, Any]]]:
+            """
+            Validate cart items, calculate totals using Decimal, handle stock deficits.
+            Calculates both USD total and Fiat total (using Anchor Prices).
+            """
+            total_amount_usd = Decimal("0")
+            total_original_usd = Decimal("0")
+            total_fiat_amount = Decimal("0")
+            prepared_items = []
             
-            await asyncio.to_thread(
-                lambda: db.client.table("balance_transactions").insert({
-                    "user_id": user_id,
-                    "type": "purchase",
-                    "amount": -cart_total_usd,
-                    "currency": "USD",
-                    "balance_before": balance_usd,
-                    "balance_after": new_balance,
-                    "reference_type": "order",
-                    "reference_id": order_id,
-                    "status": "completed",
-                    "description": f"Оплата заказа {order_id[:8]}"
-                }).execute()
-            )
+            for item in cart_items:
+                product = await db.get_product_by_id(item.product_id)
+                if not product:
+                    raise ValueError(f"Product {item.product_id} not found")
+                
+                # Check instant availability
+                instant_q = item.instant_quantity
+                if instant_q > 0:
+                    available_stock = await db.get_available_stock_count(item.product_id)
+                    if available_stock < instant_q:
+                        logger.warning(f"Stock changed for {product.name}. Requested {instant_q}, available {available_stock}")
+                        # Convert deficit to prepaid
+                        deficit = instant_q - available_stock
+                        item.instant_quantity = max(0, available_stock)
+                        item.prepaid_quantity += max(0, deficit)
+                
+                # --- Pricing Logic ---
+                
+                # 1. USD Calculations (Base)
+                product_price_usd = to_decimal(product.price)
+                original_price_usd = multiply(product_price_usd, item.quantity)
+                
+                # 2. Fiat Calculations (Anchor)
+                # This uses prices['RUB'] if available, else converts from USD
+                anchor_price = await curr_service.get_anchor_price(product, target_curr)
+                product_price_fiat = to_decimal(anchor_price)
+                original_price_fiat = multiply(product_price_fiat, item.quantity)
+                
+                # Apply discounts
+                discount_percent = item.discount_percent
+                if cart.promo_code and cart.promo_discount_percent > 0:
+                    discount_percent = max(discount_percent, cart.promo_discount_percent)
+                if partner_discount > 0:
+                    discount_percent = max(discount_percent, partner_discount)
+                
+                discount_percent = max(0, min(100, discount_percent))
+                
+                # Calculate multiplier: (1 - discount/100)
+                discount_multiplier = subtract(Decimal("1"), divide(to_decimal(discount_percent), Decimal("100")))
+                
+                # Final prices
+                final_price_usd = round_money(multiply(original_price_usd, discount_multiplier))
+                final_price_fiat = round_money(multiply(original_price_fiat, discount_multiplier))
+                
+                # For integer currencies, round fiat amount to int
+                if target_curr in ["RUB", "UAH", "TRY", "INR"]:
+                    final_price_fiat = round_money(final_price_fiat, to_int=True)
+                
+                total_amount_usd += final_price_usd
+                total_original_usd += original_price_usd
+                total_fiat_amount += final_price_fiat
+                
+                prepared_items.append({
+                    "product_id": item.product_id,
+                    "product_name": product.name,
+                    "quantity": item.quantity,
+                    "instant_quantity": item.instant_quantity,
+                    "prepaid_quantity": item.prepaid_quantity,
+                    "amount": final_price_usd,  # Store USD amount in order_items for consistency
+                    "original_price": original_price_usd,
+                    "discount_percent": discount_percent
+                })
+            return total_amount_usd, total_original_usd, total_fiat_amount, prepared_items
+        
+        # Prepare items and totals
+        total_amount, total_original, total_fiat_amount, order_items = await validate_cart_items(cart.items, target_currency, currency_service)
+        
+        # Currency Handling (using values from validate_cart_items)
+        # payable_amount is what we send to the gateway (in gateway_currency)
+        # fiat_amount is what we store in the DB (in fiat_currency)
+        payable_amount = total_fiat_amount
+        fiat_amount = total_fiat_amount
+        fiat_currency = target_currency
+        
+        exchange_rate_snapshot = 1.0
+        try:
+            # Get and snapshot the exchange rate for historical record
+            exchange_rate_snapshot = await currency_service.snapshot_rate(gateway_currency)
             
-            await asyncio.to_thread(
-                lambda: db.client.table("orders")
-                .update({"status": "paid"})
-                .eq("id", order_id)
-                .execute()
-            )
+            # CRITICAL: Recalculate base USD amount from the realized Fiat amount
+            # This ensures P&L reflects the actual value received (e.g. 400 RUB / 90 = $4.44),
+            # rather than the list price (e.g. $5.00) which might be different due to anchor pricing.
+            if exchange_rate_snapshot > 0:
+                # Round to 2 decimal places for USD storage
+                total_amount = round_money(divide(fiat_amount, to_decimal(exchange_rate_snapshot)))
             
+            logger.info(f"Order created: {to_float(total_amount)} USD | {to_float(fiat_amount)} {fiat_currency} (Rate: {exchange_rate_snapshot})")
+        except Exception as e:
+            logger.warning(f"Failed to snapshot rate or recalculate USD amount: {e}")
+            exchange_rate_snapshot = 1.0
+        
+        # Calculate discount percent using Decimal (safe: clamped to 0-100)
+        discount_pct = 0
+        if total_original > 0:
+            # (1 - amount/original) * 100, clamped to [0, 100]
+            discount_ratio = subtract(Decimal("1"), divide(total_amount, total_original))
+            discount_pct = max(0, min(100, int(round_money(multiply(discount_ratio, Decimal("100")), to_int=True))))
+        
+        # 3. Create order using persist_order (includes currency snapshot)
+        payment_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+        order = await persist_order(
+            db=db,
+            user_id=user_id,
+            amount=total_amount,  # Always in USD (base currency)
+            original_price=total_original,
+            discount_percent=discount_pct,
+            payment_method=payment_method,
+            payment_gateway=payment_gateway if payment_method != "balance" else None,
+            user_telegram_id=ctx.telegram_id,
+            expires_at=payment_expires_at,
+            # Currency snapshot fields
+            fiat_amount=fiat_amount,
+            fiat_currency=fiat_currency,
+            exchange_rate_snapshot=exchange_rate_snapshot,
+        )
+        
+        order_id = order.id
+        
+        # Create order_items using persist_order_items
+        try:
+            await persist_order_items(db, order.id, order_items)
+        except Exception as e:
+            # Critical: order without items is invalid - delete order and fail
+            logger.error(f"Failed to create order_items for order {order.id}: {e}")
+            await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())
+            return {"success": False, "error": "Failed to create order items. Please try again."}
+        
+        # 4. Handle payment based on method
+        if payment_method == "balance":
+            # Get order total in user's balance currency
+            order_total_usd = total_amount  # total_amount is in USD
+            
+            if balance_currency == "USD":
+                order_total_in_balance_currency = order_total_usd
+            else:
+                # Convert USD order total to user's balance currency
+                rate = await currency_service.get_exchange_rate(balance_currency)
+                order_total_in_balance_currency = to_decimal(to_float(order_total_usd) * rate)
+                # Round for integer currencies
+                if balance_currency in ["RUB", "UAH", "TRY", "INR"]:
+                    order_total_in_balance_currency = to_decimal(round(to_float(order_total_in_balance_currency)))
+            
+            # Compare in user's balance currency
+            if user_balance < order_total_in_balance_currency:
+                # Delete order if balance insufficient
+                await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())
+                
+                balance_formatted = currency_service.format_price(to_float(user_balance), balance_currency)
+                amount_formatted = currency_service.format_price(to_float(order_total_in_balance_currency), balance_currency)
+                error_msg = f"Недостаточно средств на балансе. Доступно: {balance_formatted}, требуется: {amount_formatted}"
+                
+                return {"success": False, "error": error_msg, "action": "suggest_card_payment"}
+            
+            # Deduct from balance in user's balance currency using RPC
+            try:
+                await asyncio.to_thread(
+                    lambda: db.client.rpc("add_to_user_balance", {
+                        "p_user_id": user_id,
+                        "p_amount": -to_float(order_total_in_balance_currency),
+                        "p_reason": f"Payment for order {order.id}"
+                    }).execute()
+                )
+                logger.info(f"Balance deducted {to_float(order_total_in_balance_currency):.2f} {balance_currency} for order {order.id}")
+            except Exception as e:
+                # Rollback order on balance deduction error
+                await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())
+                logger.error(f"Failed to deduct balance for order {order.id}: {e}")
+                return {"success": False, "error": "Ошибка списания с баланса. Попробуйте позже."}
+            
+            # Update order status to paid
+            try:
+                from core.orders.status_service import OrderStatusService
+                status_service = OrderStatusService(db)
+                final_status = await status_service.mark_payment_confirmed(
+                    order_id=order.id,
+                    payment_id=f"balance-{order.id}",
+                    check_stock=True
+                )
+                logger.info(f"Balance payment confirmed for order {order.id}, final_status={final_status}")
+            except Exception as e:
+                logger.error(f"Failed to mark payment confirmed for balance order {order.id}: {e}", exc_info=True)
+                # Don't fail - order is created and balance is deducted
+            
+            # Queue delivery via QStash (async, don't block response)
+            try:
+                from core.queue import publish_to_worker, WorkerEndpoints
+                await publish_to_worker(
+                    endpoint=WorkerEndpoints.DELIVER_GOODS,
+                    body={"order_id": order.id},
+                    retries=2,
+                    deduplication_id=f"deliver-{order.id}"
+                )
+                logger.info(f"Delivery queued for balance payment order {order.id}")
+            except Exception as e:
+                logger.warning(f"QStash failed for balance order {order.id}: {e}")
+                # Don't fail - delivery can be retried later
+            
+            # Apply promo code and clear cart
+            if cart.promo_code:
+                await db.use_promo_code(cart.promo_code)
             await cart_manager.clear_cart(ctx.telegram_id)
             
-            redis = get_redis()
-            currency_service = get_currency_service(redis)
+            # Format response
+            if ctx.currency != balance_currency:
+                amount_display = await currency_service.convert_price(to_float(order_total_in_balance_currency), ctx.currency)
+            else:
+                amount_display = to_float(order_total_in_balance_currency)
             
-            if ctx.currency != "USD":
-                amount_display = await currency_service.convert_price(cart_total_usd, ctx.currency)
+            # Get updated balance for display
+            updated_user_result = await asyncio.to_thread(
+                lambda: db.client.table("users")
+                .select("balance")
+                .eq("id", user_id)
+                .single()
+                .execute()
+            )
+            new_balance = to_float(updated_user_result.data.get("balance", 0) or 0) if updated_user_result.data else 0
+            
+            if ctx.currency != balance_currency:
                 new_balance_display = await currency_service.convert_price(new_balance, ctx.currency)
             else:
-                amount_display = cart_total_usd
                 new_balance_display = new_balance
             
             items_text = ", ".join([f"{item.product_name}" for item in cart.items])
@@ -199,39 +381,56 @@ async def checkout_cart(payment_method: str = "card") -> dict:
                 "action": "order_paid"
             }
         
+        # 5. Handle external payment (CrystalPay)
         from core.routers.deps import get_payment_service
+        from core.routers.webapp.orders import create_payment_wrapper
+        
         payment_service = get_payment_service()
         
         try:
-            payment_result = await payment_service.create_invoice(
-                amount=cart_total_usd,
-                order_id=order_id,
-                description=f"PVNDORA Order #{order_id[:8]}",
-                user_telegram_id=ctx.telegram_id
+            product_names = ", ".join([item["product_name"] for item in order_items[:3]])
+            if len(order_items) > 3:
+                product_names += f" и еще {len(order_items) - 3}"
+            
+            pay_result = await create_payment_wrapper(
+                payment_service=payment_service,
+                order_id=order.id,
+                amount=to_float(payable_amount),  # In gateway_currency (user's currency)
+                product_name=product_names,
+                gateway=payment_gateway,
+                payment_method=payment_method,
+                user_email=f"{ctx.telegram_id}@telegram.user",
+                user_id=ctx.telegram_id,
+                currency=gateway_currency,  # Pass user's currency, not USD!
+                is_telegram_miniapp=True,
             )
             
-            payment_url = payment_result.get("url") or payment_result.get("payment_url")
-            payment_id = payment_result.get("id") or payment_result.get("payment_id")
+            payment_url = pay_result.get("payment_url")
+            invoice_id = pay_result.get("invoice_id")
+            logger.info(f"CrystalPay payment created for order {order.id}: payment_url={payment_url[:50] if payment_url else 'None'}..., invoice_id={invoice_id}")
             
-            await asyncio.to_thread(
-                lambda: db.client.table("orders")
-                .update({
-                    "payment_id": str(payment_id) if payment_id else None,
-                    "payment_url": payment_url
-                })
-                .eq("id", order_id)
-                .execute()
-            )
+            # Update order with payment details
+            if invoice_id:
+                await asyncio.to_thread(
+                    lambda: db.client.table("orders")
+                    .update({
+                        "payment_id": str(invoice_id),
+                        "payment_url": payment_url
+                    })
+                    .eq("id", order.id)
+                    .execute()
+                )
             
+            # Apply promo code and clear cart
+            if cart.promo_code:
+                await db.use_promo_code(cart.promo_code)
             await cart_manager.clear_cart(ctx.telegram_id)
             
-            redis = get_redis()
-            currency_service = get_currency_service(redis)
-            
-            if ctx.currency != "USD":
-                amount_display = await currency_service.convert_price(cart_total_usd, ctx.currency)
+            # Format response
+            if ctx.currency != gateway_currency:
+                amount_display = await currency_service.convert_price(to_float(payable_amount), ctx.currency)
             else:
-                amount_display = cart_total_usd
+                amount_display = to_float(payable_amount)
             
             items_text = ", ".join([f"{item.product_name}" for item in cart.items])
             
@@ -250,13 +449,13 @@ async def checkout_cart(payment_method: str = "card") -> dict:
             }
             
         except Exception as e:
-            logger.error(f"Payment service error: {e}")
-            await asyncio.to_thread(
-                lambda: db.client.table("orders")
-                .update({"status": "cancelled"})
-                .eq("id", order_id)
-                .execute()
-            )
+            logger.error(f"Payment service error: {e}", exc_info=True)
+            # Rollback order on payment creation error
+            try:
+                await asyncio.to_thread(lambda: db.client.table("order_items").delete().eq("order_id", order.id).execute())
+            except Exception:
+                pass
+            await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())
             return {
                 "success": False,
                 "error": f"Ошибка платежного шлюза: {str(e)}",
@@ -290,33 +489,44 @@ async def pay_cart_from_balance() -> dict:
         if not cart or not cart.items:
             return {"success": False, "error": "Корзина пуста. Сначала добавь товары."}
         
+        # Get user's balance and balance_currency (actual currency of balance)
         user_result = await asyncio.to_thread(
-            lambda: db.client.table("users").select("balance, language_code, preferred_currency").eq("id", ctx.user_id).single().execute()
+            lambda: db.client.table("users").select("balance, balance_currency, language_code, preferred_currency").eq("id", ctx.user_id).single().execute()
         )
-        balance_usd = float(user_result.data.get("balance", 0) or 0) if user_result.data else 0
         
-        user_currency = ctx.currency
+        if not user_result.data:
+            return {"success": False, "error": "Пользователь не найден"}
         
+        # Balance is stored in balance_currency, NOT always USD!
+        balance_in_balance_currency = float(user_result.data.get("balance", 0) or 0)
+        balance_currency = user_result.data.get("balance_currency") or "USD"
+        user_currency = ctx.currency  # Display currency for AI agent
+        
+        # If display currency matches balance currency, use balance directly
+        # Otherwise convert balance to display currency for comparison
         try:
             from core.db import get_redis
             from core.services.currency import get_currency_service
             redis = get_redis()
             currency_service = get_currency_service(redis)
             
-            if user_currency != "USD":
-                try:
-                    balance = await currency_service.convert_price(balance_usd, user_currency)
-                    cart_total = await currency_service.convert_price(cart.total, user_currency)
-                except Exception:
-                    balance = balance_usd
-                    cart_total = cart.total
+            if user_currency == balance_currency:
+                # Display currency matches balance currency - use directly
+                balance = balance_in_balance_currency
+                cart_total = cart.total  # Cart total is already in user_currency
             else:
-                balance = balance_usd
-                cart_total = cart.total
-        except Exception:
-            balance = balance_usd
+                # Convert balance from balance_currency to display currency for comparison
+                balance_rate = await currency_service.get_exchange_rate(balance_currency) if balance_currency != "USD" else 1.0
+                display_rate = await currency_service.get_exchange_rate(user_currency) if user_currency != "USD" else 1.0
+                # Convert: balance_currency → USD → display_currency
+                balance_usd = balance_in_balance_currency / balance_rate if balance_rate > 0 else balance_in_balance_currency
+                balance = balance_usd * display_rate if display_rate > 0 else balance_usd
+                cart_total = cart.total  # Already in display currency
+        except Exception as e:
+            logger.warning(f"Currency conversion failed in pay_cart_from_balance: {e}")
+            # Fallback: assume balance is in display currency (may be incorrect, but better than crash)
+            balance = balance_in_balance_currency
             cart_total = cart.total
-            user_currency = "USD"
             currency_service = None
         
         if balance < cart_total:

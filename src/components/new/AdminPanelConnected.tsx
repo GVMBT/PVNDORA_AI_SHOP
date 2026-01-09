@@ -103,6 +103,8 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
           // Reserve tracking
           reservesUsed: parseFloat(data.reserves_used) || 0,
           reservesAvailable: parseFloat(data.reserves_available) || 0,
+          // Currency breakdown
+          currencyBreakdown: data.currency_breakdown || {},
         });
     } catch (err) {
       logger.error('Failed to fetch accounting data', err);

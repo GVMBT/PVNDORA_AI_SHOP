@@ -1011,19 +1011,22 @@ class NotificationService:
         
         lang = await get_user_language(telegram_id)
         
+        # Format balance with correct currency (not hardcoded $)
+        balance_str = f"{new_balance:.2f} {currency}" if currency not in ["RUB", "UAH", "TRY", "INR"] else f"{int(new_balance)} {currency}"
+        
         message = _msg(lang,
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             f"     💰 <b>БАЛАНС ПОПОЛНЕН</b>\n"
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
             f"◈ <b>Зачислено:</b> +{amount:.2f} {currency}\n"
-            f"◈ <b>Баланс:</b> ${new_balance:.2f}\n\n"
+            f"◈ <b>Баланс:</b> {balance_str}\n\n"
             f"<i>Средства доступны для покупок</i> ✓",
             
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             f"     💰 <b>BALANCE TOPPED UP</b>\n"
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
             f"◈ <b>Credited:</b> +{amount:.2f} {currency}\n"
-            f"◈ <b>Balance:</b> ${new_balance:.2f}\n\n"
+            f"◈ <b>Balance:</b> {balance_str}\n\n"
             f"<i>Funds available for purchases</i> ✓"
         )
         
