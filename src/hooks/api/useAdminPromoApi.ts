@@ -26,6 +26,7 @@ export interface PromoCodeData {
   usage_limit?: number | null;
   usage_count: number;
   is_active: boolean;
+  product_id?: string | null;  // NULL = cart-wide, NOT NULL = product-specific
   created_at: string;
 }
 

@@ -147,6 +147,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         return (
           <AdminPromo
             promoCodes={propsPromoCodes}
+            products={propsProducts.map(p => ({ id: p.id, name: p.name }))}  // Pass products for selection
             onCreatePromo={onCreatePromo}
             onUpdatePromo={onUpdatePromo}
             onDeletePromo={onDeletePromo}
