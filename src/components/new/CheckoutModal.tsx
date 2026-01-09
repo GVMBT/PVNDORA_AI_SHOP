@@ -37,6 +37,7 @@ interface CheckoutModalProps {
   // Handlers
   onClose: () => void;
   onRemoveItem: (id: string | number) => void;
+  onUpdateQuantity?: (id: string | number, quantity: number) => void;
   onPay?: (method: PaymentMethod) => Promise<APICreateOrderResponse | null>;
   onSuccess: () => void;
   onApplyPromo?: (code: string) => Promise<{ success: boolean; message?: string }>;
@@ -56,7 +57,8 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
   promoCode,
   promoDiscountPercent,
   onClose, 
-  onRemoveItem, 
+  onRemoveItem,
+  onUpdateQuantity,
   onPay,
   onSuccess,
   onApplyPromo,
@@ -204,6 +206,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 promoCode={promoCode}
                 promoDiscountPercent={promoDiscountPercent}
                 onRemoveItem={onRemoveItem}
+                onUpdateQuantity={onUpdateQuantity}
                 onProceed={() => setStep('payment')}
                 onApplyPromo={onApplyPromo}
                 onRemovePromo={onRemovePromo}

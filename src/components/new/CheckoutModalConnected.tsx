@@ -28,7 +28,7 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const { cart: contextCart, getCart, removeCartItem, applyPromo, removePromo, loading: cartLoading, error: cartError } = useCart();
+  const { cart: contextCart, getCart, removeCartItem, updateCartItem, applyPromo, removePromo, loading: cartLoading, error: cartError } = useCart();
   const { createOrder, loading: orderLoading, error: orderError } = useOrdersTyped();
   const { profile: contextProfile, getProfile } = useProfileTyped();
   const { setExchangeRate } = useLocaleContext();
@@ -79,6 +79,21 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
       // Cart context will show error state
     }
   }, [removeCartItem, onClose]);
+
+  const handleUpdateQuantity = useCallback(async (productId: string | number, quantity: number) => {
+    if (quantity < 1) {
+      // If quantity becomes 0 or less, remove item instead
+      await handleRemoveItem(productId);
+      return;
+    }
+    try {
+      // Ensure productId is string for API call
+      const updatedCart = await updateCartItem(String(productId), quantity);
+      setFreshCart(updatedCart);
+    } catch {
+      // Cart context will show error state
+    }
+  }, [updateCartItem, handleRemoveItem]);
   
   const handleApplyPromo = useCallback(async (code: string): Promise<{ success: boolean; message?: string }> => {
     try {
@@ -190,6 +205,7 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
     // Handlers
     onClose,
     onRemoveItem: handleRemoveItem,
+    onUpdateQuantity: handleUpdateQuantity,
     onPay: handlePay,
     onSuccess,
     onApplyPromo: handleApplyPromo,

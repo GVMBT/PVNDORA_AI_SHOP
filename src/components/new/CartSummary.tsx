@@ -6,7 +6,7 @@
 
 import React, { memo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Trash2, ChevronRight, Tag, Loader2, Check, X } from 'lucide-react';
+import { Trash2, ChevronRight, Tag, Loader2, Check, X, Minus, Plus } from 'lucide-react';
 import { formatPrice } from '../../utils/currency';
 import { useLocale } from '../../hooks/useLocale';
 import type { CartItem } from '../../types/component';
@@ -19,6 +19,7 @@ interface CartSummaryProps {
   promoCode?: string | null;
   promoDiscountPercent?: number | null;
   onRemoveItem: (id: string | number) => void;
+  onUpdateQuantity?: (id: string | number, quantity: number) => void;
   onProceed: () => void;
   onApplyPromo?: (code: string) => Promise<{ success: boolean; message?: string }>;
   onRemovePromo?: () => void;
@@ -32,6 +33,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
   promoCode,
   promoDiscountPercent,
   onRemoveItem,
+  onUpdateQuantity,
   onProceed,
   onApplyPromo,
   onRemovePromo,
@@ -82,50 +84,91 @@ const CartSummary: React.FC<CartSummaryProps> = ({
       exit={{ opacity: 0, x: -20 }}
     >
       <div className="space-y-4">
-        {cart.map((item) => (
-          <div 
-            key={item.id} 
-            className="flex items-center justify-between bg-white/5 border border-white/10 p-4 rounded-sm hover:border-pandora-cyan/30 transition-colors"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-black border border-white/10 rounded-sm overflow-hidden relative">
-                <img src={item.image} className="w-full h-full object-cover grayscale" alt={item.name} />
-                {(item.quantity || 1) > 1 && (
-                  <div className="absolute top-0 right-0 bg-pandora-cyan text-black text-[9px] font-bold w-4 h-4 flex items-center justify-center">
-                    {item.quantity}
-                  </div>
-                )}
-              </div>
-              <div>
-                <div className="font-bold text-white text-sm">{item.name}</div>
-                <div className="text-[10px] text-gray-500 font-mono flex items-center gap-2">
-                  {item.category} MODULE
-                  {(item.quantity || 1) > 1 && (
-                    <span className="text-white">x{item.quantity}</span>
+        {cart.map((item) => {
+          const quantity = item.quantity || 1;
+          return (
+            <div 
+              key={item.id} 
+              className="flex items-center justify-between bg-white/5 border border-white/10 p-4 rounded-sm hover:border-pandora-cyan/30 transition-colors"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-black border border-white/10 rounded-sm overflow-hidden relative">
+                  <img src={item.image} className="w-full h-full object-cover grayscale" alt={item.name} />
+                  {quantity > 1 && (
+                    <div className="absolute top-0 right-0 bg-pandora-cyan text-black text-[9px] font-bold w-4 h-4 flex items-center justify-center">
+                      {quantity}
+                    </div>
                   )}
                 </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-6">
-              <div className="text-right">
-                <div className="font-mono text-pandora-cyan">
-                  {formatPrice(item.price * (item.quantity || 1), item.currency || currency)}
-                </div>
-                {(item.quantity || 1) > 1 && (
-                  <div className="text-[9px] text-gray-500">
-                    {formatPrice(item.price, item.currency || currency)} ea
+                <div>
+                  <div className="font-bold text-white text-sm">{item.name}</div>
+                  <div className="text-[10px] text-gray-500 font-mono flex items-center gap-2">
+                    {item.category} MODULE
                   </div>
-                )}
+                </div>
               </div>
-              <button 
-                onClick={() => onRemoveItem(item.id)} 
-                className="text-gray-600 hover:text-red-500 transition-colors"
-              >
-                <Trash2 size={16} />
-              </button>
+              <div className="flex items-center gap-4">
+                {/* Quantity Controls */}
+                {onUpdateQuantity ? (
+                  <div className="flex items-center gap-2 bg-black/50 border border-white/10 rounded-sm">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (quantity > 1) {
+                          onUpdateQuantity(item.id, quantity - 1);
+                        }
+                      }}
+                      disabled={quantity <= 1}
+                      className="p-1.5 text-gray-400 hover:text-pandora-cyan disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      aria-label="Decrease quantity"
+                    >
+                      <Minus size={14} />
+                    </button>
+                    <span className="px-2 py-1 text-sm font-mono text-white min-w-[2rem] text-center">
+                      {quantity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onUpdateQuantity(item.id, quantity + 1)}
+                      className="p-1.5 text-gray-400 hover:text-pandora-cyan transition-colors"
+                      aria-label="Increase quantity"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  quantity > 1 && (
+                    <div className="text-[10px] text-gray-500 font-mono">
+                      x{quantity}
+                    </div>
+                  )
+                )}
+                
+                {/* Price */}
+                <div className="text-right min-w-[80px]">
+                  <div className="font-mono text-pandora-cyan">
+                    {formatPrice(item.price * quantity, item.currency || currency)}
+                  </div>
+                  {quantity > 1 && (
+                    <div className="text-[9px] text-gray-500">
+                      {formatPrice(item.price, item.currency || currency)} ea
+                    </div>
+                  )}
+                </div>
+                
+                {/* Remove Button */}
+                <button 
+                  type="button"
+                  onClick={() => onRemoveItem(item.id)} 
+                  className="text-gray-600 hover:text-red-500 transition-colors p-1"
+                  aria-label="Remove item"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="mt-8 border-t border-white/10 pt-6">
