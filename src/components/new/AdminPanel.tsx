@@ -49,7 +49,7 @@ interface AdminPanelProps {
   onTogglePromoActive?: (id: string, isActive: boolean) => Promise<void>;
   onRefreshTickets?: () => void;
   onRefreshWithdrawals?: () => void;
-  onRefreshAccounting?: () => void;
+  onRefreshAccounting?: (period?: 'today' | 'month' | 'all' | 'custom', customFrom?: string, customTo?: string, displayCurrency?: 'USD' | 'RUB') => void;
   onRefreshOrders?: () => void;
   isAccountingLoading?: boolean;
   // User actions
@@ -132,6 +132,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         );
       case 'sales':
         return <AdminSales orders={propsOrders} onRefresh={onRefreshOrders} />;
+      case 'users':
+        return (
+          <AdminUsers
+            users={propsUsers}
+            onBanUser={onBanUser}
+            onUpdateBalance={onUpdateBalance}
+            onRefresh={onRefreshOrders}
+          />
+        );
       case 'partners':
         return (
           <AdminPartners

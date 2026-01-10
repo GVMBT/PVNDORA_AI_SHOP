@@ -111,9 +111,9 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
           <AdminNavItem 
             icon={<Users size={18} />} 
             label="Пользователи" 
-            active={currentView === 'partners'} 
+            active={currentView === 'users'} 
             onClick={() => {
-              onViewChange('partners');
+              onViewChange('users');
               onClose();
             }} 
             collapsed={isCollapsed} 

@@ -104,6 +104,7 @@ interface MetricRowProps {
   icon?: React.ReactNode;
   indent?: boolean;
   bold?: boolean;
+  displayCurrency: 'USD' | 'RUB';  // Add displayCurrency as prop
 }
 
 const MetricRow: React.FC<MetricRowProps> = ({ 
@@ -113,7 +114,8 @@ const MetricRow: React.FC<MetricRowProps> = ({
   isProfit = false,
   icon,
   indent = false,
-  bold = false
+  bold = false,
+  displayCurrency
 }) => {
   const valueColor = isProfit 
     ? (value >= 0 ? 'text-green-400' : 'text-red-400')
@@ -379,6 +381,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             label="Валовая выручка" 
             value={d.revenueGross} 
             icon={<DollarSign size={14} />}
+            displayCurrency={displayCurrency}
           />
           <MetricRow 
             label="Скидки" 
@@ -386,11 +389,13 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             isExpense 
             indent
             icon={<Percent size={14} />}
+            displayCurrency={displayCurrency}
           />
           <MetricRow 
             label="Чистая выручка" 
             value={d.totalRevenue} 
             bold
+            displayCurrency={displayCurrency}
           />
           {d.totalInsuranceRevenue > 0 && (
             <MetricRow 
@@ -398,6 +403,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
               value={d.totalInsuranceRevenue} 
               indent
               icon={<Shield size={14} />}
+              displayCurrency={displayCurrency}
             />
           )}
         </div>
@@ -410,12 +416,14 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             value={d.totalCogs} 
             isExpense
             icon={<DollarSign size={14} />}
+            displayCurrency={displayCurrency}
           />
           <MetricRow 
             label="Валовая прибыль" 
             value={grossProfit} 
             isProfit
             bold
+            displayCurrency={displayCurrency}
           />
         </div>
 
@@ -428,6 +436,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             isExpense
             indent
             icon={<CreditCard size={14} />}
+            displayCurrency={displayCurrency}
           />
           <MetricRow 
             label="Реферальные выплаты (3 линии)" 
@@ -435,6 +444,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             isExpense
             indent
             icon={<Users size={14} />}
+            displayCurrency={displayCurrency}
           />
           <MetricRow 
             label="Кэшбэк за отзывы (5%)" 
@@ -442,6 +452,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             isExpense
             indent
             icon={<Star size={14} />}
+            displayCurrency={displayCurrency}
           />
           <MetricRow 
             label="Страховые замены" 
@@ -449,6 +460,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             isExpense
             indent
             icon={<Shield size={14} />}
+            displayCurrency={displayCurrency}
           />
           <MetricRow 
             label="Резервы (маркетинг + непредв.)" 
@@ -456,12 +468,14 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             isExpense
             indent
             icon={<PiggyBank size={14} />}
+            displayCurrency={displayCurrency}
           />
           <MetricRow 
             label="Операционная прибыль" 
             value={operatingProfit} 
             isProfit
             bold
+            displayCurrency={displayCurrency}
           />
         </div>
 
@@ -475,6 +489,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
               isExpense
               indent
               icon={<ArrowDownRight size={14} />}
+              displayCurrency={displayCurrency}
             />
           </div>
         )}
@@ -526,17 +541,20 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
           label="Балансы пользователей" 
           value={d.totalUserBalances} 
           isExpense
+          displayCurrency={displayCurrency}
         />
         <MetricRow 
           label="Ожидают вывода" 
           value={d.pendingWithdrawals} 
           isExpense
+          displayCurrency={displayCurrency}
         />
         <MetricRow 
           label="Всего обязательств" 
           value={d.totalUserBalances + d.pendingWithdrawals} 
           isExpense
           bold
+          displayCurrency={displayCurrency}
         />
       </div>
 
