@@ -59,9 +59,28 @@ class ExpenseCreate(BaseModel):
 # =============================================================================
 
 @router.get("/accounting/overview")
-async def get_financial_overview(admin=Depends(verify_admin)):
-    """Get complete financial overview from database view."""
+async def get_financial_overview(
+    display_currency: str = Query("USD", description="Display currency: USD or RUB"),
+    admin=Depends(verify_admin)
+):
+    """
+    Get complete financial overview from database view.
+    
+    Args:
+        display_currency: Currency for display values (USD or RUB). 
+                         Base accounting is in USD, but can be converted for convenience.
+    """
+    from core.db import get_redis
+    from core.services.currency import get_currency_service
+    
     db = get_database()
+    redis = get_redis()
+    currency_service = get_currency_service(redis)
+    
+    # Get exchange rate for display conversion
+    display_rate = 1.0
+    if display_currency != "USD":
+        display_rate = await currency_service.get_exchange_rate(display_currency)
     
     # Get main overview
     result = await asyncio.to_thread(
@@ -75,6 +94,26 @@ async def get_financial_overview(admin=Depends(verify_admin)):
     
     data = result.data or {}
     reserves = reserves_result.data or {}
+    
+    # Convert USD values to display currency if needed
+    if display_currency != "USD" and display_rate > 0:
+        usd_fields = [
+            "total_revenue", "total_cogs", "gross_profit", "net_profit",
+            "total_discounts", "total_refunds", "total_expenses"
+        ]
+        for field in usd_fields:
+            if field in data and data[field] is not None:
+                data[f"{field}_usd"] = data[field]  # Keep original USD value
+                data[field] = round(float(data[field]) * display_rate, 2)
+        
+        # Also convert reserves
+        for key in ["total_accumulated", "total_used", "total_available"]:
+            if key in reserves and reserves[key] is not None:
+                reserves[f"{key}_usd"] = reserves[key]
+                reserves[key] = round(float(reserves[key]) * display_rate, 2)
+    
+    data["display_currency"] = display_currency
+    data["exchange_rate"] = display_rate
     
     # Merge reserve data
     data["reserves_accumulated"] = float(reserves.get("total_accumulated", 0))
@@ -126,10 +165,26 @@ async def get_financial_overview(admin=Depends(verify_admin)):
 async def get_daily_pl(
     days: int = Query(30, ge=1, le=365),
     comprehensive: bool = Query(False, description="Use comprehensive view with all costs"),
+    display_currency: str = Query("USD", description="Display currency: USD or RUB"),
     admin=Depends(verify_admin)
 ):
-    """Get daily P&L report."""
+    """
+    Get daily P&L report.
+    
+    Args:
+        display_currency: Currency for display (USD or RUB). Data stored in USD, converted for display.
+    """
+    from core.db import get_redis
+    from core.services.currency import get_currency_service
+    
     db = get_database()
+    redis = get_redis()
+    currency_service = get_currency_service(redis)
+    
+    # Get exchange rate for display conversion
+    display_rate = 1.0
+    if display_currency != "USD":
+        display_rate = await currency_service.get_exchange_rate(display_currency)
     
     view_name = "pl_comprehensive" if comprehensive else "pl_daily"
     
@@ -142,6 +197,19 @@ async def get_daily_pl(
     )
     
     data = result.data or []
+    
+    # Convert daily data to display currency if needed
+    if display_currency != "USD" and display_rate > 0:
+        money_fields = [
+            "revenue", "revenue_net", "revenue_gross", "total_discounts_given",
+            "cogs", "acquiring_fees", "referral_payouts", "reserves",
+            "review_cashbacks", "replacement_costs", "insurance_revenue",
+            "gross_profit", "net_profit", "operating_profit"
+        ]
+        for day in data:
+            for field in money_fields:
+                if field in day and day[field] is not None:
+                    day[field] = round(float(day[field]) * display_rate, 2)
     
     # Calculate totals for the period
     totals = {
@@ -172,6 +240,8 @@ async def get_daily_pl(
     return {
         "period_days": days,
         "comprehensive": comprehensive,
+        "display_currency": display_currency,
+        "exchange_rate": display_rate,
         "daily": data,
         "totals": totals
     }

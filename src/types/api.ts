@@ -96,7 +96,8 @@ export interface APIOrderItem {
   delivery_instructions?: string;  // Instructions for using the product
   // Aliases for compatibility
   credentials?: string;
-  expires_at?: string;
+  expires_at?: string;            // Warranty/subscription end date
+  fulfillment_deadline?: string;  // When we promise to deliver prepaid items
   delivered_at?: string;
   created_at?: string;
   has_review?: boolean;

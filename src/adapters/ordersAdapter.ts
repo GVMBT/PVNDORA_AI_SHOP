@@ -212,16 +212,17 @@ function adaptOrderItem(
   // Get credentials from delivery_content (backend) or credentials (alias)
   const credentials = item.delivery_content || item.credentials || null;
   
-  // Determine deadline based on order status
+  // Determine deadline based on item and order status
   let deadline: string | null = null;
   
   if (orderStatus === 'pending' && paymentDeadline) {
     // For pending (unpaid) orders, show payment deadline
     deadline = formatDateWithTimezone(paymentDeadline);
-  } else if (['prepaid', 'paid', 'partial'].includes(orderStatus)) {
-    // For prepaid/processing orders, show delivery deadline
-    if (deliveryDeadline) {
-      deadline = formatDateWithTimezone(deliveryDeadline);
+  } else if (['prepaid', 'paid', 'partial'].includes(orderStatus) && item.status === 'prepaid') {
+    // For prepaid items, use ITEM-level fulfillment_deadline first, then fall back to order-level
+    const itemDeadline = item.fulfillment_deadline || deliveryDeadline;
+    if (itemDeadline) {
+      deadline = formatDateWithTimezone(itemDeadline);
     } else {
       // No specific deadline set - show waiting message instead
       deadline = null; // Will show "Ожидание поступления" in UI

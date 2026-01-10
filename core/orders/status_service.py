@@ -291,7 +291,7 @@ class OrderStatusService:
             # Get order details for alert
             order_details = await asyncio.to_thread(
                 lambda: self.db.client.table("orders")
-                .select("currency, users(telegram_id, username)")
+                .select("fiat_currency, users(telegram_id, username)")
                 .eq("id", order_id)
                 .single()
                 .execute()
@@ -300,7 +300,7 @@ class OrderStatusService:
             user_data = order_details.data.get("users", {}) or {} if order_details.data else {}
             telegram_id = user_data.get("telegram_id", 0)
             username = user_data.get("username")
-            currency = order_details.data.get("currency", "USD") if order_details.data else "USD"
+            currency = order_details.data.get("fiat_currency", "RUB") if order_details.data else "RUB"
             
             # Get product name from order items
             items_result = await asyncio.to_thread(

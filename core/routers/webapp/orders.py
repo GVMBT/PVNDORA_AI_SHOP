@@ -126,8 +126,15 @@ async def persist_order(
 async def persist_order_items(db, order_id: str, order_items: List[Dict[str, Any]]) -> None:
     """Create order_items records for partial fulfillment."""
     items_to_insert = []
+    now = datetime.now(timezone.utc)
+    
     for oi in order_items:
         unit_price = divide(to_decimal(oi["amount"]), oi["quantity"]) if oi["quantity"] else to_decimal(oi["amount"])
+        
+        # Get fulfillment deadline for prepaid items
+        fulfillment_hours = int(oi.get("fulfillment_time_hours", 24))
+        fulfillment_deadline = now + timedelta(hours=fulfillment_hours)
+        
         # instant (есть в наличии)
         for _ in range(int(oi.get("instant_quantity", 0))):
             items_to_insert.append({
@@ -139,7 +146,7 @@ async def persist_order_items(db, order_id: str, order_items: List[Dict[str, Any
                 "price": to_float(unit_price),
                 "discount_percent": int(oi.get("discount_percent", 0)),
             })
-        # preorder (нет в наличии)
+        # preorder (нет в наличии) - with fulfillment deadline!
         for _ in range(int(oi.get("prepaid_quantity", 0))):
             items_to_insert.append({
                 "order_id": order_id,
@@ -149,6 +156,7 @@ async def persist_order_items(db, order_id: str, order_items: List[Dict[str, Any
                 "fulfillment_type": "preorder",
                 "price": to_float(unit_price),
                 "discount_percent": int(oi.get("discount_percent", 0)),
+                "fulfillment_deadline": fulfillment_deadline.isoformat(),  # When we promise to deliver
             })
     if items_to_insert:
         await db.create_order_items(items_to_insert)
@@ -641,7 +649,9 @@ async def _create_cart_order(
                 "prepaid_quantity": item.prepaid_quantity,
                 "amount": final_price_usd,  # Store USD amount in order_items for consistency
                 "original_price": original_price_usd,
-                "discount_percent": discount_percent
+                "discount_percent": discount_percent,
+                # For prepaid items: calculate fulfillment deadline
+                "fulfillment_time_hours": getattr(product, 'fulfillment_time_hours', None) or 24,  # Default 24h
             })
         return total_amount_usd, total_original_usd, total_fiat_amount, prepared_items
     

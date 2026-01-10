@@ -97,6 +97,7 @@ def build_item_payload(
         "created_at": item_data.get("created_at"),
         "delivered_at": item_data.get("delivered_at"),
         "expires_at": item_data.get("expires_at"),
+        "fulfillment_deadline": item_data.get("fulfillment_deadline"),  # When we promise to deliver prepaid items
         "has_review": has_review,
     }
     
