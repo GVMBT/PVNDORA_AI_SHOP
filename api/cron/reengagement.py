@@ -11,7 +11,6 @@ from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import os
-import asyncio
 
 from core.logging import get_logger
 
@@ -51,13 +50,11 @@ async def reengagement_entrypoint(request: Request):
         max_inactive = now - timedelta(days=14)
         reengagement_cutoff = now - timedelta(days=3)  # Don't spam
         
-        inactive_users = await asyncio.to_thread(
-            lambda: db.client.table("users").select(
-                "id,telegram_id,language_code,first_name,last_reengagement_at"
-            ).lt("last_activity_at", inactive_cutoff.isoformat()).gt(
-                "last_activity_at", max_inactive.isoformat()
-            ).eq("do_not_disturb", False).eq("is_banned", False).limit(50).execute()
-        )
+        inactive_users = await db.client.table("users").select(
+            "id,telegram_id,language_code,first_name,last_reengagement_at"
+        ).lt("last_activity_at", inactive_cutoff.isoformat()).gt(
+            "last_activity_at", max_inactive.isoformat()
+        ).eq("do_not_disturb", False).eq("is_banned", False).limit(50).execute()
         
         sent_count = 0
         for user in (inactive_users.data or []):
@@ -91,11 +88,9 @@ async def reengagement_entrypoint(request: Request):
                     )
                 
                 # Update last_reengagement_at
-                await asyncio.to_thread(
-                    lambda uid=user["id"]: db.client.table("users").update({
-                        "last_reengagement_at": now.isoformat()
-                    }).eq("id", uid).execute()
-                )
+                await db.client.table("users").update({
+                    "last_reengagement_at": now.isoformat()
+                }).eq("id", user["id"]).execute()
                 
                 sent_count += 1
             except Exception as e:
@@ -105,13 +100,11 @@ async def reengagement_entrypoint(request: Request):
         
         # 2. Wishlist reminders (items added 3+ days ago, not reminded yet)
         wishlist_cutoff = now - timedelta(days=3)
-        wishlist_items = await asyncio.to_thread(
-            lambda: db.client.table("wishlist").select(
-                "id,user_id,product_name,users(telegram_id,language_code)"
-            ).eq("reminded", False).lt(
-                "created_at", wishlist_cutoff.isoformat()
-            ).limit(50).execute()
-        )
+        wishlist_items = await db.client.table("wishlist").select(
+            "id,user_id,product_name,users(telegram_id,language_code)"
+        ).eq("reminded", False).lt(
+            "created_at", wishlist_cutoff.isoformat()
+        ).limit(50).execute()
         
         wishlist_sent = 0
         for item in (wishlist_items.data or []):
@@ -138,11 +131,9 @@ async def reengagement_entrypoint(request: Request):
                     )
                 
                 # Mark as reminded
-                await asyncio.to_thread(
-                    lambda item_id=item["id"]: db.client.table("wishlist").update({
-                        "reminded": True
-                    }).eq("id", item_id).execute()
-                )
+                await db.client.table("wishlist").update({
+                    "reminded": True
+                }).eq("id", item["id"]).execute()
                 
                 wishlist_sent += 1
             except Exception as e:
@@ -155,13 +146,11 @@ async def reengagement_entrypoint(request: Request):
         expiry_window_start = now + timedelta(days=2)
         expiry_window_end = now + timedelta(days=4)
         
-        expiring_items = await asyncio.to_thread(
-            lambda: db.client.table("order_items").select(
-                "id,order_id,expires_at,products(name),orders(user_telegram_id,users(language_code))"
-            ).eq("status", "delivered").gte(
-                "expires_at", expiry_window_start.isoformat()
-            ).lte("expires_at", expiry_window_end.isoformat()).limit(50).execute()
-        )
+        expiring_items = await db.client.table("order_items").select(
+            "id,order_id,expires_at,products(name),orders(user_telegram_id,users(language_code))"
+        ).eq("status", "delivered").gte(
+            "expires_at", expiry_window_start.isoformat()
+        ).lte("expires_at", expiry_window_end.isoformat()).limit(50).execute()
         
         expiry_sent = 0
         notified_users = set()  # Avoid duplicate notifications

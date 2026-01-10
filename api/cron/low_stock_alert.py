@@ -16,7 +16,6 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import os
-import asyncio
 import httpx
 
 # Verify cron secret to prevent unauthorized access
@@ -191,9 +190,7 @@ async def low_stock_alert_entrypoint(request: Request):
     
     try:
         # Query low_stock_alert view
-        low_stock_result = await asyncio.to_thread(
-            lambda: db.client.table("low_stock_alert").select("*").execute()
-        )
+        low_stock_result = await db.client.table("low_stock_alert").select("*").execute()
         
         low_stock_products = low_stock_result.data or []
         results["low_stock_count"] = len(low_stock_products)

@@ -10,7 +10,6 @@ This worker:
 5. Sends Telegram notification
 """
 import os
-import asyncio
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 import json
@@ -97,13 +96,9 @@ async def process_review_cashback(request: Request):
     db = get_database()
     
     # Find review by order_id
-    review_result = await asyncio.to_thread(
-        lambda: db.client.table("reviews")
-        .select("id, cashback_given")
-        .eq("order_id", order_id)
-        .limit(1)
-        .execute()
-    )
+    review_result = await db.client.table("reviews").select(
+        "id, cashback_given"
+    ).eq("order_id", order_id).limit(1).execute()
     
     if not review_result.data:
         return JSONResponse({"error": "Review not found for order"}, status_code=404)
@@ -118,23 +113,15 @@ async def process_review_cashback(request: Request):
     
     # Fallback: get user from order
     if not db_user:
-        order_result = await asyncio.to_thread(
-            lambda: db.client.table("orders")
-            .select("user_id, amount")
-            .eq("id", order_id)
-            .single()
-            .execute()
-        )
+        order_result = await db.client.table("orders").select(
+            "user_id, amount"
+        ).eq("id", order_id).single().execute()
         if not order_result.data:
             return JSONResponse({"error": "Order not found"}, status_code=404)
         order_amount = order_amount or to_float(order_result.data["amount"])
-        user_result = await asyncio.to_thread(
-            lambda: db.client.table("users")
-            .select("*")
-            .eq("id", order_result.data["user_id"])
-            .single()
-            .execute()
-        )
+        user_result = await db.client.table("users").select("*").eq(
+            "id", order_result.data["user_id"]
+        ).single().execute()
         if not user_result.data:
             return JSONResponse({"error": "User not found"}, status_code=404)
         from types import SimpleNamespace
@@ -145,13 +132,9 @@ async def process_review_cashback(request: Request):
     
     # Calculate 5% cashback (in USD)
     if not order_amount:
-        order_result = await asyncio.to_thread(
-            lambda: db.client.table("orders")
-            .select("amount")
-            .eq("id", order_id)
-            .single()
-            .execute()
-        )
+        order_result = await db.client.table("orders").select("amount").eq(
+            "id", order_id
+        ).single().execute()
         if order_result.data:
             order_amount = to_float(order_result.data["amount"])
         else:
@@ -163,34 +146,26 @@ async def process_review_cashback(request: Request):
     current_balance = to_float(db_user.balance or 0)
     new_balance = current_balance + cashback
     
-    await asyncio.to_thread(
-        lambda: db.client.table("users")
-        .update({"balance": new_balance})
-        .eq("id", db_user.id)
-        .execute()
-    )
+    await db.client.table("users").update({"balance": new_balance}).eq(
+        "id", db_user.id
+    ).execute()
     
     # 2. Create balance_transaction for history
-    await asyncio.to_thread(
-        lambda: db.client.table("balance_transactions").insert({
-            "user_id": db_user.id,
-            "type": "cashback",
-            "amount": cashback,
-            "status": "completed",
-            "description": "5% кэшбек за отзыв",
-            "reference_id": order_id,
-            "balance_before": current_balance,
-            "balance_after": new_balance,
-        }).execute()
-    )
+    await db.client.table("balance_transactions").insert({
+        "user_id": db_user.id,
+        "type": "cashback",
+        "amount": cashback,
+        "status": "completed",
+        "description": "5% кэшбек за отзыв",
+        "reference_id": order_id,
+        "balance_before": current_balance,
+        "balance_after": new_balance,
+    }).execute()
     
     # 3. Mark review as processed
-    await asyncio.to_thread(
-        lambda: db.client.table("reviews")
-        .update({"cashback_given": True})
-        .eq("id", review["id"])
-        .execute()
-    )
+    await db.client.table("reviews").update({"cashback_given": True}).eq(
+        "id", review["id"]
+    ).execute()
     
     # 4. Send Telegram notification to user
     if db_user.telegram_id:

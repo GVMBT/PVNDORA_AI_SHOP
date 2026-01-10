@@ -5,8 +5,8 @@ Since CrystalPay webhook may not work reliably, poll invoice status via API.
 Runs every 1 minute to check pending orders.
 """
 import os
-import asyncio
 import httpx
+import asyncio
 from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -97,11 +97,9 @@ async def process_paid_order(db, order_id: str, order_data: dict):
         source_channel = order_data.get("source_channel")
         
         # Update order status to paid
-        await asyncio.to_thread(
-            lambda: db.client.table("orders").update({
-                "status": "paid"
-            }).eq("id", order_id).execute()
-        )
+        await db.client.table("orders").update({
+            "status": "paid"
+        }).eq("id", order_id).execute()
         
         logger.info(f"Order {order_id} marked as paid via polling")
         
@@ -110,32 +108,26 @@ async def process_paid_order(db, order_id: str, order_data: dict):
             from core.services.domains import DiscountOrderService
             
             # Get order_item info
-            order_items = await asyncio.to_thread(
-                lambda: db.client.table("order_items").select(
-                    "id, product_id"
-                ).eq("order_id", order_id).limit(1).execute()
-            )
+            order_items = await db.client.table("order_items").select(
+                "id, product_id"
+            ).eq("order_id", order_id).limit(1).execute()
             
             if order_items.data:
                 order_item = order_items.data[0]
                 
                 # Find available stock item
-                stock_result = await asyncio.to_thread(
-                    lambda: db.client.table("stock_items").select("id").eq(
-                        "product_id", order_item["product_id"]
-                    ).eq("status", "available").is_("sold_at", "null").limit(1).execute()
-                )
+                stock_result = await db.client.table("stock_items").select("id").eq(
+                    "product_id", order_item["product_id"]
+                ).eq("status", "available").is_("sold_at", "null").limit(1).execute()
                 
                 if stock_result.data:
                     stock_item_id = stock_result.data[0]["id"]
                     telegram_id = order_data.get("user_telegram_id")
                     
                     # Reserve stock item
-                    await asyncio.to_thread(
-                        lambda: db.client.table("stock_items").update({
-                            "status": "reserved"
-                        }).eq("id", stock_item_id).execute()
-                    )
+                    await db.client.table("stock_items").update({
+                        "status": "reserved"
+                    }).eq("id", stock_item_id).execute()
                     
                     # Schedule delayed delivery
                     discount_service = DiscountOrderService(db.client)
@@ -210,16 +202,11 @@ async def check_pending_payments(request: Request):
         # Only check orders created in last 2 hours (invoice lifetime)
         cutoff_time = datetime.now(timezone.utc) - timedelta(hours=2)
         
-        result = await asyncio.to_thread(
-            lambda: db.client.table("orders")
-            .select("id, payment_id, source_channel, user_telegram_id, amount")
-            .eq("status", "pending")
-            .eq("payment_gateway", "crystalpay")
-            .not_.is_("payment_id", "null")
-            .gte("created_at", cutoff_time.isoformat())
-            .limit(20)
-            .execute()
-        )
+        result = await db.client.table("orders").select(
+            "id, payment_id, source_channel, user_telegram_id, amount"
+        ).eq("status", "pending").eq("payment_gateway", "crystalpay").not_.is_(
+            "payment_id", "null"
+        ).gte("created_at", cutoff_time.isoformat()).limit(20).execute()
         
         pending_orders = result.data or []
         
@@ -248,12 +235,10 @@ async def check_pending_payments(request: Request):
                     paid_count += 1
                 elif state in ["cancelled", "failed"]:
                     # Invoice cancelled/failed - update order
-                    await asyncio.to_thread(
-                        lambda oid=order_id, s=state: db.client.table("orders").update({
-                            "status": "cancelled",
-                            "notes": f"Payment {s}"
-                        }).eq("id", oid).execute()
-                    )
+                    await db.client.table("orders").update({
+                        "status": "cancelled",
+                        "notes": f"Payment {state}"
+                    }).eq("id", order_id).execute()
                     logger.info(f"Order {order_id} marked as cancelled (invoice {state})")
             
             # Small delay between API calls

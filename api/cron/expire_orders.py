@@ -11,7 +11,6 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import os
-import asyncio
 
 from core.logging import get_logger
 
@@ -53,20 +52,16 @@ async def expire_orders_entrypoint(request: Request):
             try:
                 # Release reserved stock if any
                 if order.stock_item_id:
-                    await asyncio.to_thread(
-                        lambda sid=order.stock_item_id: db.client.table("stock_items").update({
-                            "status": "available",
-                            "reserved_at": None
-                        }).eq("id", sid).eq("status", "reserved").execute()
-                    )
+                    await db.client.table("stock_items").update({
+                        "status": "available",
+                        "reserved_at": None
+                    }).eq("id", order.stock_item_id).eq("status", "reserved").execute()
                     released_stock_count += 1
                 
                 # Cancel the order
-                await asyncio.to_thread(
-                    lambda oid=order.id: db.client.table("orders").update({
-                        "status": "cancelled"
-                    }).eq("id", oid).eq("status", "pending").execute()
-                )
+                await db.client.table("orders").update({
+                    "status": "cancelled"
+                }).eq("id", order.id).eq("status", "pending").execute()
                 cancelled_count += 1
                 
             except Exception as e:
@@ -83,19 +78,15 @@ async def expire_orders_entrypoint(request: Request):
             try:
                 # Release reserved stock if any
                 if order.stock_item_id:
-                    await asyncio.to_thread(
-                        lambda sid=order.stock_item_id: db.client.table("stock_items").update({
-                            "status": "available",
-                            "reserved_at": None
-                        }).eq("id", sid).eq("status", "reserved").execute()
-                    )
+                    await db.client.table("stock_items").update({
+                        "status": "available",
+                        "reserved_at": None
+                    }).eq("id", order.stock_item_id).eq("status", "reserved").execute()
                 
                 # Cancel the order
-                await asyncio.to_thread(
-                    lambda oid=order.id: db.client.table("orders").update({
-                        "status": "cancelled"
-                    }).eq("id", oid).eq("status", "pending").execute()
-                )
+                await db.client.table("orders").update({
+                    "status": "cancelled"
+                }).eq("id", order.id).eq("status", "pending").execute()
                 stale_cancelled += 1
                 
             except Exception as e:

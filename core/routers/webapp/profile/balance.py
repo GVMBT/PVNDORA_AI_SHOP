@@ -84,19 +84,21 @@ async def create_topup(
             payment_rate = await currency_service.get_exchange_rate(currency)
             amount_usd = request.amount / payment_rate if payment_rate > 0 else request.amount
         
-        # Then convert from USD to balance_currency (only RUB or USD supported)
+        # Then convert from USD to balance_currency (only RUB or USD supported per plan)
         if balance_currency == "USD":
             amount_to_credit = amount_usd
         elif balance_currency == "RUB":
-            # Use convert_balance for RUB (uses proper rounding)
+            # Use convert_balance for USD → RUB (uses proper rounding)
             amount_decimal = await currency_service.convert_balance("USD", "RUB", amount_usd)
             amount_to_credit = float(amount_decimal)
         else:
             # Fallback for other currencies (shouldn't happen per plan: only RUB/USD)
+            # This case should not occur, but kept for safety
+            logger.warning(f"Unexpected balance_currency: {balance_currency} (expected USD or RUB)")
             balance_rate = await currency_service.get_exchange_rate(balance_currency)
             amount_to_credit = amount_usd * balance_rate
             # Round for non-RUB/USD currencies
-            amount_to_credit = float(round_money(Decimal(amount_to_credit), to_int=(balance_currency == "RUB")))
+            amount_to_credit = float(round_money(Decimal(amount_to_credit), to_int=(balance_currency in ["RUB", "UAH", "TRY", "INR"])))
     
     # Create pending transaction record in user's balance_currency
     try:

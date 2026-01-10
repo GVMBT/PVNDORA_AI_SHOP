@@ -100,9 +100,7 @@ async def deliver_discount_order(request: Request):
     db = get_database()
     
     # 1. Validate order status
-    order_result = await asyncio.to_thread(
-        lambda: db.client.table("orders").select("status").eq("id", order_id).single().execute()
-    )
+    order_result = await db.client.table("orders").select("status").eq("id", order_id).single().execute()
     
     if not order_result.data:
         return JSONResponse({"error": "Order not found"}, status_code=404)
@@ -114,11 +112,9 @@ async def deliver_discount_order(request: Request):
         })
     
     # 2. Get stock item data
-    stock_result = await asyncio.to_thread(
-        lambda: db.client.table("stock_items").select(
-            "id, product_id, content, products(name)"
-        ).eq("id", stock_item_id).single().execute()
-    )
+    stock_result = await db.client.table("stock_items").select(
+        "id, product_id, content, products(name)"
+    ).eq("id", stock_item_id).single().execute()
     
     if not stock_result.data:
         return JSONResponse({"error": "Stock item not found"}, status_code=404)
@@ -128,33 +124,25 @@ async def deliver_discount_order(request: Request):
     content = stock_item.get("content", "")
     
     # 3. Mark stock as sold and update order
-    await asyncio.to_thread(
-        lambda: db.client.table("stock_items").update({
-            "status": "sold",
-            "sold_at": datetime.now(timezone.utc).isoformat()
-        }).eq("id", stock_item_id).execute()
-    )
+    await db.client.table("stock_items").update({
+        "status": "sold",
+        "sold_at": datetime.now(timezone.utc).isoformat()
+    }).eq("id", stock_item_id).execute()
     
-    await asyncio.to_thread(
-        lambda: db.client.table("order_items").update({
-            "stock_item_id": stock_item_id,
-            "delivered_at": datetime.now(timezone.utc).isoformat()
-        }).eq("id", order_item_id).execute()
-    )
+    await db.client.table("order_items").update({
+        "stock_item_id": stock_item_id,
+        "delivered_at": datetime.now(timezone.utc).isoformat()
+    }).eq("id", order_item_id).execute()
     
-    await asyncio.to_thread(
-        lambda: db.client.table("orders").update({
-            "status": "delivered",
-            "delivered_at": datetime.now(timezone.utc).isoformat()
-        }).eq("id", order_id).execute()
-    )
+    await db.client.table("orders").update({
+        "status": "delivered",
+        "delivered_at": datetime.now(timezone.utc).isoformat()
+    }).eq("id", order_id).execute()
     
     # 4. Get user language and user_id
-    user_result = await asyncio.to_thread(
-        lambda: db.client.table("users").select("id, language_code").eq(
-            "telegram_id", telegram_id
-        ).single().execute()
-    )
+    user_result = await db.client.table("users").select("id, language_code").eq(
+        "telegram_id", telegram_id
+    ).single().execute()
     lang = user_result.data.get("language_code", "en") if user_result.data else "en"
     user_id = user_result.data.get("id") if user_result.data else None
     
@@ -195,11 +183,9 @@ async def deliver_discount_order(request: Request):
     await send_telegram_message(telegram_id, delivery_text)
     
     # 6. Get user purchase count for personalization
-    user_orders_result = await asyncio.to_thread(
-        lambda: db.client.table("orders").select("id", count="exact").eq(
-            "user_telegram_id", telegram_id
-        ).eq("source_channel", "discount").eq("status", "delivered").execute()
-    )
+    user_orders_result = await db.client.table("orders").select("id", count="exact").eq(
+        "user_telegram_id", telegram_id
+    ).eq("source_channel", "discount").eq("status", "delivered").execute()
     purchase_count = user_orders_result.count if user_orders_result.count else 1
     
     # 7. Send personalized PVNDORA warm-up offer (delay for natural feel)

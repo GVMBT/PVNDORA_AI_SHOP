@@ -33,9 +33,7 @@ async def get_referral_percentages() -> dict:
     
     try:
         db = get_database()
-        result = await asyncio.to_thread(
-            lambda: db.client.table("referral_settings").select("*").limit(1).execute()
-        )
+        result = await db.client.table("referral_settings").select("*").limit(1).execute()
         if result.data:
             s = result.data[0]
             _referral_settings_cache = {
@@ -74,11 +72,9 @@ async def deliver_discount_order(db, order_id: str, order_data: dict):
         telegram_id = order_data.get("user_telegram_id")
         
         # Get order items
-        order_items = await asyncio.to_thread(
-            lambda: db.client.table("order_items").select(
-                "id, product_id, stock_item_id"
-            ).eq("order_id", order_id).execute()
-        )
+        order_items = await db.client.table("order_items").select(
+            "id, product_id, stock_item_id"
+        ).eq("order_id", order_id).execute()
         
         if not order_items.data:
             logger.warning(f"No order items for order {order_id}")
@@ -91,11 +87,9 @@ async def deliver_discount_order(db, order_id: str, order_data: dict):
             
             # If no stock assigned, find one
             if not stock_item_id:
-                stock_result = await asyncio.to_thread(
-                    lambda: db.client.table("stock_items").select("id").eq(
-                        "product_id", product_id
-                    ).in_("status", ["available", "reserved"]).limit(1).execute()
-                )
+                stock_result = await db.client.table("stock_items").select("id").eq(
+                    "product_id", product_id
+                ).in_("status", ["available", "reserved"]).limit(1).execute()
                 
                 if not stock_result.data:
                     logger.warning(f"No stock available for order {order_id}, product {product_id}")
@@ -104,11 +98,9 @@ async def deliver_discount_order(db, order_id: str, order_data: dict):
                 stock_item_id = stock_result.data[0]["id"]
             
             # Get stock item content
-            stock_item = await asyncio.to_thread(
-                lambda: db.client.table("stock_items").select(
-                    "content, products(name)"
-                ).eq("id", stock_item_id).single().execute()
-            )
+            stock_item = await db.client.table("stock_items").select(
+                "content, products(name)"
+            ).eq("id", stock_item_id).single().execute()
             
             if not stock_item.data:
                 logger.warning(f"Stock item {stock_item_id} not found")
@@ -118,29 +110,23 @@ async def deliver_discount_order(db, order_id: str, order_data: dict):
             product_name = stock_item.data.get("products", {}).get("name", "Product") if isinstance(stock_item.data.get("products"), dict) else "Product"
             
             # Mark stock as sold
-            await asyncio.to_thread(
-                lambda: db.client.table("stock_items").update({
-                    "status": "sold",
-                    "sold_at": datetime.now(timezone.utc).isoformat()
-                }).eq("id", stock_item_id).execute()
-            )
+            await db.client.table("stock_items").update({
+                "status": "sold",
+                "sold_at": datetime.now(timezone.utc).isoformat()
+            }).eq("id", stock_item_id).execute()
             
             # Update order item with delivery content and status
-            await asyncio.to_thread(
-                lambda: db.client.table("order_items").update({
-                    "stock_item_id": stock_item_id,
-                    "delivery_content": content,
-                    "status": "delivered",
-                    "delivered_at": datetime.now(timezone.utc).isoformat()
-                }).eq("id", order_item_id).execute()
-            )
+            await db.client.table("order_items").update({
+                "stock_item_id": stock_item_id,
+                "delivery_content": content,
+                "status": "delivered",
+                "delivered_at": datetime.now(timezone.utc).isoformat()
+            }).eq("id", order_item_id).execute()
             
             # Get user language
-            user_result = await asyncio.to_thread(
-                lambda: db.client.table("users").select("language_code").eq(
-                    "telegram_id", telegram_id
-                ).single().execute()
-            )
+            user_result = await db.client.table("users").select("language_code").eq(
+                "telegram_id", telegram_id
+            ).single().execute()
             lang = user_result.data.get("language_code", "en") if user_result.data else "en"
             
             # Send delivery message (structured format)
@@ -180,11 +166,9 @@ async def deliver_discount_order(db, order_id: str, order_data: dict):
             await send_telegram_message(telegram_id, delivery_text)
             
             # Get user purchase count for personalization
-            user_orders_result = await asyncio.to_thread(
-                lambda: db.client.table("orders").select("id", count="exact").eq(
-                    "user_telegram_id", telegram_id
-                ).eq("source_channel", "discount").eq("status", "delivered").execute()
-            )
+            user_orders_result = await db.client.table("orders").select("id", count="exact").eq(
+                "user_telegram_id", telegram_id
+            ).eq("source_channel", "discount").eq("status", "delivered").execute()
             purchase_count = user_orders_result.count if user_orders_result.count else 1
             
             # Get dynamic referral percentages
@@ -268,22 +252,18 @@ async def deliver_discount_order(db, order_id: str, order_data: dict):
             # If user reached 3+ purchases, send loyal promo immediately
             if purchase_count >= 3:
                 # Get user_id from telegram_id
-                user_lookup = await asyncio.to_thread(
-                    lambda: db.client.table("users").select("id").eq(
-                        "telegram_id", telegram_id
-                    ).single().execute()
-                )
+                user_lookup = await db.client.table("users").select("id").eq(
+                    "telegram_id", telegram_id
+                ).single().execute()
                 if user_lookup.data:
                     user_id = user_lookup.data.get("id")
                     await _send_loyal_promo_if_eligible(user_id, telegram_id, lang, purchase_count)
         
         # Update order status
-        await asyncio.to_thread(
-            lambda: db.client.table("orders").update({
-                "status": "delivered",
-                "delivered_at": datetime.now(timezone.utc).isoformat()
-            }).eq("id", order_id).execute()
-        )
+        await db.client.table("orders").update({
+            "status": "delivered",
+            "delivered_at": datetime.now(timezone.utc).isoformat()
+        }).eq("id", order_id).execute()
         
         logger.info(f"Discount order {order_id} delivered successfully via cron fallback")
         return True
@@ -383,15 +363,11 @@ async def deliver_overdue_discount(request: Request):
         # Get paid discount orders with overdue delivery
         now = datetime.now(timezone.utc).isoformat()
         
-        result = await asyncio.to_thread(
-            lambda: db.client.table("orders")
-            .select("id, user_telegram_id, source_channel, scheduled_delivery_at")
-            .eq("status", "paid")
-            .eq("source_channel", "discount")
-            .lte("scheduled_delivery_at", now)  # scheduled time has passed
-            .limit(10)
-            .execute()
-        )
+        result = await db.client.table("orders").select(
+            "id, user_telegram_id, source_channel, scheduled_delivery_at"
+        ).eq("status", "paid").eq("source_channel", "discount").lte(
+            "scheduled_delivery_at", now
+        ).limit(10).execute()
         
         overdue_orders = result.data or []
         

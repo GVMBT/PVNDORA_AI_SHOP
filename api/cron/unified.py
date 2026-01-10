@@ -11,7 +11,6 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import os
-import asyncio
 
 from core.logging import get_logger
 
@@ -49,19 +48,15 @@ async def unified_cron_entrypoint(request: Request):
             try:
                 # Release reserved stock if any
                 if order.stock_item_id:
-                    await asyncio.to_thread(
-                        lambda sid=order.stock_item_id: db.client.table("stock_items").update({
-                            "status": "available",
-                            "reserved_at": None
-                        }).eq("id", sid).eq("status", "reserved").execute()
-                    )
+                    await db.client.table("stock_items").update({
+                        "status": "available",
+                        "reserved_at": None
+                    }).eq("id", order.stock_item_id).eq("status", "reserved").execute()
                 
                 # Cancel the order
-                await asyncio.to_thread(
-                    lambda oid=order.id: db.client.table("orders").update({
-                        "status": "cancelled"
-                    }).eq("id", oid).eq("status", "pending").execute()
-                )
+                await db.client.table("orders").update({
+                    "status": "cancelled"
+                }).eq("id", order.id).eq("status", "pending").execute()
                 cancelled_count += 1
                 logger.info(f"Expired order {order.id}")
                 
@@ -73,18 +68,14 @@ async def unified_cron_entrypoint(request: Request):
         for order in stale_orders:
             try:
                 if order.stock_item_id:
-                    await asyncio.to_thread(
-                        lambda sid=order.stock_item_id: db.client.table("stock_items").update({
-                            "status": "available",
-                            "reserved_at": None
-                        }).eq("id", sid).eq("status", "reserved").execute()
-                    )
+                    await db.client.table("stock_items").update({
+                        "status": "available",
+                        "reserved_at": None
+                    }).eq("id", order.stock_item_id).eq("status", "reserved").execute()
                 
-                await asyncio.to_thread(
-                    lambda oid=order.id: db.client.table("orders").update({
-                        "status": "cancelled"
-                    }).eq("id", oid).eq("status", "pending").execute()
-                )
+                await db.client.table("orders").update({
+                    "status": "cancelled"
+                }).eq("id", order.id).eq("status", "pending").execute()
                 cancelled_count += 1
                 logger.info(f"Cancelled stale order {order.id}")
             except Exception as e:
@@ -103,12 +94,7 @@ async def unified_cron_entrypoint(request: Request):
         delivery_service = DeliveryService(db)
         
         # Get paid orders awaiting delivery
-        paid_orders = await asyncio.to_thread(
-            lambda: db.client.table("orders").select("*")
-                .eq("status", "paid")
-                .is_("delivered_at", "null")
-                .execute()
-        )
+        paid_orders = await db.client.table("orders").select("*").eq("status", "paid").is_("delivered_at", "null").execute()
         
         allocated_count = 0
         for order_data in (paid_orders.data or []):

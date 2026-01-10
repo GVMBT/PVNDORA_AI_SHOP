@@ -7,7 +7,6 @@ Tasks:
 2. Process approved replacement tickets waiting for stock.
 """
 import os
-import asyncio
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from datetime import datetime, timezone, timedelta
@@ -49,29 +48,18 @@ async def auto_alloc_entrypoint(request: Request):
     try:
         # First, get order_ids that are NOT from discount channel and have valid statuses
         # Query orders first, then get their order_items
-        valid_orders = await asyncio.to_thread(
-            lambda: db.client.table("orders")
-            .select("id")
-            .neq("source_channel", "discount")
-            .in_("status", ["paid", "prepaid", "partial", "delivered"])
-            .limit(500)
-            .execute()
-        )
+        valid_orders = await db.client.table("orders").select("id").neq(
+            "source_channel", "discount"
+        ).in_("status", ["paid", "prepaid", "partial", "delivered"]).limit(500).execute()
         valid_order_ids = [row["id"] for row in (valid_orders.data or [])]
         
         if not valid_order_ids:
             results["order_items"]["processed"] = 0
         else:
             # Get order_items for these orders that are pending/prepaid
-            open_items = await asyncio.to_thread(
-                lambda: db.client.table("order_items")
-                .select("order_id")
-                .in_("order_id", valid_order_ids)
-                .in_("status", ["pending", "prepaid"])
-                .order("created_at")
-                .limit(200)
-                .execute()
-            )
+            open_items = await db.client.table("order_items").select("order_id").in_(
+                "order_id", valid_order_ids
+            ).in_("status", ["pending", "prepaid"]).order("created_at").limit(200).execute()
             order_ids = list({row["order_id"] for row in (open_items.data or [])})
             results["order_items"]["processed"] = len(order_ids)
             
@@ -88,15 +76,11 @@ async def auto_alloc_entrypoint(request: Request):
     # ========== TASK 2: Process approved replacement tickets ==========
     try:
         # Find approved replacement tickets waiting for stock
-        approved_tickets = await asyncio.to_thread(
-            lambda: db.client.table("tickets")
-            .select("id, item_id, order_id, user_id")
-            .eq("status", "approved")
-            .eq("issue_type", "replacement")
-            .order("created_at")
-            .limit(50)
-            .execute()
-        )
+        approved_tickets = await db.client.table("tickets").select(
+            "id, item_id, order_id, user_id"
+        ).eq("status", "approved").eq("issue_type", "replacement").order(
+            "created_at"
+        ).limit(50).execute()
         
         results["replacements"]["processed"] = len(approved_tickets.data or [])
         
@@ -109,13 +93,9 @@ async def auto_alloc_entrypoint(request: Request):
             
             try:
                 # Get order item info
-                item_res = await asyncio.to_thread(
-                    lambda iid=item_id: db.client.table("order_items")
-                    .select("product_id, order_id")
-                    .eq("id", iid)
-                    .single()
-                    .execute()
-                )
+                item_res = await db.client.table("order_items").select(
+                    "product_id, order_id"
+                ).eq("id", item_id).single().execute()
                 
                 if not item_res.data:
                     continue
@@ -124,14 +104,9 @@ async def auto_alloc_entrypoint(request: Request):
                 order_id = item_res.data.get("order_id")
                 
                 # Check if stock is available now
-                stock_res = await asyncio.to_thread(
-                    lambda pid=product_id: db.client.table("stock_items")
-                    .select("id, content")
-                    .eq("product_id", pid)
-                    .eq("status", "available")
-                    .limit(1)
-                    .execute()
-                )
+                stock_res = await db.client.table("stock_items").select(
+                    "id, content"
+                ).eq("product_id", product_id).eq("status", "available").limit(1).execute()
                 
                 if not stock_res.data:
                     # Still no stock - skip
@@ -143,25 +118,16 @@ async def auto_alloc_entrypoint(request: Request):
                 stock_content = stock_item.get("content", "")
                 
                 # Mark stock as sold
-                await asyncio.to_thread(
-                    lambda sid=stock_id: db.client.table("stock_items")
-                    .update({
-                        "status": "sold",
-                        "reserved_at": now.isoformat(),
-                        "sold_at": now.isoformat()
-                    })
-                    .eq("id", sid)
-                    .execute()
-                )
+                await db.client.table("stock_items").update({
+                    "status": "sold",
+                    "reserved_at": now.isoformat(),
+                    "sold_at": now.isoformat()
+                }).eq("id", stock_id).execute()
                 
                 # Get product info for expiration
-                product_res = await asyncio.to_thread(
-                    lambda pid=product_id: db.client.table("products")
-                    .select("duration_days, name")
-                    .eq("id", pid)
-                    .single()
-                    .execute()
-                )
+                product_res = await db.client.table("products").select(
+                    "duration_days, name"
+                ).eq("id", product_id).single().execute()
                 
                 product = product_res.data if product_res.data else {}
                 duration_days = product.get("duration_days")
@@ -184,32 +150,20 @@ async def auto_alloc_entrypoint(request: Request):
                 if expires_at_str:
                     update_data["expires_at"] = expires_at_str
                 
-                await asyncio.to_thread(
-                    lambda iid=item_id: db.client.table("order_items")
-                    .update(update_data)
-                    .eq("id", iid)
-                    .execute()
-                )
+                await db.client.table("order_items").update(update_data).eq(
+                    "id", item_id
+                ).execute()
                 
                 # Close ticket
-                await asyncio.to_thread(
-                    lambda tid=ticket_id: db.client.table("tickets")
-                    .update({
-                        "status": "closed",
-                        "admin_comment": "Replacement auto-delivered when stock became available."
-                    })
-                    .eq("id", tid)
-                    .execute()
-                )
+                await db.client.table("tickets").update({
+                    "status": "closed",
+                    "admin_comment": "Replacement auto-delivered when stock became available."
+                }).eq("id", ticket_id).execute()
                 
                 # Notify user
-                order_res = await asyncio.to_thread(
-                    lambda oid=order_id: db.client.table("orders")
-                    .select("user_telegram_id")
-                    .eq("id", oid)
-                    .single()
-                    .execute()
-                )
+                order_res = await db.client.table("orders").select(
+                    "user_telegram_id"
+                ).eq("id", order_id).single().execute()
                 
                 if order_res.data:
                     user_telegram_id = order_res.data.get("user_telegram_id")

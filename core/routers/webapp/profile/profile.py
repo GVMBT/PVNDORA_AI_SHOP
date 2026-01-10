@@ -138,8 +138,13 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     
     if balance_currency == 'USD':
         balance_usd = balance_in_local
+    elif balance_currency == 'RUB':
+        # Use convert_balance for RUB → USD (uses proper rounding)
+        balance_usd_decimal = await currency_service.convert_balance("RUB", "USD", balance_in_local)
+        balance_usd = float(balance_usd_decimal)
     else:
-        # Convert from local currency to USD
+        # Fallback: shouldn't happen per plan (only RUB/USD supported for balance)
+        # But handle gracefully if balance_currency is somehow set to another currency
         rate = await currency_service.get_exchange_rate(balance_currency)
         balance_usd = balance_in_local / rate if rate > 0 else balance_in_local
     
@@ -269,8 +274,18 @@ async def convert_balance(request: ConvertBalanceRequest, user=Depends(verify_te
     )
     new_balance = float(new_balance_decimal)
     
-    # Get rate for logging/transaction record
-    rate = await currency_service.get_exchange_rate("RUB")
+    # Get exchange rate for logging/transaction record
+    # Use convert_balance's internal rate calculation for consistency
+    if current_currency == "USD" and target_currency == "RUB":
+        # Calculate rate from conversion result (more accurate than separate API call)
+        rate = float(new_balance_decimal) / current_balance if current_balance > 0 else await currency_service.get_exchange_rate("RUB")
+    elif current_currency == "RUB" and target_currency == "USD":
+        # Inverse rate: RUB amount / USD result = rate
+        rate = current_balance / float(new_balance_decimal) if new_balance > 0 else await currency_service.get_exchange_rate("RUB")
+    else:
+        # Shouldn't happen (only RUB/USD supported per plan)
+        # Use get_exchange_rate for fallback only
+        rate = await currency_service.get_exchange_rate("RUB")
     
     # Update balance and currency in database
     await db.client.table("users").update({
@@ -291,7 +306,7 @@ async def convert_balance(request: ConvertBalanceRequest, user=Depends(verify_te
         "metadata": {
             "from_currency": current_currency,
             "to_currency": target_currency,
-            "exchange_rate": rate if current_currency == "USD" else (1/rate if target_currency == "USD" else None)
+            "exchange_rate": rate if current_currency == "USD" else (1/rate if target_currency == "USD" else 1.0)
         }
     }).execute()
     

@@ -11,7 +11,6 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import os
-import asyncio
 
 from core.logging import get_logger
 
@@ -51,21 +50,16 @@ async def refund_expired_prepaid_entrypoint(request: Request):
     try:
         # Find prepaid ORDER ITEMS with expired fulfillment_deadline
         # Join with orders to get user info, join with products for name
-        expired_items = await asyncio.to_thread(
-            lambda: db.client.table("order_items")
-            .select("""
-                id,
-                order_id,
-                price,
-                product_id,
-                products(name),
-                orders(id, user_id, user_telegram_id, amount, fiat_amount, fiat_currency)
-            """)
-            .eq("status", "prepaid")
-            .lt("fulfillment_deadline", now.isoformat())
-            .limit(50)  # Process in batches
-            .execute()
-        )
+        expired_items = await db.client.table("order_items").select("""
+            id,
+            order_id,
+            price,
+            product_id,
+            products(name),
+            orders(id, user_id, user_telegram_id, amount, fiat_amount, fiat_currency)
+        """).eq("status", "prepaid").lt(
+            "fulfillment_deadline", now.isoformat()
+        ).limit(50).execute()
         
         processed_orders = set()
         
@@ -83,15 +77,12 @@ async def refund_expired_prepaid_entrypoint(request: Request):
             # Get user's balance_currency for proper refund
             balance_currency = "RUB"  # Default
             try:
-                user_result = await asyncio.to_thread(
-                    lambda uid=user_id: db.client.table("users")
-                    .select("balance_currency")
-                    .eq("id", uid)
-                    .single()
-                    .execute()
-                )
-                if user_result.data:
-                    balance_currency = user_result.data.get("balance_currency", "RUB") or "RUB"
+                if user_id:
+                    user_result = await db.client.table("users").select("balance_currency").eq(
+                        "id", user_id
+                    ).single().execute()
+                    if user_result.data:
+                        balance_currency = user_result.data.get("balance_currency", "RUB") or "RUB"
             except Exception:
                 pass
             
@@ -110,43 +101,33 @@ async def refund_expired_prepaid_entrypoint(request: Request):
             
             try:
                 # 1. Update order_item status to refunded
-                await asyncio.to_thread(
-                    lambda iid=item_id: db.client.table("order_items").update({
-                        "status": "refunded"
-                    }).eq("id", iid).execute()
-                )
+                await db.client.table("order_items").update({
+                    "status": "refunded"
+                }).eq("id", item_id).execute()
                 
                 # 2. Credit user balance using RPC (atomic)
                 if user_id and refund_amount > 0:
-                    await asyncio.to_thread(
-                        lambda uid=user_id, amt=refund_amount, pn=product_name: db.client.rpc(
-                            "add_to_user_balance",
-                            {
-                                "p_user_id": str(uid), 
-                                "p_amount": amt,
-                                "p_reason": f"Авто-возврат: товар «{pn}» не поступил в срок"
-                            }
-                        ).execute()
-                    )
+                    await db.client.rpc(
+                        "add_to_user_balance",
+                        {
+                            "p_user_id": str(user_id), 
+                            "p_amount": refund_amount,
+                            "p_reason": f"Авто-возврат: товар «{product_name}» не поступил в срок"
+                        }
+                    ).execute()
                 
                 # 3. Check if order should be marked as refunded (all items refunded)
                 if order_id not in processed_orders:
-                    remaining_items = await asyncio.to_thread(
-                        lambda oid=order_id: db.client.table("order_items")
-                        .select("id")
-                        .eq("order_id", oid)
-                        .not_.eq("status", "refunded")
-                        .execute()
-                    )
+                    remaining_items = await db.client.table("order_items").select("id").eq(
+                        "order_id", order_id
+                    ).not_.eq("status", "refunded").execute()
                     
                     if not remaining_items.data:
                         # All items refunded, update order status
-                        await asyncio.to_thread(
-                            lambda oid=order_id: db.client.table("orders").update({
-                                "status": "refunded",
-                                "refund_reason": "Auto-refund: fulfillment deadline exceeded"
-                            }).eq("id", oid).execute()
-                        )
+                        await db.client.table("orders").update({
+                            "status": "refunded",
+                            "refund_reason": "Auto-refund: fulfillment deadline exceeded"
+                        }).eq("id", order_id).execute()
                         results["orders_updated"] += 1
                     
                     processed_orders.add(order_id)
