@@ -75,16 +75,11 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
   const { t, locale, formatPrice } = useLocale();
   const isRu = locale === 'ru';
   
-  // Convert thresholds from USD to user currency
-  const convertThreshold = (usdThreshold: number): number => {
-    if (currency === 'USD' || !exchangeRate || exchangeRate === 1.0) {
-      return usdThreshold;
-    }
-    return Math.round(usdThreshold * exchangeRate);
-  };
-  
-  const thresholdLevel2 = convertThreshold(thresholds.level2);
-  const thresholdLevel3 = convertThreshold(thresholds.level3);
+  // Thresholds are already rounded by backend (thresholds_display):
+  // RUB: 20000/80000, USD: 250/1000
+  // No conversion needed - thresholds are already in display currency
+  const thresholdLevel2 = thresholds.level2;
+  const thresholdLevel3 = thresholds.level3;
 
   const getLevelDescription = (lvl: typeof LEVELS[number]) => {
     return isRu ? lvl.description_ru : lvl.description_en;
@@ -272,18 +267,15 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                 
                 {/* Progress to next level */}
                 {currentLevel < 3 && (() => {
-                  // Determine next level threshold (in USD, then convert)
-                  let nextThresholdUSD: number;
+                  // Determine next level threshold (already in display currency from backend)
+                  let nextThreshold: number;
                   if (currentLevel === 1) {
-                    nextThresholdUSD = thresholds.level2; // PROXY -> OPERATOR
+                    nextThreshold = thresholds.level2; // PROXY -> OPERATOR
                   } else if (currentLevel === 2) {
-                    nextThresholdUSD = thresholds.level3; // OPERATOR -> ARCHITECT
+                    nextThreshold = thresholds.level3; // OPERATOR -> ARCHITECT
                   } else {
                     return null; // Already max level
                   }
-                  
-                  // Convert threshold to user currency
-                  const nextThreshold = convertThreshold(nextThresholdUSD);
                   
                   // Calculate progress (cap at 100% if already exceeded)
                   const progressPercent = Math.min(100, (currentTurnover / nextThreshold) * 100);

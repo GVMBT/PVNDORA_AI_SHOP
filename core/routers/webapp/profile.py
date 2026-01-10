@@ -199,24 +199,35 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
         "click_count": 0,
         "conversion_rate": 0,
     }
-    referral_program = _build_default_referral_program(THRESHOLD_LEVEL2, THRESHOLD_LEVEL3, COMMISSION_LEVEL1, COMMISSION_LEVEL2, COMMISSION_LEVEL3)
+    
+    # Get currency formatter first to get display currency
+    from core.db import get_redis
+    from core.services.currency_response import CurrencyFormatter
+    redis = get_redis()
+    formatter = await CurrencyFormatter.create(user.id, db, redis)
+    
+    referral_program = _build_default_referral_program(
+        THRESHOLD_LEVEL2, THRESHOLD_LEVEL3, COMMISSION_LEVEL1, COMMISSION_LEVEL2, COMMISSION_LEVEL3,
+        formatter.currency, formatter.exchange_rate
+    )
     
     if extended_stats_result.data and len(extended_stats_result.data) > 0:
         s = extended_stats_result.data[0]
         referral_stats, referral_program = _build_referral_data(
-            s, THRESHOLD_LEVEL2, THRESHOLD_LEVEL3, COMMISSION_LEVEL1, COMMISSION_LEVEL2, COMMISSION_LEVEL3
+            s, THRESHOLD_LEVEL2, THRESHOLD_LEVEL3, COMMISSION_LEVEL1, COMMISSION_LEVEL2, COMMISSION_LEVEL3,
+            formatter.currency, formatter.exchange_rate
         )
+    else:
+        # Add rounded thresholds for default program
+        from core.services.currency_response import round_referral_threshold
+        referral_program["thresholds_display"] = {
+            "level2": round_referral_threshold(THRESHOLD_LEVEL2, formatter.currency, formatter.exchange_rate),
+            "level3": round_referral_threshold(THRESHOLD_LEVEL3, formatter.currency, formatter.exchange_rate),
+        }
     
     # Add partner mode settings (from user record)
     referral_program["partner_mode"] = getattr(db_user, 'partner_mode', 'commission') or 'commission'
     referral_program["partner_discount_percent"] = getattr(db_user, 'partner_discount_percent', 0) or 0
-    
-    # Unified currency handling
-    from core.db import get_redis
-    from core.services.currency_response import CurrencyFormatter
-    
-    redis = get_redis()
-    formatter = await CurrencyFormatter.create(user.id, db, redis)
     
     # Get user's balance in their local currency
     # IMPORTANT: balance is stored in balance_currency (RUB for ru users, USD for others)
@@ -981,8 +992,11 @@ async def get_referral_network(user=Depends(verify_telegram_auth), level: int = 
         raise HTTPException(status_code=500, detail="Failed to load referral network")
 
 
-def _build_default_referral_program(threshold2: float, threshold3: float, comm1: float, comm2: float, comm3: float) -> dict:
+def _build_default_referral_program(threshold2: float, threshold3: float, comm1: float, comm2: float, comm3: float,
+                                    display_currency: str = "USD", exchange_rate: float = 1.0) -> dict:
     """Build default referral program data."""
+    from core.services.currency_response import round_referral_threshold
+    
     return {
         "unlocked": False,
         "status": "locked",
@@ -999,6 +1013,10 @@ def _build_default_referral_program(threshold2: float, threshold3: float, comm1:
         "amount_to_next_level_usd": threshold2,
         "next_threshold_usd": threshold2,
         "thresholds_usd": {"level2": threshold2, "level3": threshold3},
+        "thresholds_display": {
+            "level2": round_referral_threshold(threshold2, display_currency, exchange_rate),
+            "level3": round_referral_threshold(threshold3, display_currency, exchange_rate),
+        },
         "commissions_percent": {"level1": comm1, "level2": comm2, "level3": comm3},
         "level1_unlocked_at": None,
         "level2_unlocked_at": None,
@@ -1006,7 +1024,8 @@ def _build_default_referral_program(threshold2: float, threshold3: float, comm1:
     }
 
 
-def _build_referral_data(s: dict, threshold2: float, threshold3: float, comm1: float, comm2: float, comm3: float) -> tuple:
+def _build_referral_data(s: dict, threshold2: float, threshold3: float, comm1: float, comm2: float, comm3: float,
+                         display_currency: str = "USD", exchange_rate: float = 1.0) -> tuple:
     """Build referral stats and program data from extended stats."""
     # Calculate conversion rate (referrals / clicks * 100)
     click_count = s.get("click_count", 0) or 0
@@ -1082,6 +1101,13 @@ def _build_referral_data(s: dict, threshold2: float, threshold3: float, comm1: f
         "level1_unlocked_at": s.get("level1_unlocked_at"),
         "level2_unlocked_at": s.get("level2_unlocked_at"),
         "level3_unlocked_at": s.get("level3_unlocked_at"),
+    }
+    
+    # Add rounded thresholds for display (RUB: 20000/80000, USD: 250/1000)
+    from core.services.currency_response import round_referral_threshold
+    referral_program["thresholds_display"] = {
+        "level2": round_referral_threshold(threshold2, display_currency, exchange_rate),
+        "level3": round_referral_threshold(threshold3, display_currency, exchange_rate),
     }
     
     return referral_stats, referral_program

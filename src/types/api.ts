@@ -192,6 +192,10 @@ export interface APIReferralProgram {
     level2: number;
     level3: number;
   };
+  thresholds_display?: {  // Rounded thresholds for display (RUB: 20000/80000, USD: 250/1000)
+    level2: number;
+    level3: number;
+  };
   commissions_percent: {
     level1: number;
     level2: number;

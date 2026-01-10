@@ -45,6 +45,38 @@ from core.logging import get_logger
 logger = get_logger(__name__)
 
 
+def round_referral_threshold(usd_threshold: float, target_currency: str, exchange_rate: float) -> float:
+    """
+    Round referral thresholds for display.
+    
+    Rules:
+    - USD thresholds stay as-is (250, 1000)
+    - RUB thresholds are rounded to nice values:
+      * 250 USD → 20000 RUB (instead of ~19750-19780)
+      * 1000 USD → 80000 RUB (instead of ~79000-79080)
+    
+    Args:
+        usd_threshold: Threshold in USD (250 or 1000)
+        target_currency: Target currency (RUB, USD, etc.)
+        exchange_rate: Exchange rate for conversion
+    
+    Returns:
+        Rounded threshold in target currency
+    """
+    if target_currency == "USD":
+        return float(usd_threshold)
+    
+    if target_currency == "RUB":
+        # Apply rounding rules for RUB
+        if usd_threshold == 250:
+            return 20000.0
+        elif usd_threshold == 1000:
+            return 80000.0
+    
+    # For other currencies, use normal conversion
+    return round(usd_threshold * exchange_rate, 2)
+
+
 class AmountResponse(TypedDict):
     """Typed dict for amount response."""
     usd: float

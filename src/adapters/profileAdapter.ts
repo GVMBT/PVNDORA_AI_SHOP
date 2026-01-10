@@ -27,6 +27,11 @@ function normalizeCurrency(currency: string | undefined): CurrencyCode {
 
 /**
  * Determine current career level based on turnover and VIP status
+ * 
+ * @param turnoverUsd - Turnover in USD (for fallback comparison only)
+ * @param thresholds - Thresholds for min/max (can be in display currency)
+ * @param isVip - Whether user is VIP
+ * @param effectiveLevel - Effective level from backend (0-3, calculated in USD)
  */
 function getCurrentLevel(
   turnoverUsd: number, 
@@ -34,6 +39,7 @@ function getCurrentLevel(
   isVip: boolean = false,
   effectiveLevel?: number
 ): CareerLevel {
+  // Create level structure with provided thresholds (for min/max display)
   const levels: CareerLevel[] = [
     { id: 1, label: 'PROXY', min: 0, max: thresholds.level2, color: 'text-gray-400' },
     { id: 2, label: 'OPERATOR', min: thresholds.level2, max: thresholds.level3, color: 'text-purple-400' },
@@ -45,17 +51,14 @@ function getCurrentLevel(
     return levels[2]; // ARCHITECT
   }
   
-  // Use effective_level from backend if provided
+  // Use effective_level from backend (always provided, calculated in USD on backend)
+  // This is the source of truth for level determination
   if (effectiveLevel !== undefined && effectiveLevel >= 1 && effectiveLevel <= 3) {
     return levels[effectiveLevel - 1];
   }
   
-  // Fallback to turnover-based calculation
-  for (let i = levels.length - 1; i >= 0; i--) {
-    if (turnoverUsd >= levels[i].min) {
-      return levels[i];
-    }
-  }
+  // Fallback: if effective_level not provided, use level 0 (LOCKED)
+  // This should not happen in practice as backend always provides effective_level
   return levels[0];
 }
 
@@ -173,14 +176,20 @@ export function adaptProfile(
 ): ProfileData {
   const { profile, referral_stats, referral_program, bonus_history, withdrawals, balance_transactions = [], currency: responseCurrency, exchange_rate: responseExchangeRate } = response;
   
+  // Use display thresholds (rounded for RUB: 20000/80000, USD: 250/1000) for UI
+  // Level determination uses effective_level from backend (calculated in USD)
+  const displayThresholds = referral_program.thresholds_display || referral_program.thresholds_usd;
+  
+  // Create level structure with display thresholds (for min/max display)
+  // but use effective_level for actual level determination
   const currentLevel = getCurrentLevel(
-    referral_program.turnover_usd,
-    referral_program.thresholds_usd,
+    referral_program.turnover_usd,  // Still in USD for comparison
+    displayThresholds,  // But use display thresholds for min/max
     referral_program.is_partner || false,
-    referral_program.effective_level
+    referral_program.effective_level  // Use backend-calculated level
   );
   
-  const nextLevel = getNextLevel(currentLevel, referral_program.thresholds_usd);
+  const nextLevel = getNextLevel(currentLevel, displayThresholds);
   
   // Combine and sort billing logs from multiple sources
   const billingLogs: BillingLog[] = [
@@ -237,7 +246,7 @@ export function adaptProfile(
       currentLevel,
       nextLevel,
       progressPercent: calculateProgressPercent(referral_program.turnover_usd, currentLevel),
-      thresholds: referral_program.thresholds_usd,  // USD thresholds (for conversion in UI)
+      thresholds: referral_program.thresholds_display || referral_program.thresholds_usd,  // Use rounded display thresholds if available, fallback to USD
       commissions: referral_program.commissions_percent || { level1: 10, level2: 7, level3: 3 },  // Commission percentages
     },
     networkTree: [], // Populated via adaptReferralNetwork call
