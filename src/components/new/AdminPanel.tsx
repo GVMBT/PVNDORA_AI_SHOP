@@ -11,6 +11,7 @@ import {
   AdminCatalog,
   AdminSales,
   AdminUsers,
+  AdminPartners,
   AdminSupport,
   AdminWithdrawals,
   AdminPromo,
@@ -133,10 +134,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         return <AdminSales orders={propsOrders} onRefresh={onRefreshOrders} />;
       case 'partners':
         return (
-          <AdminUsers
-            users={propsUsers}
-            onBanUser={onBanUser}
-            onUpdateBalance={onUpdateBalance}
+          <AdminPartners
+            partners={propsUsers.filter(u => u.role === 'VIP')}
+            onEditPartner={(partner) => {
+              // Handle partner edit - can reuse AdminUsers modal or create specific one
+              handleEditProduct({} as ProductData); // Placeholder - will be replaced with partner edit
+            }}
+            onRefresh={onRefreshOrders}
           />
         );
       case 'support':

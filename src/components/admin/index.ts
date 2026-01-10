@@ -6,6 +6,7 @@ export { default as AdminDashboard } from './AdminDashboard';
 export { default as AdminCatalog } from './AdminCatalog';
 export { default as AdminSales } from './AdminSales';
 export { default as AdminUsers } from './AdminUsers';
+export { default as AdminPartners } from './AdminPartners';
 export { default as AdminSupport } from './AdminSupport';
 export { default as AdminWithdrawals } from './AdminWithdrawals';
 export { default as AdminPromo } from './AdminPromo';

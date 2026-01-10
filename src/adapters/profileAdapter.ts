@@ -26,15 +26,31 @@ function normalizeCurrency(currency: string | undefined): CurrencyCode {
 // No hardcoded values - thresholds come from referral_program.thresholds_usd
 
 /**
- * Determine current career level based on turnover
+ * Determine current career level based on turnover and VIP status
  */
-function getCurrentLevel(turnoverUsd: number, thresholds: { level2: number; level3: number }): CareerLevel {
+function getCurrentLevel(
+  turnoverUsd: number, 
+  thresholds: { level2: number; level3: number },
+  isVip: boolean = false,
+  effectiveLevel?: number
+): CareerLevel {
   const levels: CareerLevel[] = [
     { id: 1, label: 'PROXY', min: 0, max: thresholds.level2, color: 'text-gray-400' },
     { id: 2, label: 'OPERATOR', min: thresholds.level2, max: thresholds.level3, color: 'text-purple-400' },
     { id: 3, label: 'ARCHITECT', min: thresholds.level3, max: Infinity, color: 'text-yellow-400' },
   ];
   
+  // VIP users always get ARCHITECT level (level 3)
+  if (isVip) {
+    return levels[2]; // ARCHITECT
+  }
+  
+  // Use effective_level from backend if provided
+  if (effectiveLevel !== undefined && effectiveLevel >= 1 && effectiveLevel <= 3) {
+    return levels[effectiveLevel - 1];
+  }
+  
+  // Fallback to turnover-based calculation
   for (let i = levels.length - 1; i >= 0; i--) {
     if (turnoverUsd >= levels[i].min) {
       return levels[i];
@@ -159,7 +175,9 @@ export function adaptProfile(
   
   const currentLevel = getCurrentLevel(
     referral_program.turnover_usd,
-    referral_program.thresholds_usd
+    referral_program.thresholds_usd,
+    referral_program.is_partner || false,
+    referral_program.effective_level
   );
   
   const nextLevel = getNextLevel(currentLevel, referral_program.thresholds_usd);

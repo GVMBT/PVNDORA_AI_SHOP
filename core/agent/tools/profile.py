@@ -53,26 +53,36 @@ async def get_user_profile() -> dict:
         total_saved = float(user.get("total_saved", 0) or 0)
         referral_earnings = float(user.get("total_referral_earnings", 0) or 0)
         
-        line1_unlocked = user.get("level1_unlocked_at") is not None or user.get("referral_program_unlocked", False)
-        line2_unlocked = turnover >= threshold_l2 or user.get("level2_unlocked_at") is not None
-        line3_unlocked = turnover >= threshold_l3 or user.get("level3_unlocked_at") is not None
+        # Check VIP status - VIP always gets ARCHITECT level
+        is_partner = user.get("is_partner", False)
+        partner_override = user.get("partner_level_override")
         
-        if line3_unlocked:
+        if is_partner and partner_override is not None:
+            # VIP with level override - always ARCHITECT
             career_level = "ARCHITECT"
             next_level = None
             turnover_to_next = 0
-        elif line2_unlocked:
-            career_level = "OPERATOR"
-            next_level = "ARCHITECT"
-            turnover_to_next = max(0, threshold_l3 - turnover)
-        elif line1_unlocked:
-            career_level = "PROXY"
-            next_level = "OPERATOR"
-            turnover_to_next = max(0, threshold_l2 - turnover)
         else:
-            career_level = "LOCKED"
-            next_level = "PROXY (make first purchase)"
-            turnover_to_next = 0
+            line1_unlocked = user.get("level1_unlocked_at") is not None or user.get("referral_program_unlocked", False)
+            line2_unlocked = turnover >= threshold_l2 or user.get("level2_unlocked_at") is not None
+            line3_unlocked = turnover >= threshold_l3 or user.get("level3_unlocked_at") is not None
+            
+            if line3_unlocked:
+                career_level = "ARCHITECT"
+                next_level = None
+                turnover_to_next = 0
+            elif line2_unlocked:
+                career_level = "OPERATOR"
+                next_level = "ARCHITECT"
+                turnover_to_next = max(0, threshold_l3 - turnover)
+            elif line1_unlocked:
+                career_level = "PROXY"
+                next_level = "OPERATOR"
+                turnover_to_next = max(0, threshold_l2 - turnover)
+            else:
+                career_level = "LOCKED"
+                next_level = "PROXY (make first purchase)"
+                turnover_to_next = 0
         
         orders_result = await asyncio.to_thread(
             lambda: db.client.table("orders").select("id", count="exact").eq("user_id", ctx.user_id).execute()

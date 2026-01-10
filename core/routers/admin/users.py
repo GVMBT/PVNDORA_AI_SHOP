@@ -371,10 +371,13 @@ async def admin_toggle_vip(
             "is_partner": is_partner,
         }
         
+        # Initialize final_level_override
+        final_level_override = None
+        
         if is_partner:
-            # If granting VIP, optionally set level override
-            if partner_level_override:
-                update_data["partner_level_override"] = partner_level_override
+            # VIP always gets level 3 (full access) - override if not provided
+            final_level_override = partner_level_override if partner_level_override else 3
+            update_data["partner_level_override"] = final_level_override
             # Also unlock referral program if not already
             update_data["referral_program_unlocked"] = True
         else:
@@ -391,15 +394,25 @@ async def admin_toggle_vip(
         if not result.data:
             raise HTTPException(status_code=404, detail="User not found")
         
-        # Log the action
+        # Log the action and send notification
         user = result.data[0]
         username = user.get("username") or user.get("first_name") or "Unknown"
-        logger.info(f"Admin {'granted' if is_partner else 'revoked'} VIP for user {username} (level_override={partner_level_override})")
+        telegram_id = user.get("telegram_id")
+        logger.info(f"Admin {'granted' if is_partner else 'revoked'} VIP for user {username} (level_override={final_level_override if is_partner else None})")
+        
+        # Send notification if granting VIP
+        if is_partner and telegram_id:
+            try:
+                from core.services.notifications import NotificationService
+                notification_service = NotificationService()
+                await notification_service.send_partner_application_approved_notification(int(telegram_id))
+            except Exception as e:
+                logger.warning(f"Failed to send VIP notification to {telegram_id}: {e}")
         
         return {
             "success": True,
             "is_partner": is_partner,
-            "partner_level_override": partner_level_override if is_partner else None,
+            "partner_level_override": final_level_override if is_partner else None,
             "message": f"VIP статус {'выдан' if is_partner else 'отозван'}"
         }
     except HTTPException:
