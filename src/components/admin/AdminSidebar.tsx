@@ -10,6 +10,7 @@ import {
   Package, 
   BarChart3, 
   Users, 
+  Crown,
   LifeBuoy, 
   LogOut, 
   Terminal, 
@@ -114,6 +115,16 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
             active={currentView === 'users'} 
             onClick={() => {
               onViewChange('users');
+              onClose();
+            }} 
+            collapsed={isCollapsed} 
+          />
+          <AdminNavItem 
+            icon={<Crown size={18} />} 
+            label="VIP Партнёры" 
+            active={currentView === 'partners'} 
+            onClick={() => {
+              onViewChange('partners');
               onClose();
             }} 
             collapsed={isCollapsed} 

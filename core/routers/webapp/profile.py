@@ -742,8 +742,8 @@ async def convert_balance(request: ConvertBalanceRequest, user=Depends(verify_te
     current_currency = getattr(db_user, 'balance_currency', 'USD') or 'USD'
     target_currency = req.target_currency.upper()
     
-    # Validate target currency
-    valid_currencies = ["USD", "RUB", "EUR"]
+    # Validate target currency (only RUB and USD are supported for balance)
+    valid_currencies = ["USD", "RUB"]
     if target_currency not in valid_currencies:
         raise HTTPException(
             status_code=400, 

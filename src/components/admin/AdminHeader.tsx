@@ -17,7 +17,7 @@ const VIEW_LABELS: Record<AdminView, string> = {
   catalog: 'Каталог',
   sales: 'Заказы',
   users: 'Пользователи',
-  partners: 'Пользователи',
+  partners: 'VIP Партнёры',
   support: 'Поддержка',
   promo: 'Промокоды',
   migration: 'Миграция',
