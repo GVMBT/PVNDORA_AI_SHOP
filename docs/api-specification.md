@@ -192,40 +192,6 @@ Content-Type: application/json
 }
 ```
 
-### POST /api/workers/notify-supplier
-
-Уведомление поставщика о продаже (вызывается через QStash).
-
-**Request:**
-```http
-POST /api/workers/notify-supplier
-X-QStash-Signature: {signature}
-Content-Type: application/json
-
-{
-  "order_id": "456e7890-e89b-12d3-a456-426614174001",
-  "product_id": "123e4567-e89b-12d3-a456-426614174000",
-  "supplier_id": "789e0123-e89b-12d3-a456-426614174002"
-}
-```
-
-### POST /api/workers/notify-supplier-prepaid
-
-Уведомление поставщика о необходимости изготовления товара для предоплатного заказа (вызывается через QStash).
-
-**Request:**
-```http
-POST /api/workers/notify-supplier-prepaid
-X-QStash-Signature: {signature}
-Content-Type: application/json
-
-{
-  "order_id": "456e7890-e89b-12d3-a456-426614174001",
-  "product_id": "123e4567-e89b-12d3-a456-426614174000",
-  "user_telegram_id": 123456789,
-  "fulfillment_deadline": "2025-11-15T10:00:00Z"
-}
-```
 
 ### POST /api/workers/check-fulfillment-timeout
 
@@ -261,7 +227,7 @@ Content-Type: application/json
 
 {
   "order_id": "456e7890-e89b-12d3-a456-426614174001",
-  "reason": "Fulfillment timeout" | "Supplier unavailable" | "User request"
+  "reason": "Fulfillment timeout" | "User request"
 }
 ```
 

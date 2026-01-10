@@ -1,5 +1,6 @@
-"""Discount bot issue/problem handlers."""
-import asyncio
+"""Discount bot issue/problem handlers.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
+"""
 from typing import Optional
 
 from aiogram import Router, F
@@ -23,11 +24,9 @@ async def get_order_item_with_insurance(db, order_short_id: str) -> Optional[dic
     """Get order item with insurance info."""
     try:
         # Get order
-        order_result = await asyncio.to_thread(
-            lambda: db.client.table("orders").select("id, user_id").ilike(
-                "id", f"{order_short_id}%"
-            ).limit(1).execute()
-        )
+        order_result = await db.client.table("orders").select(
+            "id, user_id"
+        ).ilike("id", f"{order_short_id}%").limit(1).execute()
         
         if not order_result.data:
             return None
@@ -35,11 +34,9 @@ async def get_order_item_with_insurance(db, order_short_id: str) -> Optional[dic
         order = order_result.data[0]
         
         # Get order items with insurance
-        items_result = await asyncio.to_thread(
-            lambda: db.client.table("order_items").select(
-                "id, insurance_id, insurance_expires_at, product_id, stock_item_id"
-            ).eq("order_id", order["id"]).limit(1).execute()
-        )
+        items_result = await db.client.table("order_items").select(
+            "id, insurance_id, insurance_expires_at, product_id, stock_item_id"
+        ).eq("order_id", order["id"]).limit(1).execute()
         
         if not items_result.data:
             return None

@@ -2,8 +2,8 @@
 Admin Tickets Router
 
 Support ticket management endpoints.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends, Query
@@ -36,7 +36,7 @@ async def get_tickets(
         if status and status != "all":
             query = query.eq("status", status)
         
-        result = await asyncio.to_thread(lambda: query.execute())
+        result = await query.execute()
         
         tickets = []
         for t in (result.data or []):
@@ -67,13 +67,9 @@ async def get_ticket(ticket_id: str, admin=Depends(verify_admin)):
     db = get_database()
     
     try:
-        result = await asyncio.to_thread(
-            lambda: db.client.table("tickets")
-            .select("*, users(username, first_name, telegram_id), orders(id, amount, status), order_items(delivery_content, products(name))")
-            .eq("id", ticket_id)
-            .single()
-            .execute()
-        )
+        result = await db.client.table("tickets").select(
+            "*, users(username, first_name, telegram_id), orders(id, amount, status), order_items(delivery_content, products(name))"
+        ).eq("id", ticket_id).single().execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="Ticket not found")
@@ -108,13 +104,9 @@ async def resolve_ticket(
     
     try:
         # Get full ticket data including issue_type and item_id
-        ticket_res = await asyncio.to_thread(
-            lambda: db.client.table("tickets")
-            .select("id, status, issue_type, item_id, order_id, user_id, users(telegram_id, language_code)")
-            .eq("id", ticket_id)
-            .single()
-            .execute()
-        )
+        ticket_res = await db.client.table("tickets").select(
+            "id, status, issue_type, item_id, order_id, user_id, users(telegram_id, language_code)"
+        ).eq("id", ticket_id).single().execute()
         
         if not ticket_res.data:
             raise HTTPException(status_code=404, detail="Ticket not found")
@@ -135,12 +127,7 @@ async def resolve_ticket(
         if comment:
             update_data["admin_comment"] = comment
         
-        await asyncio.to_thread(
-            lambda: db.client.table("tickets")
-            .update(update_data)
-            .eq("id", ticket_id)
-            .execute()
-        )
+        await db.client.table("tickets").update(update_data).eq("id", ticket_id).execute()
         
         notification_service = get_notification_service()
         
@@ -188,13 +175,9 @@ async def resolve_ticket(
                 elif issue_type == "refund" and order_id:
                     # Trigger refund worker
                     # Get order amount and exchange rate snapshot
-                    order_res = await asyncio.to_thread(
-                        lambda: db.client.table("orders")
-                        .select("amount, user_telegram_id, exchange_rate_snapshot, fiat_currency")
-                        .eq("id", order_id)
-                        .single()
-                        .execute()
-                    )
+                    order_res = await db.client.table("orders").select(
+                        "amount, user_telegram_id, exchange_rate_snapshot, fiat_currency"
+                    ).eq("id", order_id).single().execute()
                     
                     if order_res.data:
                         # Use exchange rate from order snapshot (or default to 1.0 for USD)
@@ -247,12 +230,7 @@ async def close_ticket(
         if comment:
             update_data["admin_comment"] = comment
         
-        await asyncio.to_thread(
-            lambda: db.client.table("tickets")
-            .update(update_data)
-            .eq("id", ticket_id)
-            .execute()
-        )
+        await db.client.table("tickets").update(update_data).eq("id", ticket_id).execute()
         
         return {"success": True, "status": "closed"}
     

@@ -11,7 +11,6 @@ import asyncio
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-import httpx
 
 from core.logging import get_logger
 from core.services.database import get_database
@@ -54,28 +53,19 @@ app = FastAPI()
 
 
 async def send_telegram_message(chat_id: int, text: str) -> bool:
-    """Send a message via Telegram Bot API."""
+    """Send a message via Telegram Bot API.
+    
+    Wrapper around consolidated telegram_messaging service.
+    """
+    from core.services.telegram_messaging import send_telegram_message as _send_msg
+    
     bot_token = DISCOUNT_BOT_TOKEN or TELEGRAM_TOKEN
-    if not bot_token:
-        logger.warning("No bot token configured for sending message")
-        return False
-    
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "HTML"
-    }
-    
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload, timeout=10)
-            if response.status_code != 200:
-                logger.error(f"Telegram API error: {response.status_code} - {response.text}")
-            return response.status_code == 200
-    except Exception as e:
-        logger.error(f"Error sending Telegram message: {e}")
-        return False
+    return await _send_msg(
+        chat_id=chat_id,
+        text=text,
+        parse_mode="HTML",
+        bot_token=bot_token
+    )
 
 
 async def deliver_discount_order(db, order_id: str, order_data: dict):
@@ -358,19 +348,14 @@ async def _send_loyal_promo_if_eligible(user_id: str, telegram_id: int, lang: st
             f"👉 @pvndora_ai_bot"
         )
         
-        # Use main bot token for PVNDORA messages
-        import httpx
-        bot_token = TELEGRAM_TOKEN
-        if not bot_token:
-            logger.warning("No TELEGRAM_TOKEN configured for loyal promo")
-            return False
-            
-        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        payload = {"chat_id": telegram_id, "text": text, "parse_mode": "HTML"}
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload, timeout=10)
-            return response.status_code == 200
+        # Use consolidated telegram messaging service
+        from core.services.telegram_messaging import send_telegram_message as _send_msg
+        return await _send_msg(
+            chat_id=telegram_id,
+            text=text,
+            parse_mode="HTML",
+            bot_token=TELEGRAM_TOKEN
+        )
         
     except Exception as e:
         logger.warning(f"Failed to send loyal promo to {telegram_id}: {e}")

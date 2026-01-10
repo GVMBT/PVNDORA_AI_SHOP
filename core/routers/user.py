@@ -3,8 +3,8 @@ User API Router
 
 User-specific endpoints (referral, wishlist, reviews).
 These are non-webapp endpoints with /api prefix.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 import urllib.parse
 from datetime import datetime, timezone
 
@@ -74,11 +74,9 @@ async def create_referral_share_link(user=Depends(verify_telegram_auth)):
     # Calculate leaderboard rank
     user_rank = None
     if total_saved > 0:
-        rank_result = await asyncio.to_thread(
-            lambda: db.client.table("users").select(
-                "id", count="exact"
-            ).gt("total_saved", total_saved).execute()
-        )
+        rank_result = await db.client.table("users").select(
+            "id", count="exact"
+        ).gt("total_saved", total_saved).execute()
         user_rank = (rank_result.count or 0) + 1
     
     # Referral link

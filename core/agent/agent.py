@@ -153,14 +153,9 @@ class ShopAgent:
         
         try:
             # Get user's balance_currency (actual currency of their balance) and preferred_currency from DB
-            import asyncio
-            result = await asyncio.to_thread(
-                lambda: self.db.client.table("users")
-                .select("balance_currency, preferred_currency, language_code")
-                .eq("id", user_id)
-                .single()
-                .execute()
-            )
+            result = await self.db.client.table("users").select(
+                "balance_currency, preferred_currency, language_code"
+            ).eq("id", user_id).single().execute()
             
             if result.data:
                 # Use balance_currency as primary source (actual currency of user's balance)

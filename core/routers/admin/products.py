@@ -2,8 +2,8 @@
 Admin Products & Stock Router
 
 Product and stock management endpoints.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -54,9 +54,7 @@ async def admin_create_product(request: CreateProductRequest, admin=Depends(veri
         "instructions": request.instructions,
     }
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("products").insert(product_data).execute()
-    )
+    result = await db.client.table("products").insert(product_data).execute()
     
     if result.data:
         return {"success": True, "product": result.data[0]}
@@ -65,31 +63,26 @@ async def admin_create_product(request: CreateProductRequest, admin=Depends(veri
 
 @router.get("/products")
 async def admin_get_products(admin=Depends(verify_admin)):
-    """Get all products for admin (including inactive)"""
+    """Get all products for admin (including inactive).
+    
+    Uses products_with_stock_summary VIEW to eliminate N+1 queries.
+    Single query returns all products with stock_count and sold_count.
+    """
     db = get_database()
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("products").select("*").order("created_at", desc=True).execute()
-    )
+    # Use VIEW for aggregated stock data (no N+1!)
+    result = await db.client.table("products_with_stock_summary").select(
+        "*"
+    ).order("created_at", desc=True).execute()
     
     if not result.data:
         return {"products": []}
     
     products = []
     for p in result.data:
-        product_id = p["id"]
-        stock_result = await asyncio.to_thread(
-            lambda pid=product_id: db.client.table("stock_items").select("id", count="exact")
-                .eq("product_id", pid).eq("status", "available").execute()
-        )
-        stock_count = getattr(stock_result, 'count', 0) or 0
-        
-        # Get sold count
-        sold_result = await asyncio.to_thread(
-            lambda pid=product_id: db.client.table("stock_items").select("id", count="exact")
-                .eq("product_id", pid).eq("status", "sold").execute()
-        )
-        sold_count = getattr(sold_result, 'count', 0) or 0
+        # Stock counts from VIEW (already aggregated)
+        stock_count = p.get("stock_count", 0) or 0
+        sold_count = p.get("sold_count", 0) or 0
         
         # Map fields for frontend compatibility
         products.append({
@@ -117,7 +110,7 @@ async def admin_get_products(admin=Depends(verify_admin)):
             "duration": p.get("duration_days", 30),
             "status": p.get("status", "active"),
             
-            # Stock (read-only, calculated)
+            # Stock (read-only, from VIEW)
             "stock": stock_count,
             "sold": sold_count,
             
@@ -171,9 +164,9 @@ async def admin_update_product(product_id: str, request: CreateProductRequest, a
         "instructions": request.instructions,
     }
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("products").update(update_data).eq("id", product_id).execute()
-    )
+    result = await db.client.table("products").update(update_data).eq(
+        "id", product_id
+    ).execute()
     
     return {"success": True, "updated": len(result.data) > 0}
 
@@ -184,10 +177,9 @@ async def admin_delete_product(product_id: str, admin=Depends(verify_admin)):
     db = get_database()
     
     # Check if product has sold stock (cannot delete - has order history)
-    sold_check = await asyncio.to_thread(
-        lambda: db.client.table("stock_items").select("id", count="exact")
-            .eq("product_id", product_id).eq("status", "sold").execute()
-    )
+    sold_check = await db.client.table("stock_items").select(
+        "id", count="exact"
+    ).eq("product_id", product_id).eq("status", "sold").execute()
     sold_count = getattr(sold_check, 'count', 0) or 0
     
     if sold_count > 0:
@@ -197,16 +189,14 @@ async def admin_delete_product(product_id: str, admin=Depends(verify_admin)):
         )
     
     # Delete all stock items for this product first (FK constraint)
-    await asyncio.to_thread(
-        lambda: db.client.table("stock_items").delete()
-            .eq("product_id", product_id).execute()
-    )
+    await db.client.table("stock_items").delete().eq(
+        "product_id", product_id
+    ).execute()
     
     # Delete the product
-    result = await asyncio.to_thread(
-        lambda: db.client.table("products").delete()
-            .eq("id", product_id).execute()
-    )
+    result = await db.client.table("products").delete().eq(
+        "id", product_id
+    ).execute()
     
     if not result.data:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -236,7 +226,7 @@ async def admin_add_stock(request: AddStockRequest, admin=Depends(verify_admin))
     if request.supplier_id:
         data["supplier_id"] = request.supplier_id
     
-    result = db.client.table("stock_items").insert(data).execute()
+    result = await db.client.table("stock_items").insert(data).execute()
     
     await _notify_waitlist_for_product(db, product.name)
     
@@ -273,7 +263,7 @@ async def admin_add_stock_bulk(request: BulkStockRequest, admin=Depends(verify_a
     if not items_data:
         raise HTTPException(status_code=400, detail="No valid items provided")
     
-    result = db.client.table("stock_items").insert(items_data).execute()
+    result = await db.client.table("stock_items").insert(items_data).execute()
     
     await _notify_waitlist_for_product(db, product.name, request.product_id)
     
@@ -293,19 +283,16 @@ async def admin_get_stock(
     """Get stock items"""
     db = get_database()
     
-    def execute_query():
-        query = db.client.table("stock_items").select(
-            "*, products(name)"
-        ).order("created_at", desc=True)
-        
-        if product_id:
-            query = query.eq("product_id", product_id)
-        if available_only:
-            query = query.eq("status", "available")
-        
-        return query.execute()
+    query = db.client.table("stock_items").select(
+        "*, products(name)"
+    ).order("created_at", desc=True)
     
-    result = await asyncio.to_thread(execute_query)
+    if product_id:
+        query = query.eq("product_id", product_id)
+    if available_only:
+        query = query.eq("status", "available")
+    
+    result = await query.execute()
     return {"stock": result.data if result.data else []}
 
 
@@ -313,7 +300,7 @@ async def admin_get_stock(
 
 async def _notify_waitlist_for_product(db, product_name: str, product_id: Optional[str] = None):
     """Notify users on waitlist when product becomes available"""
-    waitlist = db.client.table("waitlist").select(
+    waitlist = await db.client.table("waitlist").select(
         "id,user_id,users(telegram_id,language_code)"
     ).ilike("product_name", f"%{product_name}%").execute()
     
@@ -339,4 +326,4 @@ async def _notify_waitlist_for_product(db, product_name: str, product_id: Option
                 in_stock=in_stock
             )
             
-            db.client.table("waitlist").delete().eq("id", item["id"]).execute()
+            await db.client.table("waitlist").delete().eq("id", item["id"]).execute()

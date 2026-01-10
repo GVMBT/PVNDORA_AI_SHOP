@@ -1,8 +1,8 @@
 """Discount order service for delayed delivery via QStash.
 
 Implements artificial delay (1-4 hours) for discount bot orders.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 import os
 import random
 from datetime import datetime, timezone, timedelta
@@ -127,11 +127,9 @@ class DiscountOrderService:
             )
             
             # Update order with scheduled delivery time
-            await asyncio.to_thread(
-                lambda: self.client.table("orders").update({
-                    "scheduled_delivery_at": scheduled_at.isoformat()
-                }).eq("id", order_id).execute()
-            )
+            await self.client.table("orders").update({
+                "scheduled_delivery_at": scheduled_at.isoformat()
+            }).eq("id", order_id).execute()
             
             return DelayedDeliveryTask(
                 order_id=order_id,
@@ -149,11 +147,9 @@ class DiscountOrderService:
     async def get_estimated_delivery_time(self, order_id: str) -> Optional[datetime]:
         """Get scheduled delivery time for an order."""
         try:
-            result = await asyncio.to_thread(
-                lambda: self.client.table("orders").select(
-                    "scheduled_delivery_at"
-                ).eq("id", order_id).single().execute()
-            )
+            result = await self.client.table("orders").select(
+                "scheduled_delivery_at"
+            ).eq("id", order_id).single().execute()
             
             if result.data and result.data.get("scheduled_delivery_at"):
                 return datetime.fromisoformat(
@@ -167,11 +163,9 @@ class DiscountOrderService:
     async def mark_discount_user(self, telegram_id: int) -> bool:
         """Mark user as originating from discount tier."""
         try:
-            await asyncio.to_thread(
-                lambda: self.client.table("users").update({
-                    "discount_tier_source": True
-                }).eq("telegram_id", telegram_id).execute()
-            )
+            await self.client.table("users").update({
+                "discount_tier_source": True
+            }).eq("telegram_id", telegram_id).execute()
             
             logger.info(f"Marked user {telegram_id} as discount_tier_source")
             return True
@@ -182,12 +176,10 @@ class DiscountOrderService:
     async def accept_terms(self, telegram_id: int) -> bool:
         """Record user's acceptance of terms in discount bot."""
         try:
-            await asyncio.to_thread(
-                lambda: self.client.table("users").update({
-                    "terms_accepted": True,
-                    "terms_accepted_at": datetime.now(timezone.utc).isoformat()
-                }).eq("telegram_id", telegram_id).execute()
-            )
+            await self.client.table("users").update({
+                "terms_accepted": True,
+                "terms_accepted_at": datetime.now(timezone.utc).isoformat()
+            }).eq("telegram_id", telegram_id).execute()
             
             logger.info(f"User {telegram_id} accepted terms")
             return True
@@ -198,11 +190,9 @@ class DiscountOrderService:
     async def check_terms_accepted(self, telegram_id: int) -> bool:
         """Check if user has accepted terms."""
         try:
-            result = await asyncio.to_thread(
-                lambda: self.client.table("users").select(
-                    "terms_accepted"
-                ).eq("telegram_id", telegram_id).single().execute()
-            )
+            result = await self.client.table("users").select(
+                "terms_accepted"
+            ).eq("telegram_id", telegram_id).single().execute()
             
             return result.data.get("terms_accepted", False) if result.data else False
         except Exception as e:

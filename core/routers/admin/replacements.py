@@ -1,5 +1,6 @@
-"""Admin API for replacement moderation and user restrictions."""
-import asyncio
+"""Admin API for replacement moderation and user restrictions.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
+"""
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 
@@ -86,13 +87,9 @@ async def get_pending_replacements(
     
     try:
         # Get pending replacements with related data
-        result = await asyncio.to_thread(
-            lambda: db.client.table("insurance_replacements").select(
-                "*, order_items(order_id, products(name)), orders!order_items(user_telegram_id)"
-            ).eq("status", "pending").order(
-                "created_at", desc=False
-            ).limit(limit).execute()
-        )
+        result = await db.client.table("insurance_replacements").select(
+            "*, order_items(order_id, products(name)), orders!order_items(user_telegram_id)"
+        ).eq("status", "pending").order("created_at", desc=False).limit(limit).execute()
         
         replacements = []
         for row in (result.data or []):
@@ -103,12 +100,10 @@ async def get_pending_replacements(
             
             abuse_score = 0
             if telegram_id:
-                score_result = await asyncio.to_thread(
-                    lambda tid=telegram_id: db.client.rpc(
-                        "get_user_abuse_score",
-                        {"p_telegram_id": tid}
-                    ).execute()
-                )
+                score_result = await db.client.rpc(
+                    "get_user_abuse_score",
+                    {"p_telegram_id": telegram_id}
+                ).execute()
                 abuse_score = score_result.data if score_result.data else 0
             
             product_name = None
@@ -281,20 +276,16 @@ async def get_abuse_stats(telegram_id: int):
     
     try:
         # Get abuse score
-        score_result = await asyncio.to_thread(
-            lambda: db.client.rpc(
-                "get_user_abuse_score",
-                {"p_telegram_id": telegram_id}
-            ).execute()
-        )
+        score_result = await db.client.rpc(
+            "get_user_abuse_score",
+            {"p_telegram_id": telegram_id}
+        ).execute()
         abuse_score = score_result.data if score_result.data else 0
         
         # Get user info
-        user_result = await asyncio.to_thread(
-            lambda: db.client.table("users").select(
-                "id, created_at"
-            ).eq("telegram_id", telegram_id).single().execute()
-        )
+        user_result = await db.client.table("users").select(
+            "id, created_at"
+        ).eq("telegram_id", telegram_id).single().execute()
         
         if not user_result.data:
             raise HTTPException(status_code=404, detail="User not found")
@@ -304,22 +295,18 @@ async def get_abuse_stats(telegram_id: int):
         account_age_days = (datetime.now(timezone.utc) - created_at).days
         
         # Count orders
-        orders_result = await asyncio.to_thread(
-            lambda: db.client.table("orders").select(
-                "id", count="exact"
-            ).eq("user_id", user_id).eq("status", "delivered").execute()
-        )
+        orders_result = await db.client.table("orders").select(
+            "id", count="exact"
+        ).eq("user_id", user_id).eq("status", "delivered").execute()
         total_orders = orders_result.count if orders_result.count else 0
         
         # Count replacements (last 30 days)
         thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
-        replacements_result = await asyncio.to_thread(
-            lambda: db.client.table("insurance_replacements").select(
-                "id", count="exact"
-            ).gte("created_at", thirty_days_ago).in_(
-                "status", ["approved", "auto_approved"]
-            ).execute()
-        )
+        replacements_result = await db.client.table("insurance_replacements").select(
+            "id", count="exact"
+        ).gte("created_at", thirty_days_ago).in_(
+            "status", ["approved", "auto_approved"]
+        ).execute()
         total_replacements = replacements_result.count if replacements_result.count else 0
         
         replacement_rate = total_replacements / max(total_orders, 1)

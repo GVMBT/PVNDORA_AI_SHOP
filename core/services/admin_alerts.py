@@ -8,10 +8,11 @@ Sends alerts for critical business events:
 - Withdrawal requests
 - Support tickets
 - Partner applications
+
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
 import os
-import asyncio
 from typing import Optional, List
 from datetime import datetime, timezone
 
@@ -66,13 +67,9 @@ class AdminAlertService:
             
         db = get_database()
         try:
-            result = await asyncio.to_thread(
-                lambda: db.client.table("users")
-                .select("telegram_id")
-                .eq("is_admin", True)
-                .eq("is_banned", False)
-                .execute()
-            )
+            result = await db.client.table("users").select(
+                "telegram_id"
+            ).eq("is_admin", True).eq("is_banned", False).execute()
             self._admin_ids = [u["telegram_id"] for u in result.data if u.get("telegram_id")]
             return self._admin_ids
         except Exception as e:
@@ -104,11 +101,6 @@ class AdminAlertService:
         Returns:
             Number of admins notified
         """
-        bot = self._get_bot()
-        if not bot:
-            logger.warning("Bot not configured, cannot send admin alert")
-            return 0
-        
         admin_ids = await self._get_admin_ids()
         if not admin_ids:
             logger.warning("No admin IDs configured, cannot send alert")
@@ -133,14 +125,18 @@ class AdminAlertService:
         text += f"\n<i>⏰ {timestamp} ({local_time})</i>"
         
         sent_count = 0
+        from core.services.telegram_messaging import send_telegram_message
         for admin_id in admin_ids:
             try:
-                await bot.send_message(
+                # Note: disable_notification not supported in telegram_messaging yet
+                # Can be added if needed
+                success = await send_telegram_message(
                     chat_id=admin_id,
                     text=text,
-                    disable_notification=(severity == AlertSeverity.INFO)
+                    parse_mode="HTML"
                 )
-                sent_count += 1
+                if success:
+                    sent_count += 1
             except Exception as e:
                 logger.error(f"Failed to send alert to admin {admin_id}: {e}")
         

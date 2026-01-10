@@ -1,4 +1,7 @@
-"""Order Repository - Order operations."""
+"""Order Repository - Order operations.
+
+All methods use async/await with supabase-py v2.
+"""
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from .base import BaseRepository
@@ -76,12 +79,14 @@ class OrderRepository(BaseRepository):
                 logger.warning(f"Removed deprecated field '{field}' from order data before insert")
                 data.pop(field, None)
         
-        result = self.client.table("orders").insert(data).execute()
+        result = await self.client.table("orders").insert(data).execute()
         return Order(**result.data[0])
     
     async def get_by_id(self, order_id: str) -> Optional[Order]:
         """Get order by ID."""
-        result = self.client.table("orders").select("*").eq("id", order_id).execute()
+        result = await self.client.table("orders").select("*").eq(
+            "id", order_id
+        ).execute()
         return Order(**result.data[0]) if result.data else None
     
     async def update_status(
@@ -101,7 +106,7 @@ class OrderRepository(BaseRepository):
         if status == "delivered":
             data["delivered_at"] = datetime.now(timezone.utc).isoformat()
         
-        self.client.table("orders").update(data).eq("id", order_id).execute()
+        await self.client.table("orders").update(data).eq("id", order_id).execute()
     
     async def get_by_user(
         self, 
@@ -137,7 +142,7 @@ class OrderRepository(BaseRepository):
         if offset > 0:
             query = query.range(offset, offset + limit - 1)
         
-        result = query.execute()
+        result = await query.execute()
         return [Order(**o) for o in result.data]
     
     async def get_expiring(self, days_before: int = 3) -> List[Order]:
@@ -145,9 +150,11 @@ class OrderRepository(BaseRepository):
         now = datetime.now(timezone.utc)
         target = now + timedelta(days=days_before)
         
-        result = self.client.table("orders").select("*").eq("status", "delivered").lt(
-            "expires_at", target.isoformat()
-        ).gt("expires_at", now.isoformat()).execute()
+        result = await self.client.table("orders").select("*").eq(
+            "status", "delivered"
+        ).lt("expires_at", target.isoformat()).gt(
+            "expires_at", now.isoformat()
+        ).execute()
         
         return [Order(**o) for o in result.data]
     
@@ -155,21 +162,22 @@ class OrderRepository(BaseRepository):
         """Get pending orders that have expired (expires_at < now)."""
         now = datetime.now(timezone.utc).isoformat()
         # Get orders where expires_at is set and has passed
-        result = self.client.table("orders").select("*").eq("status", "pending").not_.is_("expires_at", "null").lt(
-            "expires_at", now
-        ).execute()
+        result = await self.client.table("orders").select("*").eq(
+            "status", "pending"
+        ).not_.is_("expires_at", "null").lt("expires_at", now).execute()
         return [Order(**o) for o in result.data]
     
     async def get_pending_stale(self, minutes: int = 60) -> List[Order]:
         """Get pending orders older than N minutes (fallback for orders without expires_at)."""
         cutoff = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
-        result = self.client.table("orders").select("*").eq("status", "pending").is_("expires_at", "null").lt(
-            "created_at", cutoff
-        ).execute()
+        result = await self.client.table("orders").select("*").eq(
+            "status", "pending"
+        ).is_("expires_at", "null").lt("created_at", cutoff).execute()
         return [Order(**o) for o in result.data]
     
     async def count_by_status(self, status: str) -> int:
         """Count orders by status."""
-        result = self.client.table("orders").select("id", count="exact").eq("status", status).execute()
+        result = await self.client.table("orders").select(
+            "id", count="exact"
+        ).eq("status", status).execute()
         return result.count or 0
-

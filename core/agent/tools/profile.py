@@ -2,8 +2,8 @@
 Profile Tools for Shop Agent.
 
 User profile, referral info, balance history.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 from langchain_core.tools import tool
 
 from core.logging import get_logger
@@ -29,9 +29,7 @@ async def get_user_profile() -> dict:
         ctx = get_user_context()
         db = get_db()
         
-        settings_result = await asyncio.to_thread(
-            lambda: db.client.table("referral_settings").select("*").limit(1).execute()
-        )
+        settings_result = await db.client.table("referral_settings").select("*").limit(1).execute()
         
         if settings_result.data:
             s = settings_result.data[0]
@@ -40,9 +38,7 @@ async def get_user_profile() -> dict:
         else:
             threshold_l2, threshold_l3 = 250, 1000
         
-        result = await asyncio.to_thread(
-            lambda: db.client.table("users").select("*").eq("id", ctx.user_id).single().execute()
-        )
+        result = await db.client.table("users").select("*").eq("id", ctx.user_id).single().execute()
         
         if not result.data:
             return {"success": False, "error": "User not found"}
@@ -84,9 +80,9 @@ async def get_user_profile() -> dict:
                 next_level = "PROXY (make first purchase)"
                 turnover_to_next = 0
         
-        orders_result = await asyncio.to_thread(
-            lambda: db.client.table("orders").select("id", count="exact").eq("user_id", ctx.user_id).execute()
-        )
+        orders_result = await db.client.table("orders").select(
+            "id", count="exact"
+        ).eq("user_id", ctx.user_id).execute()
         orders_count = orders_result.count or 0
         
         redis = get_redis()
@@ -148,9 +144,7 @@ async def get_referral_info() -> dict:
         ctx = get_user_context()
         db = get_db()
         
-        settings_result = await asyncio.to_thread(
-            lambda: db.client.table("referral_settings").select("*").limit(1).execute()
-        )
+        settings_result = await db.client.table("referral_settings").select("*").limit(1).execute()
         
         if settings_result.data:
             s = settings_result.data[0]
@@ -163,12 +157,10 @@ async def get_referral_info() -> dict:
             threshold_l2, threshold_l3 = 250, 1000
             commission_l1, commission_l2, commission_l3 = 10, 7, 3
         
-        result = await asyncio.to_thread(
-            lambda: db.client.table("users").select(
-                "balance, turnover_usd, total_referral_earnings, partner_mode, partner_discount_percent, "
-                "level1_unlocked_at, level2_unlocked_at, level3_unlocked_at, referral_program_unlocked"
-            ).eq("id", ctx.user_id).single().execute()
-        )
+        result = await db.client.table("users").select(
+            "balance, turnover_usd, total_referral_earnings, partner_mode, partner_discount_percent, "
+            "level1_unlocked_at, level2_unlocked_at, level3_unlocked_at, referral_program_unlocked"
+        ).eq("id", ctx.user_id).single().execute()
         
         if not result.data:
             return {"success": False, "error": "User not found"}
@@ -200,23 +192,23 @@ async def get_referral_info() -> dict:
         
         network = {"line1": 0, "line2": 0, "line3": 0}
         
-        l1 = await asyncio.to_thread(
-            lambda: db.client.table("users").select("id", count="exact").eq("referrer_id", ctx.user_id).execute()
-        )
+        l1 = await db.client.table("users").select("id", count="exact").eq(
+            "referrer_id", ctx.user_id
+        ).execute()
         network["line1"] = l1.count or 0
         
         l1_ids = [u["id"] for u in (l1.data or [])]
         if l1_ids and line2_unlocked:
-            l2 = await asyncio.to_thread(
-                lambda ids=l1_ids: db.client.table("users").select("id", count="exact").in_("referrer_id", ids).execute()
-            )
+            l2 = await db.client.table("users").select("id", count="exact").in_(
+                "referrer_id", l1_ids
+            ).execute()
             network["line2"] = l2.count or 0
             
             l2_ids = [u["id"] for u in (l2.data or [])]
             if l2_ids and line3_unlocked:
-                l3 = await asyncio.to_thread(
-                    lambda ids=l2_ids: db.client.table("users").select("id", count="exact").in_("referrer_id", ids).execute()
-                )
+                l3 = await db.client.table("users").select("id", count="exact").in_(
+                    "referrer_id", l2_ids
+                ).execute()
                 network["line3"] = l3.count or 0
         
         active_commissions = {}
@@ -274,14 +266,9 @@ async def get_balance_history(limit: int = 10) -> dict:
         ctx = get_user_context()
         db = get_db()
         
-        result = await asyncio.to_thread(
-            lambda: db.client.table("balance_transactions")
-            .select("*")
-            .eq("user_id", ctx.user_id)
-            .order("created_at", desc=True)
-            .limit(limit)
-            .execute()
-        )
+        result = await db.client.table("balance_transactions").select("*").eq(
+            "user_id", ctx.user_id
+        ).order("created_at", desc=True).limit(limit).execute()
         
         if not result.data:
             return {

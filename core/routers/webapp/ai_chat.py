@@ -2,8 +2,8 @@
 WebApp AI Chat Router
 
 AI-powered chat endpoint using LangGraph ShopAgent (Gemini 2.5).
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends, Query
@@ -170,9 +170,7 @@ async def clear_chat_history(user=Depends(verify_telegram_auth)):
     
     try:
         # Delete chat history for user
-        await asyncio.to_thread(
-            lambda: db.client.table("chat_history").delete().eq("user_id", db_user.id).execute()
-        )
+        await db.client.table("chat_history").delete().eq("user_id", db_user.id).execute()
         return {"success": True, "message": "Chat history cleared"}
     except Exception as e:
         logger.error(f"Failed to clear chat history: {e}", exc_info=True)

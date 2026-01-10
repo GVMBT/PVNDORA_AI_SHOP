@@ -2,8 +2,8 @@
 Admin Users CRM Router
 
 Extended user analytics and management.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
 
@@ -29,26 +29,18 @@ async def admin_get_users(
     
     try:
         # Get users with order counts
-        result = await asyncio.to_thread(
-            lambda: db.client.table("users")
-            .select("id, telegram_id, username, first_name, balance, balance_currency, is_banned, is_admin, is_partner, created_at")
-            .order("created_at", desc=True)
-            .range(offset, offset + limit - 1)
-            .execute()
-        )
+        result = await db.client.table("users").select(
+            "id, telegram_id, username, first_name, balance, balance_currency, is_banned, is_admin, is_partner, created_at"
+        ).order("created_at", desc=True).range(offset, offset + limit - 1).execute()
         
         users = []
         for u in (result.data or []):
             user_id = u.get("id")
             
             # Get orders count and total spent
-            orders_result = await asyncio.to_thread(
-                lambda uid=user_id: db.client.table("orders")
-                .select("id, amount", count="exact")
-                .eq("user_id", uid)
-                .eq("status", "delivered")
-                .execute()
-            )
+            orders_result = await db.client.table("orders").select(
+                "id, amount", count="exact"
+            ).eq("user_id", user_id).eq("status", "delivered").execute()
             orders_count = orders_result.count or 0
             total_spent = sum(float(o.get("amount", 0)) for o in (orders_result.data or []))
             
@@ -123,11 +115,9 @@ async def admin_get_users_crm(
             sort_by = "total_orders"
         
         # Execute query with sorting and pagination
-        result = await asyncio.to_thread(
-            lambda: query.order(sort_by, desc=(sort_order == "desc"))
-            .range(offset, offset + limit - 1)
-            .execute()
-        )
+        result = await query.order(sort_by, desc=(sort_order == "desc")).range(
+            offset, offset + limit - 1
+        ).execute()
         
         # Get total count
         count_query = db.client.table("users_extended_analytics").select("user_id", count="exact")
@@ -142,9 +132,7 @@ async def admin_get_users_crm(
         if filter_partner is not None:
             count_query = count_query.eq("is_partner", filter_partner)
         
-        count_result = await asyncio.to_thread(
-            lambda: count_query.execute()
-        )
+        count_result = await count_query.execute()
         
         users = []
         for u in (result.data or []):
@@ -225,12 +213,9 @@ async def admin_ban_user(
     db = get_database()
     
     try:
-        result = await asyncio.to_thread(
-            lambda: db.client.table("users")
-            .update({"is_banned": ban})
-            .eq("id", user_id)
-            .execute()
-        )
+        result = await db.client.table("users").update({
+            "is_banned": ban
+        }).eq("id", user_id).execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="User not found")
@@ -259,13 +244,9 @@ async def admin_update_user_balance(
     
     try:
         # Get current balance and balance_currency
-        user_result = await asyncio.to_thread(
-            lambda: db.client.table("users")
-            .select("balance, balance_currency, telegram_id")
-            .eq("id", user_id)
-            .single()
-            .execute()
-        )
+        user_result = await db.client.table("users").select(
+            "balance, balance_currency, telegram_id"
+        ).eq("id", user_id).single().execute()
         
         if not user_result.data:
             raise HTTPException(status_code=404, detail="User not found")
@@ -277,22 +258,16 @@ async def admin_update_user_balance(
         # Use RPC function to update balance and log transaction atomically
         # RPC function handles currency correctly and prevents negative balance
         try:
-            await asyncio.to_thread(
-                lambda: db.client.rpc("add_to_user_balance", {
-                    "p_user_id": user_id,
-                    "p_amount": request.amount,  # Amount in user's balance_currency
-                    "p_reason": f"Admin manual adjustment (admin_id: {admin.get('id', 'unknown')})"
-                }).execute()
-            )
+            await db.client.rpc("add_to_user_balance", {
+                "p_user_id": user_id,
+                "p_amount": request.amount,  # Amount in user's balance_currency
+                "p_reason": f"Admin manual adjustment (admin_id: {admin.get('id', 'unknown')})"
+            }).execute()
             
             # Get updated balance to return
-            updated_user = await asyncio.to_thread(
-                lambda: db.client.table("users")
-                .select("balance")
-                .eq("id", user_id)
-                .single()
-                .execute()
-            )
+            updated_user = await db.client.table("users").select(
+                "balance"
+            ).eq("id", user_id).single().execute()
             new_balance = float(updated_user.data.get("balance", 0)) if updated_user.data else current_balance
         except Exception as e:
             error_msg = str(e).lower()
@@ -327,12 +302,9 @@ async def admin_update_warnings(
     db = get_database()
     
     try:
-        result = await asyncio.to_thread(
-            lambda: db.client.table("users")
-            .update({"warnings_count": request.count})
-            .eq("id", user_id)
-            .execute()
-        )
+        result = await db.client.table("users").update({
+            "warnings_count": request.count
+        }).eq("id", user_id).execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="User not found")
@@ -384,12 +356,7 @@ async def admin_toggle_vip(
             # If revoking VIP, clear level override
             update_data["partner_level_override"] = None
         
-        result = await asyncio.to_thread(
-            lambda: db.client.table("users")
-            .update(update_data)
-            .eq("id", user_id)
-            .execute()
-        )
+        result = await db.client.table("users").update(update_data).eq("id", user_id).execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="User not found")

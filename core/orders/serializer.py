@@ -35,39 +35,8 @@ def convert_order_prices_with_formatter(
     }
 
 
-# Legacy function for backward compatibility
-async def convert_order_prices(
-    amount: Decimal,
-    original_price: Optional[Decimal],
-    currency: str,
-    currency_service
-) -> tuple[float, Optional[float]]:
-    """
-    Convert order prices to target currency.
-    
-    DEPRECATED: Use convert_order_prices_with_formatter instead.
-    
-    Args:
-        amount: Order amount in USD
-        original_price: Original price in USD (optional)
-        currency: Target currency code
-        currency_service: Currency service instance
-        
-    Returns:
-        Tuple of (converted_amount, converted_original_price)
-    """
-    amount_converted = to_float(amount)
-    original_price_converted = to_float(original_price) if original_price else None
-    
-    if currency_service and currency != "USD":
-        try:
-            amount_converted = await currency_service.convert_price(amount, currency, round_to_int=True)
-            if original_price_converted:
-                original_price_converted = await currency_service.convert_price(original_price, currency, round_to_int=True)
-        except Exception as e:
-            logger.warning(f"Failed to convert order prices: {e}")
-    
-    return amount_converted, original_price_converted
+# NOTE: convert_order_prices() was removed - DEPRECATED
+# Use convert_order_prices_with_formatter() instead
 
 
 def build_item_payload(

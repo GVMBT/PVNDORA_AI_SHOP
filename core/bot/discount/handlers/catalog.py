@@ -53,13 +53,14 @@ async def get_user_currency_info(db_user: User) -> Tuple[str, float]:
 
 
 async def get_unique_categories(db) -> list:
-    """Extract unique categories from products with discount_price."""
+    """Extract unique categories from products with discount_price.
+    
+    Uses products_with_stock_summary VIEW for consistency with other queries.
+    """
     try:
-        result = await asyncio.to_thread(
-            lambda: db.client.table("products").select(
-                "categories"
-            ).eq("status", "active").not_.is_("discount_price", "null").execute()
-        )
+        result = await db.client.table("products_with_stock_summary").select(
+            "categories"
+        ).eq("status", "active").not_.is_("discount_price", "null").execute()
         
         # Extract unique categories from all products
         all_categories = set()
@@ -77,25 +78,22 @@ async def get_unique_categories(db) -> list:
 
 
 async def get_all_discount_products(db) -> list:
-    """Get all products with discount_price."""
+    """Get all products with discount_price.
+    
+    Uses products_with_stock_summary VIEW to eliminate N+1 queries.
+    Single query returns products with aggregated stock counts.
+    """
     try:
-        result = await asyncio.to_thread(
-            lambda: db.client.table("products").select(
-                "id, name, description, discount_price, categories, status"
-            ).eq("status", "active").not_.is_("discount_price", "null").execute()
-        )
+        # Use VIEW for aggregated stock data (no N+1!)
+        result = await db.client.table("products_with_stock_summary").select(
+            "id, name, description, discount_price, categories, status, stock_count"
+        ).eq("status", "active").not_.is_("discount_price", "null").execute()
+        
         products = result.data or []
         
-        # Get stock counts for each product
+        # Map stock_count to available_count for compatibility
         for p in products:
-            stock_result = await asyncio.to_thread(
-                lambda pid=p["id"]: db.client.table("stock_items").select(
-                    "id", count="exact"
-                ).eq("product_id", pid).eq("status", "available").is_(
-                    "sold_at", "null"
-                ).execute()
-            )
-            p["available_count"] = stock_result.count if stock_result.count else 0
+            p["available_count"] = p.get("stock_count", 0) or 0
         
         return products
     except Exception as e:

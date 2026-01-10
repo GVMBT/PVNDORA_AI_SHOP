@@ -13,7 +13,6 @@ import os
 import asyncio
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
-import httpx
 import json
 
 # ASGI app
@@ -48,23 +47,18 @@ def verify_qstash_signature(request: Request, body: bytes) -> bool:
 
 
 async def send_telegram_message(chat_id: int, text: str) -> bool:
-    """Send a message via Telegram Bot API."""
-    if not TELEGRAM_TOKEN:
-        return False
+    """Send a message via Telegram Bot API.
     
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "HTML"
-    }
+    Wrapper around consolidated telegram_messaging service.
+    """
+    from core.services.telegram_messaging import send_telegram_message as _send_msg
     
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload, timeout=10)
-            return response.status_code == 200
-    except Exception:
-        return False
+    return await _send_msg(
+        chat_id=chat_id,
+        text=text,
+        parse_mode="HTML",
+        bot_token=TELEGRAM_TOKEN
+    )
 
 
 @app.post("/api/workers/process-review-cashback")

@@ -8,7 +8,7 @@ class ChatRepository(BaseRepository):
     
     async def save_message(self, user_id: str, role: str, message: str) -> None:
         """Save chat message."""
-        self.client.table("chat_history").insert({
+        await self.client.table("chat_history").insert({
             "user_id": user_id,
             "role": role,
             "message": message
@@ -16,7 +16,7 @@ class ChatRepository(BaseRepository):
     
     async def get_history(self, user_id: str, limit: int = 20) -> List[Dict[str, str]]:
         """Get recent chat history (chronological order)."""
-        result = self.client.table("chat_history").select("role,message").eq(
+        result = await self.client.table("chat_history").select("role,message").eq(
             "user_id", user_id
         ).order("timestamp", desc=True).limit(limit).execute()
         
@@ -30,7 +30,7 @@ class ChatRepository(BaseRepository):
         order_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Create support ticket."""
-        result = self.client.table("support_tickets").insert({
+        result = await self.client.table("support_tickets").insert({
             "user_id": user_id,
             "subject": subject,
             "initial_message": message,
@@ -41,23 +41,23 @@ class ChatRepository(BaseRepository):
     
     async def get_ticket(self, ticket_id: str) -> Optional[Dict[str, Any]]:
         """Get support ticket by ID."""
-        result = self.client.table("support_tickets").select("*").eq("id", ticket_id).execute()
+        result = await self.client.table("support_tickets").select("*").eq("id", ticket_id).execute()
         return result.data[0] if result.data else None
     
     async def get_user_tickets(self, user_id: str) -> List[Dict[str, Any]]:
         """Get user's support tickets."""
-        result = self.client.table("support_tickets").select("*").eq(
+        result = await self.client.table("support_tickets").select("*").eq(
             "user_id", user_id
         ).order("created_at", desc=True).execute()
         return result.data
     
     async def update_ticket_status(self, ticket_id: str, status: str) -> None:
         """Update ticket status."""
-        self.client.table("support_tickets").update({"status": status}).eq("id", ticket_id).execute()
+        await self.client.table("support_tickets").update({"status": status}).eq("id", ticket_id).execute()
     
     async def add_ticket_message(self, ticket_id: str, sender: str, message: str) -> None:
         """Add message to ticket."""
-        self.client.table("ticket_messages").insert({
+        await self.client.table("ticket_messages").insert({
             "ticket_id": ticket_id,
             "sender": sender,
             "message": message

@@ -2,8 +2,8 @@
 Admin Migration Analytics API
 
 Provides statistics on discount bot users migrating to PVNDORA.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, Query
@@ -72,22 +72,18 @@ async def get_migration_stats(
     cutoff_str = cutoff.isoformat()
     
     # 1. Count discount users (users who have made discount orders)
-    discount_users_result = await asyncio.to_thread(
-        lambda: db.client.table("orders").select(
-            "user_telegram_id", count="exact"
-        ).eq("source_channel", "discount").execute()
-    )
+    discount_users_result = await db.client.table("orders").select(
+        "user_telegram_id", count="exact"
+    ).eq("source_channel", "discount").execute()
     # Get unique users
     discount_users_data = discount_users_result.data or []
     discount_user_ids = set(u["user_telegram_id"] for u in discount_users_data)
     total_discount_users = len(discount_user_ids)
     
     # 2. Count PVNDORA users
-    pvndora_users_result = await asyncio.to_thread(
-        lambda: db.client.table("orders").select(
-            "user_telegram_id"
-        ).neq("source_channel", "discount").execute()
-    )
+    pvndora_users_result = await db.client.table("orders").select(
+        "user_telegram_id"
+    ).neq("source_channel", "discount").execute()
     pvndora_users_data = pvndora_users_result.data or []
     pvndora_user_ids = set(u["user_telegram_id"] for u in pvndora_users_data)
     total_pvndora_users = len(pvndora_user_ids)
@@ -98,13 +94,9 @@ async def get_migration_stats(
     migration_rate = (migrated_users / total_discount_users * 100) if total_discount_users > 0 else 0.0
     
     # 4. Count orders in period
-    discount_orders_result = await asyncio.to_thread(
-        lambda: db.client.table("orders").select(
-            "id", count="exact"
-        ).eq("source_channel", "discount").gte(
-            "created_at", cutoff_str
-        ).execute()
-    )
+    discount_orders_result = await db.client.table("orders").select(
+        "id", count="exact"
+    ).eq("source_channel", "discount").gte("created_at", cutoff_str).execute()
     discount_orders = discount_orders_result.count or 0
     
     # 5. PVNDORA orders and revenue from discount users
@@ -112,13 +104,11 @@ async def get_migration_stats(
     pvndora_revenue_from_migrated = 0.0
     if migrated_user_ids:
         for user_id in list(migrated_user_ids)[:100]:  # Limit to avoid timeout
-            orders_result = await asyncio.to_thread(
-                lambda uid=user_id: db.client.table("orders").select(
-                    "id, amount", count="exact"
-                ).eq("user_telegram_id", uid).neq(
-                    "source_channel", "discount"
-                ).eq("status", "delivered").gte("created_at", cutoff_str).execute()
-            )
+            orders_result = await db.client.table("orders").select(
+                "id, amount", count="exact"
+            ).eq("user_telegram_id", user_id).neq(
+                "source_channel", "discount"
+            ).eq("status", "delivered").gte("created_at", cutoff_str).execute()
             pvndora_orders_from_discount += orders_result.count or 0
             # Sum revenue from delivered orders
             pvndora_revenue_from_migrated += sum(
@@ -127,24 +117,20 @@ async def get_migration_stats(
             )
     
     # 6. Revenue calculations
-    discount_revenue_result = await asyncio.to_thread(
-        lambda: db.client.table("orders").select(
-            "amount"
-        ).eq("source_channel", "discount").eq(
-            "status", "delivered"
-        ).gte("created_at", cutoff_str).execute()
-    )
+    discount_revenue_result = await db.client.table("orders").select(
+        "amount"
+    ).eq("source_channel", "discount").eq(
+        "status", "delivered"
+    ).gte("created_at", cutoff_str).execute()
     discount_revenue = sum(
         float(o.get("amount", 0) or 0)
         for o in (discount_revenue_result.data or [])
     )
     
     # 7. Promo stats
-    promos_result = await asyncio.to_thread(
-        lambda: db.client.table("promo_codes").select(
-            "id, usage_count"
-        ).gte("created_at", cutoff_str).execute()
-    )
+    promos_result = await db.client.table("promo_codes").select(
+        "id, usage_count"
+    ).gte("created_at", cutoff_str).execute()
     promos_data = promos_result.data or []
     promos_generated = len(promos_data)
     promos_used = sum(1 for p in promos_data if (p.get("usage_count", 0) or 0) > 0)
@@ -180,22 +166,18 @@ async def get_migration_trend(
         date_end = date.replace(hour=23, minute=59, second=59, microsecond=999999)
         
         # Discount orders on this day
-        discount_result = await asyncio.to_thread(
-            lambda ds=date_start, de=date_end: db.client.table("orders").select(
-                "id", count="exact"
-            ).eq("source_channel", "discount").gte(
-                "created_at", ds.isoformat()
-            ).lte("created_at", de.isoformat()).execute()
-        )
+        discount_result = await db.client.table("orders").select(
+            "id", count="exact"
+        ).eq("source_channel", "discount").gte(
+            "created_at", date_start.isoformat()
+        ).lte("created_at", date_end.isoformat()).execute()
         
         # PVNDORA orders on this day
-        pvndora_result = await asyncio.to_thread(
-            lambda ds=date_start, de=date_end: db.client.table("orders").select(
-                "id", count="exact"
-            ).neq("source_channel", "discount").gte(
-                "created_at", ds.isoformat()
-            ).lte("created_at", de.isoformat()).execute()
-        )
+        pvndora_result = await db.client.table("orders").select(
+            "id", count="exact"
+        ).neq("source_channel", "discount").gte(
+            "created_at", date_start.isoformat()
+        ).lte("created_at", date_end.isoformat()).execute()
         
         trend.append(MigrationTrend(
             date=date_start.strftime("%Y-%m-%d"),
@@ -215,11 +197,9 @@ async def get_top_migrating_products(
     db = get_database()
     
     # Get all discount orders to find user IDs
-    discount_orders_result = await asyncio.to_thread(
-        lambda: db.client.table("orders").select(
-            "user_telegram_id"
-        ).eq("source_channel", "discount").execute()
-    )
+    discount_orders_result = await db.client.table("orders").select(
+        "user_telegram_id"
+    ).eq("source_channel", "discount").execute()
     discount_user_ids = set(
         o["user_telegram_id"] for o in (discount_orders_result.data or [])
     )
@@ -231,24 +211,20 @@ async def get_top_migrating_products(
     product_counts = {}
     for user_id in list(discount_user_ids)[:50]:  # Sample
         # Get orders first
-        orders_result = await asyncio.to_thread(
-            lambda uid=user_id: db.client.table("orders").select(
-                "id"
-            ).eq("user_telegram_id", uid).neq(
-                "source_channel", "discount"
-            ).execute()
-        )
+        orders_result = await db.client.table("orders").select(
+            "id"
+        ).eq("user_telegram_id", user_id).neq(
+            "source_channel", "discount"
+        ).execute()
         
         order_ids = [o["id"] for o in (orders_result.data or [])]
         if not order_ids:
             continue
         
         # Get order_items for these orders
-        items_result = await asyncio.to_thread(
-            lambda oids=order_ids: db.client.table("order_items").select(
-                "product_id"
-            ).in_("order_id", oids).execute()
-        )
+        items_result = await db.client.table("order_items").select(
+            "product_id"
+        ).in_("order_id", order_ids).execute()
         
         for item in (items_result.data or []):
             pid = item.get("product_id")
@@ -260,11 +236,9 @@ async def get_top_migrating_products(
     sorted_products = sorted(product_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
     
     for product_id, count in sorted_products:
-        product_result = await asyncio.to_thread(
-            lambda pid=product_id: db.client.table("products").select(
-                "name, type"
-            ).eq("id", pid).single().execute()
-        )
+        product_result = await db.client.table("products").select(
+            "name, type"
+        ).eq("id", product_id).single().execute()
         
         if product_result.data:
             top_products.append({

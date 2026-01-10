@@ -1,5 +1,7 @@
-"""User Repository - User CRUD operations."""
-import asyncio
+"""User Repository - User CRUD operations.
+
+All methods use async/await with supabase-py v2.
+"""
 from datetime import datetime, timezone
 from typing import Optional
 from .base import BaseRepository
@@ -15,12 +17,16 @@ class UserRepository(BaseRepository):
     
     async def get_by_telegram_id(self, telegram_id: int) -> Optional[User]:
         """Get user by Telegram ID."""
-        result = self.client.table("users").select("*").eq("telegram_id", telegram_id).execute()
+        result = await self.client.table("users").select("*").eq(
+            "telegram_id", telegram_id
+        ).execute()
         return User(**result.data[0]) if result.data else None
     
     async def get_by_id(self, user_id: str) -> Optional[User]:
         """Get user by internal ID."""
-        result = self.client.table("users").select("*").eq("id", user_id).execute()
+        result = await self.client.table("users").select("*").eq(
+            "id", user_id
+        ).execute()
         return User(**result.data[0]) if result.data else None
     
     async def create(
@@ -47,36 +53,44 @@ class UserRepository(BaseRepository):
             "balance_currency": balance_currency,  # Set based on language_code
             "last_activity_at": datetime.now(timezone.utc).isoformat()
         }
-        result = self.client.table("users").insert(data).execute()
+        result = await self.client.table("users").insert(data).execute()
         return User(**result.data[0])
     
     async def update_language(self, telegram_id: int, language_code: str) -> None:
         """Update user's language."""
-        self.client.table("users").update({"language_code": language_code}).eq("telegram_id", telegram_id).execute()
+        await self.client.table("users").update({
+            "language_code": language_code
+        }).eq("telegram_id", telegram_id).execute()
     
     async def update_activity(self, telegram_id: int) -> None:
         """Update last activity timestamp."""
-        self.client.table("users").update({
+        await self.client.table("users").update({
             "last_activity_at": datetime.now(timezone.utc).isoformat()
         }).eq("telegram_id", telegram_id).execute()
     
     async def update_photo(self, telegram_id: int, photo_url: Optional[str]) -> None:
         """Update user's photo URL."""
         if photo_url:
-            self.client.table("users").update({
+            await self.client.table("users").update({
                 "photo_url": photo_url
             }).eq("telegram_id", telegram_id).execute()
     
     async def update_balance(self, user_id: str, amount: float) -> None:
         """Add amount to balance (can be negative)."""
-        user = self.client.table("users").select("balance").eq("id", user_id).execute()
+        user = await self.client.table("users").select("balance").eq(
+            "id", user_id
+        ).execute()
         if user.data:
             new_balance = to_float(to_decimal(user.data[0]["balance"] or 0) + to_decimal(amount))
-            self.client.table("users").update({"balance": new_balance}).eq("id", user_id).execute()
+            await self.client.table("users").update({
+                "balance": new_balance
+            }).eq("id", user_id).execute()
     
     async def ban(self, telegram_id: int, ban: bool = True) -> None:
         """Ban or unban user."""
-        self.client.table("users").update({"is_banned": ban}).eq("telegram_id", telegram_id).execute()
+        await self.client.table("users").update({
+            "is_banned": ban
+        }).eq("telegram_id", telegram_id).execute()
     
     async def add_warning(self, telegram_id: int) -> int:
         """Add warning, return new count. Auto-ban at 3."""
@@ -89,7 +103,9 @@ class UserRepository(BaseRepository):
         if new_count >= 3:
             update_data["is_banned"] = True
         
-        self.client.table("users").update(update_data).eq("telegram_id", telegram_id).execute()
+        await self.client.table("users").update(update_data).eq(
+            "telegram_id", telegram_id
+        ).execute()
         return new_count
     
     async def update_preferences(self, telegram_id: int, preferred_currency: Optional[str] = None, interface_language: Optional[str] = None) -> None:
@@ -103,9 +119,9 @@ class UserRepository(BaseRepository):
         if update_data:
             logger.info(f"Updating preferences for user {telegram_id}: {update_data}")
             try:
-                await asyncio.to_thread(
-                    lambda: self.client.table("users").update(update_data).eq("telegram_id", telegram_id).execute()
-                )
+                await self.client.table("users").update(update_data).eq(
+                    "telegram_id", telegram_id
+                ).execute()
                 logger.info(f"Successfully updated preferences for user {telegram_id}")
             except Exception as e:
                 logger.error(f"Failed to update preferences for user {telegram_id}: {e}", exc_info=True)
@@ -113,6 +129,7 @@ class UserRepository(BaseRepository):
     
     async def get_admins(self):
         """Get all admin users."""
-        result = self.client.table("users").select("*").eq("is_admin", True).execute()
+        result = await self.client.table("users").select("*").eq(
+            "is_admin", True
+        ).execute()
         return [User(**u) for u in result.data]
-

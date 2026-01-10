@@ -2,8 +2,8 @@
 Support Tools for Shop Agent.
 
 FAQ search, ticket creation, refunds.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 import re
 from datetime import datetime, timezone
 from typing import Optional
@@ -105,14 +105,9 @@ async def create_support_ticket(
                 order_id = order.id
                 
                 if extracted_item_id:
-                    item_result = await asyncio.to_thread(
-                        lambda: db.client.table("order_items")
-                        .select("id, order_id, delivered_at, product_id")
-                        .eq("id", extracted_item_id)
-                        .eq("order_id", order_id)
-                        .limit(1)
-                        .execute()
-                    )
+                    item_result = await db.client.table("order_items").select(
+                        "id, order_id, delivered_at, product_id"
+                    ).eq("id", extracted_item_id).eq("order_id", order_id).limit(1).execute()
                     if item_result.data:
                         item_data = item_result.data[0]
                         if item_data.get("delivered_at"):
@@ -120,13 +115,9 @@ async def create_support_ticket(
                             now = datetime.now(timezone.utc)
                             days_since = (now - item_delivered).days
                             
-                            product_result = await asyncio.to_thread(
-                                lambda: db.client.table("products")
-                                .select("name, warranty_hours")
-                                .eq("id", item_data.get("product_id"))
-                                .limit(1)
-                                .execute()
-                            )
+                            product_result = await db.client.table("products").select(
+                                "name, warranty_hours"
+                            ).eq("id", item_data.get("product_id")).limit(1).execute()
                             if product_result.data:
                                 product = product_result.data[0]
                                 warranty_hours = product.get("warranty_hours", 168)

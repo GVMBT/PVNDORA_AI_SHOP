@@ -1,12 +1,12 @@
 """Offers service for discount to PVNDORA migration.
 
 Handles automated offer generation and sending.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 import os
 import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
-import httpx
 
 from pydantic import BaseModel
 
@@ -63,25 +63,19 @@ class OffersService:
         text: str,
         use_discount_bot: bool = True
     ) -> bool:
-        """Send a message via Telegram Bot API."""
+        """Send a message via Telegram Bot API.
+        
+        Wrapper around consolidated telegram_messaging service.
+        """
+        from core.services.telegram_messaging import send_telegram_message as _send_msg
+        
         token = DISCOUNT_BOT_TOKEN if use_discount_bot else TELEGRAM_TOKEN
-        if not token:
-            return False
-        
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
-        payload = {
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "HTML"
-        }
-        
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(url, json=payload, timeout=10)
-                return response.status_code == 200
-        except Exception as e:
-            logger.error(f"Failed to send message: {e}")
-            return False
+        return await _send_msg(
+            chat_id=chat_id,
+            text=text,
+            parse_mode="HTML",
+            bot_token=token
+        )
     
     # ==================== Offer: Loyal Customer (3+ purchases) ====================
     
@@ -101,33 +95,27 @@ class OffersService:
             max_date = now - timedelta(days=self.LOYAL_OFFER_DELAY_DAYS_MIN)
             
             # Try RPC first (if exists)
-            result = await asyncio.to_thread(
-                lambda: self.client.rpc("find_loyal_discount_customers", {
-                    "min_orders": self.LOYAL_PURCHASE_COUNT,
-                    "limit_count": limit
-                }).execute()
-            )
+            result = await self.client.rpc("find_loyal_discount_customers", {
+                "min_orders": self.LOYAL_PURCHASE_COUNT,
+                "limit_count": limit
+            }).execute()
             
             if not result.data:
                 # Fallback to direct query
-                result = await asyncio.to_thread(
-                    lambda: self.client.table("users").select(
-                        "id, telegram_id, language_code"
-                    ).eq("discount_tier_source", True).execute()
-                )
+                result = await self.client.table("users").select(
+                    "id, telegram_id, language_code"
+                ).eq("discount_tier_source", True).execute()
                 
                 candidates = []
                 for user in (result.data or []):
                     # Get orders sorted by date to find 3rd purchase date
-                    orders_result = await asyncio.to_thread(
-                        lambda uid=user["id"]: self.client.table("orders").select(
-                            "id, delivered_at"
-                        ).eq("user_id", uid).eq(
-                            "source_channel", "discount"
-                        ).eq("status", "delivered").order(
-                            "delivered_at", desc=False
-                        ).execute()
-                    )
+                    orders_result = await self.client.table("orders").select(
+                        "id, delivered_at"
+                    ).eq("user_id", user["id"]).eq(
+                        "source_channel", "discount"
+                    ).eq("status", "delivered").order(
+                        "delivered_at", desc=False
+                    ).execute()
                     
                     orders = orders_result.data or []
                     order_count = len(orders)
@@ -259,13 +247,11 @@ class OffersService:
         try:
             cutoff = datetime.now(timezone.utc) - timedelta(days=self.INACTIVE_DAYS)
             
-            result = await asyncio.to_thread(
-                lambda: self.client.table("users").select(
-                    "id, telegram_id, language_code, last_activity_at"
-                ).eq("discount_tier_source", True).lt(
-                    "last_activity_at", cutoff.isoformat()
-                ).limit(limit).execute()
-            )
+            result = await self.client.table("users").select(
+                "id, telegram_id, language_code, last_activity_at"
+            ).eq("discount_tier_source", True).lt(
+                "last_activity_at", cutoff.isoformat()
+            ).limit(limit).execute()
             
             candidates = []
             for user in (result.data or []):

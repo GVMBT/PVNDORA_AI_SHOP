@@ -1,4 +1,8 @@
-"""Product Repository - Product catalog operations."""
+"""Product Repository - Product catalog operations.
+
+Uses products_with_stock_summary VIEW to eliminate N+1 queries.
+All methods properly use async/await with supabase-py v2.
+"""
 from typing import Optional, List, Dict, Any
 from .base import BaseRepository
 from core.services.models import Product
@@ -7,52 +11,50 @@ from core.services.models import Product
 class ProductRepository(BaseRepository):
     """Product database operations."""
     
+    # View name for aggregated product data (eliminates N+1)
+    VIEW_NAME = "products_with_stock_summary"
+    
     async def get_all(self, status: str = "active") -> List[Product]:
-        """Get all products with stock count."""
-        result = self.client.table("products").select("*").eq("status", status).execute()
+        """Get all products with stock count using VIEW (no N+1).
         
-        products = []
-        for p in result.data:
-            stock = self.client.table("stock_items").select("id", count="exact").eq("product_id", p["id"]).eq("status", "available").execute()
-            p["stock_count"] = stock.count or 0
-            products.append(Product(**p))
+        Uses products_with_stock_summary VIEW which joins products 
+        with aggregated stock_items counts in a single query.
+        """
+        result = await self.client.table(self.VIEW_NAME).select("*").eq(
+            "status", status
+        ).execute()
         
-        return products
+        return [Product(**p) for p in result.data]
     
     async def get_by_id(self, product_id: str) -> Optional[Product]:
-        """Get product by ID with stock count."""
-        result = self.client.table("products").select("*").eq("id", product_id).execute()
+        """Get product by ID with stock count using VIEW (no N+1)."""
+        result = await self.client.table(self.VIEW_NAME).select("*").eq(
+            "id", product_id
+        ).execute()
         
         if not result.data:
             return None
         
-        p = result.data[0]
-        stock = self.client.table("stock_items").select("id", count="exact").eq("product_id", product_id).eq("status", "available").execute()
-        p["stock_count"] = stock.count or 0
-        return Product(**p)
+        return Product(**result.data[0])
     
     async def search(self, query: str) -> List[Product]:
-        """Search products by name or description."""
-        result = self.client.table("products").select("*").or_(
+        """Search products by name or description using VIEW (no N+1)."""
+        result = await self.client.table(self.VIEW_NAME).select("*").or_(
             f"name.ilike.%{query}%,description.ilike.%{query}%"
         ).eq("status", "active").execute()
         
-        products = []
-        for p in result.data:
-            stock = self.client.table("stock_items").select("id", count="exact").eq("product_id", p["id"]).eq("status", "available").execute()
-            p["stock_count"] = stock.count or 0
-            products.append(Product(**p))
-        
-        return products
+        return [Product(**p) for p in result.data]
     
     async def get_rating(self, product_id: str) -> Dict[str, Any]:
         """Get product rating and review count."""
-        reviews = self.client.table("reviews").select("rating").eq("product_id", product_id).execute()
+        result = await self.client.table("reviews").select("rating").eq(
+            "product_id", product_id
+        ).execute()
         
-        if not reviews.data:
+        if not result.data:
             return {"average": 0, "count": 0}
         
-        ratings = [r["rating"] for r in reviews.data if r.get("rating")]
+        ratings = [r["rating"] for r in result.data if r.get("rating")]
         return {
             "average": round(sum(ratings) / len(ratings), 1) if ratings else 0,
             "count": len(ratings)
@@ -60,11 +62,17 @@ class ProductRepository(BaseRepository):
     
     async def create(self, data: Dict[str, Any]) -> Product:
         """Create new product."""
-        result = self.client.table("products").insert(data).execute()
-        return Product(**result.data[0])
+        result = await self.client.table("products").insert(data).execute()
+        # Fetch from VIEW to get stock_count = 0
+        created_product = await self.get_by_id(result.data[0]["id"])
+        return created_product
     
     async def update(self, product_id: str, data: Dict[str, Any]) -> Optional[Product]:
         """Update product."""
-        result = self.client.table("products").update(data).eq("id", product_id).execute()
-        return Product(**result.data[0]) if result.data else None
-
+        result = await self.client.table("products").update(data).eq(
+            "id", product_id
+        ).execute()
+        if not result.data:
+            return None
+        # Fetch from VIEW to get current stock_count
+        return await self.get_by_id(product_id)

@@ -1,6 +1,6 @@
-"""Callback query handlers for inline keyboard buttons."""
-import asyncio
-
+"""Callback query handlers for inline keyboard buttons.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
+"""
 from aiogram import Router, F, Bot
 from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from aiogram.enums import ParseMode
@@ -274,12 +274,13 @@ async def handle_ticket_description(message: Message, db_user: User, state: FSMC
     db = get_database()
     
     try:
-        result = await asyncio.to_thread(
-            lambda: db.client.table("support_tickets").insert({
-                "user_id": db_user.id, "order_id": data.get("order_id"),
-                "type": "general", "description": message.text.strip(), "status": "open"
-            }).execute()
-        )
+        result = await db.client.table("support_tickets").insert({
+            "user_id": db_user.id,
+            "order_id": data.get("order_id"),
+            "type": "general",
+            "description": message.text.strip(),
+            "status": "open"
+        }).execute()
         ticket_id = result.data[0]["id"] if result.data else None
         await message.answer(f"✅ Обращение создано!\n🎫 Номер: {ticket_id[:8] if ticket_id else 'N/A'}...")
     except Exception as e:

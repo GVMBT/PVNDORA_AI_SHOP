@@ -3,9 +3,9 @@ Webhooks Router
 
 CrystalPay payment webhooks.
 All webhooks verify signatures and delegate to QStash workers.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
-import asyncio
 import hashlib
 import hmac
 import json
@@ -84,26 +84,18 @@ async def crystalpay_webhook(request: Request):
             order_data = None
             try:
                 # Try lookup by payment_id (invoice_id saved during creation)
-                lookup_result = await asyncio.to_thread(
-                    lambda: db.client.table("orders")
-                    .select("*")
-                    .eq("payment_id", invoice_id)
-                    .limit(1)
-                    .execute()
-                )
+                lookup_result = await db.client.table("orders").select("*").eq(
+                    "payment_id", invoice_id
+                ).limit(1).execute()
                 if lookup_result.data:
                     order_data = lookup_result.data[0]
                     real_order_id = order_data["id"]
                     logger.info(f"CrystalPay webhook: mapped invoice {invoice_id} -> order {real_order_id}")
                 else:
                     # Fallback: try direct lookup by order_id from extra
-                    direct_result = await asyncio.to_thread(
-                        lambda: db.client.table("orders")
-                        .select("*")
-                        .eq("id", order_id)
-                        .limit(1)
-                        .execute()
-                    )
+                    direct_result = await db.client.table("orders").select("*").eq(
+                        "id", order_id
+                    ).limit(1).execute()
                     if direct_result.data:
                         order_data = direct_result.data[0]
                         real_order_id = order_data["id"]
@@ -127,26 +119,18 @@ async def crystalpay_webhook(request: Request):
                 
                 if product_id:
                     try:
-                        stock_check = await asyncio.to_thread(
-                            lambda: db.client.table("stock_items")
-                            .select("id")
-                            .eq("product_id", product_id)
-                            .eq("status", "available")
-                            .limit(1)
-                            .execute()
-                        )
+                        stock_check = await db.client.table("stock_items").select("id").eq(
+                            "product_id", product_id
+                        ).eq("status", "available").limit(1).execute()
                         can_fulfill = bool(stock_check.data)
                     except Exception as e:
                         logger.error(f"CrystalPay webhook: Stock check error: {e}", exc_info=True)
                 
                 if can_fulfill:
                     logger.info(f"CrystalPay webhook: Restoring order {real_order_id} - stock available")
-                    await asyncio.to_thread(
-                        lambda: db.client.table("orders")
-                        .update({"status": "pending", "notes": "Restored after late payment"})
-                        .eq("id", real_order_id)
-                        .execute()
-                    )
+                    await db.client.table("orders").update({
+                        "status": "pending", "notes": "Restored after late payment"
+                    }).eq("id", real_order_id).execute()
                 else:
                     logger.warning(f"CrystalPay webhook: Order {real_order_id} - no stock, creating refund ticket")
                     user_id = order_data.get("user_id") if order_data else None
@@ -154,21 +138,16 @@ async def crystalpay_webhook(request: Request):
                     
                     if user_id:
                         try:
-                            await asyncio.to_thread(
-                                lambda: db.client.table("tickets").insert({
-                                    "user_id": user_id,
-                                    "order_id": real_order_id,
-                                    "issue_type": "refund",
-                                    "description": f"Late payment after order expired. Amount: {amount}. Stock unavailable.",
-                                    "status": "open"
-                                }).execute()
-                            )
-                            await asyncio.to_thread(
-                                lambda: db.client.table("orders")
-                                .update({"status": "refund_pending", "refund_requested": True, "notes": "Late payment - stock unavailable"})
-                                .eq("id", real_order_id)
-                                .execute()
-                            )
+                            await db.client.table("tickets").insert({
+                                "user_id": user_id,
+                                "order_id": real_order_id,
+                                "issue_type": "refund",
+                                "description": f"Late payment after order expired. Amount: {amount}. Stock unavailable.",
+                                "status": "open"
+                            }).execute()
+                            await db.client.table("orders").update({
+                                "status": "refund_pending", "refund_requested": True, "notes": "Late payment - stock unavailable"
+                            }).eq("id", real_order_id).execute()
                         except Exception as e:
                             logger.error(f"CrystalPay webhook: Failed to create refund ticket: {e}", exc_info=True)
                     
@@ -204,30 +183,24 @@ async def crystalpay_webhook(request: Request):
                 try:
                     from core.services.domains import DiscountOrderService
                     
-                    order_items = await asyncio.to_thread(
-                        lambda: db.client.table("order_items").select(
-                            "id, product_id"
-                        ).eq("order_id", real_order_id).limit(1).execute()
-                    )
+                    order_items = await db.client.table("order_items").select(
+                        "id, product_id"
+                    ).eq("order_id", real_order_id).limit(1).execute()
                     
                     if order_items.data:
                         order_item = order_items.data[0]
                         
-                        stock_result = await asyncio.to_thread(
-                            lambda: db.client.table("stock_items").select("id").eq(
-                                "product_id", order_item["product_id"]
-                            ).eq("status", "available").is_("sold_at", "null").limit(1).execute()
-                        )
+                        stock_result = await db.client.table("stock_items").select("id").eq(
+                            "product_id", order_item["product_id"]
+                        ).eq("status", "available").is_("sold_at", "null").limit(1).execute()
                         
                         if stock_result.data:
                             stock_item_id = stock_result.data[0]["id"]
                             telegram_id = order_data.get("user_telegram_id")
                             
-                            await asyncio.to_thread(
-                                lambda: db.client.table("stock_items").update({
-                                    "status": "reserved"
-                                }).eq("id", stock_item_id).execute()
-                            )
+                            await db.client.table("stock_items").update({
+                                "status": "reserved"
+                            }).eq("id", stock_item_id).execute()
                             
                             discount_service = DiscountOrderService(db.client)
                             await discount_service.schedule_delayed_delivery(
@@ -346,13 +319,9 @@ async def crystalpay_topup_webhook(request: Request):
         db = get_database()
         
         # Find topup transaction
-        tx_result = await asyncio.to_thread(
-            lambda: db.client.table("balance_transactions")
-            .select("*")
-            .eq("id", topup_id)
-            .single()
-            .execute()
-        )
+        tx_result = await db.client.table("balance_transactions").select("*").eq(
+            "id", topup_id
+        ).single().execute()
         
         if not tx_result.data:
             logger.warning(f"CrystalPay TOPUP webhook: Transaction {topup_id} not found")
@@ -374,13 +343,9 @@ async def crystalpay_topup_webhook(request: Request):
         payment_currency = tx_metadata.get("payment_currency") or tx.get("currency") or "RUB"
         
         # Get user current balance, balance_currency and telegram_id
-        user_result = await asyncio.to_thread(
-            lambda: db.client.table("users")
-            .select("balance, balance_currency, telegram_id")
-            .eq("id", user_id)
-            .single()
-            .execute()
-        )
+        user_result = await db.client.table("users").select(
+            "balance, balance_currency, telegram_id"
+        ).eq("id", user_id).single().execute()
         
         if not user_result.data:
             logger.warning(f"CrystalPay TOPUP webhook: User {user_id} not found")
@@ -425,24 +390,16 @@ async def crystalpay_topup_webhook(request: Request):
         new_balance = current_balance + amount_to_add
         
         # Update user balance
-        await asyncio.to_thread(
-            lambda: db.client.table("users")
-            .update({"balance": new_balance})
-            .eq("id", user_id)
-            .execute()
-        )
+        await db.client.table("users").update({
+            "balance": new_balance
+        }).eq("id", user_id).execute()
         
         # Update transaction status
-        await asyncio.to_thread(
-            lambda: db.client.table("balance_transactions")
-            .update({
-                "status": "completed",
-                "balance_before": current_balance,
-                "balance_after": new_balance,
-            })
-            .eq("id", topup_id)
-            .execute()
-        )
+        await db.client.table("balance_transactions").update({
+            "status": "completed",
+            "balance_before": current_balance,
+            "balance_after": new_balance,
+        }).eq("id", topup_id).execute()
         
         logger.info(f"CrystalPay TOPUP webhook: SUCCESS! User {user_id} balance: {current_balance:.2f} {balance_currency} -> {new_balance:.2f} {balance_currency}")
         

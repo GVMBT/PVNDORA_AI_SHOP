@@ -1,8 +1,8 @@
 """Promo code domain service for discount channel migration.
 
 Handles personal promo code generation and validation.
+All methods use async/await with supabase-py v2.
 """
-import asyncio
 import secrets
 import string
 from datetime import datetime, timezone, timedelta
@@ -129,9 +129,9 @@ class PromoCodeService:
             code = self._generate_code(prefix, str(telegram_id))
             
             # Check if code already exists (unlikely but possible)
-            existing = await asyncio.to_thread(
-                lambda: self.client.table("promo_codes").select("id").eq("code", code).execute()
-            )
+            existing = await self.client.table("promo_codes").select("id").eq(
+                "code", code
+            ).execute()
             
             if existing.data:
                 # Regenerate with different random suffix
@@ -155,9 +155,7 @@ class PromoCodeService:
                 "source_trigger": trigger,
             }
             
-            result = await asyncio.to_thread(
-                lambda: self.client.table("promo_codes").insert(promo_data).execute()
-            )
+            result = await self.client.table("promo_codes").insert(promo_data).execute()
             
             if not result.data:
                 logger.error(f"Failed to create promo code for user {user_id}")

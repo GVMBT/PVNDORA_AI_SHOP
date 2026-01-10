@@ -1,5 +1,6 @@
-"""Payment Service - CrystalPay Integration"""
-import asyncio
+"""Payment Service - CrystalPay Integration
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
+"""
 import hashlib
 import hmac
 import logging
@@ -60,12 +61,9 @@ class PaymentService:
         try:
             from core.services.database import get_database
             db = get_database()
-            await asyncio.to_thread(
-                lambda: db.client.table("orders")
-                .update({"payment_id": pid_value})
-                .eq("id", order_id)
-                .execute()
-            )
+            await db.client.table("orders").update({
+                "payment_id": pid_value
+            }).eq("id", order_id).execute()
         except Exception as e:
             logger.warning("Failed to save payment reference for order %s: %s", order_id, e)
 
@@ -76,9 +74,9 @@ class PaymentService:
         try:
             from core.services.database import get_database
             db = get_database()
-            result = await asyncio.to_thread(
-                lambda: db.client.table("orders").select("id,status").eq("payment_id", payment_id).limit(1).execute()
-            )
+            result = await db.client.table("orders").select(
+                "id,status"
+            ).eq("payment_id", payment_id).limit(1).execute()
             if result.data:
                 return result.data[0].get("id"), result.data[0].get("status")
         except Exception as e:
@@ -502,30 +500,26 @@ class PaymentService:
             
             user_id = getattr(order, "user_id", None)
             if user_id:
-                result = await asyncio.to_thread(
-                    lambda: db.client.table("orders").select("id", count="exact").eq("user_id", user_id).eq("refund_requested", True).execute()
-                )
+                result = await db.client.table("orders").select(
+                    "id", count="exact"
+                ).eq("user_id", user_id).eq("refund_requested", True).execute()
                 open_refunds = result.count or 0
                 if open_refunds >= 3:
                     return {"success": False, "error": "Refund request limit reached"}
             
             # Create support ticket for manual refund
-            await asyncio.to_thread(
-                lambda: db.client.table("tickets").insert({
-                    "user_id": getattr(order, "user_id", None),
-                    "order_id": order_id,
-                    "issue_type": "refund",
-                    "description": f"Manual refund requested, amount={amount}",
-                    "status": "open"
-                }).execute()
-            )
+            await db.client.table("tickets").insert({
+                "user_id": getattr(order, "user_id", None),
+                "order_id": order_id,
+                "issue_type": "refund",
+                "description": f"Manual refund requested, amount={amount}",
+                "status": "open"
+            }).execute()
             
-            await asyncio.to_thread(
-                lambda: db.client.table("orders").update({
-                    "refund_requested": True,
-                    "status": "refund_pending"
-                }).eq("id", order_id).execute()
-            )
+            await db.client.table("orders").update({
+                "refund_requested": True,
+                "status": "refund_pending"
+            }).eq("id", order_id).execute()
             
             return {
                 "success": True,

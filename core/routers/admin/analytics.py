@@ -2,8 +2,8 @@
 Admin Analytics Router
 
 Sales analytics and business metrics endpoints.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends
@@ -28,82 +28,48 @@ async def admin_get_analytics(
     month_start = today_start - timedelta(days=30)
     chart_days_start = today_start - timedelta(days=12)  # Last 12 days for chart
     
-    # 1. Total Revenue (all time, only delivered orders)
-    def get_total_revenue():
-        return db.client.table("orders").select(
-            "amount"
-        ).eq("status", "delivered").execute()
+    # Execute all queries directly with await
+    revenue_result = await db.client.table("orders").select(
+        "amount"
+    ).eq("status", "delivered").execute()
     
-    # 2. Orders today
-    def get_orders_today():
-        return db.client.table("orders").select(
-            "id", count="exact"
-        ).gte("created_at", today_start.isoformat()).execute()
+    orders_today_result = await db.client.table("orders").select(
+        "id", count="exact"
+    ).gte("created_at", today_start.isoformat()).execute()
     
-    # 3. Orders this week
-    def get_orders_week():
-        return db.client.table("orders").select(
-            "id", count="exact"
-        ).gte("created_at", week_start.isoformat()).execute()
+    orders_week_result = await db.client.table("orders").select(
+        "id", count="exact"
+    ).gte("created_at", week_start.isoformat()).execute()
     
-    # 4. Orders this month
-    def get_orders_month():
-        return db.client.table("orders").select(
-            "id", count="exact"
-        ).gte("created_at", month_start.isoformat()).execute()
+    orders_month_result = await db.client.table("orders").select(
+        "id", count="exact"
+    ).gte("created_at", month_start.isoformat()).execute()
     
-    # 5. Total users count
-    def get_total_users():
-        return db.client.table("users").select(
-            "id", count="exact"
-        ).execute()
+    total_users_result = await db.client.table("users").select(
+        "id", count="exact"
+    ).execute()
     
-    # 5b. Pending orders (not delivered yet)
-    def get_pending_orders():
-        return db.client.table("orders").select(
-            "id", count="exact"
-        ).in_("status", ["pending", "paid", "processing"]).execute()
+    pending_orders_result = await db.client.table("orders").select(
+        "id", count="exact"
+    ).in_("status", ["pending", "paid", "processing"]).execute()
     
-    # 7. Open tickets count
-    def get_open_tickets():
-        return db.client.table("tickets").select(
-            "id", count="exact"
-        ).eq("status", "open").execute()
+    open_tickets_result = await db.client.table("tickets").select(
+        "id", count="exact"
+    ).eq("status", "open").execute()
     
-    # 6. Revenue by day (last 12 days for chart)
-    def get_revenue_by_day():
-        return db.client.table("orders").select(
-            "amount, created_at"
-        ).eq("status", "delivered").gte("created_at", chart_days_start.isoformat()).execute()
+    revenue_by_day_result = await db.client.table("orders").select(
+        "amount, created_at"
+    ).eq("status", "delivered").gte("created_at", chart_days_start.isoformat()).execute()
     
-    # 8. Top products (all time) - via order_items join
-    def get_top_products():
-        return db.client.table("order_items").select(
-            "products(name)"
-        ).eq("status", "delivered").execute()
+    top_products_result = await db.client.table("order_items").select(
+        "products(name)"
+    ).eq("status", "delivered").execute()
     
-    # 9. Total user balances (liabilities) - money users can withdraw
-    def get_total_user_balances():
-        return db.client.table("users").select("balance").execute()
+    user_balances_result = await db.client.table("users").select("balance").execute()
     
-    # 10. Pending withdrawals
-    def get_pending_withdrawals():
-        return db.client.table("withdrawal_requests").select(
-            "amount"
-        ).eq("status", "pending").execute()
-    
-    # Execute all queries
-    revenue_result = await asyncio.to_thread(get_total_revenue)
-    orders_today_result = await asyncio.to_thread(get_orders_today)
-    orders_week_result = await asyncio.to_thread(get_orders_week)
-    orders_month_result = await asyncio.to_thread(get_orders_month)
-    total_users_result = await asyncio.to_thread(get_total_users)
-    pending_orders_result = await asyncio.to_thread(get_pending_orders)
-    revenue_by_day_result = await asyncio.to_thread(get_revenue_by_day)
-    open_tickets_result = await asyncio.to_thread(get_open_tickets)
-    top_products_result = await asyncio.to_thread(get_top_products)
-    user_balances_result = await asyncio.to_thread(get_total_user_balances)
-    pending_withdrawals_result = await asyncio.to_thread(get_pending_withdrawals)
+    pending_withdrawals_result = await db.client.table("withdrawal_requests").select(
+        "amount"
+    ).eq("status", "pending").execute()
     
     # Calculate total revenue
     total_revenue = sum(float(o.get("amount", 0)) for o in (revenue_result.data or []))
@@ -186,24 +152,16 @@ async def admin_get_business_metrics(
     db = get_database()
     
     # Get daily metrics
-    daily = await asyncio.to_thread(
-        lambda: db.client.table("business_metrics").select("*").limit(days).execute()
-    )
+    daily = await db.client.table("business_metrics").select("*").limit(days).execute()
     
     # Get referral program metrics
-    referral = await asyncio.to_thread(
-        lambda: db.client.table("referral_program_metrics").select("*").single().execute()
-    )
+    referral = await db.client.table("referral_program_metrics").select("*").single().execute()
     
     # Get product metrics
-    products = await asyncio.to_thread(
-        lambda: db.client.table("product_metrics").select("*").limit(10).execute()
-    )
+    products = await db.client.table("product_metrics").select("*").limit(10).execute()
     
     # Get retention cohorts
-    retention = await asyncio.to_thread(
-        lambda: db.client.table("retention_cohorts").select("*").limit(8).execute()
-    )
+    retention = await db.client.table("retention_cohorts").select("*").limit(8).execute()
     
     # Calculate summary
     daily_data = daily.data or []
@@ -238,55 +196,41 @@ async def admin_get_discount_analytics(
     period_start = now - timedelta(days=days)
     
     # 1. Migration stats from view
-    migration_stats = await asyncio.to_thread(
-        lambda: db.client.table("discount_migration_stats").select("*").execute()
-    )
+    migration_stats = await db.client.table("discount_migration_stats").select("*").execute()
     
     # 2. Discount orders stats
-    discount_orders = await asyncio.to_thread(
-        lambda: db.client.table("orders").select(
-            "id, amount, status, created_at", count="exact"
-        ).eq("source_channel", "discount").gte(
-            "created_at", period_start.isoformat()
-        ).execute()
-    )
+    discount_orders = await db.client.table("orders").select(
+        "id, amount, status, created_at", count="exact"
+    ).eq("source_channel", "discount").gte(
+        "created_at", period_start.isoformat()
+    ).execute()
     
     # 3. Insurance sales
-    insurance_items = await asyncio.to_thread(
-        lambda: db.client.table("order_items").select(
-            "id, insurance_id", count="exact"
-        ).not_.is_("insurance_id", "null").execute()
-    )
+    insurance_items = await db.client.table("order_items").select(
+        "id, insurance_id", count="exact"
+    ).not_.is_("insurance_id", "null").execute()
     
     # 4. Replacement stats
-    replacements_pending = await asyncio.to_thread(
-        lambda: db.client.table("insurance_replacements").select(
-            "id", count="exact"
-        ).eq("status", "pending").execute()
-    )
+    replacements_pending = await db.client.table("insurance_replacements").select(
+        "id", count="exact"
+    ).eq("status", "pending").execute()
     
-    replacements_approved = await asyncio.to_thread(
-        lambda: db.client.table("insurance_replacements").select(
-            "id", count="exact"
-        ).in_("status", ["approved", "auto_approved"]).gte(
-            "created_at", period_start.isoformat()
-        ).execute()
-    )
+    replacements_approved = await db.client.table("insurance_replacements").select(
+        "id", count="exact"
+    ).in_("status", ["approved", "auto_approved"]).gte(
+        "created_at", period_start.isoformat()
+    ).execute()
     
-    replacements_rejected = await asyncio.to_thread(
-        lambda: db.client.table("insurance_replacements").select(
-            "id", count="exact"
-        ).eq("status", "rejected").gte(
-            "created_at", period_start.isoformat()
-        ).execute()
-    )
+    replacements_rejected = await db.client.table("insurance_replacements").select(
+        "id", count="exact"
+    ).eq("status", "rejected").gte(
+        "created_at", period_start.isoformat()
+    ).execute()
     
     # 5. Promo code stats by trigger
-    promo_stats = await asyncio.to_thread(
-        lambda: db.client.table("promo_codes").select(
-            "source_trigger, current_uses"
-        ).not_.is_("source_trigger", "null").execute()
-    )
+    promo_stats = await db.client.table("promo_codes").select(
+        "source_trigger, current_uses"
+    ).not_.is_("source_trigger", "null").execute()
     
     # Aggregate promo stats by trigger
     promo_by_trigger = {}
@@ -299,21 +243,17 @@ async def admin_get_discount_analytics(
     
     # 6. Top abusers
     # Get users with high abuse scores
-    discount_users = await asyncio.to_thread(
-        lambda: db.client.table("users").select(
-            "telegram_id"
-        ).eq("discount_tier_source", True).limit(100).execute()
-    )
+    discount_users = await db.client.table("users").select(
+        "telegram_id"
+    ).eq("discount_tier_source", True).limit(100).execute()
     
     top_abusers = []
     for user in (discount_users.data or [])[:20]:  # Check first 20
         tid = user["telegram_id"]
-        score_result = await asyncio.to_thread(
-            lambda t=tid: db.client.rpc(
-                "get_user_abuse_score",
-                {"p_telegram_id": t}
-            ).execute()
-        )
+        score_result = await db.client.rpc(
+            "get_user_abuse_score",
+            {"p_telegram_id": tid}
+        ).execute()
         score = score_result.data if score_result.data else 0
         if score > 30:  # Only include if above threshold
             top_abusers.append({"telegram_id": tid, "abuse_score": score})

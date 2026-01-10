@@ -1,5 +1,6 @@
-"""Discount bot purchase handlers."""
-import asyncio
+"""Discount bot purchase handlers.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
+"""
 import os
 from datetime import datetime, timezone, timedelta
 from typing import Optional
@@ -123,11 +124,9 @@ async def get_product_by_short_id(db, short_id: str) -> Optional[dict]:
     """Get product by short ID (first 8 chars of UUID)."""
     try:
         # Get all active products with discount_price (ilike doesn't work with UUID)
-        result = await asyncio.to_thread(
-            lambda: db.client.table("products").select("*").eq(
-                "status", "active"
-            ).not_.is_("discount_price", "null").execute()
-        )
+        result = await db.client.table("products").select("*").eq(
+            "status", "active"
+        ).not_.is_("discount_price", "null").execute()
         
         # Filter by UUID prefix (first 8 chars, case-insensitive)
         products = result.data or []
@@ -152,11 +151,9 @@ async def get_insurance_option(db, short_id: str) -> Optional[dict]:
     try:
         # Get all active insurance options and filter by prefix
         # (ilike doesn't work with UUID fields in PostgREST)
-        result = await asyncio.to_thread(
-            lambda: db.client.table("insurance_options").select("*").eq(
-                "is_active", True
-            ).execute()
-        )
+        result = await db.client.table("insurance_options").select("*").eq(
+            "is_active", True
+        ).execute()
         
         if not result.data:
             return None
@@ -215,44 +212,38 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
     # Create order
     try:
         # Get user UUID
-        user_result = await asyncio.to_thread(
-            lambda: db.client.table("users").select("id").eq(
-                "telegram_id", db_user.telegram_id
-            ).single().execute()
-        )
+        user_result = await db.client.table("users").select("id").eq(
+            "telegram_id", db_user.telegram_id
+        ).single().execute()
         user_uuid = user_result.data["id"]
         
         # Create order with source_channel='discount'
         expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
         
-        order_result = await asyncio.to_thread(
-            lambda: db.client.table("orders").insert({
-                "user_id": user_uuid,
-                "amount": total_price,
-                "original_price": discount_price,
-                "discount_percent": 0,
-                "status": "pending",
-                "payment_method": "crypto",
-                "payment_gateway": "crystalpay",
-                "source_channel": "discount",
-                "user_telegram_id": db_user.telegram_id,
-                "expires_at": expires_at.isoformat()
-            }).execute()
-        )
+        order_result = await db.client.table("orders").insert({
+            "user_id": user_uuid,
+            "amount": total_price,
+            "original_price": discount_price,
+            "discount_percent": 0,
+            "status": "pending",
+            "payment_method": "crypto",
+            "payment_gateway": "crystalpay",
+            "source_channel": "discount",
+            "user_telegram_id": db_user.telegram_id,
+            "expires_at": expires_at.isoformat()
+        }).execute()
         
         order = order_result.data[0]
         order_id = order["id"]
         
         # Create order item
-        await asyncio.to_thread(
-            lambda: db.client.table("order_items").insert({
-                "order_id": order_id,
-                "product_id": product["id"],
-                "quantity": 1,
-                "price": discount_price,
-                "insurance_id": insurance_id
-            }).execute()
-        )
+        await db.client.table("order_items").insert({
+            "order_id": order_id,
+            "product_id": product["id"],
+            "quantity": 1,
+            "price": discount_price,
+            "insurance_id": insurance_id
+        }).execute()
         
         # Determine user currency
         user_currency = "USD"  # Default
@@ -300,12 +291,10 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
         invoice_id = payment_result.get("invoice_id")
         
         # Update order with payment URL and invoice_id (critical for webhook lookup!)
-        await asyncio.to_thread(
-            lambda: db.client.table("orders").update({
-                "payment_url": payment_url,
-                "payment_id": invoice_id  # Required for webhook to find order
-            }).eq("id", order_id).execute()
-        )
+        await db.client.table("orders").update({
+            "payment_url": payment_url,
+            "payment_id": invoice_id  # Required for webhook to find order
+        }).eq("id", order_id).execute()
         
         # Format price in user's currency for display
         display_amount = total_price
@@ -374,21 +363,15 @@ async def msg_orders(message: Message, db_user: User):
         currency, exchange_rate = await get_user_currency_info(db_user)
         
         # Get user UUID
-        user_result = await asyncio.to_thread(
-            lambda: db.client.table("users").select("id").eq(
-                "telegram_id", db_user.telegram_id
-            ).single().execute()
-        )
+        user_result = await db.client.table("users").select("id").eq(
+            "telegram_id", db_user.telegram_id
+        ).single().execute()
         user_uuid = user_result.data["id"]
         
         # Get orders from discount channel
-        orders_result = await asyncio.to_thread(
-            lambda: db.client.table("orders").select("*").eq(
-                "user_id", user_uuid
-            ).eq("source_channel", "discount").order(
-                "created_at", desc=True
-            ).limit(10).execute()
-        )
+        orders_result = await db.client.table("orders").select("*").eq(
+            "user_id", user_uuid
+        ).eq("source_channel", "discount").order("created_at", desc=True).limit(10).execute()
         
         orders = orders_result.data or []
         
@@ -432,20 +415,14 @@ async def cb_orders(callback: CallbackQuery, db_user: User):
         # Get user currency info
         currency, exchange_rate = await get_user_currency_info(db_user)
         
-        user_result = await asyncio.to_thread(
-            lambda: db.client.table("users").select("id").eq(
-                "telegram_id", db_user.telegram_id
-            ).single().execute()
-        )
+        user_result = await db.client.table("users").select("id").eq(
+            "telegram_id", db_user.telegram_id
+        ).single().execute()
         user_uuid = user_result.data["id"]
         
-        orders_result = await asyncio.to_thread(
-            lambda: db.client.table("orders").select("*").eq(
-                "user_id", user_uuid
-            ).eq("source_channel", "discount").order(
-                "created_at", desc=True
-            ).limit(10).execute()
-        )
+        orders_result = await db.client.table("orders").select("*").eq(
+            "user_id", user_uuid
+        ).eq("source_channel", "discount").order("created_at", desc=True).limit(10).execute()
         
         orders = orders_result.data or []
         
@@ -483,11 +460,9 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User):
     try:
         # Get user's discount orders and filter by short ID prefix
         # (ilike doesn't work with UUID fields in PostgREST)
-        user_result = await asyncio.to_thread(
-            lambda: db.client.table("users").select("id").eq(
-                "telegram_id", db_user.telegram_id
-            ).single().execute()
-        )
+        user_result = await db.client.table("users").select("id").eq(
+            "telegram_id", db_user.telegram_id
+        ).single().execute()
         
         if not user_result.data:
             await callback.answer("User not found", show_alert=True)
@@ -495,11 +470,9 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User):
         
         user_uuid = user_result.data["id"]
         
-        orders_result = await asyncio.to_thread(
-            lambda: db.client.table("orders").select("*").eq(
-                "user_id", user_uuid
-            ).eq("source_channel", "discount").execute()
-        )
+        orders_result = await db.client.table("orders").select("*").eq(
+            "user_id", user_uuid
+        ).eq("source_channel", "discount").execute()
         
         # Filter by short ID prefix
         order = None
@@ -515,11 +488,9 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User):
             return
         
         # Get order items
-        items_result = await asyncio.to_thread(
-            lambda: db.client.table("order_items").select(
-                "*, products(name)"
-            ).eq("order_id", order["id"]).execute()
-        )
+        items_result = await db.client.table("order_items").select(
+            "*, products(name)"
+        ).eq("order_id", order["id"]).execute()
         
         items = items_result.data or []
         

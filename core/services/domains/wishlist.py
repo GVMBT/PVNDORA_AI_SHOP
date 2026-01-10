@@ -3,6 +3,7 @@ Wishlist Domain Service
 
 Handles user wishlist operations.
 Currently used only for stock notifications (waitlist_notify_in_stock).
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 
 TODO: Add UI for wishlist management in the frontend.
 User should be able to:
@@ -10,7 +11,6 @@ User should be able to:
 - Add/remove items from wishlist
 - Receive notifications when items come back in stock
 """
-import asyncio
 from typing import List, Dict, Any
 from dataclasses import dataclass
 
@@ -50,11 +50,9 @@ class WishlistService:
             List of WishlistItem
         """
         try:
-            result = await asyncio.to_thread(
-                lambda: self.db.client.table("wishlist").select(
-                    "id,product_id,products(name,price,stock_count:stock_items(count))"
-                ).eq("user_id", user_id).execute()
-            )
+            result = await self.db.client.table("wishlist").select(
+                "id,product_id,products(name,price,stock_count:stock_items(count))"
+            ).eq("user_id", user_id).execute()
             
             items = []
             for item in result.data or []:
@@ -92,25 +90,19 @@ class WishlistService:
             return {"success": False, "reason": "Product not found"}
         
         # Check if already exists
-        existing = await asyncio.to_thread(
-            lambda: self.db.client.table("wishlist")
-            .select("id")
-            .eq("user_id", user_id)
-            .eq("product_id", product_id)
-            .execute()
-        )
+        existing = await self.db.client.table("wishlist").select("id").eq(
+            "user_id", user_id
+        ).eq("product_id", product_id).execute()
         
         if existing.data:
             return {"success": False, "reason": "Already in wishlist"}
         
         try:
-            result = await asyncio.to_thread(
-                lambda: self.db.client.table("wishlist").insert({
-                    "user_id": user_id,
-                    "product_id": product_id,
-                    "reminded": False
-                }).execute()
-            )
+            result = await self.db.client.table("wishlist").insert({
+                "user_id": user_id,
+                "product_id": product_id,
+                "reminded": False
+            }).execute()
             
             if result.data:
                 return {
@@ -137,13 +129,9 @@ class WishlistService:
             Success/failure result
         """
         try:
-            await asyncio.to_thread(
-                lambda: self.db.client.table("wishlist")
-                .delete()
-                .eq("user_id", user_id)
-                .eq("product_id", product_id)
-                .execute()
-            )
+            await self.db.client.table("wishlist").delete().eq(
+                "user_id", user_id
+            ).eq("product_id", product_id).execute()
             
             return {"success": True, "message": "Removed from wishlist"}
         except Exception as e:
@@ -162,13 +150,9 @@ class WishlistService:
             True if in wishlist
         """
         try:
-            result = await asyncio.to_thread(
-                lambda: self.db.client.table("wishlist")
-                .select("id")
-                .eq("user_id", user_id)
-                .eq("product_id", product_id)
-                .execute()
-            )
+            result = await self.db.client.table("wishlist").select("id").eq(
+                "user_id", user_id
+            ).eq("product_id", product_id).execute()
             return bool(result.data)
         except Exception:
             return False

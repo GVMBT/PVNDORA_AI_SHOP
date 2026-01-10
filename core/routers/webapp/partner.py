@@ -2,8 +2,8 @@
 WebApp Partner Router
 
 Partner dashboard and application endpoints.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 
@@ -46,13 +46,9 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
     
     # Check if user is a partner (from referral_stats_extended view)
     try:
-        extended_stats_result = await asyncio.to_thread(
-            lambda: db.client.table("referral_stats_extended")
-            .select("is_partner")
-            .eq("user_id", db_user.id)
-            .limit(1)
-            .execute()
-        )
+        extended_stats_result = await db.client.table("referral_stats_extended").select(
+            "is_partner"
+        ).eq("user_id", db_user.id).limit(1).execute()
         
         is_partner = False
         if extended_stats_result.data and len(extended_stats_result.data) > 0:
@@ -68,9 +64,9 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
     
     # Get partner analytics from view
     try:
-        analytics_result = await asyncio.to_thread(
-            lambda: db.client.table("partner_analytics").select("*").eq("user_id", db_user.id).execute()
-        )
+        analytics_result = await db.client.table("partner_analytics").select("*").eq(
+            "user_id", db_user.id
+        ).execute()
         analytics = analytics_result.data[0] if analytics_result.data else {}
     except Exception as e:
         logger.warning(f"Failed to query partner_analytics: {e}")
@@ -78,20 +74,16 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
     
     # Get direct referrals with their purchase info
     try:
-        referrals_result = await asyncio.to_thread(
-            lambda: db.client.from_("users").select(
-                "id, telegram_id, username, first_name, created_at"
-            ).eq("referrer_id", db_user.id).order("created_at", desc=True).limit(50).execute()
-        )
+        referrals_result = await db.client.from_("users").select(
+            "id, telegram_id, username, first_name, created_at"
+        ).eq("referrer_id", db_user.id).order("created_at", desc=True).limit(50).execute()
         
         # Enrich with purchase data
         referrals = []
         for ref in (referrals_result.data or []):
-            orders_result = await asyncio.to_thread(
-                lambda rid=ref["id"]: db.client.table("orders").select(
-                    "amount, status, created_at"
-                ).eq("user_id", rid).eq("status", "delivered").execute()
-            )
+            orders_result = await db.client.table("orders").select(
+                "amount, status, created_at"
+            ).eq("user_id", ref["id"]).eq("status", "delivered").execute()
             orders = orders_result.data or []
             total_spent = sum(to_float(o.get("amount", 0)) for o in orders)
             
@@ -111,13 +103,11 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
     # Get earnings history (last 7 days)
     try:
         seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-        earnings_result = await asyncio.to_thread(
-            lambda: db.client.table("referral_bonuses").select(
-                "amount, level, created_at"
-            ).eq("user_id", db_user.id).eq("eligible", True).gte(
-                "created_at", seven_days_ago
-            ).order("created_at", desc=True).execute()
-        )
+        earnings_result = await db.client.table("referral_bonuses").select(
+            "amount, level, created_at"
+        ).eq("user_id", db_user.id).eq("eligible", True).gte(
+            "created_at", seven_days_ago
+        ).order("created_at", desc=True).execute()
         
         # Group by day
         daily_earnings = defaultdict(float)
@@ -135,12 +125,10 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
     
     # Get top purchased products by referrals
     try:
-        top_products_result = await asyncio.to_thread(
-            lambda: db.client.rpc("get_partner_top_products", {
-                "p_partner_id": str(db_user.id),
-                "p_limit": 5
-            }).execute()
-        )
+        top_products_result = await db.client.rpc("get_partner_top_products", {
+            "p_partner_id": str(db_user.id),
+            "p_limit": 5
+        }).execute()
         top_products = top_products_result.data or []
     except Exception as e:
         logger.warning(f"get_partner_top_products RPC not available: {e}")
@@ -194,13 +182,9 @@ async def set_partner_mode(request: PartnerModeRequest, user=Depends(verify_tele
     
     # Check if user is a partner (from referral_stats_extended view)
     try:
-        extended_stats_result = await asyncio.to_thread(
-            lambda: db.client.table("referral_stats_extended")
-            .select("is_partner")
-            .eq("user_id", db_user.id)
-            .limit(1)
-            .execute()
-        )
+        extended_stats_result = await db.client.table("referral_stats_extended").select(
+            "is_partner"
+        ).eq("user_id", db_user.id).limit(1).execute()
         
         is_partner = False
         if extended_stats_result.data and len(extended_stats_result.data) > 0:
@@ -225,12 +209,10 @@ async def set_partner_mode(request: PartnerModeRequest, user=Depends(verify_tele
     
     # Update user
     try:
-        result = await asyncio.to_thread(
-            lambda: db.client.table("users").update({
-                "partner_mode": request.mode,
-                "partner_discount_percent": discount_percent
-            }).eq("id", db_user.id).execute()
-        )
+        result = await db.client.table("users").update({
+            "partner_mode": request.mode,
+            "partner_discount_percent": discount_percent
+        }).eq("id", db_user.id).execute()
         
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to update partner mode")
@@ -265,13 +247,9 @@ async def submit_partner_application(request: PartnerApplicationRequest, user=De
     
     # Check if already a partner (from referral_stats_extended view)
     try:
-        extended_stats_result = await asyncio.to_thread(
-            lambda: db.client.table("referral_stats_extended")
-            .select("is_partner")
-            .eq("user_id", db_user.id)
-            .limit(1)
-            .execute()
-        )
+        extended_stats_result = await db.client.table("referral_stats_extended").select(
+            "is_partner"
+        ).eq("user_id", db_user.id).limit(1).execute()
         
         is_partner = False
         if extended_stats_result.data and len(extended_stats_result.data) > 0:
@@ -285,31 +263,27 @@ async def submit_partner_application(request: PartnerApplicationRequest, user=De
         logger.warning(f"Failed to check partner status: {e}")
     
     # Check for existing pending application
-    existing = await asyncio.to_thread(
-        lambda: db.client.table("partner_applications").select("id, status").eq(
-            "user_id", db_user.id
-        ).eq("status", "pending").execute()
-    )
+    existing = await db.client.table("partner_applications").select(
+        "id, status"
+    ).eq("user_id", db_user.id).eq("status", "pending").execute()
     
     if existing.data:
         raise HTTPException(status_code=400, detail="You already have a pending application")
     
     # Insert application
-    result = await asyncio.to_thread(
-        lambda: db.client.table("partner_applications").insert({
-            "user_id": str(db_user.id),
-            "telegram_id": user.id,
-            "username": getattr(user, 'username', None),
-            "email": request.email,
-            "phone": request.phone,
-            "source": request.source,
-            "audience_size": request.audience_size,
-            "description": request.description,
-            "expected_volume": request.expected_volume,
-            "social_links": request.social_links or {},
-            "status": "pending"
-        }).execute()
-    )
+    result = await db.client.table("partner_applications").insert({
+        "user_id": str(db_user.id),
+        "telegram_id": user.id,
+        "username": getattr(user, 'username', None),
+        "email": request.email,
+        "phone": request.phone,
+        "source": request.source,
+        "audience_size": request.audience_size,
+        "description": request.description,
+        "expected_volume": request.expected_volume,
+        "social_links": request.social_links or {},
+        "status": "pending"
+    }).execute()
     
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create application")
@@ -346,13 +320,9 @@ async def get_partner_application_status(user=Depends(verify_telegram_auth)):
     
     # Check if already partner (from referral_stats_extended view)
     try:
-        extended_stats_result = await asyncio.to_thread(
-            lambda: db.client.table("referral_stats_extended")
-            .select("is_partner")
-            .eq("user_id", db_user.id)
-            .limit(1)
-            .execute()
-        )
+        extended_stats_result = await db.client.table("referral_stats_extended").select(
+            "is_partner"
+        ).eq("user_id", db_user.id).limit(1).execute()
         
         is_partner = False
         if extended_stats_result.data and len(extended_stats_result.data) > 0:
@@ -368,11 +338,9 @@ async def get_partner_application_status(user=Depends(verify_telegram_auth)):
         logger.warning(f"Failed to check partner status: {e}")
     
     # Get latest application
-    result = await asyncio.to_thread(
-        lambda: db.client.table("partner_applications").select(
-            "id, status, created_at, admin_comment, reviewed_at"
-        ).eq("user_id", db_user.id).order("created_at", desc=True).limit(1).execute()
-    )
+    result = await db.client.table("partner_applications").select(
+        "id, status, created_at, admin_comment, reviewed_at"
+    ).eq("user_id", db_user.id).order("created_at", desc=True).limit(1).execute()
     
     application = result.data[0] if result.data else None
     

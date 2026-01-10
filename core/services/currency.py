@@ -180,16 +180,11 @@ class CurrencyService:
         """Get exchange rate from Supabase exchange_rates table."""
         try:
             from core.services.database import get_database
-            import asyncio
             
             db = get_database()
-            result = await asyncio.to_thread(
-                lambda: db.client.table("exchange_rates")
-                    .select("rate")
-                    .eq("currency", currency)
-                    .single()
-                    .execute()
-            )
+            result = await db.client.table("exchange_rates").select(
+                "rate"
+            ).eq("currency", currency).single().execute()
             
             if result.data and result.data.get("rate"):
                 return float(result.data["rate"])
@@ -203,18 +198,13 @@ class CurrencyService:
         try:
             from core.services.database import get_database
             from datetime import datetime, timezone
-            import asyncio
             
             db = get_database()
-            await asyncio.to_thread(
-                lambda: db.client.table("exchange_rates")
-                    .upsert({
-                        "currency": currency,
-                        "rate": rate,
-                        "updated_at": datetime.now(timezone.utc).isoformat()
-                    })
-                    .execute()
-            )
+            await db.client.table("exchange_rates").upsert({
+                "currency": currency,
+                "rate": rate,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }).execute()
         except Exception as e:
             logger.warning(f"Failed to update rate in DB for {currency}: {e}")
     
@@ -474,6 +464,70 @@ class CurrencyService:
             if lang in ["ru", "be", "kk"]:
                 return "RUB"
         return "USD"
+    
+    async def convert_balance(
+        self,
+        from_currency: str,
+        to_currency: str,
+        amount: Union[float, Decimal, str, int],
+    ) -> Decimal:
+        """
+        Convert balance between currencies (RUB ↔ USD only).
+        
+        This method is specifically for balance conversions where we only
+        support RUB and USD. Use convert_price() for product price conversions.
+        
+        Args:
+            from_currency: Source currency (RUB or USD)
+            to_currency: Target currency (RUB or USD)
+            amount: Amount to convert
+            
+        Returns:
+            Converted amount as Decimal, properly rounded
+            
+        Raises:
+            ValueError: If currency is not RUB or USD
+            
+        Example:
+            >>> await currency_service.convert_balance("USD", "RUB", 10.0)
+            Decimal('900')  # At rate 90
+            
+            >>> await currency_service.convert_balance("RUB", "USD", 900.0)
+            Decimal('10.00')  # At rate 90
+        """
+        # Validate currencies (only RUB and USD supported for balance)
+        valid_currencies = {"USD", "RUB"}
+        from_currency = from_currency.upper()
+        to_currency = to_currency.upper()
+        
+        if from_currency not in valid_currencies:
+            raise ValueError(f"Invalid from_currency: {from_currency}. Must be USD or RUB")
+        if to_currency not in valid_currencies:
+            raise ValueError(f"Invalid to_currency: {to_currency}. Must be USD or RUB")
+        
+        decimal_amount = to_decimal(amount)
+        
+        # Same currency - no conversion needed
+        if from_currency == to_currency:
+            return round_money(decimal_amount, to_int=(to_currency == "RUB"))
+        
+        # Get RUB rate (1 USD = X RUB)
+        rub_rate = await self.get_exchange_rate("RUB")
+        
+        if from_currency == "USD" and to_currency == "RUB":
+            # USD → RUB: multiply by rate
+            result = decimal_amount * to_decimal(rub_rate)
+            return round_money(result, to_int=True)  # RUB is integer
+        
+        elif from_currency == "RUB" and to_currency == "USD":
+            # RUB → USD: divide by rate
+            if rub_rate == 0:
+                rub_rate = FALLBACK_RATES.get("RUB", 80.0)
+            result = decimal_amount / to_decimal(rub_rate)
+            return round_money(result, to_int=False)  # USD has decimals
+        
+        # Should never reach here due to validation above
+        return round_money(decimal_amount)
     
     async def convert_to_base_currency(
         self, 

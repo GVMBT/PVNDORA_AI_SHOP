@@ -12,7 +12,6 @@ import asyncio
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
-import httpx
 
 # ASGI app
 app = FastAPI()
@@ -47,24 +46,19 @@ def verify_qstash_signature(request: Request, body: bytes) -> bool:
 
 
 async def send_telegram_message(chat_id: int, text: str, token: str = None) -> bool:
-    """Send a message via Telegram Bot API."""
+    """Send a message via Telegram Bot API.
+    
+    Wrapper around consolidated telegram_messaging service.
+    """
+    from core.services.telegram_messaging import send_telegram_message as _send_msg
+    
     bot_token = token or DISCOUNT_BOT_TOKEN
-    if not bot_token:
-        return False
-    
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "HTML"
-    }
-    
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload, timeout=10)
-            return response.status_code == 200
-    except Exception:
-        return False
+    return await _send_msg(
+        chat_id=chat_id,
+        text=text,
+        parse_mode="HTML",
+        bot_token=bot_token
+    )
 
 
 @app.post("/api/workers/deliver-discount-order")
@@ -155,13 +149,14 @@ async def deliver_discount_order(request: Request):
         }).eq("id", order_id).execute()
     )
     
-    # 4. Get user language
+    # 4. Get user language and user_id
     user_result = await asyncio.to_thread(
-        lambda: db.client.table("users").select("language_code").eq(
+        lambda: db.client.table("users").select("id, language_code").eq(
             "telegram_id", telegram_id
         ).single().execute()
     )
     lang = user_result.data.get("language_code", "en") if user_result.data else "en"
+    user_id = user_result.data.get("id") if user_result.data else None
     
     # 5. Send delivery message (structured format)
     if lang == "ru":
@@ -286,7 +281,7 @@ async def deliver_discount_order(request: Request):
     await send_telegram_message(telegram_id, offer_text)
     
     # If user reached 3+ purchases, send loyal promo immediately (not via delayed cron)
-    if purchase_count >= 3:
+    if purchase_count >= 3 and user_id:
         await _send_loyal_promo_if_eligible(user_id, telegram_id, lang, purchase_count)
     
     return JSONResponse({

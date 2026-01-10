@@ -1,4 +1,7 @@
-"""Stock Repository - Stock item operations."""
+"""Stock Repository - Stock item operations.
+
+All methods use async/await with supabase-py v2.
+"""
 from datetime import datetime, timezone
 from typing import Optional, List
 from .base import BaseRepository
@@ -10,7 +13,7 @@ class StockRepository(BaseRepository):
     
     async def get_available(self, product_id: str) -> Optional[StockItem]:
         """Get first available stock item (oldest first)."""
-        result = self.client.table("stock_items").select("*").eq(
+        result = await self.client.table("stock_items").select("*").eq(
             "product_id", product_id
         ).eq("status", "available").order("created_at").limit(1).execute()
         
@@ -18,17 +21,17 @@ class StockRepository(BaseRepository):
     
     async def get_available_count(self, product_id: str) -> int:
         """Get count of available stock items."""
-        result = self.client.table("stock_items").select("id", count="exact").eq(
-            "product_id", product_id
-        ).eq("status", "available").execute()
+        result = await self.client.table("stock_items").select(
+            "id", count="exact"
+        ).eq("product_id", product_id).eq("status", "available").execute()
         
         return result.count or 0
     
     async def reserve(self, stock_item_id: str) -> bool:
         """Mark stock item as sold (atomic)."""
-        result = self.client.table("stock_items").update({"status": "sold"}).eq(
-            "id", stock_item_id
-        ).eq("status", "available").execute()
+        result = await self.client.table("stock_items").update({
+            "status": "sold"
+        }).eq("id", stock_item_id).eq("status", "available").execute()
         
         return len(result.data) > 0
     
@@ -74,14 +77,15 @@ class StockRepository(BaseRepository):
         if supplier_id:
             data["supplier_id"] = supplier_id
         
-        result = self.client.table("stock_items").insert(data).execute()
+        result = await self.client.table("stock_items").insert(data).execute()
         return StockItem(**result.data[0])
     
     async def get_for_product(self, product_id: str, include_sold: bool = False) -> List[StockItem]:
         """Get all stock items for product."""
-        query = self.client.table("stock_items").select("*").eq("product_id", product_id)
+        query = self.client.table("stock_items").select("*").eq(
+            "product_id", product_id
+        )
         if not include_sold:
             query = query.eq("status", "available")
-        result = query.order("created_at", desc=True).execute()
+        result = await query.order("created_at", desc=True).execute()
         return [StockItem(**s) for s in result.data]
-

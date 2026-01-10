@@ -727,9 +727,7 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
         batch_size = 100
         for i in range(0, len(recipient_records), batch_size):
             batch = recipient_records[i:i + batch_size]
-            await asyncio.to_thread(
-                lambda b=batch: db.client.table("broadcast_recipients").insert(b).execute()
-            )
+            await db.client.table("broadcast_recipients").insert(batch).execute()
         logger.info(f"Broadcast {broadcast_id}: {len(recipient_records)} recipient records created")
         
         # 4. Queue to QStash (THE CRITICAL PART - must happen before response)
@@ -915,12 +913,9 @@ async def _get_recipients_list(db, target_bot: str, audience: str, languages: Op
         query = query.eq("is_partner", True)
     elif audience == "buyers":
         # Users with at least one delivered order - use subquery
-        buyers_result = await asyncio.to_thread(
-            lambda: db.client.table("orders")
-            .select("user_id")
-            .eq("status", "delivered")
-            .execute()
-        )
+        buyers_result = await db.client.table("orders").select(
+            "user_id"
+        ).eq("status", "delivered").execute()
         buyer_ids = list(set(o["user_id"] for o in (buyers_result.data or [])))
         if buyer_ids:
             query = query.in_("id", buyer_ids)
@@ -929,12 +924,9 @@ async def _get_recipients_list(db, target_bot: str, audience: str, languages: Op
             return []
     elif audience == "non_buyers":
         # Users without delivered orders
-        buyers_result = await asyncio.to_thread(
-            lambda: db.client.table("orders")
-            .select("user_id")
-            .eq("status", "delivered")
-            .execute()
-        )
+        buyers_result = await db.client.table("orders").select(
+            "user_id"
+        ).eq("status", "delivered").execute()
         buyer_ids = list(set(o["user_id"] for o in (buyers_result.data or [])))
         if buyer_ids:
             query = query.not_.in_("id", buyer_ids)
@@ -943,7 +935,7 @@ async def _get_recipients_list(db, target_bot: str, audience: str, languages: Op
     if languages:
         query = query.in_("language_code", languages)
     
-    result = await asyncio.to_thread(lambda: query.execute())
+    result = await query.execute()
     return result.data or []
 
 

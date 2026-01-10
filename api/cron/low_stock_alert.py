@@ -18,7 +18,6 @@ from fastapi.responses import JSONResponse
 import os
 import asyncio
 import httpx
-import hashlib
 
 # Verify cron secret to prevent unauthorized access
 CRON_SECRET = os.environ.get("CRON_SECRET", "")
@@ -85,23 +84,27 @@ def get_alert_key(product_id: str, stock_status: str) -> str:
 
 
 async def send_telegram_message(chat_id: str, text: str) -> bool:
-    """Send a message via Telegram Bot API."""
-    if not TELEGRAM_TOKEN or not chat_id:
+    """Send a message via Telegram Bot API.
+    
+    Wrapper around consolidated telegram_messaging service.
+    """
+    from core.services.telegram_messaging import send_telegram_message as _send_msg
+    
+    if not chat_id:
         return False
     
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": chat_id.strip(),
-        "text": text,
-        "parse_mode": "HTML"
-    }
-    
+    # Convert string chat_id to int (for admin chat IDs from env)
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload, timeout=10)
-            return response.status_code == 200
-    except Exception:
+        chat_id_int = int(chat_id.strip())
+    except ValueError:
         return False
+    
+    return await _send_msg(
+        chat_id=chat_id_int,
+        text=text,
+        parse_mode="HTML",
+        bot_token=TELEGRAM_TOKEN
+    )
 
 
 def format_stock_alert(products: list) -> str:

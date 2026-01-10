@@ -2,8 +2,8 @@
 Checkout & Payment Tools for Shop Agent.
 
 Order creation, payment processing, balance payments.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 import os
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
@@ -55,13 +55,9 @@ async def checkout_cart(payment_method: str = "card") -> dict:
             }
         
         # Get user with balance_currency and referrer_id for partner discount
-        user_result = await asyncio.to_thread(
-            lambda: db.client.table("users")
-            .select("id, balance, balance_currency, preferred_currency, language_code, referrer_id, interface_language")
-            .eq("telegram_id", ctx.telegram_id)
-            .single()
-            .execute()
-        )
+        user_result = await db.client.table("users").select(
+            "id, balance, balance_currency, preferred_currency, language_code, referrer_id, interface_language"
+        ).eq("telegram_id", ctx.telegram_id).single().execute()
         
         if not user_result.data:
             return {"success": False, "error": "User not found"}
@@ -79,13 +75,9 @@ async def checkout_cart(payment_method: str = "card") -> dict:
                 if not referrer_id:
                     return 0
                 
-                referrer_result = await asyncio.to_thread(
-                    lambda: db.client.table("users")
-                    .select("partner_mode, partner_discount_percent")
-                    .eq("id", str(referrer_id))
-                    .single()
-                    .execute()
-                )
+                referrer_result = await db.client.table("users").select(
+                    "partner_mode, partner_discount_percent"
+                ).eq("id", str(referrer_id)).single().execute()
                 
                 if referrer_result.data:
                     referrer = referrer_result.data
@@ -266,7 +258,7 @@ async def checkout_cart(payment_method: str = "card") -> dict:
         except Exception as e:
             # Critical: order without items is invalid - delete order and fail
             logger.error(f"Failed to create order_items for order {order.id}: {e}")
-            await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())
+            await db.client.table("orders").delete().eq("id", order.id).execute()
             return {"success": False, "error": "Failed to create order items. Please try again."}
         
         # 4. Handle payment based on method
@@ -287,7 +279,7 @@ async def checkout_cart(payment_method: str = "card") -> dict:
             # Compare in user's balance currency
             if user_balance < order_total_in_balance_currency:
                 # Delete order if balance insufficient
-                await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())
+                await db.client.table("orders").delete().eq("id", order.id).execute()
                 
                 balance_formatted = currency_service.format_price(to_float(user_balance), balance_currency)
                 amount_formatted = currency_service.format_price(to_float(order_total_in_balance_currency), balance_currency)
@@ -297,17 +289,15 @@ async def checkout_cart(payment_method: str = "card") -> dict:
             
             # Deduct from balance in user's balance currency using RPC
             try:
-                await asyncio.to_thread(
-                    lambda: db.client.rpc("add_to_user_balance", {
-                        "p_user_id": user_id,
-                        "p_amount": -to_float(order_total_in_balance_currency),
-                        "p_reason": f"Payment for order {order.id}"
-                    }).execute()
-                )
+                await db.client.rpc("add_to_user_balance", {
+                    "p_user_id": user_id,
+                    "p_amount": -to_float(order_total_in_balance_currency),
+                    "p_reason": f"Payment for order {order.id}"
+                }).execute()
                 logger.info(f"Balance deducted {to_float(order_total_in_balance_currency):.2f} {balance_currency} for order {order.id}")
             except Exception as e:
                 # Rollback order on balance deduction error
-                await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())
+                await db.client.table("orders").delete().eq("id", order.id).execute()
                 logger.error(f"Failed to deduct balance for order {order.id}: {e}")
                 return {"success": False, "error": "Ошибка списания с баланса. Попробуйте позже."}
             
@@ -351,13 +341,9 @@ async def checkout_cart(payment_method: str = "card") -> dict:
                 amount_display = to_float(order_total_in_balance_currency)
             
             # Get updated balance for display
-            updated_user_result = await asyncio.to_thread(
-                lambda: db.client.table("users")
-                .select("balance")
-                .eq("id", user_id)
-                .single()
-                .execute()
-            )
+            updated_user_result = await db.client.table("users").select(
+                "balance"
+            ).eq("id", user_id).single().execute()
             new_balance = to_float(updated_user_result.data.get("balance", 0) or 0) if updated_user_result.data else 0
             
             if ctx.currency != balance_currency:
@@ -411,15 +397,10 @@ async def checkout_cart(payment_method: str = "card") -> dict:
             
             # Update order with payment details
             if invoice_id:
-                await asyncio.to_thread(
-                    lambda: db.client.table("orders")
-                    .update({
-                        "payment_id": str(invoice_id),
-                        "payment_url": payment_url
-                    })
-                    .eq("id", order.id)
-                    .execute()
-                )
+                await db.client.table("orders").update({
+                    "payment_id": str(invoice_id),
+                    "payment_url": payment_url
+                }).eq("id", order.id).execute()
             
             # Apply promo code and clear cart
             if cart.promo_code:
@@ -452,10 +433,10 @@ async def checkout_cart(payment_method: str = "card") -> dict:
             logger.error(f"Payment service error: {e}", exc_info=True)
             # Rollback order on payment creation error
             try:
-                await asyncio.to_thread(lambda: db.client.table("order_items").delete().eq("order_id", order.id).execute())
+                await db.client.table("order_items").delete().eq("order_id", order.id).execute()
             except Exception:
                 pass
-            await asyncio.to_thread(lambda: db.client.table("orders").delete().eq("id", order.id).execute())
+            await db.client.table("orders").delete().eq("id", order.id).execute()
             return {
                 "success": False,
                 "error": f"Ошибка платежного шлюза: {str(e)}",
@@ -490,9 +471,9 @@ async def pay_cart_from_balance() -> dict:
             return {"success": False, "error": "Корзина пуста. Сначала добавь товары."}
         
         # Get user's balance and balance_currency (actual currency of balance)
-        user_result = await asyncio.to_thread(
-            lambda: db.client.table("users").select("balance, balance_currency, language_code, preferred_currency").eq("id", ctx.user_id).single().execute()
-        )
+        user_result = await db.client.table("users").select(
+            "balance, balance_currency, language_code, preferred_currency"
+        ).eq("id", ctx.user_id).single().execute()
         
         if not user_result.data:
             return {"success": False, "error": "Пользователь не найден"}

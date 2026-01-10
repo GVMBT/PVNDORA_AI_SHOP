@@ -2,8 +2,8 @@
 WebApp Misc Router
 
 Promo codes, reviews, leaderboard, FAQ, and support ticket endpoints.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -122,23 +122,18 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
         raise HTTPException(status_code=400, detail="Product not found in order")
     
     # Check if THIS specific product in THIS order already has a review
-    existing = await asyncio.to_thread(
-        lambda: db.client.table("reviews").select("id")
-            .eq("order_id", request.order_id)
-            .eq("product_id", product_id)
-            .execute()
-    )
+    existing = await db.client.table("reviews").select("id").eq(
+        "order_id", request.order_id
+    ).eq("product_id", product_id).execute()
     if existing.data:
         raise HTTPException(status_code=400, detail="Вы уже оставили отзыв на этот товар")
     
     # Insert with race condition handling
     try:
-        result = await asyncio.to_thread(
-            lambda: db.client.table("reviews").insert({
-                "user_id": db_user.id, "order_id": request.order_id, "product_id": product_id,
-                "rating": request.rating, "text": request.text, "cashback_given": False
-            }).execute()
-        )
+        result = await db.client.table("reviews").insert({
+            "user_id": db_user.id, "order_id": request.order_id, "product_id": product_id,
+            "rating": request.rating, "text": request.text, "cashback_given": False
+        }).execute()
     except Exception as e:
         error_str = str(e)
         error_type = type(e).__name__
@@ -211,31 +206,27 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
     new_balance = current_balance + cashback_amount
     
     # 1. Update user balance atomically using RPC
-    await asyncio.to_thread(
-        lambda: db.client.rpc("add_to_user_balance", {
-            "p_user_id": str(db_user.id),
-            "p_amount": money_to_float(cashback_amount),
-            "p_reason": f"5% кэшбек за отзыв (заказ {request.order_id})"
-        }).execute()
-    )
+    await db.client.rpc("add_to_user_balance", {
+        "p_user_id": str(db_user.id),
+        "p_amount": money_to_float(cashback_amount),
+        "p_reason": f"5% кэшбек за отзыв (заказ {request.order_id})"
+    }).execute()
     
     # 2. Create balance_transaction for history (amount in balance_currency!)
-    await asyncio.to_thread(
-        lambda: db.client.table("balance_transactions").insert({
-            "user_id": db_user.id, 
-            "type": "cashback", 
-            "amount": cashback_amount,  # In balance_currency
-            "currency": balance_currency,  # User's balance currency
-            "status": "completed", 
-            "description": "5% кэшбек за отзыв", 
-            "reference_id": request.order_id
-        }).execute()
-    )
+    await db.client.table("balance_transactions").insert({
+        "user_id": db_user.id, 
+        "type": "cashback", 
+        "amount": cashback_amount,  # In balance_currency
+        "currency": balance_currency,  # User's balance currency
+        "status": "completed", 
+        "description": "5% кэшбек за отзыв", 
+        "reference_id": request.order_id
+    }).execute()
     
     # 3. Mark review as processed
-    await asyncio.to_thread(
-        lambda: db.client.table("reviews").update({"cashback_given": True}).eq("id", review_id).execute()
-    )
+    await db.client.table("reviews").update({
+        "cashback_given": True
+    }).eq("id", review_id).execute()
     
     # 4. Send notification (best-effort) - pass balance_currency
     try:
@@ -278,11 +269,9 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
         date_filter = (now - timedelta(days=30)).isoformat()
     
     if date_filter:
-        orders_result = await asyncio.to_thread(
-            lambda: db.client.table("orders").select(
-                "user_id,amount,original_price,users(telegram_id,username,first_name,photo_url)"
-            ).eq("status", "delivered").gte("created_at", date_filter).execute()
-        )
+        orders_result = await db.client.table("orders").select(
+            "user_id,amount,original_price,users(telegram_id,username,first_name,photo_url)"
+        ).eq("status", "delivered").gte("created_at", date_filter).execute()
         
         user_savings = {}
         user_ids_from_orders = set()  # Collect user_ids for modules count
@@ -313,57 +302,47 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
         period_modules_count_map = {}
         if user_ids_from_orders:
             for uid in user_ids_from_orders:
-                count_result = await asyncio.to_thread(
-                    lambda uid_param=uid: db.client.table("orders")
-                    .select("id", count="exact")
-                    .eq("user_id", uid_param)
-                    .eq("status", "delivered")
-                    .execute()
-                )
+                count_result = await db.client.table("orders").select(
+                    "id", count="exact"
+                ).eq("user_id", uid).eq("status", "delivered").execute()
                 period_modules_count_map[uid] = count_result.count or 0
     else:
         # Get users with savings (sorted by total_saved desc)
         # Use range() for proper pagination
-        users_with_savings_count = await asyncio.to_thread(
-            lambda: db.client.table("users").select("id", count="exact").gt("total_saved", 0).execute()
-        )
+        users_with_savings_count = await db.client.table("users").select(
+            "id", count="exact"
+        ).gt("total_saved", 0).execute()
         savings_count = users_with_savings_count.count or 0
         
         if offset < savings_count:
             # Still within users who have savings
-            result = await asyncio.to_thread(
-                lambda: db.client.table("users").select("telegram_id,username,first_name,total_saved,photo_url")
-                .gt("total_saved", 0)
-                .order("total_saved", desc=True)
-                .range(offset, offset + LEADERBOARD_SIZE - 1)
-                .execute()
-            )
+            result = await db.client.table("users").select(
+                "telegram_id,username,first_name,total_saved,photo_url"
+            ).gt("total_saved", 0).order("total_saved", desc=True).range(
+                offset, offset + LEADERBOARD_SIZE - 1
+            ).execute()
             result_data = result.data or []
             
             # If we need more to fill the page, get users with 0 savings
             if len(result_data) < LEADERBOARD_SIZE:
                 remaining = LEADERBOARD_SIZE - len(result_data)
-                fill_result = await asyncio.to_thread(
-                    lambda: db.client.table("users").select("telegram_id,username,first_name,total_saved,photo_url")
-                    .eq("total_saved", 0)
-                    .order("created_at", desc=True)
-                    .range(0, remaining - 1)
-                    .execute()
-                )
+                fill_result = await db.client.table("users").select(
+                    "telegram_id,username,first_name,total_saved,photo_url"
+                ).eq("total_saved", 0).order("created_at", desc=True).range(0, remaining - 1).execute()
                 result_data.extend(fill_result.data or [])
         else:
             # We're past all users with savings, now showing users with 0 savings
             zero_offset = offset - savings_count
-            fill_result = await asyncio.to_thread(
-                lambda: db.client.table("users").select("telegram_id,username,first_name,total_saved,photo_url")
-                .eq("total_saved", 0)
-                .order("created_at", desc=True)
-                .range(zero_offset, zero_offset + LEADERBOARD_SIZE - 1)
-                .execute()
-            )
+            fill_result = await db.client.table("users").select(
+                "telegram_id,username,first_name,total_saved,photo_url"
+            ).eq("total_saved", 0).order("created_at", desc=True).range(
+                zero_offset, zero_offset + LEADERBOARD_SIZE - 1
+            ).execute()
             result_data = fill_result.data or []
     
-    total_count = await asyncio.to_thread(lambda: db.client.table("users").select("id", count="exact").execute())
+    total_count = await db.client.table("users").select(
+        "id", count="exact"
+    ).execute()
     total_users = total_count.count or 0
     
     # CRITICAL: If offset exceeds total users, return empty result
@@ -385,9 +364,9 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
         }
     
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    improved_result = await asyncio.to_thread(
-        lambda: db.client.table("orders").select("user_id", count="exact").eq("status", "delivered").gte("created_at", today_start.isoformat()).execute()
-    )
+    improved_result = await db.client.table("orders").select(
+        "user_id", count="exact"
+    ).eq("status", "delivered").gte("created_at", today_start.isoformat()).execute()
     improved_today = improved_result.count or 0
     
     db_user = await db.get_user_by_telegram_id(user.id)
@@ -416,9 +395,9 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
             tg_id = entry.get("telegram_id")
             if tg_id:
                 # Get user_id from telegram_id
-                user_result = await asyncio.to_thread(
-                    lambda tid=tg_id: db.client.table("users").select("id").eq("telegram_id", tid).limit(1).execute()
-                )
+                user_result = await db.client.table("users").select("id").eq(
+                    "telegram_id", tg_id
+                ).limit(1).execute()
                 if user_result.data and len(user_result.data) > 0:
                     user_id = user_result.data[0]["id"]
                     user_ids_for_count.append(user_id)
@@ -428,13 +407,9 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
         if user_ids_for_count:
             # Count delivered orders for each user
             for uid in user_ids_for_count:
-                count_result = await asyncio.to_thread(
-                    lambda uid_param=uid: db.client.table("orders")
-                    .select("id", count="exact")
-                    .eq("user_id", uid_param)
-                    .eq("status", "delivered")
-                    .execute()
-                )
+                count_result = await db.client.table("orders").select(
+                    "id", count="exact"
+                ).eq("user_id", uid).eq("status", "delivered").execute()
                 modules_count_map[uid] = count_result.count or 0
     
     leaderboard = []
@@ -474,24 +449,21 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = 15, offset: i
     if not user_found_in_list and db_user:
         user_saved = float(db_user.total_saved) if hasattr(db_user, 'total_saved') and db_user.total_saved else 0
         if user_saved > 0:
-            rank_result = await asyncio.to_thread(
-                lambda: db.client.table("users").select("id", count="exact").gt("total_saved", user_saved).execute()
-            )
+            rank_result = await db.client.table("users").select(
+                "id", count="exact"
+            ).gt("total_saved", user_saved).execute()
             user_rank = (rank_result.count or 0) + 1
         else:
             # For users with no savings, find their position by created_at
             # This matches the fill_result ordering
             user_created = db_user.created_at
             if user_created:
-                earlier_count = await asyncio.to_thread(
-                    lambda: db.client.table("users").select("id", count="exact")
-                    .eq("total_saved", 0)
-                    .lt("created_at", user_created.isoformat())
-                    .execute()
-                )
-                users_with_savings = await asyncio.to_thread(
-                    lambda: db.client.table("users").select("id", count="exact").gt("total_saved", 0).execute()
-                )
+                earlier_count = await db.client.table("users").select(
+                    "id", count="exact"
+                ).eq("total_saved", 0).lt("created_at", user_created.isoformat()).execute()
+                users_with_savings = await db.client.table("users").select(
+                    "id", count="exact"
+                ).gt("total_saved", 0).execute()
                 user_rank = (users_with_savings.count or 0) + (earlier_count.count or 0) + 1
             else:
                 user_rank = total_users
@@ -526,14 +498,9 @@ async def get_user_tickets(user=Depends(verify_telegram_auth)):
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("tickets")
-        .select("id, status, issue_type, description, admin_comment, created_at, order_id, item_id")
-        .eq("user_id", db_user.id)
-        .order("created_at", desc=True)
-        .limit(20)
-        .execute()
-    )
+    result = await db.client.table("tickets").select(
+        "id, status, issue_type, description, admin_comment, created_at, order_id, item_id"
+    ).eq("user_id", db_user.id).order("created_at", desc=True).limit(20).execute()
     
     tickets = []
     for t in (result.data or []):
@@ -570,14 +537,9 @@ async def create_user_ticket(request: CreateTicketRequest, user=Depends(verify_t
     
     # Validate item_id if provided (must belong to the order)
     if request.item_id and request.order_id:
-        item_result = await asyncio.to_thread(
-            lambda: db.client.table("order_items")
-            .select("id, order_id")
-            .eq("id", request.item_id)
-            .eq("order_id", request.order_id)
-            .limit(1)
-            .execute()
-        )
+        item_result = await db.client.table("order_items").select(
+            "id, order_id"
+        ).eq("id", request.item_id).eq("order_id", request.order_id).limit(1).execute()
         if not item_result.data:
             raise HTTPException(status_code=400, detail="Invalid item ID or item does not belong to the order")
     
@@ -592,9 +554,7 @@ async def create_user_ticket(request: CreateTicketRequest, user=Depends(verify_t
     if request.item_id:
         ticket_data["item_id"] = request.item_id
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("tickets").insert(ticket_data).execute()
-    )
+    result = await db.client.table("tickets").insert(ticket_data).execute()
     
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create ticket")
@@ -615,14 +575,9 @@ async def get_user_ticket(ticket_id: str, user=Depends(verify_telegram_auth)):
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("tickets")
-        .select("*")
-        .eq("id", ticket_id)
-        .eq("user_id", db_user.id)
-        .single()
-        .execute()
-    )
+    result = await db.client.table("tickets").select("*").eq(
+        "id", ticket_id
+    ).eq("user_id", db_user.id).single().execute()
     
     if not result.data:
         raise HTTPException(status_code=404, detail="Ticket not found")

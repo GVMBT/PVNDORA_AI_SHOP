@@ -2,8 +2,8 @@
 Support Domain Service
 
 Handles support tickets, FAQ, and refund requests.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 
@@ -81,16 +81,11 @@ class SupportService:
             # Anti-abuse checks for replacement requests
             if issue_type == "replacement" and item_id:
                 # Check 1: Has this specific item_id already been replaced?
-                existing_replacement = await asyncio.to_thread(
-                    lambda: self.db.client.table("tickets")
-                    .select("id, status, created_at")
-                    .eq("item_id", item_id)
-                    .eq("issue_type", "replacement")
-                    .in_("status", ["open", "approved"])
-                    .order("created_at", desc=True)
-                    .limit(1)
-                    .execute()
-                )
+                existing_replacement = await self.db.client.table("tickets").select(
+                    "id, status, created_at"
+                ).eq("item_id", item_id).eq("issue_type", "replacement").in_(
+                    "status", ["open", "approved"]
+                ).order("created_at", desc=True).limit(1).execute()
                 
                 if existing_replacement.data:
                     # Item already has an open/approved replacement ticket
@@ -103,14 +98,11 @@ class SupportService:
                 from datetime import datetime, timezone
                 today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
                 
-                today_count = await asyncio.to_thread(
-                    lambda: self.db.client.table("tickets")
-                    .select("id", count="exact")
-                    .eq("user_id", user_id)
-                    .eq("issue_type", "replacement")
-                    .gte("created_at", today_start.isoformat())
-                    .execute()
-                )
+                today_count = await self.db.client.table("tickets").select(
+                    "id", count="exact"
+                ).eq("user_id", user_id).eq("issue_type", "replacement").gte(
+                    "created_at", today_start.isoformat()
+                ).execute()
                 
                 if (today_count.count or 0) >= MAX_REPLACEMENT_TICKETS_PER_DAY:
                     return {
@@ -119,15 +111,11 @@ class SupportService:
                     }
                 
                 # Check 3: Cooldown - last replacement request was too recent?
-                last_replacement = await asyncio.to_thread(
-                    lambda: self.db.client.table("tickets")
-                    .select("created_at")
-                    .eq("user_id", user_id)
-                    .eq("issue_type", "replacement")
-                    .order("created_at", desc=True)
-                    .limit(1)
-                    .execute()
-                )
+                last_replacement = await self.db.client.table("tickets").select(
+                    "created_at"
+                ).eq("user_id", user_id).eq("issue_type", "replacement").order(
+                    "created_at", desc=True
+                ).limit(1).execute()
                 
                 if last_replacement.data:
                     last_time = datetime.fromisoformat(last_replacement.data[0]["created_at"].replace("Z", "+00:00"))
@@ -142,15 +130,11 @@ class SupportService:
                 # Check 4: Monthly limit (but allow all items from same order)
                 month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
                 
-                monthly_count = await asyncio.to_thread(
-                    lambda: self.db.client.table("tickets")
-                    .select("id", count="exact")
-                    .eq("user_id", user_id)
-                    .eq("issue_type", "replacement")
-                    .in_("status", ["open", "approved"])
-                    .gte("created_at", month_start.isoformat())
-                    .execute()
-                )
+                monthly_count = await self.db.client.table("tickets").select(
+                    "id", count="exact"
+                ).eq("user_id", user_id).eq("issue_type", "replacement").in_(
+                    "status", ["open", "approved"]
+                ).gte("created_at", month_start.isoformat()).execute()
                 
                 # If approaching limit, check if this is from a new order (allow if so)
                 if (monthly_count.count or 0) >= MAX_REPLACEMENTS_PER_MONTH:
@@ -158,15 +142,11 @@ class SupportService:
                     # If yes, allow (same order = legitimate batch issue)
                     # If no, block (new order = possible abuse)
                     if order_id:
-                        order_replacements = await asyncio.to_thread(
-                            lambda: self.db.client.table("tickets")
-                            .select("id", count="exact")
-                            .eq("user_id", user_id)
-                            .eq("order_id", order_id)
-                            .eq("issue_type", "replacement")
-                            .in_("status", ["open", "approved"])
-                            .execute()
-                        )
+                        order_replacements = await self.db.client.table("tickets").select(
+                            "id", count="exact"
+                        ).eq("user_id", user_id).eq("order_id", order_id).eq(
+                            "issue_type", "replacement"
+                        ).in_("status", ["open", "approved"]).execute()
                         # If this order already has replacement tickets, allow (batch issue)
                         if (order_replacements.count or 0) == 0:
                             return {
@@ -191,9 +171,7 @@ class SupportService:
             if issue_type:
                 ticket_data["issue_type"] = issue_type
             
-            result = await asyncio.to_thread(
-                lambda: self.db.client.table("tickets").insert(ticket_data).execute()
-            )
+            result = await self.db.client.table("tickets").insert(ticket_data).execute()
             
             if result.data:
                 ticket_id = result.data[0].get("id")
@@ -202,13 +180,9 @@ class SupportService:
                 try:
                     from core.services.admin_alerts import get_admin_alert_service
                     # Get user's telegram_id for the alert
-                    user_result = await asyncio.to_thread(
-                        lambda: self.db.client.table("users")
-                        .select("telegram_id")
-                        .eq("id", user_id)
-                        .single()
-                        .execute()
-                    )
+                    user_result = await self.db.client.table("users").select(
+                        "telegram_id"
+                    ).eq("id", user_id).single().execute()
                     tg_id = user_result.data.get("telegram_id", 0) if user_result.data else 0
                     
                     alert_service = get_admin_alert_service()
@@ -320,13 +294,9 @@ class SupportService:
         
         # Check refund quota
         try:
-            open_count = await asyncio.to_thread(
-                lambda: self.db.client.table("orders")
-                .select("id", count="exact")
-                .eq("user_id", user_id)
-                .eq("refund_requested", True)
-                .execute()
-            )
+            open_count = await self.db.client.table("orders").select(
+                "id", count="exact"
+            ).eq("user_id", user_id).eq("refund_requested", True).execute()
             if (open_count.count or 0) >= MAX_OPEN_REFUNDS_PER_USER:
                 return {"success": False, "reason": "Refund request limit reached"}
         except Exception as e:
@@ -335,24 +305,20 @@ class SupportService:
         
         # Create ticket and mark order
         try:
-            ticket_result = await asyncio.to_thread(
-                lambda: self.db.client.table("tickets").insert({
-                    "user_id": user_id,
-                    "order_id": order_id,
-                    "issue_type": "refund",
-                    "description": reason,
-                    "status": "open"
-                }).execute()
-            )
+            ticket_result = await self.db.client.table("tickets").insert({
+                "user_id": user_id,
+                "order_id": order_id,
+                "issue_type": "refund",
+                "description": reason,
+                "status": "open"
+            }).execute()
             
             if not ticket_result.data:
                 return {"success": False, "reason": "Failed to create support ticket"}
             
-            await asyncio.to_thread(
-                lambda: self.db.client.table("orders").update({
-                    "refund_requested": True
-                }).eq("id", order_id).execute()
-            )
+            await self.db.client.table("orders").update({
+                "refund_requested": True
+            }).eq("id", order_id).execute()
             
             return {
                 "success": True,
@@ -386,7 +352,7 @@ class SupportService:
                 query = query.eq("status", status)
             query = query.order("created_at", desc=True).limit(limit)
             
-            result = await asyncio.to_thread(lambda: query.execute())
+            result = await query.execute()
             
             return [
                 SupportTicket(

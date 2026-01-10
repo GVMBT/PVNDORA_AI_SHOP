@@ -2,8 +2,8 @@
 Admin Orders & FAQ Router
 
 Order and FAQ management endpoints.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -31,19 +31,16 @@ async def admin_get_orders(
     """Get all orders with optional filtering - formatted for admin panel"""
     db = get_database()
     
-    def execute_query():
-        query = db.client.table("orders").select(
-            "id, status, amount, fiat_amount, fiat_currency, payment_method, payment_gateway, created_at, source_channel, "
-            "users(telegram_id, username, first_name), "
-            "order_items(product_id, quantity, products(name))"
-        ).order("created_at", desc=True).range(offset, offset + limit - 1)
-        
-        if status:
-            query = query.eq("status", status)
-        
-        return query.execute()
+    query = db.client.table("orders").select(
+        "id, status, amount, fiat_amount, fiat_currency, payment_method, payment_gateway, created_at, source_channel, "
+        "users(telegram_id, username, first_name), "
+        "order_items(product_id, quantity, products(name))"
+    ).order("created_at", desc=True).range(offset, offset + limit - 1)
     
-    result = await asyncio.to_thread(execute_query)
+    if status:
+        query = query.eq("status", status)
+    
+    result = await query.execute()
     orders_data = result.data if result.data else []
     
     # Format orders for admin panel (matching mock data structure)
@@ -96,13 +93,9 @@ async def admin_check_payment(
     db = get_database()
     
     # Get order
-    order_result = await asyncio.to_thread(
-        lambda: db.client.table("orders")
-        .select("id, status, payment_id, payment_gateway, payment_method, amount")
-        .eq("id", order_id)
-        .single()
-        .execute()
-    )
+    order_result = await db.client.table("orders").select(
+        "id, status, payment_id, payment_gateway, payment_method, amount"
+    ).eq("id", order_id).single().execute()
     
     if not order_result.data:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -179,13 +172,9 @@ async def admin_force_order_status(
         )
     
     # Get current order
-    order_result = await asyncio.to_thread(
-        lambda: db.client.table("orders")
-        .select("id, status")
-        .eq("id", order_id)
-        .single()
-        .execute()
-    )
+    order_result = await db.client.table("orders").select(
+        "id, status"
+    ).eq("id", order_id).single().execute()
     
     if not order_result.data:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -193,12 +182,9 @@ async def admin_force_order_status(
     old_status = order_result.data.get("status")
     
     # Update status
-    result = await asyncio.to_thread(
-        lambda: db.client.table("orders")
-        .update({"status": request.new_status})
-        .eq("id", order_id)
-        .execute()
-    )
+    result = await db.client.table("orders").update({
+        "status": request.new_status
+    }).eq("id", order_id).execute()
     
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to update order status")
@@ -221,15 +207,13 @@ async def admin_create_faq(request: CreateFAQRequest, admin=Depends(verify_admin
     """Create a FAQ entry"""
     db = get_database()
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("faq").insert({
-            "question": request.question,
-            "answer": request.answer,
-            "language_code": request.language_code,
-            "category": request.category,
-            "is_active": True
-        }).execute()
-    )
+    result = await db.client.table("faq").insert({
+        "question": request.question,
+        "answer": request.answer,
+        "language_code": request.language_code,
+        "category": request.category,
+        "is_active": True
+    }).execute()
     
     if result.data:
         return {"success": True, "faq": result.data[0]}
@@ -241,8 +225,8 @@ async def admin_get_faq(admin=Depends(verify_admin)):
     """Get all FAQ entries for admin"""
     db = get_database()
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("faq").select("*").order("language_code").order("category").execute()
-    )
+    result = await db.client.table("faq").select("*").order(
+        "language_code"
+    ).order("category").execute()
     
     return {"faq": result.data}

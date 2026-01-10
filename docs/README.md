@@ -6,94 +6,49 @@
 
 ## Структура Документации
 
-### 1. [Архитектура Асинхронных Процессов](./async-architecture.md)
+### 1. [Спецификация API](./api-specification.md)
+Контракт взаимодействия:
+- Эндпоинты для Mini App (webapp)
+- Эндпоинты для QStash Workers
+- Вебхуки (Telegram, CrystalPay)
+- Аутентификация и авторизация
+
+### 2. [Валюты и Локализация](./CURRENCY_LOCALIZATION.md)
+Архитектура валютной системы:
+- Multi-Currency Anchor Architecture
+- Anchor Prices для товаров
+- Transaction Snapshots для точности
+- Balance Currency и конвертация
+
+### 3. [Асинхронная Архитектура](./QSTASH_EXPLAINED.md)
 Описание гибридной асинхронной архитектуры:
 - Best-Effort обработка (BackgroundTasks)
 - Guaranteed Delivery (QStash)
 - Конфигурация и примеры использования
 
-### 2. [Стратегия AI и Спецификация Моделей](./ai-strategy.md)
-Детальная архитектура AI-ядра:
-- RAG (Retrieval Augmented Generation)
-- Function Calling для точности
-- Structured Outputs для детерминизма
-- Pydantic модели и примеры
-
-### 3. [Схема Базы Данных](./database-schema.md)
-ERD и модель данных:
-- Структура таблиц и связей
-- SQL View для оптимизации
-- Хранимые процедуры (RPC)
-- Векторная коллекция (vecs)
-
-### 4. [Спецификация API](./api-specification.md)
-Контракт взаимодействия:
-- Эндпоинты для Mini App
-- Эндпоинты для QStash Workers
-- Вебхуки (Telegram, платежные системы)
-- OpenAPI схема
-
-### 5. [Диаграммы Последовательности](./sequence-diagrams.md)
-Визуализация ключевых процессов:
-- Процесс покупки
-- AI-консультация
-- Резервирование и оплата
-- Обработка ошибок
-
-### 6. [CI/CD Пайплайн](./cicd-pipeline.md)
+### 4. [CI/CD Пайплайн](./cicd-pipeline.md)
 Автоматизация разработки:
 - GitHub Actions workflow
 - Quality Gates
 - Управление секретами
 - Стратегия развертывания
 
-### 7. [Архитектурные Паттерны и Guidelines](./ARCHITECTURE_PATTERNS.md)
-Документация паттернов разработки:
-- Lazy Imports Pattern
-- Dependency Injection
-- Singleton Pattern
-- Barrel Exports
-- Guidelines по добавлению новых модулей
-
-### 8. [Аутентификация](./AUTHENTICATION.md)
+### 5. [Аутентификация](./AUTHENTICATION.md)
 Описание системы аутентификации:
 - Telegram Mini App authentication (initData)
 - Web Browser authentication (session tokens)
 - Общие утилиты и обработка ошибок
 - Troubleshooting
+- [Roadmap](./AUTHENTICATION_ROADMAP.md): Email/Password, Guest Mode, Magic Links
 
-### 8. [FAQ по Безопасности](./SECURITY_FAQ.md)
+### 6. [FAQ по Безопасности](./SECURITY_FAQ.md)
 Ответы на частые вопросы о безопасности:
 - Безопасность Telegram-авторизации
 - Что мы получаем и не получаем от Telegram
 - Планы по альтернативным методам авторизации
 - Рекомендации для пользователей
 
-### 9. [Roadmap: Альтернативные Методы Авторизации](./AUTHENTICATION_ROADMAP.md)
-План развития системы аутентификации:
-- Email/Password регистрация
-- Guest Mode (анонимные покупки)
-- Magic Links
-- OAuth провайдеры
-
-### 10. [UX, Deep Linking и Локализация](./ux-deep-linking.md)
-Спецификация пользовательского опыта:
-- Разделение ответственности: Чат vs Mini App
-- Бесшовный Deep Linking (Base64url)
-- RTL поддержка
-- Культурная адаптация
-- Виральность через switchInlineQuery
-- Human Handoff процесс
-
-### 11. [Валюты и Локализация Цен](./CURRENCY_LOCALIZATION.md)
-Стратегия работы с валютами:
-- Основная валюта: USD ($)
-- Конвертация по курсу для всех языков
-- Маппинг язык → валюта
-- Форматирование цен
-- Интеграция с платежными системами
-
-### 12. [Модель "Под Заказ"](./ON_DEMAND_ORDERS.md)
+### 7. [Модель "Под Заказ"](./ON_DEMAND_ORDERS.md)
 Бизнес-модель работы с товаром "скоропортом":
 - Instant Fulfillment (товар в наличии)
 - Prepaid Orders (товар под заказ)
@@ -101,8 +56,16 @@ ERD и модель данных:
 - Управление корзиной через Redis (до оплаты)
 - Редактирование корзины (изменение количества, удаление товаров)
 - Система возвратов
-- Уведомления поставщиков
 - Таймауты и автоматические возвраты
+
+### 8. [UX, Deep Linking и Локализация](./ux-deep-linking.md)
+Спецификация пользовательского опыта:
+- Разделение ответственности: Чат vs Mini App
+- Бесшовный Deep Linking (Base64url)
+- RTL поддержка
+- Культурная адаптация
+- Виральность через switchInlineQuery
+- Human Handoff процесс
 
 ## Удаленные Функции
 
@@ -112,13 +75,15 @@ ERD и модель данных:
 
 ## Связанные Документы
 
-- [Brief.md](../Brief.md) - Функциональные требования
-- [ARCHITECTURE.md](../ARCHITECTURE.md) - Правила архитектуры
+- [PROJECT_MAP.md](../PROJECT_MAP.md) - Карта проекта и структура
+- [REFACTORING_PLAN.md](../REFACTORING_PLAN.md) - План рефакторинга
+- [REFACTORING_STATUS.md](../REFACTORING_STATUS.md) - Статус рефакторинга
+- [.cursor/rules/](../.cursor/rules/) - Правила архитектуры и разработки
 
 ## Быстрый Старт
 
-1. Изучите [Brief.md](../Brief.md) для понимания бизнес-требований
-2. Ознакомьтесь с [ARCHITECTURE.md](../ARCHITECTURE.md) для архитектурных правил
+1. Изучите [PROJECT_MAP.md](../PROJECT_MAP.md) для понимания структуры проекта
+2. Ознакомьтесь с [.cursor/rules/architecture.mdc](../.cursor/rules/architecture.mdc) для архитектурных правил
 3. Изучите техническую документацию в этой папке для деталей реализации
 
 ## Порядок Реализации
@@ -129,20 +94,34 @@ ERD и модель данных:
    - Vercel (деплой)
 
 2. **База данных:**
-   - Применение миграций
+   - Применение миграций (`supabase/migrations/`)
    - Создание SQL View
-   - Настройка хранимых процедур
+   - Настройка хранимых процедур (RPC)
 
 3. **Backend:**
-   - FastAPI приложение
-   - Интеграция с QStash
-   - AI-консультант с Structured Outputs
+   - FastAPI приложение (`api/index.py`)
+   - Интеграция с QStash (см. [QSTASH_EXPLAINED.md](./QSTASH_EXPLAINED.md))
+   - AI-консультант с LangGraph (OpenRouter + Gemini)
 
 4. **Frontend:**
-   - Mini App (React)
+   - Mini App (React + TypeScript)
    - Интеграция с Telegram WebApp API
+   - Локализация (i18n)
 
 5. **CI/CD:**
    - Настройка GitHub Actions
-   - Автоматизация деплоя
+   - Автоматизация деплоя (см. [cicd-pipeline.md](./cicd-pipeline.md))
+
+---
+
+## Технологический Стек
+
+- **Runtime:** Python 3.12 (Vercel Serverless)
+- **Framework:** FastAPI 0.115+ (single Serverless Function entry point)
+- **AI Core:** OpenRouter API + LangGraph (Model: google/gemini-3-flash-preview)
+- **Database:** Supabase (PostgreSQL) via supabase-py (NO ORM)
+- **Async Messaging:** Upstash QStash (guaranteed delivery)
+- **State/Cache:** Upstash Redis (HTTP REST API)
+- **Frontend:** React 19 + TypeScript + Vite
+- **Deployment:** Vercel (Pro plan required for commercial use)
 

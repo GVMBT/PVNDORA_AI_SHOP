@@ -2,8 +2,8 @@
 Admin Accounting Router
 
 P&L reports, expense tracking, and financial overview.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 
@@ -83,14 +83,10 @@ async def get_financial_overview(
         display_rate = await currency_service.get_exchange_rate(display_currency)
     
     # Get main overview
-    result = await asyncio.to_thread(
-        lambda: db.client.table("financial_overview").select("*").single().execute()
-    )
+    result = await db.client.table("financial_overview").select("*").single().execute()
     
     # Get reserve balance
-    reserves_result = await asyncio.to_thread(
-        lambda: db.client.table("reserve_balance").select("*").single().execute()
-    )
+    reserves_result = await db.client.table("reserve_balance").select("*").single().execute()
     
     data = result.data or {}
     reserves = reserves_result.data or {}
@@ -122,12 +118,9 @@ async def get_financial_overview(
     
     # Get liabilities (user balances + pending withdrawals)
     try:
-        liabilities_result = await asyncio.to_thread(
-            lambda: db.client.table("liabilities_summary")
-            .select("*")
-            .single()
-            .execute()
-        )
+        liabilities_result = await db.client.table("liabilities_summary").select(
+            "*"
+        ).single().execute()
         liabilities = liabilities_result.data or {}
         
         # Convert liabilities to display currency if needed
@@ -155,12 +148,9 @@ async def get_financial_overview(
     
     # Get currency breakdown for all delivered orders
     try:
-        orders_result = await asyncio.to_thread(
-            lambda: db.client.table("orders")
-            .select("fiat_currency, fiat_amount, amount")
-            .eq("status", "delivered")
-            .execute()
-        )
+        orders_result = await db.client.table("orders").select(
+            "fiat_currency, fiat_amount, amount"
+        ).eq("status", "delivered").execute()
         
         orders = orders_result.data or []
         currency_breakdown = {}
@@ -221,13 +211,9 @@ async def get_daily_pl(
     
     view_name = "pl_comprehensive" if comprehensive else "pl_daily"
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table(view_name)
-        .select("*")
-        .order("date", desc=True)
-        .limit(days)
-        .execute()
-    )
+    result = await db.client.table(view_name).select("*").order(
+        "date", desc=True
+    ).limit(days).execute()
     
     data = result.data or []
     
@@ -288,13 +274,9 @@ async def get_monthly_pl(
     """Get monthly P&L report."""
     db = get_database()
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("pl_monthly")
-        .select("*")
-        .order("month", desc=True)
-        .limit(months)
-        .execute()
-    )
+    result = await db.client.table("pl_monthly").select("*").order(
+        "month", desc=True
+    ).limit(months).execute()
     
     data = result.data or []
     
@@ -328,11 +310,7 @@ async def get_product_profitability(admin=Depends(verify_admin)):
     """Get product profitability analysis."""
     db = get_database()
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("product_profitability")
-        .select("*")
-        .execute()
-    )
+    result = await db.client.table("product_profitability").select("*").execute()
     
     return {
         "products": result.data or []
@@ -347,12 +325,9 @@ async def update_product_cost(
     """Update product cost price."""
     db = get_database()
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("products")
-        .update({"cost_price": update.cost_price})
-        .eq("id", update.product_id)
-        .execute()
-    )
+    result = await db.client.table("products").update({
+        "cost_price": update.cost_price
+    }).eq("id", update.product_id).execute()
     
     if not result.data:
         return {"success": False, "error": "Product not found"}
@@ -370,12 +345,9 @@ async def update_product_costs_bulk(
     
     results = []
     for update in updates:
-        result = await asyncio.to_thread(
-            lambda u=update: db.client.table("products")
-            .update({"cost_price": u.cost_price})
-            .eq("id", u.product_id)
-            .execute()
-        )
+        result = await db.client.table("products").update({
+            "cost_price": update.cost_price
+        }).eq("id", update.product_id).execute()
         results.append({
             "product_id": update.product_id,
             "success": bool(result.data)
@@ -393,12 +365,9 @@ async def get_gateway_fees(admin=Depends(verify_admin)):
     """Get all payment gateway fee configurations."""
     db = get_database()
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("payment_gateway_fees")
-        .select("*")
-        .order("gateway")
-        .execute()
-    )
+    result = await db.client.table("payment_gateway_fees").select("*").order(
+        "gateway"
+    ).execute()
     
     return {
         "fees": result.data or []
@@ -425,11 +394,9 @@ async def update_gateway_fee(
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("payment_gateway_fees")
-        .upsert(data, on_conflict="gateway,payment_method")
-        .execute()
-    )
+    result = await db.client.table("payment_gateway_fees").upsert(
+        data, on_conflict="gateway,payment_method"
+    ).execute()
     
     return {"success": True, "fee": result.data[0] if result.data else data}
 
@@ -443,12 +410,7 @@ async def get_accounting_settings(admin=Depends(verify_admin)):
     """Get accounting settings (reserve percentages, default fees)."""
     db = get_database()
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("accounting_settings")
-        .select("*")
-        .single()
-        .execute()
-    )
+    result = await db.client.table("accounting_settings").select("*").single().execute()
     
     return result.data or {
         "reserve_marketing_pct": 5.0,
@@ -474,12 +436,9 @@ async def update_accounting_settings(
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     
-    await asyncio.to_thread(
-        lambda: db.client.table("accounting_settings")
-        .update(data)
-        .eq("id", "00000000-0000-0000-0000-000000000001")
-        .execute()
-    )
+    await db.client.table("accounting_settings").update(data).eq(
+        "id", "00000000-0000-0000-0000-000000000001"
+    ).execute()
     
     return {"success": True, "settings": data}
 
@@ -493,12 +452,7 @@ async def get_liabilities(admin=Depends(verify_admin)):
     """Get current liabilities (user balances, pending withdrawals)."""
     db = get_database()
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("liabilities_summary")
-        .select("*")
-        .single()
-        .execute()
-    )
+    result = await db.client.table("liabilities_summary").select("*").single().execute()
     
     return result.data or {
         "total_user_balances": 0,
@@ -519,13 +473,9 @@ async def get_order_expenses(
     """Get detailed expense breakdown for a specific order."""
     db = get_database()
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("order_expenses")
-        .select("*")
-        .eq("order_id", order_id)
-        .single()
-        .execute()
-    )
+    result = await db.client.table("order_expenses").select("*").eq(
+        "order_id", order_id
+    ).single().execute()
     
     if not result.data:
         return {"error": "No expenses found for this order"}
@@ -541,21 +491,12 @@ async def recalculate_order_expenses(
     """Recalculate expenses for a specific order."""
     db = get_database()
     
-    await asyncio.to_thread(
-        lambda: db.client.rpc(
-            "calculate_order_expenses",
-            {"p_order_id": order_id}
-        ).execute()
-    )
+    await db.client.rpc("calculate_order_expenses", {"p_order_id": order_id}).execute()
     
     # Fetch updated expenses
-    expenses = await asyncio.to_thread(
-        lambda: db.client.table("order_expenses")
-        .select("*")
-        .eq("order_id", order_id)
-        .single()
-        .execute()
-    )
+    expenses = await db.client.table("order_expenses").select("*").eq(
+        "order_id", order_id
+    ).single().execute()
     
     return {
         "success": True,
@@ -569,21 +510,13 @@ async def recalculate_all_expenses(admin=Depends(verify_admin)):
     db = get_database()
     
     # Get all delivered orders
-    orders = await asyncio.to_thread(
-        lambda: db.client.table("orders")
-        .select("id")
-        .eq("status", "delivered")
-        .execute()
-    )
+    orders = await db.client.table("orders").select("id").eq(
+        "status", "delivered"
+    ).execute()
     
     count = 0
     for order in (orders.data or []):
-        await asyncio.to_thread(
-            lambda oid=order["id"]: db.client.rpc(
-                "calculate_order_expenses",
-                {"p_order_id": oid}
-            ).execute()
-        )
+        await db.client.rpc("calculate_order_expenses", {"p_order_id": order["id"]}).execute()
         count += 1
     
     return {
@@ -612,9 +545,7 @@ async def get_expenses(
     if category:
         query = query.eq("category", category)
     
-    result = await asyncio.to_thread(
-        lambda: query.order("date", desc=True).execute()
-    )
+    result = await query.order("date", desc=True).execute()
     
     data = result.data or []
     
@@ -645,13 +576,9 @@ async def create_expense(
     amount_usd = expense.amount
     if expense.currency != "USD":
         # Get exchange rate
-        rate_result = await asyncio.to_thread(
-            lambda: db.client.table("exchange_rates")
-            .select("rate")
-            .eq("currency", expense.currency)
-            .single()
-            .execute()
-        )
+        rate_result = await db.client.table("exchange_rates").select("rate").eq(
+            "currency", expense.currency
+        ).single().execute()
         if rate_result.data:
             rate = float(rate_result.data["rate"])
             amount_usd = expense.amount / rate
@@ -666,9 +593,7 @@ async def create_expense(
         "date": expense.date or datetime.now(timezone.utc).date().isoformat(),
     }
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("expenses").insert(data).execute()
-    )
+    result = await db.client.table("expenses").insert(data).execute()
     
     return {"success": True, "expense": result.data[0] if result.data else data}
 
@@ -700,13 +625,9 @@ async def get_accounting_report(
         start_date = now - timedelta(days=365)
     
     # Get orders with expenses and currency snapshot fields
-    orders_result = await asyncio.to_thread(
-        lambda: db.client.table("orders")
-        .select("id, amount, original_price, discount_percent, created_at, fiat_currency, fiat_amount, exchange_rate_snapshot, order_expenses(*)")
-        .eq("status", "delivered")
-        .gte("created_at", start_date.isoformat())
-        .execute()
-    )
+    orders_result = await db.client.table("orders").select(
+        "id, amount, original_price, discount_percent, created_at, fiat_currency, fiat_amount, exchange_rate_snapshot, order_expenses(*)"
+    ).eq("status", "delivered").gte("created_at", start_date.isoformat()).execute()
     
     orders = orders_result.data or []
     
@@ -769,21 +690,15 @@ async def get_accounting_report(
             replacement_costs += float(expenses.get("insurance_replacement_cost", 0))
     
     # Get insurance revenue
-    insurance_result = await asyncio.to_thread(
-        lambda: db.client.table("insurance_revenue")
-        .select("price")
-        .gte("created_at", start_date.isoformat())
-        .execute()
-    )
+    insurance_result = await db.client.table("insurance_revenue").select("price").gte(
+        "created_at", start_date.isoformat()
+    ).execute()
     insurance_revenue = sum(float(i.get("price", 0)) for i in (insurance_result.data or []))
     
     # Get other expenses
-    other_expenses_result = await asyncio.to_thread(
-        lambda: db.client.table("expenses")
-        .select("amount_usd, category")
-        .gte("date", start_date.date().isoformat())
-        .execute()
-    )
+    other_expenses_result = await db.client.table("expenses").select(
+        "amount_usd, category"
+    ).gte("date", start_date.date().isoformat()).execute()
     
     other_expenses = sum(float(e.get("amount_usd", 0)) for e in (other_expenses_result.data or []))
     
@@ -800,12 +715,7 @@ async def get_accounting_report(
     net_profit = operating_profit - other_expenses + insurance_revenue
     
     # Get liabilities
-    liabilities_result = await asyncio.to_thread(
-        lambda: db.client.table("liabilities_summary")
-        .select("*")
-        .single()
-        .execute()
-    )
+    liabilities_result = await db.client.table("liabilities_summary").select("*").single().execute()
     liabilities = liabilities_result.data or {}
     
     return {

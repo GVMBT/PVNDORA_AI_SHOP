@@ -1,6 +1,6 @@
-"""Command handlers: /start, /help, /my_orders, /wishlist, /referral, /faq, /terms, /support"""
-import asyncio
-
+"""Command handlers: /start, /help, /my_orders, /wishlist, /referral, /faq, /terms, /support
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
+"""
 from aiogram import Router, Bot
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from aiogram.filters import Command, CommandStart
@@ -36,19 +36,15 @@ async def cmd_start(message: Message, db_user: User, bot: Bot):
                     referrer = await db.get_user_by_telegram_id(referral_id)
                     if referrer and referrer.id != db_user.id:
                         # Track referral click (increment referrer's click count)
-                        await asyncio.to_thread(
-                            lambda: db.client.rpc("increment_referral_click", {
-                                "referrer_user_id": referrer.id
-                            }).execute()
-                        )
+                        await db.client.rpc("increment_referral_click", {
+                            "referrer_user_id": referrer.id
+                        }).execute()
                         
                         # Set referrer for new user if not already set
                         if not db_user.referrer_id:
-                            await asyncio.to_thread(
-                                lambda: db.client.table("users").update({
-                                    "referrer_id": referrer.id
-                                }).eq("id", db_user.id).execute()
-                            )
+                            await db.client.table("users").update({
+                                "referrer_id": referrer.id
+                            }).eq("id", db_user.id).execute()
                 except Exception as e:
                     logger.warning(f"Failed to process referral: {e}", exc_info=True)
     

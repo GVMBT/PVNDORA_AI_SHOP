@@ -2,8 +2,8 @@
 Referral Domain Service
 
 Handles referral system operations.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
 
@@ -58,11 +58,9 @@ class ReferralService:
         """
         try:
             # Get user data
-            user_result = await asyncio.to_thread(
-                lambda: self.db.client.table("users").select(
-                    "telegram_id,balance,personal_ref_percent"
-                ).eq("id", user_id).execute()
-            )
+            user_result = await self.db.client.table("users").select(
+                "telegram_id,balance,personal_ref_percent"
+            ).eq("id", user_id).execute()
             
             if not user_result.data:
                 return ReferralInfo(success=False, error="User not found")
@@ -99,12 +97,9 @@ class ReferralService:
         }
         
         # Level 1 - direct referrals
-        level1_result = await asyncio.to_thread(
-            lambda: self.db.client.table("users")
-            .select("id", count="exact")
-            .eq("referrer_id", user_id)
-            .execute()
-        )
+        level1_result = await self.db.client.table("users").select(
+            "id", count="exact"
+        ).eq("referrer_id", user_id).execute()
         levels[1].count = level1_result.count or 0
         
         if levels[1].count == 0:
@@ -115,24 +110,18 @@ class ReferralService:
         
         # Level 2 - referrals of referrals
         for l1_id in level1_ids:
-            l2_result = await asyncio.to_thread(
-                lambda lid=l1_id: self.db.client.table("users")
-                .select("id", count="exact")
-                .eq("referrer_id", lid)
-                .execute()
-            )
+            l2_result = await self.db.client.table("users").select(
+                "id", count="exact"
+            ).eq("referrer_id", l1_id).execute()
             l2_count = l2_result.count or 0
             levels[2].count += l2_count
             
             # Level 3
             if l2_result.data:
                 for l2 in l2_result.data:
-                    l3_result = await asyncio.to_thread(
-                        lambda lid=l2["id"]: self.db.client.table("users")
-                        .select("id", count="exact")
-                        .eq("referrer_id", lid)
-                        .execute()
-                    )
+                    l3_result = await self.db.client.table("users").select(
+                        "id", count="exact"
+                    ).eq("referrer_id", l2["id"]).execute()
                     levels[3].count += l3_result.count or 0
         
         return levels
@@ -148,14 +137,9 @@ class ReferralService:
             Earnings summary
         """
         try:
-            result = await asyncio.to_thread(
-                lambda: self.db.client.table("referral_earnings")
-                .select("*")
-                .eq("user_id", user_id)
-                .order("created_at", desc=True)
-                .limit(50)
-                .execute()
-            )
+            result = await self.db.client.table("referral_earnings").select(
+                "*"
+            ).eq("user_id", user_id).order("created_at", desc=True).limit(50).execute()
             
             total_earned = sum(e.get("amount", 0) for e in result.data or [])
             

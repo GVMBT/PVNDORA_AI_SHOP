@@ -2,8 +2,8 @@
 Admin Referral Router
 
 Referral program settings, metrics, partners management, and applications.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -27,9 +27,7 @@ async def admin_get_referral_settings(admin=Depends(verify_admin)):
     """Get current referral program settings"""
     db = get_database()
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("referral_settings").select("*").limit(1).execute()
-    )
+    result = await db.client.table("referral_settings").select("*").limit(1).execute()
     
     if not result.data or len(result.data) == 0:
         return {
@@ -107,11 +105,9 @@ async def admin_update_referral_settings(request: ReferralSettingsRequest, admin
         
         update_data["thresholds_by_currency"] = request.thresholds_by_currency
     
-    await asyncio.to_thread(
-        lambda: db.client.table("referral_settings").update(update_data).eq(
-            "id", "00000000-0000-0000-0000-000000000001"
-        ).execute()
-    )
+    await db.client.table("referral_settings").update(update_data).eq(
+        "id", "00000000-0000-0000-0000-000000000001"
+    ).execute()
     
     return {"success": True, "updated": update_data}
 
@@ -124,17 +120,15 @@ async def admin_get_referral_metrics(admin=Depends(verify_admin)):
     db = get_database()
     
     try:
-        stats = await asyncio.to_thread(
-            lambda: db.client.table("referral_program_metrics").select("*").single().execute()
-        )
+        stats = await db.client.table("referral_program_metrics").select("*").single().execute()
     except Exception as e:
         logger.warning(f"Failed to query referral_program_metrics: {e}")
         stats = type('obj', (object,), {'data': None})()
     
     try:
-        top_referrers = await asyncio.to_thread(
-            lambda: db.client.table("referral_stats_extended").select("*").order("total_referral_earnings", desc=True).limit(20).execute()
-        )
+        top_referrers = await db.client.table("referral_stats_extended").select("*").order(
+            "total_referral_earnings", desc=True
+        ).limit(20).execute()
     except Exception as e:
         logger.warning(f"Failed to query referral_stats_extended: {e}")
         top_referrers = type('obj', (object,), {'data': []})()
@@ -155,18 +149,14 @@ async def admin_get_referral_dashboard(admin=Depends(verify_admin)):
     db = get_database()
     
     try:
-        roi_result = await asyncio.to_thread(
-            lambda: db.client.table("referral_roi_dashboard").select("*").execute()
-        )
+        roi_result = await db.client.table("referral_roi_dashboard").select("*").execute()
         roi = roi_result.data[0] if roi_result.data else {}
     except Exception as e:
         logger.warning(f"Failed to query referral_roi_dashboard: {e}")
         roi = {}
     
     try:
-        settings_result = await asyncio.to_thread(
-            lambda: db.client.table("referral_settings").select("*").limit(1).execute()
-        )
+        settings_result = await db.client.table("referral_settings").select("*").limit(1).execute()
         settings = settings_result.data[0] if settings_result.data else {}
     except Exception as e:
         logger.warning(f"Failed to query referral_settings: {e}")
@@ -221,9 +211,7 @@ async def admin_get_partners_crm(
             view_name = "partner_analytics"
         
         try:
-            await asyncio.to_thread(
-                lambda: db.client.table(view_name).select("user_id").limit(1).execute()
-            )
+            await db.client.table(view_name).select("user_id").limit(1).execute()
         except Exception as view_error:
             error_msg = str(view_error)
             if "relation" in error_msg.lower() or "does not exist" in error_msg.lower():
@@ -233,15 +221,13 @@ async def admin_get_partners_crm(
                 )
             raise
         
-        result = await asyncio.to_thread(
-            lambda: db.client.table(view_name).select("*").order(
-                sort_by, desc=(sort_order == "desc")
-            ).range(offset, offset + limit - 1).execute()
-        )
+        result = await db.client.table(view_name).select("*").order(
+            sort_by, desc=(sort_order == "desc")
+        ).range(offset, offset + limit - 1).execute()
         
-        count_result = await asyncio.to_thread(
-            lambda: db.client.table(view_name).select("user_id", count="exact").execute()
-        )
+        count_result = await db.client.table(view_name).select(
+            "user_id", count="exact"
+        ).execute()
         
         partners = []
         for p in (result.data or []):
@@ -284,25 +270,19 @@ async def admin_get_referral_metrics_detailed(admin=Depends(verify_admin)):
     db = get_database()
     
     try:
-        metrics_result = await asyncio.to_thread(
-            lambda: db.client.table("referral_program_metrics").select("*").execute()
-        )
+        metrics_result = await db.client.table("referral_program_metrics").select("*").execute()
         metrics = metrics_result.data[0] if metrics_result.data else {}
     except Exception as e:
         logger.warning(f"Failed to query referral_program_metrics: {e}")
         metrics = {}
     
-    top_earners = await asyncio.to_thread(
-        lambda: db.client.table("users").select(
-            "id, telegram_id, username, first_name, total_referral_earnings, turnover_usd, is_partner"
-        ).gt("total_referral_earnings", 0).order("total_referral_earnings", desc=True).limit(20).execute()
-    )
+    top_earners = await db.client.table("users").select(
+        "id, telegram_id, username, first_name, total_referral_earnings, turnover_usd, is_partner"
+    ).gt("total_referral_earnings", 0).order("total_referral_earnings", desc=True).limit(20).execute()
     
-    pending_bonuses = await asyncio.to_thread(
-        lambda: db.client.table("referral_bonuses").select(
-            "amount, level, ineligible_reason"
-        ).eq("eligible", False).execute()
-    )
+    pending_bonuses = await db.client.table("referral_bonuses").select(
+        "amount, level, ineligible_reason"
+    ).eq("eligible", False).execute()
     
     pending_by_level = {"level1": 0, "level2": 0, "level3": 0}
     for bonus in (pending_bonuses.data or []):
@@ -337,22 +317,18 @@ async def admin_get_partners(admin=Depends(verify_admin)):
     """Get all partners (VIP referrers)"""
     db = get_database()
     
-    result = await asyncio.to_thread(
-        lambda: db.client.table("users").select(
-            "id, telegram_id, username, first_name, is_partner, partner_level_override, "
-            "turnover_usd, referral_program_unlocked, total_referral_earnings, balance, "
-            "level1_unlocked_at, level2_unlocked_at, level3_unlocked_at, created_at"
-        ).eq("is_partner", True).order("total_referral_earnings", desc=True).execute()
-    )
+    result = await db.client.table("users").select(
+        "id, telegram_id, username, first_name, is_partner, partner_level_override, "
+        "turnover_usd, referral_program_unlocked, total_referral_earnings, balance, "
+        "level1_unlocked_at, level2_unlocked_at, level3_unlocked_at, created_at"
+    ).eq("is_partner", True).order("total_referral_earnings", desc=True).execute()
     
     partners = []
     for p in (result.data or []):
         try:
-            stats_result = await asyncio.to_thread(
-                lambda uid=p["id"]: db.client.table("referral_stats_extended").select(
-                    "level1_count, level2_count, level3_count, effective_level"
-                ).eq("user_id", uid).execute()
-            )
+            stats_result = await db.client.table("referral_stats_extended").select(
+                "level1_count, level2_count, level3_count, effective_level"
+            ).eq("user_id", p["id"]).execute()
             stats = stats_result.data[0] if stats_result.data else {}
         except Exception as e:
             logger.warning(f"Failed to query referral_stats_extended for partner {p['id']}: {e}")
@@ -375,24 +351,20 @@ async def admin_set_partner(request: SetPartnerRequest, admin=Depends(verify_adm
     """Set user as partner and optionally force-unlock referral levels."""
     db = get_database()
     
-    user_result = await asyncio.to_thread(
-        lambda: db.client.table("users").select("id, username").eq(
-            "telegram_id", request.telegram_id
-        ).single().execute()
-    )
+    user_result = await db.client.table("users").select("id, username").eq(
+        "telegram_id", request.telegram_id
+    ).single().execute()
     
     if not user_result.data:
         raise HTTPException(status_code=404, detail=f"User with telegram_id {request.telegram_id} not found")
     
     user_id = user_result.data["id"]
     
-    result = await asyncio.to_thread(
-        lambda: db.client.rpc("admin_set_partner_level", {
-            "p_user_id": user_id,
-            "p_level": request.level_override if request.level_override is not None else 0,
-            "p_is_partner": request.is_partner
-        }).execute()
-    )
+    result = await db.client.rpc("admin_set_partner_level", {
+        "p_user_id": user_id,
+        "p_level": request.level_override if request.level_override is not None else 0,
+        "p_is_partner": request.is_partner
+    }).execute()
     
     rpc_result = result.data
     if isinstance(rpc_result, list):
@@ -426,9 +398,7 @@ async def admin_get_partner_applications(
     if status != "all":
         query = query.eq("status", status)
     
-    result = await asyncio.to_thread(
-        lambda: query.order("created_at", desc=True).execute()
-    )
+    result = await query.order("created_at", desc=True).execute()
     
     return {
         "applications": result.data or [],
@@ -442,11 +412,9 @@ async def admin_review_application(request: ReviewApplicationRequest, admin=Depe
     db = get_database()
     
     # Get application with user's telegram_id for notification
-    app_result = await asyncio.to_thread(
-        lambda: db.client.table("partner_applications").select(
-            "id, user_id, status, telegram_id"
-        ).eq("id", request.application_id).single().execute()
-    )
+    app_result = await db.client.table("partner_applications").select(
+        "id, user_id, status, telegram_id"
+    ).eq("id", request.application_id).single().execute()
     
     if not app_result.data:
         raise HTTPException(status_code=404, detail="Application not found")
@@ -462,23 +430,19 @@ async def admin_review_application(request: ReviewApplicationRequest, admin=Depe
     if not admin_id:
         raise HTTPException(status_code=500, detail="Admin ID not available")
     
-    await asyncio.to_thread(
-        lambda: db.client.table("partner_applications").update({
-            "status": new_status,
-            "admin_comment": request.admin_comment,
-            "reviewed_by": admin_id,
-            "reviewed_at": datetime.now(timezone.utc).isoformat()
-        }).eq("id", request.application_id).execute()
-    )
+    await db.client.table("partner_applications").update({
+        "status": new_status,
+        "admin_comment": request.admin_comment,
+        "reviewed_by": admin_id,
+        "reviewed_at": datetime.now(timezone.utc).isoformat()
+    }).eq("id", request.application_id).execute()
     
     if request.approve:
-        await asyncio.to_thread(
-            lambda: db.client.rpc("admin_set_partner_level", {
-                "p_user_id": user_id,
-                "p_level": request.level_override,
-                "p_is_partner": True
-            }).execute()
-        )
+        await db.client.rpc("admin_set_partner_level", {
+            "p_user_id": user_id,
+            "p_level": request.level_override,
+            "p_is_partner": True
+        }).execute()
     
     # Send user notification (best-effort)
     if user_telegram_id:

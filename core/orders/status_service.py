@@ -3,10 +3,11 @@ Order Status Management Service
 
 Centralized service for managing order status transitions.
 Ensures status changes only happen after payment confirmation.
+
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 from datetime import datetime, timezone
 from typing import Optional
-import asyncio
 
 from core.logging import get_logger
 
@@ -22,13 +23,9 @@ class OrderStatusService:
     async def get_order_status(self, order_id: str) -> Optional[str]:
         """Get current order status."""
         try:
-            result = await asyncio.to_thread(
-                lambda: self.db.client.table("orders")
-                .select("status")
-                .eq("id", order_id)
-                .single()
-                .execute()
-            )
+            result = await self.db.client.table("orders").select(
+                "status"
+            ).eq("id", order_id).single().execute()
             if result.data:
                 return result.data.get("status")
         except Exception as e:
@@ -102,12 +99,9 @@ class OrderStatusService:
             
             logger.info(f"[StatusService] Updating order {order_id} with data: {update_data}")
             
-            result = await asyncio.to_thread(
-                lambda: self.db.client.table("orders")
-                .update(update_data)
-                .eq("id", order_id)
-                .execute()
-            )
+            result = await self.db.client.table("orders").update(
+                update_data
+            ).eq("id", order_id).execute()
             
             # Log the result to verify update happened
             rows_affected = len(result.data) if result.data else 0
@@ -148,13 +142,9 @@ class OrderStatusService:
             # Get order info
         try:
             logger.info(f"[mark_payment_confirmed] Fetching order {order_id} from DB...")
-            order_result = await asyncio.to_thread(
-                lambda: self.db.client.table("orders")
-                .select("status, order_type, payment_method, user_id, amount")
-                .eq("id", order_id)
-                .single()
-                .execute()
-            )
+            order_result = await self.db.client.table("orders").select(
+                "status, order_type, payment_method, user_id, amount"
+            ).eq("id", order_id).single().execute()
             logger.info(f"[mark_payment_confirmed] Order fetch result: {order_result.data}")
             
             if not order_result.data:
@@ -188,12 +178,9 @@ class OrderStatusService:
             if payment_id:
                 try:
                     logger.info(f"[mark_payment_confirmed] Updating payment_id to {payment_id}")
-                    await asyncio.to_thread(
-                        lambda: self.db.client.table("orders")
-                        .update({"payment_id": payment_id})
-                        .eq("id", order_id)
-                        .execute()
-                    )
+                    await self.db.client.table("orders").update({
+                        "payment_id": payment_id
+                    }).eq("id", order_id).execute()
                 except Exception as e:
                     logger.warning(f"Failed to update payment_id for {order_id}: {e}")
             
@@ -215,46 +202,36 @@ class OrderStatusService:
             if payment_method and payment_method.lower() != "balance" and user_id and order_amount:
                 try:
                     # Check if transaction already exists (idempotency)
-                    existing_tx = await asyncio.to_thread(
-                        lambda: self.db.client.table("balance_transactions")
-                        .select("id")
-                        .eq("user_id", user_id)
-                        .eq("type", "purchase")
-                        .eq("description", f"Purchase: Order {order_id}")
-                        .limit(1)
-                        .execute()
-                    )
+                    existing_tx = await self.db.client.table("balance_transactions").select(
+                        "id"
+                    ).eq("user_id", user_id).eq("type", "purchase").eq(
+                        "description", f"Purchase: Order {order_id}"
+                    ).limit(1).execute()
                     
                     if not existing_tx.data:
                         # Get user's current balance and currency for logging
-                        user_result = await asyncio.to_thread(
-                            lambda: self.db.client.table("users")
-                            .select("balance, preferred_currency")
-                            .eq("id", user_id)
-                            .single()
-                            .execute()
-                        )
+                        user_result = await self.db.client.table("users").select(
+                            "balance, preferred_currency"
+                        ).eq("id", user_id).single().execute()
                         current_balance = float(user_result.data.get("balance", 0)) if user_result.data else 0
                         user_currency = user_result.data.get("preferred_currency", "RUB") if user_result.data else "RUB"
                         
                         # Create purchase transaction record
-                        await asyncio.to_thread(
-                            lambda: self.db.client.table("balance_transactions").insert({
-                                "user_id": user_id,
-                                "type": "purchase",
-                                "amount": float(order_amount),
-                                "currency": user_currency,
-                                "balance_before": current_balance,
-                                "balance_after": current_balance,  # Balance doesn't change for external payments
-                                "status": "completed",
-                                "description": f"Purchase: Order {order_id}",
-                                "metadata": {
-                                    "order_id": order_id,
-                                    "payment_method": payment_method,
-                                    "payment_id": payment_id
-                                }
-                            }).execute()
-                        )
+                        await self.db.client.table("balance_transactions").insert({
+                            "user_id": user_id,
+                            "type": "purchase",
+                            "amount": float(order_amount),
+                            "currency": user_currency,
+                            "balance_before": current_balance,
+                            "balance_after": current_balance,  # Balance doesn't change for external payments
+                            "status": "completed",
+                            "description": f"Purchase: Order {order_id}",
+                            "metadata": {
+                                "order_id": order_id,
+                                "payment_method": payment_method,
+                                "payment_id": payment_id
+                            }
+                        }).execute()
                         logger.info(f"[mark_payment_confirmed] Created balance_transaction for purchase order {order_id}")
                     else:
                         logger.info(f"[mark_payment_confirmed] balance_transaction already exists for order {order_id}, skipping")
@@ -266,12 +243,10 @@ class OrderStatusService:
             if final_status == "prepaid":
                 try:
                     logger.info(f"[mark_payment_confirmed] Setting fulfillment deadline for prepaid order {order_id}")
-                    await asyncio.to_thread(
-                        lambda: self.db.client.rpc("set_fulfillment_deadline_for_prepaid_order", {
-                            "p_order_id": order_id,
-                            "p_hours_from_now": 48
-                        }).execute()
-                    )
+                    await self.db.client.rpc("set_fulfillment_deadline_for_prepaid_order", {
+                        "p_order_id": order_id,
+                        "p_hours_from_now": 48
+                    }).execute()
                 except Exception as e:
                     logger.warning(f"Failed to set fulfillment deadline for {order_id}: {e}")
             
@@ -289,13 +264,9 @@ class OrderStatusService:
             from core.services.admin_alerts import get_admin_alert_service
             
             # Get order details for alert
-            order_details = await asyncio.to_thread(
-                lambda: self.db.client.table("orders")
-                .select("fiat_currency, users(telegram_id, username)")
-                .eq("id", order_id)
-                .single()
-                .execute()
-            )
+            order_details = await self.db.client.table("orders").select(
+                "fiat_currency, users(telegram_id, username)"
+            ).eq("id", order_id).single().execute()
             
             user_data = order_details.data.get("users", {}) or {} if order_details.data else {}
             telegram_id = user_data.get("telegram_id", 0)
@@ -303,13 +274,9 @@ class OrderStatusService:
             currency = order_details.data.get("fiat_currency", "RUB") if order_details.data else "RUB"
             
             # Get product name from order items
-            items_result = await asyncio.to_thread(
-                lambda: self.db.client.table("order_items")
-                .select("quantity, products(name)")
-                .eq("order_id", order_id)
-                .limit(3)
-                .execute()
-            )
+            items_result = await self.db.client.table("order_items").select(
+                "quantity, products(name)"
+            ).eq("order_id", order_id).limit(3).execute()
             
             product_names = []
             total_qty = 0
@@ -345,12 +312,9 @@ class OrderStatusService:
         """
         try:
             # Get order items
-            items_result = await asyncio.to_thread(
-                lambda: self.db.client.table("order_items")
-                .select("product_id, fulfillment_type")
-                .eq("order_id", order_id)
-                .execute()
-            )
+            items_result = await self.db.client.table("order_items").select(
+                "product_id, fulfillment_type"
+            ).eq("order_id", order_id).execute()
             
             if not items_result.data:
                 return False
@@ -361,14 +325,9 @@ class OrderStatusService:
             
             for product_id in product_ids:
                 # Check if product has ANY available stock right now
-                stock_check = await asyncio.to_thread(
-                    lambda pid=product_id: self.db.client.table("stock_items")
-                    .select("id")
-                    .eq("product_id", pid)
-                    .eq("status", "available")
-                    .limit(1)
-                    .execute()
-                )
+                stock_check = await self.db.client.table("stock_items").select(
+                    "id"
+                ).eq("product_id", product_id).eq("status", "available").limit(1).execute()
                 if stock_check.data:
                     # At least one product has stock
                     return True

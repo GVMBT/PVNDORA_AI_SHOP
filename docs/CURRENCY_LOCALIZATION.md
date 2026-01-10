@@ -1,308 +1,289 @@
 # Валюты и Локализация Цен
 
-## Стратегия Валют
+## Обзор
 
-### Основная Валюта: USD ($)
+PVNDORA использует **Multi-Currency Anchor Architecture** для стабильного ценообразования в международном сервисе.
 
-**Принцип:** Все цены в базе данных хранятся в долларах США (USD) как основная валюта.
+**Принципы:**
+- **Anchor Prices**: Фиксированные цены для каждой валюты (RUB, USD)
+- **Transaction Snapshots**: Фиксация курса на момент транзакции
+- **Balance Currency**: Баланс пользователя в его валюте (определяется по Telegram language_code)
+- **Snapshot Architecture**: Заморозка курсов для точной бухгалтерии
 
-**Причины:**
-- Стабильность курса
-- Международный стандарт для цифровых товаров
-- Упрощение управления ценами
+---
 
-### Конвертация по Курсу
+## Архитектура "Якорных Валют" (Currency Anchors)
 
-**Механизм:** Все остальные валюты конвертируются из USD по актуальному курсу в момент отображения.
+### 1. Anchor Prices для Товаров
 
-**Реализация:**
+**Таблица `products`:**
+- `price` (NUMERIC) - базовая цена в USD (для обратной совместимости)
+- `prices` (JSONB) - фиксированные цены по валютам: `{"RUB": 990, "USD": 10.5}`
 
+**Логика:**
+- Если есть anchor price в валюте пользователя → используется он
+- Если нет anchor price → конвертация из USD по текущему курсу
+- Anchor prices задаются вручную через админку
+
+### 2. Balance Currency (Валюта Баланса)
+
+**Таблица `users`:**
+- `balance` (NUMERIC) - баланс в валюте `balance_currency`
+- `balance_currency` (VARCHAR) - валюта баланса (RUB | USD)
+
+**Определение валюты:**
 ```python
-# Пример структуры для конвертации
-CURRENCY_RATES = {
-    "USD": 1.0,      # Базовая валюта
-    "RUB": 95.0,     # Примерный курс (обновляется)
-    "EUR": 0.92,     # Примерный курс
-    "UAH": 38.0,     # Примерный курс
-    # ... для всех поддерживаемых валют
+LANGUAGE_TO_CURRENCY: Dict[str, str] = {
+    "ru": "RUB",  # Русский → Рубли
+    "be": "RUB",  # Белорусский → Рубли
+    "kk": "RUB",  # Казахский → Рубли
+    # Остальные → USD (по умолчанию)
 }
 
-def convert_price(price_usd: float, target_currency: str) -> float:
-    """Конвертация цены из USD в целевую валюту"""
-    rate = CURRENCY_RATES.get(target_currency, 1.0)
-    return price_usd * rate
-
-def format_price(price: float, currency: str) -> str:
-    """Форматирование цены с символом валюты"""
-    symbols = {
-        "USD": "$",
-        "RUB": "₽",
-        "EUR": "€",
-        "UAH": "₴",
-        "GBP": "£",
-        "TRY": "₺",
-        "INR": "₹",
-        "AED": "د.إ"
-    }
-    symbol = symbols.get(currency, currency)
-    return f"{price:.2f} {symbol}"
+# При регистрации:
+balance_currency = LANGUAGE_TO_CURRENCY.get(language_code, "USD")
 ```
 
-## Определение Валюты по Языку
+**Смена валюты баланса:**
+- Пользователь может конвертировать баланс через `POST /profile/convert-balance`
+- При конвертации баланс пересчитывается по текущему курсу
+- Логируется в `balance_transactions` как транзакция типа "conversion"
 
-### Маппинг Язык → Валюта
+### 3. Transaction Snapshots (Снимки Транзакций)
 
-```python
-LANGUAGE_TO_CURRENCY = {
-    "ru": "RUB",      # Русский → Рубли
-    "uk": "UAH",      # Украинский → Гривны
-    "en": "USD",      # Английский → Доллары
-    "de": "EUR",      # Немецкий → Евро
-    "fr": "EUR",      # Французский → Евро
-    "es": "EUR",      # Испанский → Евро
-    "tr": "TRY",      # Турецкий → Лиры
-    "ar": "AED",      # Арабский → Дирхамы (или USD)
-    "hi": "INR"       # Хинди → Рупии
-}
-```
+**Таблица `orders`:**
+- `amount` (NUMERIC) - базовая сумма в USD (для отчетности)
+- `fiat_amount` (NUMERIC) - сумма в валюте оплаты (snapshot)
+- `fiat_currency` (VARCHAR) - валюта оплаты (snapshot)
+- `exchange_rate_snapshot` (NUMERIC) - курс на момент покупки (snapshot)
 
-### Логика Определения
+**Таблица `withdrawal_requests`:**
+- `amount_debited` (NUMERIC) - сумма списания в валюте баланса
+- `amount_to_pay` (NUMERIC) - фиксированная сумма USDT к выплате (snapshot)
+- `exchange_rate` (NUMERIC) - курс на момент создания заявки (RUB → USDT)
+- `usdt_rate` (NUMERIC) - курс USDT/USD на момент заявки (snapshot)
+- `network_fee` (NUMERIC) - комиссия сети TRC20 (1.5 USDT)
 
-1. **Извлечение языка пользователя:**
-   ```python
-   user_language = update.message.from_user.language_code  # "ru", "en", etc.
-   ```
+**Принцип:**
+- Курс фиксируется в момент создания заказа/заявки
+- Бухгалтерия использует snapshot курсы, а не текущие
+- Это гарантирует точность P&L отчетов
 
-2. **Определение валюты:**
-   ```python
-   currency = LANGUAGE_TO_CURRENCY.get(user_language, "USD")  # По умолчанию USD
-   ```
+---
 
-3. **Конвертация и форматирование:**
-   ```python
-   price_usd = product.price  # Из БД в USD
-   price_local = convert_price(price_usd, currency)
-   formatted_price = format_price(price_local, currency)
-   ```
+## CurrencyService
 
-## Хранение в Базе Данных
+**Файл:** `core/services/currency.py`
 
-### Структура Таблицы products
-
-```sql
-CREATE TABLE products (
-    id UUID PRIMARY KEY,
-    name TEXT NOT NULL,
-    price NUMERIC NOT NULL,  -- Цена в USD
-    -- ... другие поля
-);
-```
-
-**Важно:** Поле `price` всегда хранит цену в USD.
-
-### Пример Данных
-
-```sql
-INSERT INTO products (name, price) VALUES
-    ('ChatGPT Plus', 20.00),  -- $20 USD
-    ('Midjourney', 10.00),     -- $10 USD
-    ('Claude Pro', 25.00);     -- $25 USD
-```
-
-## Отображение в AI-Ответах
-
-### Форматирование в System Prompt
-
-```python
-SYSTEM_PROMPT = """
-...
-## Price Display Rules
-- Always show price in user's local currency
-- Format: "{price} {currency_symbol}"
-- Examples:
-  - Russian: "300₽/мес"
-  - English: "$20/month"
-  - Arabic: "75 د.إ/شهر"
-- If discount applies, show both: "270₽ ~~300₽~~ (скидка 10%)"
-
-## Language and Currency
-User language: {user_language}
-Currency: {currency}
-Exchange rate: 1 USD = {exchange_rate} {currency}
-"""
-```
-
-### Пример AI-Ответа
-
-**Для русского пользователя:**
-```
-ChatGPT Plus — 1900₽/мес
-(скидка 5% за простой 1 месяц)
-Итого: 1805₽
-```
-
-**Для английского пользователя:**
-```
-ChatGPT Plus — $20/month
-(discount 5% for 1 month in stock)
-Total: $19
-```
-
-**Для арабского пользователя:**
-```
-ChatGPT Plus — 75 د.إ/شهر
-(خصم 5% لمدة شهر في المخزن)
-الإجمالي: 71.25 د.إ
-```
-
-## Обновление Курсов Валют
-
-### Источники Курсов
-
-1. **Внешний API** (рекомендуется):
-   - ExchangeRate API
-   - OpenExchangeRates
-   - CurrencyLayer
-
-2. **Кэширование:**
-   - Обновление курсов раз в час
-   - Хранение в Redis для быстрого доступа
-
-### Реализация
-
-```python
-import httpx
-from datetime import datetime, timedelta
-
-async def update_currency_rates():
-    """Обновление курсов валют"""
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            "https://api.exchangerate-api.com/v4/latest/USD"
-        )
-        rates = response.json()["rates"]
-        
-        # Сохранение в Redis с TTL 1 час
-        redis.setex(
-            "currency_rates",
-            3600,
-            json.dumps(rates)
-        )
-
-async def get_currency_rate(target_currency: str) -> float:
-    """Получение актуального курса"""
-    rates_json = redis.get("currency_rates")
-    if not rates_json:
-        await update_currency_rates()
-        rates_json = redis.get("currency_rates")
-    
-    rates = json.loads(rates_json)
-    return rates.get(target_currency, 1.0)
-```
-
-## Интеграция с Платежными Системами
-
-### Выбор Платежной Системы
-
-```python
-def get_payment_provider(currency: str, language: str) -> str:
-    """Определение платежного провайдера"""
-    # Используется только CrystalPay для всех регионов
-    return "crystalpay"
-```
-
-### Конвертация для Платежа
-
-```python
-async def create_payment(order: dict, user_language: str):
-    """Создание платежа с правильной валютой"""
-    currency = LANGUAGE_TO_CURRENCY.get(user_language, "USD")
-    rate = await get_currency_rate(currency)
-    
-    price_usd = order["amount"]
-    price_local = price_usd * rate
-    
-    # Округление до 2 знаков
-    price_local = round(price_local, 2)
-    
-    # Создание платежа в локальной валюте
-    payment = await payment_provider.create_payment(
-        amount=price_local,
-        currency=currency
-    )
-    
-    return payment
-```
-
-## Особые Случаи
-
-### Округление Цен
-
-```python
-def round_price(price: float, currency: str) -> float:
-    """Округление цены в зависимости от валюты"""
-    # Для рублевой зоны - до целых
-    if currency in ["RUB", "UAH"]:
-        return round(price)
-    
-    # Для долларов/евро - до 2 знаков
-    if currency in ["USD", "EUR"]:
-        return round(price, 2)
-    
-    # Для других - по умолчанию 2 знака
-    return round(price, 2)
-```
-
-### Отображение Скидок
-
-```python
-def format_discount_price(original_usd: float, discount_percent: float, currency: str) -> str:
-    """Форматирование цены со скидкой"""
-    rate = get_currency_rate(currency)
-    
-    original_local = original_usd * rate
-    final_local = original_local * (1 - discount_percent / 100)
-    
-    original_formatted = format_price(round_price(original_local, currency), currency)
-    final_formatted = format_price(round_price(final_local, currency), currency)
-    
-    return f"{final_formatted} ~~{original_formatted}~~ (скидка {discount_percent}%)"
-```
-
-## Рекомендации по Реализации
-
-1. **Хранение цен:** Всегда в USD в базе данных
-2. **Конвертация:** В момент отображения/оплаты
-3. **Кэширование курсов:** Redis с TTL 1 час
-4. **Обновление курсов:** Cron job или при первом запросе
-5. **Форматирование:** В зависимости от языка и валюты
-6. **Округление:** По правилам валюты (рубли - целые, доллары - 2 знака)
-
-## Пример Полной Реализации
+### Основные методы:
 
 ```python
 class CurrencyService:
-    def __init__(self):
-        self.redis = get_redis_client()
-        self.language_to_currency = LANGUAGE_TO_CURRENCY
-    
-    async def get_user_currency(self, language_code: str) -> str:
-        """Получить валюту пользователя по языку"""
-        return self.language_to_currency.get(language_code, "USD")
-    
-    async def convert_and_format(self, price_usd: float, language_code: str) -> str:
-        """Конвертировать и отформатировать цену"""
-        currency = await self.get_user_currency(language_code)
-        rate = await self.get_currency_rate(currency)
+    async def get_anchor_price(product_id: str, currency: str) -> Optional[Decimal]:
+        """Получить anchor price товара в валюте, если есть"""
         
-        price_local = price_usd * rate
-        price_rounded = self.round_price(price_local, currency)
+    async def convert_balance(from_currency: str, to_currency: str, amount: Decimal) -> Decimal:
+        """Конвертировать баланс между RUB и USD (с правильным округлением)"""
         
-        return self.format_price(price_rounded, currency)
-    
-    async def get_currency_rate(self, currency: str) -> float:
-        """Получить актуальный курс валюты"""
-        # Реализация с кэшированием
-        pass
+    async def get_user_currency(telegram_id: int) -> str:
+        """Определить валюту баланса пользователя по Telegram language_code"""
+        
+    async def calculate_withdrawal_usdt(
+        amount_in_balance_currency: Decimal,
+        balance_currency: str
+    ) -> Dict[str, Decimal]:
+        """Рассчитать сумму USDT для вывода с учётом комиссии сети"""
 ```
 
+---
+
+## Использование в Коде
+
+### Backend (FastAPI)
+
+**Checkout Flow:**
+```python
+# 1. Получить anchor price или конвертировать из USD
+price_decimal = await currency_service.get_anchor_price(product.id, user_currency)
+if not price_decimal:
+    rate = await currency_service.get_exchange_rate(user_currency)
+    price_decimal = product.price * rate
+
+# 2. Фиксировать snapshot при создании заказа
+order = await orders_domain.create_order(
+    product_id=product.id,
+    user_id=user.id,
+    amount=price_decimal,
+    currency=user_currency,
+    exchange_rate_snapshot=rate  # Фиксируем курс!
+)
+```
+
+**Withdrawal Flow:**
+```python
+# 1. Рассчитать USDT с учётом комиссии
+result = await currency_service.calculate_withdrawal_usdt(
+    amount_in_balance_currency=request.amount,
+    balance_currency=user.balance_currency
+)
+
+# 2. Фиксировать snapshot при создании заявки
+withdrawal = await withdrawals_domain.create_withdrawal(
+    user_id=user.id,
+    amount_debited=request.amount,
+    amount_to_pay=result["usdt_amount"],
+    exchange_rate=result["rate"],
+    usdt_rate=result["usdt_rate"],
+    network_fee=result["network_fee"]
+)
+```
+
+### Frontend (React)
+
+**Отображение цен:**
+- Frontend получает готовые цены из API (anchor или конвертированные)
+- НЕ делает конвертацию на клиенте
+- Использует `Intl.NumberFormat` для форматирования
+
+**Отображение баланса:**
+- Backend возвращает баланс в `balance_currency` пользователя
+- Если пользователь меняет валюту интерфейса → вызывается `POST /profile/convert-balance`
+
+---
+
+## Бухгалтерия и Отчетность
+
+### Принцип Snapshot для Точности
+
+**Проблема старой модели:**
+- Использование текущих курсов для исторических транзакций
+- Хардкод `/80` в SQL функциях
+- Неточные P&L отчеты
+
+**Решение:**
+- Все заказы хранят `exchange_rate_snapshot`
+- SQL функция `calculate_order_expenses` использует snapshot курсы
+- Точные отчеты по прибыли/убыткам
+
+**Пример SQL:**
+```sql
+-- Старая модель (неправильно):
+acquiring_fee_rub / 80  -- Хардкод!
+
+-- Новая модель (правильно):
+acquiring_fee_rub / order.exchange_rate_snapshot  -- Используем snapshot!
+```
+
+---
+
+## Обновление Курсов Валют
+
+**Крон:** `api/cron/update_exchange_rates.py`
+
+**Расписание:** Каждые 6 часов
+
+**Таблица:** `exchange_rates`
+- Хранит текущие курсы для конвертации новых транзакций
+- Исторические транзакции используют snapshot (не зависят от обновлений)
+
+---
+
+## Примеры Использования
+
+### Создание Товара с Anchor Price
+
+```python
+# В админке:
+product = await create_product(
+    name="ChatGPT Plus",
+    price=10.0,  # USD (базовая)
+    prices={"RUB": 990, "USD": 10.0}  # Anchor prices
+)
+```
+
+### Покупка (Anchor Price доступен)
+
+```python
+# Пользователь с balance_currency = RUB
+price = await currency_service.get_anchor_price(product.id, "RUB")
+# price = 990 (фиксированная цена, не меняется при колебаниях курса)
+
+# Создаём заказ с snapshot:
+order = await create_order(
+    fiat_amount=990,
+    fiat_currency="RUB",
+    exchange_rate_snapshot=current_usd_rate  # Для бухгалтерии
+)
+```
+
+### Покупка (Anchor Price отсутствует)
+
+```python
+# Пользователь с balance_currency = EUR (нет anchor price)
+rate = await currency_service.get_exchange_rate("EUR")
+price = product.price * rate  # Конвертация из USD
+
+# Создаём заказ с snapshot:
+order = await create_order(
+    fiat_amount=price,
+    fiat_currency="EUR",
+    exchange_rate_snapshot=rate  # Фиксируем для бухгалтерии
+)
+```
+
+### Вывод (USDT)
+
+```python
+# Пользователь хочет вывести 5000 RUB
+result = await currency_service.calculate_withdrawal_usdt(
+    amount_in_balance_currency=5000,
+    balance_currency="RUB"
+)
+
+# result = {
+#     "usdt_amount": 54.30,  # Фиксированная сумма USDT
+#     "rate": 92.08,         # RUB → USDT курс
+#     "usdt_rate": 1.0,      # USDT → USD курс
+#     "network_fee": 1.5     # Комиссия TRC20
+# }
+
+# Создаём заявку с snapshot:
+withdrawal = await create_withdrawal(
+    amount_debited=5000,      # RUB (списываем)
+    amount_to_pay=54.30,      # USDT (выплачиваем)
+    exchange_rate=92.08,      # Snapshot
+    usdt_rate=1.0,            # Snapshot
+    network_fee=1.5           # Snapshot
+)
+```
+
+---
+
+## Рекомендации
+
+1. **Всегда используйте CurrencyService** - не делайте ручную конвертацию в роутерах
+2. **Фиксируйте snapshot при транзакциях** - для точной бухгалтерии
+3. **Anchor prices для популярных валют** - RUB, USD (стабильность цен)
+4. **Конвертация для редких валют** - автоматически из USD
+5. **Используйте `convert_balance()` для балансов** - правильное округление
+
+---
+
+## Миграция со Старой Модели
+
+**Старая модель (устарела):**
+- Все цены в USD
+- Конвертация на клиенте "на лету"
+- Плавающие цены (меняются каждые 15 минут)
+- Хардкод курсов в SQL
+
+**Новая модель (текущая):**
+- Anchor prices для стабильности
+- Конвертация на бэкенде с snapshot
+- Фиксированные цены для пользователей
+- Динамические курсы в SQL функциях (snapshot)
+
+**Как мигрировать:**
+1. Заполнить `products.prices` для существующих товаров (см. миграцию `20260109_fill_anchor_prices.sql`)
+2. Обновить `users.balance_currency` на основе `language_code`
+3. Конвертировать существующие балансы при необходимости

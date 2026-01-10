@@ -1,5 +1,7 @@
-"""Order domain service wrapping OrderRepository and related operations."""
-import asyncio
+"""Order domain service wrapping OrderRepository and related operations.
+
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
+"""
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
@@ -106,40 +108,35 @@ class OrdersDomain:
         user_telegram_id: int,
     ) -> Dict[str, Any]:
         """Call RPC create_order_with_availability_check."""
-        def _call_rpc():
-            result = self.client.rpc(
-                "create_order_with_availability_check",
-                {
-                    "p_product_id": product_id,
-                    "p_user_telegram_id": user_telegram_id,
-                },
-            ).execute()
-            if not result.data:
-                raise ValueError("Failed to create order")
-            return result.data[0]
-
-        return await asyncio.to_thread(_call_rpc)
+        result = await self.client.rpc(
+            "create_order_with_availability_check",
+            {
+                "p_product_id": product_id,
+                "p_user_telegram_id": user_telegram_id,
+            },
+        ).execute()
+        if not result.data:
+            raise ValueError("Failed to create order")
+        return result.data[0]
 
     # Order items operations (using raw client)
     async def create_order_items(self, items: List[dict]) -> List[dict]:
         if not items:
             return []
-        result = await asyncio.to_thread(
-            lambda: self.client.table("order_items").insert(items).execute()
-        )
+        result = await self.client.table("order_items").insert(items).execute()
         return result.data or []
 
     async def get_order_items_by_order(self, order_id: str) -> List[dict]:
-        result = await asyncio.to_thread(
-            lambda: self.client.table("order_items").select("*").eq("order_id", order_id).execute()
-        )
+        result = await self.client.table("order_items").select("*").eq(
+            "order_id", order_id
+        ).execute()
         return result.data or []
 
     async def get_order_items_by_orders(self, order_ids: List[str]) -> List[dict]:
         if not order_ids:
             return []
-        result = await asyncio.to_thread(
-            lambda: self.client.table("order_items").select("*").in_("order_id", order_ids).execute()
-        )
+        result = await self.client.table("order_items").select("*").in_(
+            "order_id", order_ids
+        ).execute()
         return result.data or []
 

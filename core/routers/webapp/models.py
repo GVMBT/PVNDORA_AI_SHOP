@@ -49,6 +49,56 @@ class ConfirmPaymentRequest(BaseModel):
     hash: Optional[str] = None
 
 
+class OrderStatusResponse(BaseModel):
+    """Order status with delivery progress."""
+    order_id: str
+    status: str
+    progress: int  # 0-100%
+    delivered_quantity: int
+    total_quantity: int
+    estimated_delivery_at: Optional[str] = None
+    payment_url: Optional[str] = None
+
+
+class OrderHistoryResponse(BaseModel):
+    """Order in history list."""
+    order_id: str
+    status: str
+    amount: float
+    display_amount: str  # Formatted in user's currency
+    display_currency: str
+    created_at: Optional[str] = None
+    product_name: str
+    quantity: int
+    delivered_quantity: int
+    progress: int
+    payment_method: Optional[str] = None
+    payment_url: Optional[str] = None
+    items: list = []
+    image_url: Optional[str] = None
+
+
+class PaymentMethod(BaseModel):
+    """Payment method info."""
+    id: str
+    name: str
+    description: str
+    icon: str
+    available: bool
+    min_amount: Optional[float] = None
+    max_amount: Optional[float] = None
+    fee_percent: float = 0
+    processing_time: str
+    currency: str
+
+
+class PaymentMethodsResponse(BaseModel):
+    """Available payment methods."""
+    methods: list[PaymentMethod]
+    default_currency: str
+    recommended_method: str
+
+
 # ==================== CART MODELS ====================
 
 class AddToCartRequest(BaseModel):

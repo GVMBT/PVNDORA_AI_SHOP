@@ -2,8 +2,8 @@
 Admin Withdrawals Router
 
 Withdrawal requests management endpoints.
+All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-import asyncio
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Depends, Query
@@ -37,7 +37,7 @@ async def get_withdrawals(
         if status and status != "all":
             query = query.eq("status", status)
         
-        result = await asyncio.to_thread(lambda: query.execute())
+        result = await query.execute()
         
         withdrawals = []
         for w in (result.data or []):
@@ -63,13 +63,9 @@ async def get_withdrawal(withdrawal_id: str, admin=Depends(verify_admin)):
     db = get_database()
     
     try:
-        result = await asyncio.to_thread(
-            lambda: db.client.table("withdrawal_requests")
-            .select("*, users!withdrawal_requests_user_id_fkey(username, first_name, telegram_id, balance)")
-            .eq("id", withdrawal_id)
-            .single()
-            .execute()
-        )
+        result = await db.client.table("withdrawal_requests").select(
+            "*, users!withdrawal_requests_user_id_fkey(username, first_name, telegram_id, balance)"
+        ).eq("id", withdrawal_id).single().execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="Withdrawal request not found")
@@ -106,13 +102,9 @@ async def approve_withdrawal(
     
     try:
         # Get withdrawal request with all snapshot fields
-        withdrawal_result = await asyncio.to_thread(
-            lambda: db.client.table("withdrawal_requests")
-            .select("id, user_id, amount, amount_debited, amount_to_pay, balance_currency, exchange_rate, status, payment_method, wallet_address, network_fee")
-            .eq("id", withdrawal_id)
-            .single()
-            .execute()
-        )
+        withdrawal_result = await db.client.table("withdrawal_requests").select(
+            "id, user_id, amount, amount_debited, amount_to_pay, balance_currency, exchange_rate, status, payment_method, wallet_address, network_fee"
+        ).eq("id", withdrawal_id).single().execute()
         
         if not withdrawal_result.data:
             raise HTTPException(status_code=404, detail="Withdrawal request not found")
@@ -135,13 +127,9 @@ async def approve_withdrawal(
         wallet_address = withdrawal.get("wallet_address", "")
         
         # Get user balance and telegram_id for notification
-        user_result = await asyncio.to_thread(
-            lambda: db.client.table("users")
-            .select("balance, balance_currency, telegram_id")
-            .eq("id", user_id)
-            .single()
-            .execute()
-        )
+        user_result = await db.client.table("users").select(
+            "balance, balance_currency, telegram_id"
+        ).eq("id", user_id).single().execute()
         
         if not user_result.data:
             raise HTTPException(status_code=404, detail="User not found")
@@ -162,59 +150,50 @@ async def approve_withdrawal(
             raise HTTPException(status_code=500, detail="Admin ID not available")
         
         # Update withdrawal status to processing (balance will be deducted)
-        await asyncio.to_thread(
-            lambda: db.client.table("withdrawal_requests").update({
-                "status": "processing",
-                "admin_comment": request.admin_comment,
-                "processed_by": admin_id,
-                "processed_at": datetime.now(timezone.utc).isoformat()
-            }).eq("id", withdrawal_id).execute()
-        )
+        await db.client.table("withdrawal_requests").update({
+            "status": "processing",
+            "admin_comment": request.admin_comment,
+            "processed_by": admin_id,
+            "processed_at": datetime.now(timezone.utc).isoformat()
+        }).eq("id", withdrawal_id).execute()
         
         # Deduct balance (amount_debited in user's currency)
         new_balance = current_balance - amount_debited
         try:
             # Update balance directly
-            await asyncio.to_thread(
-                lambda: db.client.table("users")
-                .update({"balance": new_balance})
-                .eq("id", user_id)
-                .execute()
-            )
+            await db.client.table("users").update({
+                "balance": new_balance
+            }).eq("id", user_id).execute()
             
             # Create withdrawal transaction with correct currency
-            await asyncio.to_thread(
-                lambda: db.client.table("balance_transactions").insert({
-                    "user_id": user_id,
-                    "type": "withdrawal",
-                    "amount": amount_debited,  # Amount in user's currency
-                    "currency": balance_currency,  # User's balance currency
-                    "balance_before": current_balance,
-                    "balance_after": new_balance,
-                    "status": "completed",
-                    "description": f"Вывод {amount_to_pay_usdt:.2f} USDT на {wallet_address[:8]}...",
-                    "reference_type": "withdrawal_request",
-                    "reference_id": withdrawal_id,
-                    "metadata": {
-                        "payment_method": payment_method,
-                        "wallet_address": wallet_address,
-                        "usdt_amount": amount_to_pay_usdt,
-                        "exchange_rate": withdrawal.get("exchange_rate"),
-                        "network_fee": withdrawal.get("network_fee")
-                    }
-                }).execute()
-            )
+            await db.client.table("balance_transactions").insert({
+                "user_id": user_id,
+                "type": "withdrawal",
+                "amount": amount_debited,  # Amount in user's currency
+                "currency": balance_currency,  # User's balance currency
+                "balance_before": current_balance,
+                "balance_after": new_balance,
+                "status": "completed",
+                "description": f"Вывод {amount_to_pay_usdt:.2f} USDT на {wallet_address[:8]}...",
+                "reference_type": "withdrawal_request",
+                "reference_id": withdrawal_id,
+                "metadata": {
+                    "payment_method": payment_method,
+                    "wallet_address": wallet_address,
+                    "usdt_amount": amount_to_pay_usdt,
+                    "exchange_rate": withdrawal.get("exchange_rate"),
+                    "network_fee": withdrawal.get("network_fee")
+                }
+            }).execute()
         except Exception as e:
             logger.error(f"Failed to deduct balance for withdrawal {withdrawal_id}: {e}")
             # Rollback withdrawal status
-            await asyncio.to_thread(
-                lambda: db.client.table("withdrawal_requests").update({
-                    "status": "pending",
-                    "admin_comment": None,
-                    "processed_by": None,
-                    "processed_at": None
-                }).eq("id", withdrawal_id).execute()
-            )
+            await db.client.table("withdrawal_requests").update({
+                "status": "pending",
+                "admin_comment": None,
+                "processed_by": None,
+                "processed_at": None
+            }).eq("id", withdrawal_id).execute()
             raise HTTPException(
                 status_code=500,
                 detail="Failed to deduct balance. Withdrawal request remains pending."
@@ -267,13 +246,9 @@ async def reject_withdrawal(
     
     try:
         # Get withdrawal request with snapshot fields
-        withdrawal_result = await asyncio.to_thread(
-            lambda: db.client.table("withdrawal_requests")
-            .select("id, status, user_id, amount, amount_debited, amount_to_pay, balance_currency, users!withdrawal_requests_user_id_fkey(telegram_id)")
-            .eq("id", withdrawal_id)
-            .single()
-            .execute()
-        )
+        withdrawal_result = await db.client.table("withdrawal_requests").select(
+            "id, status, user_id, amount, amount_debited, amount_to_pay, balance_currency, users!withdrawal_requests_user_id_fkey(telegram_id)"
+        ).eq("id", withdrawal_id).single().execute()
         
         if not withdrawal_result.data:
             raise HTTPException(status_code=404, detail="Withdrawal request not found")
@@ -300,24 +275,20 @@ async def reject_withdrawal(
         # If status was processing, we need to return balance
         if withdrawal["status"] == "processing":
             # Return balance (in user's currency)
-            await asyncio.to_thread(
-                lambda: db.client.rpc("add_to_user_balance", {
-                    "p_user_id": user_id,
-                    "p_amount": amount_debited,  # Return in user's currency
-                    "p_reason": f"Withdrawal request {withdrawal_id[:8]} rejected"
-                }).execute()
-            )
+            await db.client.rpc("add_to_user_balance", {
+                "p_user_id": user_id,
+                "p_amount": amount_debited,  # Return in user's currency
+                "p_reason": f"Withdrawal request {withdrawal_id[:8]} rejected"
+            }).execute()
             logger.info(f"Returned {amount_debited:.2f} {balance_currency} to user {user_id} after withdrawal rejection")
         
         # Update withdrawal status to rejected
-        await asyncio.to_thread(
-            lambda: db.client.table("withdrawal_requests").update({
-                "status": "rejected",
-                "admin_comment": request.admin_comment,
-                "processed_by": admin_id,
-                "processed_at": datetime.now(timezone.utc).isoformat()
-            }).eq("id", withdrawal_id).execute()
-        )
+        await db.client.table("withdrawal_requests").update({
+            "status": "rejected",
+            "admin_comment": request.admin_comment,
+            "processed_by": admin_id,
+            "processed_at": datetime.now(timezone.utc).isoformat()
+        }).eq("id", withdrawal_id).execute()
         
         logger.info(f"Admin {admin_id} rejected withdrawal {withdrawal_id}")
         
@@ -359,13 +330,9 @@ async def complete_withdrawal(
     
     try:
         # Get withdrawal request with user info for notification
-        withdrawal_result = await asyncio.to_thread(
-            lambda: db.client.table("withdrawal_requests")
-            .select("id, status, amount, amount_to_pay, payment_method, users!withdrawal_requests_user_id_fkey(telegram_id)")
-            .eq("id", withdrawal_id)
-            .single()
-            .execute()
-        )
+        withdrawal_result = await db.client.table("withdrawal_requests").select(
+            "id, status, amount, amount_to_pay, payment_method, users!withdrawal_requests_user_id_fkey(telegram_id)"
+        ).eq("id", withdrawal_id).single().execute()
         
         if not withdrawal_result.data:
             raise HTTPException(status_code=404, detail="Withdrawal request not found")
@@ -387,14 +354,12 @@ async def complete_withdrawal(
             raise HTTPException(status_code=500, detail="Admin ID not available")
         
         # Update withdrawal status to completed
-        await asyncio.to_thread(
-            lambda: db.client.table("withdrawal_requests").update({
-                "status": "completed",
-                "admin_comment": request.admin_comment,
-                "processed_by": admin_id,
-                "processed_at": datetime.now(timezone.utc).isoformat()
-            }).eq("id", withdrawal_id).execute()
-        )
+        await db.client.table("withdrawal_requests").update({
+            "status": "completed",
+            "admin_comment": request.admin_comment,
+            "processed_by": admin_id,
+            "processed_at": datetime.now(timezone.utc).isoformat()
+        }).eq("id", withdrawal_id).execute()
         
         logger.info(f"Admin {admin_id} marked withdrawal {withdrawal_id} as completed")
         

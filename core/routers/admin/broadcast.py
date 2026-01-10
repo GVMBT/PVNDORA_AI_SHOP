@@ -2,6 +2,7 @@
 Admin Broadcast Router
 
 Allows admin to send messages to all users via Telegram bots.
+All methods use async/await with supabase-py v2.
 """
 import os
 import asyncio
@@ -9,9 +10,9 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
-import httpx
 
 from core.services.database import get_database
+from core.services.telegram_messaging import send_telegram_message as _send_telegram_message
 from core.auth import verify_admin
 from core.logging import get_logger
 
@@ -48,28 +49,16 @@ async def send_telegram_message(
     text: str, 
     parse_mode: str = "HTML"
 ) -> bool:
-    """Send a single message via Telegram Bot API."""
-    if not bot_token:
-        return False
+    """Send a single message via Telegram Bot API.
     
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": parse_mode
-    }
-    
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload, timeout=10)
-            if response.status_code == 200:
-                return True
-            else:
-                logger.warning(f"Telegram API error for {chat_id}: {response.status_code}")
-                return False
-    except Exception as e:
-        logger.error(f"Error sending message to {chat_id}: {e}")
-        return False
+    Wrapper around consolidated telegram_messaging service for backward compatibility.
+    """
+    return await _send_telegram_message(
+        chat_id=chat_id,
+        text=text,
+        parse_mode=parse_mode,
+        bot_token=bot_token
+    )
 
 
 @router.post("", response_model=BroadcastResult)
@@ -96,23 +85,21 @@ async def send_broadcast(request: BroadcastRequest, admin_user=Depends(verify_ad
     # Apply orders filter
     if request.filter_has_orders is True:
         # Get users who have at least one order
-        orders_result = await asyncio.to_thread(
-            lambda: db.client.table("orders")
-            .select("user_telegram_id")
-            .execute()
-        )
+        orders_result = await db.client.table("orders").select(
+            "user_telegram_id"
+        ).execute()
         user_telegram_ids_with_orders = set(
             o["user_telegram_id"] for o in (orders_result.data or []) if o.get("user_telegram_id")
         )
         
         # Fetch all users and filter in Python
-        all_users_result = await asyncio.to_thread(lambda: query.execute())
+        all_users_result = await query.execute()
         target_users = [
             u for u in (all_users_result.data or [])
             if u.get("telegram_id") in user_telegram_ids_with_orders
         ]
     else:
-        result = await asyncio.to_thread(lambda: query.execute())
+        result = await query.execute()
         target_users = result.data or []
     
     target_count = len(target_users)
@@ -190,26 +177,22 @@ async def get_broadcast_stats(admin_user=Depends(verify_admin)):
     db = get_database()
     
     # Total users
-    total_result = await asyncio.to_thread(
-        lambda: db.client.table("users").select("id", count="exact").execute()
-    )
+    total_result = await db.client.table("users").select(
+        "id", count="exact"
+    ).execute()
     total_users = total_result.count or 0
     
     # Users by language
-    lang_result = await asyncio.to_thread(
-        lambda: db.client.table("users").select("language_code").execute()
-    )
+    lang_result = await db.client.table("users").select("language_code").execute()
     language_counts = {}
     for u in (lang_result.data or []):
         lang = u.get("language_code") or "unknown"
         language_counts[lang] = language_counts.get(lang, 0) + 1
     
     # Users with orders
-    orders_result = await asyncio.to_thread(
-        lambda: db.client.table("orders")
-        .select("user_telegram_id")
-        .execute()
-    )
+    orders_result = await db.client.table("orders").select(
+        "user_telegram_id"
+    ).execute()
     unique_buyers = len(set(
         o["user_telegram_id"] for o in (orders_result.data or []) if o.get("user_telegram_id")
     ))

@@ -80,8 +80,8 @@
 
 #### Вариант 2: Через API (для автоматизации)
 
-1. Поставщик вызывает `POST /api/supplier/add-stock`
-2. Передает массив товаров (batch upload)
+1. Используется админка для добавления товаров в сток
+2. Передается массив товаров (batch upload)
 3. Система создает несколько записей в `stock_items` одной транзакцией
 4. Все товары сразу доступны для продажи
 
@@ -250,7 +250,7 @@
 3. **При оплате:**
    - Один платеж → несколько заказов обновляются одновременно
    - Instant заказы → сразу "delivered", QStash Worker доставляет через `/api/workers/deliver-goods`
-   - Prepaid заказы → статус "prepaid", QStash Worker уведомляет поставщика через `/api/workers/notify-supplier-prepaid`
+   - Prepaid заказы → статус "prepaid", система ждёт пополнения стока через админку
 
 4. **При выдаче:**
    - QStash Worker получает `order_group_id` и доставляет все готовые товары одним сообщением через `/api/workers/deliver-batch`
@@ -264,7 +264,7 @@
 - `fulfillment_deadline` - дедлайн выполнения (для предоплаты)
 - `refund_reason` - причина возврата
 - `refund_processed_at` - дата возврата
-- `supplier_notified_at` - дата уведомления поставщика
+- `prepaid_deadline` - крайний срок выполнения предоплатного заказа
 - `order_group_id` - UUID группы заказов (для множественных покупок)
 
 ### Таблица products
@@ -277,9 +277,9 @@
 
 ## QStash Workers
 
-### 1. POST /api/workers/notify-supplier-prepaid
+### 1. Предоплатные заказы (Prepaid Orders)
 
-Уведомляет поставщика о необходимости изготовления товара для предоплатного заказа.
+Система автоматически отслеживает предоплатные заказы и распределяет новый сток через cron `auto_alloc`.
 
 ### 2. POST /api/workers/check-fulfillment-timeout
 

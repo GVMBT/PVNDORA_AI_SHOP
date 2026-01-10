@@ -268,29 +268,26 @@ class Database:
     
     async def add_to_waitlist(self, user_id: str, product_name: str) -> None:
         """Add user to waitlist for a product."""
-        import asyncio
-        existing = await asyncio.to_thread(
-            lambda: self.client.table("waitlist").select("id").eq(
-                "user_id", user_id
-            ).ilike("product_name", f"%{product_name}%").execute()
-        )
+        existing = await self.client.table("waitlist").select("id").eq(
+            "user_id", user_id
+        ).ilike("product_name", f"%{product_name}%").execute()
         if existing.data:
             return
-        await asyncio.to_thread(
-            lambda: self.client.table("waitlist").insert({
-                "user_id": user_id, "product_name": product_name
-            }).execute()
-        )
+        await self.client.table("waitlist").insert({
+            "user_id": user_id, "product_name": product_name
+        }).execute()
     
     async def add_to_wishlist(self, user_id: str, product_id: str) -> None:
         """Add product to user's wishlist."""
-        self.client.table("wishlist").upsert({
+        await self.client.table("wishlist").upsert({
             "user_id": user_id, "product_id": product_id
         }, on_conflict="user_id,product_id").execute()
     
     async def get_wishlist(self, user_id: str) -> List[Product]:
         """Get user's wishlist with product details."""
-        result = self.client.table("wishlist").select("product_id, products(*)").eq("user_id", user_id).execute()
+        result = await self.client.table("wishlist").select(
+            "product_id, products(*)"
+        ).eq("user_id", user_id).execute()
         products = []
         for item in result.data:
             if item.get("products"):
@@ -301,7 +298,9 @@ class Database:
     
     async def remove_from_wishlist(self, user_id: str, product_id: str) -> None:
         """Remove product from wishlist."""
-        self.client.table("wishlist").delete().eq("user_id", user_id).eq("product_id", product_id).execute()
+        await self.client.table("wishlist").delete().eq(
+            "user_id", user_id
+        ).eq("product_id", product_id).execute()
     
     # ==================== REVIEWS ====================
     
@@ -309,14 +308,14 @@ class Database:
         self, user_id: str, order_id: str, product_id: str, rating: int, text: Optional[str] = None
     ) -> None:
         """Create product review."""
-        self.client.table("reviews").insert({
+        await self.client.table("reviews").insert({
             "user_id": user_id, "order_id": order_id, "product_id": product_id,
             "rating": rating, "text": text
         }).execute()
     
     async def get_product_reviews(self, product_id: str, limit: int = 5) -> List[Dict]:
         """Get recent reviews for product."""
-        result = self.client.table("reviews").select(
+        result = await self.client.table("reviews").select(
             "rating,text,created_at,users(username,first_name)"
         ).eq("product_id", product_id).order("created_at", desc=True).limit(limit).execute()
         return result.data
@@ -330,7 +329,7 @@ class Database:
         - product_id IS NULL: applies to entire cart
         - product_id IS NOT NULL: applies only to that specific product
         """
-        result = self.client.table("promo_codes").select("*").eq(
+        result = await self.client.table("promo_codes").select("*").eq(
             "code", code.upper()
         ).eq("is_active", True).execute()
         
@@ -349,20 +348,20 @@ class Database:
     
     async def use_promo_code(self, code: str) -> None:
         """Increment promo code usage count."""
-        self.client.rpc("increment_promo_usage", {"p_code": code.upper()}).execute()
+        await self.client.rpc("increment_promo_usage", {"p_code": code.upper()}).execute()
     
     # ==================== FAQ ====================
     
     async def get_faq(self, language_code: str = "en") -> List[Dict]:
         """Get FAQ entries for language."""
-        result = self.client.table("faq").select("id,question,answer,category").eq(
-            "language_code", language_code
-        ).eq("is_active", True).order("order_index").execute()
+        result = await self.client.table("faq").select(
+            "id,question,answer,category"
+        ).eq("language_code", language_code).eq("is_active", True).order("order_index").execute()
         
         if not result.data and language_code != "en":
-            result = self.client.table("faq").select("id,question,answer,category").eq(
-                "language_code", "en"
-            ).eq("is_active", True).order("order_index").execute()
+            result = await self.client.table("faq").select(
+                "id,question,answer,category"
+            ).eq("language_code", "en").eq("is_active", True).order("order_index").execute()
         
         return result.data
     
@@ -370,7 +369,7 @@ class Database:
     
     async def log_event(self, user_id: Optional[str], event_type: str, metadata: Optional[Dict] = None) -> None:
         """Log analytics event."""
-        self.client.table("analytics_events").insert({
+        await self.client.table("analytics_events").insert({
             "user_id": user_id, "event_type": event_type, "metadata": metadata or {}
         }).execute()
     
@@ -393,7 +392,9 @@ class Database:
             level = level_config["level"]
             percent = level_config["percent"]
             
-            user_result = self.client.table("users").select("referrer_id").eq("id", current_user_id).execute()
+            user_result = await self.client.table("users").select(
+                "referrer_id"
+            ).eq("id", current_user_id).execute()
             if not user_result.data or not user_result.data[0].get("referrer_id"):
                 break
             
@@ -405,7 +406,7 @@ class Database:
             bonus = round(order.amount * (percent / 100), 2)
             await self.update_user_balance(referrer_id, bonus)
             
-            self.client.table("referral_bonuses").insert({
+            await self.client.table("referral_bonuses").insert({
                 "user_id": referrer_id,
                 "from_user_id": str(order.user_id),
                 "order_id": str(order.id),
@@ -414,7 +415,10 @@ class Database:
                 "amount": bonus
             }).execute()
             
-            self.client.rpc("increment_referral_earnings", {"p_user_id": referrer_id, "p_amount": bonus}).execute()
+            await self.client.rpc(
+                "increment_referral_earnings", 
+                {"p_user_id": referrer_id, "p_amount": bonus}
+            ).execute()
             
             bonuses_awarded.append({"level": level, "referrer_id": referrer_id, "bonus": bonus})
             logger.info(f"Referral L{level}: {percent}% = {bonus}₽ to user {referrer_id}")
