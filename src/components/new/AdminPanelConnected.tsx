@@ -196,6 +196,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
         purchases: u.orders_count || 0,
         spent: u.total_spent || 0,
         balance: u.balance || 0,
+        balanceCurrency: u.balance_currency || 'USD',
         isBanned: u.is_banned || false,
         invites: 0,
         earned: 0,

@@ -861,6 +861,56 @@ class NotificationService:
         except Exception as e:
             logger.error(f"Failed to send cashback notification: {e}")
     
+    async def send_refund_notification(
+        self,
+        telegram_id: int,
+        product_name: str,
+        amount: float,
+        currency: str = "USD",
+        reason: str = "Fulfillment deadline exceeded"
+    ) -> None:
+        """
+        Send refund notification to user.
+        
+        Args:
+            telegram_id: User's Telegram ID
+            product_name: Name of the product
+            amount: Refund amount in user's balance currency
+            currency: User's balance currency (USD, RUB, etc.)
+            reason: Reason for refund
+        """
+        bot = self._get_bot()
+        if not bot:
+            logger.warning(f"Bot not available, cannot send refund notification")
+            return
+        
+        try:
+            from core.services.currency import CURRENCY_SYMBOLS
+            
+            # Format amount with correct currency symbol
+            symbol = CURRENCY_SYMBOLS.get(currency, currency)
+            if currency in ["RUB", "UAH", "TRY", "INR"]:
+                amount_formatted = f"{int(amount)} {symbol}"
+            else:
+                amount_formatted = f"{amount:.2f} {symbol}"
+            
+            message = (
+                f"💰 <b>Возврат средств</b>\n\n"
+                f"Товар «{product_name}» не был доставлен в срок.\n\n"
+                f"Сумма <b>{amount_formatted}</b> возвращена на ваш баланс.\n\n"
+                f"<i>Причина: {reason}</i>\n\n"
+                f"Приносим извинения за неудобства! 🙏"
+            )
+            
+            await bot.send_message(
+                chat_id=telegram_id,
+                text=message,
+                parse_mode="HTML"
+            )
+            logger.info(f"Sent refund notification to {telegram_id}: {amount_formatted}")
+        except Exception as e:
+            logger.error(f"Failed to send refund notification: {e}")
+    
     async def send_broadcast(
         self,
         message: str,

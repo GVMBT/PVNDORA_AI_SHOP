@@ -50,10 +50,11 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
     return result;
   }, [users, searchQuery, roleFilter]);
 
-  const formatCurrency = (amount: number) => {
+  // Format currency with user's balance currency
+  const formatCurrency = (amount: number, currency: string = 'USD') => {
     return new Intl.NumberFormat('ru-RU', { 
       style: 'currency', 
-      currency: 'USD',
+      currency: currency,
       minimumFractionDigits: 0,
       maximumFractionDigits: 2
     }).format(amount);
@@ -212,13 +213,13 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                     {getRoleBadge(u.role)}
                   </td>
                   <td className="p-4 text-pandora-cyan">
-                    {formatCurrency(u.balance)}
+                    {formatCurrency(u.balance, u.balanceCurrency)}
                   </td>
                   <td className="p-4">
                     {u.purchases}
                   </td>
                   <td className="p-4">
-                    {formatCurrency(u.spent)}
+                    {formatCurrency(u.spent, 'USD')}
                   </td>
                   <td className="p-4">
                     {u.isBanned ? (
@@ -308,7 +309,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
               <div className="grid grid-cols-3 gap-2 text-center mb-3">
                 <div>
                   <div className="text-[10px] text-gray-500">Баланс</div>
-                  <div className="text-sm font-bold text-pandora-cyan">{formatCurrency(u.balance)}</div>
+                  <div className="text-sm font-bold text-pandora-cyan">{formatCurrency(u.balance, u.balanceCurrency)}</div>
                 </div>
                 <div>
                   <div className="text-[10px] text-gray-500">Заказы</div>
@@ -316,7 +317,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                 </div>
                 <div>
                   <div className="text-[10px] text-gray-500">Потрачено</div>
-                  <div className="text-sm font-bold text-white">{formatCurrency(u.spent)}</div>
+                  <div className="text-sm font-bold text-white">{formatCurrency(u.spent, 'USD')}</div>
                 </div>
               </div>
               
@@ -475,7 +476,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
               <div className="bg-white/5 p-3 border border-white/10 mb-4">
                 <div className="text-[10px] text-gray-500 uppercase mb-1">Текущий баланс</div>
                 <div className="text-xl font-bold text-pandora-cyan">
-                  {formatCurrency(balanceModal.balance)}
+                  {formatCurrency(balanceModal.balance, balanceModal.balanceCurrency)}
                 </div>
               </div>
 

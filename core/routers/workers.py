@@ -763,6 +763,8 @@ async def worker_process_refund(request: Request):
     Also handles:
     - Rollback of turnover (recalculates: own orders + referral orders, excluding refunded order)
     - Revoke referral bonuses paid for this order
+    
+    IMPORTANT: Refund is credited in user's balance_currency, using fiat_amount if available.
     """
     data = await verify_qstash(request)
     order_id = data.get("order_id")
@@ -775,9 +777,9 @@ async def worker_process_refund(request: Request):
     db = get_database()
     notification_service = get_notification_service()
     
-    # Get order
+    # Get order with fiat amount
     order = db.client.table("orders").select(
-        "id, amount, user_id, user_telegram_id, status, products(name)"
+        "id, amount, fiat_amount, fiat_currency, user_id, user_telegram_id, status, products(name)"
     ).eq("id", order_id).single().execute()
     
     if not order.data:
@@ -786,21 +788,43 @@ async def worker_process_refund(request: Request):
     if order.data["status"] not in ["prepaid", "paid", "partial", "delivered"]:
         return {"skipped": True, "reason": f"Order status is {order.data['status']}, cannot refund"}
     
-    amount = to_float(order.data["amount"])
     user_id = order.data["user_id"]
+    amount_usd = to_float(order.data["amount"])
     
-    # 1. Rollback turnover and revoke referral bonuses
+    # Get user's balance_currency
+    user_result = db.client.table("users").select("balance_currency").eq("id", user_id).single().execute()
+    balance_currency = user_result.data.get("balance_currency", "USD") if user_result.data else "USD"
+    
+    # Determine refund amount in user's balance currency
+    # Priority: fiat_amount (what user actually paid) > convert from USD
+    if order.data.get("fiat_amount") and order.data.get("fiat_currency") == balance_currency:
+        # User paid in their balance currency - use exact fiat amount
+        refund_amount = to_float(order.data["fiat_amount"])
+    else:
+        # Convert USD to user's balance currency
+        if balance_currency == "USD":
+            refund_amount = amount_usd
+        else:
+            # Use provided usd_rate or current rate
+            from core.db import get_redis
+            from core.services.currency import get_currency_service
+            redis = get_redis()
+            currency_service = get_currency_service(redis)
+            rate = await currency_service.get_exchange_rate(balance_currency)
+            refund_amount = round(amount_usd * rate)  # Round for integer currencies
+    
+    # 1. Rollback turnover and revoke referral bonuses (always in RUB for consistency)
     rollback_result = db.client.rpc("rollback_user_turnover", {
         "p_user_id": user_id,
-        "p_amount_rub": amount,
+        "p_amount_rub": amount_usd * usd_rate,  # Convert to RUB for turnover
         "p_usd_rate": usd_rate,
         "p_order_id": order_id
     }).execute()
     
-    # 2. Refund to user balance
+    # 2. Refund to user balance (in user's balance_currency)
     db.client.rpc("add_to_user_balance", {
         "p_user_id": user_id,
-        "p_amount": amount,
+        "p_amount": refund_amount,
         "p_reason": f"Refund for order {order_id}: {reason}"
     }).execute()
     
@@ -811,17 +835,19 @@ async def worker_process_refund(request: Request):
         "refund_processed_at": datetime.now(timezone.utc).isoformat()
     }).eq("id", order_id).execute()
     
-    # 4. Notify user
+    # 4. Notify user with correct currency
     await notification_service.send_refund_notification(
         telegram_id=order.data["user_telegram_id"],
         product_name=order.data.get("products", {}).get("name", "Product"),
-        amount=amount,
+        amount=refund_amount,
+        currency=balance_currency,
         reason=reason
     )
     
     return {
         "success": True, 
-        "refunded_amount": amount,
+        "refunded_amount": refund_amount,
+        "refund_currency": balance_currency,
         "turnover_rollback": rollback_result.data if rollback_result.data else {}
     }
 

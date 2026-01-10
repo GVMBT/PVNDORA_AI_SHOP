@@ -84,6 +84,7 @@ export interface OrderItem {
   estimatedDelivery?: string | null;
   progress?: number | null;
   deadline?: string | null;
+  deadlineRaw?: string | null; // Raw ISO date for countdown timer
   reason?: string | null;
   orderRawStatus?: RawOrderStatus; // Parent order status for conditional rendering
   deliveredAt?: string | null; // When this specific item was delivered

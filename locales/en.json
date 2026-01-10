@@ -241,7 +241,8 @@
       "awaitingPayment": "AWAITING_PAYMENT",
       "cancelled": "CANCELLED",
       "provisioning": "PROVISIONING",
-      "estimatedTime": "EST"
+      "estimatedTime": "EST",
+      "deadlineExpired": "EXPIRED"
     },
     "item": {
       "accessKey": "ACCESS KEY",

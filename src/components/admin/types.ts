@@ -66,6 +66,7 @@ export interface UserData {
   purchases: number;
   spent: number;
   balance: number;
+  balanceCurrency: string; // User's balance currency (RUB, USD, etc.)
   isBanned: boolean;
   invites: number;
   earned: number;

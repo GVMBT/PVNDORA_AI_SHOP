@@ -242,7 +242,8 @@
       "awaitingPayment": "ОЖИДАНИЕ ОПЛАТЫ",
       "cancelled": "ОТМЕНЕНО",
       "provisioning": "ПОДГОТОВКА",
-      "estimatedTime": "РАСЧ. ВРЕМЯ"
+      "estimatedTime": "РАСЧ. ВРЕМЯ",
+      "deadlineExpired": "ИСТЁК"
     },
     "item": {
       "accessKey": "КЛЮЧ ДОСТУПА",

@@ -31,7 +31,7 @@ async def admin_get_users(
         # Get users with order counts
         result = await asyncio.to_thread(
             lambda: db.client.table("users")
-            .select("id, telegram_id, username, first_name, balance, is_banned, is_admin, is_partner, created_at")
+            .select("id, telegram_id, username, first_name, balance, balance_currency, is_banned, is_admin, is_partner, created_at")
             .order("created_at", desc=True)
             .range(offset, offset + limit - 1)
             .execute()
@@ -65,6 +65,7 @@ async def admin_get_users(
                 "username": u.get("username") or u.get("first_name") or "Unknown",
                 "role": role,
                 "balance": to_float(u.get("balance", 0)),
+                "balance_currency": u.get("balance_currency") or "USD",
                 "total_spent": total_spent,
                 "orders_count": orders_count,
                 "is_banned": u.get("is_banned", False),

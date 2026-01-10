@@ -4,10 +4,53 @@
  * Displays a single item within an order with its status, credentials, and actions.
  */
 
-import React, { memo } from 'react';
-import { Check, Clock, AlertTriangle, Activity, Copy, Eye, EyeOff, MessageSquare } from 'lucide-react';
+import React, { memo, useState, useEffect } from 'react';
+import { Check, Clock, AlertTriangle, Activity, Copy, Eye, EyeOff, MessageSquare, Timer } from 'lucide-react';
 import { randomChar } from '../../utils/random';
 import { useLocale } from '../../hooks/useLocale';
+
+/**
+ * Hook to calculate countdown from deadline
+ */
+function useCountdown(deadline: string | null | undefined): {
+  hours: number;
+  minutes: number;
+  seconds: number;
+  isExpired: boolean;
+  formatted: string;
+} {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!deadline) return;
+    
+    const timer = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [deadline]);
+
+  if (!deadline) {
+    return { hours: 0, minutes: 0, seconds: 0, isExpired: true, formatted: '--:--:--' };
+  }
+
+  const target = new Date(deadline).getTime();
+  const diff = target - now;
+
+  if (diff <= 0) {
+    return { hours: 0, minutes: 0, seconds: 0, isExpired: true, formatted: '00:00:00' };
+  }
+
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const formatted = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+
+  return { hours, minutes, seconds, isExpired: false, formatted };
+}
 
 export interface OrderItemData {
   id: string | number;
@@ -20,6 +63,7 @@ export interface OrderItemData {
   estimatedDelivery?: string | null;
   progress?: number | null;
   deadline?: string | null;
+  deadlineRaw?: string | null; // ISO date string for countdown calculation
   reason?: string | null;
   orderRawStatus?: 'pending' | 'paid' | 'prepaid' | 'partial' | 'delivered' | 'cancelled' | 'refunded';
   deliveredAt?: string | null;
@@ -98,6 +142,9 @@ const OrderItem: React.FC<OrderItemProps> = ({
 }) => {
   const { t } = useLocale();
   const isRevealed = revealedKeys.includes(item.id);
+  
+  // Countdown timer for prepaid items
+  const countdown = useCountdown(item.deadlineRaw);
 
   return (
     <div className="relative pl-4 border-l-2 border-white/10 group-hover:border-pandora-cyan/30 transition-colors">
@@ -230,9 +277,24 @@ const OrderItem: React.FC<OrderItemProps> = ({
                 <div className="absolute top-0 left-0 h-full w-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
               </div>
 
-              <p className="text-[10px] text-gray-500 font-mono border-t border-white/5 pt-2 mt-2">
-                &gt; {t('orders.item.deadline')}: {item.deadline}
-              </p>
+              {/* Deadline with Countdown */}
+              <div className="border-t border-white/5 pt-2 mt-2 flex justify-between items-center">
+                <p className="text-[10px] text-gray-500 font-mono">
+                  &gt; {t('orders.item.deadline')}: {item.deadline}
+                </p>
+                {item.deadlineRaw && !countdown.isExpired && (
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded">
+                    <Timer size={10} className="animate-pulse" />
+                    <span>{countdown.formatted}</span>
+                  </div>
+                )}
+                {countdown.isExpired && item.deadlineRaw && (
+                  <div className="flex items-center gap-1 text-[10px] font-mono text-red-400">
+                    <AlertTriangle size={10} />
+                    <span>{t('orders.itemStatus.deadlineExpired')}</span>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             /* For unpaid orders, show payment deadline only */

@@ -214,15 +214,18 @@ function adaptOrderItem(
   
   // Determine deadline based on item and order status
   let deadline: string | null = null;
+  let deadlineRaw: string | null = null; // Raw ISO string for countdown
   
   if (orderStatus === 'pending' && paymentDeadline) {
     // For pending (unpaid) orders, show payment deadline
     deadline = formatDateWithTimezone(paymentDeadline);
+    deadlineRaw = paymentDeadline;
   } else if (['prepaid', 'paid', 'partial'].includes(orderStatus) && item.status === 'prepaid') {
     // For prepaid items, use ITEM-level fulfillment_deadline first, then fall back to order-level
     const itemDeadline = item.fulfillment_deadline || deliveryDeadline;
     if (itemDeadline) {
       deadline = formatDateWithTimezone(itemDeadline);
+      deadlineRaw = itemDeadline;
     } else {
       // No specific deadline set - show waiting message instead
       deadline = null; // Will show "Ожидание поступления" in UI
@@ -267,6 +270,7 @@ function adaptOrderItem(
     estimatedDelivery: item.fulfillment_type === 'preorder' ? '24H' : null,
     progress: null, // Progress bar removed - simplified status model
     deadline: deadline,
+    deadlineRaw: deadlineRaw, // For countdown timer
     reason: null,
     orderRawStatus: normalizeRawStatus(orderStatus), // Pass parent order status
     deliveredAt: itemDeliveredAt,
