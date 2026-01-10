@@ -69,13 +69,34 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     }
   }, [getWithdrawals]);
 
-  // Fetch accounting data
-  const fetchAccounting = useCallback(async () => {
+  // Fetch accounting data with optional period filter
+  const fetchAccounting = useCallback(async (
+    period?: 'today' | 'month' | 'all' | 'custom',
+    customFrom?: string,
+    customTo?: string
+  ) => {
     setIsAccountingLoading(true);
     try {
       const { apiRequest } = await import('../../utils/apiClient');
       const { API } = await import('../../config');
-      const data = await apiRequest<any>(`${API.ADMIN_URL}/accounting/overview`);
+      
+      // Build URL with period params
+      let url = `${API.ADMIN_URL}/accounting/overview`;
+      const params = new URLSearchParams();
+      if (period && period !== 'all') {
+        params.append('period', period);
+      }
+      if (period === 'custom' && customFrom) {
+        params.append('from', customFrom);
+      }
+      if (period === 'custom' && customTo) {
+        params.append('to', customTo);
+      }
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+      
+      const data = await apiRequest<any>(url);
       
       // Log for debugging
       logger.info('Accounting data loaded', data);
@@ -190,6 +211,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       newMap.set(telegramId, u.id);
       return {
         id: telegramId,
+        dbId: u.id,  // Database UUID for API calls
         username: u.username || `user_${u.id?.slice(0, 6)}`,
         role: (u.role?.toUpperCase() || 'USER') as 'USER' | 'VIP' | 'ADMIN',
         joinedAt: formatDate(u.created_at),

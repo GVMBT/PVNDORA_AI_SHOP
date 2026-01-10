@@ -59,7 +59,8 @@ export interface OrderData {
 }
 
 export interface UserData {
-  id: number;
+  id: number;          // Telegram ID (for display)
+  dbId: string;        // Database UUID (for API calls)
   username: string;
   role: 'USER' | 'VIP' | 'ADMIN';
   joinedAt: string;

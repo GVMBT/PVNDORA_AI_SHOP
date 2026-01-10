@@ -72,7 +72,7 @@ export interface AccountingData {
 
 interface AdminAccountingProps {
   data?: AccountingData;
-  onRefresh?: () => void;
+  onRefresh?: (period?: 'today' | 'month' | 'all' | 'custom', customFrom?: string, customTo?: string) => void;
   onAddExpense?: () => void;
   isLoading?: boolean;
 }
@@ -139,6 +139,18 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
   const [customTo, setCustomTo] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   
+  // Handle period change and refresh
+  const handlePeriodChange = (p: 'today' | 'month' | 'all' | 'custom') => {
+    setPeriod(p);
+    if (p === 'custom') {
+      setShowDatePicker(true);
+    } else {
+      setShowDatePicker(false);
+      // Refresh with new period
+      if (onRefresh) onRefresh(p);
+    }
+  };
+  
   const d = data || {
     totalRevenue: 0,
     revenueGross: 0,
@@ -190,10 +202,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             {(['today', 'month', 'all', 'custom'] as const).map((p) => (
               <button
                 key={p}
-                onClick={() => {
-                  setPeriod(p);
-                  if (p === 'custom') setShowDatePicker(true);
-                }}
+                onClick={() => handlePeriodChange(p)}
                 className={`px-3 py-1.5 text-xs font-mono uppercase transition-colors ${
                   period === p 
                     ? 'bg-pandora-cyan text-black' 

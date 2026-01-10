@@ -79,7 +79,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
     const isCurrentlyVIP = selectedUser.role === 'VIP';
     
     try {
-      await apiRequest(`${API.ADMIN_URL}/users/${selectedUser.username}/vip`, {
+      await apiRequest(`${API.ADMIN_URL}/users/${selectedUser.dbId}/vip`, {
         method: 'POST',
         body: JSON.stringify({
           is_partner: !isCurrentlyVIP,
@@ -106,7 +106,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
     
     setProcessing(true);
     try {
-      await apiRequest(`${API.ADMIN_URL}/users/${balanceModal.id}/balance`, {
+      await apiRequest(`${API.ADMIN_URL}/users/${balanceModal.dbId}/balance`, {
         method: 'POST',
         body: JSON.stringify({ amount })
       });
