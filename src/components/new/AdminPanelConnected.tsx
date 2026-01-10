@@ -69,20 +69,22 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     }
   }, [getWithdrawals]);
 
-  // Fetch accounting data with optional period filter
+  // Fetch accounting data with optional period filter and currency
   const fetchAccounting = useCallback(async (
     period?: 'today' | 'month' | 'all' | 'custom',
     customFrom?: string,
-    customTo?: string
+    customTo?: string,
+    displayCurrency: 'USD' | 'RUB' = 'RUB'
   ) => {
     setIsAccountingLoading(true);
     try {
       const { apiRequest } = await import('../../utils/apiClient');
       const { API } = await import('../../config');
       
-      // Build URL with period params
+      // Build URL with period and currency params
       let url = `${API.ADMIN_URL}/accounting/overview`;
       const params = new URLSearchParams();
+      params.append('display_currency', displayCurrency);
       if (period && period !== 'all') {
         params.append('period', period);
       }
@@ -148,7 +150,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
           getPromoCodes(),
           fetchTickets(),
           fetchWithdrawals(),
-          fetchAccounting()
+          fetchAccounting('all', undefined, undefined, 'RUB')
         ]);
         
         if (isMounted) {

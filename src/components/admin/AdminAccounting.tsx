@@ -72,18 +72,24 @@ export interface AccountingData {
 
 interface AdminAccountingProps {
   data?: AccountingData;
-  onRefresh?: (period?: 'today' | 'month' | 'all' | 'custom', customFrom?: string, customTo?: string) => void;
+  onRefresh?: (period?: 'today' | 'month' | 'all' | 'custom', customFrom?: string, customTo?: string, displayCurrency?: 'USD' | 'RUB') => void;
   onAddExpense?: () => void;
   isLoading?: boolean;
 }
 
-const formatMoney = (amount: number): string => {
+const formatMoney = (amount: number, currency: 'USD' | 'RUB' = 'USD'): string => {
+  const symbol = currency === 'USD' ? '$' : '₽';
+  const formatted = new Intl.NumberFormat('ru-RU', {
+    minimumFractionDigits: currency === 'RUB' ? 0 : 2,
+    maximumFractionDigits: currency === 'RUB' ? 0 : 2,
+  }).format(amount);
+  
   if (Math.abs(amount) >= 1000000) {
-    return `$${(amount / 1000000).toFixed(2)}M`;
+    return `${symbol}${(amount / 1000000).toFixed(2)}M`;
   } else if (Math.abs(amount) >= 1000) {
-    return `$${(amount / 1000).toFixed(2)}K`;
+    return `${symbol}${(amount / 1000).toFixed(2)}K`;
   }
-  return `$${amount.toFixed(2)}`;
+  return `${symbol}${formatted}`;
 };
 
 const formatPercent = (value: number): string => {
@@ -122,7 +128,7 @@ const MetricRow: React.FC<MetricRowProps> = ({
         <span className={bold ? 'font-bold text-white' : ''}>{label}</span>
       </div>
       <span className={`font-mono ${valueColor} ${bold ? 'font-bold text-lg' : ''}`}>
-        {isExpense && value > 0 ? '-' : ''}{formatMoney(Math.abs(value))}
+        {isExpense && value > 0 ? '-' : ''}{formatMoney(Math.abs(value), displayCurrency)}
       </span>
     </div>
   );
@@ -138,6 +144,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [displayCurrency, setDisplayCurrency] = useState<'USD' | 'RUB'>('RUB'); // Default to RUB per user request
   
   // Handle period change and refresh
   const handlePeriodChange = (p: 'today' | 'month' | 'all' | 'custom') => {
@@ -146,9 +153,15 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
       setShowDatePicker(true);
     } else {
       setShowDatePicker(false);
-      // Refresh with new period
-      if (onRefresh) onRefresh(p);
+      // Refresh with new period and currency
+      if (onRefresh) onRefresh(p, undefined, undefined, displayCurrency);
     }
+  };
+  
+  // Handle currency change and refresh
+  const handleCurrencyChange = (currency: 'USD' | 'RUB') => {
+    setDisplayCurrency(currency);
+    if (onRefresh) onRefresh(period, customFrom || undefined, customTo || undefined, currency);
   };
   
   const d = data || {
@@ -197,6 +210,23 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
           Отчёт о прибылях и убытках
         </h3>
         <div className="flex items-center gap-2">
+          {/* Селектор валюты */}
+          <div className="flex bg-[#0e0e0e] border border-white/10 rounded-sm overflow-hidden">
+            {(['USD', 'RUB'] as const).map((c) => (
+              <button
+                key={c}
+                onClick={() => handleCurrencyChange(c)}
+                className={`px-3 py-1.5 text-xs font-mono uppercase transition-colors ${
+                  displayCurrency === c 
+                    ? 'bg-pandora-cyan text-black' 
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                {c === 'USD' ? '$' : '₽'}
+              </button>
+            ))}
+          </div>
+          
           {/* Селектор периода */}
           <div className="flex flex-wrap bg-[#0e0e0e] border border-white/10 rounded-sm overflow-hidden">
             {(['today', 'month', 'all', 'custom'] as const).map((p) => (
@@ -232,8 +262,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
               />
               <button
                 onClick={() => {
-                  // TODO: Trigger onRefresh with customFrom/customTo params
-                  if (onRefresh) onRefresh();
+                  if (onRefresh) onRefresh('custom', customFrom, customTo, displayCurrency);
                 }}
                 className="text-xs text-pandora-cyan hover:underline"
               >
@@ -252,7 +281,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
           )}
           {onRefresh && (
             <button
-              onClick={onRefresh}
+              onClick={() => onRefresh(period, customFrom || undefined, customTo || undefined, displayCurrency)}
               disabled={isLoading}
               className="p-2 bg-[#0e0e0e] border border-white/10 rounded-sm hover:border-pandora-cyan transition-colors disabled:opacity-50"
             >
@@ -301,7 +330,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             <DollarSign size={14} />
             Выручка
           </div>
-          <div className="text-2xl font-bold text-white font-mono">{formatMoney(d.totalRevenue)}</div>
+          <div className="text-2xl font-bold text-white font-mono">{formatMoney(d.totalRevenue, displayCurrency)}</div>
           <div className="text-xs text-gray-500 mt-1">{d.totalOrders} заказов</div>
         </div>
         
@@ -310,7 +339,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             <TrendingUp size={14} />
             Валовая прибыль
           </div>
-          <div className="text-2xl font-bold text-green-400 font-mono">{formatMoney(grossProfit)}</div>
+          <div className="text-2xl font-bold text-green-400 font-mono">{formatMoney(grossProfit, displayCurrency)}</div>
           <div className="text-xs text-gray-500 mt-1">{formatPercent(grossMargin)} маржа</div>
         </div>
         
@@ -320,7 +349,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             Чистая прибыль
           </div>
           <div className={`text-2xl font-bold font-mono ${d.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {formatMoney(d.netProfit)}
+            {formatMoney(d.netProfit, displayCurrency)}
           </div>
           <div className="text-xs text-gray-500 mt-1">{formatPercent(netMargin)} маржа</div>
         </div>
@@ -331,7 +360,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             Все расходы
           </div>
           <div className="text-2xl font-bold text-red-400 font-mono">
-            {formatMoney(d.totalCogs + operatingExpenses + d.totalOtherExpenses)}
+            {formatMoney(d.totalCogs + operatingExpenses + d.totalOtherExpenses, displayCurrency)}
           </div>
           <div className="text-xs text-gray-500 mt-1">COGS + OpEx</div>
         </div>
@@ -470,16 +499,16 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
         <div className="grid grid-cols-3 gap-4 mb-4">
           <div>
             <div className="text-xs text-gray-500 uppercase">Накоплено</div>
-            <div className="text-lg font-mono text-yellow-400">{formatMoney(reservesAccumulated)}</div>
+            <div className="text-lg font-mono text-yellow-400">{formatMoney(reservesAccumulated, displayCurrency)}</div>
           </div>
           <div>
             <div className="text-xs text-gray-500 uppercase">Использовано</div>
-            <div className="text-lg font-mono text-red-400">{formatMoney(reservesUsed)}</div>
+            <div className="text-lg font-mono text-red-400">{formatMoney(reservesUsed, displayCurrency)}</div>
           </div>
           <div>
             <div className="text-xs text-gray-500 uppercase">Доступно</div>
             <div className={`text-lg font-mono ${reservesAvailable >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {formatMoney(reservesAvailable)}
+              {formatMoney(reservesAvailable, displayCurrency)}
             </div>
           </div>
         </div>
@@ -515,11 +544,11 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
         <div className="bg-[#0e0e0e] border border-white/10 p-3 rounded-sm">
           <div className="text-gray-500 uppercase">Средний чек</div>
-          <div className="text-white font-mono mt-1">{formatMoney(avgOrderValue)}</div>
+          <div className="text-white font-mono mt-1">{formatMoney(avgOrderValue, displayCurrency)}</div>
         </div>
         <div className="bg-[#0e0e0e] border border-white/10 p-3 rounded-sm">
           <div className="text-gray-500 uppercase">COGS на заказ</div>
-          <div className="text-white font-mono mt-1">{formatMoney(d.totalOrders > 0 ? d.totalCogs / d.totalOrders : 0)}</div>
+          <div className="text-white font-mono mt-1">{formatMoney(d.totalOrders > 0 ? d.totalCogs / d.totalOrders : 0, displayCurrency)}</div>
         </div>
         <div className="bg-[#0e0e0e] border border-white/10 p-3 rounded-sm">
           <div className="text-gray-500 uppercase">Эквайринг %</div>

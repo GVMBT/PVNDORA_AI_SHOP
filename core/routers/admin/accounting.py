@@ -120,6 +120,39 @@ async def get_financial_overview(
     data["reserves_used"] = float(reserves.get("total_used", 0))
     data["reserves_available"] = float(reserves.get("total_available", 0))
     
+    # Get liabilities (user balances + pending withdrawals)
+    try:
+        liabilities_result = await asyncio.to_thread(
+            lambda: db.client.table("liabilities_summary")
+            .select("*")
+            .single()
+            .execute()
+        )
+        liabilities = liabilities_result.data or {}
+        
+        # Convert liabilities to display currency if needed
+        total_user_balances_usd = float(liabilities.get("total_user_balances", 0))
+        pending_withdrawals_usd = float(liabilities.get("pending_withdrawals", 0))
+        total_liabilities_usd = float(liabilities.get("total_liabilities", 0))
+        
+        if display_currency != "USD" and display_rate > 0:
+            data["total_user_balances_usd"] = total_user_balances_usd
+            data["pending_withdrawals_usd"] = pending_withdrawals_usd
+            data["total_liabilities_usd"] = total_liabilities_usd
+            
+            data["total_user_balances"] = round(total_user_balances_usd * display_rate, 2)
+            data["pending_withdrawals"] = round(pending_withdrawals_usd * display_rate, 2)
+            data["total_liabilities"] = round(total_liabilities_usd * display_rate, 2)
+        else:
+            data["total_user_balances"] = total_user_balances_usd
+            data["pending_withdrawals"] = pending_withdrawals_usd
+            data["total_liabilities"] = total_liabilities_usd
+    except Exception as e:
+        logger.warning(f"Failed to get liabilities: {e}")
+        data["total_user_balances"] = 0.0
+        data["pending_withdrawals"] = 0.0
+        data["total_liabilities"] = 0.0
+    
     # Get currency breakdown for all delivered orders
     try:
         orders_result = await asyncio.to_thread(
