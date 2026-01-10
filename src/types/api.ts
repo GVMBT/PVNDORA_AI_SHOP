@@ -188,11 +188,12 @@ export interface APIReferralProgram {
   amount_to_level3_usd: number;
   amount_to_next_level_usd: number;
   next_threshold_usd: number | null;
+  next_threshold_display?: number | null;  // Next threshold in display currency (anchor threshold)
   thresholds_usd: {
     level2: number;
     level3: number;
   };
-  thresholds_display?: {  // Rounded thresholds for display (RUB: 20000/80000, USD: 250/1000)
+  thresholds_display?: {  // Anchor thresholds for display (RUB: 20000/80000, USD: 250/1000)
     level2: number;
     level3: number;
   };

@@ -245,8 +245,57 @@ export function adaptProfile(
       currentTurnover: referral_program.turnover_usd,
       currentLevel,
       nextLevel,
-      progressPercent: calculateProgressPercent(referral_program.turnover_usd, currentLevel),
-      thresholds: referral_program.thresholds_display || referral_program.thresholds_usd,  // Use rounded display thresholds if available, fallback to USD
+      // Calculate progress: convert turnover to display currency and compare with anchor threshold
+      // If next level already achieved (effective_level >= next_level), show 100%
+      progressPercent: (() => {
+        const effectiveLevel = referral_program.effective_level || 0;
+        const nextLevelId = nextLevel?.id;
+        
+        // If next level already achieved, show 100%
+        if (nextLevelId && effectiveLevel >= nextLevelId) {
+          return 100;
+        }
+        
+        // If no next level (max level), show 100%
+        if (!nextLevel || currentLevel.max === Infinity) {
+          return 100;
+        }
+        
+        // Get display currency and exchange rate
+        const displayCurrency = normalizeCurrency(responseCurrency || profile.currency || 'USD');
+        const exchangeRate = responseExchangeRate || response.exchange_rate || 1.0;
+        
+        // Convert turnover to display currency for progress calculation
+        const turnoverDisplay = displayCurrency === 'USD' 
+          ? referral_program.turnover_usd 
+          : referral_program.turnover_usd * exchangeRate;
+        
+        // Use anchor threshold in display currency for next level
+        // next_threshold_display comes from backend (anchor threshold in display currency)
+        let nextThresholdDisplay: number;
+        if (referral_program.next_threshold_display !== undefined && referral_program.next_threshold_display !== null) {
+          nextThresholdDisplay = referral_program.next_threshold_display;
+        } else if (nextLevel) {
+          // Fallback: use nextLevel.min (already in display currency from thresholds_display)
+          nextThresholdDisplay = nextLevel.min;
+        } else {
+          return 0;
+        }
+        
+        // Current level min in display currency (0 for level 1, threshold2 for level 2, etc.)
+        // currentLevel.min is already in display currency (set from displayThresholds)
+        const currentLevelMinDisplay = currentLevel.min; // 0 for PROXY, threshold2 for OPERATOR
+        
+        // Calculate progress: (turnover - level_start) / (level_end - level_start)
+        // Both turnover and thresholds are now in the same currency (display currency)
+        if (nextThresholdDisplay <= currentLevelMinDisplay) {
+          return 0;
+        }
+        
+        const progress = Math.min(100, Math.max(0, ((turnoverDisplay - currentLevelMinDisplay) / (nextThresholdDisplay - currentLevelMinDisplay)) * 100));
+        return progress;
+      })(),
+      thresholds: referral_program.thresholds_display || referral_program.thresholds_usd,  // Use anchor display thresholds if available, fallback to USD
       commissions: referral_program.commissions_percent || { level1: 10, level2: 7, level3: 3 },  // Commission percentages
     },
     networkTree: [], // Populated via adaptReferralNetwork call

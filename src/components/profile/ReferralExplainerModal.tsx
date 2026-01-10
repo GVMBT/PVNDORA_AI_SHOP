@@ -15,9 +15,10 @@ interface ReferralExplainerModalProps {
   onClose: () => void;
   currentLevel?: number;  // 0, 1, 2, 3
   currentTurnover?: number;  // Current turnover (already converted to user currency)
+  progressPercent?: number;  // Pre-calculated progress percentage (from adapter)
   thresholds?: {
-    level2: number;  // USD thresholds (will be converted in modal)
-    level3: number;
+    level2: number;  // Anchor thresholds in display currency (RUB: 20000, USD: 250)
+    level3: number;  // Anchor thresholds in display currency (RUB: 80000, USD: 1000)
   };
   commissions?: {
     level1: number;
@@ -25,7 +26,7 @@ interface ReferralExplainerModalProps {
     level3: number;
   };
   currency?: CurrencyCode;  // User's currency (RUB, USD, etc.)
-  exchangeRate?: number;  // Exchange rate for conversion
+  exchangeRate?: number;  // Exchange rate for conversion (for fallback only)
 }
 
 // Career levels - matches profileAdapter.ts naming
@@ -67,6 +68,7 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
   onClose,
   currentLevel = 0,
   currentTurnover = 0,
+  progressPercent: propProgressPercent,
   thresholds = { level2: 250, level3: 1000 },
   commissions = { level1: 10, level2: 7, level3: 3 },
   currency = 'USD',
@@ -75,7 +77,7 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
   const { t, locale, formatPrice } = useLocale();
   const isRu = locale === 'ru';
   
-  // Thresholds are already rounded by backend (thresholds_display):
+  // Thresholds are anchor thresholds in display currency (from backend):
   // RUB: 20000/80000, USD: 250/1000
   // No conversion needed - thresholds are already in display currency
   const thresholdLevel2 = thresholds.level2;
@@ -267,18 +269,21 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                 
                 {/* Progress to next level */}
                 {currentLevel < 3 && (() => {
-                  // Determine next level threshold (already in display currency from backend)
+                  // Determine next level threshold (anchor threshold in display currency from backend)
                   let nextThreshold: number;
                   if (currentLevel === 1) {
-                    nextThreshold = thresholds.level2; // PROXY -> OPERATOR
+                    nextThreshold = thresholds.level2; // PROXY -> OPERATOR (20000 RUB or 250 USD)
                   } else if (currentLevel === 2) {
-                    nextThreshold = thresholds.level3; // OPERATOR -> ARCHITECT
+                    nextThreshold = thresholds.level3; // OPERATOR -> ARCHITECT (80000 RUB or 1000 USD)
                   } else {
                     return null; // Already max level
                   }
                   
-                  // Calculate progress (cap at 100% if already exceeded)
-                  const progressPercent = Math.min(100, (currentTurnover / nextThreshold) * 100);
+                  // Use pre-calculated progress from adapter (if provided), otherwise calculate
+                  // The adapter calculates it correctly: converts turnover to display currency and compares with anchor threshold
+                  const progressPercent = propProgressPercent !== undefined 
+                    ? propProgressPercent 
+                    : Math.min(100, Math.max(0, (currentTurnover / nextThreshold) * 100));
                   
                   return (
                     <div className="mt-4 p-3 bg-pandora-cyan/5 border border-pandora-cyan/20 rounded-sm">

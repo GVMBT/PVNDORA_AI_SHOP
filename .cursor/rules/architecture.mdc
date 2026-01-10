@@ -3,7 +3,7 @@ alwaysApply: true
 ---
 # Project Architecture & Implementation Rules
 
-You are an expert Senior Python Backend Developer specializing in Telegram Bots, Vercel Serverless, and Google Gemini 2.5.
+You are an expert Senior Python Backend Developer specializing in Telegram Bots, Vercel Serverless, and AI Agents.
 
 ## 0. Mode Detection & Change Authorization
 
@@ -36,7 +36,8 @@ When user says: "сделай", "исправь", "реализуй", "доба�
 
 - **Runtime:** Python 3.12 (Vercel Serverless)
 - **Framework:** FastAPI 0.115+ (single Serverless Function entry point)
-- **AI Core:** google-genai SDK v1.0+ (Model: gemini-2.5-flash)
+- **AI Core:** OpenRouter API + LangGraph (Model: google/gemini-3-flash-preview via OpenAI-compatible endpoint)
+- **AI Libraries:** `langchain_openai.ChatOpenAI`, `langgraph.prebuilt.create_react_agent`
 - **Database:** Supabase (PostgreSQL) via supabase-py. **NO ORM** (SQLAlchemy/Django forbidden)
 - **Async Messaging:** Upstash QStash (REQUIRED for critical long-running tasks)
 - **State/Cache:** Upstash Redis (via HTTP REST API)
@@ -69,17 +70,21 @@ When user says: "сделай", "исправь", "реализуй", "доба�
 
 **Rule:** Static bot configuration in `bot_setup/bot_info.json`. Apply via `scripts/setup_bot.py` locally. **DO NOT** call `setMyDescription` in runtime code.
 
-**Runtime:** Extract `user_language` from `update.message.from_user.language_code` → Pass to Gemini System Prompt.
+**Runtime:** Extract `user_language` from `update.message.from_user.language_code` → Pass to System Prompt.
 
 ## 3. Implementation Guidelines
 
-### Gemini 2.5 Integration
+### OpenRouter + LangGraph Integration
 
-- Use `google-genai` (Modern SDK), NOT `google-generativeai`
-- ALWAYS enforce `response_schema` with Pydantic models
-- Inject `utils.inventory.py` data into System Prompt (don't query DB for static products)
-- Function Calling: Use only `check_product_availability`. Reserve/create operations handled by backend
-- All AI responses must use Pydantic Schema-Constrained Decoding
+- Use **OpenRouter API** via `langchain_openai.ChatOpenAI` with `openai_api_base="https://openrouter.ai/api/v1"`
+- Use **LangGraph** `create_react_agent` for ReAct pattern (reasoning + acting)
+- Default model: `google/gemini-3-flash-preview` (can switch to `google/gemini-2.5-flash` or other OpenRouter models)
+- Environment variable: `OPENROUTER_API_KEY` (required). Fallback to `GEMINI_API_KEY` for backward compatibility
+- Inject product catalog data via `format_product_catalog()` into System Prompt (don't query DB for static products in tools)
+- Function Calling: Use LangGraph tools. Only `check_product_availability` for validation. Reserve/create operations handled by backend
+- Agent responses: Parse LangGraph result into `AgentResponse` dataclass (content, tool_calls, action, product_id, etc.)
+- Chat history: Load from database and inject into System Prompt (last 12-20 messages)
+- Retry logic: Built-in retry (2 attempts) for agent failures
 
 ### Real-time Validation
 
@@ -103,10 +108,11 @@ When user says: "сделай", "исправь", "реализуй", "доба�
 
 - `TELEGRAM_TOKEN`, `TELEGRAM_WEBHOOK_URL`
 - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
-- `GEMINI_API_KEY`
-- `QSTASH_URL`, `QSTASH_TOKEN`
+- `OPENROUTER_API_KEY` (required for AI agent). Fallback: `GEMINI_API_KEY` (legacy)
+- `QSTASH_URL`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`
 - `UPSTASH_REDIS_URL`, `UPSTASH_REDIS_TOKEN`
 - `ONEPLAT_SHOP_ID`, `ONEPLAT_SECRET_KEY` (required)
+- `WEBAPP_URL`, `BASE_URL` (for QStash worker endpoints)
 
 ## 4. Code Style
 
@@ -136,10 +142,10 @@ When user says: "сделай", "исправь", "реализуй", "доба�
 2. **Guaranteed delivery** - QStash for all transactional operations
 3. **Real-time validation** - Validate inventory before critical actions
 4. **Optimize with SQL** - Calculate discounts, aggregations in database (SQL Views)
-5. **RAG for search** - Use vector search (vecs) for product discovery
-6. **Structured outputs** - All AI actions return typed objects (Pydantic)
+5. **RAG for search** - Use vector search (pgvector via Supabase) for product discovery. Embeddings via OpenRouter API
+6. **Agent responses** - LangGraph results parsed into `AgentResponse` dataclass with typed fields
 7. **Single entry point** - All routes in `api/index.py`
-8. **Context caching** - Optimize AI costs with cached System Prompts
+8. **Context caching** - Optimize AI costs with cached System Prompts and product catalog
 9. **Atomic transactions** - Use PostgreSQL RPC for all transactional operations
 10. **No ORM** - Direct SQL queries via supabase-py only
 

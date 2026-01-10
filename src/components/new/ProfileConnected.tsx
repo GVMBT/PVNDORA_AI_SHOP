@@ -113,16 +113,23 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
       saved: convert(savedUsd),
       career: {
         ...profile.career,
+        // Convert turnover from USD to display currency for progress calculation
         currentTurnover: convert(profile.career.currentTurnover),
+        // Min/max are in display currency if thresholds_display was used (anchor thresholds)
+        // If thresholds_display not available, they're in USD and need conversion
+        // Backend always returns thresholds_display, so min/max should already be in correct currency
         currentLevel: {
           ...profile.career.currentLevel,
-          min: convert(profile.career.currentLevel.min),
-          max: profile.career.currentLevel.max === Infinity ? Infinity : convert(profile.career.currentLevel.max),
+          // Backend always provides thresholds_display, so min/max are already in display currency
+          // min: 0 for PROXY, threshold2_display for OPERATOR, threshold3_display for ARCHITECT
+          // max: threshold2_display for PROXY, threshold3_display for OPERATOR, Infinity for ARCHITECT
+          min: profile.career.currentLevel.min,
+          max: profile.career.currentLevel.max,
         },
         nextLevel: profile.career.nextLevel ? {
           ...profile.career.nextLevel,
-          min: convert(profile.career.nextLevel.min),
-          max: profile.career.nextLevel.max === Infinity ? Infinity : convert(profile.career.nextLevel.max),
+          min: profile.career.nextLevel.min,
+          max: profile.career.nextLevel.max,
         } : undefined,
       },
     };

@@ -386,6 +386,58 @@ class CurrencyService:
         
         return prices and currency in prices and prices[currency] is not None
     
+    async def get_anchor_threshold(
+        self,
+        settings: Union[Dict[str, Any], Any],
+        target_currency: str,
+        level: int  # 2 or 3
+    ) -> Decimal:
+        """
+        Get referral threshold for specified level and currency using anchor thresholds.
+        
+        Priority:
+        1. Fixed anchor threshold from settings.thresholds_by_currency[currency][level] (if set)
+        2. Fallback: convert from USD threshold
+        
+        Args:
+            settings: Referral settings dict or object with 'thresholds_by_currency' and 'level2_threshold_usd', 'level3_threshold_usd'
+            target_currency: Target currency code (RUB, USD, etc.)
+            level: Level number (2 or 3)
+            
+        Returns:
+            Threshold in target currency as Decimal
+        """
+        if level not in [2, 3]:
+            raise ValueError(f"Level must be 2 or 3, got {level}")
+        
+        # Handle both dict and object
+        if hasattr(settings, '__getitem__'):
+            thresholds_by_currency = settings.get("thresholds_by_currency") or {}
+            threshold_usd_key = f"level{level}_threshold_usd"
+            base_threshold_usd = settings.get(threshold_usd_key, 250 if level == 2 else 1000)
+        else:
+            thresholds_by_currency = getattr(settings, "thresholds_by_currency", None) or {}
+            threshold_usd_attr = f"level{level}_threshold_usd"
+            base_threshold_usd = getattr(settings, threshold_usd_attr, 250 if level == 2 else 1000)
+        
+        # Check for anchor threshold in target currency
+        if thresholds_by_currency and target_currency in thresholds_by_currency:
+            currency_thresholds = thresholds_by_currency[target_currency]
+            if isinstance(currency_thresholds, dict):
+                level_key = f"level{level}"
+                if level_key in currency_thresholds:
+                    anchor_threshold = currency_thresholds[level_key]
+                    if anchor_threshold is not None:
+                        logger.debug(f"Using anchor threshold for {target_currency} level{level}: {anchor_threshold}")
+                        return to_decimal(anchor_threshold)
+        
+        # Fallback: convert from USD
+        if target_currency == "USD":
+            return to_decimal(base_threshold_usd)
+        
+        converted = await self.convert_price(base_threshold_usd, target_currency)
+        return to_decimal(converted)
+    
     async def snapshot_rate(self, currency: str) -> float:
         """
         Get current exchange rate for snapshotting in orders.

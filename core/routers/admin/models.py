@@ -114,6 +114,7 @@ class ReferralSettingsRequest(BaseModel):
     level1_commission_percent: Optional[float] = None
     level2_commission_percent: Optional[float] = None
     level3_commission_percent: Optional[float] = None
+    thresholds_by_currency: Optional[dict] = None  # Anchor thresholds: {"USD": {"level2": 250, "level3": 1000}, "RUB": {"level2": 20000, "level3": 80000}}
 
 
 class SetPartnerRequest(BaseModel):

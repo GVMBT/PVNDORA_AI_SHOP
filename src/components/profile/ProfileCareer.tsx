@@ -61,6 +61,7 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
         onClose={() => setShowExplainer(false)}
         currentLevel={currentLevel.id}
         currentTurnover={currentTurnover}
+        progressPercent={progressPercent}
         thresholds={thresholds}
         commissions={commissions}
         currency={currency}
