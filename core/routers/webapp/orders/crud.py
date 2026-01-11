@@ -13,7 +13,6 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from core.services.database import get_database
 from core.auth import verify_telegram_auth
 from ..models import (
-    OrderHistoryResponse, 
     OrdersListResponse,
     OrderStatusResponse, 
     PaymentMethodsResponse, 
@@ -236,31 +235,28 @@ async def get_webapp_orders(
             first_item = items_data[0] if items_data else None
             product_data = first_item.get("product") if first_item else None
             
-            # Get first item's image for display
-            main_image_url = None
-            if product_data:
-                main_image_url = product_data.get("image_url")
-            
-            # Calculate progress
-            total_quantity = sum(item.get("quantity", 0) for item in items_data)
-            delivered_quantity = sum(item.get("delivered_quantity", 0) for item in items_data)
-            progress = 0
-            if total_quantity > 0:
-                progress = int((delivered_quantity / total_quantity) * 100)
-            
-            # Build items list
+            # Build items list in APIOrderItem format
             items = []
             for item in items_data:
                 prod = item.get("product")
+                # Determine fulfillment_type
+                fulfillment_type = "instant" if item.get("instant_quantity", 0) > 0 else "preorder"
                 items.append({
+                    "id": item.get("id"),
                     "product_id": item.get("product_id"),
                     "product_name": prod.get("name") if prod else "Unknown",
                     "quantity": item.get("quantity", 1),
-                    "instant_quantity": item.get("instant_quantity", 0),
-                    "prepaid_quantity": item.get("prepaid_quantity", 0),
-                    "delivered_quantity": item.get("delivered_quantity", 0),
-                    "amount": float(item.get("amount", 0)),
-                    "image_url": prod.get("image_url") if prod else None,
+                    "price": float(item.get("amount", 0)),
+                    "status": item.get("status", row["status"]),
+                    "fulfillment_type": fulfillment_type,
+                    "delivery_content": item.get("delivery_content"),
+                    "delivery_instructions": item.get("delivery_instructions"),
+                    "credentials": item.get("delivery_content"),  # Alias
+                    "expires_at": item.get("expires_at"),
+                    "fulfillment_deadline": item.get("fulfillment_deadline"),
+                    "delivered_at": item.get("delivered_at"),
+                    "created_at": item.get("created_at"),
+                    "has_review": False,  # TODO: check reviews
                 })
             
             # Convert amount to user's currency
@@ -268,24 +264,31 @@ async def get_webapp_orders(
             logger.info(f"[DEBUG] before currency conversion: order_id={row.get('id')}, usd_amount={usd_amount}, user_currency={user_currency}")
             
             display_amount = await currency_service.convert_price(usd_amount, user_currency)
-            formatted_amount = currency_service.format_price(display_amount, user_currency)
             
-            orders.append(OrderHistoryResponse(
-                order_id=row["id"],
-                status=row["status"],
-                amount=usd_amount,
-                display_amount=formatted_amount,
-                display_currency=user_currency,
-                created_at=row.get("created_at"),
-                product_name=product_data.get("name") if product_data else "Multiple items",
-                quantity=total_quantity,
-                delivered_quantity=delivered_quantity,
-                progress=progress,
-                payment_method=row.get("payment_method"),
-                payment_url=row.get("payment_url"),
-                items=items,
-                image_url=main_image_url,
-            ))
+            # Build order in APIOrder format
+            order_dict = {
+                "id": row["id"],
+                "product_id": product_data.get("id") if product_data else None,
+                "product_name": product_data.get("name") if product_data else "Multiple items",
+                "amount": usd_amount,  # USD amount
+                "amount_display": display_amount,  # Converted amount (number)
+                "original_price": float(row.get("original_price", 0)) if row.get("original_price") else None,
+                "discount_percent": int(row.get("discount_percent", 0)),
+                "status": row["status"],
+                "order_type": row.get("order_type", "instant"),
+                "created_at": row.get("created_at"),
+                "expires_at": row.get("expires_at"),
+                "fulfillment_deadline": row.get("fulfillment_deadline"),
+                "delivered_at": row.get("delivered_at"),
+                "warranty_until": row.get("warranty_until"),
+                "payment_url": row.get("payment_url"),
+                "payment_id": row.get("payment_id"),
+                "payment_gateway": row.get("payment_gateway"),
+                "items": items,
+                "currency": user_currency,
+            }
+            
+            orders.append(order_dict)
             processed_count += 1
         except Exception as e:
             error_count += 1

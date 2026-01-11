@@ -80,7 +80,7 @@ class OrderHistoryResponse(BaseModel):
 
 class OrdersListResponse(BaseModel):
     """Orders list response with metadata."""
-    orders: list[OrderHistoryResponse]
+    orders: list[dict]  # Use dict to match APIOrder structure from frontend
     count: int
     currency: str
 
