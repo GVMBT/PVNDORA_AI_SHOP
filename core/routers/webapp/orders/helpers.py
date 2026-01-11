@@ -115,21 +115,22 @@ async def persist_order(
 
 
 async def persist_order_items(db, order_id: str, items: List[Dict[str, Any]]) -> None:
-    """Insert multiple order_items in bulk. Runs in a thread for blocking client."""
+    """Insert multiple order_items in bulk. Uses only columns that exist in order_items table."""
     if not items:
         return
     
     rows = []
     for item in items:
-        rows.append({
+        row = {
             "order_id": order_id,
             "product_id": item["product_id"],
             "quantity": item["quantity"],
-            "instant_quantity": item.get("instant_quantity", 0),
-            "prepaid_quantity": item.get("prepaid_quantity", 0),
             "price": to_float(item["amount"]),  # Use 'price' column in DB, but map from 'amount' in item dict
             "discount_percent": item.get("discount_percent", 0),
-            "fulfillment_time_hours": item.get("fulfillment_time_hours", 24),
-        })
+        }
+        # fulfillment_type is optional, only include if present
+        if "fulfillment_type" in item:
+            row["fulfillment_type"] = item["fulfillment_type"]
+        rows.append(row)
     
     await db.client.table("order_items").insert(rows).execute()

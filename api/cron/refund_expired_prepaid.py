@@ -73,6 +73,9 @@ async def refund_expired_prepaid_entrypoint(request: Request):
             telegram_id = order_data.get("user_telegram_id")
             item_price = to_float(item.get("price", 0))
             product_name = product_data.get("name", "Unknown")
+            order_amount = to_float(order_data.get("amount", 0))
+            order_fiat_amount = to_float(order_data.get("fiat_amount", 0)) if order_data.get("fiat_amount") else None
+            order_fiat_currency = order_data.get("fiat_currency")
             
             # Get user's balance_currency for proper refund
             balance_currency = "RUB"  # Default
@@ -87,11 +90,15 @@ async def refund_expired_prepaid_entrypoint(request: Request):
                 pass
             
             # Calculate refund amount in user's currency
-            # item.price is in USD, need to convert
-            if balance_currency == "USD":
+            # Priority: Use fiat_amount from order (what user actually paid) > convert from USD
+            if order_fiat_amount and order_fiat_currency == balance_currency and order_amount > 0:
+                # Use proportional share of fiat_amount (what user actually paid)
+                # This ensures refund matches what user paid, regardless of current exchange rate
+                refund_amount = round((item_price / order_amount) * order_fiat_amount)
+            elif balance_currency == "USD":
                 refund_amount = item_price
             else:
-                # Get current exchange rate
+                # Fallback: Get current exchange rate (shouldn't happen if fiat_amount is set)
                 from core.db import get_redis
                 from core.services.currency import get_currency_service
                 redis = get_redis()

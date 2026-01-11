@@ -293,11 +293,12 @@ async def convert_balance(request: ConvertBalanceRequest, user=Depends(verify_te
         "balance_currency": target_currency
     }).eq("telegram_id", user.id).execute()
     
-    # Log the conversion
+    # Log the conversion (amount = 0 because balance doesn't change, only currency)
+    # This is a system transaction that doesn't affect balance amount
     await db.client.table("balance_transactions").insert({
         "user_id": db_user.id,
         "type": "conversion",
-        "amount": new_balance,
+        "amount": 0,  # Balance doesn't change, only currency changes
         "currency": target_currency,
         "balance_before": current_balance,
         "balance_after": new_balance,
