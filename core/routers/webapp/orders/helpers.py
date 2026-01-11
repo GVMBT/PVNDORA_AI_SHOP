@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 
 from core.services.money import to_float
+from core.services.models import Order
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +76,6 @@ async def persist_order(
     exchange_rate_snapshot: Optional[float] = None,
 ):
     """Create order record in database using thread for sync operation."""
-    from core.models import Order
-    
     order_payload = {
         "user_id": user_id,
         "amount": to_float(amount),
