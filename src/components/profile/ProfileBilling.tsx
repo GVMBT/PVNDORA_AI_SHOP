@@ -34,8 +34,11 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
       const amountNum = parseFloat(log.amount.replace(/[+\-,]/g, '')) || 0;
       const isIncome = log.type === 'INCOME';
       
-      // Convert amount using exchange rate
-      const convertedAmount = amountNum * exchangeRate;
+      // Only convert if transaction currency differs from display currency
+      // balance_transactions already come in user's balance_currency
+      const txCurrency = log.currency;
+      const needsConversion = txCurrency && txCurrency !== currency;
+      const convertedAmount = needsConversion ? amountNum * exchangeRate : amountNum;
       const formattedAmount = `${isIncome ? '+' : '-'}${formatPrice(convertedAmount, currency)}`;
       
       return {

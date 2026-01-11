@@ -40,6 +40,7 @@ export interface BillingLogData {
   amount: string;
   date: string;
   transactionType?: string;  // For localization: topup, purchase, refund, etc.
+  currency?: string;  // Currency of the transaction (e.g., 'RUB', 'USD') - if same as user's currency, no conversion needed
 }
 
 export interface ProfileStatsData {

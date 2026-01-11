@@ -169,8 +169,18 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
     
     review_id = result.data[0]["id"]
     
+    # CRITICAL: Find the specific order_item for this product to get its price
+    target_item = None
+    for item in order_items:
+        if item.get("product_id") == product_id:
+            target_item = item
+            break
+    
+    if not target_item:
+        raise HTTPException(status_code=400, detail="Product not found in order items")
+    
     # CRITICAL: Calculate cashback in user's balance_currency, NOT in USD
-    # Use fiat_amount if available (what user actually paid), otherwise convert from USD
+    # Use the PRICE OF THE SPECIFIC ITEM, not the entire order
     balance_currency = getattr(db_user, 'balance_currency', 'USD') or 'USD'
     
     from core.db import get_redis
@@ -178,20 +188,35 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
     redis = get_redis()
     currency_service = get_currency_service(redis)
     
-    # Determine cashback base amount
-    if hasattr(order, 'fiat_amount') and order.fiat_amount:
-        # Use fiat_amount (what user actually paid in their currency)
-        cashback_base = to_float(order.fiat_amount)
+    # Get item price in USD (from order_items.price)
+    item_price_usd = to_float(target_item.get("price", 0))
+    if item_price_usd <= 0:
+        raise HTTPException(status_code=400, detail="Invalid item price")
+    
+    # Determine cashback base amount (item price in user's currency)
+    if hasattr(order, 'fiat_amount') and order.fiat_amount and hasattr(order, 'amount') and order.amount:
+        # Calculate proportional item price in fiat currency
+        # item_price_usd / order.amount_usd * fiat_amount
+        order_amount_usd = to_float(order.amount)
+        if order_amount_usd > 0:
+            item_price_fiat = item_price_usd / order_amount_usd * to_float(order.fiat_amount)
+            cashback_base = item_price_fiat
+        else:
+            # Fallback: convert from USD
+            if balance_currency == "USD":
+                cashback_base = item_price_usd
+            else:
+                rate = await currency_service.get_exchange_rate(balance_currency)
+                cashback_base = item_price_usd * rate
     else:
-        # Fallback: convert from USD amount
-        cashback_base_usd = to_float(order.amount)
+        # Fallback: convert item price from USD to user's currency
         if balance_currency == "USD":
-            cashback_base = cashback_base_usd
+            cashback_base = item_price_usd
         else:
             rate = await currency_service.get_exchange_rate(balance_currency)
-            cashback_base = cashback_base_usd * rate
+            cashback_base = item_price_usd * rate
     
-    # Calculate 5% cashback in user's balance_currency
+    # Calculate 5% cashback in user's balance_currency (from ITEM price, not order total)
     cashback_amount = cashback_base * 0.05
     
     # Round for integer currencies
@@ -227,11 +252,23 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
             rate = await currency_service.get_exchange_rate(balance_currency)
             cashback_usd = cashback_amount / rate if rate > 0 else cashback_amount
         
+        # Get current review_cashback_amount (if multiple reviews on same order, sum them)
+        current_expenses = await db.client.table("order_expenses").select(
+            "review_cashback_amount"
+        ).eq("order_id", request.order_id).execute()
+        
+        current_cashback_usd = 0.0
+        if current_expenses.data and len(current_expenses.data) > 0:
+            current_cashback_usd = to_float(current_expenses.data[0].get("review_cashback_amount", 0))
+        
+        # Sum: existing + new cashback
+        total_cashback_usd = current_cashback_usd + cashback_usd
+        
         # Update order_expenses table
         await db.client.table("order_expenses").update({
-            "review_cashback_amount": cashback_usd
+            "review_cashback_amount": total_cashback_usd
         }).eq("order_id", request.order_id).execute()
-        logger.info(f"Updated order_expenses for {request.order_id}: review_cashback_amount={cashback_usd:.2f} USD")
+        logger.info(f"Updated order_expenses for {request.order_id}: review_cashback_amount={total_cashback_usd:.2f} USD (added {cashback_usd:.2f} USD)")
     except Exception as e:
         logger.warning(f"Failed to update order_expenses for {request.order_id}: {e}")
     

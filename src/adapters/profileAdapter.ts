@@ -128,6 +128,7 @@ function formatBalanceTransactionLog(
     'cashback': 'INCOME',
     'credit': 'INCOME',
     'debit': 'OUTCOME',
+    'conversion': 'SYSTEM',
   };
   
   const logType = typeMap[tx.type.toLowerCase()] || 'SYSTEM';
@@ -142,6 +143,7 @@ function formatBalanceTransactionLog(
     'cashback': 'CASHBACK',
     'credit': 'CREDIT',
     'debit': 'DEBIT',
+    'conversion': 'CONVERSION',
   };
   
   const source = tx.description || sourceMap[tx.type.toLowerCase()] || tx.type.toUpperCase();
@@ -156,6 +158,7 @@ function formatBalanceTransactionLog(
     type: logType,
     source,
     amount: amountStr,
+    currency: tx.currency,  // Pass through the currency from the transaction
     date: date.toLocaleString('ru-RU', {
       day: '2-digit',
       month: '2-digit',

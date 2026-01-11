@@ -149,6 +149,7 @@ export interface BillingLog {
   amount: string;
   date: string;
   transactionType?: string;  // For localization: topup, purchase, refund, etc.
+  currency?: string;  // Currency of the transaction - if same as display currency, no conversion needed
 }
 
 export interface ProfileStats {
