@@ -89,7 +89,7 @@ async def worker_calculate_referral(request: Request):
     
     # Get order with user info
     order = await db.client.table("orders").select(
-        "amount, user_id, user_telegram_id, users(referrer_id, referral_program_unlocked)"
+        "amount, user_id, user_telegram_id, users(referrer_id, referral_program_unlocked, is_partner, partner_level_override)"
     ).eq("id", order_id).single().execute()
     
     if not order.data:
@@ -99,6 +99,8 @@ async def worker_calculate_referral(request: Request):
     amount = to_float(order.data["amount"])
     telegram_id = order.data.get("user_telegram_id")
     was_unlocked = order.data.get("users", {}).get("referral_program_unlocked", False)
+    is_partner = order.data.get("users", {}).get("is_partner", False)
+    partner_level_override = order.data.get("users", {}).get("partner_level_override")
     
     # 1. Update buyer's turnover in USD (recalculates: own delivered orders + referral delivered orders)
     #    This may trigger level unlocks
@@ -122,9 +124,13 @@ async def worker_calculate_referral(request: Request):
         if telegram_id:
             await notification_service.send_referral_unlock_notification(telegram_id)
     
-    # 3. Send level up notification if applicable
+    # 3. Send level up notification if applicable (skip for VIP partners with all levels unlocked)
     if level_up and new_level > 0 and telegram_id:
-        await notification_service.send_referral_level_up_notification(telegram_id, new_level)
+        # Skip notification for VIP partners who already have all levels unlocked (level 3)
+        if is_partner and partner_level_override == 3:
+            logger.debug(f"Skipping level_up notification for VIP partner {user_id} (already has level 3)")
+        else:
+            await notification_service.send_referral_level_up_notification(telegram_id, new_level)
     
     # 4. Process referral bonuses for referrer chain (checks level unlock status)
     referrer_id = order.data.get("users", {}).get("referrer_id")

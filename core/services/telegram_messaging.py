@@ -6,7 +6,6 @@ Replaces 8+ duplicate implementations with unified retry logic, error handling, 
 """
 import os
 import asyncio
-import json
 from typing import Optional
 
 import httpx
@@ -150,60 +149,27 @@ async def send_telegram_message_with_keyboard(
     if isinstance(keyboard, dict):
         # Already a dict, use as-is
         keyboard_dict = keyboard
-    elif hasattr(keyboard, 'model_dump_json'):
-        # aiogram 3.x InlineKeyboardMarkup - use model_dump_json for API-compatible format
-        try:
-            keyboard_json = keyboard.model_dump_json()
-            keyboard_dict = json.loads(keyboard_json)
-        except Exception as e:
-            logger.warning(f"Failed to convert keyboard using model_dump_json, trying model_dump: {e}")
-            try:
-                keyboard_dict = keyboard.model_dump()
-            except Exception as e2:
-                logger.error(f"Failed to convert keyboard using model_dump: {e2}")
-                return False
     elif hasattr(keyboard, 'model_dump'):
-        # aiogram 3.x InlineKeyboardMarkup (fallback)
+        # aiogram 3.x InlineKeyboardMarkup - use model_dump with exclude_none=True
+        # This excludes None values which Telegram API doesn't accept
         try:
-            keyboard_dict = keyboard.model_dump()
+            keyboard_dict = keyboard.model_dump(exclude_none=True)
         except Exception as e:
             logger.error(f"Failed to convert keyboard using model_dump: {e}")
             return False
     elif hasattr(keyboard, 'dict'):
         # aiogram 2.x InlineKeyboardMarkup
         try:
-            keyboard_dict = keyboard.dict()
-        except Exception as e:
-            logger.error(f"Failed to convert keyboard using dict: {e}")
-            return False
-    elif hasattr(keyboard, 'inline_keyboard'):
-        # Direct access to inline_keyboard attribute (fallback)
-        try:
-            inline_keyboard = keyboard.inline_keyboard
-            keyboard_rows = []
-            for row in inline_keyboard:
-                button_row = []
-                for button in row:
-                    button_dict = {}
-                    if hasattr(button, 'text'):
-                        button_dict['text'] = button.text
-                    if hasattr(button, 'url'):
-                        button_dict['url'] = button.url
-                    if hasattr(button, 'callback_data'):
-                        button_dict['callback_data'] = button.callback_data
-                    if hasattr(button, 'web_app') and button.web_app:
-                        web_app_dict = {}
-                        if hasattr(button.web_app, 'url'):
-                            web_app_dict['url'] = button.web_app.url
-                        button_dict['web_app'] = web_app_dict
-                    button_row.append(button_dict)
-                keyboard_rows.append(button_row)
-            keyboard_dict = {'inline_keyboard': keyboard_rows}
-        except Exception as e:
-            logger.error(f"Failed to convert keyboard inline_keyboard to dict: {type(keyboard)}, error: {e}")
-            return False
+            # Try exclude_none=True first (Pydantic v2 compatible)
+            keyboard_dict = keyboard.dict(exclude_none=True)
+        except Exception:
+            try:
+                keyboard_dict = keyboard.dict()
+            except Exception as e:
+                logger.error(f"Failed to convert keyboard using dict: {e}")
+                return False
     else:
-        logger.error(f"Unknown keyboard type: {type(keyboard)}, cannot convert to dict")
+        logger.error(f"Unknown keyboard type: {type(keyboard)}, cannot convert to dict. Use InlineKeyboardMarkup from aiogram.")
         return False
     
     # Check message length (Telegram limit: 4096 characters)
