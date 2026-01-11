@@ -263,15 +263,36 @@ class OrderStatusService:
         try:
             from core.services.admin_alerts import get_admin_alert_service
             
-            # Get order details for alert
+            # Get order details for alert - include fiat_amount to show what user actually paid
             order_details = await self.db.client.table("orders").select(
-                "fiat_currency, users(telegram_id, username)"
+                "fiat_amount, fiat_currency, users(telegram_id, username)"
             ).eq("id", order_id).single().execute()
             
             user_data = order_details.data.get("users", {}) or {} if order_details.data else {}
             telegram_id = user_data.get("telegram_id", 0)
             username = user_data.get("username")
+            
+            # Use fiat_amount if available (what user actually paid), otherwise fallback to USD amount
+            fiat_amount = order_details.data.get("fiat_amount") if order_details.data else None
             currency = order_details.data.get("fiat_currency", "RUB") if order_details.data else "RUB"
+            
+            # Use fiat_amount if available, otherwise convert USD amount
+            if fiat_amount is not None:
+                display_amount = float(fiat_amount)
+            else:
+                # Fallback: convert USD to user's currency (best-effort)
+                display_amount = float(amount)
+                # If no fiat_currency, assume RUB
+                if currency == "RUB" and amount < 10:
+                    # Likely USD amount, convert roughly (best-effort)
+                    from core.db import get_redis
+                    from core.services.currency import get_currency_service
+                    try:
+                        redis = get_redis()
+                        currency_service = get_currency_service(redis)
+                        display_amount = await currency_service.convert_price(amount, currency)
+                    except Exception:
+                        pass  # Keep USD amount if conversion fails
             
             # Get product name from order items
             items_result = await self.db.client.table("order_items").select(
@@ -294,7 +315,7 @@ class OrderStatusService:
             alert_service = get_admin_alert_service()
             await alert_service.alert_new_order(
                 order_id=order_id,
-                amount=float(amount),
+                amount=display_amount,
                 currency=currency,
                 user_telegram_id=telegram_id,
                 username=username,

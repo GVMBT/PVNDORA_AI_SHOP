@@ -239,14 +239,14 @@ async def get_webapp_orders(
             items = []
             for item in items_data:
                 prod = item.get("product")
-                # Determine fulfillment_type
-                fulfillment_type = "instant" if item.get("instant_quantity", 0) > 0 else "preorder"
+                # fulfillment_type is stored in order_items table, not calculated from instant_quantity
+                fulfillment_type = item.get("fulfillment_type", "instant")
                 items.append({
                     "id": item.get("id"),
                     "product_id": item.get("product_id"),
                     "product_name": prod.get("name") if prod else "Unknown",
                     "quantity": item.get("quantity", 1),
-                    "price": float(item.get("amount", 0)),
+                    "price": float(item.get("price", 0)),  # Use 'price' column from DB, not 'amount'
                     "status": item.get("status", row["status"]),
                     "fulfillment_type": fulfillment_type,
                     "delivery_content": item.get("delivery_content"),
@@ -259,11 +259,19 @@ async def get_webapp_orders(
                     "has_review": False,  # TODO: check reviews
                 })
             
-            # Convert amount to user's currency
+            # Use fiat_amount if available (what user actually paid), otherwise convert from USD
             usd_amount = float(row.get("amount", 0))
-            logger.info(f"[DEBUG] before currency conversion: order_id={row.get('id')}, usd_amount={usd_amount}, user_currency={user_currency}")
+            fiat_amount = row.get("fiat_amount")
+            fiat_currency_from_order = row.get("fiat_currency")
             
-            display_amount = await currency_service.convert_price(usd_amount, user_currency)
+            if fiat_amount is not None and fiat_currency_from_order == user_currency:
+                # Use the exact amount user paid (in their currency)
+                display_amount = float(fiat_amount)
+                logger.info(f"[DEBUG] using fiat_amount: order_id={row.get('id')}, fiat_amount={fiat_amount}, currency={fiat_currency_from_order}")
+            else:
+                # Fallback: convert from USD
+                logger.info(f"[DEBUG] converting from USD: order_id={row.get('id')}, usd_amount={usd_amount}, user_currency={user_currency}")
+                display_amount = await currency_service.convert_price(usd_amount, user_currency)
             
             # Build order in APIOrder format
             order_dict = {
