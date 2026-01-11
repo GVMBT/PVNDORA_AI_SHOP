@@ -218,7 +218,24 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
         "cashback_given": True
     }).eq("id", review_id).execute()
     
-    # 4. Send notification (best-effort) - pass balance_currency
+    # 4. Update order_expenses for accounting (cashback in USD for financial reports)
+    try:
+        # Convert cashback to USD for accounting
+        if balance_currency == "USD":
+            cashback_usd = cashback_amount
+        else:
+            rate = await currency_service.get_exchange_rate(balance_currency)
+            cashback_usd = cashback_amount / rate if rate > 0 else cashback_amount
+        
+        # Update order_expenses table
+        await db.client.table("order_expenses").update({
+            "review_cashback_amount": cashback_usd
+        }).eq("order_id", request.order_id).execute()
+        logger.info(f"Updated order_expenses for {request.order_id}: review_cashback_amount={cashback_usd:.2f} USD")
+    except Exception as e:
+        logger.warning(f"Failed to update order_expenses for {request.order_id}: {e}")
+    
+    # 5. Send notification (best-effort) - pass balance_currency
     try:
         from core.routers.deps import get_notification_service
         notification_service = get_notification_service()

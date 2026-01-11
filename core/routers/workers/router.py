@@ -263,6 +263,15 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
             telegram_id = order.data.get("user_telegram_id") if order and order.data else None
             if telegram_id:
                 content_block = "\n\n".join(delivered_lines)
+                
+                # Add info about waiting items if partial delivery
+                if waiting_count > 0:
+                    waiting_notice = (
+                        f"\n\n⏳ <b>Ожидает доставки:</b> {waiting_count} товар(ов)\n"
+                        "Мы уведомим вас, когда они будут готовы к доставке."
+                    )
+                    content_block += waiting_notice
+                
                 await notification_service.send_delivery(
                     telegram_id=telegram_id,
                     product_name=f"Заказ #{order_id[:8]}",

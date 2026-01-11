@@ -6,12 +6,18 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
+from pydantic import BaseModel as PydanticBaseModel
 
 from core.logging import get_logger
 from core.services.database import get_database
 from core.services.money import to_float
 from core.auth import verify_admin
 from core.routers.admin.models import UpdateBalanceRequest, UpdateWarningsRequest
+
+
+class ToggleVIPRequest(PydanticBaseModel):
+    is_partner: bool = True
+    partner_level_override: Optional[int] = None
 
 logger = get_logger(__name__)
 
@@ -320,8 +326,7 @@ async def admin_update_warnings(
 @router.post("/users/{user_id}/vip")
 async def admin_toggle_vip(
     user_id: str,
-    is_partner: bool = True,
-    partner_level_override: Optional[int] = None,
+    request: ToggleVIPRequest,
     admin=Depends(verify_admin)
 ):
     """
@@ -329,9 +334,11 @@ async def admin_toggle_vip(
     
     Args:
         user_id: UUID of the user
-        is_partner: True to grant VIP, False to revoke
-        partner_level_override: Optional level override (1, 2, or 3)
+        request.is_partner: True to grant VIP, False to revoke
+        request.partner_level_override: Optional level override (1, 2, or 3)
     """
+    is_partner = request.is_partner
+    partner_level_override = request.partner_level_override
     db = get_database()
     
     try:

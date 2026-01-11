@@ -219,7 +219,24 @@ async def worker_process_review_cashback(request: Request):
         "cashback_given": True
     }).eq("id", review["id"]).execute()
     
-    # 4. Send Telegram notification using notification service (supports currency)
+    # 4. Update order_expenses for accounting (cashback in USD for financial reports)
+    try:
+        # Convert cashback to USD for accounting
+        if balance_currency == "USD":
+            cashback_usd = cashback_amount
+        else:
+            rate = await currency_service.get_exchange_rate(balance_currency)
+            cashback_usd = cashback_amount / rate if rate > 0 else cashback_amount
+        
+        # Update order_expenses table
+        await db.client.table("order_expenses").update({
+            "review_cashback_amount": cashback_usd
+        }).eq("order_id", order_id).execute()
+        logger.info(f"Updated order_expenses for {order_id}: review_cashback_amount={cashback_usd:.2f} USD")
+    except Exception as e:
+        logger.warning(f"Failed to update order_expenses for {order_id}: {e}")
+    
+    # 5. Send Telegram notification using notification service (supports currency)
     try:
         from core.routers.deps import get_notification_service
         notification_service = get_notification_service()
