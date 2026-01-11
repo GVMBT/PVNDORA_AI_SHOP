@@ -30,11 +30,6 @@ async def create_payment_wrapper(
     Async wrapper for synchronous payment creation.
     Returns dict with payment_url and invoice_id.
     """
-    from core.services.currency import get_currency_service
-    from core.db import get_redis
-    redis = get_redis()
-    currency_service = get_currency_service(redis)
-    
     formatted_amount = to_float(amount)
     
     if gateway == "crystalpay":

@@ -24,7 +24,6 @@ async def cmd_stats(message: Message):
     now = datetime.now(timezone.utc)
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_ago = now - timedelta(days=7)
-    month_ago = now - timedelta(days=30)
     
     # Users stats
     users_total_res = await db.client.table("users").select("id", count="exact").execute()
@@ -196,7 +195,7 @@ async def cmd_stock(message: Message):
     lines.append(f"\n📊 <b>Всего доступно:</b> <code>{total_available}</code>")
     
     if low_stock:
-        lines.append(f"\n⚠️ <b>Требует внимания:</b>\n" + "\n".join(f"└ {s}" for s in low_stock[:5]))
+        lines.append("\n⚠️ <b>Требует внимания:</b>\n" + "\n".join(f"└ {s}" for s in low_stock[:5]))
     
     await message.answer("\n".join(lines), parse_mode=ParseMode.HTML)
 

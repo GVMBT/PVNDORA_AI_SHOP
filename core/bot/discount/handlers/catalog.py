@@ -1,5 +1,4 @@
 """Discount bot catalog handlers."""
-import asyncio
 from typing import Optional, Tuple
 
 from aiogram import Router, F

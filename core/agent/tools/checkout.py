@@ -7,7 +7,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 import os
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
-from typing import Dict, Any, Tuple, List, Optional
+from typing import Dict, Any, Tuple, List
 
 from langchain_core.tools import tool
 

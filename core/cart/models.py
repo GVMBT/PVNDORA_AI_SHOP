@@ -1,6 +1,6 @@
 """Cart models with Decimal-based pricing."""
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional, List
 
@@ -21,7 +21,7 @@ class CartItem:
     
     def __post_init__(self):
         if not self.added_at:
-            self.added_at = datetime.utcnow().isoformat()
+            self.added_at = datetime.now(timezone.utc).isoformat()
         # Normalize numeric fields
         self.unit_price = to_decimal(self.unit_price)
         self.discount_percent = to_decimal(self.discount_percent)
@@ -76,7 +76,7 @@ class Cart:
     updated_at: str = ""
     
     def __post_init__(self):
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         if not self.created_at:
             self.created_at = now
         if not self.updated_at:

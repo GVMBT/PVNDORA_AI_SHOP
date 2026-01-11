@@ -5,14 +5,12 @@ Order history, status, and payment method endpoints.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Optional
-from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 
 from core.services.database import get_database
-from core.services.money import to_decimal, to_float, round_money
 from core.auth import verify_telegram_auth
 from ..models import (
     OrderHistoryResponse, 
@@ -190,70 +188,89 @@ async def get_webapp_orders(
     
     query = query.order("created_at", desc=True).range(offset, offset + limit - 1)
     
-    result = await query.execute()
+    try:
+        result = await query.execute()
+    except Exception as e:
+        logger.error(f"Failed to fetch orders for user {db_user.id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch orders")
+    
+    if not result.data:
+        logger.info(f"No orders found for user {db_user.id} (telegram_id={user.id})")
+        return []
     
     # Get user's preferred currency
     user_lang = getattr(db_user, 'interface_language', None) or (db_user.language_code if db_user and db_user.language_code else user.language_code)
     preferred_currency = getattr(db_user, 'preferred_currency', None)
     user_currency = currency_service.get_user_currency(user_lang, preferred_currency)
     
+    logger.info(f"Processing {len(result.data)} orders for user {db_user.id}")
+    
     orders = []
     for row in result.data:
-        items_data = row.get("order_items", [])
-        
-        # Get first product for main display
-        first_item = items_data[0] if items_data else None
-        product_data = first_item.get("product") if first_item else None
-        
-        # Get first item's image for display
-        main_image_url = None
-        if product_data:
-            main_image_url = product_data.get("image_url")
-        
-        # Calculate progress
-        total_quantity = sum(item.get("quantity", 0) for item in items_data)
-        delivered_quantity = sum(item.get("delivered_quantity", 0) for item in items_data)
-        progress = 0
-        if total_quantity > 0:
-            progress = int((delivered_quantity / total_quantity) * 100)
-        
-        # Build items list
-        items = []
-        for item in items_data:
-            prod = item.get("product")
-            items.append({
-                "product_id": item.get("product_id"),
-                "product_name": prod.get("name") if prod else "Unknown",
-                "quantity": item.get("quantity", 1),
-                "instant_quantity": item.get("instant_quantity", 0),
-                "prepaid_quantity": item.get("prepaid_quantity", 0),
-                "delivered_quantity": item.get("delivered_quantity", 0),
-                "amount": float(item.get("amount", 0)),
-                "image_url": prod.get("image_url") if prod else None,
-            })
-        
-        # Convert amount to user's currency
-        usd_amount = float(row.get("amount", 0))
-        display_amount = await currency_service.convert_price(usd_amount, user_currency)
-        formatted_amount = currency_service.format_price(display_amount, user_currency)
-        
-        orders.append(OrderHistoryResponse(
-            order_id=row["id"],
-            status=row["status"],
-            amount=usd_amount,
-            display_amount=formatted_amount,
-            display_currency=user_currency,
-            created_at=row.get("created_at"),
-            product_name=product_data.get("name") if product_data else "Multiple items",
-            quantity=total_quantity,
-            delivered_quantity=delivered_quantity,
-            progress=progress,
-            payment_method=row.get("payment_method"),
-            payment_url=row.get("payment_url"),
-            items=items,
-            image_url=main_image_url,
-        ))
+        try:
+            items_data = row.get("order_items", [])
+            if not items_data:
+                logger.warning(f"Order {row.get('id')} has no order_items")
+                continue
+            
+            # Get first product for main display
+            first_item = items_data[0] if items_data else None
+            product_data = first_item.get("product") if first_item else None
+            
+            # Get first item's image for display
+            main_image_url = None
+            if product_data:
+                main_image_url = product_data.get("image_url")
+            
+            # Calculate progress
+            total_quantity = sum(item.get("quantity", 0) for item in items_data)
+            delivered_quantity = sum(item.get("delivered_quantity", 0) for item in items_data)
+            progress = 0
+            if total_quantity > 0:
+                progress = int((delivered_quantity / total_quantity) * 100)
+            
+            # Build items list
+            items = []
+            for item in items_data:
+                prod = item.get("product")
+                items.append({
+                    "product_id": item.get("product_id"),
+                    "product_name": prod.get("name") if prod else "Unknown",
+                    "quantity": item.get("quantity", 1),
+                    "instant_quantity": item.get("instant_quantity", 0),
+                    "prepaid_quantity": item.get("prepaid_quantity", 0),
+                    "delivered_quantity": item.get("delivered_quantity", 0),
+                    "amount": float(item.get("amount", 0)),
+                    "image_url": prod.get("image_url") if prod else None,
+                })
+            
+            # Convert amount to user's currency
+            usd_amount = float(row.get("amount", 0))
+            display_amount = await currency_service.convert_price(usd_amount, user_currency)
+            formatted_amount = currency_service.format_price(display_amount, user_currency)
+            
+            orders.append(OrderHistoryResponse(
+                order_id=row["id"],
+                status=row["status"],
+                amount=usd_amount,
+                display_amount=formatted_amount,
+                display_currency=user_currency,
+                created_at=row.get("created_at"),
+                product_name=product_data.get("name") if product_data else "Multiple items",
+                quantity=total_quantity,
+                delivered_quantity=delivered_quantity,
+                progress=progress,
+                payment_method=row.get("payment_method"),
+                payment_url=row.get("payment_url"),
+                items=items,
+                image_url=main_image_url,
+            ))
+        except Exception as e:
+            logger.error(f"Failed to process order {row.get('id')}: {e}", exc_info=True)
+            # Continue processing other orders instead of failing entirely
+            continue
     
+    logger.info(f"Returning {len(orders)} orders for user {db_user.id}")
     return orders
 
 

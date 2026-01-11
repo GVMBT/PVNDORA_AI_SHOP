@@ -2,7 +2,7 @@
 import json
 import logging
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from core.services.money import to_decimal
@@ -59,7 +59,7 @@ class CartManager:
         """Save cart to Redis with TTL."""
         try:
             key = RedisKeys.cart_key(cart.user_telegram_id)
-            cart.updated_at = datetime.utcnow().isoformat()
+            cart.updated_at = datetime.now(timezone.utc).isoformat()
             
             await self.redis.set(
                 key,

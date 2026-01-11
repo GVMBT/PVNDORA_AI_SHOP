@@ -3,8 +3,6 @@ Broadcast Handlers for Admin Bot
 
 Implements the /broadcast command and FSM flow for creating mailings.
 """
-import json
-import asyncio
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone, timedelta
 
@@ -683,7 +681,7 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
         db = get_database()
         
         # 1. Get recipients FIRST (before creating broadcast record)
-        logger.info(f"Broadcast: Fetching recipients...")
+        logger.info("Broadcast: Fetching recipients...")
         recipients = await _get_recipients_list(db, target_bot, target_audience, data.get("target_languages"))
         
         if not recipients:

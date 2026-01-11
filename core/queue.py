@@ -225,7 +225,7 @@ async def verify_qstash_request(request: Request) -> dict:
     # Try without query params (QStash may not include them)
     url_no_query = url.split("?")[0]
     if url_no_query != url and verify_qstash_signature(body, signature, url_no_query):
-        logger.info(f"QStash verified with URL without query params")
+        logger.info("QStash verified with URL without query params")
         import json
         return json.loads(body)
     
@@ -272,8 +272,6 @@ class WorkerEndpoints:
     DELIVER_BATCH = "/api/workers/deliver-batch"
     
     # Notifications
-    NOTIFY_SUPPLIER = "/api/workers/notify-supplier"
-    NOTIFY_SUPPLIER_PREPAID = "/api/workers/notify-supplier-prepaid"
     NOTIFY_WAITLIST = "/api/workers/notify-waitlist"
     SEND_BROADCAST = "/api/workers/send-broadcast"
     

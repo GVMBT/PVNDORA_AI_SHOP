@@ -90,7 +90,6 @@ async def admin_update_referral_settings(request: ReferralSettingsRequest, admin
     
     # Update anchor thresholds if provided
     if request.thresholds_by_currency is not None:
-        import json
         # Validate structure
         if not isinstance(request.thresholds_by_currency, dict):
             raise HTTPException(status_code=400, detail="thresholds_by_currency must be a dictionary")
