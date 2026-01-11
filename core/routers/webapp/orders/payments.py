@@ -283,7 +283,17 @@ async def _create_cart_order(
     # Cooldown checks
     cooldown_redis, cooldown_seconds = await enforce_cooldown()
     
-    product_names = ", ".join([item["product_name"] for item in order_items[:3]])
+    # Format product names with quantities
+    product_name_parts = []
+    for item in order_items[:3]:
+        name = item["product_name"]
+        quantity = item.get("quantity", 1)
+        if quantity > 1:
+            product_name_parts.append(f"{name} (x{quantity})")
+        else:
+            product_name_parts.append(name)
+    
+    product_names = ", ".join(product_name_parts)
     if len(order_items) > 3:
         product_names += f" и еще {len(order_items) - 3}"
     

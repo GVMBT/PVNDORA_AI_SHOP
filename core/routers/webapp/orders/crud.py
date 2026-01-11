@@ -168,8 +168,6 @@ async def get_webapp_orders(
     offset: int = Query(0, ge=0)
 ) -> OrdersListResponse:
     """Get user's order history with filtering."""
-    logger.info(f"[DEBUG] get_webapp_orders ENTRY: telegram_id={user.id}, status={status}, limit={limit}, offset={offset}")
-    
     from core.db import get_redis
     from core.services.currency import get_currency_service
     
@@ -178,10 +176,8 @@ async def get_webapp_orders(
     currency_service = get_currency_service(redis)
     
     db_user = await db.get_user_by_telegram_id(user.id)
-    logger.info(f"[DEBUG] after get_user_by_telegram_id: telegram_id={user.id}, db_user_id={db_user.id if db_user else None}, db_user_exists={db_user is not None}")
     
     if not db_user:
-        logger.error(f"[DEBUG] User not found: telegram_id={user.id}")
         raise HTTPException(status_code=404, detail="User not found")
     
     # Build query
@@ -192,18 +188,13 @@ async def get_webapp_orders(
     
     query = query.order("created_at", desc=True).range(offset, offset + limit - 1)
     
-    logger.info(f"[DEBUG] before query.execute: user_id={db_user.id}, status_filter={status}")
-    
     try:
         result = await query.execute()
-        logger.info(f"[DEBUG] after query.execute: result_count={len(result.data) if result.data else 0}, has_data={result.data is not None}")
     except Exception as e:
-        logger.error(f"[DEBUG] query.execute exception: {type(e).__name__}: {e}", exc_info=True)
         logger.error(f"Failed to fetch orders for user {db_user.id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch orders")
     
     if not result.data:
-        logger.info(f"[DEBUG] No orders found: user_id={db_user.id}, telegram_id={user.id}")
         logger.info(f"No orders found for user {db_user.id} (telegram_id={user.id})")
         # Get user's preferred currency for empty response
         user_lang = getattr(db_user, 'interface_language', None) or (db_user.language_code if db_user and db_user.language_code else user.language_code)
@@ -216,16 +207,33 @@ async def get_webapp_orders(
     preferred_currency = getattr(db_user, 'preferred_currency', None)
     user_currency = currency_service.get_user_currency(user_lang, preferred_currency)
     
-    logger.info(f"[DEBUG] starting order processing: total_orders={len(result.data)}, user_id={db_user.id}")
-    logger.info(f"Processing {len(result.data)} orders for user {db_user.id}")
-    
     orders = []
     processed_count = 0
     error_count = 0
+    
+    # OPTIMIZATION: Fix N+1 query problem - load all reviews for all orders in one query
+    order_ids = [row.get("id") for row in result.data if row.get("id")]
+    reviews_by_order = {}
+    if order_ids:
+        try:
+            all_reviews = await db.client.table("reviews").select(
+                "order_id, product_id"
+            ).in_("order_id", order_ids).execute()
+            
+            # Group reviews by order_id
+            for review in (all_reviews.data or []):
+                order_id = review.get("order_id")
+                product_id = review.get("product_id")
+                if order_id not in reviews_by_order:
+                    reviews_by_order[order_id] = set()
+                if product_id:
+                    reviews_by_order[order_id].add(product_id)
+        except Exception as e:
+            logger.warning(f"Failed to load reviews for orders: {e}")
+    
     for row in result.data:
         try:
             items_data = row.get("order_items", [])
-            logger.info(f"[DEBUG] processing order: order_id={row.get('id')}, has_items={bool(items_data)}, items_count={len(items_data) if items_data else 0}")
             
             if not items_data:
                 logger.warning(f"Order {row.get('id')} has no order_items")
@@ -238,12 +246,9 @@ async def get_webapp_orders(
             # Build items list in APIOrderItem format
             items = []
             
-            # Pre-fetch reviews for this order to check has_review status
+            # Get reviewed product IDs for this order (from pre-loaded data)
             order_id = row.get("id")
-            reviews_result = await db.client.table("reviews").select(
-                "product_id"
-            ).eq("order_id", order_id).execute()
-            reviewed_product_ids = set(r["product_id"] for r in (reviews_result.data or []))
+            reviewed_product_ids = reviews_by_order.get(order_id, set())
             
             for item in items_data:
                 prod = item.get("product")
@@ -280,10 +285,8 @@ async def get_webapp_orders(
             if fiat_amount is not None and fiat_currency_from_order == user_currency:
                 # Use the exact amount user paid (in their currency)
                 display_amount = float(fiat_amount)
-                logger.info(f"[DEBUG] using fiat_amount: order_id={row.get('id')}, fiat_amount={fiat_amount}, currency={fiat_currency_from_order}")
             else:
                 # Fallback: convert from USD
-                logger.info(f"[DEBUG] converting from USD: order_id={row.get('id')}, usd_amount={usd_amount}, user_currency={user_currency}")
                 display_amount = await currency_service.convert_price(usd_amount, user_currency)
             
             # Build order in APIOrder format
@@ -313,12 +316,10 @@ async def get_webapp_orders(
             processed_count += 1
         except Exception as e:
             error_count += 1
-            logger.error(f"[DEBUG] order processing exception: order_id={row.get('id')}, error={type(e).__name__}: {e}", exc_info=True)
             logger.error(f"Failed to process order {row.get('id')}: {e}", exc_info=True)
             # Continue processing other orders instead of failing entirely
             continue
     
-    logger.info(f"[DEBUG] returning orders: total_orders={len(result.data)}, processed={processed_count}, errors={error_count}, returning={len(orders)}")
     logger.info(f"Returning {len(orders)} orders for user {db_user.id}")
     
     return OrdersListResponse(

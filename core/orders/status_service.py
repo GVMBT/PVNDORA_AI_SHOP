@@ -435,7 +435,8 @@ class OrderStatusService:
         self, 
         order_id: str,
         delivered_count: int,
-        waiting_count: int
+        waiting_count: int,
+        current_status: Optional[str] = None
     ) -> Optional[str]:
         """
         Update order status based on delivery results.
@@ -444,11 +445,15 @@ class OrderStatusService:
             order_id: Order ID
             delivered_count: Number of items delivered
             waiting_count: Number of items waiting for stock
+            current_status: Optional current status (to avoid GET request)
             
         Returns:
             New status or None if no change
         """
-        current_status = await self.get_order_status(order_id)
+        # OPTIMIZATION: Use provided current_status if available, otherwise fetch
+        if current_status is None:
+            current_status = await self.get_order_status(order_id)
+        
         if not current_status:
             return None
         
@@ -465,7 +470,7 @@ class OrderStatusService:
         # Don't set to 'prepaid' here - should already be set by payment confirmation
         
         if new_status and new_status != current_status.lower():
-            await self.update_status(order_id, new_status, f"Delivery: {delivered_count} delivered, {waiting_count} waiting")
+            await self.update_status(order_id, new_status, f"Delivery: {delivered_count} delivered, {waiting_count} waiting", check_transition=False)
             return new_status
         
         return None
