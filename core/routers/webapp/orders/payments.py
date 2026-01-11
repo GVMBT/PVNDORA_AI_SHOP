@@ -289,11 +289,6 @@ async def _create_cart_order(
         logger.warning(f"Failed to snapshot rate or recalculate USD amount: {e}")
         exchange_rate_snapshot = 1.0
     
-    # #region agent log
-    logger.info(f"[DEBUG-HYP-E] Order created, before payment processing: order_id={order.id}, payment_method={payment_method}, total_amount={total_amount}")
-    # #endregion
-
-    
     # Calculate discount percent using Decimal
     discount_pct = 0
     if total_original > 0:
@@ -327,6 +322,10 @@ async def _create_cart_order(
             status_code=500,
             detail="Failed to create order items. Please try again."
         )
+    
+    # #region agent log
+    logger.info(f"[DEBUG-HYP-E] Order created, before payment processing: order_id={order.id}, payment_method={payment_method}, total_amount={total_amount}")
+    # #endregion
     
     # BALANCE PAYMENT: Check and deduct
     if payment_method == "balance":
