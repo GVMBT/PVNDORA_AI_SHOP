@@ -6,7 +6,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 import logging
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 
@@ -14,6 +14,7 @@ from core.services.database import get_database
 from core.auth import verify_telegram_auth
 from ..models import (
     OrderHistoryResponse, 
+    OrdersListResponse,
     OrderStatusResponse, 
     PaymentMethodsResponse, 
     PaymentMethod,
@@ -166,7 +167,7 @@ async def get_webapp_orders(
     status: Optional[str] = Query(None),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0)
-) -> List[OrderHistoryResponse]:
+) -> OrdersListResponse:
     """Get user's order history with filtering."""
     logger.info(f"[DEBUG] get_webapp_orders ENTRY: telegram_id={user.id}, status={status}, limit={limit}, offset={offset}")
     
@@ -205,7 +206,11 @@ async def get_webapp_orders(
     if not result.data:
         logger.info(f"[DEBUG] No orders found: user_id={db_user.id}, telegram_id={user.id}")
         logger.info(f"No orders found for user {db_user.id} (telegram_id={user.id})")
-        return []
+        # Get user's preferred currency for empty response
+        user_lang = getattr(db_user, 'interface_language', None) or (db_user.language_code if db_user and db_user.language_code else user.language_code)
+        preferred_currency = getattr(db_user, 'preferred_currency', None)
+        user_currency = currency_service.get_user_currency(user_lang, preferred_currency)
+        return OrdersListResponse(orders=[], count=0, currency=user_currency)
     
     # Get user's preferred currency
     user_lang = getattr(db_user, 'interface_language', None) or (db_user.language_code if db_user and db_user.language_code else user.language_code)
@@ -291,7 +296,12 @@ async def get_webapp_orders(
     
     logger.info(f"[DEBUG] returning orders: total_orders={len(result.data)}, processed={processed_count}, errors={error_count}, returning={len(orders)}")
     logger.info(f"Returning {len(orders)} orders for user {db_user.id}")
-    return orders
+    
+    return OrdersListResponse(
+        orders=orders,
+        count=len(orders),
+        currency=user_currency
+    )
 
 
 @crud_router.get("/payments/methods")

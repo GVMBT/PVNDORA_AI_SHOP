@@ -78,6 +78,13 @@ class OrderHistoryResponse(BaseModel):
     image_url: Optional[str] = None
 
 
+class OrdersListResponse(BaseModel):
+    """Orders list response with metadata."""
+    orders: list[OrderHistoryResponse]
+    count: int
+    currency: str
+
+
 class PaymentMethod(BaseModel):
     """Payment method info."""
     id: str
