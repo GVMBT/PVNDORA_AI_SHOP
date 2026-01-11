@@ -127,8 +127,7 @@ async def persist_order_items(db, order_id: str, items: List[Dict[str, Any]]) ->
             "quantity": item["quantity"],
             "instant_quantity": item.get("instant_quantity", 0),
             "prepaid_quantity": item.get("prepaid_quantity", 0),
-            "amount": to_float(item["amount"]),
-            "original_price": to_float(item["original_price"]),
+            "price": to_float(item["amount"]),  # Use 'price' column in DB, but map from 'amount' in item dict
             "discount_percent": item.get("discount_percent", 0),
             "fulfillment_time_hours": item.get("fulfillment_time_hours", 24),
         })
