@@ -119,7 +119,7 @@ async def get_financial_overview(
     orders_query = db.client.table("orders").select(
         "id, amount, original_price, fiat_amount, fiat_currency, exchange_rate_snapshot, "
         "created_at, order_expenses(cogs_amount, acquiring_fee_amount, referral_payout_amount, "
-        "reserve_amount, review_cashback_amount, insurance_replacement_cost)"
+        "reserve_amount, review_cashback_amount, insurance_replacement_cost, promo_discount_amount)"
     ).eq("status", "delivered")
     
     if start_date:
@@ -148,48 +148,64 @@ async def get_financial_overview(
     for order in orders:
         currency = order.get("fiat_currency") or "USD"
         fiat_amount = order.get("fiat_amount")
-        amount_usd = float(order.get("amount", 0))
-        original_price_usd = float(order.get("original_price") or amount_usd)
+        amount_usd = float(order.get("amount", 0))  # Чистая выручка (после промокодов)
+        original_price_usd = float(order.get("original_price") or amount_usd)  # Валовая выручка (наша цена БЕЗ промокодов)
         
-        # Determine real payment amount
+        # Get promo discount amount from order_expenses
+        expenses = order.get("order_expenses")
+        promo_discount_usd = 0.0
+        if expenses:
+            if isinstance(expenses, list):
+                expenses = expenses[0] if expenses else {}
+            promo_discount_usd = float(expenses.get("promo_discount_amount", 0))
+        
+        # Determine real payment amount (net revenue after promo codes)
         if fiat_amount is not None:
-            real_amount = float(fiat_amount)
+            real_amount = float(fiat_amount)  # Чистая выручка в фиатной валюте
         else:
             real_amount = amount_usd  # Old orders without fiat_amount
+        
+        # Calculate gross revenue in fiat currency (our price before promo codes)
+        # If we have original_price and promo_discount, calculate properly
+        if original_price_usd > amount_usd:
+            # Gross in fiat = proportional to USD gross
+            if amount_usd > 0:
+                gross_ratio = original_price_usd / amount_usd
+                fiat_gross = real_amount * gross_ratio
+            else:
+                fiat_gross = real_amount
+            # Promo discount in fiat = proportional
+            fiat_promo_discount = fiat_gross - real_amount
+        else:
+            # No discount, gross = net
+            fiat_gross = real_amount
+            fiat_promo_discount = 0.0
         
         # Initialize currency bucket
         if currency not in revenue_by_currency:
             revenue_by_currency[currency] = {
                 "orders_count": 0,
-                "revenue": 0.0,           # Real amount in this currency
-                "revenue_gross": 0.0,     # Before discounts (approximated)
-                "discounts_given": 0.0,
+                "revenue": 0.0,           # Чистая выручка (после промокодов)
+                "revenue_gross": 0.0,     # Валовая выручка (наша цена БЕЗ промокодов)
+                "discounts_given": 0.0,   # Скидки через промокоды
             }
         
         revenue_by_currency[currency]["orders_count"] += 1
         revenue_by_currency[currency]["revenue"] += real_amount
-        
-        # Calculate gross in fiat (proportional to USD gross)
-        if amount_usd > 0:
-            gross_ratio = original_price_usd / amount_usd
-            fiat_gross = real_amount * gross_ratio
-        else:
-            fiat_gross = real_amount
         revenue_by_currency[currency]["revenue_gross"] += fiat_gross
-        revenue_by_currency[currency]["discounts_given"] += (fiat_gross - real_amount)
+        revenue_by_currency[currency]["discounts_given"] += fiat_promo_discount
         
         # USD totals for expense calculations
-        total_revenue_usd += amount_usd
-        total_revenue_gross_usd += original_price_usd
+        total_revenue_usd += amount_usd  # Чистая выручка (после промокодов)
+        total_revenue_gross_usd += original_price_usd  # Валовая выручка (наша цена БЕЗ промокодов)
         
         # Expenses (from order_expenses, always in USD)
-        expenses = order.get("order_expenses")
         if expenses:
             if isinstance(expenses, list):
                 expenses = expenses[0] if expenses else {}
             total_cogs += float(expenses.get("cogs_amount", 0))
             total_acquiring_fees += float(expenses.get("acquiring_fee_amount", 0))
-            total_referral_payouts += float(expenses.get("referral_payout_amount", 0))
+            total_referral_payouts += float(expenses.get("referral_payout_amount", 0))  # Эти идут в баланс, но считаем как расход
             total_reserves += float(expenses.get("reserve_amount", 0))
             total_review_cashbacks += float(expenses.get("review_cashback_amount", 0))
             total_replacement_costs += float(expenses.get("insurance_replacement_cost", 0))
@@ -263,11 +279,11 @@ async def get_financial_overview(
     # Pending withdrawals (debited from user balance in their currency)
     try:
         withdrawals_result = await db.client.table("withdrawal_requests").select(
-            "amount_debited, currency"
+            "amount_debited, balance_currency"
         ).eq("status", "pending").execute()
         
         for w in (withdrawals_result.data or []):
-            currency = w.get("currency") or "USD"
+            currency = w.get("balance_currency") or "USD"
             amount = float(w.get("amount_debited", 0))
             
             if currency not in liabilities_by_currency:
@@ -335,9 +351,9 @@ async def get_financial_overview(
         "revenue_by_currency": revenue_by_currency,
         
         # Legacy totals in USD (for backward compatibility)
-        "total_revenue": round(total_revenue_usd, 2),
-        "total_revenue_gross": round(total_revenue_gross_usd, 2),
-        "total_discounts_given": round(total_revenue_gross_usd - total_revenue_usd, 2),
+        "total_revenue": round(total_revenue_usd, 2),  # Чистая выручка (после промокодов)
+        "total_revenue_gross": round(total_revenue_gross_usd, 2),  # Валовая выручка (наша цена БЕЗ промокодов)
+        "total_discounts_given": round(total_revenue_gross_usd - total_revenue_usd, 2),  # Скидки через промокоды
         
         # =====================================================================
         # EXPENSES (Always in USD - suppliers are paid in $)
@@ -945,11 +961,11 @@ async def get_liabilities(admin=Depends(verify_admin)):
     # Pending withdrawals by currency
     try:
         withdrawals_result = await db.client.table("withdrawal_requests").select(
-            "amount_debited, currency"
+            "amount_debited, balance_currency"
         ).eq("status", "pending").execute()
         
         for w in (withdrawals_result.data or []):
-            currency = w.get("currency") or "USD"
+            currency = w.get("balance_currency") or "USD"
             amount = float(w.get("amount_debited", 0))
             
             if currency not in liabilities_by_currency:
@@ -1271,11 +1287,11 @@ async def get_accounting_report(
     # Pending withdrawals
     try:
         withdrawals_result = await db.client.table("withdrawal_requests").select(
-            "amount_debited, currency"
+            "amount_debited, balance_currency"
         ).eq("status", "pending").execute()
         
         for w in (withdrawals_result.data or []):
-            curr = w.get("currency") or "USD"
+            curr = w.get("balance_currency") or "USD"
             amount = float(w.get("amount_debited", 0))
             
             if curr not in liabilities_by_currency:

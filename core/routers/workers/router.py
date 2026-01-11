@@ -255,29 +255,64 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
         logger.error(f"deliver-goods: Failed to update total_saved for order {order_id}: {e}", exc_info=True)
     
     # Notify user once with aggregated content
+    # Send notification if:
+    # 1. There are NEW delivered items (delivered_lines), OR
+    # 2. Order is delivered but notification was never sent (delivered_at is NULL)
     try:
+        order = await db.client.table("orders").select(
+            "user_telegram_id, status, delivered_at"
+        ).eq("id", order_id).single().execute()
+        
+        if not order or not order.data:
+            return {"delivered": delivered_count, "waiting": waiting_count}
+        
+        telegram_id = order.data.get("user_telegram_id")
+        order_status = order.data.get("status", "").lower()
+        delivered_at = order.data.get("delivered_at")
+        
+        should_notify = False
+        content_block = None
+        
         if delivered_lines:
-            order = await db.client.table("orders").select(
-                "user_telegram_id"
-            ).eq("id", order_id).single().execute()
-            telegram_id = order.data.get("user_telegram_id") if order and order.data else None
-            if telegram_id:
-                content_block = "\n\n".join(delivered_lines)
+            # NEW items were delivered in this run - send notification
+            should_notify = True
+            content_block = "\n\n".join(delivered_lines)
+        elif order_status == "delivered" and not delivered_at:
+            # Order is delivered but delivered_at is NULL - notification was never sent
+            # Fetch content from already delivered items
+            logger.info(f"deliver-goods: Order {order_id} is delivered but notification was never sent, fetching content from delivered items")
+            delivered_items_result = await db.client.table("order_items").select(
+                "delivery_content, products(name)"
+            ).eq("order_id", order_id).eq("status", "delivered").execute()
+            
+            if delivered_items_result.data:
+                delivered_content_lines = []
+                for item in delivered_items_result.data:
+                    product_name_item = item.get("products", {}).get("name") if isinstance(item.get("products"), dict) else "Product"
+                    delivery_content = item.get("delivery_content", "")
+                    if delivery_content:
+                        delivered_content_lines.append(f"{product_name_item}:\n{delivery_content}")
                 
-                # Add info about waiting items if partial delivery
-                if waiting_count > 0:
-                    waiting_notice = (
-                        f"\n\n⏳ <b>Ожидает доставки:</b> {waiting_count} товар(ов)\n"
-                        "Мы уведомим вас, когда они будут готовы к доставке."
-                    )
-                    content_block += waiting_notice
-                
-                await notification_service.send_delivery(
-                    telegram_id=telegram_id,
-                    product_name=f"Заказ #{order_id[:8]}",
-                    content=content_block,
-                    order_id=order_id
+                if delivered_content_lines:
+                    should_notify = True
+                    content_block = "\n\n".join(delivered_content_lines)
+        
+        if should_notify and telegram_id and content_block:
+            # Add info about waiting items if partial delivery
+            if waiting_count > 0:
+                waiting_notice = (
+                    f"\n\n⏳ <b>Ожидает доставки:</b> {waiting_count} товар(ов)\n"
+                    "Мы уведомим вас, когда они будут готовы к доставке."
                 )
+                content_block += waiting_notice
+            
+            await notification_service.send_delivery(
+                telegram_id=telegram_id,
+                product_name=f"Заказ #{order_id[:8]}",
+                content=content_block,
+                order_id=order_id
+            )
+            logger.info(f"deliver-goods: Sent delivery notification for order {order_id} to user {telegram_id} (new_items={delivered_count}, was_missing={not delivered_lines})")
     except Exception as e:
         logger.error(f"deliver-goods: failed to notify for order {order_id}: {e}", exc_info=True)
     

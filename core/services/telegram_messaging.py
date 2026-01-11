@@ -6,6 +6,7 @@ Replaces 8+ duplicate implementations with unified retry logic, error handling, 
 """
 import os
 import asyncio
+import json
 from typing import Optional
 
 import httpx
@@ -146,19 +147,71 @@ async def send_telegram_message_with_keyboard(
     
     # Convert aiogram keyboard to dict if needed
     keyboard_dict = keyboard
-    if hasattr(keyboard, 'model_dump'):
-        # aiogram 3.x InlineKeyboardMarkup
-        keyboard_dict = keyboard.model_dump()
+    if isinstance(keyboard, dict):
+        # Already a dict, use as-is
+        keyboard_dict = keyboard
+    elif hasattr(keyboard, 'model_dump_json'):
+        # aiogram 3.x InlineKeyboardMarkup - use model_dump_json for API-compatible format
+        try:
+            keyboard_json = keyboard.model_dump_json()
+            keyboard_dict = json.loads(keyboard_json)
+        except Exception as e:
+            logger.warning(f"Failed to convert keyboard using model_dump_json, trying model_dump: {e}")
+            try:
+                keyboard_dict = keyboard.model_dump()
+            except Exception as e2:
+                logger.error(f"Failed to convert keyboard using model_dump: {e2}")
+                return False
+    elif hasattr(keyboard, 'model_dump'):
+        # aiogram 3.x InlineKeyboardMarkup (fallback)
+        try:
+            keyboard_dict = keyboard.model_dump()
+        except Exception as e:
+            logger.error(f"Failed to convert keyboard using model_dump: {e}")
+            return False
     elif hasattr(keyboard, 'dict'):
         # aiogram 2.x InlineKeyboardMarkup
-        keyboard_dict = keyboard.dict()
-    elif not isinstance(keyboard, dict):
-        # Try to convert using as_dict() or similar
         try:
-            keyboard_dict = keyboard.as_dict() if hasattr(keyboard, 'as_dict') else dict(keyboard)
-        except Exception:
-            logger.error(f"Failed to convert keyboard to dict: {type(keyboard)}")
+            keyboard_dict = keyboard.dict()
+        except Exception as e:
+            logger.error(f"Failed to convert keyboard using dict: {e}")
             return False
+    elif hasattr(keyboard, 'inline_keyboard'):
+        # Direct access to inline_keyboard attribute (fallback)
+        try:
+            inline_keyboard = keyboard.inline_keyboard
+            keyboard_rows = []
+            for row in inline_keyboard:
+                button_row = []
+                for button in row:
+                    button_dict = {}
+                    if hasattr(button, 'text'):
+                        button_dict['text'] = button.text
+                    if hasattr(button, 'url'):
+                        button_dict['url'] = button.url
+                    if hasattr(button, 'callback_data'):
+                        button_dict['callback_data'] = button.callback_data
+                    if hasattr(button, 'web_app') and button.web_app:
+                        web_app_dict = {}
+                        if hasattr(button.web_app, 'url'):
+                            web_app_dict['url'] = button.web_app.url
+                        button_dict['web_app'] = web_app_dict
+                    button_row.append(button_dict)
+                keyboard_rows.append(button_row)
+            keyboard_dict = {'inline_keyboard': keyboard_rows}
+        except Exception as e:
+            logger.error(f"Failed to convert keyboard inline_keyboard to dict: {type(keyboard)}, error: {e}")
+            return False
+    else:
+        logger.error(f"Unknown keyboard type: {type(keyboard)}, cannot convert to dict")
+        return False
+    
+    # Check message length (Telegram limit: 4096 characters)
+    if len(text) > 4096:
+        logger.error(f"Message too long for {chat_id}: {len(text)} characters (max 4096)")
+        # Truncate message
+        text = text[:4090] + "..."
+        logger.warning(f"Truncated message to {len(text)} characters")
     
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
@@ -178,6 +231,21 @@ async def send_telegram_message_with_keyboard(
                 
                 if response.status_code == 200:
                     return True
+                
+                # Log API error with full response body
+                try:
+                    error_data = response.json() if response.text else {}
+                    error_description = error_data.get("description", "") or response.text[:500] if response.text else "No response body"
+                    logger.error(
+                        f"Telegram API error for {chat_id} (keyboard): "
+                        f"status={response.status_code}, description={error_description}"
+                    )
+                except Exception:
+                    error_text = response.text[:500] if response.text else "No response body"
+                    logger.error(
+                        f"Telegram API error for {chat_id} (keyboard): "
+                        f"status={response.status_code}, response={error_text}"
+                    )
                 
                 if response.status_code in [400, 403, 404]:
                     return False

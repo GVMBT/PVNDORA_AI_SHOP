@@ -11,6 +11,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 
 from core.i18n import get_text
 from core.logging import get_logger
+from core.services.database import get_database
 from .base import NotificationServiceBase, get_user_language, _msg
 
 logger = get_logger(__name__)
@@ -119,6 +120,7 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
         order_id: Optional[str] = None
     ) -> None:
         """Send delivery notification with product credentials."""
+        from .base import get_user_language, _msg
         lang = await get_user_language(telegram_id)
         
         # Format expiration if available
@@ -132,20 +134,41 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
         
         # Order reference
         order_ref = ""
+        items_list_text = ""
         if order_id:
             short_id = order_id[:8]
             order_ref = _msg(lang,
                 f"<i>#{short_id}</i>\n",
                 f"<i>#{short_id}</i>\n"
             )
+            
+            # Get order items with product names
+            try:
+                db = get_database()
+                items_result = await db.client.table("order_items").select(
+                    "quantity, products(name)"
+                ).eq("order_id", order_id).execute()
+                
+                if items_result.data:
+                    items = []
+                    for item in items_result.data:
+                        product_name_item = item.get("products", {}).get("name") if isinstance(item.get("products"), dict) else "Product"
+                        quantity = item.get("quantity", 1)
+                        if quantity > 1:
+                            items.append(f"• {product_name_item} × {quantity}")
+                        else:
+                            items.append(f"• {product_name_item}")
+                    
+                    if items:
+                        items_list_text = "\n" + "\n".join(items) + "\n"
+            except Exception as e:
+                logger.warning(f"Failed to fetch order items for delivery notification {order_id}: {e}")
         
         message = _msg(lang,
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             f"      💎 <b>ДОСТАВКА ЗАВЕРШЕНА</b>\n"
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-            f"{order_ref}"
-            f"◈ <b>Товар:</b> {product_name}\n"
-            f"◈ <b>Статус:</b> Активирован ✓{expires_info}\n\n"
+            f"{order_ref}{items_list_text}"
             f"🔐 <b>ДАННЫЕ ДОСТУПА</b>\n"
             f"<code>{content}</code>\n\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -155,9 +178,7 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             f"      💎 <b>DELIVERY COMPLETE</b>\n"
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-            f"{order_ref}"
-            f"◈ <b>Product:</b> {product_name}\n"
-            f"◈ <b>Status:</b> Activated ✓{expires_info}\n\n"
+            f"{order_ref}{items_list_text}"
             f"🔐 <b>ACCESS CREDENTIALS</b>\n"
             f"<code>{content}</code>\n\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━\n"

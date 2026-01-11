@@ -103,6 +103,29 @@ class OrderNotificationsMixin(NotificationServiceBase):
         
         short_id = order_id[:8] if len(order_id) > 8 else order_id
         
+        # Get order items with product names
+        items_list_text = ""
+        try:
+            db = get_database()
+            items_result = await db.client.table("order_items").select(
+                "quantity, products(name)"
+            ).eq("order_id", order_id).execute()
+            
+            if items_result.data:
+                items = []
+                for item in items_result.data:
+                    product_name = item.get("products", {}).get("name") if isinstance(item.get("products"), dict) else "Product"
+                    quantity = item.get("quantity", 1)
+                    if quantity > 1:
+                        items.append(f"• {product_name} × {quantity}")
+                    else:
+                        items.append(f"• {product_name}")
+                
+                if items:
+                    items_list_text = "\n" + "\n".join(items) + "\n"
+        except Exception as e:
+            logger.warning(f"Failed to fetch order items for notification {order_id}: {e}")
+        
         # Build message based on order status
         if status == "paid" and has_instant_items:
             # Instant delivery - items coming soon
@@ -111,7 +134,7 @@ class OrderNotificationsMixin(NotificationServiceBase):
                 f"   ✅ <b>ОПЛАТА ПОДТВЕРЖДЕНА</b>\n"
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
                 f"Заказ: <code>#{short_id}</code>\n"
-                f"Сумма: <b>{amount_formatted}</b>\n\n"
+                f"Сумма: <b>{amount_formatted}</b>{items_list_text}\n"
                 f"📦 Товар будет доставлен в течение минуты.\n"
                 f"Вы получите уведомление с данными для доступа.",
                 
@@ -119,7 +142,7 @@ class OrderNotificationsMixin(NotificationServiceBase):
                 f"   ✅ <b>PAYMENT CONFIRMED</b>\n"
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
                 f"Order: <code>#{short_id}</code>\n"
-                f"Amount: <b>{amount_formatted}</b>\n\n"
+                f"Amount: <b>{amount_formatted}</b>{items_list_text}\n"
                 f"📦 Your item will be delivered within a minute.\n"
                 f"You'll receive a notification with access details."
             )
@@ -131,7 +154,7 @@ class OrderNotificationsMixin(NotificationServiceBase):
                 f"   ✅ <b>ОПЛАТА ПОДТВЕРЖДЕНА</b>\n"
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
                 f"Заказ: <code>#{short_id}</code>\n"
-                f"Сумма: <b>{amount_formatted}</b>\n\n"
+                f"Сумма: <b>{amount_formatted}</b>{items_list_text}\n"
                 f"📋 Заказ добавлен в очередь доставки.{waiting_text}\n"
                 f"Мы уведомим вас, когда товар будет готов к доставке.",
                 
@@ -139,7 +162,7 @@ class OrderNotificationsMixin(NotificationServiceBase):
                 f"   ✅ <b>PAYMENT CONFIRMED</b>\n"
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
                 f"Order: <code>#{short_id}</code>\n"
-                f"Amount: <b>{amount_formatted}</b>\n\n"
+                f"Amount: <b>{amount_formatted}</b>{items_list_text}\n"
                 f"📋 Order added to delivery queue.\n"
                 f"We'll notify you when your item is ready for delivery."
             )
@@ -150,13 +173,13 @@ class OrderNotificationsMixin(NotificationServiceBase):
                 f"   ✅ <b>ОПЛАТА ПОДТВЕРЖДЕНА</b>\n"
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
                 f"Заказ: <code>#{short_id}</code>\n"
-                f"Сумма: <b>{amount_formatted}</b>",
+                f"Сумма: <b>{amount_formatted}</b>{items_list_text}",
                 
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
                 f"   ✅ <b>PAYMENT CONFIRMED</b>\n"
                 f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
                 f"Order: <code>#{short_id}</code>\n"
-                f"Amount: <b>{amount_formatted}</b>"
+                f"Amount: <b>{amount_formatted}</b>{items_list_text}"
             )
         
         try:

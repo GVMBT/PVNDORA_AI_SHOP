@@ -134,6 +134,8 @@ interface MetricRowProps {
   indent?: boolean;
   bold?: boolean;
   displayCurrency: 'USD' | 'RUB';  // Add displayCurrency as prop
+  dualCurrency?: { usd: number; rub: number };  // Optional dual currency display
+  tooltip?: string;  // Optional tooltip
 }
 
 const MetricRow: React.FC<MetricRowProps> = ({ 
@@ -144,7 +146,9 @@ const MetricRow: React.FC<MetricRowProps> = ({
   icon,
   indent = false,
   bold = false,
-  displayCurrency
+  displayCurrency,
+  dualCurrency,
+  tooltip
 }) => {
   const valueColor = isProfit 
     ? (value >= 0 ? 'text-green-400' : 'text-red-400')
@@ -152,15 +156,36 @@ const MetricRow: React.FC<MetricRowProps> = ({
       ? 'text-red-400' 
       : 'text-white';
   
+  // Show dual currency if provided
+  const showDual = dualCurrency && (dualCurrency.usd > 0 || dualCurrency.rub > 0);
+  
   return (
-    <div className={`flex items-center justify-between py-2 ${indent ? 'pl-6' : ''} ${bold ? 'border-t border-white/20 pt-3 mt-2' : ''}`}>
-      <div className="flex items-center gap-2 text-gray-400">
-        {icon && <span className="text-gray-500">{icon}</span>}
-        <span className={bold ? 'font-bold text-white' : ''}>{label}</span>
+    <div className={`py-2 ${indent ? 'pl-6' : ''} ${bold ? 'border-t border-white/20 pt-3 mt-2' : ''}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-gray-400">
+          {icon && <span className="text-gray-500">{icon}</span>}
+          <span className={bold ? 'font-bold text-white' : ''}>{label}</span>
+          {tooltip && (
+            <span className="text-xs text-gray-500 cursor-help" title={tooltip}>ℹ️</span>
+          )}
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          {showDual ? (
+            <>
+              <span className={`font-mono ${valueColor} ${bold ? 'font-bold text-lg' : ''}`}>
+                {isExpense && dualCurrency.usd > 0 ? '-' : ''}{formatMoney(Math.abs(dualCurrency.usd), 'USD')}
+              </span>
+              <span className={`font-mono text-xs ${valueColor} opacity-75`}>
+                {isExpense && dualCurrency.rub > 0 ? '-' : ''}{formatMoney(Math.abs(dualCurrency.rub), 'RUB')}
+              </span>
+            </>
+          ) : (
+            <span className={`font-mono ${valueColor} ${bold ? 'font-bold text-lg' : ''}`}>
+              {isExpense && value > 0 ? '-' : ''}{formatMoney(Math.abs(value), displayCurrency)}
+            </span>
+          )}
+        </div>
       </div>
-      <span className={`font-mono ${valueColor} ${bold ? 'font-bold text-lg' : ''}`}>
-        {isExpense && value > 0 ? '-' : ''}{formatMoney(Math.abs(value), displayCurrency)}
-      </span>
     </div>
   );
 };
@@ -317,21 +342,26 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
       </div>
 
       {/* =====================================================================
-          ВЫРУЧКА ПО ВАЛЮТАМ (реальные суммы, без конвертации!)
+          ВЫРУЧКА ПО ВАЛЮТАМ (макроуровень: только валовая выручка)
           ===================================================================== */}
       {Object.keys(revenueByСurrency).length > 0 && (
         <div className="bg-[#0e0e0e] border border-green-500/30 p-4 rounded-sm">
-          <div className="flex items-center gap-2 text-green-400 text-xs uppercase mb-3">
-            <DollarSign size={14} />
-            Выручка по валютам (реальные суммы)
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2 text-green-400 text-xs uppercase">
+              <DollarSign size={14} />
+              Выручка по валютам (валовая выручка)
+            </div>
+            <div className="text-xs text-gray-500">
+              Чистая прибыль: <span className={`font-bold ${d.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {formatMoney(d.netProfit, 'USD')}
+              </span>
+            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {Object.entries(revenueByСurrency).map(([currency, stats]) => {
               // Handle both old and new data format
-              const revenue = 'revenue' in stats ? stats.revenue : (stats as any).revenue_fiat || 0;
-              const revenueGross = 'revenue_gross' in stats ? stats.revenue_gross : revenue;
+              const revenueGross = 'revenue_gross' in stats ? stats.revenue_gross : (stats as any).revenue_fiat || 0;
               const ordersCount = stats.orders_count || 0;
-              const discounts = 'discounts_given' in stats ? stats.discounts_given : 0;
               
               return (
                 <div key={currency} className="bg-[#1a1a1a] border border-green-500/20 p-4 rounded-sm">
@@ -345,24 +375,10 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
                     </span>
                   </div>
                   <div className="space-y-2">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center pt-1">
                       <span className="text-xs text-gray-400">Валовая выручка:</span>
-                      <span className="text-white font-mono font-bold">
+                      <span className="text-white font-mono font-bold text-lg" title="Наша цена продуктов БЕЗ промокодов (реальные суммы оплат)">
                         {formatCurrencyAmount(revenueGross, currency)}
-                      </span>
-                    </div>
-                    {discounts > 0 && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-400">Скидки:</span>
-                        <span className="text-red-400 font-mono text-sm">
-                          -{formatCurrencyAmount(discounts, currency)}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center pt-2 border-t border-white/10">
-                      <span className="text-xs text-green-400 font-bold">Чистая выручка:</span>
-                      <span className="text-green-400 font-mono font-bold text-lg">
-                        {formatCurrencyAmount(revenue, currency)}
                       </span>
                     </div>
                   </div>
@@ -371,84 +387,96 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             })}
           </div>
           <div className="mt-3 text-xs text-gray-500 flex items-center gap-1">
-            💡 Показаны реальные суммы оплат в каждой валюте, без конвертации
+            💡 Показаны реальные суммы валовой выручки в каждой валюте, без конвертации. Чистая прибыль рассчитывается после всех расходов (USD).
           </div>
         </div>
       )}
 
-      {/* Ключевые метрики (в USD, т.к. COGS в долларах) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-[#0e0e0e] border border-white/10 p-4 rounded-sm">
+      {/* Ключевые метрики (макроуровень: валовая выручка + чистая прибыль) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-[#0e0e0e] border border-green-500/30 p-4 rounded-sm">
           <div className="flex items-center gap-2 text-gray-400 text-xs uppercase mb-2">
             <DollarSign size={14} />
-            Выручка (USD)
+            Валовая выручка (все валюты)
           </div>
-          <div className="text-2xl font-bold text-white font-mono">{formatMoney(d.totalRevenue, 'USD')}</div>
-          <div className="text-xs text-gray-500 mt-1">{d.totalOrders} заказов</div>
+          <div className="text-2xl font-bold text-white font-mono">{formatMoney(d.revenueGross, 'USD')}</div>
+          <div className="text-xs text-gray-500 mt-1">
+            {Object.entries(revenueByСurrency).map(([curr, s]) => {
+              const gross = 'revenue_gross' in s ? s.revenue_gross : 0;
+              return `${formatCurrencyAmount(gross, curr)}`;
+            }).join(' + ')} • {d.totalOrders} заказов
+          </div>
+          <div className="text-xs text-gray-600 mt-1">Наша цена продуктов БЕЗ промокодов</div>
         </div>
         
-        <div className="bg-[#0e0e0e] border border-white/10 p-4 rounded-sm">
-          <div className="flex items-center gap-2 text-gray-400 text-xs uppercase mb-2">
-            <TrendingUp size={14} />
-            Валовая прибыль
-          </div>
-          <div className="text-2xl font-bold text-green-400 font-mono">{formatMoney(grossProfit, 'USD')}</div>
-          <div className="text-xs text-gray-500 mt-1">{formatPercent(grossMargin)} маржа</div>
-        </div>
-        
-        <div className="bg-[#0e0e0e] border border-white/10 p-4 rounded-sm">
+        <div className="bg-[#0e0e0e] border border-green-500/30 p-4 rounded-sm">
           <div className="flex items-center gap-2 text-gray-400 text-xs uppercase mb-2">
             <PiggyBank size={14} />
-            Чистая прибыль
+            Чистая прибыль (Net Profit)
           </div>
-          <div className={`text-2xl font-bold font-mono ${d.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+          <div className={`text-2xl font-bold font-mono ${d.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`} title="Чистая выручка минус ВСЕ расходы (COGS + операционные + прочие)">
             {formatMoney(d.netProfit, 'USD')}
           </div>
           <div className="text-xs text-gray-500 mt-1">{formatPercent(netMargin)} маржа</div>
-        </div>
-        
-        <div className="bg-[#0e0e0e] border border-white/10 p-4 rounded-sm">
-          <div className="flex items-center gap-2 text-gray-400 text-xs uppercase mb-2">
-            <TrendingDown size={14} />
-            Все расходы (USD)
-          </div>
-          <div className="text-2xl font-bold text-red-400 font-mono">
-            {formatMoney(d.totalCogs + operatingExpenses + d.totalOtherExpenses, 'USD')}
-          </div>
-          <div className="text-xs text-gray-500 mt-1">COGS + OpEx</div>
+          <div className="text-xs text-gray-600 mt-1">После всех расходов (USD)</div>
         </div>
       </div>
 
-      {/* P&L Statement (в USD, т.к. COGS платится поставщику в $) */}
+      {/* P&L Statement (выручка в $ и ₽, расходы в USD) */}
       <div className="bg-[#0e0e0e] border border-white/10 p-6 rounded-sm">
         <h4 className="text-xs uppercase text-gray-500 font-mono mb-4 pb-2 border-b border-white/10">
-          Отчёт о финансовых результатах (USD)
-          <span className="text-gray-600 ml-2 normal-case">• себестоимость и расходы в $</span>
+          Отчёт о финансовых результатах
+          <span className="text-gray-600 ml-2 normal-case">• выручка: реальные суммы $ и ₽ • расходы: в USD (платим поставщику в $)</span>
         </h4>
         
         {/* Выручка */}
         <div className="mb-4">
-          <div className="text-xs uppercase text-pandora-cyan font-mono mb-2">Выручка (конвертировано в USD)</div>
+          <div className="text-xs uppercase text-pandora-cyan font-mono mb-2">
+            Выручка (реальные суммы по валютам)
+            <span className="text-gray-600 ml-2 normal-case text-xs">• показываем $ и ₽ где возможно</span>
+          </div>
+          
+          {/* Валовая выручка - двойное значение $/RUB (только реальные суммы!) */}
           <MetricRow 
             label="Валовая выручка" 
             value={d.revenueGross} 
             icon={<DollarSign size={14} />}
             displayCurrency="USD"
+            dualCurrency={{
+              usd: revenueByСurrency['USD']?.revenue_gross || 0,
+              rub: revenueByСurrency['RUB']?.revenue_gross || 0
+            }}
+            tooltip="Валовая выручка = сумма всех заказов по нашим ценам (products.price) БЕЗ применения промокодов. Это наша цена до скидок. Показаны реальные суммы в $ и ₽, без конвертации."
           />
+          
+          {/* Скидки - двойное значение $/RUB (только реальные суммы!) */}
           <MetricRow 
-            label="Скидки" 
+            label="Скидки (промокоды)" 
             value={d.totalDiscountsGiven} 
             isExpense 
             indent
             icon={<Percent size={14} />}
             displayCurrency="USD"
+            dualCurrency={{
+              usd: revenueByСurrency['USD']?.discounts_given || 0,
+              rub: revenueByСurrency['RUB']?.discounts_given || 0
+            }}
+            tooltip="Скидки = сумма скидок через активированные промокоды. Например: пользователь покупает за 5000₽, активирует промокод 10%, мы фиксируем 500₽ как предоставленную скидку. Показаны реальные суммы в $ и ₽."
           />
+          
+          {/* Чистая выручка - двойное значение $/RUB (только реальные суммы!) */}
           <MetricRow 
-            label="Чистая выручка" 
+            label="Чистая выручка (Net Revenue)" 
             value={d.totalRevenue} 
             bold
             displayCurrency="USD"
+            dualCurrency={{
+              usd: revenueByСurrency['USD']?.revenue || 0,
+              rub: revenueByСurrency['RUB']?.revenue || 0
+            }}
+            tooltip="Чистая выручка (Net Revenue) = реальная сумма, которую заплатили пользователи (после применения промокодов). Это ДО расходов. НЕ путать с чистой прибылью (Net Profit) - чистая прибыль это ЧИСТАЯ ВЫРУЧКА минус ВСЕ расходы. Показаны реальные суммы в $ и ₽, без конвертации."
           />
+          
           {d.totalInsuranceRevenue > 0 && (
             <MetricRow 
               label="Доход от страховок" 
@@ -456,6 +484,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
               indent
               icon={<Shield size={14} />}
               displayCurrency="USD"
+              tooltip="Доход от продажи страховок на замену товара"
             />
           )}
         </div>
@@ -549,11 +578,12 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
         {/* Чистая прибыль */}
         <div className="pt-4 border-t-2 border-pandora-cyan/30">
           <MetricRow 
-            label="ЧИСТАЯ ПРИБЫЛЬ" 
+            label="ЧИСТАЯ ПРИБЫЛЬ (Net Profit)" 
             value={d.netProfit} 
             isProfit
             bold
             displayCurrency="USD"
+            tooltip="Чистая прибыль (Net Profit) = Чистая выручка минус ВСЕ расходы (COGS + операционные расходы + прочие расходы) плюс доходы от страховок. Это то, что реально остаётся после всех расходов и обязательств."
           />
         </div>
       </div>
@@ -587,10 +617,13 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
 
       {/* =====================================================================
           ОБЯЗАТЕЛЬСТВА ПО ВАЛЮТАМ (реальные суммы!)
+          Примечание: Балансы пользователей УЖЕ включают реферальные выплаты.
+          Реферальные выплаты идут в баланс, поэтому они согласованы с этой графой.
           ===================================================================== */}
       <div className="bg-[#0e0e0e] border border-red-500/30 p-6 rounded-sm">
         <h4 className="text-xs uppercase text-red-400 font-mono mb-4 pb-2 border-b border-white/10">
           Обязательства (деньги пользователей по валютам)
+          <span className="text-gray-600 ml-2 normal-case text-xs">• включают реферальные выплаты</span>
         </h4>
         
         {Object.keys(liabilitiesByCurrency).length > 0 ? (
