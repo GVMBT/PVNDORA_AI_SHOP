@@ -23,7 +23,7 @@ async def cmd_start(message: Message, db_user: User, bot: Bot):
     
     # Check if terms already accepted
     try:
-        result = db.client.table("users").select(
+        result = await db.client.table("users").select(
             "terms_accepted"
         ).eq("id", db_user.id).single().execute()
         
@@ -134,7 +134,7 @@ async def cb_terms_accept(callback: CallbackQuery, db_user: User):
     
     # Update terms_accepted
     try:
-        db.client.table("users").update({
+        await db.client.table("users").update({
             "terms_accepted": True,
             "terms_accepted_at": datetime.now(timezone.utc).isoformat()
         }).eq("id", db_user.id).execute()

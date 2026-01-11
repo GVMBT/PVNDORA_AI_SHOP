@@ -225,7 +225,7 @@ async def submit_review(request: SubmitReviewRequest, user=Depends(verify_telegr
     if order.status not in ["delivered", "partial"]:
         raise HTTPException(status_code=400, detail="Order not completed")
     
-    existing = db.client.table("reviews").select("id").eq("order_id", request.order_id).execute()
+    existing = await db.client.table("reviews").select("id").eq("order_id", request.order_id).execute()
     if existing.data:
         raise HTTPException(status_code=400, detail="Review already submitted")
     
@@ -258,8 +258,8 @@ async def submit_review(request: SubmitReviewRequest, user=Depends(verify_telegr
         import logging
         logging.warning(f"QStash failed for review cashback: {e}")
         await db.update_user_balance(db_user.id, cashback)
-        db.client.table("reviews").update({"cashback_given": True}).eq("order_id", request.order_id).execute()
-        db.client.table("balance_transactions").insert({
+        await db.client.table("reviews").update({"cashback_given": True}).eq("order_id", request.order_id).execute()
+        await db.client.table("balance_transactions").insert({
             "user_id": db_user.id, "type": "cashback", "amount": cashback,
             "status": "completed", "description": "5% кэшбек за отзыв", "reference_id": request.order_id
         }).execute()

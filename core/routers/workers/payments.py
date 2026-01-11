@@ -39,7 +39,7 @@ async def worker_process_refund(request: Request):
     notification_service = get_notification_service()
     
     # Get order with fiat amount
-    order = db.client.table("orders").select(
+    order = await db.client.table("orders").select(
         "id, amount, fiat_amount, fiat_currency, user_id, user_telegram_id, status, products(name)"
     ).eq("id", order_id).single().execute()
     
@@ -53,7 +53,7 @@ async def worker_process_refund(request: Request):
     amount_usd = to_float(order.data["amount"])
     
     # Get user's balance_currency
-    user_result = db.client.table("users").select("balance_currency").eq("id", user_id).single().execute()
+    user_result = await db.client.table("users").select("balance_currency").eq("id", user_id).single().execute()
     balance_currency = user_result.data.get("balance_currency", "USD") if user_result.data else "USD"
     
     # Determine refund amount in user's balance currency
@@ -75,7 +75,7 @@ async def worker_process_refund(request: Request):
             refund_amount = round(amount_usd * rate)  # Round for integer currencies
     
     # 1. Rollback turnover and revoke referral bonuses (always in RUB for consistency)
-    rollback_result = db.client.rpc("rollback_user_turnover", {
+    rollback_result = await db.client.rpc("rollback_user_turnover", {
         "p_user_id": user_id,
         "p_amount_rub": amount_usd * usd_rate,  # Convert to RUB for turnover
         "p_usd_rate": usd_rate,
@@ -83,14 +83,14 @@ async def worker_process_refund(request: Request):
     }).execute()
     
     # 2. Refund to user balance (in user's balance_currency)
-    db.client.rpc("add_to_user_balance", {
+    await db.client.rpc("add_to_user_balance", {
         "p_user_id": user_id,
         "p_amount": refund_amount,
         "p_reason": f"Refund for order {order_id}: {reason}"
     }).execute()
     
     # 3. Update order status
-    db.client.table("orders").update({
+    await db.client.table("orders").update({
         "status": "refunded",
         "refund_reason": reason,
         "refund_processed_at": datetime.now(timezone.utc).isoformat()
@@ -136,7 +136,7 @@ async def worker_process_review_cashback(request: Request):
     db = get_database()
     
     # Find review by order_id
-    review_result = db.client.table("reviews").select(
+    review_result = await db.client.table("reviews").select(
         "id, cashback_given"
     ).eq("order_id", order_id).limit(1).execute()
     
@@ -153,11 +153,11 @@ async def worker_process_review_cashback(request: Request):
     
     # Fallback: get user from order
     if not db_user:
-        order_result = db.client.table("orders").select("user_id, amount").eq("id", order_id).single().execute()
+        order_result = await db.client.table("orders").select("user_id, amount").eq("id", order_id).single().execute()
         if not order_result.data:
             return {"error": "Order not found"}
         order_amount = order_amount or to_float(order_result.data["amount"])
-        user_result = db.client.table("users").select("*").eq("id", order_result.data["user_id"]).single().execute()
+        user_result = await db.client.table("users").select("*").eq("id", order_result.data["user_id"]).single().execute()
         if not user_result.data:
             return {"error": "User not found"}
         db_user = type('User', (), user_result.data)()
@@ -167,12 +167,12 @@ async def worker_process_review_cashback(request: Request):
     
     # 1. Update user balance
     new_balance = to_float(db_user.balance or 0) + cashback
-    db.client.table("users").update({
+    await db.client.table("users").update({
         "balance": new_balance
     }).eq("id", db_user.id).execute()
     
     # 2. Create balance_transaction for history
-    db.client.table("balance_transactions").insert({
+    await db.client.table("balance_transactions").insert({
         "user_id": db_user.id,
         "type": "cashback",
         "amount": cashback,
@@ -182,7 +182,7 @@ async def worker_process_review_cashback(request: Request):
     }).execute()
     
     # 3. Mark review as processed
-    db.client.table("reviews").update({
+    await db.client.table("reviews").update({
         "cashback_given": True
     }).eq("id", review["id"]).execute()
     

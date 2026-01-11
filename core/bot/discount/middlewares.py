@@ -56,7 +56,7 @@ class DiscountAuthMiddleware(BaseMiddleware):
             
             # Mark as discount tier origin
             try:
-                db.client.table("users").update({
+                await db.client.table("users").update({
                     "discount_tier_source": True
                 }).eq("id", db_user.id).execute()
             except Exception as e:
@@ -186,7 +186,7 @@ class TermsAcceptanceMiddleware(BaseMiddleware):
         db = get_database()
         
         try:
-            result = db.client.table("users").select(
+            result = await db.client.table("users").select(
                 "terms_accepted"
             ).eq("id", db_user.id).single().execute()
             

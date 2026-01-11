@@ -213,7 +213,7 @@ async def cmd_broadcasts_list(message: Message):
     """List recent broadcasts"""
     db = get_database()
     
-    result = db.client.table("broadcast_messages").select(
+    result = await db.client.table("broadcast_messages").select(
         "id, slug, target_bot, status, sent_count, total_recipients, created_at"
     ).order("created_at", desc=True).limit(10).execute()
     
@@ -708,7 +708,7 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
             "created_by": admin_id
         }
         
-        result = db.client.table("broadcast_messages").insert(broadcast_data).execute()
+        result = await db.client.table("broadcast_messages").insert(broadcast_data).execute()
         broadcast_id = result.data[0]["id"]
         logger.info(f"Broadcast {broadcast_id}: Created in DB")
         

@@ -27,28 +27,36 @@ async def cmd_stats(message: Message):
     month_ago = now - timedelta(days=30)
     
     # Users stats
-    users_total = db.client.table("users").select("id", count="exact").execute().count or 0
-    users_today = db.client.table("users").select("id", count="exact").gte("created_at", today.isoformat()).execute().count or 0
-    users_week = db.client.table("users").select("id", count="exact").gte("created_at", week_ago.isoformat()).execute().count or 0
+    users_total_res = await db.client.table("users").select("id", count="exact").execute()
+    users_total = users_total_res.count or 0
+    users_today_res = await db.client.table("users").select("id", count="exact").gte("created_at", today.isoformat()).execute()
+    users_today = users_today_res.count or 0
+    users_week_res = await db.client.table("users").select("id", count="exact").gte("created_at", week_ago.isoformat()).execute()
+    users_week = users_week_res.count or 0
     
     # Orders stats
-    orders_total = db.client.table("orders").select("id", count="exact").execute().count or 0
-    orders_delivered = db.client.table("orders").select("id", count="exact").eq("status", "delivered").execute().count or 0
-    orders_today = db.client.table("orders").select("id", count="exact").gte("created_at", today.isoformat()).execute().count or 0
+    orders_total_res = await db.client.table("orders").select("id", count="exact").execute()
+    orders_total = orders_total_res.count or 0
+    orders_delivered_res = await db.client.table("orders").select("id", count="exact").eq("status", "delivered").execute()
+    orders_delivered = orders_delivered_res.count or 0
+    orders_today_res = await db.client.table("orders").select("id", count="exact").gte("created_at", today.isoformat()).execute()
+    orders_today = orders_today_res.count or 0
     
     # Revenue (delivered orders)
-    revenue_result = db.client.table("orders").select("amount").eq("status", "delivered").execute()
+    revenue_result = await db.client.table("orders").select("amount").eq("status", "delivered").execute()
     total_revenue = sum(float(o.get("amount", 0)) for o in (revenue_result.data or []))
     
     # Revenue today
-    revenue_today_result = db.client.table("orders").select("amount").eq("status", "delivered").gte("delivered_at", today.isoformat()).execute()
+    revenue_today_result = await db.client.table("orders").select("amount").eq("status", "delivered").gte("delivered_at", today.isoformat()).execute()
     revenue_today = sum(float(o.get("amount", 0)) for o in (revenue_today_result.data or []))
     
     # Stock stats
-    stock_available = db.client.table("stock_items").select("id", count="exact").eq("status", "available").execute().count or 0
+    stock_available_res = await db.client.table("stock_items").select("id", count="exact").eq("status", "available").execute()
+    stock_available = stock_available_res.count or 0
     
     # Active partners
-    partners = db.client.table("users").select("id", count="exact").eq("is_partner", True).execute().count or 0
+    partners_res = await db.client.table("users").select("id", count="exact").eq("is_partner", True).execute()
+    partners = partners_res.count or 0
     
     await message.answer(
         "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
@@ -87,11 +95,11 @@ async def cmd_users(message: Message):
     now = datetime.now(timezone.utc)
     week_ago = now - timedelta(days=7)
     
-    # Language distribution
-    lang_result = db.client.rpc("get_user_language_distribution", {}).execute()
+    # Language distribution (RPC may not exist, use fallback)
+    # lang_result = await db.client.rpc("get_user_language_distribution", {}).execute()
     
     # Build language stats from users table
-    users_result = db.client.table("users").select("language_code").execute()
+    users_result = await db.client.table("users").select("language_code").execute()
     lang_counts: dict = {}
     for u in (users_result.data or []):
         lang = u.get("language_code") or "unknown"
@@ -101,15 +109,17 @@ async def cmd_users(message: Message):
     sorted_langs = sorted(lang_counts.items(), key=lambda x: x[1], reverse=True)[:8]
     
     # Active users
-    active_count = db.client.table("users").select("id", count="exact").gte("last_activity_at", week_ago.isoformat()).execute().count or 0
+    active_count_res = await db.client.table("users").select("id", count="exact").gte("last_activity_at", week_ago.isoformat()).execute()
+    active_count = active_count_res.count or 0
     
     # Users with purchases
     # Get unique user_ids from delivered orders
-    buyers_result = db.client.table("orders").select("user_id").eq("status", "delivered").execute()
+    buyers_result = await db.client.table("orders").select("user_id").eq("status", "delivered").execute()
     unique_buyers = len(set(o["user_id"] for o in (buyers_result.data or [])))
     
     # Referral stats
-    with_referrers = db.client.table("users").select("id", count="exact").not_.is_("referrer_id", "null").execute().count or 0
+    with_referrers_res = await db.client.table("users").select("id", count="exact").not_.is_("referrer_id", "null").execute()
+    with_referrers = with_referrers_res.count or 0
     
     # Build language distribution text
     lang_lines = []
@@ -153,7 +163,7 @@ async def cmd_stock(message: Message):
     db = get_database()
     
     # Get products with stock counts
-    products_result = db.client.table("products").select("id, name, status").eq("status", "active").execute()
+    products_result = await db.client.table("products").select("id, name, status").eq("status", "active").execute()
     
     lines = [
         "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
@@ -166,7 +176,8 @@ async def cmd_stock(message: Message):
     
     for product in (products_result.data or []):
         # Count available stock for this product
-        stock_count = db.client.table("stock_items").select("id", count="exact").eq("product_id", product["id"]).eq("status", "available").execute().count or 0
+        stock_count_res = await db.client.table("stock_items").select("id", count="exact").eq("product_id", product["id"]).eq("status", "available").execute()
+        stock_count = stock_count_res.count or 0
         
         total_available += stock_count
         

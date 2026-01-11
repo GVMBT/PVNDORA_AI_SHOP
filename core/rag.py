@@ -148,8 +148,8 @@ class ProductSearch:
             # Format embedding as PostgreSQL vector string
             embedding_str = f"[{','.join(map(str, embedding))}]"
             
-            # Upsert embedding (sync client, no await)
-            self.db.client.table("product_embeddings").upsert({
+            # Upsert embedding
+            await self.db.client.table("product_embeddings").upsert({
                 "product_id": product_id,
                 "content": content,
                 "embedding": embedding_str
@@ -192,7 +192,7 @@ class ProductSearch:
             embedding_str = f"[{','.join(map(str, query_embedding))}]"
             
             # Call RPC function for vector search (sync client)
-            result = self.db.client.rpc(
+            result = await self.db.client.rpc(
                 "search_products_semantic",
                 {
                     "query_embedding": embedding_str,
@@ -228,8 +228,8 @@ class ProductSearch:
         Returns number of products indexed.
         """
         try:
-            # Sync client, no await
-            result = self.db.client.table("products").select(
+            # Fetch active products
+            result = await self.db.client.table("products").select(
                 "id, name, description, type, instructions"
             ).eq("status", "active").execute()
             
@@ -260,8 +260,7 @@ class ProductSearch:
     async def delete_product(self, product_id: str) -> bool:
         """Remove product from search index."""
         try:
-            # Sync client
-            self.db.client.table("product_embeddings").delete().eq(
+            await self.db.client.table("product_embeddings").delete().eq(
                 "product_id", product_id
             ).execute()
             return True

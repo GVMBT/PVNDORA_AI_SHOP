@@ -52,7 +52,7 @@ async def list_promo_codes(admin=Depends(verify_admin)) -> List[dict]:
     db = get_database()
     
     try:
-        result = db.client.table("promo_codes").select("*").order("created_at", desc=True).execute()
+        result = await db.client.table("promo_codes").select("*").order("created_at", desc=True).execute()
         
         return [
             {
@@ -79,14 +79,14 @@ async def create_promo_code(request: PromoCodeCreate, admin=Depends(verify_admin
     db = get_database()
     
     # Check if code already exists
-    existing = db.client.table("promo_codes").select("id").eq("code", request.code.upper()).execute()
+    existing = await db.client.table("promo_codes").select("id").eq("code", request.code.upper()).execute()
     if existing.data:
         raise HTTPException(status_code=400, detail="Promo code already exists")
     
     try:
         # Validate product_id if provided
         if request.product_id:
-            product_check = db.client.table("products").select("id").eq("id", request.product_id).execute()
+            product_check = await db.client.table("products").select("id").eq("id", request.product_id).execute()
             if not product_check.data:
                 raise HTTPException(status_code=400, detail=f"Product {request.product_id} not found")
         
@@ -104,7 +104,7 @@ async def create_promo_code(request: PromoCodeCreate, admin=Depends(verify_admin
         if request.product_id:
             data["product_id"] = request.product_id  # NULL = cart-wide, NOT NULL = product-specific
         
-        result = db.client.table("promo_codes").insert(data).execute()
+        result = await db.client.table("promo_codes").insert(data).execute()
         
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to create promo code")
@@ -137,7 +137,7 @@ async def update_promo_code(promo_id: str, request: PromoCodeUpdate, admin=Depen
         # Validate product_id if provided
         if request.product_id is not None:
             if request.product_id:
-                product_check = db.client.table("products").select("id").eq("id", request.product_id).execute()
+                product_check = await db.client.table("products").select("id").eq("id", request.product_id).execute()
                 if not product_check.data:
                     raise HTTPException(status_code=400, detail=f"Product {request.product_id} not found")
         
@@ -159,7 +159,7 @@ async def update_promo_code(promo_id: str, request: PromoCodeUpdate, admin=Depen
         if not update_data:
             raise HTTPException(status_code=400, detail="No fields to update")
         
-        result = db.client.table("promo_codes").update(update_data).eq("id", promo_id).execute()
+        result = await db.client.table("promo_codes").update(update_data).eq("id", promo_id).execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="Promo code not found")
@@ -189,7 +189,7 @@ async def delete_promo_code(promo_id: str, admin=Depends(verify_admin)) -> dict:
     db = get_database()
     
     try:
-        result = db.client.table("promo_codes").delete().eq("id", promo_id).execute()
+        result = await db.client.table("promo_codes").delete().eq("id", promo_id).execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="Promo code not found")

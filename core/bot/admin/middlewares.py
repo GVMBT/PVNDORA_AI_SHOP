@@ -38,7 +38,7 @@ class AdminAuthMiddleware(BaseMiddleware):
         
         # Check if user is admin in database
         db = get_database()
-        result = db.client.table("users").select("id, telegram_id, username, is_admin").eq("telegram_id", telegram_id).execute()
+        result = await db.client.table("users").select("id, telegram_id, username, is_admin").eq("telegram_id", telegram_id).execute()
         
         if not result.data or not result.data[0].get("is_admin"):
             # Not an admin - send rejection message
