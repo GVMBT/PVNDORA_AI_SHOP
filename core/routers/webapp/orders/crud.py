@@ -237,13 +237,26 @@ async def get_webapp_orders(
             
             # Build items list in APIOrderItem format
             items = []
+            
+            # Pre-fetch reviews for this order to check has_review status
+            order_id = row.get("id")
+            reviews_result = await db.client.table("reviews").select(
+                "product_id"
+            ).eq("order_id", order_id).execute()
+            reviewed_product_ids = set(r["product_id"] for r in (reviews_result.data or []))
+            
             for item in items_data:
                 prod = item.get("product")
+                product_id = item.get("product_id")
                 # fulfillment_type is stored in order_items table, not calculated from instant_quantity
                 fulfillment_type = item.get("fulfillment_type", "instant")
+                
+                # Check if this product in this order has a review
+                has_review = product_id in reviewed_product_ids
+                
                 items.append({
                     "id": item.get("id"),
-                    "product_id": item.get("product_id"),
+                    "product_id": product_id,
                     "product_name": prod.get("name") if prod else "Unknown",
                     "quantity": item.get("quantity", 1),
                     "price": float(item.get("price", 0)),  # Use 'price' column from DB, not 'amount'
@@ -253,10 +266,10 @@ async def get_webapp_orders(
                     "delivery_instructions": item.get("delivery_instructions"),
                     "credentials": item.get("delivery_content"),  # Alias
                     "expires_at": item.get("expires_at"),
-                    "fulfillment_deadline": item.get("fulfillment_deadline"),
+                    "fulfillment_deadline": item.get("fulfillment_deadline") or row.get("fulfillment_deadline"),  # Fallback to order-level deadline
                     "delivered_at": item.get("delivered_at"),
                     "created_at": item.get("created_at"),
-                    "has_review": False,  # TODO: check reviews
+                    "has_review": has_review,
                 })
             
             # Use fiat_amount if available (what user actually paid), otherwise convert from USD

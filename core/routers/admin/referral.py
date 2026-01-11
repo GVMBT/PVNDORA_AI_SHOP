@@ -319,7 +319,7 @@ async def admin_get_partners(admin=Depends(verify_admin)):
     result = await db.client.table("users").select(
         "id, telegram_id, username, first_name, is_partner, partner_level_override, "
         "turnover_usd, referral_program_unlocked, total_referral_earnings, balance, "
-        "level1_unlocked_at, level2_unlocked_at, level3_unlocked_at, created_at"
+        "level1_unlocked_at, level2_unlocked_at, level3_unlocked_at, created_at, partner_mode"
     ).eq("is_partner", True).order("total_referral_earnings", desc=True).execute()
     
     partners = []
@@ -339,7 +339,9 @@ async def admin_get_partners(admin=Depends(verify_admin)):
                 "level2": stats.get("level2_count", 0),
                 "level3": stats.get("level3_count", 0)
             },
-            "effective_level": stats.get("effective_level", 0)
+            "effective_level": stats.get("effective_level", 0),
+            # Partner reward mode: 'commission' (default) or 'discount'
+            "partner_mode": p.get("partner_mode") or "commission"
         })
     
     return {"partners": partners, "count": len(partners)}

@@ -35,6 +35,7 @@ interface PartnerApplication {
 interface AdminPartnersProps {
   partners: UserData[];
   onEditPartner: (partner: UserData) => void;
+  onRevokeVIP?: (partner: UserData) => Promise<void>;
   onRefresh?: () => void;
 }
 
@@ -43,6 +44,7 @@ type PartnerTab = 'list' | 'requests';
 const AdminPartners: React.FC<AdminPartnersProps> = ({
   partners,
   onEditPartner,
+  onRevokeVIP,
   onRefresh,
 }) => {
   const [activeTab, setActiveTab] = useState<PartnerTab>('list');
@@ -196,20 +198,34 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
                           {p.level || 'USER'}
                         </span>
                       </td>
-                      <td className="p-4 text-pandora-cyan">${p.earned || 0}</td>
+                      <td className="p-4 text-pandora-cyan">{p.earned || 0} USD</td>
                       <td className="p-4 text-[10px] uppercase text-gray-400">
                         {p.rewardType === 'commission' ? '💰 Комиссия' : '🎁 Скидка рефералам'}
                       </td>
                       <td className="p-4">
                         <StatusBadge status={p.status || 'ACTIVE'} />
                       </td>
-                      <td className="p-4">
+                      <td className="p-4 flex gap-2">
                         <button 
                           onClick={() => onEditPartner(p)} 
                           className="hover:text-pandora-cyan transition-colors"
+                          title="Редактировать"
                         >
                           <Edit size={14} />
                         </button>
+                        {onRevokeVIP && (
+                          <button 
+                            onClick={async () => {
+                              if (confirm(`Отозвать VIP статус у ${p.username}?`)) {
+                                await onRevokeVIP(p);
+                              }
+                            }}
+                            className="hover:text-red-500 transition-colors text-gray-500"
+                            title="Отозвать VIP"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -232,7 +248,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
                     <StatusBadge status={p.status || 'ACTIVE'} />
                   </div>
                   <div className="text-xs text-gray-500 mb-2">
-                    {p.level || 'USER'} • Заработок: ${p.earned || 0}
+                    {p.level || 'USER'} • Заработок: {p.earned || 0} USD
                   </div>
                   <button 
                     onClick={() => onEditPartner(p)} 

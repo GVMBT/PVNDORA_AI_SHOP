@@ -179,7 +179,12 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       category: p.category || 'ai',
       description: p.description || '',
       price: p.price,
+      prices: p.prices || {},  // Anchor prices: {RUB: 990}
       msrp: p.msrp || p.price * 1.5,
+      msrp_prices: p.msrp_prices || {},  // Anchor MSRP prices
+      discountPrice: p.discountPrice || 0,
+      costPrice: p.costPrice || 0,
+      fulfillmentType: p.fulfillmentType || 'auto',
       type: p.type === 'instant' ? 'Instant' : 'Preorder',
       stock: p.stock || 0,
       fulfillment: p.fulfillment || 0,
@@ -189,7 +194,8 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       vpn: p.vpn || false,
       image: p.image || 'https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=800&auto=format&fit=crop',
       video: p.video,
-      instructions: p.instructions || ''
+      instructions: p.instructions || '',
+      status: p.status || 'active'
     }))
   , [products]);
 
@@ -223,8 +229,10 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
         balanceCurrency: u.balance_currency || 'USD',
         isBanned: u.is_banned || false,
         invites: 0,
-        earned: 0,
-        savings: 0
+        earned: u.total_referral_earnings || 0,  // Referral earnings
+        savings: 0,
+        // Partner-specific fields
+        rewardType: (u.partner_mode === 'discount' ? 'discount' : 'commission') as 'commission' | 'discount'
       };
     });
     userIdMapRef.current = newMap;
@@ -341,6 +349,27 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     await deleteProduct(productId);
   }, [deleteProduct]);
 
+  // Toggle VIP status handler
+  const handleToggleVIP = useCallback(async (userId: string, isVIP: boolean) => {
+    const { apiRequest: makeRequest } = await import('../../utils/apiClient');
+    const { API: apiConfig } = await import('../../config');
+    
+    try {
+      await makeRequest(`${apiConfig.ADMIN_URL}/users/${userId}/vip`, {
+        method: 'POST',
+        body: JSON.stringify({
+          is_partner: isVIP,
+          partner_level_override: isVIP ? 3 : null
+        })
+      });
+      // Refresh users list
+      await getUsers(50);
+    } catch (err) {
+      logger.error('Failed to toggle VIP status', err);
+      throw err;
+    }
+  }, [getUsers]);
+
   // Loading state - AFTER all hooks
   if (!isInitialized) {
     return (
@@ -377,6 +406,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       isAccountingLoading={isAccountingLoading}
       onBanUser={handleBanUser}
       onUpdateBalance={handleUpdateBalance}
+      onToggleVIP={handleToggleVIP}
       onSaveProduct={handleSaveProduct}
       onDeleteProduct={handleDeleteProduct}
     />

@@ -29,7 +29,9 @@ export interface AdminProduct {
   
   // Pricing
   price: number;
+  prices?: Record<string, number>;  // Anchor prices: {RUB: 990, USD: 10.50}
   msrp: number;
+  msrp_prices?: Record<string, number>;  // Anchor MSRP prices: {RUB: 1290}
   discountPrice?: number;  // Price for discount channel
   costPrice?: number;  // Cost for accounting
   
@@ -74,10 +76,14 @@ export interface AdminUser {
   username: string;
   role: string;
   balance: number;
+  balance_currency?: string;
   total_spent: number;
   orders_count: number;
   is_banned: boolean;
   created_at: string;
+  // Partner fields
+  total_referral_earnings?: number;
+  partner_mode?: 'commission' | 'discount';
 }
 
 export interface AdminAnalytics {

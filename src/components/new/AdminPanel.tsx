@@ -55,6 +55,7 @@ interface AdminPanelProps {
   // User actions
   onBanUser?: (userId: number, ban: boolean) => void;
   onUpdateBalance?: (userId: number, amount: number) => void;
+  onToggleVIP?: (userId: string, isVIP: boolean) => Promise<void>;
   // Product actions
   onSaveProduct?: (product: Partial<ProductData>) => Promise<void>;
   onDeleteProduct?: (productId: string) => void;
@@ -81,6 +82,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   isAccountingLoading,
   onBanUser,
   onUpdateBalance,
+  onToggleVIP,
   onSaveProduct,
   onDeleteProduct,
 }) => {
@@ -91,6 +93,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   // Modal states
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Partial<ProductData> | null>(null);
+  const [selectedPartner, setSelectedPartner] = useState<UserData | null>(null);
 
   // Handlers
   const handleEditProduct = (product: ProductData) => {
@@ -146,8 +149,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           <AdminPartners
             partners={propsUsers.filter(u => u.role === 'VIP')}
             onEditPartner={(partner) => {
-              // Handle partner edit - can reuse AdminUsers modal or create specific one
-              handleEditProduct({} as ProductData); // Placeholder - will be replaced with partner edit
+              // Open partner management modal
+              setSelectedPartner(partner);
+            }}
+            onRevokeVIP={async (partner) => {
+              if (onToggleVIP) {
+                await onToggleVIP(partner.dbId, false);
+                if (onRefreshOrders) onRefreshOrders();
+              }
             }}
             onRefresh={onRefreshOrders}
           />
