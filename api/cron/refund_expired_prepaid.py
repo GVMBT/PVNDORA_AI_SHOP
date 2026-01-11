@@ -141,11 +141,13 @@ async def refund_expired_prepaid_entrypoint(request: Request):
                 
                 # 4. Notify user via Telegram
                 if telegram_id and TELEGRAM_TOKEN:
-                    # Format amount with currency
+                    # Format amount with currency symbol
+                    from core.services.currency import CURRENCY_SYMBOLS
+                    symbol = CURRENCY_SYMBOLS.get(balance_currency, balance_currency)
                     if balance_currency in ["RUB", "UAH", "TRY", "INR"]:
-                        amount_str = f"{int(refund_amount)} {balance_currency}"
+                        amount_str = f"{int(refund_amount)} {symbol}"
                     else:
-                        amount_str = f"${refund_amount:.2f}"
+                        amount_str = f"{refund_amount:.2f} {symbol}"
                     
                     message = (
                         f"💰 <b>Возврат средств</b>\n\n"

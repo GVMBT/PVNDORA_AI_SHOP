@@ -114,11 +114,10 @@ async def process_review_cashback(request: Request):
     # Fallback: get user from order
     if not db_user:
         order_result = await db.client.table("orders").select(
-            "user_id, amount"
+            "user_id, amount, fiat_amount, fiat_currency"
         ).eq("id", order_id).single().execute()
         if not order_result.data:
             return JSONResponse({"error": "Order not found"}, status_code=404)
-        order_amount = order_amount or to_float(order_result.data["amount"])
         user_result = await db.client.table("users").select("*").eq(
             "id", order_result.data["user_id"]
         ).single().execute()
@@ -130,31 +129,58 @@ async def process_review_cashback(request: Request):
         db_user.telegram_id = user_result.data.get("telegram_id")
         db_user.balance = user_result.data.get("balance", 0)
     
-    # Calculate 5% cashback (in USD)
-    if not order_amount:
-        order_result = await db.client.table("orders").select("amount").eq(
-            "id", order_id
-        ).single().execute()
-        if order_result.data:
-            order_amount = to_float(order_result.data["amount"])
-        else:
-            return JSONResponse({"error": "Order amount not found"}, status_code=404)
+    # CRITICAL: Calculate cashback in user's balance_currency, NOT in USD
+    balance_currency = getattr(db_user, 'balance_currency', 'USD') or 'USD'
     
-    cashback = to_float(order_amount) * 0.05
+    # Get order details (always fetch to get fiat_amount/fiat_currency)
+    order_result = await db.client.table("orders").select("amount, fiat_amount, fiat_currency").eq(
+        "id", order_id
+    ).single().execute()
+    if not order_result.data:
+        return JSONResponse({"error": "Order not found"}, status_code=404)
+    order_data = order_result.data
+    
+    # Determine cashback base amount - use fiat_amount if available
+    from core.db import get_redis
+    from core.services.currency import get_currency_service
+    redis = get_redis()
+    currency_service = get_currency_service(redis)
+    
+    if order_data.get("fiat_amount") and order_data.get("fiat_currency") == balance_currency:
+        # Use fiat_amount (what user actually paid in their currency)
+        cashback_base = to_float(order_data["fiat_amount"])
+    else:
+        # Fallback: convert from USD amount
+        cashback_base_usd = to_float(order_data.get("amount", order_amount or 0))
+        if balance_currency == "USD":
+            cashback_base = cashback_base_usd
+        else:
+            rate = await currency_service.get_exchange_rate(balance_currency)
+            cashback_base = cashback_base_usd * rate
+    
+    # Calculate 5% cashback in user's balance_currency
+    cashback_amount = cashback_base * 0.05
+    
+    # Round for integer currencies
+    if balance_currency in ["RUB", "UAH", "TRY", "INR"]:
+        cashback_amount = round(cashback_amount)
+    else:
+        cashback_amount = round(cashback_amount, 2)
     
     # 1. Update user balance
     current_balance = to_float(db_user.balance or 0)
-    new_balance = current_balance + cashback
+    new_balance = current_balance + cashback_amount
     
     await db.client.table("users").update({"balance": new_balance}).eq(
         "id", db_user.id
     ).execute()
     
-    # 2. Create balance_transaction for history
+    # 2. Create balance_transaction for history (amount in balance_currency!)
     await db.client.table("balance_transactions").insert({
         "user_id": db_user.id,
         "type": "cashback",
-        "amount": cashback,
+        "amount": cashback_amount,  # In balance_currency
+        "currency": balance_currency,  # User's balance currency
         "status": "completed",
         "description": "5% кэшбек за отзыв",
         "reference_id": order_id,
@@ -167,16 +193,18 @@ async def process_review_cashback(request: Request):
         "id", review["id"]
     ).execute()
     
-    # 4. Send Telegram notification to user
+    # 4. Send Telegram notification using notification service (supports currency)
     if db_user.telegram_id:
         try:
-            notification_text = (
-                f"💰 <b>Кэшбек начислен!</b>\n\n"
-                f"За ваш отзыв вам начислено <b>${cashback:.2f}</b>.\n"
-                f"Новый баланс: <b>${new_balance:.2f}</b>\n\n"
-                f"Спасибо за обратную связь! 🙏"
+            from core.routers.deps import get_notification_service
+            notification_service = get_notification_service()
+            await notification_service.send_cashback_notification(
+                telegram_id=db_user.telegram_id,
+                cashback_amount=cashback_amount,
+                new_balance=new_balance,
+                currency=balance_currency,
+                reason="review"
             )
-            await send_telegram_message(db_user.telegram_id, notification_text)
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
@@ -184,7 +212,7 @@ async def process_review_cashback(request: Request):
     
     import logging
     logger = logging.getLogger(__name__)
-    logger.info(f"Cashback processed: user={db_user.telegram_id}, amount=${cashback:.2f}, order={order_id}")
+    logger.info(f"Cashback processed: user={db_user.telegram_id}, amount={cashback_amount} {balance_currency}, order={order_id}")
     
     return JSONResponse({
         "success": True,

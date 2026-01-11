@@ -220,12 +220,15 @@ class AdminAlertService:
         request_id: str,
         user_balance: Optional[float] = None
     ) -> int:
-        """Alert admins about new withdrawal request."""
+        """Alert admins about new withdrawal request.
+        
+        Note: amount is in USDT (for TRC20 withdrawals).
+        """
         user_display = f"@{username}" if username else f"ID: {user_telegram_id}"
         
         message = (
-            f"<b>Сумма:</b> ${amount:.2f}\n"
-            f"<b>Метод:</b> {method.upper()}\n"
+            f"<b>Сумма:</b> {amount:.2f} USDT\n"
+            f"<b>Метод:</b> {method}\n"
             f"<b>Пользователь:</b> {user_display}"
         )
         
