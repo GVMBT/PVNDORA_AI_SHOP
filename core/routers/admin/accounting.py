@@ -55,216 +55,519 @@ class ExpenseCreate(BaseModel):
 
 
 # =============================================================================
-# Financial Overview
+# Financial Overview (Multi-Currency with Date Filtering)
 # =============================================================================
 
 @router.get("/accounting/overview")
 async def get_financial_overview(
-    display_currency: str = Query("USD", description="Display currency: USD or RUB"),
+    period: Optional[str] = Query(None, description="Period: today, month, all"),
+    from_date: Optional[str] = Query(None, alias="from", description="Start date (ISO format)"),
+    to_date: Optional[str] = Query(None, alias="to", description="End date (ISO format)"),
+    display_currency: str = Query("USD", description="DEPRECATED - kept for backward compatibility"),
     admin=Depends(verify_admin)
 ):
     """
-    Get complete financial overview from database view.
+    Get financial overview with REAL currency amounts (no conversion).
+    
+    Returns separate totals for each currency (USD, RUB, etc.) showing
+    what was actually paid, not converted values.
+    
+    COGS and other supplier costs remain in USD (since suppliers are paid in $).
     
     Args:
-        display_currency: Currency for display values (USD or RUB). 
-                         Base accounting is in USD, but can be converted for convenience.
+        period: Filter by period (today, month, all). Ignored if from/to provided.
+        from_date: Start date filter (ISO format: 2026-01-01)
+        to_date: End date filter (ISO format: 2026-01-31)
     """
-    from core.db import get_redis
-    from core.services.currency import get_currency_service
-    
     db = get_database()
-    redis = get_redis()
-    currency_service = get_currency_service(redis)
     
-    # Get exchange rate for display conversion
-    display_rate = 1.0
-    if display_currency != "USD":
-        display_rate = await currency_service.get_exchange_rate(display_currency)
+    # Determine date range
+    now = datetime.now(timezone.utc)
+    start_date: Optional[datetime] = None
+    end_date: datetime = now
     
-    # Get main overview
-    result = await db.client.table("financial_overview").select("*").single().execute()
+    if from_date:
+        try:
+            start_date = datetime.fromisoformat(from_date.replace('Z', '+00:00'))
+            if not start_date.tzinfo:
+                start_date = start_date.replace(tzinfo=timezone.utc)
+        except ValueError:
+            # Try date-only format
+            start_date = datetime.strptime(from_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
     
-    # Get reserve balance
-    reserves_result = await db.client.table("reserve_balance").select("*").single().execute()
+    if to_date:
+        try:
+            end_date = datetime.fromisoformat(to_date.replace('Z', '+00:00'))
+            if not end_date.tzinfo:
+                end_date = end_date.replace(tzinfo=timezone.utc)
+            # End of day
+            end_date = end_date.replace(hour=23, minute=59, second=59)
+        except ValueError:
+            end_date = datetime.strptime(to_date, "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59, tzinfo=timezone.utc
+            )
     
-    data = result.data or {}
-    reserves = reserves_result.data or {}
+    # If no from_date but period specified
+    if not start_date and period:
+        if period == "today":
+            start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif period == "month":
+            start_date = now - timedelta(days=30)
+        # "all" means no start_date filter
     
-    # Convert USD values to display currency if needed
-    if display_currency != "USD" and display_rate > 0:
-        # ALL numeric fields from financial_overview that are in USD
-        usd_fields = [
-            "total_revenue",
-            "total_revenue_gross",
-            "revenue_this_month",
-            "revenue_today",
-            "total_cogs",
-            "total_acquiring_fees",
-            "total_referral_payouts",
-            "total_reserves",
-            "total_review_cashbacks",
-            "total_replacement_costs",
-            "total_other_expenses",
-            "total_insurance_revenue",
-            "total_discounts_given",
-            "net_profit",
-        ]
-        for field in usd_fields:
-            if field in data and data[field] is not None:
-                data[f"{field}_usd"] = data[field]  # Keep original USD value
-                data[field] = round(float(data[field]) * display_rate, 2)
+    # Build orders query with date filtering
+    orders_query = db.client.table("orders").select(
+        "id, amount, original_price, fiat_amount, fiat_currency, exchange_rate_snapshot, "
+        "created_at, order_expenses(cogs_amount, acquiring_fee_amount, referral_payout_amount, "
+        "reserve_amount, review_cashback_amount, insurance_replacement_cost)"
+    ).eq("status", "delivered")
+    
+    if start_date:
+        orders_query = orders_query.gte("created_at", start_date.isoformat())
+    if end_date:
+        orders_query = orders_query.lte("created_at", end_date.isoformat())
+    
+    orders_result = await orders_query.execute()
+    orders = orders_result.data or []
+    
+    # ==========================================================================
+    # Revenue by Currency (REAL amounts, no conversion)
+    # ==========================================================================
+    revenue_by_currency: dict = {}
+    total_revenue_usd = 0.0  # For COGS comparison (since COGS is in USD)
+    total_revenue_gross_usd = 0.0
+    
+    # Expenses totals (always in USD - paid to suppliers in $)
+    total_cogs = 0.0
+    total_acquiring_fees = 0.0
+    total_referral_payouts = 0.0
+    total_reserves = 0.0
+    total_review_cashbacks = 0.0
+    total_replacement_costs = 0.0
+    
+    for order in orders:
+        currency = order.get("fiat_currency") or "USD"
+        fiat_amount = order.get("fiat_amount")
+        amount_usd = float(order.get("amount", 0))
+        original_price_usd = float(order.get("original_price") or amount_usd)
         
-        # Also convert reserves
-        for key in ["total_accumulated", "total_used", "total_available"]:
-            if key in reserves and reserves[key] is not None:
-                reserves[f"{key}_usd"] = reserves[key]
-                reserves[key] = round(float(reserves[key]) * display_rate, 2)
-    
-    data["display_currency"] = display_currency
-    data["exchange_rate"] = display_rate
-    
-    # Merge reserve data
-    data["reserves_accumulated"] = float(reserves.get("total_accumulated", 0))
-    data["reserves_used"] = float(reserves.get("total_used", 0))
-    data["reserves_available"] = float(reserves.get("total_available", 0))
-    
-    # Get liabilities (user balances + pending withdrawals)
-    try:
-        liabilities_result = await db.client.table("liabilities_summary").select(
-            "*"
-        ).single().execute()
-        liabilities = liabilities_result.data or {}
-        
-        # Convert liabilities to display currency if needed
-        total_user_balances_usd = float(liabilities.get("total_user_balances", 0))
-        pending_withdrawals_usd = float(liabilities.get("pending_withdrawals", 0))
-        total_liabilities_usd = float(liabilities.get("total_liabilities", 0))
-        
-        if display_currency != "USD" and display_rate > 0:
-            data["total_user_balances_usd"] = total_user_balances_usd
-            data["pending_withdrawals_usd"] = pending_withdrawals_usd
-            data["total_liabilities_usd"] = total_liabilities_usd
-            
-            data["total_user_balances"] = round(total_user_balances_usd * display_rate, 2)
-            data["pending_withdrawals"] = round(pending_withdrawals_usd * display_rate, 2)
-            data["total_liabilities"] = round(total_liabilities_usd * display_rate, 2)
+        # Determine real payment amount
+        if fiat_amount is not None:
+            real_amount = float(fiat_amount)
         else:
-            data["total_user_balances"] = total_user_balances_usd
-            data["pending_withdrawals"] = pending_withdrawals_usd
-            data["total_liabilities"] = total_liabilities_usd
-    except Exception as e:
-        logger.warning(f"Failed to get liabilities: {e}")
-        data["total_user_balances"] = 0.0
-        data["pending_withdrawals"] = 0.0
-        data["total_liabilities"] = 0.0
+            real_amount = amount_usd  # Old orders without fiat_amount
+        
+        # Initialize currency bucket
+        if currency not in revenue_by_currency:
+            revenue_by_currency[currency] = {
+                "orders_count": 0,
+                "revenue": 0.0,           # Real amount in this currency
+                "revenue_gross": 0.0,     # Before discounts (approximated)
+                "discounts_given": 0.0,
+            }
+        
+        revenue_by_currency[currency]["orders_count"] += 1
+        revenue_by_currency[currency]["revenue"] += real_amount
+        
+        # Calculate gross in fiat (proportional to USD gross)
+        if amount_usd > 0:
+            gross_ratio = original_price_usd / amount_usd
+            fiat_gross = real_amount * gross_ratio
+        else:
+            fiat_gross = real_amount
+        revenue_by_currency[currency]["revenue_gross"] += fiat_gross
+        revenue_by_currency[currency]["discounts_given"] += (fiat_gross - real_amount)
+        
+        # USD totals for expense calculations
+        total_revenue_usd += amount_usd
+        total_revenue_gross_usd += original_price_usd
+        
+        # Expenses (from order_expenses, always in USD)
+        expenses = order.get("order_expenses")
+        if expenses:
+            if isinstance(expenses, list):
+                expenses = expenses[0] if expenses else {}
+            total_cogs += float(expenses.get("cogs_amount", 0))
+            total_acquiring_fees += float(expenses.get("acquiring_fee_amount", 0))
+            total_referral_payouts += float(expenses.get("referral_payout_amount", 0))
+            total_reserves += float(expenses.get("reserve_amount", 0))
+            total_review_cashbacks += float(expenses.get("review_cashback_amount", 0))
+            total_replacement_costs += float(expenses.get("insurance_replacement_cost", 0))
     
-    # Get currency breakdown for all delivered orders
+    # Round currency values
+    for currency in revenue_by_currency:
+        for key in revenue_by_currency[currency]:
+            if key != "orders_count":
+                # Integer rounding for RUB-like currencies
+                if currency in ("RUB", "UAH", "TRY", "INR", "JPY", "KRW"):
+                    revenue_by_currency[currency][key] = round(revenue_by_currency[currency][key])
+                else:
+                    revenue_by_currency[currency][key] = round(revenue_by_currency[currency][key], 2)
+    
+    # ==========================================================================
+    # Other Expenses (from expenses table, in USD)
+    # ==========================================================================
+    expenses_query = db.client.table("expenses").select("amount_usd, category")
+    if start_date:
+        expenses_query = expenses_query.gte("date", start_date.date().isoformat())
+    if end_date:
+        expenses_query = expenses_query.lte("date", end_date.date().isoformat())
+    
+    other_expenses_result = await expenses_query.execute()
+    total_other_expenses = sum(float(e.get("amount_usd", 0)) for e in (other_expenses_result.data or []))
+    
+    # Expenses by category
+    expenses_by_category: dict = {}
+    for e in (other_expenses_result.data or []):
+        cat = e.get("category", "other")
+        expenses_by_category[cat] = expenses_by_category.get(cat, 0) + float(e.get("amount_usd", 0))
+    
+    # ==========================================================================
+    # Insurance Revenue (in USD)
+    # ==========================================================================
+    insurance_query = db.client.table("insurance_revenue").select("price")
+    if start_date:
+        insurance_query = insurance_query.gte("created_at", start_date.isoformat())
+    if end_date:
+        insurance_query = insurance_query.lte("created_at", end_date.isoformat())
+    
+    insurance_result = await insurance_query.execute()
+    total_insurance_revenue = sum(float(i.get("price", 0)) for i in (insurance_result.data or []))
+    
+    # ==========================================================================
+    # Liabilities by Currency (REAL amounts)
+    # ==========================================================================
+    liabilities_by_currency: dict = {}
+    
+    # User balances by currency
     try:
-        orders_result = await db.client.table("orders").select(
-            "fiat_currency, fiat_amount, amount"
-        ).eq("status", "delivered").execute()
+        balances_result = await db.client.table("users").select(
+            "balance, balance_currency"
+        ).gt("balance", 0).execute()
         
-        orders = orders_result.data or []
-        currency_breakdown = {}
-        
-        for order in orders:
-            currency = order.get("fiat_currency") or "USD"
-            if currency not in currency_breakdown:
-                currency_breakdown[currency] = {
-                    "orders_count": 0,
-                    "revenue_usd": 0.0,
-                    "revenue_fiat": 0.0
+        for user in (balances_result.data or []):
+            currency = user.get("balance_currency") or "USD"
+            balance = float(user.get("balance", 0))
+            
+            if currency not in liabilities_by_currency:
+                liabilities_by_currency[currency] = {
+                    "user_balances": 0.0,
+                    "users_count": 0,
+                    "pending_withdrawals": 0.0,
                 }
-            currency_breakdown[currency]["orders_count"] += 1
-            currency_breakdown[currency]["revenue_usd"] += float(order.get("amount", 0))
-            fiat_amount = order.get("fiat_amount")
-            if fiat_amount is not None:
-                currency_breakdown[currency]["revenue_fiat"] += float(fiat_amount)
-            else:
-                currency_breakdown[currency]["revenue_fiat"] += float(order.get("amount", 0))
-        
-        # Round values
-        for currency in currency_breakdown:
-            currency_breakdown[currency]["revenue_usd"] = round(currency_breakdown[currency]["revenue_usd"], 2)
-            currency_breakdown[currency]["revenue_fiat"] = round(currency_breakdown[currency]["revenue_fiat"], 2)
-        
-        data["currency_breakdown"] = currency_breakdown
+            liabilities_by_currency[currency]["user_balances"] += balance
+            liabilities_by_currency[currency]["users_count"] += 1
     except Exception as e:
-        logger.warning(f"Failed to get currency breakdown: {e}")
-        data["currency_breakdown"] = {}
+        logger.warning(f"Failed to get user balances by currency: {e}")
     
-    return data
+    # Pending withdrawals (debited from user balance in their currency)
+    try:
+        withdrawals_result = await db.client.table("withdrawal_requests").select(
+            "amount_debited, currency"
+        ).eq("status", "pending").execute()
+        
+        for w in (withdrawals_result.data or []):
+            currency = w.get("currency") or "USD"
+            amount = float(w.get("amount_debited", 0))
+            
+            if currency not in liabilities_by_currency:
+                liabilities_by_currency[currency] = {
+                    "user_balances": 0.0,
+                    "users_count": 0,
+                    "pending_withdrawals": 0.0,
+                }
+            liabilities_by_currency[currency]["pending_withdrawals"] += amount
+    except Exception as e:
+        logger.warning(f"Failed to get pending withdrawals: {e}")
+    
+    # Round liabilities
+    for currency in liabilities_by_currency:
+        if currency in ("RUB", "UAH", "TRY", "INR", "JPY", "KRW"):
+            liabilities_by_currency[currency]["user_balances"] = round(
+                liabilities_by_currency[currency]["user_balances"]
+            )
+            liabilities_by_currency[currency]["pending_withdrawals"] = round(
+                liabilities_by_currency[currency]["pending_withdrawals"]
+            )
+        else:
+            liabilities_by_currency[currency]["user_balances"] = round(
+                liabilities_by_currency[currency]["user_balances"], 2
+            )
+            liabilities_by_currency[currency]["pending_withdrawals"] = round(
+                liabilities_by_currency[currency]["pending_withdrawals"], 2
+            )
+    
+    # ==========================================================================
+    # Reserves
+    # ==========================================================================
+    try:
+        reserves_result = await db.client.table("reserve_balance").select("*").single().execute()
+        reserves = reserves_result.data or {}
+    except Exception:
+        reserves = {}
+    
+    # ==========================================================================
+    # Calculate Profit (in USD for now, since COGS is in USD)
+    # ==========================================================================
+    gross_profit_usd = total_revenue_usd - total_cogs
+    operating_expenses_usd = (
+        total_acquiring_fees + total_referral_payouts + total_reserves +
+        total_review_cashbacks + total_replacement_costs
+    )
+    operating_profit_usd = gross_profit_usd - operating_expenses_usd
+    net_profit_usd = operating_profit_usd - total_other_expenses + total_insurance_revenue
+    
+    # ==========================================================================
+    # Build Response
+    # ==========================================================================
+    return {
+        # Filter info
+        "period": period or ("custom" if from_date or to_date else "all"),
+        "start_date": start_date.isoformat() if start_date else None,
+        "end_date": end_date.isoformat(),
+        
+        # Orders summary
+        "total_orders": len(orders),
+        
+        # =====================================================================
+        # REVENUE BY CURRENCY (Real amounts, no conversion!)
+        # =====================================================================
+        "revenue_by_currency": revenue_by_currency,
+        
+        # Legacy totals in USD (for backward compatibility)
+        "total_revenue": round(total_revenue_usd, 2),
+        "total_revenue_gross": round(total_revenue_gross_usd, 2),
+        "total_discounts_given": round(total_revenue_gross_usd - total_revenue_usd, 2),
+        
+        # =====================================================================
+        # EXPENSES (Always in USD - suppliers are paid in $)
+        # =====================================================================
+        "expenses_usd": {
+            "cogs": round(total_cogs, 2),
+            "acquiring_fees": round(total_acquiring_fees, 2),
+            "referral_payouts": round(total_referral_payouts, 2),
+            "reserves": round(total_reserves, 2),
+            "review_cashbacks": round(total_review_cashbacks, 2),
+            "replacement_costs": round(total_replacement_costs, 2),
+            "other_expenses": round(total_other_expenses, 2),
+            "other_by_category": {k: round(v, 2) for k, v in expenses_by_category.items()},
+        },
+        
+        # Legacy expense fields (for backward compatibility)
+        "total_cogs": round(total_cogs, 2),
+        "total_acquiring_fees": round(total_acquiring_fees, 2),
+        "total_referral_payouts": round(total_referral_payouts, 2),
+        "total_reserves": round(total_reserves, 2),
+        "total_review_cashbacks": round(total_review_cashbacks, 2),
+        "total_replacement_costs": round(total_replacement_costs, 2),
+        "total_other_expenses": round(total_other_expenses, 2),
+        
+        # Insurance revenue (in USD)
+        "total_insurance_revenue": round(total_insurance_revenue, 2),
+        
+        # =====================================================================
+        # LIABILITIES BY CURRENCY (Real amounts!)
+        # =====================================================================
+        "liabilities_by_currency": liabilities_by_currency,
+        
+        # Legacy liabilities (sum converted to USD for compatibility)
+        "total_user_balances": sum(
+            data.get("user_balances", 0) for data in liabilities_by_currency.values()
+        ),
+        "pending_withdrawals": sum(
+            data.get("pending_withdrawals", 0) for data in liabilities_by_currency.values()
+        ),
+        
+        # =====================================================================
+        # PROFIT (In USD, since COGS is in $)
+        # =====================================================================
+        "profit_usd": {
+            "gross_profit": round(gross_profit_usd, 2),
+            "operating_profit": round(operating_profit_usd, 2),
+            "net_profit": round(net_profit_usd, 2),
+            "gross_margin_pct": round((gross_profit_usd / total_revenue_usd * 100) if total_revenue_usd > 0 else 0, 2),
+            "net_margin_pct": round((net_profit_usd / total_revenue_usd * 100) if total_revenue_usd > 0 else 0, 2),
+        },
+        
+        # Legacy profit field
+        "net_profit": round(net_profit_usd, 2),
+        
+        # Reserves (in USD)
+        "reserves_accumulated": float(reserves.get("total_accumulated", 0)),
+        "reserves_used": float(reserves.get("total_used", 0)),
+        "reserves_available": float(reserves.get("total_available", 0)),
+        
+        # Deprecated field kept for backward compatibility
+        "currency_breakdown": revenue_by_currency,
+        "display_currency": "MULTI",  # Indicates new multi-currency mode
+    }
 
 
 @router.get("/accounting/pl/daily")
 async def get_daily_pl(
     days: int = Query(30, ge=1, le=365),
-    comprehensive: bool = Query(False, description="Use comprehensive view with all costs"),
-    display_currency: str = Query("USD", description="Display currency: USD or RUB"),
+    comprehensive: bool = Query(False, description="Include all cost categories"),
     admin=Depends(verify_admin)
 ):
     """
-    Get daily P&L report.
+    Get daily P&L report with REAL currency breakdown (no conversion).
     
-    Args:
-        display_currency: Currency for display (USD or RUB). Data stored in USD, converted for display.
+    Returns:
+        - Daily data with revenue_by_currency for each day
+        - Expenses always in USD (COGS, acquiring, etc.)
+        - Totals aggregated across all days
     """
-    from core.db import get_redis
-    from core.services.currency import get_currency_service
-    
     db = get_database()
-    redis = get_redis()
-    currency_service = get_currency_service(redis)
     
-    # Get exchange rate for display conversion
-    display_rate = 1.0
-    if display_currency != "USD":
-        display_rate = await currency_service.get_exchange_rate(display_currency)
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
     
-    view_name = "pl_comprehensive" if comprehensive else "pl_daily"
+    # Fetch orders with expenses and currency info
+    orders_result = await db.client.table("orders").select(
+        "id, amount, original_price, fiat_amount, fiat_currency, created_at, "
+        "order_expenses(cogs_amount, acquiring_fee_amount, referral_payout_amount, "
+        "reserve_amount, review_cashback_amount, insurance_replacement_cost)"
+    ).eq("status", "delivered").gte(
+        "created_at", start_date.isoformat()
+    ).execute()
     
-    result = await db.client.table(view_name).select("*").order(
-        "date", desc=True
-    ).limit(days).execute()
+    orders = orders_result.data or []
     
-    data = result.data or []
+    # Group by date
+    daily_data: dict = {}
     
-    # Convert daily data to display currency if needed
-    if display_currency != "USD" and display_rate > 0:
-        money_fields = [
-            "revenue", "revenue_net", "revenue_gross", "total_discounts_given",
-            "cogs", "acquiring_fees", "referral_payouts", "reserves",
-            "review_cashbacks", "replacement_costs", "insurance_revenue",
-            "gross_profit", "net_profit", "operating_profit"
-        ]
-        for day in data:
-            for field in money_fields:
-                if field in day and day[field] is not None:
-                    day[field] = round(float(day[field]) * display_rate, 2)
+    for order in orders:
+        order_date = order.get("created_at", "")[:10]  # YYYY-MM-DD
+        
+        if order_date not in daily_data:
+            daily_data[order_date] = {
+                "date": order_date,
+                "orders_count": 0,
+                "revenue_by_currency": {},
+                "revenue_usd": 0.0,  # For expense calculations
+                "cogs": 0.0,
+                "acquiring_fees": 0.0,
+                "referral_payouts": 0.0,
+                "reserves": 0.0,
+                "review_cashbacks": 0.0,
+                "replacement_costs": 0.0,
+            }
+        
+        day = daily_data[order_date]
+        day["orders_count"] += 1
+        
+        # Revenue by currency
+        currency = order.get("fiat_currency") or "USD"
+        fiat_amount = order.get("fiat_amount")
+        amount_usd = float(order.get("amount", 0))
+        
+        if fiat_amount is not None:
+            real_amount = float(fiat_amount)
+        else:
+            real_amount = amount_usd
+        
+        if currency not in day["revenue_by_currency"]:
+            day["revenue_by_currency"][currency] = {
+                "revenue": 0.0,
+                "orders_count": 0,
+            }
+        day["revenue_by_currency"][currency]["revenue"] += real_amount
+        day["revenue_by_currency"][currency]["orders_count"] += 1
+        day["revenue_usd"] += amount_usd
+        
+        # Expenses (USD)
+        expenses = order.get("order_expenses")
+        if expenses:
+            if isinstance(expenses, list):
+                expenses = expenses[0] if expenses else {}
+            day["cogs"] += float(expenses.get("cogs_amount", 0))
+            day["acquiring_fees"] += float(expenses.get("acquiring_fee_amount", 0))
+            day["referral_payouts"] += float(expenses.get("referral_payout_amount", 0))
+            day["reserves"] += float(expenses.get("reserve_amount", 0))
+            day["review_cashbacks"] += float(expenses.get("review_cashback_amount", 0))
+            day["replacement_costs"] += float(expenses.get("insurance_replacement_cost", 0))
     
-    # Calculate totals for the period
+    # Get insurance revenue if comprehensive
+    insurance_by_date: dict = {}
+    if comprehensive:
+        insurance_result = await db.client.table("insurance_revenue").select(
+            "price, created_at"
+        ).gte("created_at", start_date.isoformat()).execute()
+        
+        for ins in (insurance_result.data or []):
+            ins_date = ins.get("created_at", "")[:10]
+            insurance_by_date[ins_date] = insurance_by_date.get(ins_date, 0) + float(ins.get("price", 0))
+    
+    # Calculate profits for each day
+    for date, day in daily_data.items():
+        revenue_usd = day["revenue_usd"]
+        cogs = day["cogs"]
+        
+        day["gross_profit_usd"] = round(revenue_usd - cogs, 2)
+        
+        operating_expenses = (
+            day["acquiring_fees"] + day["referral_payouts"] + day["reserves"] +
+            day["review_cashbacks"] + day["replacement_costs"]
+        )
+        day["operating_profit_usd"] = round(day["gross_profit_usd"] - operating_expenses, 2)
+        
+        if comprehensive:
+            day["insurance_revenue"] = round(insurance_by_date.get(date, 0), 2)
+            day["net_profit_usd"] = round(day["operating_profit_usd"] + day["insurance_revenue"], 2)
+        else:
+            day["net_profit_usd"] = day["operating_profit_usd"]
+        
+        # Round expense fields
+        day["cogs"] = round(cogs, 2)
+        day["acquiring_fees"] = round(day["acquiring_fees"], 2)
+        day["referral_payouts"] = round(day["referral_payouts"], 2)
+        day["reserves"] = round(day["reserves"], 2)
+        day["review_cashbacks"] = round(day["review_cashbacks"], 2)
+        day["replacement_costs"] = round(day["replacement_costs"], 2)
+        day["revenue_usd"] = round(revenue_usd, 2)
+        
+        # Round currency revenues
+        for curr_data in day["revenue_by_currency"].values():
+            if isinstance(curr_data.get("revenue"), float):
+                curr_data["revenue"] = round(curr_data["revenue"], 2)
+    
+    # Sort by date descending
+    daily_list = sorted(daily_data.values(), key=lambda x: x["date"], reverse=True)
+    
+    # Calculate totals
+    totals_revenue_by_currency: dict = {}
+    for day in daily_list:
+        for currency, curr_data in day["revenue_by_currency"].items():
+            if currency not in totals_revenue_by_currency:
+                totals_revenue_by_currency[currency] = {"revenue": 0.0, "orders_count": 0}
+            totals_revenue_by_currency[currency]["revenue"] += curr_data["revenue"]
+            totals_revenue_by_currency[currency]["orders_count"] += curr_data["orders_count"]
+    
+    # Round totals
+    for curr_data in totals_revenue_by_currency.values():
+        curr_data["revenue"] = round(curr_data["revenue"], 2)
+    
     totals = {
-        "revenue": sum(float(d.get("revenue_net", d.get("revenue", 0))) for d in data),
-        "revenue_gross": sum(float(d.get("revenue_gross", 0)) for d in data),
-        "total_discounts": sum(float(d.get("total_discounts_given", 0)) for d in data),
-        "cogs": sum(float(d.get("cogs", 0)) for d in data),
-        "acquiring_fees": sum(float(d.get("acquiring_fees", 0)) for d in data),
-        "referral_payouts": sum(float(d.get("referral_payouts", 0)) for d in data),
-        "reserves": sum(float(d.get("reserves", 0)) for d in data),
-        "review_cashbacks": sum(float(d.get("review_cashbacks", 0)) for d in data),
-        "replacement_costs": sum(float(d.get("replacement_costs", 0)) for d in data),
-        "insurance_revenue": sum(float(d.get("insurance_revenue", 0)) for d in data),
-        "gross_profit": sum(float(d.get("gross_profit", 0)) for d in data),
-        "net_profit": sum(float(d.get("net_profit", d.get("operating_profit", 0))) for d in data),
-        "orders_count": sum(int(d.get("orders_count", 0)) for d in data),
+        "revenue_by_currency": totals_revenue_by_currency,
+        "revenue_usd": round(sum(d["revenue_usd"] for d in daily_list), 2),
+        "orders_count": sum(d["orders_count"] for d in daily_list),
+        "cogs": round(sum(d["cogs"] for d in daily_list), 2),
+        "acquiring_fees": round(sum(d["acquiring_fees"] for d in daily_list), 2),
+        "referral_payouts": round(sum(d["referral_payouts"] for d in daily_list), 2),
+        "reserves": round(sum(d["reserves"] for d in daily_list), 2),
+        "review_cashbacks": round(sum(d["review_cashbacks"] for d in daily_list), 2),
+        "replacement_costs": round(sum(d["replacement_costs"] for d in daily_list), 2),
+        "gross_profit_usd": round(sum(d["gross_profit_usd"] for d in daily_list), 2),
+        "operating_profit_usd": round(sum(d["operating_profit_usd"] for d in daily_list), 2),
+        "net_profit_usd": round(sum(d["net_profit_usd"] for d in daily_list), 2),
     }
     
+    if comprehensive:
+        totals["insurance_revenue"] = round(sum(d.get("insurance_revenue", 0) for d in daily_list), 2)
+    
     # Calculate margins
-    revenue = totals["revenue"]
-    if revenue > 0:
-        totals["gross_margin_pct"] = round((totals["gross_profit"] / revenue) * 100, 2)
-        totals["net_margin_pct"] = round((totals["net_profit"] / revenue) * 100, 2)
+    if totals["revenue_usd"] > 0:
+        totals["gross_margin_pct"] = round((totals["gross_profit_usd"] / totals["revenue_usd"]) * 100, 2)
+        totals["net_margin_pct"] = round((totals["net_profit_usd"] / totals["revenue_usd"]) * 100, 2)
     else:
         totals["gross_margin_pct"] = 0
         totals["net_margin_pct"] = 0
@@ -272,10 +575,12 @@ async def get_daily_pl(
     return {
         "period_days": days,
         "comprehensive": comprehensive,
-        "display_currency": display_currency,
-        "exchange_rate": display_rate,
-        "daily": data,
-        "totals": totals
+        "start_date": start_date.isoformat()[:10],
+        "end_date": datetime.now(timezone.utc).isoformat()[:10],
+        "daily": daily_list,
+        "totals": totals,
+        # Deprecated - kept for backward compatibility
+        "display_currency": "MULTI",
     }
 
 
@@ -284,33 +589,177 @@ async def get_monthly_pl(
     months: int = Query(12, ge=1, le=36),
     admin=Depends(verify_admin)
 ):
-    """Get monthly P&L report."""
+    """
+    Get monthly P&L report with REAL currency breakdown (no conversion).
+    
+    Returns revenue by currency for each month, expenses in USD.
+    """
     db = get_database()
     
-    result = await db.client.table("pl_monthly").select("*").order(
-        "month", desc=True
-    ).limit(months).execute()
+    # Calculate start date
+    now = datetime.now(timezone.utc)
+    start_date = now - timedelta(days=months * 31)  # Approximate
     
-    data = result.data or []
+    # Fetch orders with expenses and currency info
+    orders_result = await db.client.table("orders").select(
+        "id, amount, original_price, fiat_amount, fiat_currency, created_at, "
+        "order_expenses(cogs_amount, acquiring_fee_amount, referral_payout_amount, "
+        "reserve_amount, review_cashback_amount, insurance_replacement_cost)"
+    ).eq("status", "delivered").gte(
+        "created_at", start_date.isoformat()
+    ).execute()
+    
+    orders = orders_result.data or []
+    
+    # Fetch other expenses
+    expenses_result = await db.client.table("expenses").select(
+        "amount_usd, date"
+    ).gte("date", start_date.date().isoformat()).execute()
+    
+    other_expenses_by_month: dict = {}
+    for exp in (expenses_result.data or []):
+        exp_date = exp.get("date", "")[:7]  # YYYY-MM
+        other_expenses_by_month[exp_date] = other_expenses_by_month.get(exp_date, 0) + float(exp.get("amount_usd", 0))
+    
+    # Fetch insurance revenue
+    insurance_result = await db.client.table("insurance_revenue").select(
+        "price, created_at"
+    ).gte("created_at", start_date.isoformat()).execute()
+    
+    insurance_by_month: dict = {}
+    for ins in (insurance_result.data or []):
+        ins_date = ins.get("created_at", "")[:7]  # YYYY-MM
+        insurance_by_month[ins_date] = insurance_by_month.get(ins_date, 0) + float(ins.get("price", 0))
+    
+    # Group by month
+    monthly_data: dict = {}
+    
+    for order in orders:
+        order_month = order.get("created_at", "")[:7]  # YYYY-MM
+        
+        if order_month not in monthly_data:
+            monthly_data[order_month] = {
+                "month": order_month,
+                "orders_count": 0,
+                "revenue_by_currency": {},
+                "revenue_usd": 0.0,
+                "cogs": 0.0,
+                "acquiring_fees": 0.0,
+                "referral_payouts": 0.0,
+                "reserves": 0.0,
+                "review_cashbacks": 0.0,
+                "replacement_costs": 0.0,
+            }
+        
+        month = monthly_data[order_month]
+        month["orders_count"] += 1
+        
+        # Revenue by currency
+        currency = order.get("fiat_currency") or "USD"
+        fiat_amount = order.get("fiat_amount")
+        amount_usd = float(order.get("amount", 0))
+        
+        if fiat_amount is not None:
+            real_amount = float(fiat_amount)
+        else:
+            real_amount = amount_usd
+        
+        if currency not in month["revenue_by_currency"]:
+            month["revenue_by_currency"][currency] = {"revenue": 0.0, "orders_count": 0}
+        month["revenue_by_currency"][currency]["revenue"] += real_amount
+        month["revenue_by_currency"][currency]["orders_count"] += 1
+        month["revenue_usd"] += amount_usd
+        
+        # Expenses (USD)
+        expenses = order.get("order_expenses")
+        if expenses:
+            if isinstance(expenses, list):
+                expenses = expenses[0] if expenses else {}
+            month["cogs"] += float(expenses.get("cogs_amount", 0))
+            month["acquiring_fees"] += float(expenses.get("acquiring_fee_amount", 0))
+            month["referral_payouts"] += float(expenses.get("referral_payout_amount", 0))
+            month["reserves"] += float(expenses.get("reserve_amount", 0))
+            month["review_cashbacks"] += float(expenses.get("review_cashback_amount", 0))
+            month["replacement_costs"] += float(expenses.get("insurance_replacement_cost", 0))
+    
+    # Calculate profits for each month
+    for month_key, month in monthly_data.items():
+        month["other_expenses"] = round(other_expenses_by_month.get(month_key, 0), 2)
+        month["insurance_revenue"] = round(insurance_by_month.get(month_key, 0), 2)
+        
+        revenue_usd = month["revenue_usd"]
+        cogs = month["cogs"]
+        
+        month["gross_profit_usd"] = round(revenue_usd - cogs, 2)
+        
+        operating_expenses = (
+            month["acquiring_fees"] + month["referral_payouts"] + month["reserves"] +
+            month["review_cashbacks"] + month["replacement_costs"]
+        )
+        month["operating_profit_usd"] = round(month["gross_profit_usd"] - operating_expenses, 2)
+        month["net_profit_usd"] = round(
+            month["operating_profit_usd"] - month["other_expenses"] + month["insurance_revenue"], 2
+        )
+        
+        # Round fields
+        month["revenue_usd"] = round(revenue_usd, 2)
+        month["cogs"] = round(cogs, 2)
+        month["acquiring_fees"] = round(month["acquiring_fees"], 2)
+        month["referral_payouts"] = round(month["referral_payouts"], 2)
+        month["reserves"] = round(month["reserves"], 2)
+        month["review_cashbacks"] = round(month["review_cashbacks"], 2)
+        month["replacement_costs"] = round(month["replacement_costs"], 2)
+        
+        # Round currency revenues
+        for curr_data in month["revenue_by_currency"].values():
+            curr_data["revenue"] = round(curr_data["revenue"], 2)
+    
+    # Sort by month descending and limit
+    monthly_list = sorted(monthly_data.values(), key=lambda x: x["month"], reverse=True)[:months]
     
     # Calculate totals
+    totals_revenue_by_currency: dict = {}
+    for month in monthly_list:
+        for currency, curr_data in month["revenue_by_currency"].items():
+            if currency not in totals_revenue_by_currency:
+                totals_revenue_by_currency[currency] = {"revenue": 0.0, "orders_count": 0}
+            totals_revenue_by_currency[currency]["revenue"] += curr_data["revenue"]
+            totals_revenue_by_currency[currency]["orders_count"] += curr_data["orders_count"]
+    
+    for curr_data in totals_revenue_by_currency.values():
+        curr_data["revenue"] = round(curr_data["revenue"], 2)
+    
     totals = {
-        "revenue": sum(float(d.get("revenue", 0)) for d in data),
-        "cogs": sum(float(d.get("cogs", 0)) for d in data),
-        "acquiring_fees": sum(float(d.get("acquiring_fees", 0)) for d in data),
-        "referral_payouts": sum(float(d.get("referral_payouts", 0)) for d in data),
-        "reserves": sum(float(d.get("reserves", 0)) for d in data),
-        "other_expenses": sum(float(d.get("other_expenses", 0)) for d in data),
-        "gross_profit": sum(float(d.get("gross_profit", 0)) for d in data),
-        "operating_profit": sum(float(d.get("operating_profit", 0)) for d in data),
-        "net_profit": sum(float(d.get("net_profit", 0)) for d in data),
-        "orders_count": sum(int(d.get("orders_count", 0)) for d in data),
+        "revenue_by_currency": totals_revenue_by_currency,
+        "revenue_usd": round(sum(m["revenue_usd"] for m in monthly_list), 2),
+        "orders_count": sum(m["orders_count"] for m in monthly_list),
+        "cogs": round(sum(m["cogs"] for m in monthly_list), 2),
+        "acquiring_fees": round(sum(m["acquiring_fees"] for m in monthly_list), 2),
+        "referral_payouts": round(sum(m["referral_payouts"] for m in monthly_list), 2),
+        "reserves": round(sum(m["reserves"] for m in monthly_list), 2),
+        "review_cashbacks": round(sum(m["review_cashbacks"] for m in monthly_list), 2),
+        "replacement_costs": round(sum(m["replacement_costs"] for m in monthly_list), 2),
+        "other_expenses": round(sum(m["other_expenses"] for m in monthly_list), 2),
+        "insurance_revenue": round(sum(m["insurance_revenue"] for m in monthly_list), 2),
+        "gross_profit_usd": round(sum(m["gross_profit_usd"] for m in monthly_list), 2),
+        "operating_profit_usd": round(sum(m["operating_profit_usd"] for m in monthly_list), 2),
+        "net_profit_usd": round(sum(m["net_profit_usd"] for m in monthly_list), 2),
     }
+    
+    # Calculate margins
+    if totals["revenue_usd"] > 0:
+        totals["gross_margin_pct"] = round((totals["gross_profit_usd"] / totals["revenue_usd"]) * 100, 2)
+        totals["net_margin_pct"] = round((totals["net_profit_usd"] / totals["revenue_usd"]) * 100, 2)
+    else:
+        totals["gross_margin_pct"] = 0
+        totals["net_margin_pct"] = 0
     
     return {
         "period_months": months,
-        "monthly": data,
-        "totals": totals
+        "monthly": monthly_list,
+        "totals": totals,
+        # Deprecated
+        "display_currency": "MULTI",
     }
 
 
@@ -457,20 +906,90 @@ async def update_accounting_settings(
 
 
 # =============================================================================
-# Liabilities
+# Liabilities (Multi-Currency)
 # =============================================================================
 
 @router.get("/accounting/liabilities")
 async def get_liabilities(admin=Depends(verify_admin)):
-    """Get current liabilities (user balances, pending withdrawals)."""
+    """
+    Get current liabilities with REAL currency breakdown (no conversion).
+    
+    Returns user balances and pending withdrawals per currency.
+    """
     db = get_database()
     
-    result = await db.client.table("liabilities_summary").select("*").single().execute()
+    liabilities_by_currency: dict = {}
     
-    return result.data or {
-        "total_user_balances": 0,
-        "pending_withdrawals": 0,
-        "total_liabilities": 0
+    # User balances by currency
+    try:
+        balances_result = await db.client.table("users").select(
+            "balance, balance_currency"
+        ).gt("balance", 0).execute()
+        
+        for user in (balances_result.data or []):
+            currency = user.get("balance_currency") or "USD"
+            balance = float(user.get("balance", 0))
+            
+            if currency not in liabilities_by_currency:
+                liabilities_by_currency[currency] = {
+                    "user_balances": 0.0,
+                    "users_count": 0,
+                    "pending_withdrawals": 0.0,
+                    "withdrawals_count": 0,
+                }
+            liabilities_by_currency[currency]["user_balances"] += balance
+            liabilities_by_currency[currency]["users_count"] += 1
+    except Exception as e:
+        logger.warning(f"Failed to get user balances: {e}")
+    
+    # Pending withdrawals by currency
+    try:
+        withdrawals_result = await db.client.table("withdrawal_requests").select(
+            "amount_debited, currency"
+        ).eq("status", "pending").execute()
+        
+        for w in (withdrawals_result.data or []):
+            currency = w.get("currency") or "USD"
+            amount = float(w.get("amount_debited", 0))
+            
+            if currency not in liabilities_by_currency:
+                liabilities_by_currency[currency] = {
+                    "user_balances": 0.0,
+                    "users_count": 0,
+                    "pending_withdrawals": 0.0,
+                    "withdrawals_count": 0,
+                }
+            liabilities_by_currency[currency]["pending_withdrawals"] += amount
+            liabilities_by_currency[currency]["withdrawals_count"] += 1
+    except Exception as e:
+        logger.warning(f"Failed to get pending withdrawals: {e}")
+    
+    # Round values appropriately
+    for currency in liabilities_by_currency:
+        data = liabilities_by_currency[currency]
+        if currency in ("RUB", "UAH", "TRY", "INR", "JPY", "KRW"):
+            data["user_balances"] = round(data["user_balances"])
+            data["pending_withdrawals"] = round(data["pending_withdrawals"])
+        else:
+            data["user_balances"] = round(data["user_balances"], 2)
+            data["pending_withdrawals"] = round(data["pending_withdrawals"], 2)
+        data["total"] = data["user_balances"] + data["pending_withdrawals"]
+    
+    # Calculate legacy totals (sum all currencies - for backward compatibility)
+    total_user_balances = sum(d.get("user_balances", 0) for d in liabilities_by_currency.values())
+    total_pending = sum(d.get("pending_withdrawals", 0) for d in liabilities_by_currency.values())
+    
+    return {
+        # NEW: Multi-currency breakdown
+        "liabilities_by_currency": liabilities_by_currency,
+        
+        # Legacy fields (sum of all currencies - NOT converted, just summed!)
+        "total_user_balances": total_user_balances,
+        "pending_withdrawals": total_pending,
+        "total_liabilities": total_user_balances + total_pending,
+        
+        # Metadata
+        "currencies_count": len(liabilities_by_currency),
     }
 
 
@@ -727,9 +1246,56 @@ async def get_accounting_report(
     operating_profit = gross_profit - operating_expenses_total
     net_profit = operating_profit - other_expenses + insurance_revenue
     
-    # Get liabilities
-    liabilities_result = await db.client.table("liabilities_summary").select("*").single().execute()
-    liabilities = liabilities_result.data or {}
+    # Get liabilities by currency (multi-currency!)
+    liabilities_by_currency: dict = {}
+    
+    # User balances
+    try:
+        balances_result = await db.client.table("users").select(
+            "balance, balance_currency"
+        ).gt("balance", 0).execute()
+        
+        for user in (balances_result.data or []):
+            curr = user.get("balance_currency") or "USD"
+            balance = float(user.get("balance", 0))
+            
+            if curr not in liabilities_by_currency:
+                liabilities_by_currency[curr] = {
+                    "user_balances": 0.0,
+                    "pending_withdrawals": 0.0,
+                }
+            liabilities_by_currency[curr]["user_balances"] += balance
+    except Exception as e:
+        logger.warning(f"Failed to get user balances for report: {e}")
+    
+    # Pending withdrawals
+    try:
+        withdrawals_result = await db.client.table("withdrawal_requests").select(
+            "amount_debited, currency"
+        ).eq("status", "pending").execute()
+        
+        for w in (withdrawals_result.data or []):
+            curr = w.get("currency") or "USD"
+            amount = float(w.get("amount_debited", 0))
+            
+            if curr not in liabilities_by_currency:
+                liabilities_by_currency[curr] = {
+                    "user_balances": 0.0,
+                    "pending_withdrawals": 0.0,
+                }
+            liabilities_by_currency[curr]["pending_withdrawals"] += amount
+    except Exception as e:
+        logger.warning(f"Failed to get withdrawals for report: {e}")
+    
+    # Calculate totals per currency
+    for curr_data in liabilities_by_currency.values():
+        curr_data["user_balances"] = round(curr_data["user_balances"], 2)
+        curr_data["pending_withdrawals"] = round(curr_data["pending_withdrawals"], 2)
+        curr_data["total"] = curr_data["user_balances"] + curr_data["pending_withdrawals"]
+    
+    # Legacy totals
+    total_user_balances = sum(d["user_balances"] for d in liabilities_by_currency.values())
+    total_pending_withdrawals = sum(d["pending_withdrawals"] for d in liabilities_by_currency.values())
     
     return {
         "period": period,
@@ -737,10 +1303,10 @@ async def get_accounting_report(
         "end_date": now.isoformat(),
         "orders_count": len(orders),
         
-        # Currency breakdown
+        # Currency breakdown (revenue)
         "currency_breakdown": currency_breakdown,
         
-        # Income Statement
+        # Income Statement (expenses in USD)
         "income_statement": {
             "revenue_gross": round(revenue_gross, 2),
             "discounts_given": round(total_discounts, 2),
@@ -770,11 +1336,14 @@ async def get_accounting_report(
             "net_margin_pct": round((net_profit / revenue * 100) if revenue > 0 else 0, 2),
         },
         
-        # Balance Sheet Items
+        # Balance Sheet Items - MULTI-CURRENCY!
         "liabilities": {
-            "user_balances": float(liabilities.get("total_user_balances", 0)),
-            "pending_withdrawals": float(liabilities.get("pending_withdrawals", 0)),
-            "total": float(liabilities.get("total_liabilities", 0))
+            # NEW: breakdown by currency
+            "by_currency": liabilities_by_currency,
+            # Legacy fields (sum, not converted)
+            "user_balances": total_user_balances,
+            "pending_withdrawals": total_pending_withdrawals,
+            "total": total_user_balances + total_pending_withdrawals,
         },
         
         # Key Metrics

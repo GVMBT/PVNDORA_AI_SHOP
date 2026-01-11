@@ -57,6 +57,7 @@ class Product(BaseModel):
     description: Optional[str] = None
     price: Decimal  # Base price in USD
     prices: Optional[dict] = None  # Anchor prices: {"RUB": 990, "USD": 10.50}
+    msrp_prices: Optional[dict] = None  # Anchor MSRP: {"RUB": 20000, "USD": 250}
     type: str  # student, trial, shared, key
     status: str = "active"
     warranty_hours: int = 24
@@ -68,7 +69,7 @@ class Product(BaseModel):
     requires_prepayment: bool = False
     prepayment_percent: int = 100
     categories: list[str] = []  # text, video, image, code, audio
-    msrp: Optional[Decimal] = None
+    msrp: Optional[Decimal] = None  # Base MSRP in USD
     duration_days: Optional[int] = None
     instruction_files: Optional[list] = None
     image_url: Optional[str] = None

@@ -104,10 +104,23 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       logger.info('Accounting data loaded', data);
       
       setAccountingData({
+          // Filter info
+          period: data.period,
+          startDate: data.start_date,
+          endDate: data.end_date,
+          
+          // Orders
+          totalOrders: parseInt(data.total_orders) || 0,
+          
+          // Revenue by currency (NEW - real amounts!)
+          revenueByСurrency: data.revenue_by_currency || {},
+          
+          // Legacy totals in USD
           totalRevenue: parseFloat(data.total_revenue) || 0,
           revenueGross: parseFloat(data.total_revenue_gross) || 0,
-          revenueThisMonth: parseFloat(data.revenue_this_month) || 0,
-          revenueToday: parseFloat(data.revenue_today) || 0,
+          totalDiscountsGiven: parseFloat(data.total_discounts_given) || 0,
+          
+          // Expenses (always in USD)
           totalCogs: parseFloat(data.total_cogs) || 0,
           totalAcquiringFees: parseFloat(data.total_acquiring_fees) || 0,
           totalReferralPayouts: parseFloat(data.total_referral_payouts) || 0,
@@ -116,18 +129,28 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
           totalReplacementCosts: parseFloat(data.total_replacement_costs) || 0,
           totalOtherExpenses: parseFloat(data.total_other_expenses) || 0,
           totalInsuranceRevenue: parseFloat(data.total_insurance_revenue) || 0,
-          totalDiscountsGiven: parseFloat(data.total_discounts_given) || 0,
+          
+          // Liabilities by currency (NEW - real amounts!)
+          liabilitiesByCurrency: data.liabilities_by_currency || {},
+          
+          // Legacy liabilities
           totalUserBalances: parseFloat(data.total_user_balances) || 0,
           pendingWithdrawals: parseFloat(data.pending_withdrawals) || 0,
+          
+          // Profit (USD)
           netProfit: parseFloat(data.net_profit) || 0,
-          totalOrders: parseInt(data.total_orders) || 0,
-          ordersThisMonth: parseInt(data.orders_this_month) || 0,
-          ordersToday: parseInt(data.orders_today) || 0,
-          // Reserve tracking
+          grossProfit: parseFloat(data.profit_usd?.gross_profit) || undefined,
+          operatingProfit: parseFloat(data.profit_usd?.operating_profit) || undefined,
+          grossMarginPct: parseFloat(data.profit_usd?.gross_margin_pct) || undefined,
+          netMarginPct: parseFloat(data.profit_usd?.net_margin_pct) || undefined,
+          
+          // Reserves
+          reservesAccumulated: parseFloat(data.reserves_accumulated) || 0,
           reservesUsed: parseFloat(data.reserves_used) || 0,
           reservesAvailable: parseFloat(data.reserves_available) || 0,
-          // Currency breakdown
-          currencyBreakdown: data.currency_breakdown || {},
+          
+          // Deprecated (kept for backward compatibility)
+          currencyBreakdown: data.currency_breakdown || data.revenue_by_currency || {},
         });
     } catch (err) {
       logger.error('Failed to fetch accounting data', err);
@@ -388,13 +411,13 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
         body: JSON.stringify(expense)
       });
       // Refresh accounting data
-      await fetchAccounting('all', undefined, undefined, accountingData?.displayCurrency || 'RUB');
+      await fetchAccounting('all');
       logger.info('Expense created successfully');
     } catch (err) {
       logger.error('Failed to create expense', err);
       throw err;
     }
-  }, [fetchAccounting, accountingData?.displayCurrency]);
+  }, [fetchAccounting]);
 
   // Loading state - AFTER all hooks
   if (!isInitialized) {

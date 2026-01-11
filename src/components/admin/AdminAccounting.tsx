@@ -22,14 +22,45 @@ import {
   ArrowDownRight
 } from 'lucide-react';
 
+// Revenue breakdown by currency (REAL amounts, no conversion)
+export interface CurrencyRevenue {
+  orders_count: number;
+  revenue: number;        // Real amount in this currency
+  revenue_gross: number;  // Before discounts
+  discounts_given: number;
+}
+
+// Liabilities by currency
+export interface CurrencyLiabilities {
+  user_balances: number;
+  users_count: number;
+  pending_withdrawals: number;
+}
+
 export interface AccountingData {
-  // Revenue
+  // Filter info
+  period?: string;
+  startDate?: string;
+  endDate?: string;
+  
+  // Orders
+  totalOrders: number;
+  ordersThisMonth?: number;
+  ordersToday?: number;
+  
+  // =====================================================================
+  // REVENUE BY CURRENCY (Real amounts, no conversion!)
+  // =====================================================================
+  revenueByСurrency: Record<string, CurrencyRevenue>;
+  
+  // Legacy totals in USD (for backward compatibility)
   totalRevenue: number;
   revenueGross: number;
-  revenueThisMonth: number;
-  revenueToday: number;
+  totalDiscountsGiven: number;
   
-  // Costs
+  // =====================================================================
+  // EXPENSES (Always in USD - suppliers are paid in $)
+  // =====================================================================
   totalCogs: number;
   totalAcquiringFees: number;
   totalReferralPayouts: number;
@@ -38,36 +69,34 @@ export interface AccountingData {
   totalReplacementCosts: number;
   totalOtherExpenses: number;
   
-  // Insurance
+  // Insurance revenue (USD)
   totalInsuranceRevenue: number;
   
-  // Discounts
-  totalDiscountsGiven: number;
+  // =====================================================================
+  // LIABILITIES BY CURRENCY (Real amounts!)
+  // =====================================================================
+  liabilitiesByCurrency: Record<string, CurrencyLiabilities>;
   
-  // Liabilities
+  // Legacy liabilities
   totalUserBalances: number;
   pendingWithdrawals: number;
   
-  // Calculated
+  // =====================================================================
+  // PROFIT (In USD, since COGS is in $)
+  // =====================================================================
   netProfit: number;
+  grossProfit?: number;
+  operatingProfit?: number;
+  grossMarginPct?: number;
+  netMarginPct?: number;
   
-  // Orders
-  totalOrders: number;
-  ordersThisMonth: number;
-  ordersToday: number;
-  
-  // Reserve usage (optional)
+  // Reserves (USD)
+  reservesAccumulated?: number;
   reservesUsed?: number;
   reservesAvailable?: number;
   
-  // Currency breakdown (optional)
-  currencyBreakdown?: {
-    [currency: string]: {
-      orders_count: number;
-      revenue_usd: number;
-      revenue_fiat: number;
-    };
-  };
+  // DEPRECATED: Old currency breakdown (kept for compatibility)
+  currencyBreakdown?: Record<string, { orders_count: number; revenue_usd: number; revenue_fiat: number }>;
 }
 
 interface AdminAccountingProps {
@@ -146,7 +175,6 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [displayCurrency, setDisplayCurrency] = useState<'USD' | 'RUB'>('RUB'); // Default to RUB per user request
   
   // Handle period change and refresh
   const handlePeriodChange = (p: 'today' | 'month' | 'all' | 'custom') => {
@@ -155,22 +183,14 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
       setShowDatePicker(true);
     } else {
       setShowDatePicker(false);
-      // Refresh with new period and currency
-      if (onRefresh) onRefresh(p, undefined, undefined, displayCurrency);
+      // Refresh with new period (currency param kept for backward compatibility)
+      if (onRefresh) onRefresh(p, undefined, undefined, 'USD');
     }
-  };
-  
-  // Handle currency change and refresh
-  const handleCurrencyChange = (currency: 'USD' | 'RUB') => {
-    setDisplayCurrency(currency);
-    if (onRefresh) onRefresh(period, customFrom || undefined, customTo || undefined, currency);
   };
   
   const d = data || {
     totalRevenue: 0,
     revenueGross: 0,
-    revenueThisMonth: 0,
-    revenueToday: 0,
     totalCogs: 0,
     totalAcquiringFees: 0,
     totalReferralPayouts: 0,
@@ -184,24 +204,44 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
     pendingWithdrawals: 0,
     netProfit: 0,
     totalOrders: 0,
-    ordersThisMonth: 0,
-    ordersToday: 0,
-    reservesUsed: 0,
-    reservesAvailable: 0,
+    revenueByСurrency: {},
+    liabilitiesByCurrency: {},
   };
 
-  // Calculated metrics
-  const grossProfit = d.totalRevenue - d.totalCogs;
+  // Get revenue breakdown
+  const revenueByСurrency = d.revenueByСurrency || d.currencyBreakdown || {};
+  const liabilitiesByCurrency = d.liabilitiesByCurrency || {};
+  
+  // Calculated metrics (in USD since COGS is in USD)
+  const grossProfit = d.grossProfit ?? (d.totalRevenue - d.totalCogs);
   const operatingExpenses = d.totalAcquiringFees + d.totalReferralPayouts + d.totalReserves + d.totalReviewCashbacks + d.totalReplacementCosts;
-  const operatingProfit = grossProfit - operatingExpenses;
-  const grossMargin = d.totalRevenue > 0 ? (grossProfit / d.totalRevenue) * 100 : 0;
-  const netMargin = d.totalRevenue > 0 ? (d.netProfit / d.totalRevenue) * 100 : 0;
+  const operatingProfit = d.operatingProfit ?? (grossProfit - operatingExpenses);
+  const grossMargin = d.grossMarginPct ?? (d.totalRevenue > 0 ? (grossProfit / d.totalRevenue) * 100 : 0);
+  const netMargin = d.netMarginPct ?? (d.totalRevenue > 0 ? (d.netProfit / d.totalRevenue) * 100 : 0);
   const avgOrderValue = d.totalOrders > 0 ? d.totalRevenue / d.totalOrders : 0;
   
   // Reserve calculation
-  const reservesAccumulated = d.totalReserves;
-  const reservesUsed = d.reservesUsed || d.totalOtherExpenses; // Use other_expenses as proxy for used reserves
-  const reservesAvailable = reservesAccumulated - reservesUsed;
+  const reservesAccumulated = d.reservesAccumulated ?? d.totalReserves;
+  const reservesUsed = d.reservesUsed ?? d.totalOtherExpenses;
+  const reservesAvailable = d.reservesAvailable ?? (reservesAccumulated - reservesUsed);
+  
+  // Format currency symbol
+  const getCurrencySymbol = (currency: string) => {
+    const symbols: Record<string, string> = {
+      USD: '$', RUB: '₽', EUR: '€', UAH: '₴', TRY: '₺', INR: '₹',
+    };
+    return symbols[currency] || currency;
+  };
+  
+  // Format money for specific currency
+  const formatCurrencyAmount = (amount: number, currency: string): string => {
+    const isInteger = ['RUB', 'UAH', 'TRY', 'INR', 'JPY', 'KRW'].includes(currency);
+    const formatted = new Intl.NumberFormat('ru-RU', {
+      minimumFractionDigits: isInteger ? 0 : 2,
+      maximumFractionDigits: isInteger ? 0 : 2,
+    }).format(amount);
+    return `${formatted} ${getCurrencySymbol(currency)}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -212,23 +252,6 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
           Отчёт о прибылях и убытках
         </h3>
         <div className="flex items-center gap-2">
-          {/* Селектор валюты */}
-          <div className="flex bg-[#0e0e0e] border border-white/10 rounded-sm overflow-hidden">
-            {(['USD', 'RUB'] as const).map((c) => (
-              <button
-                key={c}
-                onClick={() => handleCurrencyChange(c)}
-                className={`px-3 py-1.5 text-xs font-mono uppercase transition-colors ${
-                  displayCurrency === c 
-                    ? 'bg-pandora-cyan text-black' 
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                {c === 'USD' ? '$' : '₽'}
-              </button>
-            ))}
-          </div>
-          
           {/* Селектор периода */}
           <div className="flex flex-wrap bg-[#0e0e0e] border border-white/10 rounded-sm overflow-hidden">
             {(['today', 'month', 'all', 'custom'] as const).map((p) => (
@@ -264,7 +287,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
               />
               <button
                 onClick={() => {
-                  if (onRefresh) onRefresh('custom', customFrom, customTo, displayCurrency);
+                  if (onRefresh) onRefresh('custom', customFrom, customTo, 'USD');
                 }}
                 className="text-xs text-pandora-cyan hover:underline"
               >
@@ -283,7 +306,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
           )}
           {onRefresh && (
             <button
-              onClick={() => onRefresh(period, customFrom || undefined, customTo || undefined, displayCurrency)}
+              onClick={() => onRefresh(period, customFrom || undefined, customTo || undefined, 'USD')}
               disabled={isLoading}
               className="p-2 bg-[#0e0e0e] border border-white/10 rounded-sm hover:border-pandora-cyan transition-colors disabled:opacity-50"
             >
@@ -293,46 +316,74 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
         </div>
       </div>
 
-      {/* Currency Breakdown */}
-      {d.currencyBreakdown && Object.keys(d.currencyBreakdown).length > 0 && (
-        <div className="bg-[#0e0e0e] border border-white/10 p-4 rounded-sm">
-          <div className="flex items-center gap-2 text-gray-400 text-xs uppercase mb-3">
-            <CreditCard size={14} />
-            Разбивка по валютам
+      {/* =====================================================================
+          ВЫРУЧКА ПО ВАЛЮТАМ (реальные суммы, без конвертации!)
+          ===================================================================== */}
+      {Object.keys(revenueByСurrency).length > 0 && (
+        <div className="bg-[#0e0e0e] border border-green-500/30 p-4 rounded-sm">
+          <div className="flex items-center gap-2 text-green-400 text-xs uppercase mb-3">
+            <DollarSign size={14} />
+            Выручка по валютам (реальные суммы)
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {Object.entries(d.currencyBreakdown).map(([currency, stats]) => (
-              <div key={currency} className="bg-[#1a1a1a] border border-white/5 p-3 rounded-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-bold text-white">{currency}</span>
-                  <span className="text-xs text-gray-500">{stats.orders_count} заказов</span>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-400">Выручка (USD):</span>
-                    <span className="text-white font-mono">${stats.revenue_usd.toFixed(2)}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {Object.entries(revenueByСurrency).map(([currency, stats]) => {
+              // Handle both old and new data format
+              const revenue = 'revenue' in stats ? stats.revenue : (stats as any).revenue_fiat || 0;
+              const revenueGross = 'revenue_gross' in stats ? stats.revenue_gross : revenue;
+              const ordersCount = stats.orders_count || 0;
+              const discounts = 'discounts_given' in stats ? stats.discounts_given : 0;
+              
+              return (
+                <div key={currency} className="bg-[#1a1a1a] border border-green-500/20 p-4 rounded-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-lg font-bold text-white flex items-center gap-2">
+                      {getCurrencySymbol(currency)}
+                      <span className="text-xs text-gray-500 font-normal">{currency}</span>
+                    </span>
+                    <span className="text-xs text-gray-500 bg-[#0e0e0e] px-2 py-1 rounded">
+                      {ordersCount} заказов
+                    </span>
                   </div>
-                  {currency !== 'USD' && (
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-400">Выручка ({currency}):</span>
-                      <span className="text-white font-mono">{stats.revenue_fiat.toFixed(currency === 'RUB' ? 0 : 2)} {currency}</span>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-400">Валовая выручка:</span>
+                      <span className="text-white font-mono font-bold">
+                        {formatCurrencyAmount(revenueGross, currency)}
+                      </span>
                     </div>
-                  )}
+                    {discounts > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-400">Скидки:</span>
+                        <span className="text-red-400 font-mono text-sm">
+                          -{formatCurrencyAmount(discounts, currency)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-white/10">
+                      <span className="text-xs text-green-400 font-bold">Чистая выручка:</span>
+                      <span className="text-green-400 font-mono font-bold text-lg">
+                        {formatCurrencyAmount(revenue, currency)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+          <div className="mt-3 text-xs text-gray-500 flex items-center gap-1">
+            💡 Показаны реальные суммы оплат в каждой валюте, без конвертации
           </div>
         </div>
       )}
 
-      {/* Ключевые метрики */}
+      {/* Ключевые метрики (в USD, т.к. COGS в долларах) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-[#0e0e0e] border border-white/10 p-4 rounded-sm">
           <div className="flex items-center gap-2 text-gray-400 text-xs uppercase mb-2">
             <DollarSign size={14} />
-            Выручка
+            Выручка (USD)
           </div>
-          <div className="text-2xl font-bold text-white font-mono">{formatMoney(d.totalRevenue, displayCurrency)}</div>
+          <div className="text-2xl font-bold text-white font-mono">{formatMoney(d.totalRevenue, 'USD')}</div>
           <div className="text-xs text-gray-500 mt-1">{d.totalOrders} заказов</div>
         </div>
         
@@ -341,7 +392,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             <TrendingUp size={14} />
             Валовая прибыль
           </div>
-          <div className="text-2xl font-bold text-green-400 font-mono">{formatMoney(grossProfit, displayCurrency)}</div>
+          <div className="text-2xl font-bold text-green-400 font-mono">{formatMoney(grossProfit, 'USD')}</div>
           <div className="text-xs text-gray-500 mt-1">{formatPercent(grossMargin)} маржа</div>
         </div>
         
@@ -351,7 +402,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             Чистая прибыль
           </div>
           <div className={`text-2xl font-bold font-mono ${d.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {formatMoney(d.netProfit, displayCurrency)}
+            {formatMoney(d.netProfit, 'USD')}
           </div>
           <div className="text-xs text-gray-500 mt-1">{formatPercent(netMargin)} маржа</div>
         </div>
@@ -359,29 +410,30 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
         <div className="bg-[#0e0e0e] border border-white/10 p-4 rounded-sm">
           <div className="flex items-center gap-2 text-gray-400 text-xs uppercase mb-2">
             <TrendingDown size={14} />
-            Все расходы
+            Все расходы (USD)
           </div>
           <div className="text-2xl font-bold text-red-400 font-mono">
-            {formatMoney(d.totalCogs + operatingExpenses + d.totalOtherExpenses, displayCurrency)}
+            {formatMoney(d.totalCogs + operatingExpenses + d.totalOtherExpenses, 'USD')}
           </div>
           <div className="text-xs text-gray-500 mt-1">COGS + OpEx</div>
         </div>
       </div>
 
-      {/* P&L Statement */}
+      {/* P&L Statement (в USD, т.к. COGS платится поставщику в $) */}
       <div className="bg-[#0e0e0e] border border-white/10 p-6 rounded-sm">
         <h4 className="text-xs uppercase text-gray-500 font-mono mb-4 pb-2 border-b border-white/10">
-          Отчёт о финансовых результатах
+          Отчёт о финансовых результатах (USD)
+          <span className="text-gray-600 ml-2 normal-case">• себестоимость и расходы в $</span>
         </h4>
         
         {/* Выручка */}
         <div className="mb-4">
-          <div className="text-xs uppercase text-pandora-cyan font-mono mb-2">Выручка</div>
+          <div className="text-xs uppercase text-pandora-cyan font-mono mb-2">Выручка (конвертировано в USD)</div>
           <MetricRow 
             label="Валовая выручка" 
             value={d.revenueGross} 
             icon={<DollarSign size={14} />}
-            displayCurrency={displayCurrency}
+            displayCurrency="USD"
           />
           <MetricRow 
             label="Скидки" 
@@ -389,13 +441,13 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             isExpense 
             indent
             icon={<Percent size={14} />}
-            displayCurrency={displayCurrency}
+            displayCurrency="USD"
           />
           <MetricRow 
             label="Чистая выручка" 
             value={d.totalRevenue} 
             bold
-            displayCurrency={displayCurrency}
+            displayCurrency="USD"
           />
           {d.totalInsuranceRevenue > 0 && (
             <MetricRow 
@@ -403,27 +455,27 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
               value={d.totalInsuranceRevenue} 
               indent
               icon={<Shield size={14} />}
-              displayCurrency={displayCurrency}
+              displayCurrency="USD"
             />
           )}
         </div>
 
         {/* Себестоимость */}
         <div className="mb-4">
-          <div className="text-xs uppercase text-pandora-cyan font-mono mb-2">Себестоимость</div>
+          <div className="text-xs uppercase text-pandora-cyan font-mono mb-2">Себестоимость (платим поставщику в $)</div>
           <MetricRow 
             label="Себестоимость товаров (COGS)" 
             value={d.totalCogs} 
             isExpense
             icon={<DollarSign size={14} />}
-            displayCurrency={displayCurrency}
+            displayCurrency="USD"
           />
           <MetricRow 
             label="Валовая прибыль" 
             value={grossProfit} 
             isProfit
             bold
-            displayCurrency={displayCurrency}
+            displayCurrency="USD"
           />
         </div>
 
@@ -436,7 +488,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             isExpense
             indent
             icon={<CreditCard size={14} />}
-            displayCurrency={displayCurrency}
+            displayCurrency="USD"
           />
           <MetricRow 
             label="Реферальные выплаты (3 линии)" 
@@ -444,7 +496,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             isExpense
             indent
             icon={<Users size={14} />}
-            displayCurrency={displayCurrency}
+            displayCurrency="USD"
           />
           <MetricRow 
             label="Кэшбэк за отзывы (5%)" 
@@ -452,7 +504,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             isExpense
             indent
             icon={<Star size={14} />}
-            displayCurrency={displayCurrency}
+            displayCurrency="USD"
           />
           <MetricRow 
             label="Страховые замены" 
@@ -460,7 +512,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             isExpense
             indent
             icon={<Shield size={14} />}
-            displayCurrency={displayCurrency}
+            displayCurrency="USD"
           />
           <MetricRow 
             label="Резервы (маркетинг + непредв.)" 
@@ -468,14 +520,14 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             isExpense
             indent
             icon={<PiggyBank size={14} />}
-            displayCurrency={displayCurrency}
+            displayCurrency="USD"
           />
           <MetricRow 
             label="Операционная прибыль" 
             value={operatingProfit} 
             isProfit
             bold
-            displayCurrency={displayCurrency}
+            displayCurrency="USD"
           />
         </div>
 
@@ -489,7 +541,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
               isExpense
               indent
               icon={<ArrowDownRight size={14} />}
-              displayCurrency={displayCurrency}
+              displayCurrency="USD"
             />
           </div>
         )}
@@ -501,29 +553,30 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             value={d.netProfit} 
             isProfit
             bold
+            displayCurrency="USD"
           />
         </div>
       </div>
 
-      {/* Резервы */}
+      {/* Резервы (в USD) */}
       <div className="bg-[#0e0e0e] border border-yellow-500/30 p-6 rounded-sm">
         <h4 className="text-xs uppercase text-yellow-400 font-mono mb-4 pb-2 border-b border-white/10 flex items-center gap-2">
           <PiggyBank size={14} />
-          Резервы (8% от выручки)
+          Резервы (8% от выручки, USD)
         </h4>
         <div className="grid grid-cols-3 gap-4 mb-4">
           <div>
             <div className="text-xs text-gray-500 uppercase">Накоплено</div>
-            <div className="text-lg font-mono text-yellow-400">{formatMoney(reservesAccumulated, displayCurrency)}</div>
+            <div className="text-lg font-mono text-yellow-400">{formatMoney(reservesAccumulated, 'USD')}</div>
           </div>
           <div>
             <div className="text-xs text-gray-500 uppercase">Использовано</div>
-            <div className="text-lg font-mono text-red-400">{formatMoney(reservesUsed, displayCurrency)}</div>
+            <div className="text-lg font-mono text-red-400">{formatMoney(reservesUsed, 'USD')}</div>
           </div>
           <div>
             <div className="text-xs text-gray-500 uppercase">Доступно</div>
             <div className={`text-lg font-mono ${reservesAvailable >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {formatMoney(reservesAvailable, displayCurrency)}
+              {formatMoney(reservesAvailable, 'USD')}
             </div>
           </div>
         </div>
@@ -532,41 +585,93 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
         </div>
       </div>
 
-      {/* Обязательства */}
+      {/* =====================================================================
+          ОБЯЗАТЕЛЬСТВА ПО ВАЛЮТАМ (реальные суммы!)
+          ===================================================================== */}
       <div className="bg-[#0e0e0e] border border-red-500/30 p-6 rounded-sm">
         <h4 className="text-xs uppercase text-red-400 font-mono mb-4 pb-2 border-b border-white/10">
-          Обязательства (деньги пользователей)
+          Обязательства (деньги пользователей по валютам)
         </h4>
-        <MetricRow 
-          label="Балансы пользователей" 
-          value={d.totalUserBalances} 
-          isExpense
-          displayCurrency={displayCurrency}
-        />
-        <MetricRow 
-          label="Ожидают вывода" 
-          value={d.pendingWithdrawals} 
-          isExpense
-          displayCurrency={displayCurrency}
-        />
-        <MetricRow 
-          label="Всего обязательств" 
-          value={d.totalUserBalances + d.pendingWithdrawals} 
-          isExpense
-          bold
-          displayCurrency={displayCurrency}
-        />
+        
+        {Object.keys(liabilitiesByCurrency).length > 0 ? (
+          <div className="space-y-4">
+            {/* По каждой валюте */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {Object.entries(liabilitiesByCurrency).map(([currency, data]) => (
+                <div key={currency} className="bg-[#1a1a1a] border border-red-500/20 p-4 rounded-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-lg font-bold text-white flex items-center gap-2">
+                      {getCurrencySymbol(currency)}
+                      <span className="text-xs text-gray-500 font-normal">{currency}</span>
+                    </span>
+                    <span className="text-xs text-gray-500 bg-[#0e0e0e] px-2 py-1 rounded">
+                      {data.users_count || 0} польз.
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-400">Балансы:</span>
+                      <span className="text-red-400 font-mono">
+                        {formatCurrencyAmount(data.user_balances || 0, currency)}
+                      </span>
+                    </div>
+                    {(data.pending_withdrawals || 0) > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-400">Ожидают вывода:</span>
+                        <span className="text-orange-400 font-mono">
+                          {formatCurrencyAmount(data.pending_withdrawals || 0, currency)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-white/10">
+                      <span className="text-xs text-red-400 font-bold">Итого:</span>
+                      <span className="text-red-400 font-mono font-bold">
+                        {formatCurrencyAmount((data.user_balances || 0) + (data.pending_withdrawals || 0), currency)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="text-xs text-gray-500 flex items-center gap-1">
+              💡 Показаны реальные суммы обязательств в каждой валюте
+            </div>
+          </div>
+        ) : (
+          // Fallback to old format
+          <div>
+            <MetricRow 
+              label="Балансы пользователей" 
+              value={d.totalUserBalances} 
+              isExpense
+              displayCurrency="USD"
+            />
+            <MetricRow 
+              label="Ожидают вывода" 
+              value={d.pendingWithdrawals} 
+              isExpense
+              displayCurrency="USD"
+            />
+            <MetricRow 
+              label="Всего обязательств" 
+              value={d.totalUserBalances + d.pendingWithdrawals} 
+              isExpense
+              bold
+              displayCurrency="USD"
+            />
+          </div>
+        )}
       </div>
 
-      {/* Быстрая статистика */}
+      {/* Быстрая статистика (USD) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
         <div className="bg-[#0e0e0e] border border-white/10 p-3 rounded-sm">
-          <div className="text-gray-500 uppercase">Средний чек</div>
-          <div className="text-white font-mono mt-1">{formatMoney(avgOrderValue, displayCurrency)}</div>
+          <div className="text-gray-500 uppercase">Средний чек (USD)</div>
+          <div className="text-white font-mono mt-1">{formatMoney(avgOrderValue, 'USD')}</div>
         </div>
         <div className="bg-[#0e0e0e] border border-white/10 p-3 rounded-sm">
           <div className="text-gray-500 uppercase">COGS на заказ</div>
-          <div className="text-white font-mono mt-1">{formatMoney(d.totalOrders > 0 ? d.totalCogs / d.totalOrders : 0, displayCurrency)}</div>
+          <div className="text-white font-mono mt-1">{formatMoney(d.totalOrders > 0 ? d.totalCogs / d.totalOrders : 0, 'USD')}</div>
         </div>
         <div className="bg-[#0e0e0e] border border-white/10 p-3 rounded-sm">
           <div className="text-gray-500 uppercase">Эквайринг %</div>
