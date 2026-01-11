@@ -5,6 +5,7 @@ Order history, status, and payment method endpoints.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 import logging
+import json
 from datetime import datetime
 from typing import List, Optional
 
@@ -169,6 +170,13 @@ async def get_webapp_orders(
     offset: int = Query(0, ge=0)
 ) -> List[OrderHistoryResponse]:
     """Get user's order history with filtering."""
+    # #region agent log
+    try:
+        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+            f.write(json.dumps({"timestamp": datetime.now().isoformat(), "location": "crud.py:164", "message": "get_webapp_orders entry", "data": {"telegram_id": user.id, "status": status, "limit": limit, "offset": offset}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "A,B,C"}) + "\n")
+    except: pass
+    # #endregion
+    
     from core.db import get_redis
     from core.services.currency import get_currency_service
     
@@ -177,6 +185,13 @@ async def get_webapp_orders(
     currency_service = get_currency_service(redis)
     
     db_user = await db.get_user_by_telegram_id(user.id)
+    # #region agent log
+    try:
+        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+            f.write(json.dumps({"timestamp": datetime.now().isoformat(), "location": "crud.py:179", "message": "after get_user_by_telegram_id", "data": {"telegram_id": user.id, "db_user_id": db_user.id if db_user else None, "db_user_exists": db_user is not None}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "A"}) + "\n")
+    except: pass
+    # #endregion
+    
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -188,13 +203,38 @@ async def get_webapp_orders(
     
     query = query.order("created_at", desc=True).range(offset, offset + limit - 1)
     
+    # #region agent log
+    try:
+        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+            f.write(json.dumps({"timestamp": datetime.now().isoformat(), "location": "crud.py:189", "message": "before query.execute", "data": {"user_id": db_user.id, "status_filter": status}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "B"}) + "\n")
+    except: pass
+    # #endregion
+    
     try:
         result = await query.execute()
+        # #region agent log
+        try:
+            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"timestamp": datetime.now().isoformat(), "location": "crud.py:192", "message": "after query.execute", "data": {"result_count": len(result.data) if result.data else 0, "has_data": result.data is not None}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "B"}) + "\n")
+        except: pass
+        # #endregion
     except Exception as e:
+        # #region agent log
+        try:
+            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"timestamp": datetime.now().isoformat(), "location": "crud.py:193", "message": "query.execute exception", "data": {"error": str(e), "error_type": type(e).__name__}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "C"}) + "\n")
+        except: pass
+        # #endregion
         logger.error(f"Failed to fetch orders for user {db_user.id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch orders")
     
     if not result.data:
+        # #region agent log
+        try:
+            with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                f.write(json.dumps({"timestamp": datetime.now().isoformat(), "location": "crud.py:197", "message": "no orders found", "data": {"user_id": db_user.id, "telegram_id": user.id}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "B"}) + "\n")
+        except: pass
+        # #endregion
         logger.info(f"No orders found for user {db_user.id} (telegram_id={user.id})")
         return []
     
@@ -205,10 +245,26 @@ async def get_webapp_orders(
     
     logger.info(f"Processing {len(result.data)} orders for user {db_user.id}")
     
+    # #region agent log
+    try:
+        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+            f.write(json.dumps({"timestamp": datetime.now().isoformat(), "location": "crud.py:206", "message": "starting order processing", "data": {"total_orders": len(result.data), "user_id": db_user.id}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "C,D"}) + "\n")
+    except: pass
+    # #endregion
+    
     orders = []
+    processed_count = 0
+    error_count = 0
     for row in result.data:
         try:
             items_data = row.get("order_items", [])
+            # #region agent log
+            try:
+                with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                    f.write(json.dumps({"timestamp": datetime.now().isoformat(), "location": "crud.py:211", "message": "processing order", "data": {"order_id": row.get("id"), "has_items": bool(items_data), "items_count": len(items_data) if items_data else 0}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "D,E"}) + "\n")
+            except: pass
+            # #endregion
+            
             if not items_data:
                 logger.warning(f"Order {row.get('id')} has no order_items")
                 continue
@@ -246,6 +302,13 @@ async def get_webapp_orders(
             
             # Convert amount to user's currency
             usd_amount = float(row.get("amount", 0))
+            # #region agent log
+            try:
+                with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                    f.write(json.dumps({"timestamp": datetime.now().isoformat(), "location": "crud.py:247", "message": "before currency conversion", "data": {"order_id": row.get("id"), "usd_amount": usd_amount, "user_currency": user_currency}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "C"}) + "\n")
+            except: pass
+            # #endregion
+            
             display_amount = await currency_service.convert_price(usd_amount, user_currency)
             formatted_amount = currency_service.format_price(display_amount, user_currency)
             
@@ -265,10 +328,25 @@ async def get_webapp_orders(
                 items=items,
                 image_url=main_image_url,
             ))
+            processed_count += 1
         except Exception as e:
+            error_count += 1
+            # #region agent log
+            try:
+                with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+                    f.write(json.dumps({"timestamp": datetime.now().isoformat(), "location": "crud.py:268", "message": "order processing exception", "data": {"order_id": row.get("id"), "error": str(e), "error_type": type(e).__name__}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "C,D"}) + "\n")
+            except: pass
+            # #endregion
             logger.error(f"Failed to process order {row.get('id')}: {e}", exc_info=True)
             # Continue processing other orders instead of failing entirely
             continue
+    
+    # #region agent log
+    try:
+        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
+            f.write(json.dumps({"timestamp": datetime.now().isoformat(), "location": "crud.py:276", "message": "returning orders", "data": {"total_orders": len(result.data), "processed": processed_count, "errors": error_count, "returning": len(orders)}, "sessionId": "debug-session", "runId": "run1", "hypothesisId": "C,D"}) + "\n")
+    except: pass
+    # #endregion
     
     logger.info(f"Returning {len(orders)} orders for user {db_user.id}")
     return orders
