@@ -206,21 +206,11 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
     new_balance = current_balance + cashback_amount
     
     # 1. Update user balance atomically using RPC
+    # NOTE: RPC already creates balance_transaction with type='credit', no need for separate insert
     await db.client.rpc("add_to_user_balance", {
         "p_user_id": str(db_user.id),
         "p_amount": money_to_float(cashback_amount),
         "p_reason": f"5% кэшбек за отзыв (заказ {request.order_id})"
-    }).execute()
-    
-    # 2. Create balance_transaction for history (amount in balance_currency!)
-    await db.client.table("balance_transactions").insert({
-        "user_id": db_user.id, 
-        "type": "cashback", 
-        "amount": cashback_amount,  # In balance_currency
-        "currency": balance_currency,  # User's balance currency
-        "status": "completed", 
-        "description": "5% кэшбек за отзыв", 
-        "reference_id": request.order_id
     }).execute()
     
     # 3. Mark review as processed

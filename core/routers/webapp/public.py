@@ -78,6 +78,19 @@ async def get_webapp_product(
     # Apply discount to anchor price
     anchor_final_price = anchor_price * (1 - discount_percent / 100)
     
+    # Get anchor MSRP (fixed or converted)
+    msrp_prices = product.get("msrp_prices") or {}
+    anchor_msrp = None
+    if msrp_usd:
+        # Check for anchor MSRP in target currency
+        if msrp_prices and formatter.currency in msrp_prices:
+            anchor_msrp_value = msrp_prices[formatter.currency]
+            if anchor_msrp_value is not None:
+                anchor_msrp = float(anchor_msrp_value)
+        # Fallback: convert from USD MSRP
+        if anchor_msrp is None:
+            anchor_msrp = formatter.convert(msrp_usd)
+    
     fulfillment_time_hours = product.get("fulfillment_time_hours", 48)
     stock_count = product.get("stock_count", 0) or 0
     
@@ -113,7 +126,7 @@ async def get_webapp_product(
             "original_price": anchor_price,
             "price": anchor_price,
             "final_price": anchor_final_price,
-            "msrp": formatter.convert(msrp_usd) if msrp_usd else None,
+            "msrp": anchor_msrp,
             # Currency info
             "currency": formatter.currency,
             "exchange_rate": formatter.exchange_rate,
@@ -239,6 +252,17 @@ async def get_webapp_products(
         # Apply discount to anchor price
         anchor_final_price = anchor_price * (1 - discount_percent / 100)
         
+        # Get anchor MSRP (fixed or converted)
+        msrp_prices = p.get("msrp_prices") or {}
+        anchor_msrp = None
+        if msrp_usd:
+            if msrp_prices and formatter.currency in msrp_prices:
+                anchor_msrp_value = msrp_prices[formatter.currency]
+                if anchor_msrp_value is not None:
+                    anchor_msrp = float(anchor_msrp_value)
+            if anchor_msrp is None:
+                anchor_msrp = formatter.convert(msrp_usd)
+        
         warranty_days = p.get("warranty_hours", 0) // 24 if p.get("warranty_hours") else 0
         duration_days = p.get("duration_days")
         fulfillment_time_hours = p.get("fulfillment_time_hours", 48)
@@ -256,7 +280,7 @@ async def get_webapp_products(
             "original_price": anchor_price,
             "price": anchor_price,
             "final_price": anchor_final_price,
-            "msrp": formatter.convert(msrp_usd) if msrp_usd else None,
+            "msrp": anchor_msrp,
             # Currency
             "currency": formatter.currency,
             "is_anchor_price": is_anchor_price,

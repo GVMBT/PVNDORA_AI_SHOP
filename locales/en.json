@@ -848,5 +848,61 @@
       "button": "SUBMIT",
       "uploading": "UPLOADING..."
     }
+  },
+
+  "paymentResult": {
+    "title": "TRANSACTION_STATUS",
+    "subtitle": "PVNDORA // PAYMENT GATEWAY",
+    "verificationProgress": "VERIFICATION_PROGRESS",
+    "viewOrders": "VIEW_ORDERS",
+    "returnToCatalog": "RETURN_TO_CATALOG",
+    "connectionClosed": "CONNECTION_CLOSED",
+    "status": {
+      "partial": "PARTIAL",
+      "partialDesc": "Some items delivered, preorder items in queue.",
+      "delivered": "DELIVERED",
+      "deliveredDesc": "All assets have been transferred.",
+      "paid": "PAID",
+      "paidDesc": "Payment confirmed, awaiting delivery.",
+      "prepaid": "PREPAID",
+      "prepaidDesc": "Preorder in queue, will be delivered when stock arrives.",
+      "pending": "PENDING",
+      "pendingDesc": "Awaiting payment confirmation.",
+      "failed": "FAILED",
+      "failedDesc": "Transaction failed. Please try again.",
+      "expired": "EXPIRED",
+      "expiredDesc": "Payment window expired.",
+      "checking": "CHECKING",
+      "checkingDesc": "Verifying payment status..."
+    },
+    "logs": {
+      "initPayment": "INIT: Payment verification started",
+      "initTopup": "INIT: Balance top-up verification started",
+      "targetOrder": "TARGET: Order {id}",
+      "targetTopup": "TARGET: Top-Up {id}",
+      "scan": "SCAN: Querying payment gateway...",
+      "recvConfirmed": "RECV: Payment confirmed",
+      "recvConfirmedGateway": "RECV: Payment confirmed by gateway",
+      "execDelivery": "EXEC: Delivery pipeline complete",
+      "execBalance": "EXEC: Balance credited successfully",
+      "execSomeDelivered": "EXEC: Some items delivered",
+      "execOrderConfirmed": "EXEC: Order confirmed, delivery starting...",
+      "doneAllTransferred": "DONE: All assets transferred",
+      "doneTopup": "DONE: Top-up complete!",
+      "doneCheckOrders": "DONE: Check Orders for delivery status",
+      "doneFullStatus": "DONE: Check Orders for full status",
+      "infoPreorder": "INFO: Preorder items will be delivered when stock arrives",
+      "infoPreorderQueue": "INFO: Preorder in queue, will be delivered when stock arrives",
+      "waitPayment": "WAIT: Payment not yet received",
+      "waitOrder": "WAIT: Order record not yet available, retrying...",
+      "warnNotFound": "WARN: Order not found, but continuing verification...",
+      "warnDelayed": "WARN: Gateway response delayed, retrying...",
+      "failPayment": "FAIL: Payment {status}",
+      "errorNotFound": "ERROR: Order not found in system",
+      "infoVerifyOrder": "INFO: Please verify order ID or contact support",
+      "timeout": "TIMEOUT: Max verification attempts ({max}) reached",
+      "infoProcessing": "INFO: Order may still be processing. Check your orders later.",
+      "next": "NEXT: Retry in {delay}s (attempt {current}/{max})"
+    }
   }
 }

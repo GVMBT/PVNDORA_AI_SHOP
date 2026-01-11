@@ -16,6 +16,7 @@ import { logger } from '../../utils/logger';
 import { apiRequest } from '../../utils/apiClient';
 import { randomFloat } from '../../utils/random';
 import { PAYMENT_STATUS_MESSAGES, type PaymentStatus } from '../../constants';
+import { useLocale } from '../../hooks/useLocale';
 
 interface PaymentResultProps {
   orderId: string;
@@ -45,6 +46,7 @@ const MAX_POLL_DELAY = 16000; // Maximum delay of 16 seconds between polls
 const BACKOFF_MULTIPLIER = 2; // Exponential backoff multiplier
 
 export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrders }: PaymentResultProps) {
+  const { t } = useLocale();
   const [status, setStatus] = useState<PaymentStatus>('checking');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [progress, setProgress] = useState(0);
@@ -128,9 +130,8 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
     if (isComplete) return;
     if (!isTelegramMiniApp) return; // No polling in browser
 
-    const targetLabel = isTopUp ? 'Top-Up' : 'Order';
-    addLog(`INIT: ${isTopUp ? 'Balance top-up' : 'Payment'} verification started`, 'info');
-    addLog(`TARGET: ${targetLabel} ${orderId.slice(0, 8).toUpperCase()}`, 'info');
+    addLog(isTopUp ? t('paymentResult.logs.initTopup') : t('paymentResult.logs.initPayment'), 'info');
+    addLog(t(isTopUp ? 'paymentResult.logs.targetTopup' : 'paymentResult.logs.targetOrder', { id: orderId.slice(0, 8).toUpperCase() }), 'info');
 
     let pollTimeout: NodeJS.Timeout | null = null;
     let progressInterval: NodeJS.Timeout;
@@ -154,14 +155,14 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
 
       // Check if we've exceeded max attempts
       if (currentAttempt > MAX_POLL_ATTEMPTS) {
-        addLog(`TIMEOUT: Max verification attempts (${MAX_POLL_ATTEMPTS}) reached`, 'warning');
-        addLog('INFO: Order may still be processing. Check your orders later.', 'info');
+        addLog(t('paymentResult.logs.timeout', { max: String(MAX_POLL_ATTEMPTS) }), 'warning');
+        addLog(t('paymentResult.logs.infoProcessing'), 'info');
         setIsComplete(true);
         shouldStop = true;
         return;
       }
 
-      addLog('SCAN: Querying payment gateway...', 'info');
+      addLog(t('paymentResult.logs.scan'), 'info');
       
       const result = await checkStatus();
       
@@ -172,8 +173,8 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
 
         // If we get multiple consecutive 404s, order likely doesn't exist
         if (new404Count >= 3) {
-          addLog('ERROR: Order not found in system', 'error');
-          addLog('INFO: Please verify order ID or contact support', 'info');
+          addLog(t('paymentResult.logs.errorNotFound'), 'error');
+          addLog(t('paymentResult.logs.infoVerifyOrder'), 'info');
           setStatus('failed');
           setIsComplete(true);
           shouldStop = true;
@@ -182,9 +183,9 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
 
         // First few 404s might be temporary (order not yet in DB after redirect)
         if (currentAttempt <= 3) {
-          addLog('WAIT: Order record not yet available, retrying...', 'warning');
+          addLog(t('paymentResult.logs.waitOrder'), 'warning');
         } else {
-          addLog('WARN: Order not found, but continuing verification...', 'warning');
+          addLog(t('paymentResult.logs.warnNotFound'), 'warning');
         }
       } else {
         // Reset 404 counter on successful response
@@ -198,65 +199,65 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
           
           switch (result.status) {
             case 'delivered':
-              addLog('RECV: Payment confirmed by gateway', 'success');
+              addLog(t('paymentResult.logs.recvConfirmedGateway'), 'success');
               if (isTopUp) {
-                addLog('EXEC: Balance credited successfully', 'success');
-                addLog('DONE: Top-up complete!', 'success');
+                addLog(t('paymentResult.logs.execBalance'), 'success');
+                addLog(t('paymentResult.logs.doneTopup'), 'success');
               } else {
-                addLog('EXEC: Delivery pipeline complete', 'success');
-                addLog('DONE: All assets transferred', 'success');
+                addLog(t('paymentResult.logs.execDelivery'), 'success');
+                addLog(t('paymentResult.logs.doneAllTransferred'), 'success');
               }
               setProgress(100);
               setIsComplete(true);
               shouldStop = true;
               break;
             case 'paid':
-              addLog('RECV: Payment confirmed', 'success');
+              addLog(t('paymentResult.logs.recvConfirmed'), 'success');
               if (isTopUp) {
-                addLog('EXEC: Balance credited successfully', 'success');
-                addLog('DONE: Top-up complete!', 'success');
+                addLog(t('paymentResult.logs.execBalance'), 'success');
+                addLog(t('paymentResult.logs.doneTopup'), 'success');
               } else {
-                addLog('EXEC: Order confirmed, delivery starting...', 'success');
-                addLog('DONE: Check Orders for delivery status', 'success');
+                addLog(t('paymentResult.logs.execOrderConfirmed'), 'success');
+                addLog(t('paymentResult.logs.doneCheckOrders'), 'success');
               }
               setProgress(100);
               setIsComplete(true);
               shouldStop = true;
               break;
             case 'partial':
-              addLog('RECV: Payment confirmed', 'success');
-              addLog('EXEC: Some items delivered', 'success');
-              addLog('INFO: Preorder items will be delivered when stock arrives', 'info');
-              addLog('DONE: Check Orders for full status', 'success');
+              addLog(t('paymentResult.logs.recvConfirmed'), 'success');
+              addLog(t('paymentResult.logs.execSomeDelivered'), 'success');
+              addLog(t('paymentResult.logs.infoPreorder'), 'info');
+              addLog(t('paymentResult.logs.doneFullStatus'), 'success');
               setProgress(100);
               setIsComplete(true);
               shouldStop = true;
               break;
             case 'prepaid':
-              addLog('RECV: Payment confirmed', 'success');
-              addLog('INFO: Preorder in queue, will be delivered when stock arrives', 'info');
-              addLog('DONE: Check Orders for delivery status', 'success');
+              addLog(t('paymentResult.logs.recvConfirmed'), 'success');
+              addLog(t('paymentResult.logs.infoPreorderQueue'), 'info');
+              addLog(t('paymentResult.logs.doneCheckOrders'), 'success');
               setProgress(100);
               setIsComplete(true);
               shouldStop = true;
               break;
             case 'pending':
-              addLog('WAIT: Payment not yet received', 'warning');
+              addLog(t('paymentResult.logs.waitPayment'), 'warning');
               break;
             case 'expired':
             case 'failed':
-              addLog(`FAIL: Payment ${result.status}`, 'error');
+              addLog(t('paymentResult.logs.failPayment', { status: result.status }), 'error');
               setIsComplete(true);
               shouldStop = true;
               break;
             default:
               if (result.error) {
-                addLog('WARN: Gateway response delayed, retrying...', 'warning');
+                addLog(t('paymentResult.logs.warnDelayed'), 'warning');
               }
           }
         } else if (result.error) {
           // Generic error handling
-          addLog('WARN: Gateway response delayed, retrying...', 'warning');
+          addLog(t('paymentResult.logs.warnDelayed'), 'warning');
         }
       }
 
@@ -266,7 +267,7 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
         const delaySeconds = (delay / 1000).toFixed(1);
         
         if (currentAttempt > 1) {
-          addLog(`NEXT: Retry in ${delaySeconds}s (attempt ${currentAttempt}/${MAX_POLL_ATTEMPTS})`, 'info');
+          addLog(t('paymentResult.logs.next', { delay: delaySeconds, current: String(currentAttempt), max: String(MAX_POLL_ATTEMPTS) }), 'info');
         }
 
         pollTimeout = setTimeout(() => {
@@ -296,7 +297,7 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
       }
       clearInterval(progressInterval);
     };
-  }, [orderId, addLog, checkStatus, isComplete, isTelegramMiniApp]);
+  }, [orderId, addLog, checkStatus, isComplete, isTelegramMiniApp, t, isTopUp]);
 
   const statusInfo = PAYMENT_STATUS_MESSAGES[status];
   const isSuccess = status === 'delivered' || status === 'paid' || status === 'partial' || status === 'prepaid';
@@ -368,9 +369,9 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
       >
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="font-mono text-xs text-gray-500 mb-2">PVNDORA // PAYMENT GATEWAY</div>
+          <div className="font-mono text-xs text-gray-500 mb-2">{t('paymentResult.subtitle')}</div>
           <div className="font-display text-2xl font-bold text-white tracking-wider">
-            TRANSACTION_STATUS
+            {t('paymentResult.title')}
           </div>
         </div>
 
@@ -408,7 +409,7 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
           {/* Progress Bar */}
           <div className="px-4 py-3 border-b border-white/5">
             <div className="flex justify-between text-[10px] font-mono text-gray-500 mb-1">
-              <span>VERIFICATION_PROGRESS</span>
+              <span>{t('paymentResult.verificationProgress')}</span>
               <span>{Math.round(progress)}%</span>
             </div>
             <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
@@ -455,7 +456,7 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
                   onClick={onViewOrders}
                   className="w-full py-3 bg-pandora-cyan text-black font-bold text-sm flex items-center justify-center gap-2 hover:bg-pandora-cyan/90 transition-colors"
                 >
-                  {isTopUp ? 'VIEW_PROFILE' : 'VIEW_ORDERS'}
+                  {t('paymentResult.viewOrders')}
                   <ArrowRight size={16} />
                 </button>
               )}
@@ -482,7 +483,7 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
                 onClick={onComplete}
                 className="w-full py-2 bg-transparent border border-white/20 text-gray-400 text-xs font-mono hover:border-white/40 transition-colors"
               >
-                RETURN_TO_CATALOG
+                {t('paymentResult.returnToCatalog')}
               </button>
             </div>
           )}
@@ -496,7 +497,7 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
             </span>
           )}
           {isComplete && (
-            <span>CONNECTION_CLOSED</span>
+            <span>{t('paymentResult.connectionClosed')}</span>
           )}
         </div>
       </motion.div>
