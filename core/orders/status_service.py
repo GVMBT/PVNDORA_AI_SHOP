@@ -196,6 +196,45 @@ class OrderStatusService:
                     await self._send_order_alert(order_id, order_amount, user_id)
                 except Exception as e:
                     logger.warning(f"Failed to send admin alert for order {order_id}: {e}")
+                
+                # Send payment confirmation to user (best-effort)
+                try:
+                    # Get user telegram_id and order details
+                    user_order_result = await self.db.client.table("orders").select(
+                        "user_telegram_id, fiat_amount, fiat_currency, amount"
+                    ).eq("id", order_id).single().execute()
+                    
+                    if user_order_result.data:
+                        telegram_id = user_order_result.data.get("user_telegram_id")
+                        fiat_amount = user_order_result.data.get("fiat_amount")
+                        fiat_currency = user_order_result.data.get("fiat_currency") or "USD"
+                        usd_amount = float(user_order_result.data.get("amount", 0))
+                        
+                        if telegram_id:
+                            # Use fiat_amount if available
+                            display_amount = float(fiat_amount) if fiat_amount else usd_amount
+                            display_currency = fiat_currency if fiat_amount else "USD"
+                            
+                            # Count preorder items
+                            items_result = await self.db.client.table("order_items").select(
+                                "fulfillment_type"
+                            ).eq("order_id", order_id).execute()
+                            preorder_count = sum(1 for item in (items_result.data or []) if item.get("fulfillment_type") == "preorder")
+                            has_instant = any(item.get("fulfillment_type") != "preorder" for item in (items_result.data or []))
+                            
+                            from core.routers.deps import get_notification_service
+                            notification_service = get_notification_service()
+                            await notification_service.send_payment_confirmed(
+                                telegram_id=telegram_id,
+                                order_id=order_id,
+                                amount=display_amount,
+                                currency=display_currency,
+                                status=final_status,
+                                has_instant_items=has_instant,
+                                preorder_count=preorder_count
+                            )
+                except Exception as e:
+                    logger.warning(f"Failed to send payment confirmation to user for order {order_id}: {e}")
             
             # Create balance_transaction record for purchase (for system_log visibility)
             # Only for external payments (not balance) - balance payments already create records via add_to_user_balance

@@ -220,8 +220,13 @@ function adaptOrderItem(
     // For pending (unpaid) orders, show payment deadline
     deadline = formatDateWithTimezone(paymentDeadline);
     deadlineRaw = paymentDeadline;
-  } else if (['prepaid', 'paid', 'partial'].includes(orderStatus) && item.status === 'prepaid') {
-    // For prepaid items, use ITEM-level fulfillment_deadline first, then fall back to order-level
+  } else if (
+    ['prepaid', 'paid', 'partial'].includes(orderStatus) && 
+    item.fulfillment_type === 'preorder' && 
+    !['delivered', 'refunded', 'cancelled'].includes(item.status)
+  ) {
+    // For preorder items that are not yet delivered, show delivery deadline
+    // Check fulfillment_type (not item.status) because item.status may be 'pending' even for prepaid orders
     const itemDeadline = item.fulfillment_deadline || deliveryDeadline;
     if (itemDeadline) {
       deadline = formatDateWithTimezone(itemDeadline);

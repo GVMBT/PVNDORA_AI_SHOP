@@ -36,7 +36,7 @@ async def admin_get_users(
     try:
         # Get users with order counts
         result = await db.client.table("users").select(
-            "id, telegram_id, username, first_name, balance, balance_currency, is_banned, is_admin, is_partner, created_at"
+            "id, telegram_id, username, first_name, balance, balance_currency, is_banned, is_admin, is_partner, partner_mode, total_referral_earnings, created_at"
         ).order("created_at", desc=True).range(offset, offset + limit - 1).execute()
         
         users = []
@@ -67,6 +67,9 @@ async def admin_get_users(
                 "total_spent": total_spent,
                 "orders_count": orders_count,
                 "is_banned": u.get("is_banned", False),
+                "is_partner": u.get("is_partner", False),
+                "partner_mode": u.get("partner_mode") or "commission",  # Default to commission
+                "total_referral_earnings": to_float(u.get("total_referral_earnings", 0)),
                 "created_at": u.get("created_at")
             })
         

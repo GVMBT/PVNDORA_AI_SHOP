@@ -93,9 +93,22 @@ async def get_financial_overview(
     
     # Convert USD values to display currency if needed
     if display_currency != "USD" and display_rate > 0:
+        # ALL numeric fields from financial_overview that are in USD
         usd_fields = [
-            "total_revenue", "total_cogs", "gross_profit", "net_profit",
-            "total_discounts", "total_refunds", "total_expenses"
+            "total_revenue",
+            "total_revenue_gross",
+            "revenue_this_month",
+            "revenue_today",
+            "total_cogs",
+            "total_acquiring_fees",
+            "total_referral_payouts",
+            "total_reserves",
+            "total_review_cashbacks",
+            "total_replacement_costs",
+            "total_other_expenses",
+            "total_insurance_revenue",
+            "total_discounts_given",
+            "net_profit",
         ]
         for field in usd_fields:
             if field in data and data[field] is not None:
