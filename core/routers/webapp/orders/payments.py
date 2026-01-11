@@ -290,9 +290,7 @@ async def _create_cart_order(
         exchange_rate_snapshot = 1.0
     
     # #region agent log
-    with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-        import json, time
-        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"payments.py:295","message":"Order created, before payment processing","data":{"order_id":order.id,"payment_method":payment_method,"total_amount":str(total_amount)},"timestamp":int(time.time()*1000)})+"\n")
+    logger.info(f"[DEBUG-HYP-E] Order created, before payment processing: order_id={order.id}, payment_method={payment_method}, total_amount={total_amount}")
     # #endregion
 
     
@@ -333,9 +331,7 @@ async def _create_cart_order(
     # BALANCE PAYMENT: Check and deduct
     if payment_method == "balance":
         # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            import json, time
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"payments.py:328","message":"Entering balance payment processing","data":{"order_id":order.id},"timestamp":int(time.time()*1000)})+"\n")
+        logger.info(f"[DEBUG-HYP-E] Entering balance payment processing: order_id={order.id}")
         # #endregion
         return await _process_balance_payment(
             db, db_user, user, order, total_amount, total_original, discount_pct,
@@ -346,9 +342,7 @@ async def _create_cart_order(
     payment_url = None
     invoice_id = None
     # #region agent log
-    with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-        import json, time
-        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"payments.py:342","message":"Entering external payment creation","data":{"order_id":order.id,"payment_gateway":payment_gateway},"timestamp":int(time.time()*1000)})+"\n")
+    logger.info(f"[DEBUG-HYP-D] Entering external payment creation: order_id={order.id}, payment_gateway={payment_gateway}")
     # #endregion
     try:
         pay_result = await create_payment_wrapper(
@@ -364,18 +358,14 @@ async def _create_cart_order(
             is_telegram_miniapp=is_telegram_miniapp,
         )
         # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            import json, time
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"payments.py:366","message":"create_payment_wrapper success","data":{"order_id":order.id,"has_payment_url":"payment_url" in pay_result},"timestamp":int(time.time()*1000)})+"\n")
+        logger.info(f"[DEBUG-HYP-D] create_payment_wrapper success: order_id={order.id}, has_payment_url={'payment_url' in pay_result}")
         # #endregion
         payment_url = pay_result.get("payment_url")
         invoice_id = pay_result.get("invoice_id")
         logger.info(f"CrystalPay payment created for order {order.id}: payment_url={payment_url[:50] if payment_url else 'None'}..., invoice_id={invoice_id}")
     except ValueError as e:
         # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            import json, time
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"payments.py:369","message":"create_payment_wrapper ValueError","data":{"error":str(e),"error_type":"ValueError"},"timestamp":int(time.time()*1000)})+"\n")
+        logger.error(f"[DEBUG-HYP-D] create_payment_wrapper ValueError: error={str(e)}, error_type=ValueError")
         # #endregion
         try:
             await db.client.table("order_items").delete().eq("order_id", order.id).execute()
@@ -399,9 +389,7 @@ async def _create_cart_order(
             raise HTTPException(status_code=400, detail=error_msg)
     except Exception as e:
         # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            import json, time
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"D","location":"payments.py:390","message":"create_payment_wrapper Exception","data":{"error":str(e),"error_type":type(e).__name__},"timestamp":int(time.time()*1000)})+"\n")
+        logger.error(f"[DEBUG-HYP-D] create_payment_wrapper Exception: error={str(e)}, error_type={type(e).__name__}")
         # #endregion
         try:
             await db.client.table("order_items").delete().eq("order_id", order.id).execute()
@@ -432,31 +420,23 @@ async def _create_cart_order(
     
     # Apply promo code and clear cart
     # #region agent log
-    with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-        import json, time
-        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"payments.py:433","message":"Before external payment promo/cart cleanup","data":{"has_promo":bool(cart.promo_code)},"timestamp":int(time.time()*1000)})+"\n")
+    logger.info(f"[DEBUG-HYP-E] Before external payment promo/cart cleanup: has_promo={bool(cart.promo_code)}")
     # #endregion
     try:
         if cart.promo_code:
             await db.use_promo_code(cart.promo_code)
         await cart_manager.clear_cart(user.id)
         # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            import json, time
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"payments.py:437","message":"External payment promo/cart cleanup success","data":{},"timestamp":int(time.time()*1000)})+"\n")
+        logger.info(f"[DEBUG-HYP-E] External payment promo/cart cleanup success")
         # #endregion
     except Exception as e:
         # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            import json, time
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"payments.py:439","message":"External payment promo/cart cleanup FAILED","data":{"error":str(e),"error_type":type(e).__name__},"timestamp":int(time.time()*1000)})+"\n")
+        logger.error(f"[DEBUG-HYP-E] External payment promo/cart cleanup FAILED: error={str(e)}, error_type={type(e).__name__}")
         # #endregion
         logger.warning(f"Failed to cleanup promo/cart for external payment order {order.id}: {e}")
     
     # #region agent log
-    with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-        import json, time
-        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"payments.py:444","message":"Returning OrderResponse for external payment","data":{"order_id":order.id,"has_payment_url":bool(payment_url)},"timestamp":int(time.time()*1000)})+"\n")
+    logger.info(f"[DEBUG-HYP-E] Returning OrderResponse for external payment: order_id={order.id}, has_payment_url={bool(payment_url)}")
     # #endregion
     response = OrderResponse(
         order_id=order.id, 
@@ -476,9 +456,7 @@ async def _process_balance_payment(
 ) -> OrderResponse:
     """Process balance payment for an order."""
     # #region agent log
-    with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-        import json, time
-        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"payments.py:419","message":"_process_balance_payment entry","data":{"order_id":order.id,"user_id":db_user.id},"timestamp":int(time.time()*1000)})+"\n")
+    logger.info(f"[DEBUG-HYP-E] _process_balance_payment entry: order_id={order.id}, user_id={db_user.id}")
     # #endregion
     from core.db import get_redis
     from core.services.currency import get_currency_service
@@ -502,9 +480,7 @@ async def _process_balance_payment(
             order_total_in_balance_currency = to_decimal(round(to_float(order_total_in_balance_currency)))
     
     # #region agent log
-    with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-        import json, time
-        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"payments.py:444","message":"Before balance check","data":{"user_balance":str(user_balance),"order_total":str(order_total_in_balance_currency),"balance_currency":balance_currency},"timestamp":int(time.time()*1000)})+"\n")
+    logger.info(f"[DEBUG-HYP-A] Before balance check: user_balance={user_balance}, order_total={order_total_in_balance_currency}, balance_currency={balance_currency}")
     # #endregion
     
     # Compare in user's balance currency
@@ -519,9 +495,7 @@ async def _process_balance_payment(
     
     # Deduct from balance
     # #region agent log
-    with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-        import json, time
-        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"payments.py:456","message":"Before RPC add_to_user_balance","data":{"user_id":db_user.id,"amount":-to_float(order_total_in_balance_currency)},"timestamp":int(time.time()*1000)})+"\n")
+    logger.info(f"[DEBUG-HYP-A] Before RPC add_to_user_balance: user_id={db_user.id}, amount={-to_float(order_total_in_balance_currency)}")
     # #endregion
     try:
         await db.client.rpc("add_to_user_balance", {
@@ -530,16 +504,12 @@ async def _process_balance_payment(
             "p_reason": f"Payment for order {order.id}"
         }).execute()
         # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            import json, time
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"payments.py:462","message":"RPC add_to_user_balance success","data":{"order_id":order.id},"timestamp":int(time.time()*1000)})+"\n")
+        logger.info(f"[DEBUG-HYP-A] RPC add_to_user_balance success: order_id={order.id}")
         # #endregion
         logger.info(f"Balance deducted {to_float(order_total_in_balance_currency):.2f} {balance_currency} for order {order.id}")
     except Exception as e:
         # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            import json, time
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"A","location":"payments.py:464","message":"RPC add_to_user_balance FAILED","data":{"error":str(e),"error_type":type(e).__name__},"timestamp":int(time.time()*1000)})+"\n")
+        logger.error(f"[DEBUG-HYP-A] RPC add_to_user_balance FAILED: error={str(e)}, error_type={type(e).__name__}")
         # #endregion
         await db.client.table("orders").delete().eq("id", order.id).execute()
         logger.error(f"Failed to deduct balance for order {order.id}: {e}")
@@ -550,9 +520,7 @@ async def _process_balance_payment(
     
     # Update order status
     # #region agent log
-    with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-        import json, time
-        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"payments.py:472","message":"Before OrderStatusService.mark_payment_confirmed","data":{"order_id":order.id},"timestamp":int(time.time()*1000)})+"\n")
+    logger.info(f"[DEBUG-HYP-B] Before OrderStatusService.mark_payment_confirmed: order_id={order.id}")
     # #endregion
     try:
         from core.orders.status_service import OrderStatusService
@@ -563,16 +531,12 @@ async def _process_balance_payment(
             check_stock=True
         )
         # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            import json, time
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"payments.py:480","message":"OrderStatusService.mark_payment_confirmed success","data":{"order_id":order.id,"final_status":final_status},"timestamp":int(time.time()*1000)})+"\n")
+        logger.info(f"[DEBUG-HYP-B] OrderStatusService.mark_payment_confirmed success: order_id={order.id}, final_status={final_status}")
         # #endregion
         logger.info(f"Balance payment confirmed for order {order.id}, final_status={final_status}")
     except Exception as e:
         # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            import json, time
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"B","location":"payments.py:482","message":"OrderStatusService.mark_payment_confirmed FAILED","data":{"error":str(e),"error_type":type(e).__name__},"timestamp":int(time.time()*1000)})+"\n")
+        logger.error(f"[DEBUG-HYP-B] OrderStatusService.mark_payment_confirmed FAILED: error={str(e)}, error_type={type(e).__name__}")
         # #endregion
         logger.error(f"Failed to mark payment confirmed for balance order {order.id}: {e}", exc_info=True)
     
@@ -610,31 +574,23 @@ async def _process_balance_payment(
     
     # Apply promo code and clear cart
     # #region agent log
-    with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-        import json, time
-        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"payments.py:517","message":"Before promo/cart cleanup","data":{"has_promo":bool(cart.promo_code)},"timestamp":int(time.time()*1000)})+"\n")
+    logger.info(f"[DEBUG-HYP-C] Before promo/cart cleanup: has_promo={bool(cart.promo_code)}")
     # #endregion
     try:
         if cart.promo_code:
             await db.use_promo_code(cart.promo_code)
         await cart_manager.clear_cart(user.id)
         # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            import json, time
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"payments.py:520","message":"Promo/cart cleanup success","data":{},"timestamp":int(time.time()*1000)})+"\n")
+        logger.info(f"[DEBUG-HYP-C] Promo/cart cleanup success")
         # #endregion
     except Exception as e:
         # #region agent log
-        with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-            import json, time
-            f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"C","location":"payments.py:522","message":"Promo/cart cleanup FAILED","data":{"error":str(e),"error_type":type(e).__name__},"timestamp":int(time.time()*1000)})+"\n")
+        logger.error(f"[DEBUG-HYP-C] Promo/cart cleanup FAILED: error={str(e)}, error_type={type(e).__name__}")
         # #endregion
         logger.warning(f"Failed to cleanup promo/cart for order {order.id}: {e}")
     
     # #region agent log
-    with open(r"d:\pvndora\.cursor\debug.log", "a", encoding="utf-8") as f:
-        import json, time
-        f.write(json.dumps({"sessionId":"debug-session","runId":"run1","hypothesisId":"E","location":"payments.py:525","message":"Returning OrderResponse","data":{"order_id":order.id},"timestamp":int(time.time()*1000)})+"\n")
+    logger.info(f"[DEBUG-HYP-E] Returning OrderResponse: order_id={order.id}")
     # #endregion
     return OrderResponse(
         order_id=order.id, 
