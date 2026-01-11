@@ -81,16 +81,16 @@ pvndora/
 
 ### WebApp Routers (`core/routers/webapp/`)
 
-| Файл | Назначение |
-|------|-----------|
+| Файл/Модуль | Назначение |
+|-------------|-----------|
 | `auth.py` | Авторизация TMA |
 | `cart.py` | Корзина |
-| `orders.py` | Заказы пользователя |
+| `orders/` | Заказы пользователя (CRUD + Payments) |
 | `partner.py` | Партнёрка |
-| `profile.py` | Профиль |
+| `profile/` | Профиль (Profile + Balance + Withdrawals) |
 | `public.py` | Публичные endpoints |
 | `ai_chat.py` | AI консультант |
-| `misc.py` | Прочее |
+| `misc/` | Прочее (FAQ + Promo + Reviews + Leaderboard + Support) |
 
 ---
 

@@ -288,16 +288,27 @@ class OrderStatusService:
                     logger.warning(f"Failed to create balance_transaction for order {order_id}: {e}")
                     # Non-critical - don't fail the payment confirmation
             
-            # Set fulfillment deadline for prepaid orders
-            if final_status == "prepaid":
-                try:
-                    logger.info(f"[mark_payment_confirmed] Setting fulfillment deadline for prepaid order {order_id}")
+            # Set fulfillment deadline for orders with preorder items
+            # Check if order has any preorder items (regardless of final_status)
+            try:
+                items_result = await self.db.client.table("order_items").select(
+                    "fulfillment_type"
+                ).eq("order_id", order_id).execute()
+                has_preorder_items = any(
+                    item.get("fulfillment_type") == "preorder" 
+                    for item in (items_result.data or [])
+                )
+                
+                if has_preorder_items:
+                    logger.info(f"[mark_payment_confirmed] Setting fulfillment deadline for order {order_id} with preorder items (final_status={final_status})")
                     await self.db.client.rpc("set_fulfillment_deadline_for_prepaid_order", {
                         "p_order_id": order_id,
                         "p_hours_from_now": 24
                     }).execute()
-                except Exception as e:
-                    logger.warning(f"Failed to set fulfillment deadline for {order_id}: {e}")
+                else:
+                    logger.info(f"[mark_payment_confirmed] Order {order_id} has no preorder items, skipping fulfillment_deadline")
+            except Exception as e:
+                logger.warning(f"Failed to set fulfillment deadline for {order_id}: {e}")
             
             # CRITICAL: Create order_expenses for accounting (best-effort, non-blocking)
             if update_result:

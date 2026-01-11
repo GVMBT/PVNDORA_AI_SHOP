@@ -122,10 +122,10 @@ const CartSummary: React.FC<CartSummaryProps> = ({
                 </div>
                 
                 {/* Controls & Price Section */}
-                <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-8 pt-3 sm:pt-0 border-t border-white/5 sm:border-0">
+                <div className="flex items-center justify-between sm:items-center sm:justify-end gap-4 sm:gap-8 pt-3 sm:pt-0 border-t border-white/5 sm:border-0">
                   {/* Quantity Controls */}
                   {onUpdateQuantity ? (
-                    <div className="flex items-center bg-black/50 border border-white/10 rounded-sm overflow-hidden h-8 sm:h-9">
+                    <div className="flex items-center bg-black/50 border border-white/10 rounded-sm overflow-hidden h-9 flex-shrink-0">
                       <button
                         type="button"
                         onClick={() => {

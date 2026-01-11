@@ -169,13 +169,29 @@ async def _create_cart_order(
             # --- Pricing Logic ---
             
             # 1. USD Calculations (Base)
-            product_price_usd = to_decimal(product.price)
-            original_price_usd = multiply(product_price_usd, item.quantity)
+            # CRITICAL: original_price should be MSRP (official service price), not product.price
+            product_msrp_usd = to_decimal(product.msrp) if hasattr(product, 'msrp') and product.msrp else to_decimal(product.price)
+            original_price_usd = multiply(product_msrp_usd, item.quantity)
+            
+            product_price_usd = to_decimal(product.price)  # Our price (for final_price calculation)
             
             # 2. Fiat Calculations (Anchor)
+            # For original_price (MSRP), use msrp_prices if available, otherwise convert from USD MSRP
+            msrp_prices = getattr(product, 'msrp_prices', None) or {}
+            if msrp_prices and target_curr in msrp_prices and msrp_prices[target_curr] is not None:
+                anchor_msrp = to_decimal(msrp_prices[target_curr])
+            else:
+                # Fallback: convert from USD MSRP
+                if target_curr == "USD":
+                    anchor_msrp = product_msrp_usd
+                else:
+                    converted_msrp = await curr_service.convert_price(float(product_msrp_usd), target_curr)
+                    anchor_msrp = to_decimal(converted_msrp)
+            original_price_fiat = multiply(anchor_msrp, item.quantity)
+            
+            # For display price (product.price), use prices
             anchor_price = await curr_service.get_anchor_price(product, target_curr)
             product_price_fiat = to_decimal(anchor_price)
-            original_price_fiat = multiply(product_price_fiat, item.quantity)
             
             # Apply discounts
             discount_percent = item.discount_percent
@@ -189,9 +205,9 @@ async def _create_cart_order(
             # Calculate multiplier: (1 - discount/100)
             discount_multiplier = subtract(Decimal("1"), divide(to_decimal(discount_percent), Decimal("100")))
             
-            # Final prices
-            final_price_usd = round_money(multiply(original_price_usd, discount_multiplier))
-            final_price_fiat = round_money(multiply(original_price_fiat, discount_multiplier))
+            # Final prices (calculated from product.price, not MSRP)
+            final_price_usd = round_money(multiply(product_price_usd, discount_multiplier))
+            final_price_fiat = round_money(multiply(product_price_fiat, discount_multiplier))
             
             # For integer currencies, round fiat amount to int
             if target_curr in ["RUB", "UAH", "TRY", "INR"]:
