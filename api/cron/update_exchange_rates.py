@@ -10,7 +10,7 @@ import os
 import httpx
 from datetime import datetime, timezone
 
-from supabase import create_client
+from supabase._async.client import create_client as acreate_client
 
 
 # Supported currencies
@@ -23,14 +23,14 @@ SUPPORTED_CURRENCIES = [
 async def update_rates():
     """Fetch rates from API and update Supabase."""
     
-    # Initialize Supabase
+    # Initialize async Supabase client
     supabase_url = os.environ.get("SUPABASE_URL", "")
     supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
     
     if not supabase_url or not supabase_key:
         return {"error": "Supabase not configured"}
     
-    supabase = create_client(supabase_url, supabase_key)
+    supabase = await acreate_client(supabase_url, supabase_key)
     
     # Fetch rates from free API
     try:
@@ -56,7 +56,7 @@ async def update_rates():
         rate = rates.get(currency)
         if rate:
             try:
-                supabase.table("exchange_rates").upsert({
+                await supabase.table("exchange_rates").upsert({
                     "currency": currency,
                     "rate": float(rate),
                     "updated_at": now

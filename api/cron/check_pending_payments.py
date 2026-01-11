@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from core.logging import get_logger
-from core.services.database import get_database
+from core.services.database import get_database_async
 
 logger = get_logger(__name__)
 
@@ -196,7 +196,7 @@ async def check_pending_payments(request: Request):
         return JSONResponse({"ok": False, "error": "Not configured"})
     
     try:
-        db = get_database()
+        db = await get_database_async()
         
         # Get pending orders with payment_id (CrystalPay invoice)
         # Only check orders created in last 2 hours (invoice lifetime)

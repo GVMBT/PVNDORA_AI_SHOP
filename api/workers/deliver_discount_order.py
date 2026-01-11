@@ -95,9 +95,9 @@ async def deliver_discount_order(request: Request):
     if not all([order_id, order_item_id, telegram_id, stock_item_id]):
         return JSONResponse({"error": "Missing required fields"}, status_code=400)
     
-    from core.services.database import get_database
+    from core.services.database import get_database_async
     
-    db = get_database()
+    db = await get_database_async()
     
     # 1. Validate order status
     order_result = await db.client.table("orders").select("status").eq("id", order_id).single().execute()
@@ -283,10 +283,10 @@ async def _send_loyal_promo_if_eligible(user_id: str, telegram_id: int, lang: st
     
     Returns True if promo was sent, False otherwise.
     """
-    from core.services.database import get_database
+    from core.services.database import get_database_async
     from core.services.domains.promo import PromoCodeService, PromoTriggers
     
-    db = get_database()
+    db = await get_database_async()
     promo_service = PromoCodeService(db.client)
     
     try:

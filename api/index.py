@@ -98,16 +98,33 @@ def get_dispatcher() -> Dispatcher:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler"""
-    # Startup
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Startup - Initialize async database singleton
+    try:
+        from core.services.database import init_database
+        await init_database()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}", exc_info=True)
+        # Continue anyway - some endpoints may work without DB
+    
     yield
+    
     # Shutdown
     try:
         from core.routers.deps import shutdown_services
         await shutdown_services()
     except Exception as e:
-        # Use basic logging for shutdown errors (logger may not be configured)
-        import logging
-        logging.warning(f"Failed to shutdown services cleanly: {e}", exc_info=True)
+        logger.warning(f"Failed to shutdown services cleanly: {e}", exc_info=True)
+    
+    try:
+        from core.services.database import close_database
+        await close_database()
+    except Exception as e:
+        logger.warning(f"Failed to close database: {e}", exc_info=True)
+    
     if bot:
         await bot.session.close()
 

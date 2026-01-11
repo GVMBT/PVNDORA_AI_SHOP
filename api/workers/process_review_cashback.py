@@ -90,10 +90,10 @@ async def process_review_cashback(request: Request):
     if not order_id:
         return JSONResponse({"error": "order_id required"}, status_code=400)
     
-    from core.services.database import get_database
+    from core.services.database import get_database_async
     from core.services.money import to_float
     
-    db = get_database()
+    db = await get_database_async()
     
     # Find review by order_id
     review_result = await db.client.table("reviews").select(

@@ -13,7 +13,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from core.logging import get_logger
-from core.services.database import get_database
+from core.services.database import get_database_async
 
 logger = get_logger(__name__)
 
@@ -32,7 +32,7 @@ async def get_referral_percentages() -> dict:
         return _referral_settings_cache
     
     try:
-        db = get_database()
+        db = await get_database_async()
         result = await db.client.table("referral_settings").select("*").limit(1).execute()
         if result.data:
             s = result.data[0]
@@ -280,7 +280,7 @@ async def _send_loyal_promo_if_eligible(user_id: str, telegram_id: int, lang: st
     """
     from core.services.domains.promo import PromoCodeService, PromoTriggers
     
-    db = get_database()
+    db = await get_database_async()
     promo_service = PromoCodeService(db.client)
     
     try:
@@ -358,7 +358,7 @@ async def deliver_overdue_discount(request: Request):
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
     
     try:
-        db = get_database()
+        db = await get_database_async()
         
         # Get paid discount orders with overdue delivery
         now = datetime.now(timezone.utc).isoformat()

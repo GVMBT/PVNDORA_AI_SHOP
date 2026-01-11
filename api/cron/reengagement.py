@@ -33,11 +33,11 @@ async def reengagement_entrypoint(request: Request):
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
     
-    from core.services.database import get_database
+    from core.services.database import get_database_async
     from core.i18n import get_text
     import httpx
     
-    db = get_database()
+    db = await get_database_async()
     now = datetime.now(timezone.utc)
     results = {
         "timestamp": now.isoformat(),

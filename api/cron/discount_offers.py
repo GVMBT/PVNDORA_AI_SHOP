@@ -27,10 +27,10 @@ async def discount_offers_entrypoint(request: Request):
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
     
-    from core.services.database import get_database
+    from core.services.database import get_database_async
     from core.services.domains.offers import OffersService
     
-    db = get_database()
+    db = await get_database_async()
     offers_service = OffersService(db.client)
     
     now = datetime.now(timezone.utc)

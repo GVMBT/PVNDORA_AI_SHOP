@@ -1,18 +1,43 @@
 """
 Database Module - Supabase and Redis Clients
 
-Provides singleton instances of:
-- Async Supabase client for PostgreSQL operations
-- Sync Supabase client for non-async contexts
-- Upstash Redis client for FSM, carts, leaderboards
+This module provides:
+- Redis client for FSM, carts, leaderboards
+- Re-exports from core.services.database for Supabase access
+
+For Supabase access, use:
+    from core.services.database import get_database, init_database
+    
+For Redis access:
+    from core.db import get_redis
 """
 
 import os
 import warnings
 from typing import Optional, TYPE_CHECKING
 
-from supabase import create_client, Client
-from supabase._async.client import AsyncClient, create_client as acreate_client
+# Re-export Supabase access from unified database module
+from core.services.database import (
+    get_database,
+    get_database_async,
+    init_database,
+    close_database,
+    is_database_initialized,
+)
+
+__all__ = [
+    # Supabase
+    "get_database",
+    "get_database_async", 
+    "init_database",
+    "close_database",
+    "is_database_initialized",
+    # Redis
+    "get_redis",
+    "get_redis_sync",
+    "RedisKeys",
+    "TTL",
+]
 
 # For type-checkers only
 if TYPE_CHECKING:  # pragma: no cover
@@ -75,50 +100,14 @@ except ImportError:
     Redis = AsyncRedisFallback  # type: ignore
 
 
-# Environment variables (Upstash uses REST_URL and REST_TOKEN)
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-
 # Upstash Redis - standard env var names per docs
 UPSTASH_REDIS_REST_URL = os.environ.get("UPSTASH_REDIS_REST_URL", "")
 UPSTASH_REDIS_REST_TOKEN = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
 
 
-# Singleton instances
-_supabase_client: Optional[Client] = None
-_async_supabase_client: Optional[AsyncClient] = None
+# Redis singleton instances
 _redis_client: Optional[AsyncRedis] = None
 _sync_redis_client: Optional[Redis] = None
-
-
-def get_supabase_sync() -> Client:
-    """
-    Get synchronous Supabase client (singleton).
-    Use for sync contexts only.
-    """
-    global _supabase_client
-    
-    if _supabase_client is None:
-        if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-            raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
-        _supabase_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    
-    return _supabase_client
-
-
-async def get_supabase() -> AsyncClient:
-    """
-    Get async Supabase client (singleton).
-    Preferred for all async operations.
-    """
-    global _async_supabase_client
-    
-    if _async_supabase_client is None:
-        if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-            raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
-        _async_supabase_client = await acreate_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    
-    return _async_supabase_client
 
 
 def get_redis() -> AsyncRedis:

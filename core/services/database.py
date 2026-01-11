@@ -6,13 +6,19 @@ Maintains backward compatibility while delegating to specialized repositories.
 
 Usage:
     from core.services.database import get_database, User, Product, Order
+    
+    # In async context (after init_database() called at startup):
     db = get_database()
     user = await db.get_user_by_telegram_id(123)
+    
+    # At FastAPI startup (lifespan):
+    await init_database()
 """
 import os
+import asyncio
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
-from supabase import create_client, Client
+from supabase._async.client import AsyncClient, create_client as acreate_client
 
 from core.logging import get_logger
 
@@ -39,17 +45,16 @@ class Database:
     Supabase database client with all operations.
     
     Uses Repository pattern internally but exposes flat API for backward compatibility.
+    
+    IMPORTANT: This class uses async Supabase client (AsyncClient).
+    Must be initialized via async factory method `create()` or `init_database()`.
     """
     
-    def __init__(self):
-        url = os.environ.get("SUPABASE_URL")
-        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-        if not url or not key:
-            raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
+    def __init__(self, client: AsyncClient):
+        """Private constructor. Use Database.create() or init_database() instead."""
+        self.client = client
         
-        self.client: Client = create_client(url, key)
-        
-        # Initialize repositories
+        # Initialize repositories with async client
         self._users_repo = UserRepository(self.client)
         self._products_repo = ProductRepository(self.client)
         self._orders_repo = OrderRepository(self.client)
@@ -63,6 +68,20 @@ class Database:
         self.orders_domain = OrdersDomain(self._orders_repo, self.client)
         self.chat_domain = ChatDomain(self._chat_repo)
         self.support_domain = SupportService(self)  # Support service uses Database instance
+    
+    @classmethod
+    async def create(cls) -> "Database":
+        """Async factory method to create Database instance.
+        
+        Creates async Supabase client and initializes all repositories.
+        """
+        url = os.environ.get("SUPABASE_URL")
+        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+        if not url or not key:
+            raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
+        
+        client = await acreate_client(url, key)
+        return cls(client)
     
     # ==================== USER OPERATIONS (delegated) ====================
     
@@ -429,13 +448,95 @@ class Database:
             logger.info(f"Total referral bonuses: {sum(b['bonus'] for b in bonuses_awarded)}₽")
 
 
-# Singleton instance
+# Singleton instance (initialized lazily or at startup via init_database())
 _db: Optional[Database] = None
+_db_lock: Optional["asyncio.Lock"] = None  # Lazy lock for thread-safe init
+
+
+def _get_lock() -> "asyncio.Lock":
+    """Get or create async lock for thread-safe initialization."""
+    global _db_lock
+    if _db_lock is None:
+        import asyncio
+        _db_lock = asyncio.Lock()
+    return _db_lock
+
+
+async def init_database() -> Database:
+    """Initialize async database singleton.
+    
+    Can be called at FastAPI startup (lifespan) or lazily on first use.
+    Thread-safe via async lock.
+    
+    Returns:
+        Database instance (also cached as singleton)
+    """
+    global _db
+    if _db is not None:
+        return _db
+    
+    async with _get_lock():
+        # Double-check after acquiring lock
+        if _db is None:
+            logger.info("Initializing async Supabase client...")
+            _db = await Database.create()
+            logger.info("Async Supabase client initialized successfully")
+    return _db
+
+
+async def close_database() -> None:
+    """Close database connections.
+    
+    Should be called at FastAPI shutdown (lifespan).
+    """
+    global _db
+    if _db is not None:
+        try:
+            # Close the async client session
+            await _db.client.auth.sign_out()
+        except Exception as e:
+            logger.warning(f"Error closing Supabase client: {e}")
+        _db = None
+        logger.info("Supabase client closed")
+
+
+async def get_database_async() -> Database:
+    """Get database instance with lazy async initialization.
+    
+    Use this in cron jobs and standalone serverless functions
+    where lifespan is not available.
+    
+    Returns:
+        Database instance
+    """
+    if _db is None:
+        return await init_database()
+    return _db
 
 
 def get_database() -> Database:
-    """Get or create database instance."""
-    global _db
+    """Get database instance (sync accessor).
+    
+    IMPORTANT: Either:
+    1. Call init_database() at startup (main app lifespan), OR
+    2. Use get_database_async() in cron/worker contexts
+    
+    For cron jobs, prefer get_database_async() for lazy initialization.
+    
+    Raises:
+        RuntimeError: If database not initialized
+    
+    Returns:
+        Database instance
+    """
     if _db is None:
-        _db = Database()
+        raise RuntimeError(
+            "Database not initialized. Use 'await get_database_async()' for lazy init, "
+            "or call 'await init_database()' at startup."
+        )
     return _db
+
+
+def is_database_initialized() -> bool:
+    """Check if database singleton is initialized."""
+    return _db is not None
