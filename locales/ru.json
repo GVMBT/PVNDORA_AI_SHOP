@@ -245,6 +245,10 @@
       "estimatedTime": "РАСЧ. ВРЕМЯ",
       "deadlineExpired": "ИСТЁК"
     },
+    "itemSingular": "товар",
+    "itemPlural": "товара",
+    "collapseItems": "Свернуть товары",
+    "expandItems": "Развернуть товары",
     "item": {
       "accessKey": "КЛЮЧ ДОСТУПА",
       "accessKeyEncrypted": "ДАННЫЕ ДОСТУПА",

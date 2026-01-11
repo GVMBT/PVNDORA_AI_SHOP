@@ -5,7 +5,8 @@
  */
 
 import React, { memo, useState } from 'react';
-import { Check, Clock, AlertTriangle, Package, Shield, RefreshCw } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Check, Clock, AlertTriangle, Package, Shield, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatPrice } from '../../utils/currency';
 import { useLocale } from '../../hooks/useLocale';
 import OrderStatusBadge from './OrderStatusBadge';
@@ -50,6 +51,8 @@ interface OrderCardProps {
   onCopy: (text: string, id: string | number) => void;
   onOpenReview: (itemId: string | number, itemName: string, orderId: string) => void;
   onOpenSupport?: (context?: RefundContext) => void;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
 const OrderCard: React.FC<OrderCardProps> = ({
@@ -60,11 +63,18 @@ const OrderCard: React.FC<OrderCardProps> = ({
   onCopy,
   onOpenReview,
   onOpenSupport,
+  isExpanded: propIsExpanded,
+  onToggleExpand,
 }) => {
   const { t } = useLocale();
   const { verifyPayment } = useOrdersTyped();
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
   const [paymentCheckResult, setPaymentCheckResult] = useState<string | null>(null);
+  const [internalExpanded, setInternalExpanded] = useState(true);
+  
+  // Use prop if provided, otherwise use internal state
+  const isExpanded = propIsExpanded !== undefined ? propIsExpanded : internalExpanded;
+  const handleToggleExpand = onToggleExpand || (() => setInternalExpanded(prev => !prev));
 
   const handleCheckPayment = async () => {
     if (!order.payment_id || !order.payment_gateway) {
@@ -108,14 +118,38 @@ const OrderCard: React.FC<OrderCardProps> = ({
       {/* Order Card */}
       <div className="bg-[#080808] border border-white/10 hover:border-white/20 transition-all relative overflow-hidden">
         {/* Card Header */}
-        <div className="bg-white/5 p-3 flex justify-between items-center border-b border-white/5">
-          <div className="flex items-center gap-4">
-            <span className="font-mono text-xs text-pandora-cyan tracking-wider">
-              ID: {order.displayId || order.id}
-            </span>
-            <span className="hidden sm:inline text-[10px] font-mono text-gray-600 uppercase">
-              // {order.date}
-            </span>
+        <div 
+          className="bg-white/5 p-3 flex justify-between items-center border-b border-white/5 cursor-pointer hover:bg-white/10 transition-colors"
+          onClick={handleToggleExpand}
+        >
+          <div className="flex items-center gap-4 flex-1">
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleExpand();
+              }}
+              className="p-1 hover:bg-white/10 rounded transition-colors"
+              title={isExpanded ? t('orders.collapseItems') : t('orders.expandItems')}
+            >
+              {isExpanded ? (
+                <ChevronUp size={16} className="text-gray-400 hover:text-pandora-cyan" />
+              ) : (
+                <ChevronDown size={16} className="text-gray-400 hover:text-pandora-cyan" />
+              )}
+            </button>
+            <div className="flex items-center gap-4 flex-1">
+              <span className="font-mono text-xs text-pandora-cyan tracking-wider">
+                ID: {order.displayId || order.id}
+              </span>
+              <span className="hidden sm:inline text-[10px] font-mono text-gray-600 uppercase">
+                // {order.date}
+              </span>
+              {!isExpanded && (
+                <span className="text-[10px] font-mono text-gray-500">
+                  ({order.items.length} {order.items.length === 1 ? t('orders.itemSingular') : t('orders.itemPlural')})
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <OrderStatusBadge rawStatus={order.rawStatus} status={order.status} />
@@ -256,30 +290,42 @@ const OrderCard: React.FC<OrderCardProps> = ({
           </div>
         )}
 
-        {/* Items Content */}
-        <div className="p-5 space-y-6">
-          {order.items.map((item) => (
-            <OrderItem
-              key={item.id}
-              item={item}
-              orderId={order.id}
-              revealedKeys={revealedKeys}
-              copiedId={copiedId}
-              onToggleReveal={onToggleReveal}
-              onCopy={onCopy}
-              onOpenReview={onOpenReview}
-              onOpenSupport={onOpenSupport ? (context) => {
-                // Fill in orderTotal from order if not provided
-                if (!onOpenSupport) return; // Double check
-                const finalContext = {
-                  ...context,
-                  orderTotal: context.orderTotal || order.total
-                };
-                onOpenSupport(finalContext);
-              } : undefined}
-            />
-          ))}
-        </div>
+        {/* Items Content - Collapsible */}
+        <AnimatePresence initial={false}>
+          {isExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+              className="overflow-hidden"
+            >
+              <div className="p-5 space-y-6">
+                {order.items.map((item) => (
+                  <OrderItem
+                    key={item.id}
+                    item={item}
+                    orderId={order.id}
+                    revealedKeys={revealedKeys}
+                    copiedId={copiedId}
+                    onToggleReveal={onToggleReveal}
+                    onCopy={onCopy}
+                    onOpenReview={onOpenReview}
+                    onOpenSupport={onOpenSupport ? (context) => {
+                      // Fill in orderTotal from order if not provided
+                      if (!onOpenSupport) return; // Double check
+                      const finalContext = {
+                        ...context,
+                        orderTotal: context.orderTotal || order.total
+                      };
+                      onOpenSupport(finalContext);
+                    } : undefined}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         
         {/* Decorative Corner Overlays */}
         <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-pandora-cyan opacity-50" />

@@ -244,6 +244,10 @@
       "estimatedTime": "EST",
       "deadlineExpired": "EXPIRED"
     },
+    "collapseItems": "Collapse Items",
+    "expandItems": "Expand Items",
+    "itemSingular": "item",
+    "itemPlural": "items",
     "item": {
       "accessKey": "ACCESS KEY",
       "accessKeyEncrypted": "ACCESS DATA",

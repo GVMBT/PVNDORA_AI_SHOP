@@ -17,6 +17,8 @@ export type { AccountingData } from './AdminAccounting';
 export { default as AdminSidebar } from './AdminSidebar';
 export { default as AdminHeader } from './AdminHeader';
 export { default as ProductModal } from './ProductModal';
+export { default as PartnerModal } from './PartnerModal';
+export { default as ExpenseModal } from './ExpenseModal';
 export { default as StatCard } from './StatCard';
 export { default as StockIndicator } from './StockIndicator';
 export { default as StatusBadge } from './StatusBadge';

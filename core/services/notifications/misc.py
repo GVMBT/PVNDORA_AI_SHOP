@@ -171,3 +171,45 @@ class MiscNotificationsMixin(NotificationServiceBase):
             logger.info(f"Sent partner rejected notification to {telegram_id}")
         except Exception as e:
             logger.error(f"Failed to send partner rejected notification to {telegram_id}: {e}")
+    
+    async def send_partner_status_revoked_notification(
+        self,
+        telegram_id: int,
+        reason: Optional[str] = None
+    ) -> None:
+        """Notify user that their VIP partner status has been revoked."""
+        lang = await get_user_language(telegram_id)
+        
+        reason_text_ru = reason or "VIP статус был отозван администратором."
+        reason_text_en = reason or "VIP status has been revoked by administrator."
+        
+        message = _msg(lang,
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     ⚠️ <b>VIP СТАТУС ОТОЗВАН</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"◈ <b>Причина:</b>\n"
+            f"<i>{reason_text_ru}</i>\n\n"
+            f"Ваши заработанные средства сохранены.\n"
+            f"Уровни реферальной программы остаются\n"
+            f"в соответствии с достигнутым оборотом.\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"По вопросам обращайтесь в поддержку.",
+            
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"     ⚠️ <b>VIP STATUS REVOKED</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"◈ <b>Reason:</b>\n"
+            f"<i>{reason_text_en}</i>\n\n"
+            f"Your earned funds are preserved.\n"
+            f"Referral program levels remain\n"
+            f"according to achieved turnover.\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"For questions, contact support."
+        )
+        
+        try:
+            from core.services.telegram_messaging import send_telegram_message
+            await send_telegram_message(chat_id=telegram_id, text=message, parse_mode="HTML")
+            logger.info(f"Sent partner status revoked notification to {telegram_id}")
+        except Exception as e:
+            logger.error(f"Failed to send partner status revoked notification to {telegram_id}: {e}")

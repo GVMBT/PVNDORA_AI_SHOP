@@ -28,6 +28,7 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'log'>('all');
   const [copiedId, setCopiedId] = useTimeoutState<number | string | null>(null);
   const [revealedKeys, setRevealedKeys] = useState<(number | string)[]>([]);
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   
   // Review State - use ordersData as initial state when provided
   const [ordersState, setOrdersState] = useState<OrderData[]>(ordersData as OrderData[]);

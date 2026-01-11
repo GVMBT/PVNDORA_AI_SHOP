@@ -370,6 +370,32 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     }
   }, [getUsers]);
 
+  // Add expense handler
+  const handleAddExpense = useCallback(async (expense: {
+    description: string;
+    amount: number;
+    currency: 'USD' | 'RUB';
+    category: string;
+    date?: string;
+    supplier_id?: string;
+  }) => {
+    const { apiRequest } = await import('../../utils/apiClient');
+    const { API } = await import('../../config');
+    
+    try {
+      await apiRequest(`${API.ADMIN_URL}/accounting/expenses`, {
+        method: 'POST',
+        body: JSON.stringify(expense)
+      });
+      // Refresh accounting data
+      await fetchAccounting('all', undefined, undefined, accountingData?.displayCurrency || 'RUB');
+      logger.info('Expense created successfully');
+    } catch (err) {
+      logger.error('Failed to create expense', err);
+      throw err;
+    }
+  }, [fetchAccounting, accountingData?.displayCurrency]);
+
   // Loading state - AFTER all hooks
   if (!isInitialized) {
     return (
@@ -409,6 +435,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       onToggleVIP={handleToggleVIP}
       onSaveProduct={handleSaveProduct}
       onDeleteProduct={handleDeleteProduct}
+      onAddExpense={handleAddExpense}
     />
   );
 };

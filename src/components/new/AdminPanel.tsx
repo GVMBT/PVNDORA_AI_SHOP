@@ -20,6 +20,8 @@ import {
   AdminSidebar,
   AdminHeader,
   ProductModal,
+  PartnerModal,
+  ExpenseModal,
   type AdminView,
   type ProductData,
   type OrderData,
@@ -52,6 +54,7 @@ interface AdminPanelProps {
   onRefreshAccounting?: (period?: 'today' | 'month' | 'all' | 'custom', customFrom?: string, customTo?: string, displayCurrency?: 'USD' | 'RUB') => void;
   onRefreshOrders?: () => void;
   isAccountingLoading?: boolean;
+  onAddExpense?: () => void;
   // User actions
   onBanUser?: (userId: number, ban: boolean) => void;
   onUpdateBalance?: (userId: number, amount: number) => void;
@@ -85,6 +88,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onToggleVIP,
   onSaveProduct,
   onDeleteProduct,
+  onAddExpense,
 }) => {
   const [currentView, setCurrentView] = useState<AdminView>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -94,6 +98,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Partial<ProductData> | null>(null);
   const [selectedPartner, setSelectedPartner] = useState<UserData | null>(null);
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
 
   // Handlers
   const handleEditProduct = (product: ProductData) => {
@@ -118,6 +123,28 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
     setIsProductModalOpen(false);
     setEditingProduct(null);
+  };
+
+  const handleSavePartner = async (partner: UserData) => {
+    // TODO: Implement partner update API call
+    // For now, just close modal and refresh
+    logger.info('Partner update requested', partner);
+    setSelectedPartner(null);
+    if (onRefreshOrders) onRefreshOrders();
+  };
+
+  const handleSaveExpense = async (expense: {
+    description: string;
+    amount: number;
+    currency: 'USD' | 'RUB';
+    category: string;
+    date?: string;
+    supplier_id?: string;
+  }) => {
+    if (onAddExpense) {
+      await onAddExpense(expense);
+    }
+    setIsExpenseModalOpen(false);
   };
 
   const renderCurrentView = () => {
@@ -184,6 +211,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             data={accountingData}
             onRefresh={onRefreshAccounting}
             isLoading={isAccountingLoading}
+            onAddExpense={onAddExpense ? () => setIsExpenseModalOpen(true) : undefined}
           />
         );
       default:
@@ -246,6 +274,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         }}
         onSave={handleSaveProduct}
       />
+
+      <PartnerModal
+        partner={selectedPartner}
+        onClose={() => setSelectedPartner(null)}
+        onSave={handleSavePartner}
+      />
+
+      {onAddExpense && (
+        <ExpenseModal
+          isOpen={isExpenseModalOpen}
+          expense={null}
+          onClose={() => setIsExpenseModalOpen(false)}
+          onSave={handleSaveExpense}
+        />
+      )}
 
     </motion.div>
   );

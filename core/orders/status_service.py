@@ -143,7 +143,7 @@ class OrderStatusService:
         try:
             logger.info(f"[mark_payment_confirmed] Fetching order {order_id} from DB...")
             order_result = await self.db.client.table("orders").select(
-                "status, order_type, payment_method, user_id, amount"
+                "status, order_type, payment_method, user_id, amount, fiat_amount, fiat_currency"
             ).eq("id", order_id).single().execute()
             logger.info(f"[mark_payment_confirmed] Order fetch result: {order_result.data}")
             
@@ -155,6 +155,8 @@ class OrderStatusService:
             payment_method = order_result.data.get("payment_method", "")
             user_id = order_result.data.get("user_id")
             order_amount = order_result.data.get("amount", 0)
+            fiat_amount = order_result.data.get("fiat_amount")
+            fiat_currency = order_result.data.get("fiat_currency")
             
             logger.info(f"[mark_payment_confirmed] Order {order_id}: current_status={current_status}, order_type={order_type}, payment_method={payment_method}")
             
@@ -248,19 +250,27 @@ class OrderStatusService:
                     ).limit(1).execute()
                     
                     if not existing_tx.data:
-                        # Get user's current balance and currency for logging
+                        # Get user's current balance for logging
                         user_result = await self.db.client.table("users").select(
-                            "balance, preferred_currency"
+                            "balance"
                         ).eq("id", user_id).single().execute()
                         current_balance = float(user_result.data.get("balance", 0)) if user_result.data else 0
-                        user_currency = user_result.data.get("preferred_currency", "RUB") if user_result.data else "RUB"
+                        
+                        # Use fiat_amount and fiat_currency if available (real payment amount), otherwise fallback to USD amount
+                        if fiat_amount is not None and fiat_currency:
+                            transaction_amount = float(fiat_amount)
+                            transaction_currency = fiat_currency
+                        else:
+                            # Fallback: use USD amount (legacy orders)
+                            transaction_amount = float(order_amount)
+                            transaction_currency = "USD"
                         
                         # Create purchase transaction record
                         await self.db.client.table("balance_transactions").insert({
                             "user_id": user_id,
                             "type": "purchase",
-                            "amount": float(order_amount),
-                            "currency": user_currency,
+                            "amount": transaction_amount,
+                            "currency": transaction_currency,
                             "balance_before": current_balance,
                             "balance_after": current_balance,  # Balance doesn't change for external payments
                             "status": "completed",
@@ -271,7 +281,7 @@ class OrderStatusService:
                                 "payment_id": payment_id
                             }
                         }).execute()
-                        logger.info(f"[mark_payment_confirmed] Created balance_transaction for purchase order {order_id}")
+                        logger.info(f"[mark_payment_confirmed] Created balance_transaction for purchase order {order_id}: {transaction_amount} {transaction_currency}")
                     else:
                         logger.info(f"[mark_payment_confirmed] balance_transaction already exists for order {order_id}, skipping")
                 except Exception as e:
@@ -284,10 +294,22 @@ class OrderStatusService:
                     logger.info(f"[mark_payment_confirmed] Setting fulfillment deadline for prepaid order {order_id}")
                     await self.db.client.rpc("set_fulfillment_deadline_for_prepaid_order", {
                         "p_order_id": order_id,
-                        "p_hours_from_now": 48
+                        "p_hours_from_now": 24
                     }).execute()
                 except Exception as e:
                     logger.warning(f"Failed to set fulfillment deadline for {order_id}: {e}")
+            
+            # CRITICAL: Create order_expenses for accounting (best-effort, non-blocking)
+            if update_result:
+                try:
+                    logger.info(f"[mark_payment_confirmed] Creating order_expenses for order {order_id}")
+                    await self.db.client.rpc("calculate_order_expenses", {
+                        "p_order_id": order_id
+                    }).execute()
+                    logger.info(f"[mark_payment_confirmed] Successfully created order_expenses for order {order_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to create order_expenses for order {order_id}: {e}")
+                    # Non-critical - don't fail payment confirmation
             
             return final_status
             

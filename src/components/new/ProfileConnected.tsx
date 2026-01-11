@@ -242,8 +242,17 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     const exchangeRate = profile?.exchangeRate || 1.0;
     const balance = convertedProfile?.balance || 0;
     
-    const minAmountUSD = 5;
-    const minAmount = currency === 'USD' ? minAmountUSD : Math.round(minAmountUSD * exchangeRate);
+    // Minimum top-up amounts by currency
+    const minAmounts: Record<string, number> = {
+      'USD': 5,
+      'RUB': 500,
+      'EUR': 5,
+      'UAH': 200,
+      'TRY': 150,
+      'INR': 400,
+      'AED': 20,
+    };
+    const minAmount = minAmounts[currency] || (currency === 'USD' ? 5 : Math.round(5 * exchangeRate));
     
     if (onHaptic) onHaptic('light');
     

@@ -43,9 +43,23 @@ async def create_topup(
         user.id, db, redis, preferred_currency=currency
     )
     
-    # Minimum: 5 USD equivalent
-    MIN_USD = 5.0
-    min_in_user_currency = formatter.convert(MIN_USD)
+    # Minimum top-up amounts by currency (fixed amounts, not converted)
+    MIN_AMOUNTS = {
+        'USD': 5.0,
+        'RUB': 500.0,
+        'EUR': 5.0,
+        'UAH': 200.0,
+        'TRY': 150.0,
+        'INR': 400.0,
+        'AED': 20.0,
+    }
+    
+    # Use fixed minimum for currency if available, otherwise convert from USD
+    if currency in MIN_AMOUNTS:
+        min_in_user_currency = MIN_AMOUNTS[currency]
+    else:
+        MIN_USD = 5.0
+        min_in_user_currency = formatter.convert(MIN_USD)
     
     if request.amount < min_in_user_currency:
         raise HTTPException(

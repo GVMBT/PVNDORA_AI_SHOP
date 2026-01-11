@@ -377,12 +377,17 @@ async def admin_toggle_vip(
         telegram_id = user.get("telegram_id")
         logger.info(f"Admin {'granted' if is_partner else 'revoked'} VIP for user {username} (level_override={final_level_override if is_partner else None})")
         
-        # Send notification if granting VIP
-        if is_partner and telegram_id:
+        # Send notification
+        if telegram_id:
             try:
                 from core.services.notifications import NotificationService
                 notification_service = NotificationService()
-                await notification_service.send_partner_application_approved_notification(int(telegram_id))
+                if is_partner:
+                    # Send notification when granting VIP
+                    await notification_service.send_partner_application_approved_notification(int(telegram_id))
+                else:
+                    # Send notification when revoking VIP
+                    await notification_service.send_partner_status_revoked_notification(int(telegram_id))
             except Exception as e:
                 logger.warning(f"Failed to send VIP notification to {telegram_id}: {e}")
         

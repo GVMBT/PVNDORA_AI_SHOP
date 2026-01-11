@@ -228,13 +228,37 @@ async def worker_process_review_cashback(request: Request):
             rate = await currency_service.get_exchange_rate(balance_currency)
             cashback_usd = cashback_amount / rate if rate > 0 else cashback_amount
         
-        # Update order_expenses table
-        await db.client.table("order_expenses").update({
-            "review_cashback_amount": cashback_usd
-        }).eq("order_id", order_id).execute()
-        logger.info(f"Updated order_expenses for {order_id}: review_cashback_amount={cashback_usd:.2f} USD")
+        # Check if order_expenses exists
+        current_expenses = await db.client.table("order_expenses").select(
+            "review_cashback_amount"
+        ).eq("order_id", order_id).execute()
+        
+        current_cashback_usd = 0.0
+        if current_expenses.data and len(current_expenses.data) > 0:
+            current_cashback_usd = float(current_expenses.data[0].get("review_cashback_amount", 0) or 0)
+        
+        total_cashback_usd = current_cashback_usd + cashback_usd
+        
+        if current_expenses.data and len(current_expenses.data) > 0:
+            # Update existing order_expenses
+            await db.client.table("order_expenses").update({
+                "review_cashback_amount": total_cashback_usd
+            }).eq("order_id", order_id).execute()
+            logger.info(f"Updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD (added {cashback_usd:.2f} USD)")
+        else:
+            # order_expenses doesn't exist - create it via calculate_order_expenses first
+            logger.warning(f"order_expenses not found for {order_id}, calling calculate_order_expenses first")
+            await db.client.rpc("calculate_order_expenses", {
+                "p_order_id": order_id
+            }).execute()
+            
+            # Now update review_cashback_amount
+            await db.client.table("order_expenses").update({
+                "review_cashback_amount": total_cashback_usd
+            }).eq("order_id", order_id).execute()
+            logger.info(f"Created and updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD")
     except Exception as e:
-        logger.warning(f"Failed to update order_expenses for {order_id}: {e}")
+        logger.error(f"Failed to update order_expenses for {order_id}: {e}", exc_info=True)
     
     # 5. Send Telegram notification using notification service (supports currency)
     try:
