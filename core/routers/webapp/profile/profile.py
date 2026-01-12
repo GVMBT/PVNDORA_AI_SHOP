@@ -398,7 +398,7 @@ async def get_referral_network(user=Depends(verify_telegram_auth), level: int = 
         
         # Deduplicate and drop self to avoid cycles
         seen_ids = set()
-        enriched_referrals = []
+        referral_ids = []
         for ref in referrals_data:
             ref_id = ref.get("id")
             if not ref_id or ref_id == user_id:
@@ -406,20 +406,62 @@ async def get_referral_network(user=Depends(verify_telegram_auth), level: int = 
             if ref_id in seen_ids:
                 continue
             seen_ids.add(ref_id)
-            
-            # Count orders
+            referral_ids.append(ref_id)
+        
+        if not referral_ids:
+            return {
+                "referrals": [],
+                "total": 0,
+                "level": level,
+                "offset": offset,
+                "limit": limit
+            }
+        
+        # OPTIMIZATION: Batch fetch orders count for all referrals (eliminate N+1)
+        orders_count_map = {}
+        try:
+            # Use aggregation to count orders per user_id in a single query
             orders_result = await db.client.table("orders").select(
-                "id", count="exact"
-            ).eq("user_id", ref_id).in_("status", ["delivered"]).execute()
-            order_count = orders_result.count or 0
+                "user_id"
+            ).in_("user_id", referral_ids).in_("status", ["delivered"]).execute()
             
-            # Get earnings generated (bonuses to the current user from this referral)
+            # Count orders per user_id
+            for order in (orders_result.data or []):
+                order_user_id = order.get("user_id")
+                if order_user_id:
+                    orders_count_map[order_user_id] = orders_count_map.get(order_user_id, 0) + 1
+        except Exception as e:
+            logger.warning(f"Failed to batch fetch orders count: {e}")
+        
+        # OPTIMIZATION: Batch fetch earnings for all referrals (eliminate N+1)
+        earnings_map = {}
+        try:
             earnings_result = await db.client.table("referral_bonuses").select(
-                "amount"
-            ).eq("referrer_id", db_user.id).eq("from_user_id", ref_id).eq(
+                "from_user_id, amount"
+            ).eq("referrer_id", db_user.id).in_("from_user_id", referral_ids).eq(
                 "eligible", True
             ).execute()
-            earnings = sum(float(b.get("amount", 0)) for b in (earnings_result.data or []))
+            
+            # Sum earnings per from_user_id
+            for bonus in (earnings_result.data or []):
+                from_user_id = bonus.get("from_user_id")
+                amount = float(bonus.get("amount", 0))
+                if from_user_id:
+                    earnings_map[from_user_id] = earnings_map.get(from_user_id, 0) + amount
+        except Exception as e:
+            logger.warning(f"Failed to batch fetch earnings: {e}")
+        
+        # Build enriched referrals list
+        enriched_referrals = []
+        for ref in referrals_data:
+            ref_id = ref.get("id")
+            if not ref_id or ref_id == user_id:
+                continue
+            if ref_id not in referral_ids:
+                continue
+            
+            order_count = orders_count_map.get(ref_id, 0)
+            earnings = earnings_map.get(ref_id, 0)
             
             enriched_referrals.append({
                 "id": ref_id,

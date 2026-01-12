@@ -50,12 +50,22 @@ async def verify_telegram_auth(
                 except Exception as e:
                     logger.warning(f"Failed to get user language from DB: {e}")
                 
-                return TelegramUser(
+                user = TelegramUser(
                     id=session["telegram_id"],
                     first_name=session.get("username", "User"),
                     username=session.get("username"),
                     language_code=language_code
                 )
+                
+                # Update user activity with debounce (fire-and-forget, non-blocking)
+                try:
+                    from core.routers.webapp.middleware import update_user_activity_with_debounce
+                    update_user_activity_with_debounce(user.id)
+                except Exception as e:
+                    # Non-fatal - activity tracking shouldn't break authentication
+                    logger.debug(f"Failed to schedule activity update: {e}")
+                
+                return user
             # If Bearer token is invalid and no X-Init-Data, raise error
             if not x_init_data:
                 raise HTTPException(status_code=401, detail="Invalid session token")
@@ -90,6 +100,14 @@ async def verify_telegram_auth(
             await db.update_user_photo(user.id, user.photo_url)
         except Exception as e:
             logger.warning(f"Failed to update user photo: {e}")
+    
+    # Update user activity with debounce (fire-and-forget, non-blocking)
+    try:
+        from core.routers.webapp.middleware import update_user_activity_with_debounce
+        update_user_activity_with_debounce(user.id)
+    except Exception as e:
+        # Non-fatal - activity tracking shouldn't break authentication
+        logger.debug(f"Failed to schedule activity update: {e}")
     
     return user
 

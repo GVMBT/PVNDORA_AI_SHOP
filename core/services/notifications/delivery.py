@@ -134,43 +134,46 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
         
         # Order reference
         order_ref = ""
-        items_list_text = ""
         if order_id:
             short_id = order_id[:8]
             order_ref = _msg(lang,
-                f"<i>#{short_id}</i>\n",
-                f"<i>#{short_id}</i>\n"
+                f"<i>#{short_id}</i>\n\n",
+                f"<i>#{short_id}</i>\n\n"
             )
+        
+        # Format content: product names bold, credentials monospace
+        # Content format: "Product Name:\ncredentials\n\nProduct Name:\ncredentials"
+        formatted_content = ""
+        if content:
+            # Split by double newline to get individual items
+            items = content.split("\n\n")
+            formatted_items = []
             
-            # Get order items with product names
-            try:
-                db = get_database()
-                items_result = await db.client.table("order_items").select(
-                    "quantity, products(name)"
-                ).eq("order_id", order_id).execute()
-                
-                if items_result.data:
-                    items = []
-                    for item in items_result.data:
-                        product_name_item = item.get("products", {}).get("name") if isinstance(item.get("products"), dict) else "Product"
-                        quantity = item.get("quantity", 1)
-                        if quantity > 1:
-                            items.append(f"• {product_name_item} × {quantity}")
-                        else:
-                            items.append(f"• {product_name_item}")
-                    
-                    if items:
-                        items_list_text = "\n" + "\n".join(items) + "\n"
-            except Exception as e:
-                logger.warning(f"Failed to fetch order items for delivery notification {order_id}: {e}")
+            for item in items:
+                if ":\n" in item:
+                    # Split product name and credentials
+                    parts = item.split(":\n", 1)
+                    if len(parts) == 2:
+                        product_name = parts[0].strip()
+                        credentials = parts[1].strip()
+                        # Format: bold product name, monospace credentials
+                        formatted_items.append(f"<b>{product_name}:</b>\n<code>{credentials}</code>")
+                    else:
+                        # Fallback: keep as is
+                        formatted_items.append(f"<code>{item}</code>")
+                else:
+                    # No product name, just credentials
+                    formatted_items.append(f"<code>{item}</code>")
+            
+            formatted_content = "\n\n".join(formatted_items)
         
         message = _msg(lang,
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             f"      💎 <b>ДОСТАВКА ЗАВЕРШЕНА</b>\n"
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-            f"{order_ref}{items_list_text}"
+            f"{order_ref}"
             f"🔐 <b>ДАННЫЕ ДОСТУПА</b>\n"
-            f"<code>{content}</code>\n\n"
+            f"{formatted_content}\n\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"📋 <i>Инструкции и детали — в разделе «Мои заказы»</i>\n\n"
             f"⭐ Оставьте отзыв → получите <b>5% кэшбэк</b>",
@@ -178,9 +181,9 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             f"      💎 <b>DELIVERY COMPLETE</b>\n"
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-            f"{order_ref}{items_list_text}"
+            f"{order_ref}"
             f"🔐 <b>ACCESS CREDENTIALS</b>\n"
-            f"<code>{content}</code>\n\n"
+            f"{formatted_content}\n\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"📋 <i>Instructions & details — in «My Orders»</i>\n\n"
             f"⭐ Leave a review → get <b>5% cashback</b>"
