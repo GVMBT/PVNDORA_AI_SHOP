@@ -133,14 +133,22 @@ async def worker_calculate_referral(request: Request):
     new_level = turnover_data.get("new_level", 0)
 
     # 2. Unlock referral program if first purchase
-    if not was_unlocked:
+    # IMPORTANT: Skip for VIP partners - they already have referral program via admin grant
+    if not was_unlocked and not is_partner:
         await db.client.table("users").update({"referral_program_unlocked": True}).eq(
             "id", user_id
         ).execute()
 
-        # Send unlock notification
+        # Send unlock notification (only for non-VIP users)
         if telegram_id:
             await notification_service.send_referral_unlock_notification(telegram_id)
+    elif not was_unlocked and is_partner:
+        # VIP partner making first purchase - just ensure referral_program_unlocked is True
+        # but DON'T send the unlock notification (they already know they're partners)
+        await db.client.table("users").update({"referral_program_unlocked": True}).eq(
+            "id", user_id
+        ).execute()
+        logger.debug(f"VIP partner {user_id} first purchase - skipping unlock notification")
 
     # 3. Send level up notification if applicable (skip for VIP partners with all levels unlocked)
     if level_up and new_level > 0 and telegram_id:

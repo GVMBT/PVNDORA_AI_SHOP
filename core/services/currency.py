@@ -192,7 +192,7 @@ class CurrencyService:
                 .execute()
             )
 
-            if result.data and result.data.get("rate"):
+            if result.data and isinstance(result.data, dict) and result.data.get("rate"):
                 return float(result.data["rate"])
             return None
         except Exception as e:

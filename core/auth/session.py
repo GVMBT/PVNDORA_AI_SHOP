@@ -6,6 +6,7 @@ import hmac
 import json
 import os
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 
 def _get_secret() -> str:
@@ -47,7 +48,7 @@ def create_web_session(user_id: str, telegram_id: int, username: str, is_admin: 
     return f"{payload_b64}.{sig_b64}"
 
 
-def verify_web_session_token(token: str) -> dict | None:
+def verify_web_session_token(token: str) -> dict[str, Any] | None:
     """Verify HMAC-signed session token and return payload if valid and not expired."""
     secret = _get_secret()
     if not secret or not token or "." not in token:
@@ -62,6 +63,8 @@ def verify_web_session_token(token: str) -> dict | None:
             return None
 
         payload = json.loads(_b64url_decode(payload_b64))
+        if not isinstance(payload, dict):
+            return None
         exp_ts = payload.get("exp")
         if not exp_ts:
             return None

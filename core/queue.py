@@ -176,7 +176,7 @@ def verify_qstash_signature(body: bytes, signature: str, url: str = "") -> bool:
 
         receiver = Receiver(
             current_signing_key=QSTASH_CURRENT_SIGNING_KEY,
-            next_signing_key=QSTASH_NEXT_SIGNING_KEY or None,
+            next_signing_key=QSTASH_NEXT_SIGNING_KEY or "",
         )
 
         # Verify signature (QStash uses JWT which includes URL)
@@ -220,7 +220,10 @@ async def verify_qstash_request(request: Request) -> dict:
     if verify_qstash_signature(body, signature, url):
         import json
 
-        return json.loads(body)
+        data = json.loads(body)
+        if isinstance(data, dict):
+            return data
+        return {}
 
     # Try without query params (QStash may not include them)
     url_no_query = url.split("?")[0]
@@ -228,7 +231,10 @@ async def verify_qstash_request(request: Request) -> dict:
         logger.info("QStash verified with URL without query params")
         import json
 
-        return json.loads(body)
+        data = json.loads(body)
+        if isinstance(data, dict):
+            return data
+        return {}
 
     # Try with production URL (WEBAPP_URL)
     if WEBAPP_URL:
@@ -238,7 +244,10 @@ async def verify_qstash_request(request: Request) -> dict:
             logger.info(f"QStash verified with production URL: {prod_url}")
             import json
 
-            return json.loads(body)
+            data = json.loads(body)
+            if isinstance(data, dict):
+                return data
+            return {}
 
     # All verification attempts failed
     logger.error(f"QStash verification FAILED for all URL variants. Original URL: {url}")

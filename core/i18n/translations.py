@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 # Supported languages with their names
 SUPPORTED_LANGUAGES = {
@@ -20,7 +21,7 @@ SUPPORTED_LANGUAGES = {
 DEFAULT_LANGUAGE = "en"
 
 # Cache for loaded translations
-_translations: dict[str, dict[str, str]] = {}
+_translations: dict[str, dict[str, Any]] = {}
 
 
 def _get_locales_path() -> Path:
@@ -42,7 +43,7 @@ def _get_locales_path() -> Path:
     return default_path
 
 
-def _load_translations(lang: str) -> dict[str, str]:
+def _load_translations(lang: str) -> dict[str, Any]:
     """Load translations for a language"""
     if lang in _translations:
         return _translations[lang]
@@ -58,8 +59,11 @@ def _load_translations(lang: str) -> dict[str, str]:
 
     try:
         with open(file_path, encoding="utf-8") as f:
-            _translations[lang] = json.load(f)
-            return _translations[lang]
+            data = json.load(f)
+            if isinstance(data, dict):
+                _translations[lang] = data
+                return _translations[lang]
+            return {}
     except Exception:
         return {}
 
@@ -87,14 +91,14 @@ def get_text(key: str, lang: str = DEFAULT_LANGUAGE, default: str | None = None,
     translations = _load_translations(lang)
 
     # Support nested keys with dot notation (e.g., "faq.title")
-    text = None
+    text: Any = None
     if "." in key:
         keys = key.split(".")
-        value = translations
+        current_val: Any = translations
         try:
             for k in keys:
-                value = value[k]
-            text = value
+                current_val = current_val[k]
+            text = current_val
         except (KeyError, TypeError):
             text = None
     else:
@@ -102,34 +106,38 @@ def get_text(key: str, lang: str = DEFAULT_LANGUAGE, default: str | None = None,
 
     # Fallback to English if key not found
     if text is None and lang != DEFAULT_LANGUAGE:
-        translations = _load_translations(DEFAULT_LANGUAGE)
+        eng_translations = _load_translations(DEFAULT_LANGUAGE)
         if "." in key:
             keys = key.split(".")
-            value = translations
+            current_val = eng_translations
             try:
                 for k in keys:
-                    value = value[k]
-                text = value
+                    current_val = current_val[k]
+                text = current_val
             except (KeyError, TypeError):
                 text = None
         else:
-            text = translations.get(key)
+            text = eng_translations.get(key)
 
     # Return default or key if still not found
     if text is None:
+        return default if default is not None else key
+
+    # If it's still a dict (partial key), return the key or default
+    if not isinstance(text, str):
         return default if default is not None else key
 
     # Format with kwargs if provided
     if kwargs:
         try:
             return text.format(**kwargs)
-        except KeyError:
+        except (KeyError, ValueError, AttributeError):
             return text
 
     return text
 
 
-def get_all_texts(lang: str = DEFAULT_LANGUAGE) -> dict[str, str]:
+def get_all_texts(lang: str = DEFAULT_LANGUAGE) -> dict[str, Any]:
     """Get all translations for a language"""
     lang = lang.split("-")[0].lower() if lang else DEFAULT_LANGUAGE
     if lang not in SUPPORTED_LANGUAGES:

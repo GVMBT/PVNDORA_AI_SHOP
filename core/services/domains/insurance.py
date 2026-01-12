@@ -303,7 +303,7 @@ class InsuranceService:
             # 2. Check insurance validity
             is_valid, insurance_id, remaining = await self.check_insurance_valid(order_item_id)
 
-            if not is_valid:
+            if not is_valid or not insurance_id:
                 if insurance_id:
                     return ReplacementResult(
                         success=False,

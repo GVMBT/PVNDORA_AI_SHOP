@@ -377,15 +377,29 @@ async def admin_toggle_vip(user_id: str, request: ToggleVIPRequest, admin=Depend
         # Initialize final_level_override
         final_level_override = None
 
+        from datetime import UTC, datetime
+        now = datetime.now(UTC)
+
         if is_partner:
             # VIP always gets level 3 (full access) - override if not provided
             final_level_override = partner_level_override if partner_level_override else 3
             update_data["partner_level_override"] = final_level_override
             # Also unlock referral program if not already
             update_data["referral_program_unlocked"] = True
+            update_data["referral_unlocked_at"] = now.isoformat()
+            # Set referral_level to match partner_level_override
+            update_data["referral_level"] = final_level_override
+            # Set all level unlock timestamps based on the granted level
+            update_data["level1_unlocked_at"] = now.isoformat()
+            if final_level_override >= 2:
+                update_data["level2_unlocked_at"] = now.isoformat()
+            if final_level_override >= 3:
+                update_data["level3_unlocked_at"] = now.isoformat()
         else:
-            # If revoking VIP, clear level override
+            # If revoking VIP, clear level override but keep earned levels
             update_data["partner_level_override"] = None
+            # Note: We don't reset referral_level or unlocked_at timestamps
+            # because the user may have earned these naturally via turnover
 
         result = await db.client.table("users").update(update_data).eq("id", user_id).execute()
 

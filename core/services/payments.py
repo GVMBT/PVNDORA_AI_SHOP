@@ -86,8 +86,10 @@ class PaymentService:
                 .limit(1)
                 .execute()
             )
-            if result.data:
-                return result.data[0].get("id"), result.data[0].get("status")
+            if result.data and isinstance(result.data, list):
+                row = result.data[0]
+                if isinstance(row, dict):
+                    return row.get("id"), row.get("status")
         except Exception as e:
             logger.warning("Lookup by payment_id failed: %s", e)
         return None, None
@@ -101,7 +103,7 @@ class PaymentService:
         product_name: str,
         method: str = "crystalpay",
         currency: str = "RUB",
-        user_id: int = None,
+        user_id: int | None = None,
         is_telegram_miniapp: bool = True,
         **kwargs,
     ) -> dict[str, Any]:
@@ -138,7 +140,7 @@ class PaymentService:
         amount: float,
         order_id: str,
         description: str = "",
-        user_telegram_id: int = None,
+        user_telegram_id: int | None = None,
         currency: str = "RUB",
     ) -> dict[str, Any]:
         """
@@ -172,7 +174,7 @@ class PaymentService:
         amount: float,
         product_name: str,
         currency: str = "RUB",
-        user_id: int = None,
+        user_id: int | None = None,
         is_telegram_miniapp: bool = True,
     ) -> dict[str, Any]:
         """
@@ -241,6 +243,9 @@ class PaymentService:
             )
 
             data = response.json()
+
+            if not isinstance(data, dict):
+                return {}
 
             if data.get("error"):
                 errors = data.get("errors", [])
@@ -348,6 +353,9 @@ class PaymentService:
             )
 
             data = response.json()
+
+            if not isinstance(data, dict):
+                return {}
 
             if data.get("error"):
                 errors = data.get("errors", [])
@@ -491,6 +499,9 @@ class PaymentService:
             response = await client.post(f"{api_url}/invoice/info/", headers=headers, json=payload)
             data = response.json()
 
+            if not isinstance(data, dict):
+                return {}
+
             if data.get("error"):
                 errors = data.get("errors", [])
                 error_msg = ", ".join(errors) if errors else "Unknown error"
@@ -548,7 +559,7 @@ class PaymentService:
             if user_id:
                 result = (
                     await db.client.table("orders")
-                    .select("id", count="exact")
+                    .select("id", count=cast(Any, "exact"))
                     .eq("user_id", user_id)
                     .eq("refund_requested", True)
                     .execute()
