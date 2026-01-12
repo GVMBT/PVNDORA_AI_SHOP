@@ -116,12 +116,52 @@ async def verify_admin(user: TelegramUser = Depends(verify_telegram_auth)):
     """
     Verify that user is an admin (via Telegram initData).
     Returns db_user object if admin.
+    
+    OPTIMIZATION: Uses Redis cache to avoid duplicate DB queries
+    when multiple admin endpoints are called in parallel.
+    Cache TTL: 60 seconds.
     """
+    from core.db import get_redis
+    
+    redis = None
+    cache_key = f"user:admin:{user.id}"
+    
+    try:
+        redis = get_redis()
+        # Check Redis cache first (TTL 60s)
+        cached = await redis.get(cache_key)
+        if cached == "1":
+            # User is admin (cached) - return minimal object
+            # Endpoints don't use db_user from verify_admin, they make their own queries
+            return type('AdminUser', (), {'telegram_id': user.id, 'is_admin': True})()
+        elif cached == "0":
+            # User is NOT admin (cached)
+            raise HTTPException(status_code=403, detail="Admin access required")
+    except (ValueError, ImportError):
+        # Redis not available - fall through to DB check
+        pass
+    except Exception as e:
+        logger.debug(f"Redis cache check failed: {e}")
+    
+    # Cache miss or error - check DB
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     
     if not db_user or not db_user.is_admin:
+        # Cache negative result
+        if redis:
+            try:
+                await redis.set(cache_key, "0", ex=60)
+            except Exception:
+                pass
         raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Cache positive result
+    if redis:
+        try:
+            await redis.set(cache_key, "1", ex=60)
+        except Exception:
+            pass
     
     return db_user
 
