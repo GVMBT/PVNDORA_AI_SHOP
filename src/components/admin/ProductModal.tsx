@@ -24,7 +24,7 @@ import React, { useState, useRef, memo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Plus, Terminal, Image as ImageIcon, Upload, Video, DollarSign, Info, Zap, Clock, Package, Trash2, RefreshCw } from 'lucide-react';
 import type { ProductData } from './types';
-import { useAdminProductsTyped } from '../../../hooks/api/useAdminApi';
+import { useAdminProductsTyped } from '../../hooks/api/useAdminApi';
 
 interface ProductModalProps {
   isOpen: boolean;
