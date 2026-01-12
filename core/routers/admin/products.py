@@ -296,6 +296,32 @@ async def admin_get_stock(
     return {"stock": result.data if result.data else []}
 
 
+@router.delete("/stock/{stock_item_id}")
+async def admin_delete_stock(stock_item_id: str, admin=Depends(verify_admin)):
+    """Delete a stock item"""
+    db = get_database()
+    
+    # Check if stock item exists
+    stock_result = await db.client.table("stock_items").select(
+        "id, status"
+    ).eq("id", stock_item_id).single().execute()
+    
+    if not stock_result.data:
+        raise HTTPException(status_code=404, detail="Stock item not found")
+    
+    # Only allow deletion of available items (safety check)
+    if stock_result.data.get("status") != "available":
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot delete stock item with status '{stock_result.data.get('status')}'"
+        )
+    
+    # Delete the stock item
+    await db.client.table("stock_items").delete().eq("id", stock_item_id).execute()
+    
+    return {"success": True, "deleted": True}
+
+
 # ==================== HELPERS ====================
 
 async def _notify_waitlist_for_product(db, product_name: str, product_id: Optional[str] = None):

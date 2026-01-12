@@ -22,8 +22,9 @@
 
 import React, { useState, useRef, memo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Plus, Terminal, Image as ImageIcon, Upload, Video, DollarSign, Info, Zap, Clock, Package } from 'lucide-react';
+import { X, Save, Plus, Terminal, Image as ImageIcon, Upload, Video, DollarSign, Info, Zap, Clock, Package, Trash2, RefreshCw } from 'lucide-react';
 import type { ProductData } from './types';
+import { useAdminProductsTyped } from '../../../hooks/api/useAdminApi';
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -42,6 +43,10 @@ const ProductModal: React.FC<ProductModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<ProductTab>('general');
   const [inventoryText, setInventoryText] = useState('');
+  const [stockItems, setStockItems] = useState<any[]>([]);
+  const [loadingStock, setLoadingStock] = useState(false);
+  const [addingStock, setAddingStock] = useState(false);
+  const { addStockBulk, deleteStockItem, getStock } = useAdminProductsTyped();
   const [editingProduct, setEditingProduct] = useState<Partial<ProductData>>(
     product || {
       name: '',
@@ -68,7 +73,76 @@ const ProductModal: React.FC<ProductModalProps> = ({
         image: '',
       });
     }
+    setInventoryText('');
+    setStockItems([]);
   }, [product, isOpen]);
+
+  // Load stock when inventory tab is active and product has ID
+  useEffect(() => {
+    if (activeTab === 'inventory' && editingProduct.id && typeof editingProduct.id === 'string') {
+      loadStock();
+    }
+  }, [activeTab, editingProduct.id]);
+
+  const loadStock = async () => {
+    if (!editingProduct.id || typeof editingProduct.id !== 'string') return;
+    setLoadingStock(true);
+    try {
+      const stock = await getStock(editingProduct.id, false); // Get all stock (not just available)
+      setStockItems(stock);
+    } catch (err) {
+      console.error('Failed to load stock:', err);
+    } finally {
+      setLoadingStock(false);
+    }
+  };
+
+  const handleAddStock = async () => {
+    if (!editingProduct.id || typeof editingProduct.id !== 'string') {
+      alert('Сначала сохраните товар, чтобы добавить сток');
+      return;
+    }
+
+    const lines = inventoryText.split('\n').filter(l => l.trim());
+    if (lines.length === 0) {
+      alert('Введите данные для добавления');
+      return;
+    }
+
+    setAddingStock(true);
+    try {
+      const success = await addStockBulk(editingProduct.id, lines);
+      if (success) {
+        setInventoryText('');
+        await loadStock();
+        alert(`Успешно добавлено ${lines.length} единиц стока`);
+      } else {
+        alert('Ошибка при добавлении стока');
+      }
+    } catch (err) {
+      console.error('Failed to add stock:', err);
+      alert('Ошибка при добавлении стока');
+    } finally {
+      setAddingStock(false);
+    }
+  };
+
+  const handleDeleteStock = async (stockItemId: string) => {
+    if (!confirm('Удалить эту позицию из стока?')) return;
+
+    try {
+      const success = await deleteStockItem(stockItemId);
+      if (success) {
+        await loadStock();
+        alert('Позиция удалена');
+      } else {
+        alert('Ошибка при удалении');
+      }
+    } catch (err) {
+      console.error('Failed to delete stock:', err);
+      alert('Ошибка при удалении');
+    }
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -648,6 +722,56 @@ const ProductModal: React.FC<ProductModalProps> = ({
                 </p>
               </div>
 
+              {/* Текущий сток */}
+              {editingProduct.id && (
+                <div className="bg-[#050505] p-4 border border-blue-500/20 rounded-sm mb-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-xs font-mono text-blue-500 flex items-center gap-2">
+                      <Package size={12} /> ТЕКУЩИЙ СТОК
+                    </span>
+                    <button
+                      onClick={loadStock}
+                      disabled={loadingStock}
+                      className="text-[10px] text-gray-400 hover:text-blue-400 font-mono flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <RefreshCw size={10} className={loadingStock ? 'animate-spin' : ''} /> Обновить
+                    </button>
+                  </div>
+                  {loadingStock ? (
+                    <p className="text-xs text-gray-500">Загрузка...</p>
+                  ) : stockItems.length === 0 ? (
+                    <p className="text-xs text-gray-500">Сток пуст</p>
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto space-y-2">
+                      {stockItems.map((item: any) => (
+                        <div
+                          key={item.id}
+                          className="flex items-start justify-between gap-2 p-2 bg-black/50 border border-white/5 rounded-sm"
+                        >
+                          <code className="text-[10px] text-green-400 flex-1 break-all font-mono">
+                            {item.content}
+                          </code>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-[9px] text-gray-500 font-mono px-1.5 py-0.5 bg-gray-900 rounded">
+                              {item.status}
+                            </span>
+                            {item.status === 'available' && (
+                              <button
+                                onClick={() => handleDeleteStock(item.id)}
+                                className="text-red-400 hover:text-red-300 p-1"
+                                title="Удалить"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Массовая загрузка */}
               <div className="bg-[#050505] p-4 border border-green-500/20 rounded-sm">
                 <div className="flex justify-between items-center mb-3">
@@ -672,18 +796,21 @@ license_key_xyz789`}
                 </p>
               </div>
               
-              <div className="flex justify-end">
+              <div className="flex justify-end mt-4">
                 <button 
-                  onClick={() => {
-                    const lines = inventoryText.split('\n').filter(l => l.trim());
-                    if (lines.length > 0) {
-                      alert(`Будет добавлено ${lines.length} единиц через API.\nПримечание: сначала сохраните товар.`);
-                    }
-                  }}
-                  disabled={!inventoryText.trim()}
+                  onClick={handleAddStock}
+                  disabled={!inventoryText.trim() || !editingProduct.id || addingStock}
                   className="bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-black disabled:text-gray-500 font-bold py-2 px-6 text-xs uppercase flex items-center gap-2 rounded-sm transition-colors"
                 >
-                  <Plus size={14} /> Добавить на склад
+                  {addingStock ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" /> Добавление...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={14} /> Добавить на склад
+                    </>
+                  )}
                 </button>
               </div>
             </div>

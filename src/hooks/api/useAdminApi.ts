@@ -158,21 +158,59 @@ export function useAdminProductsTyped() {
     }
   }, [getProducts]);
 
-  const addStock = useCallback(async (productId: string, credentials: string[], notes?: string): Promise<boolean> => {
+  const addStockBulk = useCallback(async (productId: string, items: string[]): Promise<boolean> => {
     try {
-      await adminRequest('/stock', {
+      const response = await adminRequest<{ success: boolean; added_count: number }>('/stock/bulk', {
         method: 'POST',
-        body: JSON.stringify({ product_id: productId, credentials, notes }),
+        body: JSON.stringify({ product_id: productId, items }),
       });
       await getProducts();
-      return true;
+      return response.success;
     } catch (err) {
       logger.error('Failed to add stock', err);
       return false;
     }
   }, [getProducts]);
 
-  return { products, getProducts, createProduct, updateProduct, deleteProduct, addStock, loading, error };
+  const deleteStockItem = useCallback(async (stockItemId: string): Promise<boolean> => {
+    try {
+      await adminRequest(`/stock/${stockItemId}`, { method: 'DELETE' });
+      await getProducts();
+      return true;
+    } catch (err) {
+      logger.error('Failed to delete stock item', err);
+      return false;
+    }
+  }, [getProducts]);
+
+  const getStock = useCallback(async (productId?: string, availableOnly: boolean = true): Promise<any[]> => {
+    try {
+      let url = '/stock';
+      const params = new URLSearchParams();
+      if (productId) params.append('product_id', productId);
+      if (!availableOnly) params.append('available_only', 'false');
+      if (params.toString()) url += `?${params.toString()}`;
+      
+      const response = await adminRequest<{ stock: any[] }>(url);
+      return response.stock || [];
+    } catch (err) {
+      logger.error('Failed to fetch stock', err);
+      return [];
+    }
+  }, []);
+
+  return { 
+    products, 
+    getProducts, 
+    createProduct, 
+    updateProduct, 
+    deleteProduct, 
+    addStockBulk, 
+    deleteStockItem,
+    getStock,
+    loading, 
+    error 
+  };
 }
 
 // Orders Hook
