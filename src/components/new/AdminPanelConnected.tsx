@@ -113,7 +113,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
           totalOrders: parseInt(data.total_orders) || 0,
           
           // Revenue by currency (NEW - real amounts!)
-          revenueByСurrency: data.revenue_by_currency || {},
+          revenueByCurrency: data.revenue_by_currency || {},
           
           // Legacy totals in USD
           totalRevenue: parseFloat(data.total_revenue) || 0,

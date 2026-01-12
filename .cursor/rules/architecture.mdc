@@ -62,7 +62,7 @@ When user says: "сделай", "исправь", "реализуй", "доба�
 
 ### C. Payment Flow
 
-**Rule:** Use WebApp "Gasket" for external payments (1Plat).
+**Rule:** Use WebApp "Gasket" for external payments.
 
 **Flow:** AI detects purchase → Generate order UUID → Bot sends payment button → WebApp redirects → Webhook updates DB → Deliver goods
 
@@ -101,7 +101,6 @@ When user says: "сделай", "исправь", "реализуй", "доба�
 **Endpoints:**
 - `POST /api/workers/deliver-goods`
 - `POST /api/workers/update-leaderboard`
-- `POST /api/workers/notify-supplier`
 - `POST /api/workers/update-referral-bonus`
 
 ### Environment Variables (Required)
@@ -111,7 +110,6 @@ When user says: "сделай", "исправь", "реализуй", "доба�
 - `OPENROUTER_API_KEY` (required for AI agent). Fallback: `GEMINI_API_KEY` (legacy)
 - `QSTASH_URL`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`
 - `UPSTASH_REDIS_URL`, `UPSTASH_REDIS_TOKEN`
-- `ONEPLAT_SHOP_ID`, `ONEPLAT_SECRET_KEY` (required)
 - `WEBAPP_URL`, `BASE_URL` (for QStash worker endpoints)
 
 ## 4. Code Style
@@ -148,6 +146,12 @@ When user says: "сделай", "исправь", "реализуй", "доба�
 8. **Context caching** - Optimize AI costs with cached System Prompts and product catalog
 9. **Atomic transactions** - Use PostgreSQL RPC for all transactional operations
 10. **No ORM** - Direct SQL queries via supabase-py only
+
+### 11. Truth Source
+
+**Rule:** ALWAYS trust the codebase over documentation in `docs/`. Documentation files may be outdated.
+- `docs/` is for reference but code is the source of truth.
+- Do NOT rely on `REFACTORING_*.md` or similar temp files (they should be deleted).
 
 ## 7. Documentation Reference
 
