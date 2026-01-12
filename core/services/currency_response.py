@@ -144,7 +144,9 @@ class CurrencyFormatter:
             currency_service = get_currency_service(redis)
             currency = currency_service.get_user_currency(user_lang, user_preferred)
             
-            logger.info(f"CurrencyFormatter: user={user_telegram_id}, preferred={user_preferred}, currency={currency}")
+            # Log user identifier (telegram_id or db_user id)
+            user_id_for_log = user_telegram_id or (getattr(db_user, 'telegram_id', None) if db_user else None)
+            logger.info(f"CurrencyFormatter: user={user_id_for_log}, preferred={user_preferred}, currency={currency}")
             
             # Get exchange rate
             if currency != "USD":
