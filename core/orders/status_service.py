@@ -142,8 +142,9 @@ class OrderStatusService:
             # Get order info
         try:
             logger.debug(f"[mark_payment_confirmed] Fetching order {order_id} from DB...")
+            # OPTIMIZATION #6: Include user_telegram_id to avoid duplicate query later
             order_result = await self.db.client.table("orders").select(
-                "status, order_type, payment_method, user_id, amount, fiat_amount, fiat_currency"
+                "status, order_type, payment_method, user_id, user_telegram_id, amount, fiat_amount, fiat_currency"
             ).eq("id", order_id).single().execute()
             logger.debug(f"[mark_payment_confirmed] Order fetch result: {order_result.data}")
             
@@ -154,6 +155,7 @@ class OrderStatusService:
             order_type = order_result.data.get("order_type", "instant")
             payment_method = order_result.data.get("payment_method", "")
             user_id = order_result.data.get("user_id")
+            user_telegram_id = order_result.data.get("user_telegram_id")  # OPTIMIZATION #6: Extract from first query
             order_amount = order_result.data.get("amount", 0)
             fiat_amount = order_result.data.get("fiat_amount")
             fiat_currency = order_result.data.get("fiat_currency")
@@ -190,6 +192,58 @@ class OrderStatusService:
             update_result = await self.update_status(order_id, final_status, "Payment confirmed via webhook", check_transition=False)
             logger.debug(f"[mark_payment_confirmed] update_status returned: {update_result}")
             
+            # OPTIMIZATION #6: Parallelize independent queries (order_items and user balance)
+            import asyncio
+            
+            async def fetch_order_items():
+                """Fetch order_items for notification and fulfillment deadline."""
+                try:
+                    result = await self.db.client.table("order_items").select(
+                        "fulfillment_type"
+                    ).eq("order_id", order_id).execute()
+                    return result.data or []
+                except Exception as e:
+                    logger.warning(f"Failed to fetch order_items: {e}")
+                    return []
+            
+            async def fetch_user_balance_and_check_tx():
+                """Fetch user balance and check if transaction exists (only if needed)."""
+                if payment_method and payment_method.lower() != "balance" and user_id and order_amount:
+                    try:
+                        # Check if transaction already exists (idempotency)
+                        existing_tx = await self.db.client.table("balance_transactions").select(
+                            "id"
+                        ).eq("user_id", user_id).eq("type", "purchase").eq(
+                            "description", f"Purchase: Order {order_id}"
+                        ).limit(1).execute()
+                        
+                        if not existing_tx.data:
+                            # Get user's current balance for logging
+                            user_result = await self.db.client.table("users").select(
+                                "balance"
+                            ).eq("id", user_id).single().execute()
+                            balance = float(user_result.data.get("balance", 0)) if user_result.data else 0
+                            return balance, False  # (balance, tx_exists)
+                        return None, True  # Transaction exists
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch user balance: {e}")
+                        return None, False
+                return None, False  # Not needed
+            
+            # Execute queries in parallel (outside if/else to use results in both branches)
+            items_result, (user_balance, tx_exists) = await asyncio.gather(
+                fetch_order_items(),
+                fetch_user_balance_and_check_tx(),
+                return_exceptions=True
+            )
+            
+            # Handle exceptions
+            if isinstance(items_result, Exception):
+                items_result = []
+            if isinstance(user_balance, Exception) or isinstance(tx_exists, Exception):
+                user_balance = None
+                tx_exists = False
+            
             if not update_result:
                 logger.error(f"[mark_payment_confirmed] FAILED to update order {order_id} status to {final_status}!")
             else:
@@ -201,40 +255,27 @@ class OrderStatusService:
                 
                 # Send payment confirmation to user (best-effort)
                 try:
-                    # Get user telegram_id and order details
-                    user_order_result = await self.db.client.table("orders").select(
-                        "user_telegram_id, fiat_amount, fiat_currency, amount"
-                    ).eq("id", order_id).single().execute()
-                    
-                    if user_order_result.data:
-                        telegram_id = user_order_result.data.get("user_telegram_id")
-                        fiat_amount = user_order_result.data.get("fiat_amount")
-                        fiat_currency = user_order_result.data.get("fiat_currency") or "USD"
-                        usd_amount = float(user_order_result.data.get("amount", 0))
+                    # OPTIMIZATION #6: Use user_telegram_id from first query (no duplicate query)
+                    if user_telegram_id:
+                        # Use fiat_amount from first query (already extracted)
+                        display_amount = float(fiat_amount) if fiat_amount else float(order_amount)
+                        display_currency = fiat_currency if fiat_amount else "USD"
                         
-                        if telegram_id:
-                            # Use fiat_amount if available
-                            display_amount = float(fiat_amount) if fiat_amount else usd_amount
-                            display_currency = fiat_currency if fiat_amount else "USD"
-                            
-                            # Count preorder items
-                            items_result = await self.db.client.table("order_items").select(
-                                "fulfillment_type"
-                            ).eq("order_id", order_id).execute()
-                            preorder_count = sum(1 for item in (items_result.data or []) if item.get("fulfillment_type") == "preorder")
-                            has_instant = any(item.get("fulfillment_type") != "preorder" for item in (items_result.data or []))
-                            
-                            from core.routers.deps import get_notification_service
-                            notification_service = get_notification_service()
-                            await notification_service.send_payment_confirmed(
-                                telegram_id=telegram_id,
-                                order_id=order_id,
-                                amount=display_amount,
-                                currency=display_currency,
-                                status=final_status,
-                                has_instant_items=has_instant,
-                                preorder_count=preorder_count
-                            )
+                        # Use order_items from parallel query
+                        preorder_count = sum(1 for item in items_result if item.get("fulfillment_type") == "preorder")
+                        has_instant = any(item.get("fulfillment_type") != "preorder" for item in items_result)
+                        
+                        from core.routers.deps import get_notification_service
+                        notification_service = get_notification_service()
+                        await notification_service.send_payment_confirmed(
+                            telegram_id=user_telegram_id,
+                            order_id=order_id,
+                            amount=display_amount,
+                            currency=display_currency,
+                            status=final_status,
+                            has_instant_items=has_instant,
+                            preorder_count=preorder_count
+                        )
                 except Exception as e:
                     logger.warning(f"Failed to send payment confirmation to user for order {order_id}: {e}")
             
@@ -242,19 +283,9 @@ class OrderStatusService:
             # Only for external payments (not balance) - balance payments already create records via add_to_user_balance
             if payment_method and payment_method.lower() != "balance" and user_id and order_amount:
                 try:
-                    # Check if transaction already exists (idempotency)
-                    existing_tx = await self.db.client.table("balance_transactions").select(
-                        "id"
-                    ).eq("user_id", user_id).eq("type", "purchase").eq(
-                        "description", f"Purchase: Order {order_id}"
-                    ).limit(1).execute()
-                    
-                    if not existing_tx.data:
-                        # Get user's current balance for logging
-                        user_result = await self.db.client.table("users").select(
-                            "balance"
-                        ).eq("id", user_id).single().execute()
-                        current_balance = float(user_result.data.get("balance", 0)) if user_result.data else 0
+                    # OPTIMIZATION #6: Use user_balance from parallel query (already fetched above)
+                    if user_balance is not None and not tx_exists:
+                        current_balance = user_balance
                         
                         # Use fiat_amount and fiat_currency if available (real payment amount), otherwise fallback to USD amount
                         if fiat_amount is not None and fiat_currency:
@@ -282,21 +313,21 @@ class OrderStatusService:
                             }
                         }).execute()
                         logger.debug(f"[mark_payment_confirmed] Created balance_transaction for purchase order {order_id}: {transaction_amount} {transaction_currency}")
-                    else:
+                    elif tx_exists:
                         logger.debug(f"[mark_payment_confirmed] balance_transaction already exists for order {order_id}, skipping")
                 except Exception as e:
                     logger.warning(f"Failed to create balance_transaction for order {order_id}: {e}")
                     # Non-critical - don't fail the payment confirmation
             
             # Set fulfillment deadline for orders with preorder items
-            # Check if order has any preorder items (regardless of final_status)
+            # OPTIMIZATION #6: Reuse order_items from parallel query (already fetched above)
             try:
-                items_result = await self.db.client.table("order_items").select(
-                    "fulfillment_type"
-                ).eq("order_id", order_id).execute()
+                # Use order_items from parallel query (already fetched)
+                items_result_data = items_result
+                
                 has_preorder_items = any(
                     item.get("fulfillment_type") == "preorder" 
-                    for item in (items_result.data or [])
+                    for item in items_result_data
                 )
                 
                 if has_preorder_items:

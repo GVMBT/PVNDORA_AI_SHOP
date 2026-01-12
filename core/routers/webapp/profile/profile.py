@@ -22,6 +22,67 @@ logger = get_logger(__name__)
 
 profile_router = APIRouter()
 
+# Cache for referral_settings (TTL 10 minutes)
+_referral_settings_cache = None
+_referral_settings_cache_ttl = 10 * 60  # 10 minutes
+_referral_settings_cache_time = None
+
+
+async def _get_referral_settings_cached(db):
+    """
+    Get referral_settings with Redis cache (TTL 10 minutes).
+    Falls back to DB query if Redis unavailable.
+    """
+    global _referral_settings_cache, _referral_settings_cache_time
+    
+    from core.db import get_redis
+    from datetime import datetime, timezone
+    
+    redis = None
+    try:
+        redis = get_redis()
+    except (ValueError, ImportError):
+        pass
+    
+    cache_key = "referral_settings:cache"
+    
+    # Try Redis cache first
+    if redis:
+        try:
+            cached = await redis.get(cache_key)
+            if cached:
+                import json
+                return json.loads(cached)
+        except Exception:
+            pass
+    
+    # Fallback to in-memory cache (within same request cycle)
+    current_time = datetime.now(timezone.utc).timestamp()
+    if _referral_settings_cache and _referral_settings_cache_time:
+        if current_time - _referral_settings_cache_time < _referral_settings_cache_ttl:
+            return _referral_settings_cache
+    
+    # Fetch from DB
+    try:
+        result = await db.client.table("referral_settings").select("*").limit(1).execute()
+        settings = result.data[0] if result.data else {}
+    except Exception as e:
+        logger.warning(f"Failed to load referral_settings: {e}")
+        settings = {}
+    
+    # Update caches
+    if redis:
+        try:
+            import json
+            await redis.set(cache_key, json.dumps(settings), ex=_referral_settings_cache_ttl)
+        except Exception:
+            pass
+    
+    _referral_settings_cache = settings
+    _referral_settings_cache_time = current_time
+    
+    return settings
+
 
 @profile_router.get("/profile")
 async def get_webapp_profile(user=Depends(verify_telegram_auth)):
@@ -34,14 +95,9 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
     # Refresh photo (with 6h gate) to catch avatar updates or missing photos
     await _maybe_refresh_photo(db, db_user, user.id)
     
-    # Parallel database queries for better performance
+    # OPTIMIZATION #8: Use cached referral_settings (Redis cache with 10min TTL)
     async def fetch_settings():
-        try:
-            result = await db.client.table("referral_settings").select("*").limit(1).execute()
-            return result.data[0] if result.data else {}
-        except Exception as e:
-            logger.warning(f"Failed to load referral_settings: {e}")
-            return {}
+        return await _get_referral_settings_cached(db)
     
     async def fetch_extended_stats():
         try:
@@ -106,11 +162,14 @@ async def get_webapp_profile(user=Depends(verify_telegram_auth)):
         "conversion_rate": 0,
     }
     
-    # Get currency formatter first to get display currency
+    # OPTIMIZATION #5: Pass db_user directly to CurrencyFormatter to avoid duplicate DB query
     from core.db import get_redis
     from core.services.currency_response import CurrencyFormatter
     redis = get_redis()
-    formatter = await CurrencyFormatter.create(user.id, db, redis)
+    formatter = await CurrencyFormatter.create(
+        db_user=db_user,  # Pass db_user directly (already fetched above)
+        redis=redis
+    )
     
     referral_program = await _build_default_referral_program(
         THRESHOLD_LEVEL2, THRESHOLD_LEVEL3, COMMISSION_LEVEL1, COMMISSION_LEVEL2, COMMISSION_LEVEL3,

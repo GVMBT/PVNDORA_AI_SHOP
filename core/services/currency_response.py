@@ -97,31 +97,48 @@ class CurrencyFormatter:
     @classmethod
     async def create(
         cls,
-        user_telegram_id: Optional[int],
-        db,
+        user_telegram_id: Optional[int] = None,
+        db = None,
         redis = None,
         preferred_currency: Optional[str] = None,
-        language_code: Optional[str] = None
+        language_code: Optional[str] = None,
+        db_user = None  # OPTIMIZATION: Pass db_user directly to avoid duplicate DB query
     ) -> "CurrencyFormatter":
         """
         Factory method to create CurrencyFormatter for a user.
         
         Uses CurrencyService.get_user_currency() for currency determination.
+        
+        Args:
+            user_telegram_id: Telegram user ID (used if db_user not provided)
+            db: Database instance (used if db_user not provided)
+            redis: Redis client
+            preferred_currency: User's preferred currency (overrides db_user)
+            language_code: User's language code (overrides db_user)
+            db_user: User model object (OPTIMIZATION: pass directly to avoid duplicate query)
         """
         currency = "USD"
         exchange_rate = 1.0
         
         try:
-            # Get user preferences from DB if telegram_id provided
+            # Get user preferences from db_user if provided, otherwise from DB
             user_preferred = preferred_currency
             user_lang = language_code or "en"
             
-            if user_telegram_id and not preferred_currency:
-                db_user = await db.get_user_by_telegram_id(user_telegram_id)
-                if db_user:
+            if db_user:
+                # OPTIMIZATION: Use provided db_user (no DB query needed)
+                if not preferred_currency:
                     user_preferred = getattr(db_user, 'preferred_currency', None)
+                if not language_code:
                     user_lang = getattr(db_user, 'interface_language', None) or \
                                getattr(db_user, 'language_code', 'en') or 'en'
+            elif user_telegram_id and db and not preferred_currency:
+                # Fallback: Query DB if db_user not provided (backward compatibility)
+                db_user_fetch = await db.get_user_by_telegram_id(user_telegram_id)
+                if db_user_fetch:
+                    user_preferred = getattr(db_user_fetch, 'preferred_currency', None)
+                    user_lang = getattr(db_user_fetch, 'interface_language', None) or \
+                               getattr(db_user_fetch, 'language_code', 'en') or 'en'
             
             # Use CurrencyService for currency determination (single source of truth)
             currency_service = get_currency_service(redis)
