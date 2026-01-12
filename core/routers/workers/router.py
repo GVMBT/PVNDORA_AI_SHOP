@@ -37,7 +37,7 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
     CRITICAL: This function should ONLY be called AFTER payment is confirmed via webhook.
     Orders with status 'pending' should NOT be processed - payment is not confirmed yet.
     """
-    logger.info(f"deliver-goods: starting for order {order_id}, only_instant={only_instant}")
+    logger.debug(f"deliver-goods: starting for order {order_id}, only_instant={only_instant}")
     
     # OPTIMIZATION: Load all order data in one query (combines requests #1, #6, #8)
     # Fields needed:
@@ -80,7 +80,7 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
     
     now = datetime.now(timezone.utc)
     items = await db.get_order_items_by_order(order_id)
-    logger.info(f"deliver-goods: found {len(items) if items else 0} items for order {order_id}")
+    logger.debug(f"deliver-goods: found {len(items) if items else 0} items for order {order_id}")
     if not items:
         return {"delivered": 0, "waiting": 0, "note": "no_items"}
     

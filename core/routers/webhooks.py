@@ -41,8 +41,6 @@ async def crystalpay_webhook(request: Request):
     
     Docs: https://docs.crystalpay.io/callback/invoice-uvedomleniya
     """
-    logger.info(f"CrystalPay webhook RECEIVED: method={request.method}, url={request.url}")
-    
     try:
         # Parse JSON body
         raw_body = await request.body()
@@ -76,8 +74,6 @@ async def crystalpay_webhook(request: Request):
         if result["success"]:
             real_order_id = result["order_id"]
             
-            logger.info(f"CrystalPay webhook verified for order: {real_order_id}")
-            
             from core.services.database import get_database
             db = get_database()
             
@@ -90,7 +86,7 @@ async def crystalpay_webhook(request: Request):
                 if lookup_result.data:
                     order_data = lookup_result.data[0]
                     real_order_id = order_data["id"]
-                    logger.info(f"CrystalPay webhook: mapped invoice {invoice_id} -> order {real_order_id}")
+                    logger.debug(f"CrystalPay webhook: mapped invoice {invoice_id} -> order {real_order_id}")
                 else:
                     # Fallback: try direct lookup by order_id from extra
                     direct_result = await db.client.table("orders").select("*").eq(
@@ -99,7 +95,7 @@ async def crystalpay_webhook(request: Request):
                     if direct_result.data:
                         order_data = direct_result.data[0]
                         real_order_id = order_data["id"]
-                        logger.info(f"CrystalPay webhook: direct order lookup for {real_order_id}")
+                        logger.debug(f"CrystalPay webhook: direct order lookup for {real_order_id}")
                     else:
                         logger.warning(f"CrystalPay webhook: Order not found for invoice {invoice_id}, extra {order_id}")
                         return JSONResponse(
@@ -152,8 +148,6 @@ async def crystalpay_webhook(request: Request):
                             logger.error(f"CrystalPay webhook: Failed to create refund ticket: {e}", exc_info=True)
                     
                     return JSONResponse({"ok": True, "note": "refund_pending"}, status_code=200)
-            
-            logger.info(f"CrystalPay webhook processing delivery for order: {real_order_id}")
             
             # CRITICAL: Mark payment as confirmed
             try:

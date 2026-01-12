@@ -45,6 +45,13 @@ def _configure_root_logger() -> None:
     handler.setFormatter(formatter)
     
     root.addHandler(handler)
+    
+    # Disable verbose HTTP logging from httpx/supabase (set to WARNING level)
+    # This reduces log noise from API requests
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("httpcore.http11").setLevel(logging.WARNING)
+    logging.getLogger("httpcore.connection").setLevel(logging.WARNING)
 
 
 # Configure once on module import

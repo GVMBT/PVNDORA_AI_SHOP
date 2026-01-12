@@ -83,7 +83,7 @@ class OrderStatusService:
         Returns:
             True if updated, False otherwise
         """
-        logger.info(f"[StatusService] update_status called: order_id={order_id}, new_status={new_status}, check_transition={check_transition}")
+        logger.debug(f"[StatusService] update_status called: order_id={order_id}, new_status={new_status}, check_transition={check_transition}")
         
         if check_transition:
             can_transition, reason_msg = await self.can_transition_to(order_id, new_status)
@@ -97,7 +97,7 @@ class OrderStatusService:
                 "updated_at": datetime.now(timezone.utc).isoformat()
             }
             
-            logger.info(f"[StatusService] Updating order {order_id} with data: {update_data}")
+            logger.debug(f"[StatusService] Updating order {order_id} with data: {update_data}")
             
             result = await self.db.client.table("orders").update(
                 update_data
@@ -105,7 +105,7 @@ class OrderStatusService:
             
             # Log the result to verify update happened
             rows_affected = len(result.data) if result.data else 0
-            logger.info(f"[StatusService] Update result for {order_id}: rows_affected={rows_affected}, data={result.data}")
+            logger.debug(f"[StatusService] Update result for {order_id}: rows_affected={rows_affected}")
             
             if rows_affected == 0:
                 logger.warning(f"[StatusService] NO ROWS UPDATED for order {order_id}! Order might not exist.")
@@ -137,15 +137,15 @@ class OrderStatusService:
         Returns:
             Final status set ('paid' or 'prepaid')
         """
-        logger.info(f"[mark_payment_confirmed] Called for order_id={order_id}, payment_id={payment_id}, check_stock={check_stock}")
+        logger.debug(f"[mark_payment_confirmed] Called for order_id={order_id}, payment_id={payment_id}, check_stock={check_stock}")
         
             # Get order info
         try:
-            logger.info(f"[mark_payment_confirmed] Fetching order {order_id} from DB...")
+            logger.debug(f"[mark_payment_confirmed] Fetching order {order_id} from DB...")
             order_result = await self.db.client.table("orders").select(
                 "status, order_type, payment_method, user_id, amount, fiat_amount, fiat_currency"
             ).eq("id", order_id).single().execute()
-            logger.info(f"[mark_payment_confirmed] Order fetch result: {order_result.data}")
+            logger.debug(f"[mark_payment_confirmed] Order fetch result: {order_result.data}")
             
             if not order_result.data:
                 raise ValueError(f"Order {order_id} not found")
@@ -158,20 +158,20 @@ class OrderStatusService:
             fiat_amount = order_result.data.get("fiat_amount")
             fiat_currency = order_result.data.get("fiat_currency")
             
-            logger.info(f"[mark_payment_confirmed] Order {order_id}: current_status={current_status}, order_type={order_type}, payment_method={payment_method}")
+            logger.debug(f"[mark_payment_confirmed] Order {order_id}: current_status={current_status}, order_type={order_type}, payment_method={payment_method}")
             
             # IDEMPOTENCY: If already paid/prepaid/delivered, return current status
             if current_status in ("paid", "prepaid", "delivered", "partial"):
-                logger.info(f"Order {order_id} already in status '{current_status}' (idempotency check), skipping")
+                logger.debug(f"Order {order_id} already in status '{current_status}' (idempotency check), skipping")
                 return current_status
             
             # Check stock availability for ALL payment methods (including balance)
             # Balance payment doesn't mean stock is available!
             if check_stock:
-                logger.info("[mark_payment_confirmed] Checking stock availability...")
+                logger.debug("[mark_payment_confirmed] Checking stock availability...")
                 has_stock = await self._check_stock_availability(order_id)
                 final_status = "paid" if has_stock else "prepaid"
-                logger.info(f"[mark_payment_confirmed] has_stock={has_stock}, final_status={final_status}, payment_method={payment_method}")
+                logger.debug(f"[mark_payment_confirmed] has_stock={has_stock}, final_status={final_status}, payment_method={payment_method}")
             else:
                 # If not checking stock, default to 'prepaid' for safety
                 final_status = "prepaid"
@@ -179,16 +179,16 @@ class OrderStatusService:
             # Update payment_id if provided
             if payment_id:
                 try:
-                    logger.info(f"[mark_payment_confirmed] Updating payment_id to {payment_id}")
+                    logger.debug(f"[mark_payment_confirmed] Updating payment_id to {payment_id}")
                     await self.db.client.table("orders").update({
                         "payment_id": payment_id
                     }).eq("id", order_id).execute()
                 except Exception as e:
                     logger.warning(f"Failed to update payment_id for {order_id}: {e}")
             
-            logger.info(f"[mark_payment_confirmed] About to call update_status with final_status={final_status}")
+            logger.debug(f"[mark_payment_confirmed] About to call update_status with final_status={final_status}")
             update_result = await self.update_status(order_id, final_status, "Payment confirmed via webhook", check_transition=False)
-            logger.info(f"[mark_payment_confirmed] update_status returned: {update_result}")
+            logger.debug(f"[mark_payment_confirmed] update_status returned: {update_result}")
             
             if not update_result:
                 logger.error(f"[mark_payment_confirmed] FAILED to update order {order_id} status to {final_status}!")
@@ -281,9 +281,9 @@ class OrderStatusService:
                                 "payment_id": payment_id
                             }
                         }).execute()
-                        logger.info(f"[mark_payment_confirmed] Created balance_transaction for purchase order {order_id}: {transaction_amount} {transaction_currency}")
+                        logger.debug(f"[mark_payment_confirmed] Created balance_transaction for purchase order {order_id}: {transaction_amount} {transaction_currency}")
                     else:
-                        logger.info(f"[mark_payment_confirmed] balance_transaction already exists for order {order_id}, skipping")
+                        logger.debug(f"[mark_payment_confirmed] balance_transaction already exists for order {order_id}, skipping")
                 except Exception as e:
                     logger.warning(f"Failed to create balance_transaction for order {order_id}: {e}")
                     # Non-critical - don't fail the payment confirmation
@@ -300,24 +300,24 @@ class OrderStatusService:
                 )
                 
                 if has_preorder_items:
-                    logger.info(f"[mark_payment_confirmed] Setting fulfillment deadline for order {order_id} with preorder items (final_status={final_status})")
+                    logger.debug(f"[mark_payment_confirmed] Setting fulfillment deadline for order {order_id} with preorder items (final_status={final_status})")
                     await self.db.client.rpc("set_fulfillment_deadline_for_prepaid_order", {
                         "p_order_id": order_id,
                         "p_hours_from_now": 24
                     }).execute()
                 else:
-                    logger.info(f"[mark_payment_confirmed] Order {order_id} has no preorder items, skipping fulfillment_deadline")
+                    logger.debug(f"[mark_payment_confirmed] Order {order_id} has no preorder items, skipping fulfillment_deadline")
             except Exception as e:
                 logger.warning(f"Failed to set fulfillment deadline for {order_id}: {e}")
             
             # CRITICAL: Create order_expenses for accounting (best-effort, non-blocking)
             if update_result:
                 try:
-                    logger.info(f"[mark_payment_confirmed] Creating order_expenses for order {order_id}")
+                    logger.debug(f"[mark_payment_confirmed] Creating order_expenses for order {order_id}")
                     await self.db.client.rpc("calculate_order_expenses", {
                         "p_order_id": order_id
                     }).execute()
-                    logger.info(f"[mark_payment_confirmed] Successfully created order_expenses for order {order_id}")
+                    logger.debug(f"[mark_payment_confirmed] Successfully created order_expenses for order {order_id}")
                 except Exception as e:
                     logger.warning(f"Failed to create order_expenses for order {order_id}: {e}")
                     # Non-critical - don't fail payment confirmation

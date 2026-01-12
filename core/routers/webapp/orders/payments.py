@@ -549,8 +549,6 @@ async def _process_balance_payment(
     
     # Update order status
     # #region agent log
-    logger.info(f"[DEBUG-HYP-B] Before OrderStatusService.mark_payment_confirmed: order_id={order.id}")
-    # #endregion
     try:
         from core.orders.status_service import OrderStatusService
         status_service = OrderStatusService(db)
@@ -560,13 +558,9 @@ async def _process_balance_payment(
             check_stock=True
         )
         # #region agent log
-        logger.info(f"[DEBUG-HYP-B] OrderStatusService.mark_payment_confirmed success: order_id={order.id}, final_status={final_status}")
-        # #endregion
         logger.info(f"Balance payment confirmed for order {order.id}, final_status={final_status}")
     except Exception as e:
         # #region agent log
-        logger.error(f"[DEBUG-HYP-B] OrderStatusService.mark_payment_confirmed FAILED: error={str(e)}, error_type={type(e).__name__}")
-        # #endregion
         logger.error(f"Failed to mark payment confirmed for balance order {order.id}: {e}", exc_info=True)
     
     # Queue delivery via QStash
