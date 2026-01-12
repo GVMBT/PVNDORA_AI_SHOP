@@ -51,7 +51,7 @@ async def _update_user_activity_async(telegram_id: int) -> None:
         logger.debug(f"Failed to update user activity: {e}")
 
 
-async def update_user_activity_with_debounce(telegram_id: int) -> None:
+def update_user_activity_with_debounce(telegram_id: int) -> None:
     """
     Update user activity with Redis debounce (max 1 per minute per user).
     
@@ -60,12 +60,16 @@ async def update_user_activity_with_debounce(telegram_id: int) -> None:
     
     Call this from verify_telegram_auth or endpoints to update user activity.
     
+    Note: This is a sync function that schedules an async task in the background.
+    Do NOT await this function.
+    
     Args:
         telegram_id: Telegram user ID
     """
     # Fire-and-forget async update (non-blocking)
     try:
         # Use asyncio.create_task to run in background
+        # This works because we're called from within an async context (FastAPI)
         asyncio.create_task(_update_user_activity_async(telegram_id))
     except Exception as e:
         # Non-fatal - activity tracking shouldn't break requests

@@ -27,11 +27,11 @@ def run_command(cmd: List[str]) -> Optional[str]:
         )
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
-        print(f"❌ Ошибка выполнения команды: {' '.join(cmd)}", file=sys.stderr)
+        print(f"[ERROR] Ошибка выполнения команды: {' '.join(cmd)}", file=sys.stderr)
         print(f"   {e.stderr}", file=sys.stderr)
         return None
     except FileNotFoundError:
-        print("❌ Vercel CLI не найден. Установите: npm i -g vercel", file=sys.stderr)
+        print("[ERROR] Vercel CLI не найден. Установите: npm i -g vercel", file=sys.stderr)
         return None
 
 
@@ -45,7 +45,7 @@ def get_projects() -> List[Dict]:
         projects = json.loads(output)
         return projects if isinstance(projects, list) else []
     except json.JSONDecodeError:
-        print("❌ Не удалось распарсить список проектов", file=sys.stderr)
+        print("[ERROR] Не удалось распарсить список проектов", file=sys.stderr)
         return []
 
 
@@ -75,9 +75,9 @@ def get_logs(deployment_id: str, follow: bool = False):
         try:
             subprocess.run(cmd, check=True)
         except subprocess.CalledProcessError as e:
-            print(f"❌ Ошибка получения логов: {e}", file=sys.stderr)
+            print(f"[ERROR] Ошибка получения логов: {e}", file=sys.stderr)
         except KeyboardInterrupt:
-            print("\n⏹️  Остановлено пользователем")
+            print("\n[STOP] Остановлено пользователем")
     else:
         output = run_command(cmd)
         if output:
@@ -100,11 +100,11 @@ def main():
     )
     args = parser.parse_args()
     
-    print("🔍 Получаю список проектов...")
+    print("[INFO] Получаю список проектов...")
     projects = get_projects()
     
     if not projects:
-        print("❌ Не удалось получить список проектов.", file=sys.stderr)
+        print("[ERROR] Не удалось получить список проектов.", file=sys.stderr)
         print("   Убедитесь, что вы авторизованы: vercel login", file=sys.stderr)
         sys.exit(1)
     
@@ -112,7 +112,7 @@ def main():
     if args.project:
         projects = [p for p in projects if args.project.lower() in p.get("name", "").lower()]
         if not projects:
-            print(f"❌ Проект '{args.project}' не найден", file=sys.stderr)
+            print(f"[ERROR] Проект '{args.project}' не найден", file=sys.stderr)
             sys.exit(1)
     
     for project in projects:
@@ -120,31 +120,31 @@ def main():
         project_name = project.get("name", "")
         
         print("")
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        print(f"📦 Проект: {project_name} ({project_id})")
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        print("========================================")
+        print(f"[PROJECT] {project_name} ({project_id})")
+        print("========================================")
         
         latest_deployment = get_latest_deployment(project_name)
         
         if not latest_deployment:
-            print(f"⚠️  Нет деплойментов для проекта {project_name}")
+            print(f"[WARN] Нет деплойментов для проекта {project_name}")
             continue
         
         deployment_id = latest_deployment.get("uid", "")
         deployment_url = latest_deployment.get("url", "")
         
-        print(f"🚀 Последний деплоймент: {deployment_id}")
-        print(f"🌐 URL: {deployment_url}")
+        print(f"[DEPLOY] Последний деплоймент: {deployment_id}")
+        print(f"[URL] {deployment_url}")
         print("")
-        print("📋 Runtime логи:")
-        print("──────────────────────────────────────────")
+        print("[LOGS] Runtime логи:")
+        print("------------------------------------------")
         
         get_logs(deployment_id, follow=args.follow)
         
         print("")
     
     print("")
-    print("✅ Готово!")
+    print("[DONE] Готово!")
 
 
 if __name__ == "__main__":
