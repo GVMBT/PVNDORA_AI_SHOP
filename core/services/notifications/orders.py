@@ -103,84 +103,96 @@ class OrderNotificationsMixin(NotificationServiceBase):
         
         short_id = order_id[:8] if len(order_id) > 8 else order_id
         
-        # Get order items with product names
+        # Get order items with product names and fulfillment types
         items_list_text = ""
+        instant_items = []
+        prepaid_items = []
         try:
             db = get_database()
             items_result = await db.client.table("order_items").select(
-                "quantity, products(name)"
+                "quantity, fulfillment_type, products(name)"
             ).eq("order_id", order_id).execute()
             
             if items_result.data:
-                items = []
                 for item in items_result.data:
                     product_name = item.get("products", {}).get("name") if isinstance(item.get("products"), dict) else "Product"
                     quantity = item.get("quantity", 1)
-                    if quantity > 1:
-                        items.append(f"• {product_name} × {quantity}")
+                    fulfillment_type = item.get("fulfillment_type", "instant")
+                    
+                    item_text = f"• {product_name}" + (f" × {quantity}" if quantity > 1 else "")
+                    
+                    if fulfillment_type == "preorder":
+                        prepaid_items.append(item_text)
                     else:
-                        items.append(f"• {product_name}")
+                        instant_items.append(item_text)
                 
-                if items:
-                    items_list_text = "\n" + "\n".join(items) + "\n"
+                # Build items list - separate sections for combined orders
+                if instant_items and prepaid_items:
+                    # COMBINED: Show instant and prepaid separately
+                    items_list_text = "\n"
+                    items_list_text += "📦 <b>В наличии:</b>\n" if lang == "ru" else "📦 <b>In stock:</b>\n"
+                    items_list_text += "\n".join(instant_items) + "\n\n"
+                    items_list_text += "⏳ <b>По предзаказу:</b>\n" if lang == "ru" else "⏳ <b>Preorder:</b>\n"
+                    items_list_text += "\n".join(prepaid_items) + "\n"
+                elif all_items := (instant_items + prepaid_items):
+                    # SINGLE TYPE: Show all items together
+                    items_list_text = "\n" + "\n".join(all_items) + "\n"
         except Exception as e:
             logger.warning(f"Failed to fetch order items for notification {order_id}: {e}")
         
-        # Build message based on order status
-        if status == "paid" and has_instant_items:
-            # Instant delivery - items coming soon
-            message = _msg(lang,
-                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
-                f"   ✅ <b>ОПЛАТА ПОДТВЕРЖДЕНА</b>\n"
-                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-                f"Заказ: <code>#{short_id}</code>\n"
-                f"Сумма: <b>{amount_formatted}</b>{items_list_text}\n"
-                f"📦 Товар будет доставлен в течение минуты.\n"
+        # Build delivery info based on item types
+        delivery_info = ""
+        if instant_items and prepaid_items:
+            # COMBINED ORDER: Both instant and prepaid items
+            instant_count = len(instant_items)
+            prepaid_count = len(prepaid_items)
+            delivery_info = _msg(lang,
+                f"\n📦 <b>ДОСТАВКА</b>\n"
+                f"• В наличии ({instant_count}): доставка в течение минуты\n"
+                f"• По предзаказу ({prepaid_count}): уведомим при поступлении\n\n"
+                f"Вы получите уведомления с данными для доступа по мере готовности товаров.",
+                
+                f"\n📦 <b>DELIVERY</b>\n"
+                f"• In stock ({instant_count}): delivery within a minute\n"
+                f"• Preorder ({prepaid_count}): we'll notify when ready\n\n"
+                f"You'll receive notifications with access details as items become available."
+            )
+        elif instant_items:
+            # INSTANT ONLY: All items in stock
+            delivery_info = _msg(lang,
+                f"\n📦 Товар будет доставлен в течение минуты.\n"
                 f"Вы получите уведомление с данными для доступа.",
                 
-                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
-                f"   ✅ <b>PAYMENT CONFIRMED</b>\n"
-                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-                f"Order: <code>#{short_id}</code>\n"
-                f"Amount: <b>{amount_formatted}</b>{items_list_text}\n"
-                f"📦 Your item will be delivered within a minute.\n"
+                f"\n📦 Your item will be delivered within a minute.\n"
                 f"You'll receive a notification with access details."
             )
-        elif status == "prepaid" or preorder_count > 0:
-            # Preorder - waiting for stock
-            waiting_text = f"\n⏳ Ожидает поступления: {preorder_count} товар(ов)" if preorder_count > 0 else ""
-            message = _msg(lang,
-                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
-                f"   ✅ <b>ОПЛАТА ПОДТВЕРЖДЕНА</b>\n"
-                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-                f"Заказ: <code>#{short_id}</code>\n"
-                f"Сумма: <b>{amount_formatted}</b>{items_list_text}\n"
-                f"📋 Заказ добавлен в очередь доставки.{waiting_text}\n"
+        elif prepaid_items:
+            # PREPAID ONLY: All items waiting for stock
+            prepaid_count = len(prepaid_items)
+            delivery_info = _msg(lang,
+                f"\n📋 Заказ добавлен в очередь доставки.\n"
+                f"⏳ Ожидает поступления: {prepaid_count} товар(ов)\n"
                 f"Мы уведомим вас, когда товар будет готов к доставке.",
                 
-                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
-                f"   ✅ <b>PAYMENT CONFIRMED</b>\n"
-                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-                f"Order: <code>#{short_id}</code>\n"
-                f"Amount: <b>{amount_formatted}</b>{items_list_text}\n"
-                f"📋 Order added to delivery queue.\n"
+                f"\n📋 Order added to delivery queue.\n"
+                f"⏳ Waiting for stock: {prepaid_count} item(s)\n"
                 f"We'll notify you when your item is ready for delivery."
             )
-        else:
-            # Generic confirmation
-            message = _msg(lang,
-                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
-                f"   ✅ <b>ОПЛАТА ПОДТВЕРЖДЕНА</b>\n"
-                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-                f"Заказ: <code>#{short_id}</code>\n"
-                f"Сумма: <b>{amount_formatted}</b>{items_list_text}",
-                
-                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
-                f"   ✅ <b>PAYMENT CONFIRMED</b>\n"
-                f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-                f"Order: <code>#{short_id}</code>\n"
-                f"Amount: <b>{amount_formatted}</b>{items_list_text}"
-            )
+        
+        # Build message
+        message = _msg(lang,
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"   ✅ <b>ОПЛАТА ПОДТВЕРЖДЕНА</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"Заказ: <code>#{short_id}</code>\n"
+            f"Сумма: <b>{amount_formatted}</b>{items_list_text}{delivery_info}",
+            
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            f"   ✅ <b>PAYMENT CONFIRMED</b>\n"
+            f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"Order: <code>#{short_id}</code>\n"
+            f"Amount: <b>{amount_formatted}</b>{items_list_text}{delivery_info}"
+        )
         
         try:
             from core.services.telegram_messaging import send_telegram_message
