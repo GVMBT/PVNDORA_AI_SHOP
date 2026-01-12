@@ -205,17 +205,21 @@ async def _create_cart_order(
             # Calculate multiplier: (1 - discount/100)
             discount_multiplier = subtract(Decimal("1"), divide(to_decimal(discount_percent), Decimal("100")))
             
-            # Final prices (calculated from product.price, not MSRP)
-            final_price_usd = round_money(multiply(product_price_usd, discount_multiplier))
-            final_price_fiat = round_money(multiply(product_price_fiat, discount_multiplier))
+            # Final prices per unit (calculated from product.price, not MSRP)
+            final_price_per_unit_usd = round_money(multiply(product_price_usd, discount_multiplier))
+            final_price_per_unit_fiat = round_money(multiply(product_price_fiat, discount_multiplier))
             
             # For integer currencies, round fiat amount to int
             if target_curr in ["RUB", "UAH", "TRY", "INR"]:
-                final_price_fiat = round_money(final_price_fiat, to_int=True)
+                final_price_per_unit_fiat = round_money(final_price_per_unit_fiat, to_int=True)
             
-            total_amount_usd += final_price_usd
+            # Calculate total prices (per unit * quantity)
+            final_price_total_usd = round_money(multiply(final_price_per_unit_usd, item.quantity))
+            final_price_total_fiat = round_money(multiply(final_price_per_unit_fiat, item.quantity))
+            
+            total_amount_usd += final_price_total_usd
             total_original_usd += original_price_usd
-            total_fiat_amount += final_price_fiat
+            total_fiat_amount += final_price_total_fiat
             
             prepared_items.append({
                 "product_id": item.product_id,
@@ -223,7 +227,7 @@ async def _create_cart_order(
                 "quantity": item.quantity, 
                 "instant_quantity": item.instant_quantity,
                 "prepaid_quantity": item.prepaid_quantity,
-                "amount": final_price_usd,
+                "amount": final_price_total_usd,  # Total price for all units
                 "original_price": original_price_usd,
                 "discount_percent": discount_percent,
                 "fulfillment_time_hours": getattr(product, 'fulfillment_time_hours', None) or 24,

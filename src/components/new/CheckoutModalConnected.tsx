@@ -145,16 +145,16 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({
     throw new Error('Payment URL not received');
   }, [createOrder]);
 
-  // Close if cart becomes empty
+  // Close if cart becomes empty (only check items length, not full cart object)
   useEffect(() => {
     if (!isInitialized || cartLoading) return;
     
-    const isEmpty = !cart || !cart.items || cart.items.length === 0;
-    if (isEmpty) {
+    const itemsLength = cart?.items?.length ?? 0;
+    if (itemsLength === 0) {
       const timeoutId = setTimeout(onClose, 0);
       return () => clearTimeout(timeoutId);
     }
-  }, [isInitialized, cartLoading, cart, onClose]);
+  }, [isInitialized, cartLoading, cart?.items?.length, onClose]);
 
   // Loading state
   if (!isInitialized || cartLoading) {
