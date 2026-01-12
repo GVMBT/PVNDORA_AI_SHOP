@@ -164,13 +164,17 @@ async def get_webapp_leaderboard(period: str = "all", limit: int = DEFAULT_LEADE
                     user_ids_for_count.append(uid)
                     telegram_id_to_user_id[tg_id] = uid
     
-    # Batch fetch delivered orders count for all users
+    # OPTIMIZED: Batch fetch delivered orders count for all users in ONE query
     if user_ids_for_count:
-        for uid in user_ids_for_count:
-            count_result = await db.client.table("orders").select(
-                "id", count="exact"
-            ).eq("user_id", uid).eq("status", "delivered").execute()
-            modules_count_map[uid] = count_result.count or 0
+        # Get all delivered orders for these users in a single query
+        orders_result = await db.client.table("orders").select(
+            "user_id"
+        ).in_("user_id", user_ids_for_count).eq("status", "delivered").execute()
+        
+        # Count orders per user client-side (much faster than N queries)
+        from collections import Counter
+        order_counts = Counter(order.get("user_id") for order in (orders_result.data or []))
+        modules_count_map = dict(order_counts)
     
     leaderboard = []
     for i, entry in enumerate(result_data):
