@@ -259,7 +259,8 @@ class CurrencyService:
                 response.raise_for_status()
                 data = response.json()
                 rates = data.get("rates", {})
-                return rates.get(target_currency)
+                rate_value = rates.get(target_currency)
+                return float(rate_value) if rate_value is not None else None
         except Exception:
             logger.exception("Error fetching exchange rate")
             return None
@@ -378,7 +379,7 @@ class CurrencyService:
         else:
             prices = getattr(product, "prices", None) or {}
 
-        return prices and currency in prices and prices[currency] is not None
+        return bool(prices and currency in prices and prices[currency] is not None)
 
     async def get_anchor_threshold(
         self, settings: dict[str, Any] | Any, target_currency: str, level: int  # 2 or 3

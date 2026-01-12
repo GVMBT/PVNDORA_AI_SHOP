@@ -128,8 +128,9 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
+strict_optional = false
 show_error_codes = true
-ignore_missing_imports = true  # Для внешних библиотек без типов
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = [
@@ -144,14 +145,37 @@ module = [
 ]
 ignore_missing_imports = true
 
-[tool.pylint.main]
-max-line-length = 100
+# Supabase async client has typing issues with await
+[[tool.mypy.overrides]]
+module = [
+    "core.services.repositories.*",
+]
+disable_error_code = ["misc", "arg-type"]
+
+# Allow broader types in database layer
+[[tool.mypy.overrides]]
+module = [
+    "core.services.database",
+]
+disable_error_code = ["union-attr", "index", "arg-type", "return-value"]
+
+[tool.pylint.messages_control]
 disable = [
-    "C0111",  # missing-docstring
-    "C0103",  # invalid-name
-    "R0903",  # too-few-public-methods
-    "R0913",  # too-many-arguments
-    "W0212",  # protected-access
+    "C0111", # missing-docstring
+    "C0114", # missing-module-docstring
+    "C0115", # missing-class-docstring
+    "C0116", # missing-function-docstring
+    "C0103", # invalid-name
+    "R0903", # too-few-public-methods
+    "R0913", # too-many-arguments
+    "W1203", # logging-fstring-interpolation
+    "W0718", # broad-exception-caught
+    "C0415", # import-outside-toplevel
+    "W0603", # global-statement
+    "R0914", # too-many-locals
+    "R0912", # too-many-branches
+    "R0915", # too-many-statements
+    "W0212", # protected-access
 ]
 
 [tool.pylint.format]

@@ -458,7 +458,7 @@ async def convert_balance(request: ConvertBalanceRequest, user=Depends(verify_te
 
 @profile_router.get("/referral/network")
 async def get_referral_network(
-    user=Depends(verify_telegram_auth), level: int = 1, limit: int = 50, offset: int = 0
+    db_user: User = Depends(get_db_user), level: int = 1, limit: int = 50, offset: int = 0
 ):
     """
     Get user's referral network (tree of referrals).
@@ -472,10 +472,7 @@ async def get_referral_network(
         List of referrals with their stats (purchases, earnings generated)
     """
     db = get_database()
-    db_user = await db.get_user_by_telegram_id(user.id)
-    if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
-
+    # db_user already fetched via get_db_user dependency (uses ContextVar cache)
     user_id = db_user.id
 
     if level not in [1, 2, 3]:

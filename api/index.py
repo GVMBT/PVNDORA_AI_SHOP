@@ -35,7 +35,11 @@ try:
     from core.bot.discount import (
         ChannelSubscriptionMiddleware as DiscountChannelSubscriptionMiddleware,
     )
-    from core.bot.discount import DiscountAuthMiddleware, TermsAcceptanceMiddleware, discount_router
+    from core.bot.discount import (
+        DiscountAuthMiddleware,
+        TermsAcceptanceMiddleware,
+        discount_router,
+    )
     from core.bot.handlers import router as bot_router
     from core.bot.middlewares import (
         ActivityMiddleware,

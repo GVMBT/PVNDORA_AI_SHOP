@@ -70,7 +70,9 @@ async def verify_telegram_auth(
 
                 # Update user activity with debounce (fire-and-forget, non-blocking)
                 try:
-                    from core.routers.webapp.middleware import update_user_activity_with_debounce
+                    from core.routers.webapp.middleware import (
+                        update_user_activity_with_debounce,
+                    )
 
                     update_user_activity_with_debounce(user.id)
                 except Exception as e:
@@ -101,9 +103,10 @@ async def verify_telegram_auth(
     if not validate_telegram_init_data(init_data, token):
         raise HTTPException(status_code=401, detail="Invalid initData signature")
 
-    user = extract_user_from_init_data(init_data)
-    if not user:
+    extracted_user = extract_user_from_init_data(init_data)
+    if not extracted_user:
         raise HTTPException(status_code=401, detail="Could not extract user")
+    user = extracted_user
 
     # Update user's photo_url if provided
     if user.photo_url:

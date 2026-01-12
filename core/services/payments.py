@@ -6,7 +6,7 @@ import hashlib
 import hmac
 import logging
 import os
-from typing import Any
+from typing import Any, cast
 
 import httpx
 

@@ -5,7 +5,7 @@
  * Replaces mock data with live backend integration.
  */
 
-import React, { useEffect, useState, useCallback, memo } from 'react';
+import React, { useEffect, useState, useCallback, memo, useRef } from 'react';
 import Catalog from './Catalog';
 import { useProductsTyped } from '../../hooks/useApiTyped';
 import { useLocaleContext } from '../../contexts/LocaleContext';
@@ -27,20 +27,33 @@ const CatalogConnected: React.FC<CatalogConnectedProps> = ({
   const { locale, currency } = useLocaleContext();
   const { t } = useLocale();
   const [isInitialized, setIsInitialized] = useState(false);
+  
+  // Track previous locale/currency to detect actual changes
+  const prevLocaleRef = useRef(locale);
+  const prevCurrencyRef = useRef(currency);
 
+  // Initial load - only once
   useEffect(() => {
     const init = async () => {
       await getProducts();
       setIsInitialized(true);
     };
     init();
-  }, [getProducts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - run only on mount
 
-  // Reload products when currency or language changes
+  // Reload products ONLY when currency or language actually changes (not on initial mount)
   useEffect(() => {
-    if (isInitialized) {
+    const localeChanged = prevLocaleRef.current !== locale;
+    const currencyChanged = prevCurrencyRef.current !== currency;
+    
+    if (isInitialized && (localeChanged || currencyChanged)) {
       getProducts();
     }
+    
+    // Update refs after check
+    prevLocaleRef.current = locale;
+    prevCurrencyRef.current = currency;
   }, [locale, currency, isInitialized, getProducts]);
 
   const handleSelectProduct = useCallback((product: CatalogProduct) => {

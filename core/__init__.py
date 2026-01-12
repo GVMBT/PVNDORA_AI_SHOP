@@ -20,6 +20,7 @@ For Redis:
 """
 
 # Lazy imports to avoid issues at module load time
+# pylint: disable=undefined-all-variable
 __all__ = [
     "close_database",
     "get_database",
@@ -28,6 +29,7 @@ __all__ = [
     "init_database",
     "publish_to_worker",
 ]
+# pylint: enable=undefined-all-variable
 
 
 def __getattr__(name):

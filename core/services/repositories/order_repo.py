@@ -119,8 +119,8 @@ class OrderRepository(BaseRepository):
         user_id: str,
         limit: int = 10,
         offset: int = 0,
-        source_channel: str = None,
-        exclude_source_channel: str = None,
+        source_channel: str | None = None,
+        exclude_source_channel: str | None = None,
     ) -> list[Order]:
         """Get user's orders with pagination.
 

@@ -5,7 +5,7 @@
  * Fetches detailed product info and related products.
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import ProductDetail from './ProductDetail';
 import { useProductsTyped } from '../../hooks/useApiTyped';
 import { useCart } from '../../contexts/CartContext';
@@ -41,6 +41,10 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
   const [productData, setProductData] = useState<ProductDetailData | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<CatalogProduct[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
+  
+  // Track previous locale/currency to detect actual changes
+  const prevLocaleRef = useRef(locale);
+  const prevCurrencyRef = useRef(currency);
 
   // Play product open sound when component mounts
   useEffect(() => {
@@ -66,15 +70,24 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
     setIsInitialized(true);
   }, [productId, getProduct, getProducts]);
 
+  // Initial load and reload on productId change
   useEffect(() => {
     loadProductData();
-  }, [loadProductData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId]); // Only re-fetch when productId changes
 
-  // Reload product when currency or language changes
+  // Reload product ONLY when currency or language actually changes
   useEffect(() => {
-    if (isInitialized) {
+    const localeChanged = prevLocaleRef.current !== locale;
+    const currencyChanged = prevCurrencyRef.current !== currency;
+    
+    if (isInitialized && (localeChanged || currencyChanged)) {
       loadProductData();
     }
+    
+    // Update refs after check
+    prevLocaleRef.current = locale;
+    prevCurrencyRef.current = currency;
   }, [locale, currency, isInitialized, loadProductData]);
 
   const handleAddToCart = useCallback(async (product: CatalogProduct, quantity: number) => {

@@ -13,9 +13,9 @@ class ChatRepository(BaseRepository):
         """Save chat message."""
         await cast(
             Awaitable[Any],
-            self.client.table("chat_history").insert(
-                {"user_id": user_id, "role": role, "message": message}
-            ).execute(),
+            self.client.table("chat_history")
+            .insert({"user_id": user_id, "role": role, "message": message})
+            .execute(),
         )
 
     async def get_history(self, user_id: str, limit: int = 20) -> list[dict[str, str]]:

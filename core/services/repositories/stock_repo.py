@@ -86,7 +86,11 @@ class StockRepository(BaseRepository):
         return min(20, int((days_in_stock / total_days) * 0.5 * 100))
 
     async def create(
-        self, product_id: str, content: str, expires_at: datetime = None, supplier_id: str = None
+        self,
+        product_id: str,
+        content: str,
+        expires_at: datetime | None = None,
+        supplier_id: str | None = None,
     ) -> StockItem:
         """Create new stock item."""
         data = {"product_id": product_id, "content": content}

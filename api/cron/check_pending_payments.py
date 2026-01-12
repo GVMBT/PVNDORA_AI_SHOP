@@ -151,7 +151,7 @@ async def process_paid_order(db, order_id: str, order_data: dict):
                     logger.warning(f"No stock available for discount order {order_id}")
         else:
             # Premium orders - instant delivery via QStash
-            from core.qstash import WorkerEndpoints, publish_to_worker
+            from core.queue import WorkerEndpoints, publish_to_worker
 
             await publish_to_worker(
                 endpoint=WorkerEndpoints.DELIVER_GOODS,
@@ -161,25 +161,8 @@ async def process_paid_order(db, order_id: str, order_data: dict):
             )
             logger.info(f"Order {order_id} sent to delivery worker")
 
-        # Send notification to user (only for non-discount orders)
-        # Discount orders get notification via deliver_discount_order worker
-        if source_channel != "discount":
-            try:
-                from core.bot.handlers.notifications import send_payment_confirmation
-
-                user_telegram_id = order_data.get("user_telegram_id")
-                if user_telegram_id:
-                    await send_payment_confirmation(user_telegram_id, order_id)
-            except Exception as notify_err:
-                logger.warning(f"Failed to send payment notification: {notify_err}")
-        else:
-            # For discount orders, send a simple "payment received, preparing delivery" message
-            try:
-                user_telegram_id = order_data.get("user_telegram_id")
-                if user_telegram_id:
-                    await send_discount_payment_confirmation(user_telegram_id, order_id)
-            except Exception as notify_err:
-                logger.warning(f"Failed to send discount payment notification: {notify_err}")
+        # Note: Payment notifications are sent via OrderStatusService.mark_payment_confirmed
+        # (called from webhook handlers). No need to send here.
 
     except Exception:
         logger.exception(f"Failed to process paid order {order_id}")

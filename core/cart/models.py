@@ -93,18 +93,24 @@ class Cart:
     @property
     def instant_total(self) -> Decimal:
         """Total for items available instantly."""
-        return sum(item.final_price * item.instant_quantity for item in self.items)
+        return sum(
+            (item.final_price * item.instant_quantity for item in self.items),
+            Decimal("0"),
+        )
 
     @property
     def prepaid_total(self) -> Decimal:
         """Total for items that need to be ordered."""
-        return sum(item.final_price * item.prepaid_quantity for item in self.items)
+        return sum(
+            (item.final_price * item.prepaid_quantity for item in self.items),
+            Decimal("0"),
+        )
 
     @property
     def subtotal(self) -> Decimal:
         """Subtotal after item-level discounts but before cart-level promo code."""
         # Calculate subtotal with item-level discounts (from CartItem.final_price)
-        return sum(item.total_price for item in self.items)
+        return sum((item.total_price for item in self.items), Decimal("0"))
 
     @property
     def total(self) -> Decimal:
