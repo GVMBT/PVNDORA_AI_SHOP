@@ -32,36 +32,23 @@ try:
 
     from core.bot.admin import AdminAuthMiddleware
     from core.bot.admin import router as admin_bot_router
-    from core.bot.discount import (
-        ChannelSubscriptionMiddleware as DiscountChannelSubscriptionMiddleware,
-    )
-    from core.bot.discount import (
-        DiscountAuthMiddleware,
-        TermsAcceptanceMiddleware,
-        discount_router,
-    )
+    from core.bot.discount import \
+        ChannelSubscriptionMiddleware as DiscountChannelSubscriptionMiddleware
+    from core.bot.discount import (DiscountAuthMiddleware,
+                                   TermsAcceptanceMiddleware, discount_router)
     from core.bot.handlers import router as bot_router
-    from core.bot.middlewares import (
-        ActivityMiddleware,
-        AnalyticsMiddleware,
-        AuthMiddleware,
-        ChannelSubscriptionMiddleware,
-        LanguageMiddleware,
-    )
-
+    from core.bot.middlewares import (ActivityMiddleware, AnalyticsMiddleware,
+                                      AuthMiddleware,
+                                      ChannelSubscriptionMiddleware,
+                                      LanguageMiddleware)
     # Include other routers
     from core.routers.admin.accounting import router as accounting_router
     from core.routers.admin.analytics import router as analytics_router
     from core.routers.admin.products import router as admin_products_router
-    from core.routers.admin.settings import router as settings_router
     from core.routers.admin.users import router as admin_users_router
     from core.routers.deps import shutdown_services
-    from core.routers.webapp.faq import router as faq_router
-    from core.routers.webapp.orders.router import router as orders_router
-    from core.routers.webapp.products.router import router as products_router
-    from core.routers.webapp.profile.router import router as profile_router
-    from core.routers.webapp.referral.router import router as referral_router
-    from core.routers.webapp.reviews.router import router as reviews_router
+    # WebApp router - single unified router from __init__.py
+    from core.routers.webapp import router as webapp_router
     from core.routers.webhooks import router as webhooks_router
     from core.routers.workers.router import router as workers_router
     from core.services.database import close_database, init_database
@@ -451,16 +438,11 @@ async def set_admin_webhook():
 
 app.include_router(webhooks_router, prefix="/api")
 app.include_router(workers_router, prefix="/api")
-app.include_router(products_router, prefix="/api/webapp")
-app.include_router(orders_router, prefix="/api/webapp")
-app.include_router(profile_router, prefix="/api/webapp")
-app.include_router(faq_router, prefix="/api/webapp")
-app.include_router(referral_router, prefix="/api/webapp")
-app.include_router(reviews_router, prefix="/api/webapp")
+# WebApp router - already has prefix /api/webapp in __init__.py
+app.include_router(webapp_router)
 
 # Admin routers
 app.include_router(admin_products_router, prefix="/api/admin")
 app.include_router(admin_users_router, prefix="/api/admin")
 app.include_router(accounting_router, prefix="/api/admin")
 app.include_router(analytics_router, prefix="/api/admin")
-app.include_router(settings_router, prefix="/api/admin")
