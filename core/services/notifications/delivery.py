@@ -3,74 +3,75 @@ Delivery Notifications
 
 Notifications for order delivery and credentials.
 """
+
 import os
 from datetime import datetime
-from typing import Optional
 
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
 from core.i18n import get_text
 from core.logging import get_logger
-from core.services.database import get_database
-from .base import NotificationServiceBase, get_user_language, _msg
+
+from .base import NotificationServiceBase, _msg, get_user_language
 
 logger = get_logger(__name__)
 
 
 class DeliveryNotificationsMixin(NotificationServiceBase):
     """Mixin for delivery-related notifications."""
-    
+
     async def _send_credentials(
         self,
         telegram_id: int,
         product_name: str,
         credentials: str,
-        instructions: Optional[str],
-        expires_at: Optional[datetime],
+        instructions: str | None,
+        expires_at: datetime | None,
         order_id: str,
-        language: str
+        language: str,
     ) -> None:
         """Send credentials to user via Telegram"""
         # Format expiration
         expires_str = "N/A"
         if expires_at:
             expires_str = expires_at.strftime("%d.%m.%Y %H:%M UTC")
-        
+
         # Build message
         message = get_text(
             "order_success",
             language,
             credentials=f"<code>{credentials}</code>",
-            instructions=instructions or get_text("no_instructions", language) if hasattr(get_text, "no_instructions") else "See product documentation",
-            expires=expires_str
+            instructions=(
+                instructions or get_text("no_instructions", language)
+                if hasattr(get_text, "no_instructions")
+                else "See product documentation"
+            ),
+            expires=expires_str,
         )
-        
+
         # Add order keyboard
         from core.bot.keyboards import get_order_keyboard
+
         keyboard = get_order_keyboard(language, order_id)
-        
+
         try:
             from core.services.telegram_messaging import send_telegram_message_with_keyboard
+
             await send_telegram_message_with_keyboard(
-                chat_id=telegram_id,
-                text=message,
-                keyboard=keyboard,
-                parse_mode="HTML"
+                chat_id=telegram_id, text=message, keyboard=keyboard, parse_mode="HTML"
             )
-        except Exception as e:
-            logger.error(f"Failed to send credentials to {telegram_id}: {e}")
-    
+        except Exception:
+            logger.exception(f"Failed to send credentials to {telegram_id}")
+
     async def send_replacement_notification(
-        self,
-        telegram_id: int,
-        product_name: str,
-        item_id: str
+        self, telegram_id: int, product_name: str, item_id: str
     ) -> None:
         """Send notification about account replacement"""
         lang = await get_user_language(telegram_id)
         short_id = item_id[:8] if len(item_id) > 8 else item_id
-        
-        message = _msg(lang,
+
+        message = _msg(
+            lang,
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             f"     🔄 <b>ЗАМЕНА ВЫПОЛНЕНА</b>\n"
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
@@ -79,7 +80,6 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
             f"Новые данные доступа готовы.\n\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"📋 <i>Посмотреть → «Мои заказы»</i>",
-            
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             f"     🔄 <b>REPLACEMENT DONE</b>\n"
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
@@ -87,60 +87,61 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
             f"◈ <b>ID:</b> <code>{short_id}</code>\n\n"
             f"New access credentials are ready.\n\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"📋 <i>View → «My Orders»</i>"
+            f"📋 <i>View → «My Orders»</i>",
         )
-        
+
         # Add WebApp button
         webapp_url = os.environ.get("WEBAPP_URL", "https://pvndora.com")
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[[
-            InlineKeyboardButton(
-                text="📦 Мои заказы" if lang == "ru" else "📦 My Orders",
-                web_app=WebAppInfo(url=f"{webapp_url}/orders")
-            )
-        ]])
-        
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="📦 Мои заказы" if lang == "ru" else "📦 My Orders",
+                        web_app=WebAppInfo(url=f"{webapp_url}/orders"),
+                    )
+                ]
+            ]
+        )
+
         try:
             from core.services.telegram_messaging import send_telegram_message_with_keyboard
+
             await send_telegram_message_with_keyboard(
-                chat_id=telegram_id,
-                text=message,
-                keyboard=keyboard,
-                parse_mode="HTML"
+                chat_id=telegram_id, text=message, keyboard=keyboard, parse_mode="HTML"
             )
             logger.info(f"Sent replacement notification to {telegram_id}")
-        except Exception as e:
-            logger.error(f"Failed to send replacement notification to {telegram_id}: {e}")
-    
+        except Exception:
+            logger.exception(f"Failed to send replacement notification to {telegram_id}")
+
     async def send_delivery(
-        self, 
-        telegram_id: int, 
-        product_name: str, 
+        self,
+        telegram_id: int,
+        product_name: str,
         content: str,
-        expires_at: Optional[datetime] = None,
-        order_id: Optional[str] = None
+        expires_at: datetime | None = None,
+        order_id: str | None = None,
     ) -> None:
         """Send delivery notification with product credentials."""
-        from .base import get_user_language, _msg
+        from .base import _msg, get_user_language
+
         lang = await get_user_language(telegram_id)
-        
+
         # Format expiration if available
         expires_info = ""
         if expires_at:
             expires_str = expires_at.strftime("%d.%m.%Y")
-            expires_info = _msg(lang,
+            expires_info = _msg(
+                lang,
                 f"\n◈ <b>Активен до:</b> {expires_str}",
-                f"\n◈ <b>Valid until:</b> {expires_str}"
+                f"\n◈ <b>Valid until:</b> {expires_str}",
             )
-        
+
         # Order reference
         order_ref = ""
         if order_id:
             short_id = order_id[:8]
-            order_ref = _msg(lang,
-                f"<i>#{short_id}</i>\n\n",
-                f"<i>#{short_id}</i>\n\n"
-            )
-        
+            order_ref = _msg(lang, f"<i>#{short_id}</i>\n\n", f"<i>#{short_id}</i>\n\n")
+
         # Format content: product names bold, credentials monospace
         # Content format: "Product Name:\ncredentials\n\nProduct Name:\ncredentials"
         formatted_content = ""
@@ -148,7 +149,7 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
             # Split by double newline to get individual items
             items = content.split("\n\n")
             formatted_items = []
-            
+
             for item in items:
                 if ":\n" in item:
                     # Split product name and credentials
@@ -157,64 +158,65 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
                         product_name = parts[0].strip()
                         credentials = parts[1].strip()
                         # Format: bold product name, monospace credentials
-                        formatted_items.append(f"<b>{product_name}:</b>\n<code>{credentials}</code>")
+                        formatted_items.append(
+                            f"<b>{product_name}:</b>\n<code>{credentials}</code>"
+                        )
                     else:
                         # Fallback: keep as is
                         formatted_items.append(f"<code>{item}</code>")
                 else:
                     # No product name, just credentials
                     formatted_items.append(f"<code>{item}</code>")
-            
+
             formatted_content = "\n\n".join(formatted_items)
-        
-        message = _msg(lang,
+
+        message = _msg(
+            lang,
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             f"      💎 <b>ДОСТАВКА ЗАВЕРШЕНА</b>\n"
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
             f"{order_ref}"
             f"🔐 <b>ДАННЫЕ ДОСТУПА</b>\n"
-            f"{formatted_content}\n\n"
+            f"{formatted_content}{expires_info}\n\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"📋 <i>Инструкции и детали — в разделе «Мои заказы»</i>\n\n"
             f"⭐ Оставьте отзыв → получите <b>5% кэшбэк</b>",
-            
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             f"      💎 <b>DELIVERY COMPLETE</b>\n"
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
             f"{order_ref}"
             f"🔐 <b>ACCESS CREDENTIALS</b>\n"
-            f"{formatted_content}\n\n"
+            f"{formatted_content}{expires_info}\n\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"📋 <i>Instructions & details — in «My Orders»</i>\n\n"
-            f"⭐ Leave a review → get <b>5% cashback</b>"
+            f"⭐ Leave a review → get <b>5% cashback</b>",
         )
-        
+
         # Add WebApp button for viewing order
         keyboard = None
         if order_id:
             webapp_url = os.environ.get("WEBAPP_URL", "https://pvndora.com")
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[[
-                InlineKeyboardButton(
-                    text="📦 Мои заказы" if lang == "ru" else "📦 My Orders",
-                    web_app=WebAppInfo(url=f"{webapp_url}/orders")
-                )
-            ]])
-        
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text="📦 Мои заказы" if lang == "ru" else "📦 My Orders",
+                            web_app=WebAppInfo(url=f"{webapp_url}/orders"),
+                        )
+                    ]
+                ]
+            )
+
         try:
             from core.services.telegram_messaging import send_telegram_message_with_keyboard
+
             if keyboard:
                 await send_telegram_message_with_keyboard(
-                    chat_id=telegram_id,
-                    text=message,
-                    keyboard=keyboard,
-                    parse_mode="HTML"
+                    chat_id=telegram_id, text=message, keyboard=keyboard, parse_mode="HTML"
                 )
             else:
                 from core.services.telegram_messaging import send_telegram_message
-                await send_telegram_message(
-                    chat_id=telegram_id,
-                    text=message,
-                    parse_mode="HTML"
-                )
-        except Exception as e:
-            logger.error(f"Failed to send delivery notification: {e}")
+
+                await send_telegram_message(chat_id=telegram_id, text=message, parse_mode="HTML")
+        except Exception:
+            logger.exception("Failed to send delivery notification")

@@ -3,9 +3,11 @@ Wishlist & Waitlist Tools for Shop Agent.
 
 Save products for later, join waitlists.
 """
+
 from langchain_core.tools import tool
 
 from core.logging import get_logger
+
 from .base import get_db, get_user_context
 
 logger = get_logger(__name__)
@@ -16,10 +18,10 @@ async def add_to_wishlist(product_id: str) -> dict:
     """
     Add product to user's wishlist (saved for later).
     Uses user_id from context.
-    
+
     Args:
         product_id: Product UUID
-        
+
     Returns:
         Confirmation
     """
@@ -29,14 +31,11 @@ async def add_to_wishlist(product_id: str) -> dict:
         product = await db.get_product_by_id(product_id)
         if not product:
             return {"success": False, "error": "Product not found"}
-        
+
         await db.add_to_wishlist(ctx.user_id, product_id)
-        return {
-            "success": True,
-            "message": f"{product.name} added to wishlist"
-        }
+        return {"success": True, "message": f"{product.name} added to wishlist"}
     except Exception as e:
-        logger.error(f"add_to_wishlist error: {e}")
+        logger.exception("add_to_wishlist error")
         return {"success": False, "error": str(e)}
 
 
@@ -45,7 +44,7 @@ async def get_wishlist() -> dict:
     """
     Get user's wishlist.
     Uses user_id from context.
-        
+
     Returns:
         List of saved products
     """
@@ -53,7 +52,7 @@ async def get_wishlist() -> dict:
         ctx = get_user_context()
         db = get_db()
         products = await db.get_wishlist(ctx.user_id)
-        
+
         return {
             "success": True,
             "count": len(products),
@@ -64,10 +63,10 @@ async def get_wishlist() -> dict:
                     "price": p.price,
                 }
                 for p in products
-            ]
+            ],
         }
     except Exception as e:
-        logger.error(f"get_wishlist error: {e}")
+        logger.exception("get_wishlist error")
         return {"success": False, "error": str(e)}
 
 
@@ -76,10 +75,10 @@ async def remove_from_wishlist(product_id: str) -> dict:
     """
     Remove product from user's wishlist.
     Uses user_id from context.
-    
+
     Args:
         product_id: Product UUID
-        
+
     Returns:
         Confirmation
     """
@@ -89,7 +88,7 @@ async def remove_from_wishlist(product_id: str) -> dict:
         await db.remove_from_wishlist(ctx.user_id, product_id)
         return {"success": True, "message": "Removed from wishlist"}
     except Exception as e:
-        logger.error(f"remove_from_wishlist error: {e}")
+        logger.exception("remove_from_wishlist error")
         return {"success": False, "error": str(e)}
 
 
@@ -99,10 +98,10 @@ async def add_to_waitlist(product_name: str) -> dict:
     Add user to waitlist for coming_soon product.
     User will be notified when product becomes available.
     Uses user_id from context.
-    
+
     Args:
         product_name: Product name
-        
+
     Returns:
         Confirmation
     """
@@ -112,8 +111,8 @@ async def add_to_waitlist(product_name: str) -> dict:
         await db.add_to_waitlist(ctx.user_id, product_name)
         return {
             "success": True,
-            "message": f"Added to waitlist for {product_name}. You'll be notified when available."
+            "message": f"Added to waitlist for {product_name}. You'll be notified when available.",
         }
     except Exception as e:
-        logger.error(f"add_to_waitlist error: {e}")
+        logger.exception("add_to_waitlist error")
         return {"success": False, "error": str(e)}

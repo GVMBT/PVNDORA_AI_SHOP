@@ -5,15 +5,14 @@ Public endpoints that don't require authentication.
 All prices include both USD and display values for unified currency handling.
 Supports anchor pricing (fixed prices per currency).
 """
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
-from core.services.database import get_database
-from core.services.currency_response import CurrencyFormatter
-from core.services.currency import get_currency_service
 from core.db import get_redis
 from core.logging import get_logger
+from core.services.currency import get_currency_service
+from core.services.currency_response import CurrencyFormatter
+from core.services.database import get_database
 
 logger = get_logger(__name__)
 
@@ -23,32 +22,37 @@ router = APIRouter(tags=["webapp-public"])
 @router.get("/products/{product_id}")
 async def get_webapp_product(
     product_id: str,
-    language_code: Optional[str] = Query(None, description="User language code for currency conversion"),
-    currency: Optional[str] = Query(None, description="User preferred currency (USD, RUB, EUR, etc.)")
+    language_code: str | None = Query(
+        None, description="User language code for currency conversion"
+    ),
+    currency: str | None = Query(None, description="User preferred currency (USD, RUB, EUR, etc.)"),
 ):
     """Get product with discount and social proof for Mini App.
-    
+
     Uses products_with_stock_summary VIEW for aggregated data.
     Uses anchor pricing: if product has fixed price in user's currency, uses that.
     Otherwise falls back to dynamic conversion from USD.
     """
     db = get_database()
-    
+
     # Use VIEW for product data with aggregated stock info (includes max_discount_percent)
-    product_result = await db.client.table("products_with_stock_summary").select(
-        "*"
-    ).eq("id", product_id).execute()
-    
+    product_result = (
+        await db.client.table("products_with_stock_summary")
+        .select("*")
+        .eq("id", product_id)
+        .execute()
+    )
+
     if not product_result.data:
         raise HTTPException(status_code=404, detail="Product not found")
-    
+
     product = product_result.data[0]
-    
+
     # Discount from VIEW (already aggregated)
     discount_percent = product.get("max_discount_percent", 0) or 0
-    
+
     rating_info = await db.get_product_rating(product_id)
-    
+
     # Unified currency formatter
     redis = get_redis()
     formatter = await CurrencyFormatter.create(
@@ -56,28 +60,25 @@ async def get_webapp_product(
         db=db,
         redis=redis,
         preferred_currency=currency,
-        language_code=language_code
+        language_code=language_code,
     )
-    
+
     # Get currency service for anchor pricing
     currency_service = get_currency_service(redis)
-    
+
     # USD values (base)
     price_usd = float(product.get("price", 0))
     final_price_usd = price_usd * (1 - discount_percent / 100)
     msrp_usd = float(product["msrp"]) if product.get("msrp") else None
-    
+
     # Get anchor price (fixed or converted)
-    product_dict = {
-        "price": product.get("price", 0),
-        "prices": product.get("prices") or {}
-    }
+    product_dict = {"price": product.get("price", 0), "prices": product.get("prices") or {}}
     anchor_price = float(await currency_service.get_anchor_price(product_dict, formatter.currency))
     is_anchor_price = currency_service.has_anchor_price(product_dict, formatter.currency)
-    
+
     # Apply discount to anchor price
     anchor_final_price = anchor_price * (1 - discount_percent / 100)
-    
+
     # Get anchor MSRP (fixed or converted)
     msrp_prices = product.get("msrp_prices") or {}
     anchor_msrp = None
@@ -90,29 +91,33 @@ async def get_webapp_product(
         # Fallback: convert from USD MSRP
         if anchor_msrp is None:
             anchor_msrp = formatter.convert(msrp_usd)
-    
+
     fulfillment_time_hours = product.get("fulfillment_time_hours", 48)
     stock_count = product.get("stock_count", 0) or 0
-    
+
     # Get social proof data
     try:
-        social_proof_result = await db.client.table("product_social_proof").select(
-            "*"
-        ).eq("product_id", product_id).single().execute()
+        social_proof_result = (
+            await db.client.table("product_social_proof")
+            .select("*")
+            .eq("product_id", product_id)
+            .single()
+            .execute()
+        )
         social_proof_data = social_proof_result.data if social_proof_result.data else {}
     except Exception as e:
         logger.warning(f"Failed to get social proof: {e}")
         social_proof_data = {}
-    
+
     social_proof = {
         "rating": rating_info.get("average", 0),
         "review_count": rating_info.get("count", 0),
         "sales_count": social_proof_data.get("sales_count", 0),
-        "recent_reviews": social_proof_data.get("recent_reviews", [])
+        "recent_reviews": social_proof_data.get("recent_reviews", []),
     }
-    
+
     instruction_files = product.get("instruction_files") or []
-    
+
     return {
         "product": {
             "id": product["id"],
@@ -133,12 +138,16 @@ async def get_webapp_product(
             "is_anchor_price": is_anchor_price,  # True if price is fixed, False if dynamically converted
             # Other fields
             "discount_percent": discount_percent,
-            "warranty_days": product.get("warranty_hours", 0) // 24 if product.get("warranty_hours") else 0,
+            "warranty_days": (
+                product.get("warranty_hours", 0) // 24 if product.get("warranty_hours") else 0
+            ),
             "duration_days": product.get("duration_days"),
             "available_count": stock_count,
             "available": stock_count > 0,
-            "can_fulfill_on_demand": product.get("status") == 'active',
-            "fulfillment_time_hours": fulfillment_time_hours if product.get("status") == 'active' else None,
+            "can_fulfill_on_demand": product.get("status") == "active",
+            "fulfillment_time_hours": (
+                fulfillment_time_hours if product.get("status") == "active" else None
+            ),
             "type": product.get("type"),
             "instructions": product.get("instructions"),
             "instruction_files": instruction_files,
@@ -159,25 +168,30 @@ async def get_webapp_product(
 
 @router.get("/products")
 async def get_webapp_products(
-    language_code: Optional[str] = Query(None, description="User language code for currency conversion"),
-    currency: Optional[str] = Query(None, description="User preferred currency (USD, RUB, EUR, etc.)")
+    language_code: str | None = Query(
+        None, description="User language code for currency conversion"
+    ),
+    currency: str | None = Query(None, description="User preferred currency (USD, RUB, EUR, etc.)"),
 ):
     """Get all active products for Mini App catalog.
-    
+
     Uses products_with_stock_summary VIEW to eliminate N+1 queries.
     Uses anchor pricing: if product has fixed price in user's currency, uses that.
     Otherwise falls back to dynamic conversion from USD.
     """
     db = get_database()
-    
+
     # Use VIEW directly for all product data including stock counts and max discount
     # This eliminates N+1 queries (previously 50+ queries, now 1-2)
-    products_result = await db.client.table("products_with_stock_summary").select(
-        "*"
-    ).eq("status", "active").execute()
-    
+    products_result = (
+        await db.client.table("products_with_stock_summary")
+        .select("*")
+        .eq("status", "active")
+        .execute()
+    )
+
     products = products_result.data or []
-    
+
     # Unified currency formatter
     redis = get_redis()
     formatter = await CurrencyFormatter.create(
@@ -185,34 +199,40 @@ async def get_webapp_products(
         db=db,
         redis=redis,
         preferred_currency=currency,
-        language_code=language_code
+        language_code=language_code,
     )
-    
+
     # Get currency service for anchor pricing
     currency_service = get_currency_service(redis)
-    
+
     # Batch fetch social proof data (single query for all products)
     product_ids = [p["id"] for p in products]
     social_proof_map = {}
     try:
         if product_ids:
-            social_proof_result = await db.client.table("product_social_proof").select(
-                "product_id,sales_count"
-            ).in_("product_id", product_ids).execute()
+            social_proof_result = (
+                await db.client.table("product_social_proof")
+                .select("product_id,sales_count")
+                .in_("product_id", product_ids)
+                .execute()
+            )
             social_proof_map = {sp["product_id"]: sp for sp in (social_proof_result.data or [])}
     except Exception as e:
         logger.warning(f"Failed to batch fetch social proof: {e}")
-    
+
     # Batch fetch ratings (single query for all products)
     ratings_map = {}
     try:
         if product_ids:
-            ratings_result = await db.client.table("reviews").select(
-                "product_id,rating"
-            ).in_("product_id", product_ids).execute()
-            
+            ratings_result = (
+                await db.client.table("reviews")
+                .select("product_id,rating")
+                .in_("product_id", product_ids)
+                .execute()
+            )
+
             # Aggregate ratings per product
-            for r in (ratings_result.data or []):
+            for r in ratings_result.data or []:
                 pid = r["product_id"]
                 if pid not in ratings_map:
                     ratings_map[pid] = []
@@ -220,38 +240,39 @@ async def get_webapp_products(
                     ratings_map[pid].append(r["rating"])
     except Exception as e:
         logger.warning(f"Failed to batch fetch ratings: {e}")
-    
+
     result = []
     for p in products:
         # Discount from VIEW (max_discount_percent already aggregated)
         discount_percent = p.get("max_discount_percent", 0) or 0
-        
+
         # Rating from batch-loaded data
         product_ratings = ratings_map.get(p["id"], [])
         rating_info = {
-            "average": round(sum(product_ratings) / len(product_ratings), 1) if product_ratings else 0,
-            "count": len(product_ratings)
+            "average": (
+                round(sum(product_ratings) / len(product_ratings), 1) if product_ratings else 0
+            ),
+            "count": len(product_ratings),
         }
-        
+
         sp_data = social_proof_map.get(p["id"], {})
         sales_count = sp_data.get("sales_count", 0)
-        
+
         # USD values (base)
         price_usd = float(p.get("price", 0))
         final_price_usd = price_usd * (1 - discount_percent / 100)
         msrp_usd = float(p["msrp"]) if p.get("msrp") else None
-        
+
         # Get anchor price (fixed or converted)
-        product_dict = {
-            "price": p.get("price", 0),
-            "prices": p.get("prices") or {}
-        }
-        anchor_price = float(await currency_service.get_anchor_price(product_dict, formatter.currency))
+        product_dict = {"price": p.get("price", 0), "prices": p.get("prices") or {}}
+        anchor_price = float(
+            await currency_service.get_anchor_price(product_dict, formatter.currency)
+        )
         is_anchor_price = currency_service.has_anchor_price(product_dict, formatter.currency)
-        
+
         # Apply discount to anchor price
         anchor_final_price = anchor_price * (1 - discount_percent / 100)
-        
+
         # Get anchor MSRP (fixed or converted)
         msrp_prices = p.get("msrp_prices") or {}
         anchor_msrp = None
@@ -262,47 +283,51 @@ async def get_webapp_products(
                     anchor_msrp = float(anchor_msrp_value)
             if anchor_msrp is None:
                 anchor_msrp = formatter.convert(msrp_usd)
-        
+
         warranty_days = p.get("warranty_hours", 0) // 24 if p.get("warranty_hours") else 0
         duration_days = p.get("duration_days")
         fulfillment_time_hours = p.get("fulfillment_time_hours", 48)
         stock_count = p.get("stock_count", 0) or 0
-        
-        result.append({
-            "id": p["id"],
-            "name": p["name"],
-            "description": p.get("description"),
-            # USD values (for calculations)
-            "price_usd": price_usd,
-            "final_price_usd": final_price_usd,
-            "msrp_usd": msrp_usd,
-            # Display values (for UI) - now using anchor prices
-            "original_price": anchor_price,
-            "price": anchor_price,
-            "final_price": anchor_final_price,
-            "msrp": anchor_msrp,
-            # Currency
-            "currency": formatter.currency,
-            "is_anchor_price": is_anchor_price,
-            # Other fields
-            "discount_percent": discount_percent,
-            "warranty_days": warranty_days,
-            "duration_days": duration_days,
-            "available_count": stock_count,
-            "available": stock_count > 0,
-            "can_fulfill_on_demand": p.get("status") == 'active',
-            "fulfillment_time_hours": fulfillment_time_hours if p.get("status") == 'active' else None,
-            "type": p.get("type"),
-            "rating": rating_info.get("average", 0),
-            "reviews_count": rating_info.get("count", 0),
-            "sales_count": sales_count,
-            "categories": p.get("categories") or [],
-            "status": p.get("status"),
-            "image_url": p.get("image_url"),
-            "video_url": p.get("video_url"),
-            "logo_svg_url": p.get("logo_svg_url"),
-        })
-    
+
+        result.append(
+            {
+                "id": p["id"],
+                "name": p["name"],
+                "description": p.get("description"),
+                # USD values (for calculations)
+                "price_usd": price_usd,
+                "final_price_usd": final_price_usd,
+                "msrp_usd": msrp_usd,
+                # Display values (for UI) - now using anchor prices
+                "original_price": anchor_price,
+                "price": anchor_price,
+                "final_price": anchor_final_price,
+                "msrp": anchor_msrp,
+                # Currency
+                "currency": formatter.currency,
+                "is_anchor_price": is_anchor_price,
+                # Other fields
+                "discount_percent": discount_percent,
+                "warranty_days": warranty_days,
+                "duration_days": duration_days,
+                "available_count": stock_count,
+                "available": stock_count > 0,
+                "can_fulfill_on_demand": p.get("status") == "active",
+                "fulfillment_time_hours": (
+                    fulfillment_time_hours if p.get("status") == "active" else None
+                ),
+                "type": p.get("type"),
+                "rating": rating_info.get("average", 0),
+                "reviews_count": rating_info.get("count", 0),
+                "sales_count": sales_count,
+                "categories": p.get("categories") or [],
+                "status": p.get("status"),
+                "image_url": p.get("image_url"),
+                "video_url": p.get("video_url"),
+                "logo_svg_url": p.get("logo_svg_url"),
+            }
+        )
+
     return {
         "products": result,
         "currency": formatter.currency,

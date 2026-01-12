@@ -7,10 +7,12 @@ Tasks:
 2. Auto-allocate stock for paid orders
 3. Update exchange rates (hourly check)
 """
-from datetime import datetime, timezone
+
+import os
+from datetime import UTC, datetime
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-import os
 
 from core.logging import get_logger
 
@@ -29,97 +31,98 @@ async def unified_cron_entrypoint(request: Request):
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
-    
+
     from core.services.database import get_database_async
-    
+
     db = await get_database_async()
-    now = datetime.now(timezone.utc)
-    results = {
-        "timestamp": now.isoformat(),
-        "tasks": {}
-    }
-    
+    now = datetime.now(UTC)
+    results = {"timestamp": now.isoformat(), "tasks": {}}
+
     # ========== TASK 1: Expire Orders ==========
     try:
         expired_orders = await db._orders.get_pending_expired()
         cancelled_count = 0
-        
+
         for order in expired_orders:
             try:
                 # Release reserved stock if any
                 if order.stock_item_id:
-                    await db.client.table("stock_items").update({
-                        "status": "available",
-                        "reserved_at": None
-                    }).eq("id", order.stock_item_id).eq("status", "reserved").execute()
-                
+                    await db.client.table("stock_items").update(
+                        {"status": "available", "reserved_at": None}
+                    ).eq("id", order.stock_item_id).eq("status", "reserved").execute()
+
                 # Cancel the order
-                await db.client.table("orders").update({
-                    "status": "cancelled"
-                }).eq("id", order.id).eq("status", "pending").execute()
+                await db.client.table("orders").update({"status": "cancelled"}).eq(
+                    "id", order.id
+                ).eq("status", "pending").execute()
                 cancelled_count += 1
                 logger.info(f"Expired order {order.id}")
-                
-            except Exception as e:
-                logger.error(f"Failed to expire order {order.id}: {e}")
-        
+
+            except Exception:
+                logger.exception(f"Failed to expire order {order.id}")
+
         # Also handle stale orders (no expires_at, older than 15 min - matches payment timeout)
         stale_orders = await db._orders.get_pending_stale(minutes=15)
         for order in stale_orders:
             try:
                 if order.stock_item_id:
-                    await db.client.table("stock_items").update({
-                        "status": "available",
-                        "reserved_at": None
-                    }).eq("id", order.stock_item_id).eq("status", "reserved").execute()
-                
-                await db.client.table("orders").update({
-                    "status": "cancelled"
-                }).eq("id", order.id).eq("status", "pending").execute()
+                    await db.client.table("stock_items").update(
+                        {"status": "available", "reserved_at": None}
+                    ).eq("id", order.stock_item_id).eq("status", "reserved").execute()
+
+                await db.client.table("orders").update({"status": "cancelled"}).eq(
+                    "id", order.id
+                ).eq("status", "pending").execute()
                 cancelled_count += 1
                 logger.info(f"Cancelled stale order {order.id}")
-            except Exception as e:
-                logger.error(f"Failed to cancel stale order {order.id}: {e}")
-        
+            except Exception:
+                logger.exception(f"Failed to cancel stale order {order.id}")
+
         results["tasks"]["expired_orders"] = cancelled_count
-        
+
     except Exception as e:
         results["tasks"]["expire_orders_error"] = str(e)
-        logger.error(f"Expire orders task failed: {e}")
-    
+        logger.exception("Expire orders task failed")
+
     # ========== TASK 2: Auto-Allocate Stock ==========
     try:
         from core.services.domains.delivery import DeliveryService
-        
+
         delivery_service = DeliveryService(db)
-        
+
         # Get paid orders awaiting delivery
-        paid_orders = await db.client.table("orders").select("*").eq("status", "paid").is_("delivered_at", "null").execute()
-        
+        paid_orders = (
+            await db.client.table("orders")
+            .select("*")
+            .eq("status", "paid")
+            .is_("delivered_at", "null")
+            .execute()
+        )
+
         allocated_count = 0
-        for order_data in (paid_orders.data or []):
+        for order_data in paid_orders.data or []:
             order_id = order_data.get("id")
             try:
                 # Check if order is confirmed (payment confirmed)
                 if order_data.get("status") != "paid":
                     logger.info(f"Order {order_id} is still {order_data.get('status')} - skipping")
                     continue
-                
+
                 # Deliver goods
                 result = await delivery_service.deliver_order(order_id)
                 if result:
                     allocated_count += 1
                     logger.info(f"Delivered order {order_id}")
-                    
-            except Exception as e:
-                logger.error(f"Failed to deliver order {order_id}: {e}")
-        
+
+            except Exception:
+                logger.exception(f"Failed to deliver order {order_id}")
+
         results["tasks"]["auto_allocated"] = allocated_count
-        
+
     except Exception as e:
         results["tasks"]["auto_alloc_error"] = str(e)
-        logger.error(f"Auto-alloc task failed: {e}")
-    
+        logger.exception("Auto-alloc task failed")
+
     # ========== TASK 3: Update Exchange Rates (hourly) ==========
     # NOTE: Exchange rates are updated by separate cron: /api/cron/update_exchange_rates
     # This task is deprecated - rates should be updated via dedicated endpoint
@@ -130,7 +133,7 @@ async def unified_cron_entrypoint(request: Request):
         results["tasks"]["exchange_rates_updated"] = "handled_by_separate_cron"
     except Exception as e:
         results["tasks"]["exchange_rates_error"] = str(e)
-        logger.error(f"Exchange rates check failed: {e}")
-    
+        logger.exception("Exchange rates check failed")
+
     results["success"] = True
     return JSONResponse(results)

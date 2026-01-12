@@ -4,14 +4,15 @@ Centralized logging configuration for PVNDORA.
 Usage:
     from core.logging import get_logger
     logger = get_logger(__name__)
-    
+
     logger.info("Operation completed")
     logger.error("Failed operation", exc_info=True)
 """
+
 import logging
 import os
 import sys
-from functools import lru_cache
+from functools import cache
 
 # Default format for logs
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -27,25 +28,25 @@ def _get_log_level() -> int:
 def _configure_root_logger() -> None:
     """Configure root logger with appropriate handlers."""
     root = logging.getLogger()
-    
+
     # Only configure if no handlers exist
     if root.handlers:
         return
-    
+
     # Set root level
     root.setLevel(_get_log_level())
-    
+
     # Console handler with appropriate format
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(_get_log_level())
-    
+
     # Use simple format in production (Vercel), detailed locally
     is_production = os.environ.get("VERCEL") == "1"
     formatter = logging.Formatter(LOG_FORMAT_SIMPLE if is_production else LOG_FORMAT)
     handler.setFormatter(formatter)
-    
+
     root.addHandler(handler)
-    
+
     # Disable verbose HTTP logging from httpx/supabase (set to WARNING level)
     # This reduces log noise from API requests
     logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -58,14 +59,14 @@ def _configure_root_logger() -> None:
 _configure_root_logger()
 
 
-@lru_cache(maxsize=None)
+@cache
 def get_logger(name: str) -> logging.Logger:
     """
     Get or create a logger with the given name.
-    
+
     Args:
         name: Logger name (typically __name__)
-        
+
     Returns:
         Configured logger instance
     """
@@ -73,4 +74,4 @@ def get_logger(name: str) -> logging.Logger:
 
 
 # Convenience exports
-__all__ = ["get_logger", "LOG_FORMAT", "LOG_FORMAT_SIMPLE"]
+__all__ = ["LOG_FORMAT", "LOG_FORMAT_SIMPLE", "get_logger"]

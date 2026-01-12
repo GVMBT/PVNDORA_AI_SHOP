@@ -3,11 +3,11 @@ WebApp API Pydantic Models
 
 Shared models for all webapp endpoints.
 """
-from typing import Optional
+
 from pydantic import BaseModel
 
-
 # ==================== AUTH MODELS ====================
+
 
 class TelegramLoginData(BaseModel):
     id: int
@@ -25,6 +25,7 @@ class SessionTokenRequest(BaseModel):
 
 # ==================== ORDER MODELS ====================
 
+
 class CreateOrderRequest(BaseModel):
     product_id: str | None = None
     quantity: int | None = 1
@@ -39,47 +40,51 @@ class OrderResponse(BaseModel):
     amount: float
     original_price: float
     discount_percent: int
-    payment_url: Optional[str] = None  # None for balance payments, URL for external gateways
+    payment_url: str | None = None  # None for balance payments, URL for external gateways
     payment_method: str
 
 
 class ConfirmPaymentRequest(BaseModel):
     """Request to confirm manual payment (H2H)."""
+
     order_id: str
-    hash: Optional[str] = None
+    hash: str | None = None
 
 
 class OrderStatusResponse(BaseModel):
     """Order status with delivery progress."""
+
     order_id: str
     status: str
     progress: int  # 0-100%
     delivered_quantity: int
     total_quantity: int
-    estimated_delivery_at: Optional[str] = None
-    payment_url: Optional[str] = None
+    estimated_delivery_at: str | None = None
+    payment_url: str | None = None
 
 
 class OrderHistoryResponse(BaseModel):
     """Order in history list."""
+
     order_id: str
     status: str
     amount: float
     display_amount: str  # Formatted in user's currency
     display_currency: str
-    created_at: Optional[str] = None
+    created_at: str | None = None
     product_name: str
     quantity: int
     delivered_quantity: int
     progress: int
-    payment_method: Optional[str] = None
-    payment_url: Optional[str] = None
+    payment_method: str | None = None
+    payment_url: str | None = None
     items: list = []
-    image_url: Optional[str] = None
+    image_url: str | None = None
 
 
 class OrdersListResponse(BaseModel):
     """Orders list response with metadata."""
+
     orders: list[dict]  # Use dict to match APIOrder structure from frontend
     count: int
     currency: str
@@ -87,13 +92,14 @@ class OrdersListResponse(BaseModel):
 
 class PaymentMethod(BaseModel):
     """Payment method info."""
+
     id: str
     name: str
     description: str
     icon: str
     available: bool
-    min_amount: Optional[float] = None
-    max_amount: Optional[float] = None
+    min_amount: float | None = None
+    max_amount: float | None = None
     fee_percent: float = 0
     processing_time: str
     currency: str
@@ -101,12 +107,14 @@ class PaymentMethod(BaseModel):
 
 class PaymentMethodsResponse(BaseModel):
     """Available payment methods."""
+
     methods: list[PaymentMethod]
     default_currency: str
     recommended_method: str
 
 
 # ==================== CART MODELS ====================
+
 
 class AddToCartRequest(BaseModel):
     product_id: str
@@ -124,18 +132,21 @@ class ApplyPromoRequest(BaseModel):
 
 # ==================== PROFILE MODELS ====================
 
+
 class UpdatePreferencesRequest(BaseModel):
-    preferred_currency: Optional[str] = None  # RUB, USD, EUR, etc.
-    interface_language: Optional[str] = None  # ru, en, etc.
+    preferred_currency: str | None = None  # RUB, USD, EUR, etc.
+    interface_language: str | None = None  # ru, en, etc.
 
 
 class ConvertBalanceRequest(BaseModel):
     """Request to convert user balance to a different currency."""
+
     target_currency: str  # USD, RUB, EUR, etc.
 
 
 class WithdrawalPreviewRequest(BaseModel):
     amount: float
+
 
 class WithdrawalRequest(BaseModel):
     amount: float
@@ -161,6 +172,7 @@ class WebAppReviewRequest(BaseModel):
 
 
 # ==================== PARTNER MODELS ====================
+
 
 class PartnerApplicationRequest(BaseModel):
     email: str | None = None

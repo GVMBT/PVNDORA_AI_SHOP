@@ -2,20 +2,24 @@
 Diagnose webhook issues
 Usage: python scripts/diagnose_webhook.py
 """
-import os
+
 import asyncio
-import httpx
+import os
 from pathlib import Path
+
+import httpx
 
 # Load .env file if exists
 try:
     from dotenv import load_dotenv
-    env_path = Path(__file__).parent.parent / '.env'
+
+    env_path = Path(__file__).parent.parent / ".env"
     if env_path.exists():
         load_dotenv(env_path)
         print(f"📄 Loaded .env from {env_path}\n")
 except ImportError:
     pass
+
 
 async def diagnose():
     """Diagnose webhook configuration"""
@@ -23,12 +27,12 @@ async def diagnose():
     if not token:
         print("❌ TELEGRAM_TOKEN not set")
         return
-    
+
     webhook_url = os.environ.get("TELEGRAM_WEBHOOK_URL", "https://pvndora.app/webhook/telegram")
     base_url = f"https://api.telegram.org/bot{token}"
-    
+
     print("🔍 Диагностика webhook...\n")
-    
+
     async with httpx.AsyncClient(timeout=10.0) as client:
         # 1. Check bot info
         print("1️⃣ Проверка бота...")
@@ -44,7 +48,7 @@ async def diagnose():
         except Exception as e:
             print(f"   ❌ Ошибка: {e}")
             return
-        
+
         # 2. Check webhook info
         print("\n2️⃣ Проверка webhook...")
         try:
@@ -56,17 +60,17 @@ async def diagnose():
                 pending = info.get("pending_update_count", 0)
                 last_error = info.get("last_error_date")
                 last_error_msg = info.get("last_error_message", "")
-                
+
                 print(f"   Текущий URL: {current_url}")
                 print(f"   Ожидающих обновлений: {pending}")
-                
+
                 if current_url != webhook_url:
                     print("   ⚠️  URL не совпадает!")
                     print(f"   Ожидается: {webhook_url}")
                     print(f"   Текущий: {current_url}")
                 else:
                     print("   ✅ URL совпадает")
-                
+
                 if last_error:
                     print(f"   ⚠️  Последняя ошибка ({last_error}): {last_error_msg}")
                 else:
@@ -75,7 +79,7 @@ async def diagnose():
                 print(f"   ❌ Ошибка: {result.get('description')}")
         except Exception as e:
             print(f"   ❌ Ошибка: {e}")
-        
+
         # 3. Test webhook endpoint
         print("\n3️⃣ Тест webhook endpoint...")
         try:
@@ -86,17 +90,17 @@ async def diagnose():
                     "date": 1234567890,
                     "chat": {"id": 123456789, "type": "private"},
                     "from": {"id": 123456789, "is_bot": False, "first_name": "Test"},
-                    "text": "/start"
-                }
+                    "text": "/start",
+                },
             }
-            
+
             response = await client.post(
                 webhook_url,
                 json=test_payload,
                 headers={"Content-Type": "application/json"},
-                follow_redirects=True
+                follow_redirects=True,
             )
-            
+
             print(f"   Status: {response.status_code}")
             if response.status_code == 200:
                 print("   ✅ Endpoint доступен")
@@ -107,7 +111,7 @@ async def diagnose():
                 print(f"   ❌ Endpoint недоступен: {response.text}")
         except Exception as e:
             print(f"   ❌ Ошибка: {e}")
-        
+
         # 4. Recommendations
         print("\n📋 Рекомендации:")
         if current_url != webhook_url:
@@ -115,9 +119,10 @@ async def diagnose():
         if last_error:
             print("   2. Проверьте логи Vercel для деталей ошибки")
         if pending > 0:
-            print(f"   3. Есть {pending} ожидающих обновлений - возможно, webhook не обрабатывает их")
+            print(
+                f"   3. Есть {pending} ожидающих обновлений - возможно, webhook не обрабатывает их"
+            )
+
 
 if __name__ == "__main__":
     asyncio.run(diagnose())
-
-

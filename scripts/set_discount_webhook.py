@@ -1,5 +1,7 @@
 """Set discount bot webhook."""
+
 import asyncio
+
 import httpx
 
 

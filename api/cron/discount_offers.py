@@ -6,10 +6,12 @@ Tasks:
 1. Send offers to loyal customers (3+ purchases)
 2. Send offers to inactive users (7+ days)
 """
-from datetime import datetime, timezone
+
+import os
+from datetime import UTC, datetime
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-import os
 
 # Verify cron secret
 CRON_SECRET = os.environ.get("CRON_SECRET", "")
@@ -26,26 +28,23 @@ async def discount_offers_entrypoint(request: Request):
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
-    
+
     from core.services.database import get_database_async
     from core.services.domains.offers import OffersService
-    
+
     db = await get_database_async()
     offers_service = OffersService(db.client)
-    
-    now = datetime.now(timezone.utc)
-    results = {
-        "timestamp": now.isoformat(),
-        "offers": {}
-    }
-    
+
+    now = datetime.now(UTC)
+    results = {"timestamp": now.isoformat(), "offers": {}}
+
     try:
         offer_results = await offers_service.process_all_offers()
         results["offers"] = offer_results
         results["success"] = True
-        
+
     except Exception as e:
         results["success"] = False
         results["error"] = str(e)
-    
+
     return JSONResponse(results)

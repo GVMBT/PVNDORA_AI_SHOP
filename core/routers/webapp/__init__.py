@@ -4,16 +4,17 @@ WebApp API Router
 Mini App endpoints for Telegram WebApp frontend.
 Combines all sub-routers into a single router with prefix /api/webapp.
 """
+
 from fastapi import APIRouter
 
+from .ai_chat import router as ai_chat_router
 from .auth import router as auth_router
-from .public import router as public_router
-from .profile import router as profile_router
-from .partner import router as partner_router
-from .orders import router as orders_router
 from .cart import router as cart_router
 from .misc import router as misc_router
-from .ai_chat import router as ai_chat_router
+from .orders import router as orders_router
+from .partner import router as partner_router
+from .profile import router as profile_router
+from .public import router as public_router
 
 # Create main router with prefix
 router = APIRouter(prefix="/api/webapp", tags=["webapp"])

@@ -1,18 +1,18 @@
 # Telegram Bot Module
 from .handlers import router
 from .middlewares import (
-    AuthMiddleware, 
-    LanguageMiddleware, 
+    REQUIRED_CHANNEL,
     ActivityMiddleware,
+    AuthMiddleware,
     ChannelSubscriptionMiddleware,
-    REQUIRED_CHANNEL
+    LanguageMiddleware,
 )
 
 __all__ = [
-    "router", 
-    "AuthMiddleware", 
-    "LanguageMiddleware", 
+    "REQUIRED_CHANNEL",
     "ActivityMiddleware",
+    "AuthMiddleware",
     "ChannelSubscriptionMiddleware",
-    "REQUIRED_CHANNEL"
+    "LanguageMiddleware",
+    "router",
 ]

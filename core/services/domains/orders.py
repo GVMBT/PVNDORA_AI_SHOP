@@ -2,8 +2,9 @@
 
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
+
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 from core.services.models import Order
 from core.services.repositories import OrderRepository
@@ -21,23 +22,23 @@ class OrdersDomain:
         self,
         user_id: str,
         amount: float,
-        original_price: Optional[float] = None,
+        original_price: float | None = None,
         discount_percent: int = 0,
         payment_method: str = "card",
         payment_gateway: str = "crystalpay",
-        user_telegram_id: Optional[int] = None,
-        expires_at: Optional[datetime] = None,
-        payment_url: Optional[str] = None,
+        user_telegram_id: int | None = None,
+        expires_at: datetime | None = None,
+        payment_url: str | None = None,
         source_channel: str = "premium",
         # Currency snapshot fields
-        fiat_amount: Optional[float] = None,
-        fiat_currency: Optional[str] = None,
-        exchange_rate_snapshot: Optional[float] = None,
+        fiat_amount: float | None = None,
+        fiat_currency: str | None = None,
+        exchange_rate_snapshot: float | None = None,
     ) -> Order:
         """Create new order.
-        
+
         Note: product_id removed - products are stored in order_items table.
-        
+
         Args:
             source_channel: Order origin - 'premium' (PVNDORA), 'discount' (discount bot), 'migrated' (converted user)
             fiat_amount: Amount in user's currency (what they see/pay)
@@ -60,42 +61,44 @@ class OrdersDomain:
             exchange_rate_snapshot=exchange_rate_snapshot,
         )
 
-    async def get_by_id(self, order_id: str) -> Optional[Order]:
+    async def get_by_id(self, order_id: str) -> Order | None:
         return await self.repo.get_by_id(order_id)
 
     async def update_status(
         self,
         order_id: str,
         status: str,
-        expires_at: Optional[datetime] = None,
+        expires_at: datetime | None = None,
     ) -> None:
         """Update order status.
-        
+
         Note: stock_item_id removed - stock items are linked via order_items table.
         """
         await self.repo.update_status(order_id, status, expires_at)
 
     async def get_by_user(
-        self, 
-        user_id: str, 
-        limit: int = 10, 
+        self,
+        user_id: str,
+        limit: int = 10,
         offset: int = 0,
         source_channel: str = None,
-        exclude_source_channel: str = None
-    ) -> List[Order]:
+        exclude_source_channel: str = None,
+    ) -> list[Order]:
         return await self.repo.get_by_user(
-            user_id, limit, offset, 
+            user_id,
+            limit,
+            offset,
             source_channel=source_channel,
-            exclude_source_channel=exclude_source_channel
+            exclude_source_channel=exclude_source_channel,
         )
 
-    async def get_expiring(self, days_before: int = 3) -> List[Order]:
+    async def get_expiring(self, days_before: int = 3) -> list[Order]:
         return await self.repo.get_expiring(days_before)
 
-    async def get_pending_expired(self) -> List[Order]:
+    async def get_pending_expired(self) -> list[Order]:
         return await self.repo.get_pending_expired()
 
-    async def get_pending_stale(self, minutes: int = 60) -> List[Order]:
+    async def get_pending_stale(self, minutes: int = 60) -> list[Order]:
         return await self.repo.get_pending_stale(minutes)
 
     async def count_by_status(self, status: str) -> int:
@@ -106,7 +109,7 @@ class OrdersDomain:
         self,
         product_id: str,
         user_telegram_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Call RPC create_order_with_availability_check."""
         result = await self.client.rpc(
             "create_order_with_availability_check",
@@ -120,23 +123,22 @@ class OrdersDomain:
         return result.data[0]
 
     # Order items operations (using raw client)
-    async def create_order_items(self, items: List[dict]) -> List[dict]:
+    async def create_order_items(self, items: list[dict]) -> list[dict]:
         if not items:
             return []
         result = await self.client.table("order_items").insert(items).execute()
         return result.data or []
 
-    async def get_order_items_by_order(self, order_id: str) -> List[dict]:
-        result = await self.client.table("order_items").select("*").eq(
-            "order_id", order_id
-        ).execute()
+    async def get_order_items_by_order(self, order_id: str) -> list[dict]:
+        result = (
+            await self.client.table("order_items").select("*").eq("order_id", order_id).execute()
+        )
         return result.data or []
 
-    async def get_order_items_by_orders(self, order_ids: List[str]) -> List[dict]:
+    async def get_order_items_by_orders(self, order_ids: list[str]) -> list[dict]:
         if not order_ids:
             return []
-        result = await self.client.table("order_items").select("*").in_(
-            "order_id", order_ids
-        ).execute()
+        result = (
+            await self.client.table("order_items").select("*").in_("order_id", order_ids).execute()
+        )
         return result.data or []
-

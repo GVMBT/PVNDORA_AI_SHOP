@@ -138,30 +138,32 @@ Example good responses:
 
 
 def get_system_prompt(
-    language: str = "en", 
+    language: str = "en",
     product_catalog: str = "",
     user_id: str = "",
     telegram_id: int = 0,
-    currency: str = "USD"
+    currency: str = "USD",
 ) -> str:
     """Build system prompt with user context."""
     lang = LANGUAGE_INSTRUCTIONS.get(language, LANGUAGE_INSTRUCTIONS["en"])
     catalog = product_catalog or "Use get_catalog tool to see products."
-    
+
     return SYSTEM_PROMPT.format(
         product_catalog=catalog,
         language_instruction=lang,
         user_id=user_id,
         telegram_id=telegram_id,
         language=language,
-        currency=currency
+        currency=currency,
     )
 
 
-async def format_product_catalog(products: list, language: str = "en", exchange_rate: float = 1.0) -> str:
+async def format_product_catalog(
+    products: list, language: str = "en", exchange_rate: float = 1.0
+) -> str:
     """
     Format product list for system prompt with proper currency conversion.
-    
+
     Args:
         products: List of product objects
         language: User's language code
@@ -169,43 +171,43 @@ async def format_product_catalog(products: list, language: str = "en", exchange_
     """
     if not products:
         return "No products available."
-    
+
     from core.services.currency import LANGUAGE_TO_CURRENCY, get_currency_service
-    
+
     # Determine currency
     lang = language.split("-")[0].lower() if language else "en"
     currency = LANGUAGE_TO_CURRENCY.get(lang, "USD")
-    
+
     # Get currency service for formatting
     currency_service = get_currency_service()
-    
+
     lines = [f"Current inventory (prices in {currency}):\n"]
-    
+
     in_stock = []
     out_of_stock = []
-    
+
     for p in products:
         stock = getattr(p, "stock_count", 0) or 0
         name = getattr(p, "name", "Unknown")
         pid = getattr(p, "id", "")
-        
+
         # Use Anchor Price
         price_val = await currency_service.get_anchor_price(p, currency)
         price_str = currency_service.format_price(price_val, currency)
-        
+
         entry = f"• {name} | {price_str} | ID: {pid}"
-        
+
         if stock > 0:
             in_stock.append(f"✓ {entry}")
         else:
             out_of_stock.append(f"⏳ {entry}")
-    
+
     if in_stock:
         lines.append("IN STOCK:")
         lines.extend(in_stock)
-    
+
     if out_of_stock:
         lines.append("\nPREPAID:")
         lines.extend(out_of_stock)
-    
+
     return "\n".join(lines)

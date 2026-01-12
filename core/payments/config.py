@@ -1,7 +1,7 @@
 """Payment gateway configuration and validation."""
-import os
+
 import logging
-from typing import Dict, Optional, Tuple
+import os
 
 from fastapi import HTTPException
 
@@ -11,20 +11,20 @@ logger = logging.getLogger(__name__)
 
 
 # Gateway configuration requirements
-GATEWAY_ENV_REQUIREMENTS: Dict[str, Tuple[str, ...]] = {
+GATEWAY_ENV_REQUIREMENTS: dict[str, tuple[str, ...]] = {
     PaymentGateway.CRYSTALPAY.value: ("CRYSTALPAY_LOGIN", "CRYSTALPAY_SECRET", "CRYSTALPAY_SALT"),
 }
 
 # Human-readable gateway names for error messages
-GATEWAY_NAMES: Dict[str, str] = {
+GATEWAY_NAMES: dict[str, str] = {
     PaymentGateway.CRYSTALPAY.value: "CrystalPay",
 }
 
 
-def get_gateway_config(gateway: str) -> Dict[str, Optional[str]]:
+def get_gateway_config(gateway: str) -> dict[str, str | None]:
     """
     Get all environment variables for a gateway.
-    
+
     Returns dict with env var names as keys and their values (or None if not set).
     """
     # All gateways map to CrystalPay now
@@ -38,34 +38,33 @@ def get_gateway_config(gateway: str) -> Dict[str, Optional[str]]:
 def validate_gateway_config(gateway: str) -> str:
     """
     Validate payment gateway environment configuration.
-    
+
     Args:
         gateway: Gateway name (will be normalized)
-        
+
     Returns:
         Normalized gateway name
-        
+
     Raises:
         HTTPException: If gateway is not configured
     """
     gateway = normalize_gateway(gateway)
     config = get_gateway_config(gateway)
     name = GATEWAY_NAMES.get(gateway, gateway)
-    
+
     # Check if all required values are present
     missing = []
     for key, value in config.items():
         if not value:
             missing.append(key)
-    
+
     if missing:
         env_vars = GATEWAY_ENV_REQUIREMENTS.get(gateway, ())
         logger.error(f"Payment gateway {name} not configured. Missing: {missing}")
         raise HTTPException(
-            status_code=500,
-            detail=f"{name} не настроен. Настройте: {', '.join(env_vars)}"
+            status_code=500, detail=f"{name} не настроен. Настройте: {', '.join(env_vars)}"
         )
-    
+
     return gateway
 
 

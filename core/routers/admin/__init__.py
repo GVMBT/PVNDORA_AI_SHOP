@@ -4,20 +4,21 @@ Admin API Router
 Admin-only endpoints for managing products, users, orders, and stock.
 Combines all sub-routers into a single router with tag "admin".
 """
+
 from fastapi import APIRouter
 
-from .products import router as products_router
-from .users import router as users_router
-from .orders import router as orders_router
+from .accounting import router as accounting_router
 from .analytics import router as analytics_router
-from .referral import router as referral_router
-from .rag import router as rag_router
-from .tickets import router as tickets_router
-from .promo import router as promo_router
-from .replacements import router as replacements_router
 from .broadcast import router as broadcast_router
 from .migration import router as migration_router
-from .accounting import router as accounting_router
+from .orders import router as orders_router
+from .products import router as products_router
+from .promo import router as promo_router
+from .rag import router as rag_router
+from .referral import router as referral_router
+from .replacements import router as replacements_router
+from .tickets import router as tickets_router
+from .users import router as users_router
 from .withdrawals import router as withdrawals_router
 
 # Create main router

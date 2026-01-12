@@ -7,28 +7,28 @@ This module provides:
 
 For Supabase access, use:
     from core.services.database import get_database, init_database
-    
+
 For Redis access:
     from core.db import get_redis
 """
 
 import os
 import warnings
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 # Re-export Supabase access from unified database module
 from core.services.database import (
+    close_database,
     get_database,
     get_database_async,
     init_database,
-    close_database,
     is_database_initialized,
 )
 
 __all__ = [
     # Supabase
     "get_database",
-    "get_database_async", 
+    "get_database_async",
     "init_database",
     "close_database",
     "is_database_initialized",
@@ -54,7 +54,9 @@ except ImportError:
     # Runtime fallback: lightweight REST client (get/set/delete) for Upstash
     Redis = None  # type: ignore
     AsyncRedis = None  # type: ignore
-    warnings.warn("upstash_redis not installed. Falling back to lightweight REST client.", ImportWarning)
+    warnings.warn(
+        "upstash_redis not installed. Falling back to lightweight REST client.", ImportWarning
+    )
     import httpx
 
     class AsyncRedisFallback:
@@ -68,7 +70,9 @@ except ImportError:
         @property
         def client(self) -> httpx.AsyncClient:
             if self._client is None:
-                self._client = httpx.AsyncClient(base_url=self.url, headers={"Authorization": f"Bearer {self.token}"})
+                self._client = httpx.AsyncClient(
+                    base_url=self.url, headers={"Authorization": f"Bearer {self.token}"}
+                )
             return self._client
 
         async def get(self, key: str):
@@ -80,7 +84,7 @@ except ImportError:
         async def set(self, key: str, value: str, ex: int | None = None, nx: bool = False):
             """
             SET key value with optional EX (expiration) and NX (only if not exists).
-            
+
             Returns:
                 True if key was set, False if NX was True and key already exists
             """
@@ -118,18 +122,18 @@ UPSTASH_REDIS_REST_TOKEN = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
 
 
 # Redis singleton instances
-_redis_client: Optional[AsyncRedis] = None
-_sync_redis_client: Optional[Redis] = None
+_redis_client: AsyncRedis | None = None
+_sync_redis_client: Redis | None = None
 
 
 def get_redis() -> AsyncRedis:
     """
     Get async Upstash Redis client (singleton).
-    
+
     Uses standard Upstash env var names:
     - UPSTASH_REDIS_REST_URL
     - UPSTASH_REDIS_REST_TOKEN
-    
+
     Used for:
     - FSM storage (aiogram)
     - Cart management
@@ -138,14 +142,14 @@ def get_redis() -> AsyncRedis:
     - Currency cache
     """
     global _redis_client
-    
+
     if _redis_client is None:
         if not UPSTASH_REDIS_REST_URL or not UPSTASH_REDIS_REST_TOKEN:
             raise ValueError("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set")
         if AsyncRedis is None:
             raise ImportError("upstash_redis is not installed in the runtime environment")
         _redis_client = AsyncRedis(url=UPSTASH_REDIS_REST_URL, token=UPSTASH_REDIS_REST_TOKEN)
-    
+
     return _redis_client
 
 
@@ -155,44 +159,44 @@ def get_redis_sync() -> Redis:
     Use only when async is not available.
     """
     global _sync_redis_client
-    
+
     if _sync_redis_client is None:
         if not UPSTASH_REDIS_REST_URL or not UPSTASH_REDIS_REST_TOKEN:
             raise ValueError("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set")
         if Redis is None:
             raise ImportError("upstash_redis is not installed in the runtime environment")
         _sync_redis_client = Redis(url=UPSTASH_REDIS_REST_URL, token=UPSTASH_REDIS_REST_TOKEN)
-    
+
     return _sync_redis_client
 
 
 # Redis key prefixes for organization
 class RedisKeys:
     """Redis key prefixes for different data types."""
-    
+
     # Cart storage
     CART = "cart:"  # cart:{user_telegram_id}
-    
+
     # FSM storage (aiogram)
     FSM_STATE = "fsm:state:"  # fsm:state:{user_id}:{chat_id}
     FSM_DATA = "fsm:data:"  # fsm:data:{user_id}:{chat_id}
-    
+
     # Leaderboard
     LEADERBOARD_SAVINGS = "leaderboard:savings"  # Sorted set
-    
+
     # Rate limiting for notifications
     USER_NOTIFICATION = "notify:"  # notify:{user_id}:{type}
-    
+
     # Currency cache
     CURRENCY_RATES = "currency:rates"  # Hash with rates
-    
+
     # Session/temp data
     TEMP = "temp:"  # temp:{key}
-    
+
     @staticmethod
     def cart_key(user_telegram_id: int) -> str:
         return f"{RedisKeys.CART}{user_telegram_id}"
-    
+
     @staticmethod
     def notification_key(user_id: int, notification_type: str) -> str:
         return f"{RedisKeys.USER_NOTIFICATION}{user_id}:{notification_type}"
@@ -201,7 +205,7 @@ class RedisKeys:
 # TTL constants (in seconds)
 class TTL:
     """Time-to-live constants for Redis keys."""
-    
+
     CART = 86400  # 24 hours
     CURRENCY_CACHE = 3600  # 1 hour
     TEMP_DATA = 900  # 15 minutes

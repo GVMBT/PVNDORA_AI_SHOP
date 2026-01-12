@@ -1,7 +1,6 @@
 """Stock domain service wrapping StockRepository."""
-from typing import Optional
 
-from core.services.models import StockItem, Product
+from core.services.models import Product, StockItem
 from core.services.repositories import StockRepository
 
 
@@ -11,7 +10,7 @@ class StockDomain:
     def __init__(self, repo: StockRepository):
         self.repo = repo
 
-    async def get_available(self, product_id: str) -> Optional[StockItem]:
+    async def get_available(self, product_id: str) -> StockItem | None:
         return await self.repo.get_available(product_id)
 
     async def get_available_count(self, product_id: str) -> int:
@@ -22,4 +21,3 @@ class StockDomain:
 
     async def calculate_discount(self, stock_item: StockItem, product: Product) -> int:
         return await self.repo.calculate_discount(stock_item, product)
-

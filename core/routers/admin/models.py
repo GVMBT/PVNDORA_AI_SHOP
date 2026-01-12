@@ -3,16 +3,16 @@ Admin API Pydantic Models
 
 Shared models for all admin endpoints.
 """
-from typing import Optional, List
+
 from pydantic import BaseModel
 
-
 # ==================== PRODUCT MODELS ====================
+
 
 class CreateProductRequest(BaseModel):
     """
     Product creation/update request.
-    
+
     Field mapping (frontend → DB):
     - category → type (ai, dev, design, music)
     - fulfillmentType → fulfillment_type (auto, manual)
@@ -28,38 +28,40 @@ class CreateProductRequest(BaseModel):
     - requiresPrepayment → requires_prepayment
     - prepaymentPercent → prepayment_percent
     """
+
     name: str
     description: str = ""
-    
+
     # Category (maps to `type` in DB)
     category: str = "ai"  # ai, dev, design, music
-    
+
     # Pricing
     price: float = 0  # Base USD price
-    prices: Optional[dict] = None  # Anchor prices: {"RUB": 990, "USD": 10.50}
-    msrp: Optional[float] = None
-    msrp_prices: Optional[dict] = None  # Anchor MSRP: {"RUB": 1290}
-    discountPrice: Optional[float] = None  # discount_price
-    costPrice: Optional[float] = None  # cost_price
-    
+    prices: dict | None = None  # Anchor prices: {"RUB": 990, "USD": 10.50}
+    msrp: float | None = None
+    msrp_prices: dict | None = None  # Anchor MSRP: {"RUB": 1290}
+    discountPrice: float | None = None  # discount_price
+    costPrice: float | None = None  # cost_price
+
     # Fulfillment
     fulfillmentType: str = "auto"  # fulfillment_type: auto, manual
     fulfillment: int = 0  # fulfillment_time_hours
-    
+
     # Product Settings
     warranty: int = 168  # warranty_hours (stored in hours, UI shows days)
     duration: int = 30  # duration_days
     status: str = "active"
-    
+
     # Media
-    image: Optional[str] = None  # image_url
-    video: Optional[str] = None
-    
+    image: str | None = None  # image_url
+    video: str | None = None
+
     # Content
     instructions: str = ""
 
 
 # ==================== FAQ MODELS ====================
+
 
 class CreateFAQRequest(BaseModel):
     question: str
@@ -69,6 +71,7 @@ class CreateFAQRequest(BaseModel):
 
 
 # ==================== USER MODELS ====================
+
 
 class BanUserRequest(BaseModel):
     telegram_id: int
@@ -85,21 +88,23 @@ class UpdateWarningsRequest(BaseModel):
 
 # ==================== STOCK MODELS ====================
 
+
 class AddStockRequest(BaseModel):
     product_id: str
     content: str
-    expires_at: Optional[str] = None
-    supplier_id: Optional[str] = None
+    expires_at: str | None = None
+    supplier_id: str | None = None
 
 
 class BulkStockRequest(BaseModel):
     product_id: str
-    items: List[str]
-    expires_at: Optional[str] = None
-    supplier_id: Optional[str] = None
+    items: list[str]
+    expires_at: str | None = None
+    supplier_id: str | None = None
 
 
 # ==================== BROADCAST MODELS ====================
+
 
 class BroadcastRequest(BaseModel):
     message: str
@@ -108,19 +113,22 @@ class BroadcastRequest(BaseModel):
 
 # ==================== REFERRAL MODELS ====================
 
+
 class ReferralSettingsRequest(BaseModel):
-    level2_threshold_usd: Optional[float] = None
-    level3_threshold_usd: Optional[float] = None
-    level1_commission_percent: Optional[float] = None
-    level2_commission_percent: Optional[float] = None
-    level3_commission_percent: Optional[float] = None
-    thresholds_by_currency: Optional[dict] = None  # Anchor thresholds: {"USD": {"level2": 250, "level3": 1000}, "RUB": {"level2": 20000, "level3": 80000}}
+    level2_threshold_usd: float | None = None
+    level3_threshold_usd: float | None = None
+    level1_commission_percent: float | None = None
+    level2_commission_percent: float | None = None
+    level3_commission_percent: float | None = None
+    thresholds_by_currency: dict | None = (
+        None  # Anchor thresholds: {"USD": {"level2": 250, "level3": 1000}, "RUB": {"level2": 20000, "level3": 80000}}
+    )
 
 
 class SetPartnerRequest(BaseModel):
     telegram_id: int
     is_partner: bool = True
-    level_override: Optional[int] = None  # 1, 2, or 3 - force unlock levels
+    level_override: int | None = None  # 1, 2, or 3 - force unlock levels
 
 
 class ReviewApplicationRequest(BaseModel):
@@ -131,6 +139,7 @@ class ReviewApplicationRequest(BaseModel):
 
 
 # ==================== WITHDRAWAL MODELS ====================
+
 
 class ProcessWithdrawalRequest(BaseModel):
     admin_comment: str | None = None

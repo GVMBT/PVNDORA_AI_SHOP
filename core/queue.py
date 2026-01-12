@@ -10,10 +10,10 @@ Used for critical operations that must be guaranteed to execute:
 """
 
 import os
-from typing import Optional
 from functools import wraps
 
-from fastapi import Request, HTTPException
+from fastapi import HTTPException, Request
+
 from core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -35,24 +35,25 @@ _qstash_client = None
 def get_qstash():
     """
     Get QStash client (singleton).
-    
+
     Returns QStash client for publishing messages to worker endpoints.
     """
     global _qstash_client
-    
+
     if _qstash_client is None:
         if not QSTASH_TOKEN:
             raise ValueError("QSTASH_TOKEN must be set")
-        
+
         from qstash import QStash
+
         _qstash_client = QStash(token=QSTASH_TOKEN)
-    
+
     return _qstash_client
 
 
 def get_base_url() -> str:
     """Get base URL for worker endpoints.
-    
+
     IMPORTANT: Use fixed production URL (WEBAPP_URL or BASE_URL).
     Vercel preview URLs change with each deployment, which breaks QStash
     workers that get published during one deployment but execute during
@@ -63,12 +64,12 @@ def get_base_url() -> str:
         if WEBAPP_URL.startswith("http"):
             return WEBAPP_URL.rstrip("/")
         return f"https://{WEBAPP_URL}"
-    
+
     if BASE_URL:
         if BASE_URL.startswith("http"):
             return BASE_URL.rstrip("/")
         return f"https://{BASE_URL}"
-    
+
     # Local development fallback
     return "http://localhost:8000"
 
@@ -77,22 +78,22 @@ async def publish_to_worker(
     endpoint: str,
     body: dict,
     retries: int = 0,
-    delay: Optional[int] = None,
-    deduplication_id: Optional[str] = None
+    delay: int | None = None,
+    deduplication_id: str | None = None,
 ) -> dict:
     """
     Publish a task to a QStash worker endpoint.
-    
+
     Args:
         endpoint: Worker endpoint path (e.g., "/api/workers/deliver-goods")
         body: JSON body to send to the worker
         retries: Number of retry attempts on failure (default: 3)
         delay: Delay in seconds before processing (optional)
         deduplication_id: ID to prevent duplicate processing (optional)
-    
+
     Returns:
         QStash publish response with message_id
-    
+
     Example:
         await publish_to_worker(
             endpoint="/api/workers/deliver-goods",
@@ -103,71 +104,65 @@ async def publish_to_worker(
     qstash = get_qstash()
     base_url = get_base_url()
     url = f"{base_url}{endpoint}"
-    
+
     # Build headers
     headers = {}
     if deduplication_id:
         headers["Upstash-Deduplication-Id"] = deduplication_id
-    
+
     # Cap retries at 2 for Free tier safety (limit is 3, but be conservative)
     safe_retries = min(retries, 2)
-    
+
     try:
         result = qstash.message.publish_json(
             url=url,
             body=body,
             retries=safe_retries,
             delay=f"{delay}s" if delay else None,
-            headers=headers if headers else None
+            headers=headers if headers else None,
         )
         return {"message_id": result.message_id, "queued": True}
     except Exception as e:
         # Log error but don't raise - let caller handle fallback
-        logger.error(f"QStash publish failed: {e}")
+        logger.exception("QStash publish failed")
         return {"message_id": None, "queued": False, "error": str(e)}
 
 
 async def publish_to_queue(
-    queue_name: str,
-    endpoint: str,
-    body: dict,
-    deduplication_id: Optional[str] = None
+    queue_name: str, endpoint: str, body: dict, deduplication_id: str | None = None
 ) -> dict:
     """
     Publish a task to a QStash queue for ordered processing.
-    
+
     Args:
         queue_name: Name of the queue (e.g., "broadcast")
         endpoint: Worker endpoint path
         body: JSON body to send
         deduplication_id: ID to prevent duplicates
-    
+
     Returns:
         QStash enqueue response
     """
     qstash = get_qstash()
     base_url = get_base_url()
     url = f"{base_url}{endpoint}"
-    
+
     result = qstash.message.enqueue_json(
-        queue=queue_name,
-        url=url,
-        body=body,
-        deduplication_id=deduplication_id
+        queue=queue_name, url=url, body=body, deduplication_id=deduplication_id
     )
-    
+
     return {"message_id": result.message_id}
 
 
 def verify_qstash_signature(body: bytes, signature: str, url: str = "") -> bool:
     """
     Verify QStash webhook signature using QStash Receiver.
-    
+
     Args:
         body: Raw request body bytes
         signature: Signature from Upstash-Signature header
         url: The full URL that received the request
-    
+
     Returns:
         True if signature is valid
     """
@@ -175,26 +170,26 @@ def verify_qstash_signature(body: bytes, signature: str, url: str = "") -> bool:
         # Skip verification in development
         logger.warning("QStash: No signing key configured, skipping verification")
         return True
-    
+
     try:
         from qstash import Receiver
-        
+
         receiver = Receiver(
             current_signing_key=QSTASH_CURRENT_SIGNING_KEY,
             next_signing_key=QSTASH_NEXT_SIGNING_KEY or None,
         )
-        
+
         # Verify signature (QStash uses JWT which includes URL)
         receiver.verify(
-            body=body.decode('utf-8') if isinstance(body, bytes) else body,
+            body=body.decode("utf-8") if isinstance(body, bytes) else body,
             signature=signature,
             url=url,
         )
         return True
-    except Exception as e:
+    except Exception:
         # Log error without exposing cryptographic secrets
-        logger.error(
-            f"QStash signature verification failed: {e} "
+        logger.exception(
+            f"QStash signature verification failed "
             f"[url={url}, has_key={bool(QSTASH_CURRENT_SIGNING_KEY)}, has_sig={bool(signature)}]"
         )
         return False
@@ -203,36 +198,38 @@ def verify_qstash_signature(body: bytes, signature: str, url: str = "") -> bool:
 async def verify_qstash_request(request: Request) -> dict:
     """
     Verify QStash request and return parsed body.
-    
+
     Raises HTTPException 401 if signature is invalid.
-    
+
     Args:
         request: FastAPI Request object
-    
+
     Returns:
         Parsed JSON body
     """
     signature = request.headers.get("Upstash-Signature", "")
     body = await request.body()
-    
+
     # Build full URL for verification (QStash JWT includes URL)
     # IMPORTANT: Vercel may change URL format, so we try multiple variants
     url = str(request.url)
-    
+
     logger.info(f"QStash verify: url={url}, has_signature={bool(signature)}, body_len={len(body)}")
-    
+
     # Try verification with original URL first
     if verify_qstash_signature(body, signature, url):
         import json
+
         return json.loads(body)
-    
+
     # Try without query params (QStash may not include them)
     url_no_query = url.split("?")[0]
     if url_no_query != url and verify_qstash_signature(body, signature, url_no_query):
         logger.info("QStash verified with URL without query params")
         import json
+
         return json.loads(body)
-    
+
     # Try with production URL (WEBAPP_URL)
     if WEBAPP_URL:
         path = request.url.path
@@ -240,8 +237,9 @@ async def verify_qstash_request(request: Request) -> dict:
         if verify_qstash_signature(body, signature, prod_url):
             logger.info(f"QStash verified with production URL: {prod_url}")
             import json
+
             return json.loads(body)
-    
+
     # All verification attempts failed
     logger.error(f"QStash verification FAILED for all URL variants. Original URL: {url}")
     raise HTTPException(status_code=401, detail="Invalid QStash signature")
@@ -250,7 +248,7 @@ async def verify_qstash_request(request: Request) -> dict:
 def qstash_protected(func):
     """
     Decorator to protect worker endpoints with QStash signature verification.
-    
+
     Usage:
         @app.post("/api/workers/deliver-goods")
         @qstash_protected
@@ -258,31 +256,31 @@ def qstash_protected(func):
             data = await verify_qstash_request(request)
             # Process data...
     """
+
     @wraps(func)
     async def wrapper(request: Request, *args, **kwargs):
         # Verify signature
         await verify_qstash_request(request)
         return await func(request, *args, **kwargs)
-    
+
     return wrapper
 
 
 # Worker endpoint paths (constants for consistency)
 class WorkerEndpoints:
     """Constants for QStash worker endpoint paths."""
-    
+
     # Delivery
     DELIVER_GOODS = "/api/workers/deliver-goods"
     DELIVER_BATCH = "/api/workers/deliver-batch"
-    
+
     # Notifications
     NOTIFY_WAITLIST = "/api/workers/notify-waitlist"
     SEND_BROADCAST = "/api/workers/send-broadcast"
-    
+
     # Processing
     CALCULATE_REFERRAL = "/api/workers/calculate-referral"
     UPDATE_LEADERBOARD = "/api/workers/update-leaderboard"
     PROCESS_REFUND = "/api/workers/process-refund"
     PROCESS_REPLACEMENT = "/api/workers/process-replacement"
     PROCESS_REVIEW_CASHBACK = "/api/workers/process-review-cashback"
-

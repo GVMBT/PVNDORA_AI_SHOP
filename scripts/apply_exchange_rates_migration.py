@@ -2,6 +2,7 @@
 Apply exchange_rates migration directly via Supabase client.
 Run this once to create the table and populate initial rates.
 """
+
 import os
 import sys
 
@@ -9,6 +10,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from supabase import create_client
@@ -29,7 +31,7 @@ try:
 except Exception as e:
     print(f"Table check failed: {e}")
     print("Creating table via RPC...")
-    
+
     # Create table via raw SQL (using rpc if available)
     # Note: This requires the table to be created via Dashboard if RPC not available
 
@@ -52,10 +54,12 @@ rates = [
 print("Upserting exchange rates...")
 for currency, rate in rates:
     try:
-        supabase.table("exchange_rates").upsert({
-            "currency": currency,
-            "rate": rate,
-        }).execute()
+        supabase.table("exchange_rates").upsert(
+            {
+                "currency": currency,
+                "rate": rate,
+            }
+        ).execute()
         print(f"  {currency}: {rate}")
     except Exception as e:
         print(f"  {currency}: FAILED - {e}")
@@ -67,6 +71,3 @@ for row in result.data:
     print(f"  {row['currency']}: {row['rate']}")
 
 print("\nDone!")
-
-
-

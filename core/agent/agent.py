@@ -8,16 +8,17 @@ Complete agent covering all shop functionality with:
 - Full error recovery
 - OpenRouter API (gemini-3-flash-preview via OpenAI-compatible endpoint)
 """
-import os
-from typing import Optional, Dict, Any, List
-from dataclasses import dataclass, field
 
-from langchain_openai import ChatOpenAI
+import os
+from dataclasses import dataclass, field
+from typing import Any
+
 from langchain_core.messages import AIMessage
+from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 
+from core.agent.prompts import format_product_catalog, get_system_prompt
 from core.agent.tools import get_all_tools, set_db, set_user_context
-from core.agent.prompts import get_system_prompt, format_product_catalog
 from core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -31,29 +32,31 @@ DEFAULT_MODEL = "google/gemini-3-flash-preview"
 @dataclass
 class AgentResponse:
     """Response from the agent."""
+
     content: str
-    tool_calls: List[Dict[str, Any]] = field(default_factory=list)
+    tool_calls: list[dict[str, Any]] = field(default_factory=list)
     action: str = "none"
-    product_id: Optional[str] = None
-    total_amount: Optional[float] = None
-    payment_url: Optional[str] = None
+    product_id: str | None = None
+    total_amount: float | None = None
+    payment_url: str | None = None
 
 
 @dataclass
 class UserContext:
     """User context for tool calls."""
+
     user_id: str
     telegram_id: int
     language: str
     currency: str
     exchange_rate: float = 1.0
-    preferred_currency: Optional[str] = None
+    preferred_currency: str | None = None
 
 
 class ShopAgent:
     """
     LangGraph-based shop agent with full functionality.
-    
+
     Features:
     - ReAct pattern for reasoning + acting
     - OpenRouter API (Google Gemini 3 Flash Preview via OpenAI-compatible endpoint)
@@ -61,7 +64,7 @@ class ShopAgent:
     - Persistent chat history from database
     - Fault-tolerant with retries
     """
-    
+
     def __init__(
         self,
         db,
@@ -70,7 +73,7 @@ class ShopAgent:
     ):
         """
         Initialize the agent.
-        
+
         Args:
             db: Database instance
             model: OpenRouter model name (e.g., google/gemini-3-flash-preview)
@@ -79,10 +82,10 @@ class ShopAgent:
         self.db = db
         self.model_name = model
         self.temperature = temperature
-        
+
         # Set DB for tools
         set_db(db)
-        
+
         # Initialize LLM via OpenRouter
         api_key = os.environ.get("OPENROUTER_API_KEY")
         if not api_key:
@@ -92,30 +95,30 @@ class ShopAgent:
                 logger.warning("Using legacy GEMINI_API_KEY. Please migrate to OPENROUTER_API_KEY.")
             else:
                 raise ValueError("OPENROUTER_API_KEY environment variable not set")
-        
+
         self.llm = ChatOpenAI(
             model=model,
             temperature=temperature,
-            openai_api_key=api_key,
-            openai_api_base=OPENROUTER_BASE_URL,
+            api_key=api_key,  # type: ignore[arg-type]  # langchain_openai accepts str, not just SecretStr
+            base_url=OPENROUTER_BASE_URL,
             default_headers={
                 "HTTP-Referer": os.environ.get("WEBAPP_URL", "https://pvndora.com"),
                 "X-Title": "PVNDORA Shop Agent",
             },
         )
-        
+
         # Get tools
         self.tools = get_all_tools()
-        
+
         # Create agent (no memory - we use DB history)
         self.agent = create_react_agent(
             model=self.llm,
             tools=self.tools,
         )
-        
+
         logger.info(f"ShopAgent initialized with {len(self.tools)} tools")
-    
-    async def _load_chat_history(self, user_id: str, limit: int = 10) -> List[Dict[str, str]]:
+
+    async def _load_chat_history(self, user_id: str, limit: int = 10) -> list[dict[str, str]]:
         """Load recent chat history from database."""
         try:
             history = await self.db.get_chat_history(user_id, limit=limit)
@@ -123,12 +126,12 @@ class ShopAgent:
         except Exception as e:
             logger.warning(f"Failed to load chat history: {e}")
             return []
-    
-    def _format_history_for_prompt(self, history: List[Dict[str, str]]) -> str:
+
+    def _format_history_for_prompt(self, history: list[dict[str, str]]) -> str:
         """Format chat history for injection into system prompt."""
         if not history:
             return ""
-        
+
         lines = ["\n## Recent Conversation History"]
         # Expanded to 12 messages (6 exchanges) for better context
         for msg in history[-12:]:
@@ -138,32 +141,38 @@ class ShopAgent:
                 lines.append(f"User: {content}")
             else:
                 lines.append(f"You: {content}")
-        
-        lines.append("\nUse this context to maintain conversation flow and avoid redundant questions.\n")
+
+        lines.append(
+            "\nUse this context to maintain conversation flow and avoid redundant questions.\n"
+        )
         return "\n".join(lines)
-    
+
     async def _get_user_context(self, user_id: str, telegram_id: int, language: str) -> UserContext:
         """Build user context with currency info from DB."""
-        from core.services.currency import get_currency_service, LANGUAGE_TO_CURRENCY
         from core.db import get_redis
-        
+        from core.services.currency import LANGUAGE_TO_CURRENCY, get_currency_service
+
         currency = "USD"
         exchange_rate = 1.0
         preferred_currency = None
-        
+
         try:
             # Get user's balance_currency (actual currency of their balance) and preferred_currency from DB
-            result = await self.db.client.table("users").select(
-                "balance_currency, preferred_currency, language_code"
-            ).eq("id", user_id).single().execute()
-            
+            result = (
+                await self.db.client.table("users")
+                .select("balance_currency, preferred_currency, language_code")
+                .eq("id", user_id)
+                .single()
+                .execute()
+            )
+
             if result.data:
                 # Use balance_currency as primary source (actual currency of user's balance)
                 # This ensures AI uses the currency that matches user's actual balance
                 balance_currency_db = result.data.get("balance_currency") or "USD"
                 preferred_currency = result.data.get("preferred_currency")
                 db_language = result.data.get("language_code") or language
-                
+
                 # If user has balance_currency set, use it (this is their actual account currency)
                 # Otherwise fallback to preferred_currency or language-based currency
                 if balance_currency_db and balance_currency_db != "USD":
@@ -181,28 +190,30 @@ class ShopAgent:
                 redis = get_redis()
                 currency_service = get_currency_service(redis)
                 currency = currency_service.get_user_currency(db_language, None)
-            
+
             # Get exchange rate for display currency
             redis = get_redis()
             currency_service = get_currency_service(redis)
             if currency != "USD":
                 exchange_rate = await currency_service.get_exchange_rate(currency)
-                
-            logger.info(f"User context: user_id={user_id}, currency={currency} (from balance_currency), rate={exchange_rate}")
-            
+
+            logger.info(
+                f"User context: user_id={user_id}, currency={currency} (from balance_currency), rate={exchange_rate}"
+            )
+
         except Exception as e:
             logger.warning(f"Failed to get user context: {e}")
             # Fallback to language-based currency
             lang = language.split("-")[0].lower() if language else "en"
             currency = LANGUAGE_TO_CURRENCY.get(lang, "USD")
-        
+
         return UserContext(
             user_id=user_id,
             telegram_id=telegram_id,
             language=language,
             currency=currency,
             exchange_rate=exchange_rate,
-            preferred_currency=preferred_currency
+            preferred_currency=preferred_currency,
         )
 
     async def chat(
@@ -210,57 +221,57 @@ class ShopAgent:
         message: str,
         user_id: str,
         language: str = "en",
-        telegram_id: Optional[int] = None,
+        telegram_id: int | None = None,
     ) -> AgentResponse:
         """
         Send message to agent.
-        
+
         Args:
             message: User message
             user_id: User database ID
             language: User's language code
             telegram_id: User's Telegram ID (for cart/notifications)
-            
+
         Returns:
             AgentResponse with content and metadata
         """
         # Build user context with currency info
         user_ctx = await self._get_user_context(user_id, telegram_id or 0, language)
-        
+
         # Set global user context for tools (auto-injection)
-        set_user_context(user_ctx.user_id, user_ctx.telegram_id, user_ctx.language, user_ctx.currency)
-        
+        set_user_context(
+            user_ctx.user_id, user_ctx.telegram_id, user_ctx.language, user_ctx.currency
+        )
+
         # Load product catalog with proper currency conversion
         product_catalog = ""
         try:
             products = await self.db.get_products(status="active")
             product_catalog = await format_product_catalog(
-                products, 
-                language, 
-                exchange_rate=user_ctx.exchange_rate
+                products, language, exchange_rate=user_ctx.exchange_rate
             )
         except Exception as e:
             logger.warning(f"Failed to load catalog: {e}")
-        
+
         # Load chat history for context (expanded to 20 messages)
         history = await self._load_chat_history(user_id, limit=20)
         history_context = self._format_history_for_prompt(history)
-        
+
         # Build system prompt with user context
         system_prompt = get_system_prompt(
-            language=language, 
+            language=language,
             product_catalog=product_catalog,
             user_id=user_id,
             telegram_id=telegram_id or 0,
-            currency=user_ctx.currency
+            currency=user_ctx.currency,
         )
-        
+
         # Add history context
         full_system = system_prompt + history_context
-        
+
         # Build messages with history
         messages = [{"role": "system", "content": full_system}]
-        
+
         # Add recent history as conversation turns (expanded to 12 messages)
         for msg in history[-12:]:
             role = msg.get("role", "user")
@@ -269,14 +280,14 @@ class ShopAgent:
                 messages.append({"role": "user", "content": content})
             else:
                 messages.append({"role": "assistant", "content": content})
-        
+
         # Add current message
         messages.append({"role": "user", "content": message})
-        
+
         # Invoke with retry
         max_retries = 2
         last_error = None
-        
+
         for attempt in range(max_retries + 1):
             try:
                 result = await self.agent.ainvoke({"messages": messages})
@@ -286,10 +297,10 @@ class ShopAgent:
                 logger.warning(f"Agent attempt {attempt + 1} failed: {e}")
                 if attempt < max_retries:
                     continue
-        
+
         # All retries failed
         logger.error(f"Agent failed after {max_retries + 1} attempts: {last_error}")
-        
+
         error_messages = {
             "ru": "Произошла ошибка. Попробуй переформулировать вопрос.",
             "en": "An error occurred. Please try rephrasing your question.",
@@ -298,22 +309,22 @@ class ShopAgent:
             content=error_messages.get(language, error_messages["en"]),
             action="error",
         )
-    
-    def _parse_result(self, result: Dict[str, Any]) -> AgentResponse:
+
+    def _parse_result(self, result: dict[str, Any]) -> AgentResponse:
         """Parse agent result into AgentResponse."""
         messages = result.get("messages", [])
-        
+
         # Find last AI message
         ai_messages = [m for m in messages if isinstance(m, AIMessage)]
         last_ai = ai_messages[-1] if ai_messages else None
-        
+
         content = ""
-        tool_calls = []
+        tool_calls: list[dict[str, Any]] = []
         action = "none"
         product_id = None
         total_amount = None
         payment_url = None
-        
+
         if last_ai:
             # Handle multimodal content (can be list)
             raw_content = last_ai.content or ""
@@ -327,15 +338,15 @@ class ShopAgent:
                 content = " ".join(parts).strip()
             else:
                 content = str(raw_content).strip()
-            
+
             # Get tool calls
             tool_calls = getattr(last_ai, "tool_calls", []) or []
-            
+
             # Detect action and extract data from tool calls
             for tc in tool_calls:
                 tool_name = tc.get("name", "")
                 tool_args = tc.get("args", {})
-                
+
                 if tool_name == "add_to_cart":
                     action = "add_to_cart"
                     product_id = tool_args.get("product_id")
@@ -348,11 +359,11 @@ class ShopAgent:
                 elif tool_name == "pay_from_balance":
                     action = "offer_payment"
                     # Extract payment URL from tool result if available
-        
+
         # Ensure we have some content
         if not content:
             content = "Готово!"
-        
+
         return AgentResponse(
             content=content,
             tool_calls=tool_calls,
@@ -367,27 +378,28 @@ class ShopAgent:
 # SINGLETON
 # =============================================================================
 
-_agent: Optional[ShopAgent] = None
+_agent: ShopAgent | None = None
 
 
 def get_shop_agent(db=None) -> ShopAgent:
     """
     Get or create agent singleton.
-    
+
     Args:
         db: Database instance (required on first call)
-        
+
     Returns:
         ShopAgent instance
     """
     global _agent
-    
+
     if _agent is None:
         if db is None:
             from core.services.database import get_database
+
             db = get_database()
         _agent = ShopAgent(db)
-    
+
     return _agent
 
 

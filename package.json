@@ -8,7 +8,13 @@
         "build": "vite build",
         "build:analyze": "vite build && echo Bundle analysis saved to dist/stats.html",
         "lint": "eslint .",
-        "preview": "vite preview"
+        "lint:fix": "eslint . --fix",
+        "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css}\"",
+        "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css}\"",
+        "typecheck": "tsc --noEmit",
+        "typecheck:strict": "tsc --noEmit --project tsconfig.strict.json",
+        "preview": "vite preview",
+        "check:all": "npm run lint && npm run format:check && npm run typecheck"
     },
     "dependencies": {
         "@radix-ui/react-slot": "^1.2.4",
@@ -38,6 +44,7 @@
         "eslint-plugin-react-refresh": "^0.4.5",
         "globals": "^16.5.0",
         "postcss": "^8.4.35",
+        "prettier": "^3.2.5",
         "rollup-plugin-visualizer": "^6.0.5",
         "tailwindcss": "^3.4.1",
         "typescript": "~5.8.2",

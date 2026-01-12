@@ -4,6 +4,7 @@ Orders Router Module
 Main router for order-related endpoints.
 Combines CRUD and payment endpoints.
 """
+
 from fastapi import APIRouter
 
 from .crud import crud_router

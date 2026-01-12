@@ -2,36 +2,38 @@
 
 All methods use async/await with supabase-py v2.
 """
-from datetime import datetime, timezone, timedelta
-from typing import Optional, List
-from .base import BaseRepository
+
+from datetime import UTC, datetime, timedelta
+
 from core.services.models import Order
+
+from .base import BaseRepository
 
 
 class OrderRepository(BaseRepository):
     """Order database operations."""
-    
+
     async def create(
         self,
         user_id: str,
         amount: float,
-        original_price: Optional[float] = None,
+        original_price: float | None = None,
         discount_percent: int = 0,
         payment_method: str = "card",
         payment_gateway: str = "crystalpay",
-        user_telegram_id: Optional[int] = None,
-        expires_at: Optional[datetime] = None,
-        payment_url: Optional[str] = None,
+        user_telegram_id: int | None = None,
+        expires_at: datetime | None = None,
+        payment_url: str | None = None,
         source_channel: str = "premium",
         # Currency snapshot fields
-        fiat_amount: Optional[float] = None,
-        fiat_currency: Optional[str] = None,
-        exchange_rate_snapshot: Optional[float] = None,
+        fiat_amount: float | None = None,
+        fiat_currency: str | None = None,
+        exchange_rate_snapshot: float | None = None,
     ) -> Order:
         """Create new order with payment expiration.
-        
+
         Note: product_id removed - products are stored in order_items table.
-        
+
         Args:
             source_channel: Order origin - 'premium' (PVNDORA), 'discount' (discount bot), 'migrated' (converted user)
             fiat_amount: Amount in user's currency (what they see/pay)
@@ -46,7 +48,7 @@ class OrderRepository(BaseRepository):
             "status": "pending",
             "payment_method": payment_method,
             "payment_gateway": payment_gateway,
-            "source_channel": source_channel
+            "source_channel": source_channel,
         }
         if user_telegram_id:
             data["user_telegram_id"] = user_telegram_id
@@ -54,7 +56,7 @@ class OrderRepository(BaseRepository):
             data["expires_at"] = expires_at.isoformat()
         if payment_url:
             data["payment_url"] = payment_url
-        
+
         # Currency snapshot fields
         if fiat_amount is not None:
             data["fiat_amount"] = fiat_amount
@@ -62,62 +64,66 @@ class OrderRepository(BaseRepository):
             data["fiat_currency"] = fiat_currency
         if exchange_rate_snapshot is not None:
             data["exchange_rate_snapshot"] = exchange_rate_snapshot
-        
+
         # Debug: ensure product_id is not in data
         if "product_id" in data:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(f"ERROR: product_id found in order data: {data}")
-            raise ValueError("product_id should not be in order data - it was removed from orders table")
-        
+            raise ValueError(
+                "product_id should not be in order data - it was removed from orders table"
+            )
+
         # Remove any deprecated fields that might accidentally be in data
-        deprecated_fields = ["product_id", "stock_item_id", "delivery_content", "delivery_instructions"]
+        deprecated_fields = [
+            "product_id",
+            "stock_item_id",
+            "delivery_content",
+            "delivery_instructions",
+        ]
         for field in deprecated_fields:
             if field in data:
                 import logging
+
                 logger = logging.getLogger(__name__)
                 logger.warning(f"Removed deprecated field '{field}' from order data before insert")
                 data.pop(field, None)
-        
+
         result = await self.client.table("orders").insert(data).execute()
         return Order(**result.data[0])
-    
-    async def get_by_id(self, order_id: str) -> Optional[Order]:
+
+    async def get_by_id(self, order_id: str) -> Order | None:
         """Get order by ID."""
-        result = await self.client.table("orders").select("*").eq(
-            "id", order_id
-        ).execute()
+        result = await self.client.table("orders").select("*").eq("id", order_id).execute()
         return Order(**result.data[0]) if result.data else None
-    
+
     async def update_status(
-        self,
-        order_id: str,
-        status: str,
-        expires_at: Optional[datetime] = None
+        self, order_id: str, status: str, expires_at: datetime | None = None
     ) -> None:
         """Update order status.
-        
+
         Note: stock_item_id removed - stock items are linked via order_items table.
         """
         data = {"status": status}
-        
+
         if expires_at:
             data["expires_at"] = expires_at.isoformat()
         if status == "delivered":
-            data["delivered_at"] = datetime.now(timezone.utc).isoformat()
-        
+            data["delivered_at"] = datetime.now(UTC).isoformat()
+
         await self.client.table("orders").update(data).eq("id", order_id).execute()
-    
+
     async def get_by_user(
-        self, 
-        user_id: str, 
-        limit: int = 10, 
+        self,
+        user_id: str,
+        limit: int = 10,
         offset: int = 0,
         source_channel: str = None,
-        exclude_source_channel: str = None
-    ) -> List[Order]:
+        exclude_source_channel: str = None,
+    ) -> list[Order]:
         """Get user's orders with pagination.
-        
+
         Args:
             user_id: User database ID
             limit: Max orders to return
@@ -125,59 +131,73 @@ class OrderRepository(BaseRepository):
             source_channel: Filter by source_channel (e.g. 'discount', 'premium')
             exclude_source_channel: Exclude orders with this source_channel
         """
-        query = self.client.table("orders").select("*").eq(
-            "user_id", user_id
-        )
-        
+        query = self.client.table("orders").select("*").eq("user_id", user_id)
+
         # Filter by source_channel
         if source_channel:
             query = query.eq("source_channel", source_channel)
-        
+
         # Exclude source_channel (for PVNDORA Mini App - exclude discount orders)
         if exclude_source_channel:
             query = query.neq("source_channel", exclude_source_channel)
-        
+
         query = query.order("created_at", desc=True).limit(limit)
-        
+
         if offset > 0:
             query = query.range(offset, offset + limit - 1)
-        
+
         result = await query.execute()
         return [Order(**o) for o in result.data]
-    
-    async def get_expiring(self, days_before: int = 3) -> List[Order]:
+
+    async def get_expiring(self, days_before: int = 3) -> list[Order]:
         """Get orders expiring in N days."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         target = now + timedelta(days=days_before)
-        
-        result = await self.client.table("orders").select("*").eq(
-            "status", "delivered"
-        ).lt("expires_at", target.isoformat()).gt(
-            "expires_at", now.isoformat()
-        ).execute()
-        
+
+        result = (
+            await self.client.table("orders")
+            .select("*")
+            .eq("status", "delivered")
+            .lt("expires_at", target.isoformat())
+            .gt("expires_at", now.isoformat())
+            .execute()
+        )
+
         return [Order(**o) for o in result.data]
-    
-    async def get_pending_expired(self) -> List[Order]:
+
+    async def get_pending_expired(self) -> list[Order]:
         """Get pending orders that have expired (expires_at < now)."""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         # Get orders where expires_at is set and has passed
-        result = await self.client.table("orders").select("*").eq(
-            "status", "pending"
-        ).not_.is_("expires_at", "null").lt("expires_at", now).execute()
+        result = (
+            await self.client.table("orders")
+            .select("*")
+            .eq("status", "pending")
+            .not_.is_("expires_at", "null")
+            .lt("expires_at", now)
+            .execute()
+        )
         return [Order(**o) for o in result.data]
-    
-    async def get_pending_stale(self, minutes: int = 60) -> List[Order]:
+
+    async def get_pending_stale(self, minutes: int = 60) -> list[Order]:
         """Get pending orders older than N minutes (fallback for orders without expires_at)."""
-        cutoff = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
-        result = await self.client.table("orders").select("*").eq(
-            "status", "pending"
-        ).is_("expires_at", "null").lt("created_at", cutoff).execute()
+        cutoff = (datetime.now(UTC) - timedelta(minutes=minutes)).isoformat()
+        result = (
+            await self.client.table("orders")
+            .select("*")
+            .eq("status", "pending")
+            .is_("expires_at", "null")
+            .lt("created_at", cutoff)
+            .execute()
+        )
         return [Order(**o) for o in result.data]
-    
+
     async def count_by_status(self, status: str) -> int:
         """Count orders by status."""
-        result = await self.client.table("orders").select(
-            "id", count="exact"
-        ).eq("status", status).execute()
+        result = (
+            await self.client.table("orders")
+            .select("id", count="exact")
+            .eq("status", status)
+            .execute()
+        )
         return result.count or 0

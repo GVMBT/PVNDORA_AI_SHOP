@@ -13,8 +13,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
 import os
-from typing import Optional, List
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
@@ -28,9 +27,10 @@ logger = get_logger(__name__)
 
 class AlertSeverity:
     """Alert severity levels."""
-    INFO = "info"        # Blue - informational
+
+    INFO = "info"  # Blue - informational
     WARNING = "warning"  # Yellow - attention needed
-    ERROR = "error"      # Red - immediate action
+    ERROR = "error"  # Red - immediate action
     CRITICAL = "critical"  # Red with siren - urgent
 
 
@@ -45,35 +45,38 @@ SEVERITY_ICONS = {
 
 class AdminAlertService:
     """Service for sending alerts to admin Telegram accounts."""
-    
+
     def __init__(self):
         self.bot_token = os.environ.get("TELEGRAM_TOKEN", "")
-        self._bot: Optional[Bot] = None
-        self._admin_ids: Optional[List[int]] = None
-        
-    def _get_bot(self) -> Optional[Bot]:
+        self._bot: Bot | None = None
+        self._admin_ids: list[int] | None = None
+
+    def _get_bot(self) -> Bot | None:
         """Get or create bot instance."""
         if self._bot is None and self.bot_token:
             self._bot = Bot(
-                token=self.bot_token,
-                default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+                token=self.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML)
             )
         return self._bot
-    
-    async def _get_admin_ids(self) -> List[int]:
+
+    async def _get_admin_ids(self) -> list[int]:
         """Get list of admin Telegram IDs from database."""
         if self._admin_ids is not None:
             return self._admin_ids
-            
+
         db = get_database()
         try:
-            result = await db.client.table("users").select(
-                "telegram_id"
-            ).eq("is_admin", True).eq("is_banned", False).execute()
+            result = (
+                await db.client.table("users")
+                .select("telegram_id")
+                .eq("is_admin", True)
+                .eq("is_banned", False)
+                .execute()
+            )
             self._admin_ids = [u["telegram_id"] for u in result.data if u.get("telegram_id")]
             return self._admin_ids
-        except Exception as e:
-            logger.error(f"Failed to fetch admin IDs: {e}")
+        except Exception:
+            logger.exception("Failed to fetch admin IDs")
             # Fallback to env var if available
             admin_ids_str = os.environ.get("ADMIN_TELEGRAM_IDS", "")
             if admin_ids_str:
@@ -81,23 +84,23 @@ class AdminAlertService:
             else:
                 self._admin_ids = []
             return self._admin_ids
-    
+
     async def send_alert(
         self,
         title: str,
         message: str,
         severity: str = AlertSeverity.INFO,
-        metadata: Optional[dict] = None
+        metadata: dict | None = None,
     ) -> int:
         """
         Send alert to all admin users.
-        
+
         Args:
             title: Alert title
             message: Alert message body
             severity: Alert severity level
             metadata: Optional additional data to include
-            
+
         Returns:
             Number of admins notified
         """
@@ -105,58 +108,53 @@ class AdminAlertService:
         if not admin_ids:
             logger.warning("No admin IDs configured, cannot send alert")
             return 0
-        
+
         icon = SEVERITY_ICONS.get(severity, "📢")
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-        local_time = datetime.now().strftime("%H:%M")
-        
+        timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+        local_time = datetime.now(UTC).strftime("%H:%M")
+
         # Build structured alert message
-        text = (
-            f"{icon} <b>{title}</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"{message}\n"
-        )
-        
+        text = f"{icon} <b>{title}</b>\n━━━━━━━━━━━━━━━━━━━━━\n\n{message}\n"
+
         if metadata:
             text += "\n<b>Детали:</b>\n"
             for k, v in metadata.items():
                 text += f"• <code>{k}</code>: {v}\n"
-        
+
         text += f"\n<i>⏰ {timestamp} ({local_time})</i>"
-        
+
         sent_count = 0
         from core.services.telegram_messaging import send_telegram_message
+
         for admin_id in admin_ids:
             try:
                 # Note: disable_notification not supported in telegram_messaging yet
                 # Can be added if needed
                 success = await send_telegram_message(
-                    chat_id=admin_id,
-                    text=text,
-                    parse_mode="HTML"
+                    chat_id=admin_id, text=text, parse_mode="HTML"
                 )
                 if success:
                     sent_count += 1
-            except Exception as e:
-                logger.error(f"Failed to send alert to admin {admin_id}: {e}")
-        
+            except Exception:
+                logger.exception(f"Failed to send alert to admin {admin_id}")
+
         return sent_count
-    
+
     # ==================== PREDEFINED ALERTS ====================
-    
+
     async def alert_new_order(
         self,
         order_id: str,
         amount: float,
         currency: str,
         user_telegram_id: int,
-        username: Optional[str],
+        username: str | None,
         product_name: str,
-        quantity: int = 1
+        quantity: int = 1,
     ) -> int:
         """Alert admins about new paid order."""
         user_display = f"@{username}" if username else f"ID: {user_telegram_id}"
-        
+
         return await self.send_alert(
             title="💰 Новый заказ оплачен",
             message=(
@@ -166,21 +164,17 @@ class AdminAlertService:
                 f"<b>Покупатель:</b> {user_display}"
             ),
             severity=AlertSeverity.INFO,
-            metadata={"order_id": order_id[:8]}
+            metadata={"order_id": order_id[:8]},
         )
-    
+
     async def alert_low_stock(
-        self,
-        product_name: str,
-        product_id: str,
-        current_stock: int,
-        threshold: int = 5
+        self, product_name: str, product_id: str, current_stock: int, threshold: int = 5
     ) -> int:
         """Alert admins about low stock."""
         severity = AlertSeverity.WARNING if current_stock > 0 else AlertSeverity.ERROR
         status_icon = "🔴" if current_stock == 0 else "⚠️"
         status_text = "Товар закончился!" if current_stock == 0 else "Низкий запас"
-        
+
         return await self.send_alert(
             title=f"{status_icon} {status_text}",
             message=(
@@ -189,15 +183,11 @@ class AdminAlertService:
                 f"<b>Порог:</b> {threshold} шт."
             ),
             severity=severity,
-            metadata={"product_id": product_id[:8]}
+            metadata={"product_id": product_id[:8]},
         )
-    
+
     async def alert_payment_failure(
-        self,
-        order_id: str,
-        error: str,
-        amount: float,
-        gateway: str
+        self, order_id: str, error: str, amount: float, gateway: str
     ) -> int:
         """Alert admins about payment processing failure."""
         return await self.send_alert(
@@ -208,50 +198,46 @@ class AdminAlertService:
                 f"<b>Ошибка:</b> <code>{error[:200]}</code>"
             ),
             severity=AlertSeverity.ERROR,
-            metadata={"order_id": order_id[:8]}
+            metadata={"order_id": order_id[:8]},
         )
-    
+
     async def alert_withdrawal_request(
         self,
         user_telegram_id: int,
-        username: Optional[str],
+        username: str | None,
         amount: float,
         method: str,
         request_id: str,
-        user_balance: Optional[float] = None
+        user_balance: float | None = None,
     ) -> int:
         """Alert admins about new withdrawal request.
-        
+
         Note: amount is in USDT (for TRC20 withdrawals).
         """
         user_display = f"@{username}" if username else f"ID: {user_telegram_id}"
-        
+
         message = (
             f"<b>Сумма:</b> {amount:.2f} USDT\n"
             f"<b>Метод:</b> {method}\n"
             f"<b>Пользователь:</b> {user_display}"
         )
-        
+
         if user_balance is not None:
             message += f"\n<b>Баланс:</b> ${user_balance:.2f}"
-        
+
         return await self.send_alert(
             title="💸 Запрос на вывод средств",
             message=message,
             severity=AlertSeverity.WARNING,
-            metadata={"request_id": request_id[:8], "user_id": str(user_telegram_id)}
+            metadata={"request_id": request_id[:8], "user_id": str(user_telegram_id)},
         )
-    
+
     async def alert_new_partner_application(
-        self,
-        user_telegram_id: int,
-        username: Optional[str],
-        source: str,
-        audience_size: str
+        self, user_telegram_id: int, username: str | None, source: str, audience_size: str
     ) -> int:
         """Alert admins about new partner application."""
         user_display = f"@{username}" if username else f"ID: {user_telegram_id}"
-        
+
         return await self.send_alert(
             title="🏆 Заявка на партнёрство",
             message=(
@@ -260,21 +246,17 @@ class AdminAlertService:
                 f"<b>Аудитория:</b> {audience_size}"
             ),
             severity=AlertSeverity.INFO,
-            metadata={"user_id": str(user_telegram_id)}
+            metadata={"user_id": str(user_telegram_id)},
         )
-    
+
     async def alert_support_ticket(
-        self,
-        ticket_id: str,
-        user_telegram_id: int,
-        issue_type: str,
-        order_id: Optional[str] = None
+        self, ticket_id: str, user_telegram_id: int, issue_type: str, order_id: str | None = None
     ) -> int:
         """Alert admins about new support ticket."""
         metadata = {"ticket_id": ticket_id[:8]}
         if order_id:
             metadata["order_id"] = order_id[:8]
-            
+
         return await self.send_alert(
             title="🎫 Новый тикет поддержки",
             message=(
@@ -282,12 +264,12 @@ class AdminAlertService:
                 f"<b>Пользователь:</b> <code>{user_telegram_id}</code>"
             ),
             severity=AlertSeverity.INFO,
-            metadata=metadata
+            metadata=metadata,
         )
 
 
 # Singleton instance
-_alert_service: Optional[AdminAlertService] = None
+_alert_service: AdminAlertService | None = None
 
 
 def get_admin_alert_service() -> AdminAlertService:
@@ -300,10 +282,7 @@ def get_admin_alert_service() -> AdminAlertService:
 
 # Convenience functions for quick alerts
 async def alert_admins(
-    title: str,
-    message: str,
-    severity: str = AlertSeverity.INFO,
-    metadata: Optional[dict] = None
+    title: str, message: str, severity: str = AlertSeverity.INFO, metadata: dict | None = None
 ) -> int:
     """Quick function to send alert to admins."""
     service = get_admin_alert_service()

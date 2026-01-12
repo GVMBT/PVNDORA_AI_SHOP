@@ -8,15 +8,16 @@ This bot provides:
 
 Entry point: discount_router
 """
+
 from aiogram import Router
 
-from .handlers.start import router as start_router
 from .handlers.catalog import router as catalog_router
-from .handlers.purchase import router as purchase_router
 from .handlers.issues import router as issues_router
+from .handlers.purchase import router as purchase_router
+from .handlers.start import router as start_router
 from .middlewares import (
-    DiscountAuthMiddleware,
     ChannelSubscriptionMiddleware,
+    DiscountAuthMiddleware,
     TermsAcceptanceMiddleware,
 )
 
@@ -30,8 +31,8 @@ discount_router.include_router(purchase_router)
 discount_router.include_router(issues_router)
 
 __all__ = [
-    "discount_router",
-    "DiscountAuthMiddleware",
     "ChannelSubscriptionMiddleware",
+    "DiscountAuthMiddleware",
     "TermsAcceptanceMiddleware",
+    "discount_router",
 ]

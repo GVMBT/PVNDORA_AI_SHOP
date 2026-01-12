@@ -5,8 +5,9 @@ Core class and helpers for all notification types.
 Integrates with telegram_messaging.py for unified message sending.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
-from core.services.database import get_database
+
 from core.logging import get_logger
+from core.services.database import get_database
 
 logger = get_logger(__name__)
 
@@ -15,12 +16,20 @@ async def get_user_language(telegram_id: int) -> str:
     """Get user's preferred language from database."""
     try:
         db = get_database()
-        result = await db.client.table("users").select(
-            "interface_language, language_code"
-        ).eq("telegram_id", telegram_id).limit(1).execute()
+        result = (
+            await db.client.table("users")
+            .select("interface_language, language_code")
+            .eq("telegram_id", telegram_id)
+            .limit(1)
+            .execute()
+        )
         if result.data:
             # Prefer interface_language, fallback to language_code
-            lang = result.data[0].get("interface_language") or result.data[0].get("language_code") or "en"
+            lang = (
+                result.data[0].get("interface_language")
+                or result.data[0].get("language_code")
+                or "en"
+            )
             # Normalize to supported languages (en/ru)
             return "ru" if lang.lower().startswith("ru") else "en"
     except Exception as e:
@@ -61,10 +70,10 @@ async def get_referral_settings() -> dict:
 
 class NotificationServiceBase:
     """Base class for NotificationService.
-    
+
     All notification methods use telegram_messaging.py for unified message sending.
     No direct bot access needed.
     """
-    
+
     def __init__(self):
         pass

@@ -4,18 +4,19 @@ Notification Service Module
 Unified notification service combining all notification types.
 Backward compatible - exposes NotificationService as main class.
 """
+
 from .base import (
-    get_user_language,
-    get_referral_settings,
     _msg,
+    get_referral_settings,
+    get_user_language,
 )
 from .delivery import DeliveryNotificationsMixin
-from .orders import OrderNotificationsMixin
-from .support import SupportNotificationsMixin
-from .referral import ReferralNotificationsMixin
-from .payments import PaymentNotificationsMixin
-from .withdrawals import WithdrawalNotificationsMixin
 from .misc import MiscNotificationsMixin
+from .orders import OrderNotificationsMixin
+from .payments import PaymentNotificationsMixin
+from .referral import ReferralNotificationsMixin
+from .support import SupportNotificationsMixin
+from .withdrawals import WithdrawalNotificationsMixin
 
 
 class NotificationService(
@@ -29,13 +30,13 @@ class NotificationService(
 ):
     """
     Service for sending notifications and fulfilling orders.
-    
+
     Combines all notification mixins into a single service class.
-    
+
     NOTE: fulfill_order() was removed - DEPRECATED
     Use workers._deliver_items_for_order() instead for order fulfillment.
     """
-    
+
     def __init__(self):
         super().__init__()
 
@@ -43,7 +44,7 @@ class NotificationService(
 # Re-export for backward compatibility
 __all__ = [
     "NotificationService",
-    "get_user_language",
-    "get_referral_settings",
     "_msg",
+    "get_referral_settings",
+    "get_user_language",
 ]

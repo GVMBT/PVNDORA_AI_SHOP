@@ -1,6 +1,6 @@
 # Services Module
 from .database import Database
-from .payments import PaymentService
 from .notifications import NotificationService
+from .payments import PaymentService
 
-__all__ = ["Database", "PaymentService", "NotificationService"]
+__all__ = ["Database", "NotificationService", "PaymentService"]

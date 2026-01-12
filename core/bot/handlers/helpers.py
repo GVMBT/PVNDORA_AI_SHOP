@@ -1,9 +1,10 @@
 """Bot handler helpers - keyboards and utilities."""
+
 import os
 import traceback
 
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from core.logging import get_logger
 
@@ -15,22 +16,28 @@ WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://pvndora.app")
 
 def get_share_keyboard(product_name: str = "") -> InlineKeyboardMarkup:
     """Get keyboard with share button using switchInlineQuery."""
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text="📤 Поделиться с друзьями",
-            switch_inline_query=product_name
-        )]
-    ])
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="📤 Поделиться с друзьями", switch_inline_query=product_name
+                )
+            ]
+        ]
+    )
 
 
 def get_share_current_chat_keyboard(product_name: str) -> InlineKeyboardMarkup:
     """Get keyboard for sharing in current chat."""
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text="📤 Поделиться здесь",
-            switch_inline_query_current_chat=product_name
-        )]
-    ])
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="📤 Поделиться здесь", switch_inline_query_current_chat=product_name
+                )
+            ]
+        ]
+    )
 
 
 async def safe_answer(message: Message, text: str, **kwargs) -> bool:
@@ -42,23 +49,21 @@ async def safe_answer(message: Message, text: str, **kwargs) -> bool:
         if not text or not text.strip():
             logger.error(f"Attempted to send empty message to chat {message.chat.id}")
             return False
-        
+
         logger.debug(f"safe_answer - chat_id: {message.chat.id}, text_length: {len(text)}")
         await message.answer(text, **kwargs)
         logger.debug(f"Message sent successfully to chat {message.chat.id}")
         return True
     except (TelegramBadRequest, TelegramForbiddenError) as e:
         error_msg = str(e).lower()
-        logger.error(f"Telegram API error in safe_answer: {e}")
+        logger.exception("Telegram API error in safe_answer")
         if "chat not found" in error_msg:
             logger.warning(f"Cannot send message to chat {message.chat.id}: chat not found")
         elif "bot was blocked" in error_msg or "forbidden" in error_msg:
             logger.warning(f"Bot blocked by user {message.chat.id}")
         else:
-            logger.error(f"Traceback: {traceback.format_exc()}")
+            logger.exception(f"Traceback: {traceback.format_exc()}")
         return False
     except Exception as e:
         logger.error(f"Unexpected error in safe_answer: {type(e).__name__}: {e}", exc_info=True)
         return False
-
-

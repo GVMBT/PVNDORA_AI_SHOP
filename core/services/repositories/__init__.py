@@ -8,17 +8,17 @@ Provides clean separation of concerns:
 - StockRepository: Stock items, availability
 - ChatRepository: Chat history, support tickets
 """
-from .user_repo import UserRepository
-from .product_repo import ProductRepository
-from .order_repo import OrderRepository
-from .stock_repo import StockRepository
+
 from .chat_repo import ChatRepository
+from .order_repo import OrderRepository
+from .product_repo import ProductRepository
+from .stock_repo import StockRepository
+from .user_repo import UserRepository
 
 __all__ = [
-    "UserRepository",
-    "ProductRepository",
-    "OrderRepository",
-    "StockRepository",
     "ChatRepository",
+    "OrderRepository",
+    "ProductRepository",
+    "StockRepository",
+    "UserRepository",
 ]
-

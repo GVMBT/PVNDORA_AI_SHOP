@@ -3,7 +3,7 @@ LangChain Tools for Shop Agent
 
 Complete toolset covering all app functionality:
 - Catalog & Search
-- Cart Management  
+- Cart Management
 - Orders & Credentials
 - User Profile & Referrals
 - Wishlist & Waitlist
@@ -15,63 +15,63 @@ via set_user_context() before each agent call.
 
 # Base functions - context management
 from .base import (
-    set_db,
     get_db,
-    set_user_context,
     get_user_context,
-)
-
-# Catalog tools
-from .catalog import (
-    get_catalog,
-    search_products,
-    get_product_details,
-    check_product_availability,
+    set_db,
+    set_user_context,
 )
 
 # Cart tools
 from .cart import (
-    get_user_cart,
     add_to_cart,
+    apply_promo_code,
+    clear_cart,
+    get_user_cart,
     remove_from_cart,
     update_cart_quantity,
-    clear_cart,
-    apply_promo_code,
 )
 
-# Order tools
-from .orders import (
-    get_user_orders,
-    get_order_credentials,
-    resend_order_credentials,
-)
-
-# Profile tools
-from .profile import (
-    get_user_profile,
-    get_referral_info,
-    get_balance_history,
-)
-
-# Wishlist tools
-from .wishlist import (
-    add_to_wishlist,
-    get_wishlist,
-    remove_from_wishlist,
-    add_to_waitlist,
-)
-
-# Support tools
-from .support import (
-    search_faq,
-    create_support_ticket,
-    request_refund,
+# Catalog tools
+from .catalog import (
+    check_product_availability,
+    get_catalog,
+    get_product_details,
+    search_products,
 )
 
 # Checkout tools
 from .checkout import (
     checkout_cart,
     pay_cart_from_balance,
+)
+
+# Order tools
+from .orders import (
+    get_order_credentials,
+    get_user_orders,
+    resend_order_credentials,
+)
+
+# Profile tools
+from .profile import (
+    get_balance_history,
+    get_referral_info,
+    get_user_profile,
+)
+
+# Support tools
+from .support import (
+    create_support_ticket,
+    request_refund,
+    search_faq,
+)
+
+# Wishlist tools
+from .wishlist import (
+    add_to_waitlist,
+    add_to_wishlist,
+    get_wishlist,
+    remove_from_wishlist,
 )
 
 

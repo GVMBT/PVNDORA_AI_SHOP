@@ -3,10 +3,11 @@ Profile Router - Main Entry Point
 
 Aggregates all profile-related endpoints.
 """
+
 from fastapi import APIRouter
 
-from .profile import profile_router
 from .balance import balance_router
+from .profile import profile_router
 from .withdrawals import withdrawals_router
 
 router = APIRouter(tags=["webapp-profile"])
