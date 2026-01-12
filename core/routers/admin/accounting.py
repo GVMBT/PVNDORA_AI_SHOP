@@ -362,7 +362,7 @@ async def get_financial_overview(
             liabilities_by_currency[currency]["user_balances"] += balance
             liabilities_by_currency[currency]["users_count"] += 1
     except Exception as e:
-        logger.warning(f"Failed to get user balances by currency: {e}")
+        logger.warning("Failed to get user balances by currency: %s", e)
 
     # Pending withdrawals (debited from user balance in their currency)
     try:

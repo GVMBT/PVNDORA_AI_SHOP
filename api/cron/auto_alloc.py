@@ -101,7 +101,7 @@ async def auto_alloc_entrypoint(request: Request):
                     if res.get("delivered", 0) > 0:
                         results["order_items"]["delivered"] += res["delivered"]
                 except Exception:
-                    logger.exception(f"auto_alloc: Failed to deliver order {oid}")
+                    logger.exception("auto_alloc: Failed to deliver order %s", oid)
     except Exception:
         logger.exception("auto_alloc: Failed to query open items")
 
@@ -260,10 +260,10 @@ async def auto_alloc_entrypoint(request: Request):
                             logger.exception("auto_alloc: Failed to notify user")
 
                 results["replacements"]["delivered"] += 1
-                logger.info(f"auto_alloc: Delivered replacement for ticket {ticket_id}")
+                logger.info("auto_alloc: Delivered replacement for ticket %s", ticket_id)
 
             except Exception:
-                logger.exception(f"auto_alloc: Failed to process ticket {ticket_id}")
+                logger.exception("auto_alloc: Failed to process ticket %s", ticket_id)
 
     except Exception:
         logger.exception("auto_alloc: Failed to process replacement tickets")
