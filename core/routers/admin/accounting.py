@@ -390,7 +390,7 @@ async def get_financial_overview(
                 }
             liabilities_by_currency[currency]["pending_withdrawals"] += amount
     except Exception as e:
-        logger.warning(f"Failed to get pending withdrawals: {e}")
+        logger.warning("Failed to get pending withdrawals: %s", e)
 
     # Round liabilities
     for currency in liabilities_by_currency:
@@ -1165,7 +1165,7 @@ async def get_liabilities(admin=Depends(verify_admin)):
             liabilities_by_currency[currency]["pending_withdrawals"] += amount
             liabilities_by_currency[currency]["withdrawals_count"] += 1
     except Exception as e:
-        logger.warning(f"Failed to get pending withdrawals: {e}")
+        logger.warning("Failed to get pending withdrawals: %s", e)
 
     # Round values appropriately
     for currency in liabilities_by_currency:
@@ -1490,7 +1490,7 @@ async def get_accounting_report(
                 }
             liabilities_by_currency[curr]["user_balances"] += balance
     except Exception as e:
-        logger.warning(f"Failed to get user balances for report: {e}")
+        logger.warning("Failed to get user balances for report: %s", e)
 
     # Pending withdrawals
     try:
@@ -1512,7 +1512,7 @@ async def get_accounting_report(
                 }
             liabilities_by_currency[curr]["pending_withdrawals"] += amount
     except Exception as e:
-        logger.warning(f"Failed to get withdrawals for report: {e}")
+        logger.warning("Failed to get withdrawals for report: %s", e)
 
     # Calculate totals per currency
     for curr_data in liabilities_by_currency.values():

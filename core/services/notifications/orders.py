@@ -148,7 +148,7 @@ class OrderNotificationsMixin(NotificationServiceBase):
                     # SINGLE TYPE: Show all items together
                     items_list_text = "\n" + "\n".join(all_items) + "\n"
         except Exception as e:
-            logger.warning(f"Failed to fetch order items for notification {order_id}: {e}")
+            logger.warning("Failed to fetch order items for notification %s: %s", order_id, e)
 
         # Build delivery info based on item types
         delivery_info = ""
@@ -212,4 +212,4 @@ class OrderNotificationsMixin(NotificationServiceBase):
                 f"Sent payment confirmed notification to {telegram_id} for order {order_id}"
             )
         except Exception:
-            logger.exception(f"Failed to send payment confirmed notification to {telegram_id}")
+            logger.exception("Failed to send payment confirmed notification to %s", telegram_id)

@@ -12,7 +12,6 @@ from core.utils.validators import (
     validate_telegram_init_data,
 )
 
-from .dependencies import _cache_db_user
 from .session import verify_web_session_token
 
 logger = logging.getLogger(__name__)
@@ -53,6 +52,9 @@ async def verify_telegram_auth(
                     db_user = await db.get_user_by_telegram_id(session["telegram_id"])
                     if db_user:
                         # OPTIMIZATION: Cache db_user in ContextVar to avoid duplicate queries
+                        # Cache db_user for this request (lazy import to avoid circular dependency)
+                        from .dependencies import _cache_db_user
+
                         _cache_db_user(session["telegram_id"], db_user)
                         if db_user.language_code:
                             language_code = db_user.language_code

@@ -46,8 +46,8 @@ except ImportError:
     # Use logging instead of print for better error tracking
     logger = logging.getLogger(__name__)
     logger.exception("ERROR: Failed to import modules")
-    logger.exception(f"ERROR: sys.path = {sys.path}")
-    logger.exception(f"ERROR: Traceback: {traceback.format_exc()}")
+    logger.exception("ERROR: sys.path = %s", sys.path)
+    logger.exception("ERROR: Traceback: %s", traceback.format_exc())
     raise
 
 
@@ -110,7 +110,7 @@ async def lifespan(app: FastAPI):
         await init_database()
         logger.info("Database initialized successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize database: {e}", exc_info=True)
+        logger.error("Failed to initialize database: %s", e, exc_info=True)
         # Continue anyway - some endpoints may work without DB
 
     yield
@@ -121,14 +121,14 @@ async def lifespan(app: FastAPI):
 
         await shutdown_services()
     except Exception as e:
-        logger.warning(f"Failed to shutdown services cleanly: {e}", exc_info=True)
+        logger.warning("Failed to shutdown services cleanly: %s", e, exc_info=True)
 
     try:
         from core.services.database import close_database
 
         await close_database()
     except Exception as e:
-        logger.warning(f"Failed to close database: {e}", exc_info=True)
+        logger.warning("Failed to close database: %s", e, exc_info=True)
 
     if bot:
         await bot.session.close()
@@ -276,7 +276,7 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
         try:
             data = await request.json()
         except Exception as e:
-            logger.warning(f"Failed to parse JSON: {e}")
+            logger.warning("Failed to parse JSON: %s", e)
             return JSONResponse(
                 status_code=200,  # Return 200 to prevent retries
                 content={"ok": False, "error": f"Invalid JSON: {e!s}"},
@@ -286,7 +286,7 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
         try:
             update = Update.model_validate(data, context={"bot": bot_instance})
         except Exception as e:
-            logger.warning(f"Failed to validate update: {e}")
+            logger.warning("Failed to validate update: %s", e)
             return JSONResponse(
                 status_code=200,  # Return 200 to prevent retries
                 content={"ok": False, "error": f"Invalid update: {e!s}"},
@@ -301,7 +301,7 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
 
     except Exception as e:
         error_msg = str(e)
-        logger.exception(f"Webhook exception: {error_msg}")
+        logger.exception("Webhook exception: %s", error_msg)
         # Always return 200 to prevent Telegram from retrying
         return JSONResponse(status_code=200, content={"ok": False, "error": error_msg})
 
@@ -315,7 +315,7 @@ async def _process_update_async(bot_instance: Bot, dispatcher: Dispatcher, updat
     try:
         await dispatcher.feed_update(bot_instance, update)
     except Exception:
-        logger.exception(f"Failed to process update {update_id}")
+        logger.exception("Failed to process update %s", update_id)
 
 
 # Products/Orders/Profile API moved to core/routers/webapp.py
@@ -393,7 +393,7 @@ async def discount_webhook(request: Request, background_tasks: BackgroundTasks):
         try:
             data = await request.json()
         except Exception as e:
-            logger.warning(f"Failed to parse JSON: {e}")
+            logger.warning("Failed to parse JSON: %s", e)
             return JSONResponse(
                 status_code=200, content={"ok": False, "error": f"Invalid JSON: {e!s}"}
             )
@@ -401,7 +401,7 @@ async def discount_webhook(request: Request, background_tasks: BackgroundTasks):
         try:
             update = Update.model_validate(data, context={"bot": bot_instance})
         except Exception as e:
-            logger.warning(f"Failed to validate update: {e}")
+            logger.warning("Failed to validate update: %s", e)
             return JSONResponse(
                 status_code=200, content={"ok": False, "error": f"Invalid update: {e!s}"}
             )
@@ -413,7 +413,7 @@ async def discount_webhook(request: Request, background_tasks: BackgroundTasks):
 
     except Exception as e:
         error_msg = str(e)
-        logger.exception(f"Discount webhook exception: {error_msg}")
+        logger.exception("Discount webhook exception: %s", error_msg)
         return JSONResponse(status_code=200, content={"ok": False, "error": error_msg})
 
 
@@ -510,7 +510,7 @@ async def admin_webhook(request: Request, background_tasks: BackgroundTasks):
         try:
             data = await request.json()
         except Exception as e:
-            logger.warning(f"Failed to parse JSON: {e}")
+            logger.warning("Failed to parse JSON: %s", e)
             return JSONResponse(
                 status_code=200, content={"ok": False, "error": f"Invalid JSON: {e!s}"}
             )
@@ -518,7 +518,7 @@ async def admin_webhook(request: Request, background_tasks: BackgroundTasks):
         try:
             update = Update.model_validate(data, context={"bot": bot_instance})
         except Exception as e:
-            logger.warning(f"Failed to validate update: {e}")
+            logger.warning("Failed to validate update: %s", e)
             return JSONResponse(
                 status_code=200, content={"ok": False, "error": f"Invalid update: {e!s}"}
             )
@@ -530,7 +530,7 @@ async def admin_webhook(request: Request, background_tasks: BackgroundTasks):
 
     except Exception as e:
         error_msg = str(e)
-        logger.exception(f"Admin webhook exception: {error_msg}")
+        logger.exception("Admin webhook exception: %s", error_msg)
         return JSONResponse(status_code=200, content={"ok": False, "error": error_msg})
 
 
