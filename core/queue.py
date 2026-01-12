@@ -192,7 +192,13 @@ def verify_qstash_signature(body: bytes, signature: str, url: str = "") -> bool:
         )
         return True
     except Exception as e:
-        logger.error(f"QStash signature verification failed: {e}")
+        # Enhanced logging for debugging signature issues
+        key_preview = QSTASH_CURRENT_SIGNING_KEY[:8] + "..." if QSTASH_CURRENT_SIGNING_KEY else "NOT_SET"
+        sig_preview = signature[:20] + "..." if signature else "EMPTY"
+        logger.error(
+            f"QStash signature verification failed: {e} "
+            f"[key_prefix={key_preview}, sig_prefix={sig_preview}, url={url}]"
+        )
         return False
 
 
