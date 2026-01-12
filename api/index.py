@@ -32,21 +32,26 @@ try:
 
     from core.bot.admin import AdminAuthMiddleware
     from core.bot.admin import router as admin_bot_router
-    from core.bot.discount import \
-        ChannelSubscriptionMiddleware as DiscountChannelSubscriptionMiddleware
-    from core.bot.discount import (DiscountAuthMiddleware,
-                                   TermsAcceptanceMiddleware, discount_router)
+    from core.bot.discount import (
+        ChannelSubscriptionMiddleware as DiscountChannelSubscriptionMiddleware,
+    )
+    from core.bot.discount import DiscountAuthMiddleware, TermsAcceptanceMiddleware, discount_router
     from core.bot.handlers import router as bot_router
-    from core.bot.middlewares import (ActivityMiddleware, AnalyticsMiddleware,
-                                      AuthMiddleware,
-                                      ChannelSubscriptionMiddleware,
-                                      LanguageMiddleware)
+    from core.bot.middlewares import (
+        ActivityMiddleware,
+        AnalyticsMiddleware,
+        AuthMiddleware,
+        ChannelSubscriptionMiddleware,
+        LanguageMiddleware,
+    )
+
     # Include other routers
     from core.routers.admin.accounting import router as accounting_router
     from core.routers.admin.analytics import router as analytics_router
     from core.routers.admin.products import router as admin_products_router
     from core.routers.admin.users import router as admin_users_router
     from core.routers.deps import shutdown_services
+
     # WebApp router - single unified router from __init__.py
     from core.routers.webapp import router as webapp_router
     from core.routers.webhooks import router as webhooks_router
@@ -129,7 +134,7 @@ async def lifespan(fastapi_app: FastAPI):
         logger.error("Failed to initialize database: %s", err, exc_info=True)
         # Continue anyway - some endpoints may work without DB
 
-    yield fastapi_app
+    yield
 
     # Shutdown
     try:
