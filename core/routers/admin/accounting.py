@@ -166,20 +166,38 @@ async def get_financial_overview(
             real_amount = amount_usd  # Old orders without fiat_amount
         
         # Calculate gross revenue in fiat currency (our price before promo codes)
-        # If we have original_price and promo_discount, calculate properly
-        if original_price_usd > amount_usd:
+        # If we have promo_discount, calculate gross = net + promo
+        if expenses:
+            if isinstance(expenses, list):
+                expenses = expenses[0] if expenses else {}
+            promo_discount_usd = float(expenses.get("promo_discount_amount", 0))
+        else:
+            promo_discount_usd = 0.0
+
+        # Override original_price logic - use ACTUAL sales price + discounts
+        # We don't care about MSRP (original_price) anymore for P&L
+        revenue_gross_usd = amount_usd + promo_discount_usd
+        
+        if promo_discount_usd > 0:
             # Gross in fiat = proportional to USD gross
             if amount_usd > 0:
-                gross_ratio = original_price_usd / amount_usd
+                gross_ratio = revenue_gross_usd / amount_usd
                 fiat_gross = real_amount * gross_ratio
             else:
-                fiat_gross = real_amount
-            # Promo discount in fiat = proportional
+                # Full discount?
+                fiat_gross = revenue_gross_usd # fallback, likely wrong if real_amount is 0
+                if real_amount == 0 and amount_usd == 0:
+                     # If both are 0, we can't infer exchange rate easily, but let's assume 1:1 if USD
+                     if currency == "USD":
+                         fiat_gross = revenue_gross_usd
+            
+            # Promo discount in fiat
             fiat_promo_discount = fiat_gross - real_amount
         else:
             # No discount, gross = net
             fiat_gross = real_amount
             fiat_promo_discount = 0.0
+            revenue_gross_usd = amount_usd
         
         # Initialize currency bucket
         if currency not in revenue_by_currency:
@@ -197,7 +215,7 @@ async def get_financial_overview(
         
         # USD totals for expense calculations
         total_revenue_usd += amount_usd  # Чистая выручка (после промокодов)
-        total_revenue_gross_usd += original_price_usd  # Валовая выручка (наша цена БЕЗ промокодов)
+        total_revenue_gross_usd += revenue_gross_usd  # Валовая выручка (наша цена БЕЗ промокодов)
         
         # Expenses (from order_expenses, always in USD)
         if expenses:
@@ -476,6 +494,20 @@ async def get_daily_pl(
         fiat_amount = order.get("fiat_amount")
         amount_usd = float(order.get("amount", 0))
         
+        # Expenses (USD) & Promo Discount
+        expenses = order.get("order_expenses")
+        promo_discount_usd = 0.0
+        if expenses:
+            if isinstance(expenses, list):
+                expenses = expenses[0] if expenses else {}
+            day["cogs"] += float(expenses.get("cogs_amount", 0))
+            day["acquiring_fees"] += float(expenses.get("acquiring_fee_amount", 0))
+            day["referral_payouts"] += float(expenses.get("referral_payout_amount", 0))
+            day["reserves"] += float(expenses.get("reserve_amount", 0))
+            day["review_cashbacks"] += float(expenses.get("review_cashback_amount", 0))
+            day["replacement_costs"] += float(expenses.get("insurance_replacement_cost", 0))
+            promo_discount_usd = float(expenses.get("promo_discount_amount", 0))
+
         if fiat_amount is not None:
             real_amount = float(fiat_amount)
         else:
@@ -489,18 +521,6 @@ async def get_daily_pl(
         day["revenue_by_currency"][currency]["revenue"] += real_amount
         day["revenue_by_currency"][currency]["orders_count"] += 1
         day["revenue_usd"] += amount_usd
-        
-        # Expenses (USD)
-        expenses = order.get("order_expenses")
-        if expenses:
-            if isinstance(expenses, list):
-                expenses = expenses[0] if expenses else {}
-            day["cogs"] += float(expenses.get("cogs_amount", 0))
-            day["acquiring_fees"] += float(expenses.get("acquiring_fee_amount", 0))
-            day["referral_payouts"] += float(expenses.get("referral_payout_amount", 0))
-            day["reserves"] += float(expenses.get("reserve_amount", 0))
-            day["review_cashbacks"] += float(expenses.get("review_cashback_amount", 0))
-            day["replacement_costs"] += float(expenses.get("insurance_replacement_cost", 0))
     
     # Get insurance revenue if comprehensive
     insurance_by_date: dict = {}
@@ -1194,7 +1214,17 @@ async def get_accounting_report(
             }
         orders_by_currency[currency]["orders"].append(order)
         orders_by_currency[currency]["revenue_usd"] += float(order.get("amount", 0))
-        orders_by_currency[currency]["revenue_gross_usd"] += float(order.get("original_price", order.get("amount", 0)))
+        
+        # Calculate gross using ONLY promo_discount (ignore MSRP)
+        expenses = order.get("order_expenses")
+        promo_discount_usd = 0.0
+        if expenses:
+            if isinstance(expenses, list):
+                expenses = expenses[0] if expenses else {}
+            promo_discount_usd = float(expenses.get("promo_discount_amount", 0))
+            
+        orders_by_currency[currency]["revenue_gross_usd"] += float(order.get("amount", 0)) + promo_discount_usd
+        
         fiat_amount = order.get("fiat_amount")
         if fiat_amount is not None:
             orders_by_currency[currency]["revenue_fiat"] += float(fiat_amount)
@@ -1213,9 +1243,11 @@ async def get_accounting_report(
             "revenue_gross_usd": round(data["revenue_gross_usd"], 2)
         }
     
-    # Calculate totals (same as before for backward compatibility)
+    # Calculate totals
     revenue = sum(float(o.get("amount", 0)) for o in orders)
-    revenue_gross = sum(float(o.get("original_price", o.get("amount", 0))) for o in orders)
+    
+    # Calculate revenue_gross from breakdowns
+    revenue_gross = sum(data["revenue_gross_usd"] for data in orders_by_currency.values())
     total_discounts = revenue_gross - revenue
     
     cogs = 0

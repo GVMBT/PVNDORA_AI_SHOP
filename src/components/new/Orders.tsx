@@ -100,16 +100,34 @@ const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSuppo
   }, [reviewModal.itemId, reviewModal.orderId, rating, reviewText, onSubmitReview, ordersState]);
 
   const filteredOrders = ordersState.filter(order => {
-    if (activeTab === 'all') return true;
-    // Active: orders in progress - uses adapted status 'processing'
-    if (activeTab === 'active') return order.status === 'processing';
-    // Log: completed orders (paid/delivered) + pending (awaiting payment) + cancelled/refunded
-    // Pending orders are shown in logs for visibility (they need attention)
+    // Check expiration for pending orders
+    const isExpired = order.deadline ? new Date(order.deadline) < new Date() : false;
+    const isPendingExpired = order.rawStatus === 'pending' && isExpired;
+    const isExplicitlyExpired = order.rawStatus === 'expired' || order.statusMessage?.includes('expired');
+    
+    // Always hide garbage orders: cancelled, expired pending (user never paid)
+    // These clutter the UI and have no value for the user
+    if (order.rawStatus === 'cancelled' || isPendingExpired || isExplicitlyExpired) {
+      return false;
+    }
+
+    if (activeTab === 'all') {
+      // Show all non-garbage orders
+      return true;
+    }
+    
+    // Active: orders in progress (pending payment, paid awaiting delivery, prepaid, partial)
+    if (activeTab === 'active') {
+      return order.rawStatus === 'pending' || // Awaiting payment (not expired - checked above)
+             order.rawStatus === 'paid' ||    // Paid, awaiting delivery
+             order.rawStatus === 'prepaid' || // Paid, waiting for stock
+             order.rawStatus === 'partial';   // Partially delivered
+    }
+    
+    // Completed: delivered and refunded orders only
     if (activeTab === 'log') {
-      return order.status === 'paid' || 
-             order.status === 'refunded' || 
-             order.rawStatus === 'cancelled' ||
-             order.rawStatus === 'pending'; // Show pending in logs so they're visible
+      return order.rawStatus === 'delivered' || 
+             order.rawStatus === 'refunded';
     }
     return true;
   });

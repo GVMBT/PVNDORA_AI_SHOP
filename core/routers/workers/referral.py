@@ -207,9 +207,9 @@ async def worker_process_replacement(request: Request):
     if ticket_res.data["issue_type"] != "replacement":
         return {"skipped": True, "reason": f"Ticket issue_type is {ticket_res.data['issue_type']}, not replacement"}
     
-    # Get order item to replace
+    # Get order item to replace (include quantity for bulk replacements)
     item_res = await db.client.table("order_items").select(
-        "id, order_id, product_id, status, delivery_content"
+        "id, order_id, product_id, status, delivery_content, quantity"
     ).eq("id", item_id).single().execute()
     
     if not item_res.data or len(item_res.data) == 0:
@@ -219,6 +219,8 @@ async def worker_process_replacement(request: Request):
     item_data = item_res.data[0]
     product_id = item_data.get("product_id")
     order_id_from_item = item_data.get("order_id")
+    # NOTE: Each order_item now has quantity=1 (split in persist_order_items)
+    # This allows independent processing - replace 1 order_item = replace 1 key
     
     # Get order to get user_telegram_id
     order_res = await db.client.table("orders").select(
@@ -232,7 +234,8 @@ async def worker_process_replacement(request: Request):
     if item_data.get("status") != "delivered":
         return {"skipped": True, "reason": f"Item status is {item_data.get('status')}, must be delivered"}
     
-    # Find available stock for the same product
+    # Find available stock for the same product (need 1 stock item for replacement)
+    # Since each order_item = 1 key, we replace 1 order_item = 1 key
     now = datetime.now(timezone.utc)
     stock_res = await db.client.table("stock_items").select(
         "id, content"
@@ -271,17 +274,26 @@ async def worker_process_replacement(request: Request):
             "ticket_status": "approved"
         }
     
+    # Reserve 1 stock item for replacement (each order_item = 1 key, simple replacement)
     stock_item = stock_res.data[0]
     stock_id = stock_item["id"]
     stock_content = stock_item.get("content", "")
     
-    # Mark stock as sold
+    # Atomically reserve stock (only update if status is still available)
     try:
-        await db.client.table("stock_items").update({
+        update_result = await db.client.table("stock_items").update({
             "status": "sold",
             "reserved_at": now.isoformat(),
             "sold_at": now.isoformat()
-        }).eq("id", stock_id).execute()
+        }).eq("id", stock_id).eq("status", "available").execute()
+        
+        if not update_result.data:
+            logger.warning(f"process-replacement: stock {stock_id} was already reserved")
+            return {
+                "queued": True,
+                "reason": "Stock item was already reserved - will retry",
+                "ticket_status": "approved"
+            }
     except Exception as e:
         logger.error(f"process-replacement: Failed to mark stock sold {stock_id}: {e}", exc_info=True)
         return {"error": "Failed to reserve stock"}
@@ -309,12 +321,14 @@ async def worker_process_replacement(request: Request):
         expires_at = now + timedelta(days=duration_days)
         expires_at_str = expires_at.isoformat()
     
-    # Update order item with new credentials
+    # Update order item: Replace delivery_content with new key (simple replacement)
+    # Since each order_item = 1 key, we just replace the key
+    # NOTE: delivered_at is NOT updated - warranty period counts from original delivery, not replacement
+    # Otherwise users could abuse the system (buy 1-month account, replace it every week for free)
     try:
         update_data = {
-            "stock_item_id": stock_id,
-            "delivery_content": stock_content,
-            "delivered_at": now.isoformat(),
+            "stock_item_id": stock_id,  # Update stock_item_id reference
+            "delivery_content": stock_content,  # Replace with new key (simple replacement)
             "updated_at": now.isoformat(),
             "status": "delivered"  # Ensure status is delivered
         }
@@ -324,12 +338,16 @@ async def worker_process_replacement(request: Request):
         await db.client.table("order_items").update(update_data).eq(
             "id", item_id
         ).execute()
+        logger.info(f"process-replacement: Replaced key for order_item {item_id} (1 key replaced)")
     except Exception as e:
         logger.error(f"process-replacement: Failed to update order item {item_id}: {e}", exc_info=True)
         # Rollback stock reservation
-        await db.client.table("stock_items").update({
-            "status": "available", "reserved_at": None, "sold_at": None
-        }).eq("id", stock_id).execute()
+        try:
+            await db.client.table("stock_items").update({
+                "status": "available", "reserved_at": None, "sold_at": None
+            }).eq("id", stock_id).execute()
+        except Exception as rollback_err:
+            logger.error(f"process-replacement: Failed to rollback stock item: {rollback_err}")
         return {"error": "Failed to update order item"}
     
     # Close ticket
@@ -349,12 +367,12 @@ async def worker_process_replacement(request: Request):
         except Exception as e:
             logger.error(f"process-replacement: Failed to send notification: {e}", exc_info=True)
     
-    logger.info(f"process-replacement: Successfully replaced item {item_id} with stock {stock_id}")
+    logger.info(f"process-replacement: Successfully replaced key for item {item_id} (1 key replaced)")
     
     return {
         "success": True,
         "item_id": item_id,
         "stock_id": stock_id,
         "ticket_id": ticket_id,
-        "message": "Account replacement completed"
+        "message": "Replacement completed (1 key replaced)"
     }

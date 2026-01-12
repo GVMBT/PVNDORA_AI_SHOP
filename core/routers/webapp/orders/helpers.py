@@ -117,6 +117,11 @@ async def persist_order(
 async def persist_order_items(db, order_id: str, items: List[Dict[str, Any]]) -> None:
     """Insert multiple order_items in bulk. 
     
+    CRITICAL: Each order_item now has quantity=1 (split bulk orders into separate items).
+    This allows independent processing of each key (delivery, replacement, tickets).
+    
+    Example: If user orders 3x GPT GO, create 3 separate order_items (quantity=1 each).
+    
     Maps cart data (instant_quantity, prepaid_quantity) to DB schema (fulfillment_type).
     Note: instant_quantity/prepaid_quantity are cart-only fields, not stored in order_items table.
     """
@@ -133,14 +138,21 @@ async def persist_order_items(db, order_id: str, items: List[Dict[str, Any]]) ->
         elif "fulfillment_type" in item:
             fulfillment_type = item["fulfillment_type"]
         
-        row = {
-            "order_id": order_id,
-            "product_id": item["product_id"],
-            "quantity": item["quantity"],
-            "price": to_float(item["amount"]),  # Use 'price' column in DB, but map from 'amount' in item dict
-            "discount_percent": item.get("discount_percent", 0),
-            "fulfillment_type": fulfillment_type,
-        }
-        rows.append(row)
+        # Split quantity into separate order_items (quantity=1 each)
+        # This allows independent processing (delivery, replacement, tickets)
+        item_quantity = item.get("quantity", 1)
+        total_amount = to_float(item["amount"])  # Total price for all quantity
+        unit_price = total_amount / item_quantity if item_quantity > 0 else total_amount  # Price per unit
+        
+        for _ in range(item_quantity):
+            row = {
+                "order_id": order_id,
+                "product_id": item["product_id"],
+                "quantity": 1,  # Always 1 - each order_item = 1 key
+                "price": unit_price,  # Price per unit (not total)
+                "discount_percent": item.get("discount_percent", 0),
+                "fulfillment_type": fulfillment_type,
+            }
+            rows.append(row)
     
     await db.client.table("order_items").insert(rows).execute()

@@ -77,12 +77,18 @@ interface DecryptTextProps {
 }
 
 // Decrypt animation component
+// Preserves newlines (\n) during animation for multi-line credentials
 const DecryptText: React.FC<DecryptTextProps> = ({ text, revealed }) => {
-  const [display, setDisplay] = React.useState(text.replace(/./g, '*'));
+  // Mask all chars EXCEPT newlines
+  const maskChar = (char: string) => char === '\n' ? '\n' : '•';
+  const [display, setDisplay] = React.useState(() => 
+    text.split('').map(maskChar).join('')
+  );
   
   React.useEffect(() => {
     if (!revealed) {
-      setDisplay(text.replace(/./g, '•'));
+      // Hide: replace all chars with • except newlines
+      setDisplay(text.split('').map(maskChar).join(''));
       return;
     }
 
@@ -95,6 +101,8 @@ const DecryptText: React.FC<DecryptTextProps> = ({ text, revealed }) => {
       const delta = currentTime - lastTime;
       if (delta >= targetInterval) {
         setDisplay(text.split('').map((char, index) => {
+          // Preserve newlines during animation
+          if (char === '\n') return '\n';
           if (index < iterations) return char;
           return randomChar("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*");
         }).join(''));
@@ -116,7 +124,7 @@ const DecryptText: React.FC<DecryptTextProps> = ({ text, revealed }) => {
     };
   }, [revealed, text]);
 
-  return <span className="font-mono">{display}</span>;
+  return <span className="font-mono whitespace-pre-wrap">{display}</span>;
 };
 
 interface OrderItemProps {
@@ -202,7 +210,7 @@ const OrderItem: React.FC<OrderItemProps> = ({
               {/* Key Content */}
               <div className="flex justify-between items-center mt-2 gap-2">
                 <div className="font-mono text-xs sm:text-sm text-pandora-cyan tracking-wider overflow-hidden min-w-0 flex-1">
-                  <div className="break-all overflow-x-auto scrollbar-hide max-w-full">
+                  <div className="break-all overflow-x-auto scrollbar-hide max-w-full whitespace-pre-wrap">
                     <DecryptText text={item.credentials} revealed={isRevealed} />
                   </div>
                 </div>

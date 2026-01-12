@@ -128,112 +128,82 @@ async def _deliver_items_for_order(db, notification_service, order_id: str, only
         product_id = it.get("product_id")
         prod = products_map.get(product_id, {})
         prod_name = prod.get("name", "Product")
-        item_quantity = it.get("quantity", 1)  # Get quantity from order_item
+        # NOTE: Each order_item now has quantity=1 (split in persist_order_items)
+        # This allows independent processing (delivery, replacement, tickets)
         
-        # Try to allocate stock - need quantity stock items
+        # Try to allocate stock - need only 1 stock item per order_item
         try:
             stock_res = await db.client.table("stock_items").select(
                 "id,content"
-            ).eq("product_id", product_id).eq("status", "available").limit(item_quantity).execute()
-            stock_items = stock_res.data or []
+            ).eq("product_id", product_id).eq("status", "available").limit(1).execute()
+            stock_item = stock_res.data[0] if stock_res.data else None
         except Exception as e:
             logger.error(f"deliver-goods: stock query failed for order {order_id}, product {product_id}: {e}", exc_info=True)
-            stock_items = []
+            stock_item = None
         
-        # Check if we have enough stock items
-        if len(stock_items) >= item_quantity:
-            # Allocate all required stock items
-            stock_ids = []
-            stock_contents = []
-            allocated_count = 0
+        # Check if we have stock available
+        if stock_item:
+            stock_id = stock_item["id"]
+            stock_content = stock_item.get("content", "")
             
-            for stock in stock_items[:item_quantity]:
-                stock_id = stock["id"]
-                stock_content = stock.get("content", "")
+            # CRITICAL: Double-check stock is actually available before reserving
+            # This prevents race conditions where stock was reserved between query and update
+            try:
+                # Use atomic update to reserve stock (only update if status is still available)
+                update_result = await db.client.table("stock_items").update({
+                    "status": "sold",
+                    "reserved_at": now.isoformat(),
+                    "sold_at": now.isoformat()
+                }).eq("id", stock_id).eq("status", "available").execute()
                 
-                # CRITICAL: Double-check stock is actually available before reserving
-                # This prevents race conditions where stock was reserved between query and update
-                try:
-                    # Use atomic update to reserve stock (only update if status is still available)
-                    update_result = await db.client.table("stock_items").update({
-                        "status": "sold",
-                        "reserved_at": now.isoformat(),
-                        "sold_at": now.isoformat()
-                    }).eq("id", stock_id).eq("status", "available").execute()
+                # Check if update was successful (updated at least one row)
+                if update_result.data:
+                    # Update item as delivered (1 key per order_item)
+                    item_id = it.get("id")
+                    instructions = it.get("delivery_instructions") or prod.get("instructions") or ""
                     
-                    # Check if update was successful (updated at least one row)
-                    if update_result.data:
-                        stock_ids.append(stock_id)
-                        stock_contents.append(stock_content)
-                        allocated_count += 1
-                    else:
-                        logger.warning(f"deliver-goods: stock {stock_id} was already reserved, skipping")
-                except Exception as e:
-                    logger.error(f"deliver-goods: failed to mark stock sold {stock_id}: {e}", exc_info=True)
-            
-            # Only proceed if we successfully allocated all required stock items
-            if allocated_count == item_quantity:
-                # Update item as delivered with all credentials
-                item_id = it.get("id")
-                instructions = it.get("delivery_instructions") or prod.get("instructions") or ""
-                
-                # Combine all stock contents into one delivery_content
-                # Each credential on a new line
-                combined_content = "\n".join(stock_contents)
-                
-                # Calculate expires_at from product.duration_days
-                duration_days = prod.get("duration_days")
-                expires_at_str = None
-                if duration_days and duration_days > 0:
-                    expires_at = now + timedelta(days=duration_days)
-                    expires_at_str = expires_at.isoformat()
-                
-                try:
-                    ts = now.isoformat()
-                    update_data = {
-                        "status": "delivered",
-                        "stock_item_id": stock_ids[0] if stock_ids else None,  # Store first stock_item_id for reference
-                        "delivery_content": combined_content,  # All credentials combined
-                        "delivery_instructions": instructions,
-                        "delivered_at": ts,
-                        "updated_at": ts
-                    }
-                    if expires_at_str:
-                        update_data["expires_at"] = expires_at_str
+                    # Calculate expires_at from product.duration_days
+                    duration_days = prod.get("duration_days")
+                    expires_at_str = None
+                    if duration_days and duration_days > 0:
+                        expires_at = now + timedelta(days=duration_days)
+                        expires_at_str = expires_at.isoformat()
                     
-                    await db.client.table("order_items").update(update_data).eq("id", item_id).execute()
-                    delivered_count += 1
-                    
-                    # For notification: show product name with quantity if > 1
-                    display_name = f"{prod_name}" + (f" (x{item_quantity})" if item_quantity > 1 else "")
-                    delivered_lines.append(f"{display_name}:\n{combined_content}")
-                    
-                    logger.info(f"deliver-goods: allocated {allocated_count} stock items for product {product_id}, order_item {item_id}, quantity={item_quantity}")
-                except Exception as e:
-                    logger.error(f"deliver-goods: failed to update order_item {item_id}: {e}", exc_info=True)
-                    # Rollback: mark stock items as available again
-                    if stock_ids:
+                    try:
+                        ts = now.isoformat()
+                        update_data = {
+                            "status": "delivered",
+                            "stock_item_id": stock_id,  # Store stock_item_id for reference
+                            "delivery_content": stock_content,  # Single credential (quantity=1)
+                            "delivery_instructions": instructions,
+                            "delivered_at": ts,
+                            "updated_at": ts
+                        }
+                        if expires_at_str:
+                            update_data["expires_at"] = expires_at_str
+                        
+                        await db.client.table("order_items").update(update_data).eq("id", item_id).execute()
+                        delivered_count += 1
+                        delivered_lines.append(f"{prod_name}:\n{stock_content}")
+                        
+                        logger.info(f"deliver-goods: allocated stock item {stock_id} for product {product_id}, order_item {item_id}")
+                    except Exception as e:
+                        logger.error(f"deliver-goods: failed to update order_item {item_id}: {e}", exc_info=True)
+                        # Rollback: mark stock item as available again
                         try:
                             await db.client.table("stock_items").update({
                                 "status": "available",
                                 "reserved_at": None,
                                 "sold_at": None
-                            }).in_("id", stock_ids).execute()
+                            }).eq("id", stock_id).execute()
                         except Exception as rollback_err:
-                            logger.error(f"deliver-goods: failed to rollback stock items: {rollback_err}")
-            else:
-                # Not enough stock items allocated - rollback and mark as waiting
-                logger.warning(f"deliver-goods: only allocated {allocated_count}/{item_quantity} stock items for product {product_id}, order_item {it.get('id')}")
-                # Rollback allocated stock items
-                if stock_ids:
-                    try:
-                        await db.client.table("stock_items").update({
-                            "status": "available",
-                            "reserved_at": None,
-                            "sold_at": None
-                        }).in_("id", stock_ids).execute()
-                    except Exception as rollback_err:
-                        logger.error(f"deliver-goods: failed to rollback stock items: {rollback_err}")
+                            logger.error(f"deliver-goods: failed to rollback stock item: {rollback_err}")
+                else:
+                    # Stock was already reserved - mark as waiting
+                    logger.warning(f"deliver-goods: stock {stock_id} was already reserved for order_item {it.get('id')}")
+                    waiting_count += 1
+            except Exception as e:
+                logger.error(f"deliver-goods: failed to mark stock sold {stock_id}: {e}", exc_info=True)
                 waiting_count += 1
         else:
             # No stock yet - keep current status (don't change to prepaid here)

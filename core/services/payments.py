@@ -183,8 +183,10 @@ class PaymentService:
         
         # Build callback URL
         callback_url = f"{self.base_url}/api/webhook/crystalpay"
-        # Redirect URL - opens in browser, not Mini App
-        redirect_url = f"{self.base_url}/payment/result?order_id={order_id}&source=crystalpay"
+        # Redirect URL - Use Telegram Deep Link to return user to Mini App with fresh initData
+        # This opens Telegram app directly instead of browser, preserving auth session
+        bot_username = os.environ.get("BOT_USERNAME", "pvndora_ai_bot")
+        redirect_url = f"https://t.me/{bot_username}?startapp=payresult_{order_id}"
         
         # TEST mode
         test_mode = os.environ.get("CRYSTALPAY_TEST_MODE", "false").lower() == "true"
@@ -281,7 +283,9 @@ class PaymentService:
         payment_currency = currency.upper()
         
         callback_url = f"{self.base_url}/api/webhook/crystalpay/topup"
-        redirect_url = f"{self.base_url}/payment/result?topup_id={topup_id}&source=crystalpay"
+        # Redirect URL - Use Telegram Deep Link to return user to Mini App with fresh initData
+        bot_username = os.environ.get("BOT_USERNAME", "pvndora_ai_bot")
+        redirect_url = f"https://t.me/{bot_username}?startapp=topup_{topup_id}"
         
         test_mode = os.environ.get("CRYSTALPAY_TEST_MODE", "false").lower() == "true"
         required_method = "TEST" if test_mode else None

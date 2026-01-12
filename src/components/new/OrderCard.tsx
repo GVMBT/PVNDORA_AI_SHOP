@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Clock, AlertTriangle, Package, Shield, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatPrice } from '../../utils/currency';
 import { useLocale } from '../../hooks/useLocale';
+import { useTelegram } from '../../hooks/useTelegram';
 import OrderStatusBadge from './OrderStatusBadge';
 import OrderItem, { type OrderItemData } from './OrderItem';
 import { PaymentCountdown } from './PaymentCountdown';
@@ -67,6 +68,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
   onToggleExpand,
 }) => {
   const { t } = useLocale();
+  const { openLink } = useTelegram();
   const { verifyPayment } = useOrdersTyped();
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
   const [paymentCheckResult, setPaymentCheckResult] = useState<string | null>(null);
@@ -185,14 +187,18 @@ const OrderCard: React.FC<OrderCardProps> = ({
                   </span>
                 </div>
                 <button
+                  disabled={isPaymentExpired}
                   onClick={() => {
-                    // Replace current window with payment URL
-                    // After payment, user will be redirected to /payment/result
+                    if (isPaymentExpired) return;
                     window.location.href = order.payment_url!;
                   }}
-                  className="px-4 py-2 bg-pandora-cyan text-black font-mono text-xs font-bold uppercase hover:bg-pandora-cyan/80 transition-colors"
+                  className={`px-4 py-2 font-mono text-xs font-bold uppercase transition-colors ${
+                    isPaymentExpired 
+                      ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed border border-white/10' 
+                      : 'bg-pandora-cyan text-black hover:bg-pandora-cyan/80'
+                  }`}
                 >
-                  {t('orders.payNow')}
+                  {isPaymentExpired ? t('orders.paymentExpired') : t('orders.payNow')}
                 </button>
               </div>
               

@@ -1,17 +1,21 @@
 """
 Cron Job: Update Exchange Rates
-Schedule: Every hour (0 * * * *)
+Schedule: 0 */6 * * * (every 6 hours)
 
 Fetches latest exchange rates from exchangerate-api.com and stores in Supabase.
 This ensures runtime has always-available, up-to-date rates without external API dependency.
 """
-
 import os
 import httpx
 from datetime import datetime, timezone
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
-from supabase._async.client import create_client as acreate_client
+from core.logging import get_logger
 
+logger = get_logger(__name__)
+
+CRON_SECRET = os.environ.get("CRON_SECRET", "")
 
 # Supported currencies
 SUPPORTED_CURRENCIES = [
@@ -19,88 +23,88 @@ SUPPORTED_CURRENCIES = [
     "AED", "GBP", "CNY", "JPY", "KRW", "BRL"
 ]
 
+# ASGI app (only export app to Vercel, avoid 'handler' symbol)
+app = FastAPI()
 
-async def update_rates():
-    """Fetch rates from API and update Supabase."""
+
+@app.get("/api/cron/update_exchange_rates")
+@app.post("/api/cron/update_exchange_rates")
+async def update_exchange_rates_entrypoint(request: Request):
+    """
+    Vercel Cron entrypoint for updating exchange rates.
+    """
+    auth_header = request.headers.get("Authorization", "")
+    if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    
+    from supabase._async.client import create_client as acreate_client
     
     # Initialize async Supabase client
     supabase_url = os.environ.get("SUPABASE_URL", "")
     supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
     
     if not supabase_url or not supabase_key:
-        return {"error": "Supabase not configured"}
+        logger.error("Supabase not configured")
+        return JSONResponse({"error": "Supabase not configured"}, status_code=500)
     
-    supabase = await acreate_client(supabase_url, supabase_key)
-    
-    # Fetch rates from free API
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(
-                "https://api.exchangerate-api.com/v4/latest/USD"
-            )
-            response.raise_for_status()
-            data = response.json()
+        supabase = await acreate_client(supabase_url, supabase_key)
+        
+        # Fetch rates from free API
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(
+                    "https://api.exchangerate-api.com/v4/latest/USD"
+                )
+                response.raise_for_status()
+                data = response.json()
+                
+            rates = data.get("rates", {})
+            if not rates:
+                logger.error("No rates in API response")
+                return JSONResponse({"error": "No rates in API response"}, status_code=500)
             
-        rates = data.get("rates", {})
-        if not rates:
-            return {"error": "No rates in API response"}
+        except Exception as e:
+            logger.error(f"API fetch failed: {e}", exc_info=True)
+            return JSONResponse({"error": f"API fetch failed: {e}"}, status_code=500)
+        
+        # Update each supported currency
+        updated = []
+        failed = []
+        now = datetime.now(timezone.utc).isoformat()
+        
+        for currency in SUPPORTED_CURRENCIES:
+            rate = rates.get(currency)
+            if rate:
+                try:
+                    await supabase.table("exchange_rates").upsert({
+                        "currency": currency,
+                        "rate": float(rate),
+                        "updated_at": now
+                    }).execute()
+                    updated.append(currency)
+                    logger.info(f"Updated {currency} rate: {rate}")
+                except Exception as e:
+                    logger.error(f"Failed to update {currency}: {e}", exc_info=True)
+                    failed.append(currency)
+            else:
+                logger.warning(f"Rate not found for {currency}")
+                failed.append(currency)
+        
+        result = {
+            "success": True,
+            "updated": updated,
+            "failed": failed,
+            "timestamp": now
+        }
+        
+        if failed:
+            logger.warning(f"Some currencies failed to update: {failed}")
+        
+        logger.info(f"Exchange rates updated: {len(updated)}/{len(SUPPORTED_CURRENCIES)} currencies")
+        return JSONResponse(result)
         
     except Exception as e:
-        return {"error": f"API fetch failed: {e}"}
-    
-    # Update each supported currency
-    updated = []
-    now = datetime.now(timezone.utc).isoformat()
-    
-    for currency in SUPPORTED_CURRENCIES:
-        rate = rates.get(currency)
-        if rate:
-            try:
-                await supabase.table("exchange_rates").upsert({
-                    "currency": currency,
-                    "rate": float(rate),
-                    "updated_at": now
-                }).execute()
-                updated.append(currency)
-            except Exception as e:
-                print(f"Failed to update {currency}: {e}")
-    
-    return {
-        "success": True,
-        "updated": updated,
-        "timestamp": now
-    }
-
-
-# Vercel serverless handler
-async def handler(request):
-    """Vercel cron handler."""
-    from starlette.responses import JSONResponse
-    
-    # Verify cron secret (optional but recommended)
-    auth_header = request.headers.get("Authorization", "")
-    cron_secret = os.environ.get("CRON_SECRET", "")
-    
-    if cron_secret and auth_header != f"Bearer {cron_secret}":
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
-    
-    result = await update_rates()
-    
-    if "error" in result:
-        return JSONResponse(result, status_code=500)
-    
-    return JSONResponse(result)
-
-
-# FastAPI router for local testing
-def get_router():
-    from fastapi import APIRouter
-    router = APIRouter()
-    
-    @router.get("/api/cron/update_exchange_rates")
-    @router.post("/api/cron/update_exchange_rates")
-    async def cron_update_rates():
-        return await update_rates()
-    
-    return router
+        logger.error(f"Failed to update exchange rates: {e}", exc_info=True)
+        return JSONResponse({"error": str(e)}, status_code=500)
 
