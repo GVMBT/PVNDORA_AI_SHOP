@@ -77,12 +77,24 @@ except ImportError:
             data = resp.json()
             return data.get("result")
 
-        async def set(self, key: str, value: str, ex: int | None = None):
+        async def set(self, key: str, value: str, ex: int | None = None, nx: bool = False):
+            """
+            SET key value with optional EX (expiration) and NX (only if not exists).
+            
+            Returns:
+                True if key was set, False if NX was True and key already exists
+            """
             params = {}
             if ex is not None:
                 params["EX"] = ex
+            if nx:
+                params["NX"] = ""  # Upstash REST API: NX without value
             resp = await self.client.post(f"/set/{key}/{value}", params=params)
             resp.raise_for_status()
+            result = resp.json().get("result")
+            # NX returns None if key exists, "OK" if set
+            if nx:
+                return result == "OK"
             return True
 
         async def setex(self, key: str, seconds: int, value: str):
