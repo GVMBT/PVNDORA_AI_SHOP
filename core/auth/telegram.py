@@ -119,6 +119,7 @@ async def verify_admin(user: TelegramUser = Depends(verify_telegram_auth)):
     
     OPTIMIZATION: Uses Redis cache to avoid duplicate DB queries
     when multiple admin endpoints are called in parallel.
+    Cache stores: "0" for non-admin, or UUID for admin.
     Cache TTL: 60 seconds.
     """
     from core.db import get_redis
@@ -129,18 +130,27 @@ async def verify_admin(user: TelegramUser = Depends(verify_telegram_auth)):
     try:
         redis = get_redis()
         # Check Redis cache first (TTL 60s)
+        # Cache value: "0" = not admin, UUID string = admin with that user ID
         cached = await redis.get(cache_key)
-        if cached == "1":
-            # User is admin (cached) - return minimal object
-            # Endpoints don't use db_user from verify_admin, they make their own queries
-            return type('AdminUser', (), {'telegram_id': user.id, 'is_admin': True})()
+        if cached and cached != "0":
+            # User is admin (cached) - return object with UUID from cache
+            # Some endpoints use admin.id for logging
+            return type('AdminUser', (), {
+                'id': cached,  # UUID stored in cache
+                'telegram_id': user.id, 
+                'is_admin': True
+            })()
         elif cached == "0":
-            # User is NOT admin (cached)
+            # User is NOT admin (cached) - raise immediately, don't fall through
             raise HTTPException(status_code=403, detail="Admin access required")
+    except HTTPException:
+        # Re-raise HTTP exceptions (including cached denials)
+        raise
     except (ValueError, ImportError):
         # Redis not available - fall through to DB check
         pass
     except Exception as e:
+        # Only Redis errors - log and fall through to DB check
         logger.debug(f"Redis cache check failed: {e}")
     
     # Cache miss or error - check DB
@@ -156,10 +166,10 @@ async def verify_admin(user: TelegramUser = Depends(verify_telegram_auth)):
                 pass
         raise HTTPException(status_code=403, detail="Admin access required")
     
-    # Cache positive result
+    # Cache positive result (store UUID for endpoints that need admin.id)
     if redis:
         try:
-            await redis.set(cache_key, "1", ex=60)
+            await redis.set(cache_key, str(db_user.id), ex=60)
         except Exception:
             pass
     
