@@ -140,9 +140,11 @@ async def persist_order_items(db, order_id: str, items: List[Dict[str, Any]]) ->
         
         # Split quantity into separate order_items (quantity=1 each)
         # This allows independent processing (delivery, replacement, tickets)
-        item_quantity = item.get("quantity", 1)
+        # CRITICAL: Convert all numeric values to float/int for JSON serialization
+        item_quantity = int(item.get("quantity", 1))  # Ensure int for range()
         total_amount = to_float(item["amount"])  # Total price for all quantity
-        unit_price = total_amount / item_quantity if item_quantity > 0 else total_amount  # Price per unit
+        unit_price = float(total_amount / item_quantity) if item_quantity > 0 else float(total_amount)
+        discount_pct = to_float(item.get("discount_percent", 0))  # May be Decimal
         
         for _ in range(item_quantity):
             row = {
@@ -150,7 +152,7 @@ async def persist_order_items(db, order_id: str, items: List[Dict[str, Any]]) ->
                 "product_id": item["product_id"],
                 "quantity": 1,  # Always 1 - each order_item = 1 key
                 "price": unit_price,  # Price per unit (not total)
-                "discount_percent": item.get("discount_percent", 0),
+                "discount_percent": discount_pct,  # Converted to float
                 "fulfillment_type": fulfillment_type,
             }
             rows.append(row)
