@@ -176,6 +176,76 @@ class CatalogService:
             reviews_count=rating.get("count", 0),
         )
 
+    def _build_category_filters(self, category: str) -> dict:
+        """Build category filters for RAG search (reduces cognitive complexity)."""
+        filters = {"status": {"$eq": "active"}}
+        if category == "all":
+            return filters
+
+        category_map = {
+            "chatgpt": "shared",
+            "claude": "shared",
+            "midjourney": "shared",
+            "image": "shared",
+            "code": "key",
+            "writing": "shared",
+        }
+        if category in category_map:
+            filters["type"] = {"$eq": category_map[category]}
+        return filters
+
+    async def _perform_rag_search(self, query: str, category: str, limit: int) -> list[SearchResult]:
+        """Perform RAG search and return results (reduces cognitive complexity)."""
+        results = []
+        rag_search = self._get_rag_search()
+        if not rag_search:
+            return results
+
+        try:
+            filters = self._build_category_filters(category)
+            rag_results = await rag_search.search(query, limit=limit, filters=filters)
+
+            for result in rag_results:
+                product = await self.db.get_product_by_id(result["product_id"])
+                if product:
+                    results.append(
+                        SearchResult(
+                            id=product.id,
+                            name=product.name,
+                            price=product.price,
+                            in_stock=product.stock_count > 0,
+                            stock_count=product.stock_count,
+                            similarity_score=result.get("score", 0.0),
+                        )
+                    )
+        except Exception as e:
+            logger.warning("RAG search failed: %s", e)
+
+        return results
+
+    async def _supplement_with_text_search(self, query: str, results: list[SearchResult], limit: int) -> list[SearchResult]:
+        """Supplement results with text search (reduces cognitive complexity)."""
+        if len(results) >= 3:
+            return results
+
+        text_products = await self.db.search_products(query)
+        existing_ids = {r.id for r in results}
+
+        for p in text_products:
+            if p.id not in existing_ids and len(results) < limit:
+                results.append(
+                    SearchResult(
+                        id=p.id,
+                        name=p.name,
+                        price=p.price,
+                        in_stock=p.stock_count > 0,
+                        stock_count=p.stock_count,
+                        similarity_score=0.0,
+                    )
+                )
+
+        return results
+
     async def search(self, query: str, category: str = "all", limit: int = 5) -> list[SearchResult]:
         """
         Search products using RAG (semantic) or text fallback.
@@ -188,61 +258,8 @@ class CatalogService:
         Returns:
             List of SearchResult
         """
-        results = []
-
-        # Try RAG search first
-        rag_search = self._get_rag_search()
-        if rag_search:
-            try:
-                filters = {"status": {"$eq": "active"}}
-                if category != "all":
-                    category_map = {
-                        "chatgpt": "shared",
-                        "claude": "shared",
-                        "midjourney": "shared",
-                        "image": "shared",
-                        "code": "key",
-                        "writing": "shared",
-                    }
-                    if category in category_map:
-                        filters["type"] = {"$eq": category_map[category]}
-
-                rag_results = await rag_search.search(query, limit=limit, filters=filters)
-
-                for result in rag_results:
-                    product = await self.db.get_product_by_id(result["product_id"])
-                    if product:
-                        results.append(
-                            SearchResult(
-                                id=product.id,
-                                name=product.name,
-                                price=product.price,
-                                in_stock=product.stock_count > 0,
-                                stock_count=product.stock_count,
-                                similarity_score=result.get("score", 0.0),
-                            )
-                        )
-            except Exception as e:
-                logger.warning(f"RAG search failed: {e}")
-
-        # Fallback or supplement with text search
-        if len(results) < 3:
-            text_products = await self.db.search_products(query)
-            existing_ids = {r.id for r in results}
-
-            for p in text_products:
-                if p.id not in existing_ids and len(results) < limit:
-                    results.append(
-                        SearchResult(
-                            id=p.id,
-                            name=p.name,
-                            price=p.price,
-                            in_stock=p.stock_count > 0,
-                            stock_count=p.stock_count,
-                            similarity_score=0.0,
-                        )
-                    )
-
+        results = await self._perform_rag_search(query, category, limit)
+        results = await self._supplement_with_text_search(query, results, limit)
         return results[:limit]
 
     async def get_catalog(self, status: str = "active") -> list[Product]:

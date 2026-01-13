@@ -27,6 +27,29 @@ logger = get_logger(__name__)
 
 profile_router = APIRouter()
 
+# =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
+
+
+async def _calculate_conversion_rate(
+    current_currency: str,
+    target_currency: str,
+    current_balance: float,
+    new_balance_decimal: float,
+    currency_service,
+) -> float:
+    """Calculate exchange rate for conversion metadata (reduces cognitive complexity)."""
+    if current_currency == "USD" and target_currency == "RUB":
+        if current_balance > 0:
+            return float(new_balance_decimal) / current_balance
+        return await currency_service.get_exchange_rate("RUB")
+    elif current_currency == "RUB" and target_currency == "USD":
+        if new_balance_decimal > 0:
+            return current_balance / float(new_balance_decimal)
+        return await currency_service.get_exchange_rate("RUB")
+    return await currency_service.get_exchange_rate("RUB")
+
 # Cache for referral_settings (TTL 10 minutes)
 _referral_settings_cache = None
 _referral_settings_cache_ttl = 10 * 60  # 10 minutes
@@ -392,33 +415,9 @@ async def convert_balance(request: ConvertBalanceRequest, user=Depends(verify_te
     new_balance = float(new_balance_decimal)
 
     # Get exchange rate for logging/transaction record
-    # Use convert_balance's internal rate calculation for consistency
-    if current_currency == "USD" and target_currency == "RUB":
-        # Calculate rate from conversion result (more accurate than separate API call)
-        rate = (
-            float(new_balance_decimal) / current_balance
-            if current_balance > 0
-            else await currency_service.get_exchange_rate("RUB")
-        )
-    elif current_currency == "RUB" and target_currency == "USD":
-        # Inverse rate: RUB amount / USD result = rate
-        rate = (
-            current_balance / float(new_balance_decimal)
-            if new_balance > 0
-            else await currency_service.get_exchange_rate("RUB")
-        )
-    else:
-        # Shouldn't happen (only RUB/USD supported per plan)
-        # Use get_exchange_rate for fallback only
-        rate = await currency_service.get_exchange_rate("RUB")
-
-    # Helper to calculate exchange rate for metadata (avoid nested ternary)
-    def calculate_exchange_rate(ex_rate: float, from_curr: str, to_curr: str) -> float:
-        if from_curr == "USD":
-            return ex_rate
-        if to_curr == "USD":
-            return 1 / ex_rate
-        return 1.0
+    rate = await _calculate_conversion_rate(
+        current_currency, target_currency, current_balance, new_balance_decimal, currency_service
+    )
 
     # Update balance and currency in database
     await db.client.table("users").update(

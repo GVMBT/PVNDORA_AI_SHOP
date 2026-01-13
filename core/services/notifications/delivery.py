@@ -113,6 +113,50 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
         except Exception:
             logger.exception(f"Failed to send replacement notification to {telegram_id}")
 
+    def _format_expires_info(self, expires_at: datetime | None, lang: str) -> str:
+        """Format expiration info (reduces cognitive complexity)."""
+        from .base import _msg
+
+        if not expires_at:
+            return ""
+        expires_str = expires_at.strftime("%d.%m.%Y")
+        return _msg(
+            lang,
+            f"\n◈ <b>Активен до:</b> {expires_str}",
+            f"\n◈ <b>Valid until:</b> {expires_str}",
+        )
+
+    def _format_order_ref(self, order_id: str | None, lang: str) -> str:
+        """Format order reference (reduces cognitive complexity)."""
+        from .base import _msg
+
+        if not order_id:
+            return ""
+        short_id = order_id[:8]
+        return _msg(lang, f"<i>#{short_id}</i>\n\n", f"<i>#{short_id}</i>\n\n")
+
+    def _format_content_items(self, content: str) -> str:
+        """Format content items with product names and credentials (reduces cognitive complexity)."""
+        if not content:
+            return ""
+
+        items = content.split("\n\n")
+        formatted_items = []
+
+        for item in items:
+            if ":\n" in item:
+                parts = item.split(":\n", 1)
+                if len(parts) == 2:
+                    product_name = parts[0].strip()
+                    credentials = parts[1].strip()
+                    formatted_items.append(f"<b>{product_name}:</b>\n<code>{credentials}</code>")
+                else:
+                    formatted_items.append(f"<code>{item}</code>")
+            else:
+                formatted_items.append(f"<code>{item}</code>")
+
+        return "\n\n".join(formatted_items)
+
     async def send_delivery(
         self,
         telegram_id: int,
@@ -126,49 +170,9 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
 
         lang = await get_user_language(telegram_id)
 
-        # Format expiration if available
-        expires_info = ""
-        if expires_at:
-            expires_str = expires_at.strftime("%d.%m.%Y")
-            expires_info = _msg(
-                lang,
-                f"\n◈ <b>Активен до:</b> {expires_str}",
-                f"\n◈ <b>Valid until:</b> {expires_str}",
-            )
-
-        # Order reference
-        order_ref = ""
-        if order_id:
-            short_id = order_id[:8]
-            order_ref = _msg(lang, f"<i>#{short_id}</i>\n\n", f"<i>#{short_id}</i>\n\n")
-
-        # Format content: product names bold, credentials monospace
-        # Content format: "Product Name:\ncredentials\n\nProduct Name:\ncredentials"
-        formatted_content = ""
-        if content:
-            # Split by double newline to get individual items
-            items = content.split("\n\n")
-            formatted_items = []
-
-            for item in items:
-                if ":\n" in item:
-                    # Split product name and credentials
-                    parts = item.split(":\n", 1)
-                    if len(parts) == 2:
-                        product_name = parts[0].strip()
-                        credentials = parts[1].strip()
-                        # Format: bold product name, monospace credentials
-                        formatted_items.append(
-                            f"<b>{product_name}:</b>\n<code>{credentials}</code>"
-                        )
-                    else:
-                        # Fallback: keep as is
-                        formatted_items.append(f"<code>{item}</code>")
-                else:
-                    # No product name, just credentials
-                    formatted_items.append(f"<code>{item}</code>")
-
-            formatted_content = "\n\n".join(formatted_items)
+        expires_info = self._format_expires_info(expires_at, lang)
+        order_ref = self._format_order_ref(order_id, lang)
+        formatted_content = self._format_content_items(content)
 
         message = _msg(
             lang,

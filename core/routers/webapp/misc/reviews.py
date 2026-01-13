@@ -178,19 +178,11 @@ async def _update_order_expenses_cashback(
         logger.error(f"Failed to update order_expenses for {order_id}: {e}", exc_info=True)
 
 
-@reviews_router.post("/reviews")
-async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify_telegram_auth)):
-    """Submit a product review. Awards 5% cashback per review."""
-    db = get_database()
-
-    if not 1 <= request.rating <= 5:
-        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
-
-    db_user = await db.get_user_by_telegram_id(user.id)
-    if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    order = await db.get_order_by_id(request.order_id)
+# Helper to validate order for review (reduces cognitive complexity)
+async def _validate_order_for_review(
+    db, order_id: str, db_user, order
+) -> None:
+    """Validate order can be reviewed."""
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     if order.user_id != db_user.id:
@@ -198,17 +190,12 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
     if order.status not in ["delivered", "partial"]:
         raise HTTPException(status_code=400, detail="Can only review completed orders")
 
-    # Get order items to determine product_id
-    order_items = await db.get_order_items_by_order(request.order_id)
-    if not order_items:
-        raise HTTPException(status_code=400, detail="Order has no products")
 
-    # Determine which product is being reviewed
-    product_id = await _determine_review_product_id(request, order_items)
-    if not product_id:
-        raise HTTPException(status_code=400, detail="Product not found in order")
-
-    # Check if THIS specific product in THIS order already has a review
+# Helper to create review record (reduces cognitive complexity)
+async def _create_review_record(
+    db, db_user, request, product_id: str
+) -> str:
+    """Create review record and return review_id."""
     existing = (
         await db.client.table("reviews")
         .select("id")
@@ -219,7 +206,6 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
     if existing.data:
         raise HTTPException(status_code=400, detail="Вы уже оставили отзыв на этот товар")
 
-    # Insert with race condition handling
     try:
         result = (
             await db.client.table("reviews")
@@ -237,39 +223,25 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
         )
     except Exception as e:
         if _is_duplicate_key_error(e):
-            logger.info(f"Review already exists for order {request.order_id}, product {product_id}")
+            logger.info("Review already exists for order %s, product %s", request.order_id, product_id)
             raise HTTPException(status_code=400, detail="Вы уже оставили отзыв на этот товар")
 
         error_str = str(e)
         error_type = type(e).__name__
-        logger.exception(f"Error creating review: {error_type}: {error_str}")
+        logger.exception("Error creating review: %s: %s", error_type, error_str)
         raise HTTPException(status_code=500, detail=f"Ошибка при создании отзыва: {error_str}")
 
     if not result.data or len(result.data) == 0:
         raise HTTPException(status_code=500, detail="Ошибка при создании отзыва")
 
-    review_id = result.data[0]["id"]
+    return result.data[0]["id"]
 
-    # Find the specific order_item for this product to get its price
-    target_item = None
-    for item in order_items:
-        if item.get("product_id") == product_id:
-            target_item = item
-            break
 
-    if not target_item:
-        raise HTTPException(status_code=400, detail="Product not found in order items")
-
-    # Calculate cashback in user's balance_currency
-    balance_currency = getattr(db_user, "balance_currency", "USD") or "USD"
-    redis = get_redis()
-    currency_service = get_currency_service(redis)
-
-    cashback_amount = await _calculate_review_cashback(
-        target_item, order, balance_currency, currency_service
-    )
-
-    # Update user balance atomically using RPC
+# Helper to process cashback (reduces cognitive complexity)
+async def _process_review_cashback(
+    db, db_user, review_id: str, target_item: dict, order, request, cashback_amount: float, balance_currency: str, currency_service
+) -> float:
+    """Process cashback for review and return new balance."""
     current_balance = to_float(db_user.balance) if db_user.balance else 0.0
     new_balance = current_balance + cashback_amount
 
@@ -282,15 +254,20 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
         },
     ).execute()
 
-    # Mark review as processed
     await db.client.table("reviews").update({"cashback_given": True}).eq("id", review_id).execute()
 
-    # Update order_expenses for accounting (cashback in USD for financial reports)
     await _update_order_expenses_cashback(
         db, request.order_id, cashback_amount, balance_currency, currency_service
     )
 
-    # Send notification (best-effort)
+    return new_balance
+
+
+# Helper to send cashback notification (reduces cognitive complexity)
+async def _send_cashback_notification(
+    db_user, cashback_amount: float, new_balance: float, balance_currency: str
+):
+    """Send cashback notification (best-effort)."""
     try:
         from core.routers.deps import get_notification_service
 
@@ -303,13 +280,67 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
             reason="review",
         )
         logger.info(
-            f"Cashback notification sent to user {db_user.telegram_id}: {cashback_amount} {balance_currency}"
+            "Cashback notification sent to user %s: %s %s",
+            db_user.telegram_id,
+            cashback_amount,
+            balance_currency,
         )
     except Exception as e:
         logger.error(
-            f"Failed to send cashback notification to user {db_user.telegram_id}: {e}",
+            "Failed to send cashback notification to user %s: %s",
+            db_user.telegram_id,
+            e,
             exc_info=True,
         )
+
+
+@reviews_router.post("/reviews")
+async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify_telegram_auth)):
+    """Submit a product review. Awards 5% cashback per review."""
+    db = get_database()
+
+    if not 1 <= request.rating <= 5:
+        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
+
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    order = await db.get_order_by_id(request.order_id)
+    await _validate_order_for_review(db, request.order_id, db_user, order)
+
+    order_items = await db.get_order_items_by_order(request.order_id)
+    if not order_items:
+        raise HTTPException(status_code=400, detail="Order has no products")
+
+    product_id = await _determine_review_product_id(request, order_items)
+    if not product_id:
+        raise HTTPException(status_code=400, detail="Product not found in order")
+
+    review_id = await _create_review_record(db, db_user, request, product_id)
+
+    target_item = None
+    for item in order_items:
+        if item.get("product_id") == product_id:
+            target_item = item
+            break
+
+    if not target_item:
+        raise HTTPException(status_code=400, detail="Product not found in order items")
+
+    balance_currency = getattr(db_user, "balance_currency", "USD") or "USD"
+    redis = get_redis()
+    currency_service = get_currency_service(redis)
+
+    cashback_amount = await _calculate_review_cashback(
+        target_item, order, balance_currency, currency_service
+    )
+
+    new_balance = await _process_review_cashback(
+        db, db_user, review_id, target_item, order, request, cashback_amount, balance_currency, currency_service
+    )
+
+    await _send_cashback_notification(db_user, cashback_amount, new_balance, balance_currency)
 
     return {
         "success": True,
