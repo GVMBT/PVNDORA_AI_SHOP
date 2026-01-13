@@ -40,10 +40,9 @@ const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) =
       reset?.(); // Reset the loaded offsets tracker
       setIsInitialized(false);
 
-      // Map filter to API period
-      const period = newFilter === "weekly" ? "week" : "all";
-      // Note: Current API doesn't support period param in getLeaderboard
-      // For now, just reload - backend returns 'all' by default
+      // Map filter to API period (currently unused - API returns 'all' by default)
+      // TODO: Add period support when API is updated
+      // const period = newFilter === "weekly" ? "week" : "all";
       await getLeaderboard(15, 0, false);
       setIsInitialized(true);
     },

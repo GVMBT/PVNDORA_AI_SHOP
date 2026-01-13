@@ -217,11 +217,12 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
       particleSystemRef.current = system;
 
       // Subscribe to parallax changes
-      const unsubscribeX = canvasX.on("change", (v) => {
-        const unsubscribeY = canvasY.on("change", (y) => {
+      // Note: The subscription callbacks update system.setParallax on each change
+      // We don't need to track unsubscribe as system.destroy() handles cleanup
+      canvasX.on("change", (v) => {
+        canvasY.on("change", (y) => {
           system.setParallax(v, y);
         });
-        return unsubscribeY;
       });
 
       system.start();

@@ -88,7 +88,6 @@ export async function apiRequest<T = unknown>(
 
     return data;
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : "Unknown error";
     logger.error("API request error", { endpoint, error: err });
     throw err;
   }

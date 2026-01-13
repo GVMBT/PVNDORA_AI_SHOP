@@ -194,7 +194,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
     const currency = contextCurrency || profile?.currency || "USD";
     // CRITICAL: Use original balance in balance_currency, NOT converted balance
     // balance_currency is the actual currency of user's balance in DB (RUB for ru users, USD for others)
-    const balanceCurrency = profile?.balanceCurrency || profile?.currency || "USD";
+    // Note: balanceCurrency not used here - withdrawal validation happens server-side
     // Get original balance in balance_currency (before conversion to display currency)
     // convertedProfile.balanceInBalanceCurrency contains the actual balance from DB
     const originalBalance = convertedProfile?.balanceInBalanceCurrency ?? profile?.balance ?? 0;

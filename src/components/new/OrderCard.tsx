@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { formatPrice } from "../../utils/currency";
 import { useLocale } from "../../hooks/useLocale";
-import { useTelegram } from "../../hooks/useTelegram";
 import OrderStatusBadge from "./OrderStatusBadge";
 import OrderItem, { type OrderItemData } from "./OrderItem";
 import { PaymentCountdown } from "./PaymentCountdown";
@@ -86,7 +85,6 @@ const OrderCard: React.FC<OrderCardProps> = ({
   onToggleExpand,
 }) => {
   const { t } = useLocale();
-  const { openLink } = useTelegram();
   const { verifyPayment } = useOrdersTyped();
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
   const [paymentCheckResult, setPaymentCheckResult] = useState<string | null>(null);
