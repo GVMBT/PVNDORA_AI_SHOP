@@ -154,15 +154,15 @@ class ChannelSubscriptionMiddleware(BaseMiddleware):
 
     def _is_exempt(self, event: TelegramObject) -> bool:
         """Check if event is exempt from subscription check (reduces cognitive complexity)."""
-        if isinstance(event, Message) and event.text and any(
-            event.text.startswith(cmd) for cmd in self.EXEMPT_COMMANDS
-        ):
-            return True
-        if isinstance(event, CallbackQuery) and event.data and any(
-            cb in event.data for cb in self.EXEMPT_CALLBACKS
-        ):
-            return True
-        return False
+        return (
+            isinstance(event, Message)
+            and event.text
+            and any(event.text.startswith(cmd) for cmd in self.EXEMPT_COMMANDS)
+        ) or (
+            isinstance(event, CallbackQuery)
+            and event.data
+            and any(cb in event.data for cb in self.EXEMPT_CALLBACKS)
+        )
 
     def _get_subscription_text(self, lang: str) -> str:
         """Get subscription required text (reduces cognitive complexity)."""
