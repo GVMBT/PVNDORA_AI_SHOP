@@ -25,6 +25,172 @@ router = Router(name="broadcast")
 # Constants (avoid string duplication)
 BUTTON_BACK = "◀️ Назад"
 
+# =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
+
+
+async def validate_broadcast_data(data: dict, callback: CallbackQuery, state: FSMContext) -> tuple[str, str] | None:
+    """Validate broadcast data and return target_bot, target_audience or None (reduces cognitive complexity)."""
+    target_bot = data.get("target_bot")
+    target_audience = data.get("target_audience")
+
+    if not target_bot or not target_audience:
+        await safe_edit_text(
+            callback, "❌ Ошибка: данные рассылки не найдены. Начните заново с /broadcast"
+        )
+        await state.clear()
+        return None
+
+    return target_bot, target_audience
+
+
+async def validate_base_url(callback: CallbackQuery, state: FSMContext) -> str | None:
+    """Validate BASE_URL is set (reduces cognitive complexity)."""
+    from core.queue import get_base_url
+
+    base_url = get_base_url()
+    if not base_url or base_url == "http://localhost:8000":
+        logger.error("Broadcast: BASE_URL/WEBAPP_URL not set! base_url=%s", base_url)
+        await safe_edit_text(
+            callback, "❌ Ошибка конфигурации: BASE_URL не настроен. Рассылка невозможна."
+        )
+        await state.clear()
+        return None
+    return base_url
+
+
+async def create_broadcast_record(
+    db, data: dict, recipients: list, target_bot: str, target_audience: str, admin_id: str
+) -> str:
+    """Create broadcast record in DB (reduces cognitive complexity)."""
+    broadcast_data = {
+        "target_bot": target_bot,
+        "content": data.get("content", {}),
+        "media_type": data.get("media_type"),
+        "media_file_id": data.get("media_file_id"),
+        "buttons": data.get("buttons", []),
+        "target_audience": target_audience,
+        "target_languages": data.get("target_languages"),
+        "status": "sending",
+        "started_at": datetime.now(UTC).isoformat(),
+        "total_recipients": len(recipients),
+        "created_by": admin_id,
+    }
+
+    result = await db.client.table("broadcast_messages").insert(broadcast_data).execute()
+    broadcast_id = result.data[0]["id"]
+    logger.info("Broadcast %s: Created in DB", broadcast_id)
+    return broadcast_id
+
+
+async def create_recipient_records(db, broadcast_id: str, recipients: list):
+    """Create recipient records in batches (reduces cognitive complexity)."""
+    recipient_records = []
+    for user in recipients:
+        recipient_records.append(
+            {
+                "broadcast_id": broadcast_id,
+                "user_id": user["id"],
+                "telegram_id": user["telegram_id"],
+                "language_code": user.get("language_code", "en"),
+                "status": "pending",
+            }
+        )
+
+    batch_size = 100
+    for i in range(0, len(recipient_records), batch_size):
+        batch = recipient_records[i : i + batch_size]
+        await db.client.table("broadcast_recipients").insert(batch).execute()
+    logger.info("Broadcast %s: %s recipient records created", broadcast_id, len(recipient_records))
+
+
+async def queue_broadcast_batches(
+    broadcast_id: str, recipients: list, target_bot: str
+) -> tuple[int, list[int]]:
+    """Queue broadcast batches to QStash (reduces cognitive complexity)."""
+    from core.queue import WorkerEndpoints, publish_to_worker
+
+    user_batches = []
+    qstash_batch_size = 80
+    for i in range(0, len(recipients), qstash_batch_size):
+        batch = recipients[i : i + qstash_batch_size]
+        user_ids = [str(u["id"]) for u in batch]
+        user_batches.append(user_ids)
+
+    queued_count = 0
+    failed_queues = []
+
+    logger.info("Broadcast %s: Queueing %s batches to QStash...", broadcast_id, len(user_batches))
+
+    for batch_idx, user_ids in enumerate(user_batches):
+        try:
+            qstash_result = await publish_to_worker(
+                endpoint=WorkerEndpoints.SEND_BROADCAST,
+                body={
+                    "broadcast_id": broadcast_id,
+                    "user_ids": user_ids,
+                    "target_bot": target_bot,
+                },
+                retries=2,
+                deduplication_id=f"broadcast_{broadcast_id}_batch_{batch_idx}",
+            )
+            if qstash_result.get("queued"):
+                queued_count += 1
+                logger.info(
+                    "Broadcast %s: Batch %s queued, msg_id=%s",
+                    broadcast_id,
+                    batch_idx + 1,
+                    qstash_result.get("message_id"),
+                )
+            else:
+                failed_queues.append(batch_idx + 1)
+                logger.error(
+                    "Broadcast %s: Batch %s FAILED: %s",
+                    broadcast_id,
+                    batch_idx + 1,
+                    qstash_result.get("error"),
+                )
+        except Exception:
+            failed_queues.append(batch_idx + 1)
+            logger.exception("Broadcast %s: Batch %s EXCEPTION", broadcast_id, batch_idx + 1)
+
+    logger.info(
+        "Broadcast %s: %s/%s batches queued successfully", broadcast_id, queued_count, len(user_batches)
+    )
+    return queued_count, failed_queues
+
+
+async def send_broadcast_response(
+    callback: CallbackQuery, broadcast_id: str, recipients: list, queued_count: int, failed_queues: list, total_batches: int
+):
+    """Send final response to user (reduces cognitive complexity)."""
+    if failed_queues:
+        await safe_edit_text(
+            callback,
+            "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            "     ⚠️ <b>РАССЫЛКА ЧАСТИЧНО ЗАПУЩЕНА</b>\n"
+            "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"📊 ID: <code>{broadcast_id[:8]}</code>\n"
+            f"👥 Получателей: {len(recipients)}\n"
+            f"✅ Очередей создано: {queued_count}/{total_batches}\n"
+            f"❌ Ошибок: {len(failed_queues)}\n\n"
+            "<i>Часть рассылки может не отправиться.</i>",
+            parse_mode=ParseMode.HTML,
+        )
+    else:
+        await safe_edit_text(
+            callback,
+            "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
+            "     🚀 <b>РАССЫЛКА ЗАПУЩЕНА</b>\n"
+            "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
+            f"📊 ID: <code>{broadcast_id[:8]}</code>\n"
+            f"👥 Получателей: {len(recipients)}\n"
+            f"✅ Очередей: {queued_count}\n\n"
+            "<i>Рассылка выполняется в фоне.</i>",
+            parse_mode=ParseMode.HTML,
+        )
+
 
 async def safe_edit_text(callback: CallbackQuery, text: str, **kwargs) -> bool:
     """
