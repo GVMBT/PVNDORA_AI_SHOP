@@ -255,7 +255,7 @@ def get_audience_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=name, callback_data=f"bc:aud:{key}")]
         for key, name in AUDIENCES.items()
     ]
-    buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="bc:back:bot")])
+    buttons.append([InlineKeyboardButton(text=BUTTON_BACK, callback_data="bc:back:bot")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
@@ -328,7 +328,7 @@ def get_media_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="⏭ Пропустить медиа", callback_data="bc:media:skip")],
-            [InlineKeyboardButton(text="◀️ Назад", callback_data="bc:back:content")],
+            [InlineKeyboardButton(text=BUTTON_BACK, callback_data="bc:back:content")],
         ]
     )
 

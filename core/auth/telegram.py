@@ -27,6 +27,62 @@ def _get_telegram_token() -> str:
     return _telegram_token
 
 
+async def _get_user_language_from_db(telegram_id: int) -> str:
+    """Get user language from DB and cache user (reduces cognitive complexity)."""
+    language_code = "en"
+    try:
+        db = get_database()
+        db_user = await db.get_user_by_telegram_id(telegram_id)
+        if db_user:
+            from .dependencies import _cache_db_user
+            _cache_db_user(telegram_id, db_user)
+            if db_user.language_code:
+                language_code = db_user.language_code
+    except Exception as e:
+        logger.warning(f"Failed to get user language from DB: {e}")
+    return language_code
+
+
+def _update_user_activity(user_id: int) -> None:
+    """Update user activity with debounce (fire-and-forget, reduces cognitive complexity)."""
+    try:
+        from core.routers.webapp.middleware import update_user_activity_with_debounce
+        update_user_activity_with_debounce(user_id)
+    except Exception as e:
+        logger.debug(f"Failed to schedule activity update: {e}")
+
+
+async def _verify_bearer_token(session_token: str) -> TelegramUser | None:
+    """Verify Bearer token and return user if valid (reduces cognitive complexity)."""
+    session = verify_web_session_token(session_token)
+    if not session:
+        return None
+
+    language_code = await _get_user_language_from_db(session["telegram_id"])
+
+    user = TelegramUser(
+        id=session["telegram_id"],
+        first_name=session.get("username", "User"),
+        username=session.get("username"),
+        language_code=language_code,
+    )
+    _update_user_activity(user.id)
+    return user
+
+
+def _extract_init_data(authorization: str | None, x_init_data: str | None) -> str | None:
+    """Extract initData from headers (reduces cognitive complexity)."""
+    if x_init_data:
+        return x_init_data
+
+    if authorization:
+        parts = authorization.split(" ")
+        if len(parts) == 2 and parts[0].lower() == "tma":
+            return parts[1]
+
+    return None
+
+
 async def verify_telegram_auth(
     authorization: str = Header(None, alias="Authorization"),
     x_init_data: str = Header(None, alias="X-Init-Data"),
@@ -42,58 +98,15 @@ async def verify_telegram_auth(
     if authorization:
         parts = authorization.split(" ")
         if len(parts) == 2 and parts[0].lower() == "bearer":
-            session_token = parts[1]
-            session = verify_web_session_token(session_token)
-            if session:
-                # Get user language from database
-                language_code = "en"
-                try:
-                    db = get_database()
-                    db_user = await db.get_user_by_telegram_id(session["telegram_id"])
-                    if db_user:
-                        # OPTIMIZATION: Cache db_user in ContextVar to avoid duplicate queries
-                        # Cache db_user for this request (lazy import to avoid circular dependency)
-                        from .dependencies import _cache_db_user
-
-                        _cache_db_user(session["telegram_id"], db_user)
-                        if db_user.language_code:
-                            language_code = db_user.language_code
-                except Exception as e:
-                    logger.warning(f"Failed to get user language from DB: {e}")
-
-                user = TelegramUser(
-                    id=session["telegram_id"],
-                    first_name=session.get("username", "User"),
-                    username=session.get("username"),
-                    language_code=language_code,
-                )
-
-                # Update user activity with debounce (fire-and-forget, non-blocking)
-                try:
-                    from core.routers.webapp.middleware import update_user_activity_with_debounce
-
-                    update_user_activity_with_debounce(user.id)
-                except Exception as e:
-                    # Non-fatal - activity tracking shouldn't break authentication
-                    logger.debug(f"Failed to schedule activity update: {e}")
-
+            user = await _verify_bearer_token(parts[1])
+            if user:
                 return user
             # If Bearer token is invalid and no X-Init-Data, raise error
             if not x_init_data:
                 raise HTTPException(status_code=401, detail="Invalid session token")
 
-    init_data = None
-
-    # Try X-Init-Data header (Telegram Mini App)
-    if x_init_data:
-        init_data = x_init_data
-    # Fallback to Authorization header (Telegram Mini App) - only if not Bearer
-    elif authorization:
-        parts = authorization.split(" ")
-        if len(parts) == 2 and parts[0].lower() == "tma":
-            init_data = parts[1]
-        # Don't try raw authorization as initData - it will fail validation
-
+    # Try TMA initData
+    init_data = _extract_init_data(authorization, x_init_data)
     if not init_data:
         raise HTTPException(status_code=401, detail="No authorization header")
 
@@ -104,26 +117,17 @@ async def verify_telegram_auth(
     extracted_user = extract_user_from_init_data(init_data)
     if not extracted_user:
         raise HTTPException(status_code=401, detail="Could not extract user")
-    user = extracted_user
 
     # Update user's photo_url if provided
-    if user.photo_url:
+    if extracted_user.photo_url:
         try:
             db = get_database()
-            await db.update_user_photo(user.id, user.photo_url)
+            await db.update_user_photo(extracted_user.id, extracted_user.photo_url)
         except Exception as e:
             logger.warning(f"Failed to update user photo: {e}")
 
-    # Update user activity with debounce (fire-and-forget, non-blocking)
-    try:
-        from core.routers.webapp.middleware import update_user_activity_with_debounce
-
-        update_user_activity_with_debounce(user.id)
-    except Exception as e:
-        # Non-fatal - activity tracking shouldn't break authentication
-        logger.debug(f"Failed to schedule activity update: {e}")
-
-    return user
+    _update_user_activity(extracted_user.id)
+    return extracted_user
 
 
 # Helper to get Redis client (reduces cognitive complexity)

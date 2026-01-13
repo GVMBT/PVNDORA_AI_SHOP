@@ -43,6 +43,56 @@ interface LeaderboardProps {
 
 // MOCK DATA removed - use real API data only
 
+// Helper constants for podium styling (reduces cognitive complexity)
+const RANK_LABELS = { 1: "RANK_01", 2: "RANK_02", 3: "RANK_03" } as const;
+const ORDER_CLASSES = {
+  1: "order-1 md:order-2 relative z-10 mt-0 md:-mt-12 mb-4 md:mb-0",
+  2: "order-2 md:order-1 relative group",
+  3: "order-3 md:order-3 relative group",
+} as const;
+
+// Helper function to get podium styles (reduces cognitive complexity)
+const getPodiumStyles = (rank: 1 | 2 | 3) => {
+  const isFirst = rank === 1;
+  return {
+    isFirst,
+    containerClasses: isFirst
+      ? "bg-[#050505] border border-pandora-cyan p-1 relative rounded-sm"
+      : "bg-[#0e0e0e] border border-white/10 p-6 relative overflow-hidden hover:border-pandora-cyan/30 transition-colors",
+    innerClasses: isFirst ? "bg-[#0a0a0a] p-4 sm:p-8 relative" : "",
+    avatarSize: isFirst ? "w-24 h-24" : "w-16 h-16",
+    borderClasses: isFirst ? "border-2 border-pandora-cyan" : "border border-white/20",
+    nameClasses: isFirst ? "font-display text-xl sm:text-2xl tracking-wide" : "text-lg",
+    handleClasses: isFirst ? "mb-6 text-sm" : "mb-4 text-xs",
+    statBoxClasses: isFirst
+      ? "bg-pandora-cyan/10 border border-pandora-cyan/30 p-3 overflow-hidden text-center"
+      : "bg-white/5 border border-white/5 p-2",
+    statLabelClasses: isFirst
+      ? "text-pandora-cyan uppercase font-bold truncate"
+      : "text-gray-500 uppercase",
+    statValueClasses: isFirst
+      ? "text-lg sm:text-2xl whitespace-normal break-all sm:break-normal leading-tight"
+      : "text-lg",
+  };
+};
+
+// Vacant podium slot component (reduces cognitive complexity)
+const VacantPodiumSlot: React.FC<{ rank: 1 | 2 | 3; t: (key: string) => string }> = ({ rank, t }) => (
+  <div className={ORDER_CLASSES[rank]}>
+    <div className="bg-[#0e0e0e] border border-white/5 p-6 opacity-30">
+      <div className="absolute top-0 left-0 bg-white/5 px-2 py-1 text-[10px] font-bold font-mono text-gray-600">
+        {RANK_LABELS[rank]}
+      </div>
+      <div className="flex flex-col items-center text-center mt-4">
+        <div className="w-16 h-16 rounded-full border border-white/10 mb-3 flex items-center justify-center">
+          <span className="text-gray-600 text-2xl">?</span>
+        </div>
+        <h3 className="font-bold text-gray-600 text-lg">{t("leaderboard.vacant").toUpperCase()}</h3>
+      </div>
+    </div>
+  </div>
+);
+
 // Helper component for podium rank (reduces cognitive complexity)
 interface PodiumRankProps {
   user: LeaderboardUserData | null;
@@ -53,38 +103,12 @@ interface PodiumRankProps {
 }
 
 const PodiumRank: React.FC<PodiumRankProps> = ({ user, rank, displayCurrency, t, isVacant }) => {
-  const rankLabels = { 1: "RANK_01", 2: "RANK_02", 3: "RANK_03" };
-  const orderClasses = {
-    1: "order-1 md:order-2 relative z-10 mt-0 md:-mt-12 mb-4 md:mb-0",
-    2: "order-2 md:order-1 relative group",
-    3: "order-3 md:order-3 relative group",
-  };
-
   if (isVacant || !user) {
-    return (
-      <div className={orderClasses[rank]}>
-        <div className="bg-[#0e0e0e] border border-white/5 p-6 opacity-30">
-          <div className="absolute top-0 left-0 bg-white/5 px-2 py-1 text-[10px] font-bold font-mono text-gray-600">
-            {rankLabels[rank]}
-          </div>
-          <div className="flex flex-col items-center text-center mt-4">
-            <div className="w-16 h-16 rounded-full border border-white/10 mb-3 flex items-center justify-center">
-              <span className="text-gray-600 text-2xl">?</span>
-            </div>
-            <h3 className="font-bold text-gray-600 text-lg">{t("leaderboard.vacant").toUpperCase()}</h3>
-          </div>
-        </div>
-      </div>
-    );
+    return <VacantPodiumSlot rank={rank} t={t} />;
   }
 
-  const isFirst = rank === 1;
-  const containerClasses = isFirst
-    ? "bg-[#050505] border border-pandora-cyan p-1 relative rounded-sm"
-    : "bg-[#0e0e0e] border border-white/10 p-6 relative overflow-hidden hover:border-pandora-cyan/30 transition-colors";
-  const innerClasses = isFirst ? "bg-[#0a0a0a] p-4 sm:p-8 relative" : "";
-  const avatarSize = isFirst ? "w-24 h-24" : "w-16 h-16";
-  const borderClasses = isFirst ? "border-2 border-pandora-cyan" : "border border-white/20";
+  const styles = getPodiumStyles(rank);
+  const { isFirst, containerClasses, innerClasses, avatarSize, borderClasses, nameClasses, handleClasses, statBoxClasses, statLabelClasses, statValueClasses } = styles;
 
   const content = (
     <>
@@ -94,7 +118,7 @@ const PodiumRank: React.FC<PodiumRankProps> = ({ user, rank, displayCurrency, t,
         </div>
       )}
       <div className={`absolute top-0 left-0 bg-white/10 px-2 py-1 text-[10px] font-bold font-mono ${isFirst ? "hidden" : "text-gray-300"}`}>
-        {rankLabels[rank]}
+        {RANK_LABELS[rank]}
       </div>
       <div className="flex flex-col items-center text-center mt-4">
         <div className={`${avatarSize} rounded-full ${borderClasses} p-1 ${isFirst ? "mb-4" : "mb-3"} overflow-hidden bg-gray-900 flex items-center justify-center ${isFirst ? "relative" : ""}`}>
@@ -127,17 +151,17 @@ const PodiumRank: React.FC<PodiumRankProps> = ({ user, rank, displayCurrency, t,
             </div>
           )}
         </div>
-        <h3 className={`font-bold text-white ${isFirst ? "font-display text-xl sm:text-2xl tracking-wide" : "text-lg"}`}>
+        <h3 className={`font-bold text-white ${nameClasses}`}>
           {user.name}
         </h3>
-        <div className={`font-mono text-pandora-cyan ${isFirst ? "mb-6 text-sm" : "mb-4 text-xs"}`}>
+        <div className={`font-mono text-pandora-cyan ${handleClasses}`}>
           {user.handle}
         </div>
-        <div className={`w-full ${isFirst ? "bg-pandora-cyan/10 border border-pandora-cyan/30 p-3 overflow-hidden text-center" : "bg-white/5 border border-white/5 p-2"} rounded-sm`}>
-          <div className={`text-[9px] ${isFirst ? "text-pandora-cyan uppercase font-bold truncate" : "text-gray-500 uppercase"}`}>
+        <div className={`w-full ${statBoxClasses} rounded-sm`}>
+          <div className={`text-[9px] ${statLabelClasses}`}>
             {t("leaderboard.totalSaved")}
           </div>
-          <div className={`font-bold text-white ${isFirst ? "text-lg sm:text-2xl whitespace-normal break-all sm:break-normal leading-tight" : "text-lg"}`}>
+          <div className={`font-bold text-white ${statValueClasses}`}>
             {formatPrice(user.saved, user.currency || displayCurrency)}
           </div>
         </div>
@@ -146,7 +170,7 @@ const PodiumRank: React.FC<PodiumRankProps> = ({ user, rank, displayCurrency, t,
   );
 
   return (
-    <div className={orderClasses[rank]}>
+    <div className={ORDER_CLASSES[rank]}>
       {!isFirst && <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />}
       {isFirst && <div className="absolute inset-0 bg-pandora-cyan/20 blur-3xl -z-10" />}
       <div className={containerClasses}>
