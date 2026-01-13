@@ -104,13 +104,17 @@ export interface AccountingData {
   >;
 }
 
+// Type aliases for union types
+type AccountingPeriod = "today" | "month" | "all" | "custom";
+type DisplayCurrency = "USD" | "RUB";
+
 interface AdminAccountingProps {
   data?: AccountingData;
   onRefresh?: (
-    period?: "today" | "month" | "all" | "custom",
+    period?: AccountingPeriod,
     customFrom?: string,
     customTo?: string,
-    displayCurrency?: "USD" | "RUB"
+    displayCurrency?: DisplayCurrency
   ) => void;
   onAddExpense?: () => void;
   isLoading?: boolean;

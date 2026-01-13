@@ -76,6 +76,73 @@ const getStatusBadge = (status: string): React.ReactNode => {
   );
 };
 
+// Helper function to render applications grid content
+const renderApplicationsContent = (
+  loadingApplications: boolean,
+  applications: PartnerApplication[],
+  filter: "pending" | "all",
+  setSelectedApp: (app: PartnerApplication) => void
+): React.ReactNode => {
+  if (loadingApplications) {
+    return (
+      <div className="text-center py-8">
+        <RefreshCw size={24} className="animate-spin text-pandora-cyan mx-auto" />
+      </div>
+    );
+  }
+
+  if (applications.length === 0) {
+    return (
+      <div className="text-center text-gray-600 text-xs py-8 bg-white/5 border border-white/10">
+        {filter === "pending" ? "Нет ожидающих заявок" : "Заявки не найдены"}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {applications.map((app) => (
+        <motion.div
+          key={app.id}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`bg-[#0e0e0e] border p-4 cursor-pointer transition-colors ${
+            app.status === "pending"
+              ? "border-yellow-500/30 hover:border-yellow-500"
+              : "border-white/10 hover:border-white/30"
+          }`}
+          onClick={() => setSelectedApp(app)}
+        >
+          <div className="flex justify-between items-start mb-3">
+            <div className="flex items-center gap-2">
+              <User size={14} className="text-gray-500" />
+              <span className="font-bold text-white">
+                {app.first_name || app.username || "Пользователь"}
+              </span>
+            </div>
+            {getStatusBadge(app.status)}
+          </div>
+
+          <div className="text-xs text-gray-500 mb-2 flex items-center gap-2">
+            <Calendar size={12} />
+            {formatDateRu(app.created_at)}
+          </div>
+
+          {app.motivation && (
+            <p className="text-xs text-gray-400 line-clamp-2 mb-2">{app.motivation}</p>
+          )}
+
+          {app.expected_referrals && (
+            <div className="text-[10px] text-gray-500">
+              Ожидаемые рефералы: {app.expected_referrals}
+            </div>
+          )}
+        </motion.div>
+      ))}
+    </div>
+  );
+};
+
 const AdminPartners: React.FC<AdminPartnersProps> = ({
   partners,
   onEditPartner,
@@ -309,56 +376,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
           </div>
 
           {/* Applications Grid */}
-          {loadingApplications ? (
-            <div className="text-center py-8">
-              <RefreshCw size={24} className="animate-spin text-pandora-cyan mx-auto" />
-            </div>
-          ) : applications.length === 0 ? (
-            <div className="text-center text-gray-600 text-xs py-8 bg-white/5 border border-white/10">
-              {filter === "pending" ? "Нет ожидающих заявок" : "Заявки не найдены"}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {applications.map((app) => (
-                <motion.div
-                  key={app.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`bg-[#0e0e0e] border p-4 cursor-pointer transition-colors ${
-                    app.status === "pending"
-                      ? "border-yellow-500/30 hover:border-yellow-500"
-                      : "border-white/10 hover:border-white/30"
-                  }`}
-                  onClick={() => setSelectedApp(app)}
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-2">
-                      <User size={14} className="text-gray-500" />
-                      <span className="font-bold text-white">
-                        {app.first_name || app.username || "Пользователь"}
-                      </span>
-                    </div>
-                    {getStatusBadge(app.status)}
-                  </div>
-
-                  <div className="text-xs text-gray-500 mb-2 flex items-center gap-2">
-                    <Calendar size={12} />
-                    {formatDateRu(app.created_at)}
-                  </div>
-
-                  {app.motivation && (
-                    <p className="text-xs text-gray-400 line-clamp-2 mb-2">{app.motivation}</p>
-                  )}
-
-                  {app.expected_referrals && (
-                    <div className="text-[10px] text-gray-500">
-                      Ожидаемые рефералы: {app.expected_referrals}
-                    </div>
-                  )}
-                </motion.div>
-              ))}
-            </div>
-          )}
+          {renderApplicationsContent(loadingApplications, applications, filter, setSelectedApp)}
         </div>
       )}
 

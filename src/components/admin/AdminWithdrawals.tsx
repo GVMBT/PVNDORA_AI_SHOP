@@ -4,11 +4,11 @@
  * Управление заявками на вывод средств.
  */
 
-import React, { useState, memo, useCallback } from "react";
-import { Wallet, ArrowUpRight, Check, X, Send, ExternalLink } from "lucide-react";
-import type { WithdrawalData } from "./types";
+import { ArrowUpRight, Check, ExternalLink, Send, Wallet, X } from "lucide-react";
+import React, { memo, useCallback, useState } from "react";
 import { useAdmin } from "../../hooks/useAdmin";
 import { logger } from "../../utils/logger";
+import type { WithdrawalData } from "./types";
 
 interface AdminWithdrawalsProps {
   withdrawals: WithdrawalData[];
