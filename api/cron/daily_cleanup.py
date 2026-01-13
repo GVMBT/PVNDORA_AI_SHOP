@@ -10,8 +10,16 @@ Tasks:
 """
 
 import os
+import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
+
+# Add project root to path for imports BEFORE any core.* imports
+_base_path = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(_base_path))
+if str(_base_path) not in sys.path:
+    sys.path.insert(0, str(_base_path.resolve()))
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse

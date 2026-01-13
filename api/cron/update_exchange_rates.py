@@ -7,7 +7,15 @@ This ensures runtime has always-available, up-to-date rates without external API
 """
 
 import os
+import sys
 from datetime import UTC, datetime
+from pathlib import Path
+
+# Add project root to path for imports BEFORE any core.* imports
+_base_path = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(_base_path))
+if str(_base_path) not in sys.path:
+    sys.path.insert(0, str(_base_path.resolve()))
 
 import httpx
 from fastapi import FastAPI, Request
