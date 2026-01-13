@@ -14,7 +14,7 @@ from core.db import get_redis
 from core.logging import get_logger
 from core.services.currency import CurrencyService, get_currency_service
 from core.services.currency_response import CurrencyFormatter
-from core.services.database import DatabaseService, get_database
+from core.services.database import Database, get_database
 
 logger = get_logger(__name__)
 
@@ -47,7 +47,7 @@ def _compute_anchor_msrp(
 
 
 async def _fetch_single_product(
-    db: DatabaseService, product_id: str
+    db: Database, product_id: str
 ) -> dict[str, Any]:
     """Fetch and validate a single product from database."""
     product_result = (
@@ -68,7 +68,7 @@ async def _fetch_single_product(
 
 
 async def _fetch_social_proof_single(
-    db: DatabaseService, product_id: str
+    db: Database, product_id: str
 ) -> dict[str, Any]:
     """Fetch social proof for a single product."""
     try:
@@ -86,7 +86,7 @@ async def _fetch_social_proof_single(
 
 
 async def _batch_fetch_social_proof(
-    db: DatabaseService, product_ids: list[str]
+    db: Database, product_ids: list[str]
 ) -> dict[str, dict[str, Any]]:
     """Batch fetch social proof data for multiple products."""
     if not product_ids:
@@ -113,7 +113,7 @@ async def _batch_fetch_social_proof(
 
 
 async def _batch_fetch_ratings(
-    db: DatabaseService, product_ids: list[str]
+    db: Database, product_ids: list[str]
 ) -> dict[str, dict[str, Any]]:
     """Batch fetch and aggregate ratings for multiple products."""
     if not product_ids:
