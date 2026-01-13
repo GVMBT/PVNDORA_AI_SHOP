@@ -43,6 +43,181 @@ interface LeaderboardProps {
 
 // MOCK DATA removed - use real API data only
 
+// Helper component for podium rank (reduces cognitive complexity)
+interface PodiumRankProps {
+  user: LeaderboardUserData | null;
+  rank: 1 | 2 | 3;
+  displayCurrency: string;
+  t: (key: string) => string;
+  isVacant: boolean;
+}
+
+const PodiumRank: React.FC<PodiumRankProps> = ({ user, rank, displayCurrency, t, isVacant }) => {
+  const rankLabels = { 1: "RANK_01", 2: "RANK_02", 3: "RANK_03" };
+  const orderClasses = {
+    1: "order-1 md:order-2 relative z-10 mt-0 md:-mt-12 mb-4 md:mb-0",
+    2: "order-2 md:order-1 relative group",
+    3: "order-3 md:order-3 relative group",
+  };
+
+  if (isVacant || !user) {
+    return (
+      <div className={orderClasses[rank]}>
+        <div className="bg-[#0e0e0e] border border-white/5 p-6 opacity-30">
+          <div className="absolute top-0 left-0 bg-white/5 px-2 py-1 text-[10px] font-bold font-mono text-gray-600">
+            {rankLabels[rank]}
+          </div>
+          <div className="flex flex-col items-center text-center mt-4">
+            <div className="w-16 h-16 rounded-full border border-white/10 mb-3 flex items-center justify-center">
+              <span className="text-gray-600 text-2xl">?</span>
+            </div>
+            <h3 className="font-bold text-gray-600 text-lg">{t("leaderboard.vacant").toUpperCase()}</h3>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const isFirst = rank === 1;
+  const containerClasses = isFirst
+    ? "bg-[#050505] border border-pandora-cyan p-1 relative rounded-sm"
+    : "bg-[#0e0e0e] border border-white/10 p-6 relative overflow-hidden hover:border-pandora-cyan/30 transition-colors";
+  const innerClasses = isFirst ? "bg-[#0a0a0a] p-4 sm:p-8 relative" : "";
+  const avatarSize = isFirst ? "w-24 h-24" : "w-16 h-16";
+  const borderClasses = isFirst ? "border-2 border-pandora-cyan" : "border border-white/20";
+
+  const content = (
+    <>
+      {isFirst && (
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-pandora-cyan text-black p-2 rounded-full shadow-[0_0_20px_#00FFFF] z-20">
+          <Crown size={20} fill="currentColor" />
+        </div>
+      )}
+      <div className={`absolute top-0 left-0 bg-white/10 px-2 py-1 text-[10px] font-bold font-mono ${isFirst ? "hidden" : "text-gray-300"}`}>
+        {rankLabels[rank]}
+      </div>
+      <div className="flex flex-col items-center text-center mt-4">
+        <div className={`${avatarSize} rounded-full ${borderClasses} p-1 ${isFirst ? "mb-4" : "mb-3"} overflow-hidden bg-gray-900 flex items-center justify-center ${isFirst ? "relative" : ""}`}>
+          {isFirst && <div className="absolute inset-0 rounded-full border border-pandora-cyan animate-ping opacity-20" />}
+          {isFirst && <div className="absolute inset-0 bg-gradient-to-tr from-pandora-cyan/20 to-transparent" />}
+          {user.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt={user.name}
+              className={`w-full h-full object-cover rounded-full ${isFirst ? "relative z-10" : ""}`}
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          ) : null}
+          {isFirst ? (
+            <Crown
+              size={32}
+              className={`text-pandora-cyan/50 relative z-10 ${user.avatarUrl ? "hidden" : ""}`}
+            />
+          ) : (
+            <User
+              size={24}
+              className={`text-gray-500 absolute ${user.avatarUrl ? "hidden" : ""}`}
+            />
+          )}
+          {isFirst && (
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-pandora-cyan rounded-full flex items-center justify-center text-black font-bold text-xs shadow-[0_0_10px_#00FFFF] z-20">
+              1
+            </div>
+          )}
+        </div>
+        <h3 className={`font-bold text-white ${isFirst ? "font-display text-xl sm:text-2xl tracking-wide" : "text-lg"}`}>
+          {user.name}
+        </h3>
+        <div className={`font-mono text-pandora-cyan ${isFirst ? "mb-6 text-sm" : "mb-4 text-xs"}`}>
+          {user.handle}
+        </div>
+        <div className={`w-full ${isFirst ? "bg-pandora-cyan/10 border border-pandora-cyan/30 p-3 overflow-hidden text-center" : "bg-white/5 border border-white/5 p-2"} rounded-sm`}>
+          <div className={`text-[9px] ${isFirst ? "text-pandora-cyan uppercase font-bold truncate" : "text-gray-500 uppercase"}`}>
+            {t("leaderboard.totalSaved")}
+          </div>
+          <div className={`font-bold text-white ${isFirst ? "text-lg sm:text-2xl whitespace-normal break-all sm:break-normal leading-tight" : "text-lg"}`}>
+            {formatPrice(user.saved, user.currency || displayCurrency)}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <div className={orderClasses[rank]}>
+      {!isFirst && <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />}
+      {isFirst && <div className="absolute inset-0 bg-pandora-cyan/20 blur-3xl -z-10" />}
+      <div className={containerClasses}>
+        {isFirst ? <div className={innerClasses}>{content}</div> : content}
+      </div>
+    </div>
+  );
+};
+
+// Helper component for list item (reduces cognitive complexity)
+interface LeaderboardListItemProps {
+  user: LeaderboardUserData;
+  displayCurrency: string;
+  t: (key: string) => string;
+}
+
+const LeaderboardListItem: React.FC<LeaderboardListItemProps> = ({ user, displayCurrency, t }) => {
+  return (
+    <div className="group relative bg-[#0a0a0a] border border-white/5 hover:border-pandora-cyan/50 transition-all duration-300">
+      <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-pandora-cyan opacity-0 group-hover:opacity-100 transition-opacity" />
+      <div className="grid grid-cols-12 gap-4 items-center p-4">
+        <div className="col-span-2 md:col-span-1 text-center font-display font-bold text-gray-600 group-hover:text-white transition-colors">
+          {user.rank.toString().padStart(2, "0")}
+        </div>
+        <div className="col-span-10 md:col-span-5 flex items-center gap-4">
+          <div className="w-8 h-8 bg-white/5 rounded-sm flex items-center justify-center border border-white/10 shrink-0 overflow-hidden">
+            {user.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={user.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = "none";
+                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+                }}
+              />
+            ) : null}
+            <User
+              size={14}
+              className={`text-gray-500 group-hover:text-pandora-cyan ${user.avatarUrl ? "hidden" : ""}`}
+            />
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-bold text-white group-hover:text-pandora-cyan transition-colors flex items-center gap-2 truncate">
+              {user.name}
+              {user.status === "ONLINE" && (
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shrink-0" />
+              )}
+            </div>
+            <div className="text-[10px] font-mono text-gray-600 truncate">{user.handle}</div>
+          </div>
+        </div>
+        <div className="col-span-6 md:col-span-3 text-center mt-2 md:mt-0">
+          <span className="md:hidden text-[10px] text-gray-500 font-mono uppercase mr-2">
+            {t("leaderboard.purchases")}:
+          </span>
+          <span className="font-mono text-gray-400">{user.modules}</span>
+        </div>
+        <div className="col-span-6 md:col-span-3 text-right mt-2 md:mt-0 flex justify-end md:block items-center">
+          <span className="md:hidden text-[10px] text-gray-500 font-mono uppercase mr-2">
+            {t("leaderboard.totalSaved")}:
+          </span>
+          <div className="font-display font-bold text-white text-lg group-hover:text-pandora-cyan transition-colors">
+            {formatPrice(user.saved, user.currency || displayCurrency)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Leaderboard: React.FC<LeaderboardProps> = ({
   leaderboardData: propData,
   currency = "USD",
@@ -212,184 +387,27 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
 
         {/* === TOP 3 OPERATIVES (PODIUM) === */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-end mb-12 md:mb-20 relative">
-          {/* Rank 2 */}
-          {hasRank2 ? (
-            <div className="order-2 md:order-1 relative group">
-              <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="bg-[#0e0e0e] border border-white/10 p-6 relative overflow-hidden hover:border-pandora-cyan/30 transition-colors">
-                <div className="absolute top-0 left-0 bg-white/10 px-2 py-1 text-[10px] font-bold font-mono text-gray-300">
-                  RANK_02
-                </div>
-                <div className="flex flex-col items-center text-center mt-4">
-                  <div className="w-16 h-16 rounded-full border border-white/20 p-1 mb-3 overflow-hidden bg-gray-900 flex items-center justify-center">
-                    {topThree[1].avatarUrl ? (
-                      <img
-                        src={topThree[1].avatarUrl}
-                        alt={topThree[1].name}
-                        className="w-full h-full object-cover rounded-full"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = "none";
-                        }}
-                      />
-                    ) : null}
-                    <User
-                      size={24}
-                      className={`text-gray-500 absolute ${topThree[1].avatarUrl ? "hidden" : ""}`}
-                    />
-                  </div>
-                  <h3 className="font-bold text-white text-lg">{topThree[1].name}</h3>
-                  <div className="text-xs font-mono text-pandora-cyan mb-4">
-                    {topThree[1].handle}
-                  </div>
-
-                  <div className="w-full bg-white/5 p-2 rounded-sm border border-white/5">
-                    <div className="text-[9px] text-gray-500 uppercase">
-                      {t("leaderboard.totalSaved")}
-                    </div>
-                    <div className="text-lg font-bold text-white">
-                      {formatPrice(topThree[1].saved, topThree[1].currency || displayCurrency)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="order-2 md:order-1 relative">
-              <div className="bg-[#0e0e0e] border border-white/5 p-6 opacity-30">
-                <div className="absolute top-0 left-0 bg-white/5 px-2 py-1 text-[10px] font-bold font-mono text-gray-600">
-                  RANK_02
-                </div>
-                <div className="flex flex-col items-center text-center mt-4">
-                  <div className="w-16 h-16 rounded-full border border-white/10 mb-3 flex items-center justify-center">
-                    <span className="text-gray-600 text-2xl">?</span>
-                  </div>
-                  <h3 className="font-bold text-gray-600 text-lg">
-                    {t("leaderboard.vacant").toUpperCase()}
-                  </h3>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Rank 1 (Center) */}
-          {hasRank1 && (
-            <div className="order-1 md:order-2 relative z-10 mt-0 md:-mt-12 mb-4 md:mb-0">
-              {/* Glow Effect */}
-              <div className="absolute inset-0 bg-pandora-cyan/20 blur-3xl -z-10" />
-
-              <div className="bg-[#050505] border border-pandora-cyan p-1 relative rounded-sm">
-                <div className="bg-[#0a0a0a] p-4 sm:p-8 relative">
-                  {/* Crown Icon */}
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-pandora-cyan text-black p-2 rounded-full shadow-[0_0_20px_#00FFFF] z-20">
-                    <Crown size={20} fill="currentColor" />
-                  </div>
-
-                  <div className="flex flex-col items-center text-center mt-4">
-                    <div className="w-24 h-24 rounded-full border-2 border-pandora-cyan p-1 mb-4 relative">
-                      <div className="absolute inset-0 rounded-full border border-pandora-cyan animate-ping opacity-20" />
-                      <div className="w-full h-full bg-gray-900 rounded-full flex items-center justify-center overflow-hidden relative">
-                        <div className="absolute inset-0 bg-gradient-to-tr from-pandora-cyan/20 to-transparent" />
-                        {topThree[0].avatarUrl ? (
-                          <img
-                            src={topThree[0].avatarUrl}
-                            alt={topThree[0].name}
-                            className="w-full h-full object-cover rounded-full relative z-10"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = "none";
-                            }}
-                          />
-                        ) : null}
-                        <Crown
-                          size={32}
-                          className={`text-pandora-cyan/50 relative z-10 ${topThree[0].avatarUrl ? "hidden" : ""}`}
-                        />
-                      </div>
-                      <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-pandora-cyan rounded-full flex items-center justify-center text-black font-bold text-xs shadow-[0_0_10px_#00FFFF] z-20">
-                        1
-                      </div>
-                    </div>
-
-                    <h3 className="font-display font-bold text-xl sm:text-2xl text-white tracking-wide">
-                      {topThree[0].name}
-                    </h3>
-                    <div className="text-sm font-mono text-pandora-cyan mb-6">
-                      {topThree[0].handle}
-                    </div>
-
-                    <div className="w-full">
-                      <div className="bg-pandora-cyan/10 border border-pandora-cyan/30 p-3 rounded-sm overflow-hidden text-center">
-                        <div className="text-[9px] text-pandora-cyan uppercase font-bold truncate">
-                          {t("leaderboard.totalSaved")}
-                        </div>
-                        <div className="text-lg sm:text-2xl font-bold text-white whitespace-normal break-all sm:break-normal leading-tight">
-                          {formatPrice(topThree[0].saved, topThree[0].currency || displayCurrency)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Rank 3 */}
-          {hasRank3 ? (
-            <div className="order-3 md:order-3 relative group">
-              <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="bg-[#0e0e0e] border border-white/10 p-6 relative overflow-hidden hover:border-pandora-cyan/30 transition-colors">
-                <div className="absolute top-0 left-0 bg-white/10 px-2 py-1 text-[10px] font-bold font-mono text-gray-300">
-                  RANK_03
-                </div>
-                <div className="flex flex-col items-center text-center mt-4">
-                  <div className="w-16 h-16 rounded-full border border-white/20 p-1 mb-3 overflow-hidden bg-gray-900 flex items-center justify-center">
-                    {topThree[2].avatarUrl ? (
-                      <img
-                        src={topThree[2].avatarUrl}
-                        alt={topThree[2].name}
-                        className="w-full h-full object-cover rounded-full"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = "none";
-                        }}
-                      />
-                    ) : null}
-                    <User
-                      size={24}
-                      className={`text-gray-500 absolute ${topThree[2].avatarUrl ? "hidden" : ""}`}
-                    />
-                  </div>
-                  <h3 className="font-bold text-white text-lg">{topThree[2].name}</h3>
-                  <div className="text-xs font-mono text-pandora-cyan mb-4">
-                    {topThree[2].handle}
-                  </div>
-
-                  <div className="w-full bg-white/5 p-2 rounded-sm border border-white/5">
-                    <div className="text-[9px] text-gray-500 uppercase">
-                      {t("leaderboard.totalSaved")}
-                    </div>
-                    <div className="text-lg font-bold text-white">
-                      {formatPrice(topThree[2].saved, topThree[2].currency || displayCurrency)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="order-3 md:order-3 relative">
-              <div className="bg-[#0e0e0e] border border-white/5 p-6 opacity-30">
-                <div className="absolute top-0 left-0 bg-white/5 px-2 py-1 text-[10px] font-bold font-mono text-gray-600">
-                  RANK_03
-                </div>
-                <div className="flex flex-col items-center text-center mt-4">
-                  <div className="w-16 h-16 rounded-full border border-white/10 mb-3 flex items-center justify-center">
-                    <span className="text-gray-600 text-2xl">?</span>
-                  </div>
-                  <h3 className="font-bold text-gray-600 text-lg">
-                    {t("leaderboard.vacant").toUpperCase()}
-                  </h3>
-                </div>
-              </div>
-            </div>
-          )}
+          <PodiumRank
+            user={hasRank2 ? topThree[1] : null}
+            rank={2}
+            displayCurrency={displayCurrency}
+            t={t}
+            isVacant={!hasRank2}
+          />
+          <PodiumRank
+            user={hasRank1 ? topThree[0] : null}
+            rank={1}
+            displayCurrency={displayCurrency}
+            t={t}
+            isVacant={!hasRank1}
+          />
+          <PodiumRank
+            user={hasRank3 ? topThree[2] : null}
+            rank={3}
+            displayCurrency={displayCurrency}
+            t={t}
+            isVacant={!hasRank3}
+          />
         </div>
 
         {/* === MAIN LIST === */}
@@ -426,71 +444,12 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
           {/* Rows */}
           <div className="space-y-2">
             {restList.map((user) => (
-              <div
+              <LeaderboardListItem
                 key={user.rank}
-                className="group relative bg-[#0a0a0a] border border-white/5 hover:border-pandora-cyan/50 transition-all duration-300"
-              >
-                <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-pandora-cyan opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                <div className="grid grid-cols-12 gap-4 items-center p-4">
-                  {/* Rank */}
-                  <div className="col-span-2 md:col-span-1 text-center font-display font-bold text-gray-600 group-hover:text-white transition-colors">
-                    {user.rank.toString().padStart(2, "0")}
-                  </div>
-
-                  {/* Identity */}
-                  <div className="col-span-10 md:col-span-5 flex items-center gap-4">
-                    <div className="w-8 h-8 bg-white/5 rounded-sm flex items-center justify-center border border-white/10 shrink-0 overflow-hidden">
-                      {user.avatarUrl ? (
-                        <img
-                          src={user.avatarUrl}
-                          alt={user.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = "none";
-                            (e.target as HTMLImageElement).nextElementSibling?.classList.remove(
-                              "hidden"
-                            );
-                          }}
-                        />
-                      ) : null}
-                      <User
-                        size={14}
-                        className={`text-gray-500 group-hover:text-pandora-cyan ${user.avatarUrl ? "hidden" : ""}`}
-                      />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-bold text-white group-hover:text-pandora-cyan transition-colors flex items-center gap-2 truncate">
-                        {user.name}
-                        {user.status === "ONLINE" && (
-                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shrink-0" />
-                        )}
-                      </div>
-                      <div className="text-[10px] font-mono text-gray-600 truncate">
-                        {user.handle}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Purchases count */}
-                  <div className="col-span-6 md:col-span-3 text-center mt-2 md:mt-0">
-                    <span className="md:hidden text-[10px] text-gray-500 font-mono uppercase mr-2">
-                      {t("leaderboard.purchases")}:
-                    </span>
-                    <span className="font-mono text-gray-400">{user.modules}</span>
-                  </div>
-
-                  {/* Total Saved */}
-                  <div className="col-span-6 md:col-span-3 text-right mt-2 md:mt-0 flex justify-end md:block items-center">
-                    <span className="md:hidden text-[10px] text-gray-500 font-mono uppercase mr-2">
-                      {t("leaderboard.totalSaved")}:
-                    </span>
-                    <div className="font-display font-bold text-white text-lg group-hover:text-pandora-cyan transition-colors">
-                      {formatPrice(user.saved, user.currency || displayCurrency)}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                user={user}
+                displayCurrency={displayCurrency}
+                t={t}
+              />
             ))}
 
             {/* Infinite scroll trigger - placed at end of list */}
