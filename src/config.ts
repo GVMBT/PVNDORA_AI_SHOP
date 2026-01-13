@@ -16,8 +16,10 @@ interface ImportMetaEnv {
 
 // Helper to safely access import.meta.env
 const getEnv = (): ImportMetaEnv => {
-  if (typeof import.meta !== "undefined" && import.meta.env) {
-    return import.meta.env as ImportMetaEnv;
+  // Use optional chaining for safe access
+  const env = (import.meta as any)?.env as ImportMetaEnv | undefined;
+  if (env) {
+    return env;
   }
   return { MODE: "production", DEV: false, PROD: true };
 };

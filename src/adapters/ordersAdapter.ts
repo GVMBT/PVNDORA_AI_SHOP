@@ -200,7 +200,7 @@ function calculateItemWarrantyUntil(
     const warrantyEnd = new Date(delivered);
     warrantyEnd.setDate(warrantyEnd.getDate() + warrantyDays);
     return warrantyEnd.toISOString();
-  } catch (_e) {
+  } catch {
     return null;
   }
 }
@@ -219,7 +219,7 @@ function canItemRequestRefund(
   try {
     const warrantyEnd = new Date(warrantyUntil);
     return new Date() < warrantyEnd;
-  } catch (_e) {
+  } catch {
     return false;
   }
 }
@@ -254,10 +254,8 @@ function adaptOrderItem(
     if (itemDeadline) {
       deadline = formatDateWithTimezone(itemDeadline);
       deadlineRaw = itemDeadline;
-    } else {
-      // No specific deadline set - show waiting message instead
-      deadline = null; // Will show "Ожидание поступления" in UI
     }
+    // No else needed - deadline already initialized as null (will show "Ожидание поступления" in UI)
   }
   // For delivered/cancelled/refunded - no deadline needed
 

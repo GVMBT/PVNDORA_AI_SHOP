@@ -194,7 +194,7 @@ async def _process_external_payment(
         }
 
     except Exception as e:
-        logger.error(f"Payment service error: {e}", exc_info=True)
+        logger.error("Payment service error: %s", type(e).__name__, exc_info=True)
         # Rollback order on payment creation error
         try:
             await db.client.table("order_items").delete().eq("order_id", order.id).execute()
@@ -276,7 +276,9 @@ async def _create_order_with_currency_snapshot(
     try:
         await persist_order_items(db, order.id, order_items)
     except Exception:
-        logger.exception(f"Failed to create order_items for order {order.id}")
+        from core.logging import sanitize_id_for_logging
+
+        logger.exception("Failed to create order_items for order %s", sanitize_id_for_logging(order.id))
         await db.client.table("orders").delete().eq("id", order.id).execute()
         raise ValueError("Failed to create order items. Please try again.")
 
@@ -373,14 +375,21 @@ async def _process_balance_payment(
                 "p_reason": f"Payment for order {order_id}",
             },
         ).execute()
+        from core.logging import sanitize_id_for_logging
+
         logger.info(
-            f"Balance deducted {to_float(order_total_in_balance_currency):.2f} {balance_currency} for order {order_id}"
+            "Balance deducted %.2f %s for order %s",
+            to_float(order_total_in_balance_currency),
+            balance_currency,
+            sanitize_id_for_logging(order_id),
         )
         return None
     except Exception:
+        from core.logging import sanitize_id_for_logging
+
         # Rollback order on balance deduction error
         await db.client.table("orders").delete().eq("id", order_id).execute()
-        logger.exception(f"Failed to deduct balance for order {order_id}")
+        logger.exception("Failed to deduct balance for order %s", sanitize_id_for_logging(order_id))
         return {"success": False, "error": "Ошибка списания с баланса. Попробуйте позже."}
 
 
@@ -405,10 +414,21 @@ async def _finalize_balance_payment(
         final_status = await status_service.mark_payment_confirmed(
             order_id=order_id, payment_id=f"balance-{order_id}", check_stock=True
         )
-        logger.info(f"Balance payment confirmed for order {order_id}, final_status={final_status}")
+        from core.logging import sanitize_id_for_logging
+
+        logger.info(
+            "Balance payment confirmed for order %s, final_status=%s",
+            sanitize_id_for_logging(order_id),
+            final_status,
+        )
     except Exception as e:
+        from core.logging import sanitize_id_for_logging
+
         logger.error(
-            f"Failed to mark payment confirmed for balance order {order_id}: {e}", exc_info=True
+            "Failed to mark payment confirmed for balance order %s: %s",
+            sanitize_id_for_logging(order_id),
+            type(e).__name__,
+            exc_info=True,
         )
         # Don't fail - order is created and balance is deducted
 
@@ -422,9 +442,17 @@ async def _finalize_balance_payment(
             retries=2,
             deduplication_id=f"deliver-{order_id}",
         )
-        logger.info(f"Delivery queued for balance payment order {order_id}")
+        from core.logging import sanitize_id_for_logging
+
+        logger.info("Delivery queued for balance payment order %s", sanitize_id_for_logging(order_id))
     except Exception as e:
-        logger.warning(f"QStash failed for balance order {order_id}: {e}")
+        from core.logging import sanitize_id_for_logging
+
+        logger.warning(
+            "QStash failed for balance order %s: %s",
+            sanitize_id_for_logging(order_id),
+            type(e).__name__,
+        )
         # Don't fail - delivery can be retried later
 
     # Apply promo code and clear cart
@@ -753,7 +781,7 @@ async def pay_cart_from_balance() -> dict:
             )
             cart_total = float(cart.total)
         except Exception as e:
-            logger.warning("Currency conversion failed in pay_cart_from_balance: %s", e)
+            logger.warning("Currency conversion failed in pay_cart_from_balance: %s", type(e).__name__)
             balance = balance_in_balance_currency
             cart_total = float(cart.total)
             currency_service = None

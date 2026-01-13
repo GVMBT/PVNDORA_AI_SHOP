@@ -50,7 +50,7 @@ export function useSearchParams(): URLSearchParams {
             // Not our format, keep original
             p.set("startapp", startapp);
           }
-        } catch (e) {
+        } catch {
           // Keep original if not Base64
           p.set("startapp", startapp);
         }

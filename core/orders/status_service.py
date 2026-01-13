@@ -102,7 +102,7 @@ class OrderStatusService:
         )
 
         if check_transition:
-            can_transition, reason_msg = await self.can_transition_to(order_id, new_status)
+            can_transition, _ = await self.can_transition_to(order_id, new_status)
             if not can_transition:
                 logger.warning("Cannot update order status: transition not allowed")
                 return False

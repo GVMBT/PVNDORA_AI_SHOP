@@ -20,6 +20,9 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/withdrawals", tags=["admin-withdrawals"])
 
+# Constants to avoid string duplication (S1192)
+ERROR_WITHDRAWAL_NOT_FOUND = "Withdrawal request not found"
+
 # =============================================================================
 # Helper Functions (reduce cognitive complexity)
 # =============================================================================
@@ -129,7 +132,7 @@ async def get_withdrawal(withdrawal_id: str, admin=Depends(verify_admin)):
         )
 
         if not result.data:
-            raise HTTPException(status_code=404, detail="Withdrawal request not found")
+            raise HTTPException(status_code=404, detail=ERROR_WITHDRAWAL_NOT_FOUND)
 
         withdrawal_data = result.data
         user_data = withdrawal_data.pop("users", {}) or {}
@@ -174,7 +177,7 @@ async def approve_withdrawal(
         )
 
         if not withdrawal_result.data:
-            raise HTTPException(status_code=404, detail="Withdrawal request not found")
+            raise HTTPException(status_code=404, detail=ERROR_WITHDRAWAL_NOT_FOUND)
 
         withdrawal = withdrawal_result.data
         validate_withdrawal_status(withdrawal, ["pending"])
@@ -353,7 +356,7 @@ async def reject_withdrawal(
         )
 
         if not withdrawal_result.data:
-            raise HTTPException(status_code=404, detail="Withdrawal request not found")
+            raise HTTPException(status_code=404, detail=ERROR_WITHDRAWAL_NOT_FOUND)
 
         withdrawal = withdrawal_result.data
         validate_withdrawal_status(withdrawal, ["pending", "processing"])
@@ -453,7 +456,7 @@ async def complete_withdrawal(
         )
 
         if not withdrawal_result.data:
-            raise HTTPException(status_code=404, detail="Withdrawal request not found")
+            raise HTTPException(status_code=404, detail=ERROR_WITHDRAWAL_NOT_FOUND)
 
         withdrawal = withdrawal_result.data
         if withdrawal["status"] != "processing":
