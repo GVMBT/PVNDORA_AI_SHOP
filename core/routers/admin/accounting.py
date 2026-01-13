@@ -291,116 +291,21 @@ async def get_financial_overview(
     orders_result = await orders_query.execute()
     orders = orders_result.data or []
 
-    # ==========================================================================
-    # Revenue by Currency (REAL amounts, no conversion)
-    # ==========================================================================
-    revenue_by_currency: dict = {}
-    total_revenue_usd = 0.0  # For COGS comparison (since COGS is in USD)
-    total_revenue_gross_usd = 0.0
+    # Process orders and calculate revenue/expenses
+    revenue_by_currency, expense_totals = await _process_orders_for_overview(orders)
+    total_revenue_usd = expense_totals["revenue_usd"]
+    total_revenue_gross_usd = expense_totals["revenue_gross_usd"]
+    total_cogs = expense_totals["cogs"]
+    total_acquiring_fees = expense_totals["acquiring_fees"]
+    total_referral_payouts = expense_totals["referral_payouts"]
+    total_reserves = expense_totals["reserves"]
+    total_review_cashbacks = expense_totals["review_cashbacks"]
+    total_replacement_costs = expense_totals["replacement_costs"]
 
-    # Expenses totals (always in USD - paid to suppliers in $)
-    total_cogs = 0.0
-    total_acquiring_fees = 0.0
-    total_referral_payouts = 0.0
-    total_reserves = 0.0
-    total_review_cashbacks = 0.0
-    total_replacement_costs = 0.0
-
-    for raw_order in orders:
-        if not isinstance(raw_order, dict):
-            continue
-        order = cast(dict[str, Any], raw_order)
-
-        currency, fiat_amount, amount_usd, expenses = extract_order_data(order)
-        real_amount = float(fiat_amount) if fiat_amount is not None else amount_usd
-        fiat_gross, fiat_promo_discount, revenue_gross_usd = calculate_revenue_amounts(
-            amount_usd, real_amount, expenses, currency
-        )
-
-        # Initialize currency bucket
-        if currency not in revenue_by_currency:
-            revenue_by_currency[currency] = {
-                "orders_count": 0,
-                "revenue": 0.0,  # Чистая выручка (после промокодов)
-                "revenue_gross": 0.0,  # Валовая выручка (наша цена БЕЗ промокодов)
-                "discounts_given": 0.0,  # Скидки через промокоды
-            }
-
-        revenue_by_currency[currency]["orders_count"] += 1
-        revenue_by_currency[currency]["revenue"] += real_amount
-        revenue_by_currency[currency]["revenue_gross"] += fiat_gross
-        revenue_by_currency[currency]["discounts_given"] += fiat_promo_discount
-
-        # USD totals for expense calculations
-        total_revenue_usd += amount_usd  # Чистая выручка (после промокодов)
-        total_revenue_gross_usd += revenue_gross_usd  # Валовая выручка (наша цена БЕЗ промокодов)
-
-        # Expenses (from order_expenses, always in USD)
-        if expenses and isinstance(expenses, dict):
-            exp = extract_expenses(expenses)
-            total_cogs += exp["cogs"]
-            total_acquiring_fees += exp["acquiring"]
-            total_referral_payouts += exp["referral"]
-            total_reserves += exp["reserve"]
-            total_review_cashbacks += exp["review"]
-            total_replacement_costs += exp["replacement"]
-
-    # Round currency values
-    for currency_key in revenue_by_currency:
-        for key in revenue_by_currency[currency_key]:
-            if key != "orders_count":
-                revenue_by_currency[currency_key][key] = round_currency_value(
-                    revenue_by_currency[currency_key][key], currency_key
-                )
-
-    # ==========================================================================
-    # Other Expenses (from expenses table, in USD)
-    # ==========================================================================
-    expenses_query = db.client.table("expenses").select("amount_usd, category")
-    if start_date:
-        expenses_query = expenses_query.gte("date", start_date.date().isoformat())
-    if end_date:
-        expenses_query = expenses_query.lte("date", end_date.date().isoformat())
-
-    other_expenses_result = await expenses_query.execute()
-    total_other_expenses = 0.0
-    for raw_e in other_expenses_result.data or []:
-        if isinstance(raw_e, dict):
-            e = cast(dict[str, Any], raw_e)
-            amount_raw = e.get("amount_usd", 0)
-            total_other_expenses += (
-                float(amount_raw) if isinstance(amount_raw, (int, float)) else 0.0
-            )
-
-    # Expenses by category
-    expenses_by_category: dict[str, float] = {}
-    for raw_e in other_expenses_result.data or []:
-        if isinstance(raw_e, dict):
-            e = cast(dict[str, Any], raw_e)
-            cat_raw = e.get("category", "other")
-            cat = str(cat_raw) if cat_raw else "other"
-            amount_raw = e.get("amount_usd", 0)
-            amount = float(amount_raw) if isinstance(amount_raw, (int, float)) else 0.0
-            expenses_by_category[cat] = expenses_by_category.get(cat, 0.0) + amount
-
-    # ==========================================================================
-    # Insurance Revenue (in USD)
-    # ==========================================================================
-    insurance_query = db.client.table("insurance_revenue").select("price")
-    if start_date:
-        insurance_query = insurance_query.gte("created_at", start_date.isoformat())
-    if end_date:
-        insurance_query = insurance_query.lte("created_at", end_date.isoformat())
-
-    insurance_result = await insurance_query.execute()
-    total_insurance_revenue = 0.0
-    for raw_i in insurance_result.data or []:
-        if isinstance(raw_i, dict):
-            i = cast(dict[str, Any], raw_i)
-            price_raw = i.get("price", 0)
-            total_insurance_revenue += (
-                float(price_raw) if isinstance(price_raw, (int, float)) else 0.0
-            )
+    # Get other expenses and insurance revenue
+    total_other_expenses, expenses_by_category, total_insurance_revenue = (
+        await _get_other_expenses_and_insurance(db, start_date, end_date)
+    )
 
     # ==========================================================================
     # Liabilities by Currency (REAL amounts)
