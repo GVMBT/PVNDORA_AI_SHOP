@@ -17,6 +17,40 @@ logger = get_logger(__name__)
 
 balance_router = APIRouter()
 
+# =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
+
+
+async def _calculate_amount_to_credit(
+    currency: str, balance_currency: str, amount: float, currency_service
+) -> float:
+    """Calculate amount to credit in balance currency (reduces cognitive complexity)."""
+    if currency == balance_currency:
+        return amount
+
+    if currency in ["USD", "RUB"] and balance_currency in ["USD", "RUB"]:
+        amount_decimal = await currency_service.convert_balance(currency, balance_currency, amount)
+        return float(amount_decimal)
+
+    # Convert: payment_currency → USD → balance_currency
+    if currency == "USD":
+        amount_usd = amount
+    else:
+        payment_rate = await currency_service.get_exchange_rate(currency)
+        amount_usd = amount / payment_rate if payment_rate > 0 else amount
+
+    if balance_currency == "USD":
+        return amount_usd
+
+    if balance_currency == "RUB":
+        amount_decimal = await currency_service.convert_balance("USD", "RUB", amount_usd)
+        return float(amount_decimal)
+
+    logger.warning("Unexpected balance_currency: %s (expected USD or RUB)", balance_currency)
+    balance_rate = await currency_service.get_exchange_rate(balance_currency)
+    return amount_usd * balance_rate
+
 
 @balance_router.post("/profile/topup")
 async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)):
@@ -80,38 +114,9 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
 
     currency_service = get_currency_service(redis)
 
-    if currency == balance_currency:
-        # Same currency, use directly
-        amount_to_credit = request.amount
-    elif currency in ["USD", "RUB"] and balance_currency in ["USD", "RUB"]:
-        # Direct conversion using convert_balance (RUB ↔ USD only)
-        amount_decimal = await currency_service.convert_balance(
-            currency, balance_currency, request.amount
-        )
-        amount_to_credit = float(amount_decimal)
-    else:
-        # Convert: payment_currency → USD → balance_currency
-        # First convert to USD (base currency) if payment_currency is not USD
-        if currency == "USD":
-            amount_usd = request.amount
-        else:
-            # For non-USD/RUB currencies, use get_exchange_rate to convert to USD
-            payment_rate = await currency_service.get_exchange_rate(currency)
-            amount_usd = request.amount / payment_rate if payment_rate > 0 else request.amount
-
-        # Then convert from USD to balance_currency (only RUB or USD supported per plan)
-        if balance_currency == "USD":
-            amount_to_credit = amount_usd
-        elif balance_currency == "RUB":
-            # Use convert_balance for USD → RUB (uses proper rounding)
-            amount_decimal = await currency_service.convert_balance("USD", "RUB", amount_usd)
-            amount_to_credit = float(amount_decimal)
-        else:
-            # Fallback for other currencies (shouldn't happen per plan: only RUB/USD)
-            # This case should not occur, but kept for safety
-            logger.warning(f"Unexpected balance_currency: {balance_currency} (expected USD or RUB)")
-            balance_rate = await currency_service.get_exchange_rate(balance_currency)
-            amount_to_credit = amount_usd * balance_rate
+    amount_to_credit = await _calculate_amount_to_credit(
+        currency, balance_currency, request.amount, currency_service
+    )
             # Round for non-RUB/USD currencies
             amount_to_credit = float(
                 round_money(

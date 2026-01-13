@@ -75,31 +75,7 @@ async def send_broadcast(request: BroadcastRequest, admin_user=Depends(verify_ad
     """
     db = get_database()
 
-    # Build query for target users
-    query = db.client.table("users").select("telegram_id, language_code")
-
-    # Apply language filter
-    if request.filter_language:
-        query = query.eq("language_code", request.filter_language)
-
-    # Apply orders filter
-    if request.filter_has_orders is True:
-        # Get users who have at least one order
-        orders_result = await db.client.table("orders").select("user_telegram_id").execute()
-        user_telegram_ids_with_orders = set(
-            o["user_telegram_id"] for o in (orders_result.data or []) if o.get("user_telegram_id")
-        )
-
-        # Fetch all users and filter in Python
-        all_users_result = await query.execute()
-        target_users = [
-            u
-            for u in (all_users_result.data or [])
-            if u.get("telegram_id") in user_telegram_ids_with_orders
-        ]
-    else:
-        result = await query.execute()
-        target_users = result.data or []
+    target_users = await _get_target_users(db, request)
 
     target_count = len(target_users)
 

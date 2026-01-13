@@ -108,15 +108,7 @@ def build_order_payload(
     Returns:
         Formatted order payload dict
     """
-    # Derive product name from items (source of truth) or fallback to legacy product
-    product_name = "Unknown Product"
-    if items and len(items) > 0:
-        item_names = [it.get("product_name", "Unknown") for it in items[:3]]
-        product_name = ", ".join(item_names)
-        if len(items) > 3:
-            product_name += f" и еще {len(items) - 3}"
-    elif product:
-        product_name = product.get("name", "Unknown Product")
+    product_name = _derive_product_name(items, product)
 
     payload = {
         "id": order.id,
