@@ -168,7 +168,6 @@ async def get_financial_overview(
         amount_usd = (
             float(amount_raw) if isinstance(amount_raw, (int, float)) else 0.0
         )  # Чистая выручка (после промокодов)
-        # original_price_usd = float(order.get("original_price") or amount_usd)  # Валовая выручка (наша цена БЕЗ промокодов) - unused
 
         # Get promo discount amount from order_expenses
         expenses_raw = order.get("order_expenses")
@@ -613,7 +612,6 @@ async def get_daily_pl(
         # Expenses (USD) & Promo Discount
         expenses_raw = order.get("order_expenses")
         expenses: dict[str, Any] | None = None
-        # promo_discount_usd = 0.0  # Unused for now
         if expenses_raw:
             if isinstance(expenses_raw, list):
                 expenses = (
@@ -645,7 +643,6 @@ async def get_daily_pl(
             day["replacement_costs"] += (
                 float(replacement_raw) if isinstance(replacement_raw, (int, float)) else 0.0
             )
-            # promo_discount_usd = float(expenses.get("promo_discount_amount", 0))  # Unused for now
 
         real_amount = float(fiat_amount) if fiat_amount is not None else amount_usd
 
