@@ -21,6 +21,300 @@ from .base import get_db, get_user_context
 logger = get_logger(__name__)
 
 
+# Helper: Validate cart items and calculate totals (reduces cognitive complexity)
+async def _validate_and_prepare_cart_items(
+    db: Any,
+    cart_items: list[Any],
+    cart: Any,
+    partner_discount: int,
+    target_curr: str,
+    curr_service: Any,
+) -> tuple[Decimal, Decimal, Decimal, list[dict[str, Any]]]:
+    """
+    Validate cart items, calculate totals using Decimal, handle stock deficits.
+    Calculates both USD total and Fiat total (using Anchor Prices).
+    """
+    total_amount_usd = Decimal("0")
+    total_original_usd = Decimal("0")
+    total_fiat_amount = Decimal("0")
+    prepared_items = []
+
+    for item in cart_items:
+        product = await db.get_product_by_id(item.product_id)
+        if not product:
+            raise ValueError(f"Product {item.product_id} not found")
+
+        # Check instant availability
+        instant_q = item.instant_quantity
+        if instant_q > 0:
+            available_stock = await db.get_available_stock_count(item.product_id)
+            if available_stock < instant_q:
+                logger.warning(
+                    f"Stock changed for {product.name}. Requested {instant_q}, available {available_stock}"
+                )
+                # Convert deficit to prepaid
+                deficit = instant_q - available_stock
+                item.instant_quantity = max(0, available_stock)
+                item.prepaid_quantity += max(0, deficit)
+
+        # --- Pricing Logic ---
+
+        # 1. USD Calculations (Base)
+        product_price_usd = to_decimal(product.price)
+        original_price_usd = multiply(product_price_usd, item.quantity)
+
+        # 2. Fiat Calculations (Anchor)
+        # This uses prices['RUB'] if available, else converts from USD
+        anchor_price = await curr_service.get_anchor_price(product, target_curr)
+        product_price_fiat = to_decimal(anchor_price)
+        original_price_fiat = multiply(product_price_fiat, item.quantity)
+
+        # Apply discounts
+        discount_percent = item.discount_percent
+        if cart.promo_code and cart.promo_discount_percent > 0:
+            discount_percent = max(discount_percent, cart.promo_discount_percent)
+        if partner_discount > 0:
+            discount_percent = max(discount_percent, partner_discount)
+
+        discount_percent = max(0, min(100, discount_percent))
+
+        # Calculate multiplier: (1 - discount/100)
+        discount_multiplier = subtract(
+            Decimal("1"), divide(to_decimal(discount_percent), Decimal("100"))
+        )
+
+        # Final prices
+        final_price_usd = round_money(multiply(original_price_usd, discount_multiplier))
+        final_price_fiat = round_money(multiply(original_price_fiat, discount_multiplier))
+
+        # For integer currencies, round fiat amount to int
+        if target_curr in ["RUB", "UAH", "TRY", "INR"]:
+            final_price_fiat = round_money(final_price_fiat, to_int=True)
+
+        total_amount_usd += final_price_usd
+        total_original_usd += original_price_usd
+        total_fiat_amount += final_price_fiat
+
+        prepared_items.append(
+            {
+                "product_id": item.product_id,
+                "product_name": product.name,
+                "quantity": item.quantity,
+                "instant_quantity": item.instant_quantity,
+                "prepaid_quantity": item.prepaid_quantity,
+                "amount": final_price_usd,  # Store USD amount in order_items for consistency
+                "original_price": original_price_usd,
+                "discount_percent": discount_percent,
+            }
+        )
+    return total_amount_usd, total_original_usd, total_fiat_amount, prepared_items
+
+
+# Helper: Process external payment (reduces cognitive complexity)
+async def _process_external_payment(
+    db: Any,
+    order: Any,
+    order_id: str,
+    order_items: list[dict[str, Any]],
+    cart: Any,
+    cart_manager: Any,
+    ctx: Any,
+    currency_service: Any,
+    payable_amount: Decimal,
+    gateway_currency: str,
+    payment_gateway: str,
+    payment_method: str,
+) -> dict[str, Any]:
+    """Process external payment via payment gateway."""
+    from core.routers.deps import get_payment_service
+    from core.routers.webapp.orders.helpers import create_payment_wrapper
+
+    payment_service = get_payment_service()
+
+    try:
+        product_names = ", ".join([item["product_name"] for item in order_items[:3]])
+        if len(order_items) > 3:
+            product_names += f" и еще {len(order_items) - 3}"
+
+        pay_result = await create_payment_wrapper(
+            payment_service=payment_service,
+            order_id=order.id,
+            amount=payable_amount,  # In gateway_currency (user's currency), Decimal type
+            product_name=product_names,
+            gateway=payment_gateway,
+            payment_method=payment_method,
+            user_email=f"{ctx.telegram_id}@telegram.user",
+            user_id=ctx.telegram_id,
+            currency=gateway_currency,  # Pass user's currency, not USD!
+            is_telegram_miniapp=True,
+        )
+
+        payment_url = pay_result.get("payment_url")
+        invoice_id = pay_result.get("invoice_id")
+        logger.info(
+            f"CrystalPay payment created for order {order.id}: payment_url={payment_url[:50] if payment_url else 'None'}..., invoice_id={invoice_id}"
+        )
+
+        # Update order with payment details
+        if invoice_id:
+            await db.client.table("orders").update(
+                {"payment_id": str(invoice_id), "payment_url": payment_url}
+            ).eq("id", order.id).execute()
+
+        # Apply promo code and clear cart
+        if cart.promo_code:
+            await db.use_promo_code(cart.promo_code)
+        await cart_manager.clear_cart(ctx.telegram_id)
+
+        # Format response
+        if ctx.currency != gateway_currency:
+            amount_display = await currency_service.convert_price(
+                to_float(payable_amount), ctx.currency
+            )
+        else:
+            amount_display = to_float(payable_amount)
+
+        items_text = ", ".join([f"{item.product_name}" for item in cart.items])
+
+        return {
+            "success": True,
+            "order_id": order_id[:8],
+            "status": "pending",
+            "payment_method": "card",
+            "amount": amount_display,
+            "amount_formatted": currency_service.format_price(amount_display, ctx.currency),
+            "payment_url": payment_url,
+            "items": items_text,
+            "expires_in_minutes": 15,
+            "message": f"Заказ #{order_id[:8]} создан! Оплати по ссылке в течение 15 минут.",
+            "action": "show_payment_link",
+        }
+
+    except Exception as e:
+        logger.error(f"Payment service error: {e}", exc_info=True)
+        # Rollback order on payment creation error
+        try:
+            await db.client.table("order_items").delete().eq("order_id", order.id).execute()
+        except Exception:
+            pass
+        await db.client.table("orders").delete().eq("id", order.id).execute()
+        return {
+            "success": False,
+            "error": f"Ошибка платежного шлюза: {e!s}",
+            "action": "retry_payment",
+        }
+
+
+# Helper: Create order with currency snapshot (reduces cognitive complexity)
+async def _create_order_with_currency_snapshot(
+    db: Any,
+    user_id: str,
+    ctx: Any,
+    total_amount: Decimal,
+    total_original: Decimal,
+    total_fiat_amount: Decimal,
+    target_currency: str,
+    gateway_currency: str,
+    currency_service: Any,
+    payment_method: str,
+    payment_gateway: str,
+    order_items: list[dict[str, Any]],
+) -> tuple[Any, str]:
+    """Create order with currency snapshot and order items."""
+    from core.routers.webapp.orders.helpers import persist_order, persist_order_items
+
+    # Currency Handling
+    payable_amount = total_fiat_amount
+    fiat_amount = total_fiat_amount
+    fiat_currency = target_currency
+
+    exchange_rate_snapshot = 1.0
+    try:
+        exchange_rate_snapshot = await currency_service.snapshot_rate(gateway_currency)
+
+        # CRITICAL: Recalculate base USD amount from the realized Fiat amount
+        if exchange_rate_snapshot > 0:
+            total_amount = round_money(divide(fiat_amount, to_decimal(exchange_rate_snapshot)))
+
+        logger.info(
+            f"Order created: {to_float(total_amount)} USD | {to_float(fiat_amount)} {fiat_currency} (Rate: {exchange_rate_snapshot})"
+        )
+    except Exception as e:
+        logger.warning(f"Failed to snapshot rate or recalculate USD amount: {e}")
+        exchange_rate_snapshot = 1.0
+
+    # Calculate discount percent
+    discount_pct = 0
+    if total_original > 0:
+        discount_ratio = subtract(Decimal("1"), divide(total_amount, total_original))
+        discount_pct = max(
+            0, min(100, int(round_money(multiply(discount_ratio, Decimal("100")), to_int=True)))
+        )
+
+    # Create order
+    payment_expires_at = datetime.now(UTC) + timedelta(minutes=15)
+    order = await persist_order(
+        db=db,
+        user_id=user_id,
+        amount=total_amount,
+        original_price=total_original,
+        discount_percent=discount_pct,
+        payment_method=payment_method,
+        payment_gateway=payment_gateway if payment_method != "balance" else None,
+        user_telegram_id=ctx.telegram_id,
+        expires_at=payment_expires_at,
+        fiat_amount=fiat_amount,
+        fiat_currency=fiat_currency,
+        exchange_rate_snapshot=exchange_rate_snapshot,
+    )
+
+    order_id = order.id
+
+    # Create order_items
+    try:
+        await persist_order_items(db, order.id, order_items)
+    except Exception:
+        logger.exception(f"Failed to create order_items for order {order.id}")
+        await db.client.table("orders").delete().eq("id", order.id).execute()
+        raise ValueError("Failed to create order items. Please try again.")
+
+    return order, order_id
+
+
+# Helper: Determine target currency for payment (reduces cognitive complexity)
+async def _determine_target_currency(
+    payment_method: str,
+    balance_currency: str,
+    payment_gateway: str,
+    db_user: dict[str, Any],
+    ctx: Any,
+    currency_service: Any,
+) -> tuple[str, str]:
+    """Determine target currency based on payment method and gateway."""
+    if payment_method == "balance":
+        return balance_currency, balance_currency
+
+    if payment_gateway == "crystalpay":
+        try:
+            user_lang = (
+                db_user.get("interface_language")
+                or db_user.get("language_code")
+                or ctx.currency
+            )
+            preferred_currency = db_user.get("preferred_currency")
+            user_currency = currency_service.get_user_currency(user_lang, preferred_currency)
+
+            supported_currencies = ["USD", "RUB", "EUR", "UAH", "TRY", "INR", "AED"]
+            if user_currency in supported_currencies:
+                return user_currency, user_currency
+            return GATEWAY_CURRENCY.get("crystalpay", "RUB"), GATEWAY_CURRENCY.get("crystalpay", "RUB")
+        except Exception:
+            return "RUB", "RUB"
+
+    gateway_curr = GATEWAY_CURRENCY.get(payment_gateway or "", "RUB")
+    return gateway_curr, gateway_curr
+
+
 # Helper: Convert order total to balance currency (reduces cognitive complexity)
 async def _convert_order_total_to_balance_currency(
     order_total_usd: Decimal,
@@ -265,190 +559,43 @@ async def checkout_cart(payment_method: str = "card") -> dict:
         partner_discount = await get_partner_discount()
 
         # 1. Determine target currency for Anchor Pricing
-        # If paying with balance, use balance_currency.
-        # If paying with gateway, use gateway currency (usually RUB for CrystalPay if user is RU, else USD/etc)
         redis = get_redis()
         currency_service = get_currency_service(redis)
-
         payment_gateway = os.environ.get("DEFAULT_PAYMENT_GATEWAY", "crystalpay")
-        target_currency = "USD"
-
-        if payment_method == "balance":
-            target_currency = balance_currency
-        elif payment_gateway == "crystalpay":
-            try:
-                # Get user's currency from profile
-                user_lang = (
-                    db_user.get("interface_language")
-                    or db_user.get("language_code")
-                    or ctx.currency
-                )
-                preferred_currency = db_user.get("preferred_currency")
-                user_currency = currency_service.get_user_currency(user_lang, preferred_currency)
-
-                supported_currencies = ["USD", "RUB", "EUR", "UAH", "TRY", "INR", "AED"]
-                if user_currency in supported_currencies:
-                    target_currency = user_currency
-                else:
-                    target_currency = GATEWAY_CURRENCY.get("crystalpay", "RUB")
-            except Exception:
-                target_currency = "RUB"
-        else:
-            target_currency = GATEWAY_CURRENCY.get(payment_gateway or "", "RUB")
-
-        gateway_currency = target_currency
+        target_currency, gateway_currency = await _determine_target_currency(
+            payment_method,
+            balance_currency,
+            payment_gateway,
+            db_user,
+            ctx,
+            currency_service,
+        )
 
         # 2. Validate cart items and calculate totals using Anchor Prices
-        async def validate_cart_items(
-            cart_items, target_curr, curr_service
-        ) -> tuple[Decimal, Decimal, Decimal, list[dict[str, Any]]]:
-            """
-            Validate cart items, calculate totals using Decimal, handle stock deficits.
-            Calculates both USD total and Fiat total (using Anchor Prices).
-            """
-            total_amount_usd = Decimal("0")
-            total_original_usd = Decimal("0")
-            total_fiat_amount = Decimal("0")
-            prepared_items = []
-
-            for item in cart_items:
-                product = await db.get_product_by_id(item.product_id)
-                if not product:
-                    raise ValueError(f"Product {item.product_id} not found")
-
-                # Check instant availability
-                instant_q = item.instant_quantity
-                if instant_q > 0:
-                    available_stock = await db.get_available_stock_count(item.product_id)
-                    if available_stock < instant_q:
-                        logger.warning(
-                            f"Stock changed for {product.name}. Requested {instant_q}, available {available_stock}"
-                        )
-                        # Convert deficit to prepaid
-                        deficit = instant_q - available_stock
-                        item.instant_quantity = max(0, available_stock)
-                        item.prepaid_quantity += max(0, deficit)
-
-                # --- Pricing Logic ---
-
-                # 1. USD Calculations (Base)
-                product_price_usd = to_decimal(product.price)
-                original_price_usd = multiply(product_price_usd, item.quantity)
-
-                # 2. Fiat Calculations (Anchor)
-                # This uses prices['RUB'] if available, else converts from USD
-                anchor_price = await curr_service.get_anchor_price(product, target_curr)
-                product_price_fiat = to_decimal(anchor_price)
-                original_price_fiat = multiply(product_price_fiat, item.quantity)
-
-                # Apply discounts
-                discount_percent = item.discount_percent
-                if cart.promo_code and cart.promo_discount_percent > 0:
-                    discount_percent = max(discount_percent, cart.promo_discount_percent)
-                if partner_discount > 0:
-                    discount_percent = max(discount_percent, partner_discount)
-
-                discount_percent = max(0, min(100, discount_percent))
-
-                # Calculate multiplier: (1 - discount/100)
-                discount_multiplier = subtract(
-                    Decimal("1"), divide(to_decimal(discount_percent), Decimal("100"))
-                )
-
-                # Final prices
-                final_price_usd = round_money(multiply(original_price_usd, discount_multiplier))
-                final_price_fiat = round_money(multiply(original_price_fiat, discount_multiplier))
-
-                # For integer currencies, round fiat amount to int
-                if target_curr in ["RUB", "UAH", "TRY", "INR"]:
-                    final_price_fiat = round_money(final_price_fiat, to_int=True)
-
-                total_amount_usd += final_price_usd
-                total_original_usd += original_price_usd
-                total_fiat_amount += final_price_fiat
-
-                prepared_items.append(
-                    {
-                        "product_id": item.product_id,
-                        "product_name": product.name,
-                        "quantity": item.quantity,
-                        "instant_quantity": item.instant_quantity,
-                        "prepaid_quantity": item.prepaid_quantity,
-                        "amount": final_price_usd,  # Store USD amount in order_items for consistency
-                        "original_price": original_price_usd,
-                        "discount_percent": discount_percent,
-                    }
-                )
-            return total_amount_usd, total_original_usd, total_fiat_amount, prepared_items
-
-        # Prepare items and totals
-        total_amount, total_original, total_fiat_amount, order_items = await validate_cart_items(
-            cart.items, target_currency, currency_service
+        total_amount, total_original, total_fiat_amount, order_items = await _validate_and_prepare_cart_items(
+            db,
+            cart.items,
+            cart,
+            partner_discount,
+            target_currency,
+            currency_service,
         )
 
-        # Currency Handling (using values from validate_cart_items)
-        # payable_amount is what we send to the gateway (in gateway_currency)
-        # fiat_amount is what we store in the DB (in fiat_currency)
-        payable_amount = total_fiat_amount
-        fiat_amount = total_fiat_amount
-        fiat_currency = target_currency
-
-        exchange_rate_snapshot = 1.0
-        try:
-            # Get and snapshot the exchange rate for historical record
-            exchange_rate_snapshot = await currency_service.snapshot_rate(gateway_currency)
-
-            # CRITICAL: Recalculate base USD amount from the realized Fiat amount
-            # This ensures P&L reflects the actual value received (e.g. 400 RUB / 90 = $4.44),
-            # rather than the list price (e.g. $5.00) which might be different due to anchor pricing.
-            if exchange_rate_snapshot > 0:
-                # Round to 2 decimal places for USD storage
-                total_amount = round_money(divide(fiat_amount, to_decimal(exchange_rate_snapshot)))
-
-            logger.info(
-                f"Order created: {to_float(total_amount)} USD | {to_float(fiat_amount)} {fiat_currency} (Rate: {exchange_rate_snapshot})"
-            )
-        except Exception as e:
-            logger.warning(f"Failed to snapshot rate or recalculate USD amount: {e}")
-            exchange_rate_snapshot = 1.0
-
-        # Calculate discount percent using Decimal (safe: clamped to 0-100)
-        discount_pct = 0
-        if total_original > 0:
-            # (1 - amount/original) * 100, clamped to [0, 100]
-            discount_ratio = subtract(Decimal("1"), divide(total_amount, total_original))
-            discount_pct = max(
-                0, min(100, int(round_money(multiply(discount_ratio, Decimal("100")), to_int=True)))
-            )
-
-        # 3. Create order using persist_order (includes currency snapshot)
-        payment_expires_at = datetime.now(UTC) + timedelta(minutes=15)
-        order = await persist_order(
-            db=db,
-            user_id=user_id,
-            amount=total_amount,  # Always in USD (base currency)
-            original_price=total_original,
-            discount_percent=discount_pct,
-            payment_method=payment_method,
-            payment_gateway=payment_gateway if payment_method != "balance" else None,
-            user_telegram_id=ctx.telegram_id,
-            expires_at=payment_expires_at,
-            # Currency snapshot fields
-            fiat_amount=fiat_amount,
-            fiat_currency=fiat_currency,
-            exchange_rate_snapshot=exchange_rate_snapshot,
+        # 3. Calculate currency snapshot and create order
+        order, order_id = await _create_order_with_currency_snapshot(
+            db,
+            user_id,
+            ctx,
+            total_amount,
+            total_original,
+            total_fiat_amount,
+            target_currency,
+            gateway_currency,
+            currency_service,
+            payment_method,
+            payment_gateway,
+            order_items,
         )
-
-        order_id = order.id
-
-        # Create order_items using persist_order_items
-        try:
-            await persist_order_items(db, order.id, order_items)
-        except Exception:
-            # Critical: order without items is invalid - delete order and fail
-            logger.exception(f"Failed to create order_items for order {order.id}")
-            await db.client.table("orders").delete().eq("id", order.id).execute()
-            return {"success": False, "error": "Failed to create order items. Please try again."}
 
         # 4. Handle payment based on method
         if payment_method == "balance":
@@ -486,83 +633,20 @@ async def checkout_cart(payment_method: str = "card") -> dict:
             )
 
         # 5. Handle external payment (CrystalPay)
-        from core.routers.deps import get_payment_service
-        from core.routers.webapp.orders.helpers import create_payment_wrapper
-
-        payment_service = get_payment_service()
-
-        try:
-            product_names = ", ".join([item["product_name"] for item in order_items[:3]])
-            if len(order_items) > 3:
-                product_names += f" и еще {len(order_items) - 3}"
-
-            pay_result = await create_payment_wrapper(
-                payment_service=payment_service,
-                order_id=order.id,
-                amount=payable_amount,  # In gateway_currency (user's currency), Decimal type
-                product_name=product_names,
-                gateway=payment_gateway,
-                payment_method=payment_method,
-                user_email=f"{ctx.telegram_id}@telegram.user",
-                user_id=ctx.telegram_id,
-                currency=gateway_currency,  # Pass user's currency, not USD!
-                is_telegram_miniapp=True,
-            )
-
-            payment_url = pay_result.get("payment_url")
-            invoice_id = pay_result.get("invoice_id")
-            logger.info(
-                f"CrystalPay payment created for order {order.id}: payment_url={payment_url[:50] if payment_url else 'None'}..., invoice_id={invoice_id}"
-            )
-
-            # Update order with payment details
-            if invoice_id:
-                await db.client.table("orders").update(
-                    {"payment_id": str(invoice_id), "payment_url": payment_url}
-                ).eq("id", order.id).execute()
-
-            # Apply promo code and clear cart
-            if cart.promo_code:
-                await db.use_promo_code(cart.promo_code)
-            await cart_manager.clear_cart(ctx.telegram_id)
-
-            # Format response
-            if ctx.currency != gateway_currency:
-                amount_display = await currency_service.convert_price(
-                    to_float(payable_amount), ctx.currency
-                )
-            else:
-                amount_display = to_float(payable_amount)
-
-            items_text = ", ".join([f"{item.product_name}" for item in cart.items])
-
-            return {
-                "success": True,
-                "order_id": order_id[:8],
-                "status": "pending",
-                "payment_method": "card",
-                "amount": amount_display,
-                "amount_formatted": currency_service.format_price(amount_display, ctx.currency),
-                "payment_url": payment_url,
-                "items": items_text,
-                "expires_in_minutes": 15,
-                "message": f"Заказ #{order_id[:8]} создан! Оплати по ссылке в течение 15 минут.",
-                "action": "show_payment_link",
-            }
-
-        except Exception as e:
-            logger.error(f"Payment service error: {e}", exc_info=True)
-            # Rollback order on payment creation error
-            try:
-                await db.client.table("order_items").delete().eq("order_id", order.id).execute()
-            except Exception:
-                pass
-            await db.client.table("orders").delete().eq("id", order.id).execute()
-            return {
-                "success": False,
-                "error": f"Ошибка платежного шлюза: {e!s}",
-                "action": "retry_payment",
-            }
+        return await _process_external_payment(
+            db,
+            order,
+            order_id,
+            order_items,
+            cart,
+            cart_manager,
+            ctx,
+            currency_service,
+            total_fiat_amount,
+            gateway_currency,
+            payment_gateway,
+            payment_method,
+        )
 
     except Exception as e:
         logger.error("checkout_cart error: %s", e, exc_info=True)
