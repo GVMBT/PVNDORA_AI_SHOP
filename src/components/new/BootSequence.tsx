@@ -16,6 +16,39 @@ import { randomBoolWithProbability, randomFloat } from "../../utils/random";
 // Helper: Simple delay function
 const delay = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
+// Helper: Execute a single boot task with error handling
+const executeTask = async (
+  task: BootTask,
+  addLog: (id: string, text: string, type: LogEntry["type"]) => void,
+  resultsRef: React.MutableRefObject<Record<string, any>>,
+  setErrorMessage: (msg: string | null) => void,
+  setPhase: (phase: "boot" | "ready" | "error" | "fadeout") => void
+): Promise<boolean> => {
+  addLog(task.id, task.label, "info");
+
+  try {
+    const result = await task.execute();
+    resultsRef.current[task.id] = result;
+    const successText = task.successLabel || `${task.label.replace("...", "")}: COMPLETE`;
+    addLog(task.id, successText, "success");
+    return true;
+  } catch (error) {
+    const errorText = task.errorLabel || `${task.label.replace("...", "")}: FAILED`;
+    addLog(task.id, errorText, "error");
+
+    if (task.critical) {
+      setErrorMessage(
+        `Critical error: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+      setPhase("error");
+      return false;
+    }
+
+    addLog(task.id, "Continuing with degraded functionality...", "warning");
+    return true;
+  }
+};
+
 // Types for boot tasks
 export interface BootTask {
   id: string;
@@ -102,29 +135,15 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
         if (cancelled) return;
 
         const task = tasks[i];
-        addLog(task.id, task.label, "info");
+        const shouldContinue = await executeTask(
+          task,
+          addLog,
+          resultsRef,
+          setErrorMessage,
+          setPhase
+        );
 
-        try {
-          const result = await task.execute();
-          resultsRef.current[task.id] = result;
-
-          const successText = task.successLabel || `${task.label.replace("...", "")}: COMPLETE`;
-          addLog(task.id, successText, "success");
-        } catch (error) {
-          const errorText = task.errorLabel || `${task.label.replace("...", "")}: FAILED`;
-          addLog(task.id, errorText, "error");
-
-          if (task.critical) {
-            setErrorMessage(
-              `Critical error: ${error instanceof Error ? error.message : "Unknown error"}`
-            );
-            setPhase("error");
-            return;
-          }
-
-          // Non-critical error - continue with warning
-          addLog(task.id, "Continuing with degraded functionality...", "warning");
-        }
+        if (!shouldContinue) return; // Critical error occurred
 
         // Update progress
         setProgress(((i + 1) / tasks.length) * 100);
