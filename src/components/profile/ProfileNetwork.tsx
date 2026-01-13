@@ -10,6 +10,29 @@ import { useLocale } from "../../hooks/useLocale";
 import { formatPrice } from "../../utils/currency";
 import type { NetworkNodeData } from "./types";
 
+// Helper functions to avoid nested ternaries
+const getNodeAvatarContent = (node: NetworkNodeData) => {
+  if (node.photoUrl) {
+    return (
+      <img
+        src={node.photoUrl}
+        alt={node.handle}
+        className="w-full h-full object-cover"
+      />
+    );
+  }
+  if (node.status === "VIP") {
+    return <Crown size={14} className="text-yellow-500" />;
+  }
+  return <User size={14} className="text-gray-400" />;
+};
+
+const getRankBadgeClasses = (rank?: string): string => {
+  if (rank === "ARCHITECT") return "border-yellow-500 text-yellow-500";
+  if (rank === "OPERATOR") return "border-purple-500 text-purple-500";
+  return "border-gray-500 text-gray-500";
+};
+
 interface ProfileNetworkProps {
   nodes: NetworkNodeData[];
   networkLine: 1 | 2 | 3;
@@ -96,17 +119,7 @@ const ProfileNetwork: React.FC<ProfileNetworkProps> = ({
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-white/5 flex items-center justify-center rounded-sm overflow-hidden">
-                          {node.photoUrl ? (
-                            <img
-                              src={node.photoUrl}
-                              alt={node.handle}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : node.status === "VIP" ? (
-                            <Crown size={14} className="text-yellow-500" />
-                          ) : (
-                            <User size={14} className="text-gray-400" />
-                          )}
+                          {getNodeAvatarContent(node)}
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
@@ -124,15 +137,7 @@ const ProfileNetwork: React.FC<ProfileNetworkProps> = ({
                               <span className="font-bold text-white text-sm">{node.handle}</span>
                             )}
                             {node.rank && (
-                              <span
-                                className={`text-[8px] px-1 rounded-sm border ${
-                                  node.rank === "ARCHITECT"
-                                    ? "border-yellow-500 text-yellow-500"
-                                    : node.rank === "OPERATOR"
-                                      ? "border-purple-500 text-purple-500"
-                                      : "border-gray-500 text-gray-500"
-                                }`}
-                              >
+                              <span className={`text-[8px] px-1 rounded-sm border ${getRankBadgeClasses(node.rank)}`}>
                                 {node.rank}
                               </span>
                             )}

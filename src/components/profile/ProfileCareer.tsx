@@ -12,6 +12,13 @@ import type { CareerLevelData } from "./types";
 import type { CurrencyCode } from "../../utils/currency";
 import ReferralExplainerModal from "./ReferralExplainerModal";
 
+// Helper to get level icon (avoid nested ternary)
+const getLevelIcon = (levelId: number) => {
+  if (levelId === 1) return <Wifi size={18} />;
+  if (levelId === 2) return <Radio size={18} />;
+  return <Crown size={18} />;
+};
+
 interface ProfileCareerProps {
   currentLevel: CareerLevelData;
   nextLevel?: CareerLevelData;
@@ -77,13 +84,7 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
               className={`text-2xl font-display font-bold ${currentLevel.color} flex items-center gap-2`}
             >
               {currentLevel.label}
-              {currentLevel.id === 1 ? (
-                <Wifi size={18} />
-              ) : currentLevel.id === 2 ? (
-                <Radio size={18} />
-              ) : (
-                <Crown size={18} />
-              )}
+              {getLevelIcon(currentLevel.id)}
             </div>
             <div className="text-[10px] text-gray-600 mt-1 font-mono">
               Turnover:{" "}
