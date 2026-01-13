@@ -197,6 +197,25 @@ async def _fetch_pending_orders(db: Any, cutoff_time: datetime) -> list[Any]:
     return result.data or []
 
 
+async def _check_single_order(db: Any, order: Any) -> bool:
+    """Check and process a single order. Returns True if paid."""
+    if not isinstance(order, dict):
+        return False
+    order_dict = cast(dict[str, Any], order)
+    order_id = order_dict.get("id")
+    invoice_id = order_dict.get("payment_id")
+
+    if not order_id or not invoice_id:
+        return False
+
+    status_result = await check_invoice_status(str(invoice_id))
+    if not status_result.get("success"):
+        return False
+
+    state = status_result.get("state", "").lower()
+    return await _process_invoice_state(db, str(order_id), str(invoice_id), order_dict, state)
+
+
 @app.get("/api/cron/check_pending_payments")
 async def check_pending_payments(request: Request):
     """Check pending CrystalPay orders and update their status."""
@@ -218,25 +237,7 @@ async def check_pending_payments(request: Request):
             return JSONResponse({"ok": True, "checked": 0, "paid": 0})
 
         logger.info(f"Checking {len(pending_orders)} pending CrystalPay orders")
-        paid_count = 0
-
-        for order in pending_orders:
-            if not isinstance(order, dict):
-                continue
-            order_dict = cast(dict[str, Any], order)
-            order_id = order_dict.get("id")
-            invoice_id = order_dict.get("payment_id")
-
-            if not order_id or not invoice_id:
-                continue
-
-            status_result = await check_invoice_status(str(invoice_id))
-            if status_result.get("success"):
-                state = status_result.get("state", "").lower()
-                if await _process_invoice_state(db, str(order_id), str(invoice_id), order_dict, state):
-                    paid_count += 1
-
-            await asyncio.sleep(0.2)
+        paid_count = sum([1 for order in pending_orders if await _check_single_order(db, order)])
 
         return JSONResponse({"ok": True, "checked": len(pending_orders), "paid": paid_count})
 
