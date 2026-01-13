@@ -36,9 +36,9 @@ async def _queue_replacement_for_stock(db, ticket_id: str) -> None:
 
 
 async def _notify_replacement_queued(
-    notification_service, user_telegram_id: int | None, product_id: str
+    notification_service, user_telegram_id: int | None, _product_id: str
 ) -> None:
-    """Send notification about queued replacement."""
+    """Send notification about queued replacement. product_id kept for API consistency."""
     if not user_telegram_id:
         return
 

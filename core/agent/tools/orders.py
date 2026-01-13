@@ -176,9 +176,9 @@ async def resend_order_credentials(order_id_prefix: str) -> dict:
         notification = NotificationService()
         content_text = "\n\n".join(credentials)
         await notification.send_delivery(
-            telegram_id=ctx.telegram_id,
-            product_name=f"Заказ {order_id_prefix}",
-            content=content_text,
+            ctx.telegram_id,  # telegram_id
+            f"Заказ {order_id_prefix}",  # product_name (kept for API compatibility)
+            content_text,  # content
         )
 
         return {
