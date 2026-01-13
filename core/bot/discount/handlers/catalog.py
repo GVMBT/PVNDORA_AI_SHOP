@@ -282,25 +282,31 @@ async def cb_product_selected(callback: CallbackQuery, db_user: User):
 
     currency_symbol = CURRENCY_SYMBOLS.get(currency, currency)
 
-    stock_status = "✅ В наличии" if available > 0 else "🟡 Предзаказ"
-    if lang != "ru":
-        stock_status = "✅ In stock" if available > 0 else "🟡 Pre-order"
+    # Helper to format product description (avoid nested ternary)
+    def format_description(desc: str) -> str:
+        if len(desc) > 200:
+            return f"{desc[:200]}..."
+        return desc
 
-    text = (
-        (
+    # Helper to get stock status text
+    def get_stock_status_text(is_ru: bool, is_available: bool) -> str:
+        if is_ru:
+            return "✅ В наличии" if is_available else "🟡 Предзаказ"
+        return "✅ In stock" if is_available else "🟡 Pre-order"
+
+    # Helper to format product card text
+    def format_product_text(is_ru: bool) -> str:
+        price_label = "Цена" if is_ru else "Price"
+        status_label = "Статус" if is_ru else "Status"
+        stock_status = get_stock_status_text(is_ru, available > 0)
+        return (
             f"<b>{name}</b>\n\n"
-            f"{description[:200]}{'...' if len(description) > 200 else ''}\n\n"
-            f"💰 <b>Цена:</b> {currency_symbol}{discount_price_display:.0f}\n"
-            f"📦 <b>Статус:</b> {stock_status}\n\n"
+            f"{format_description(description)}\n\n"
+            f"💰 <b>{price_label}:</b> {currency_symbol}{discount_price_display:.0f}\n"
+            f"📦 <b>{status_label}:</b> {stock_status}\n\n"
         )
-        if lang == "ru"
-        else (
-            f"<b>{name}</b>\n\n"
-            f"{description[:200]}{'...' if len(description) > 200 else ''}\n\n"
-            f"💰 <b>Price:</b> {currency_symbol}{discount_price_display:.0f}\n"
-            f"📦 <b>Status:</b> {stock_status}\n\n"
-        )
-    )
+
+    text = format_product_text(lang == "ru")
 
     if insurance_options:
         text += (

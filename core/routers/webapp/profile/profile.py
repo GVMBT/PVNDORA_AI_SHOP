@@ -412,6 +412,14 @@ async def convert_balance(request: ConvertBalanceRequest, user=Depends(verify_te
         # Use get_exchange_rate for fallback only
         rate = await currency_service.get_exchange_rate("RUB")
 
+    # Helper to calculate exchange rate for metadata (avoid nested ternary)
+    def calculate_exchange_rate(ex_rate: float, from_curr: str, to_curr: str) -> float:
+        if from_curr == "USD":
+            return ex_rate
+        if to_curr == "USD":
+            return 1 / ex_rate
+        return 1.0
+
     # Update balance and currency in database
     await db.client.table("users").update(
         {"balance": new_balance, "balance_currency": target_currency}
@@ -432,11 +440,7 @@ async def convert_balance(request: ConvertBalanceRequest, user=Depends(verify_te
             "metadata": {
                 "from_currency": current_currency,
                 "to_currency": target_currency,
-                "exchange_rate": (
-                    rate
-                    if current_currency == "USD"
-                    else (1 / rate if target_currency == "USD" else 1.0)
-                ),
+                "exchange_rate": calculate_exchange_rate(rate, current_currency, target_currency),
             },
         }
     ).execute()

@@ -128,37 +128,42 @@ async def cb_issue_type_selected(callback: CallbackQuery, db_user: User):
                 order_item_id=order_item["id"], telegram_id=db_user.telegram_id, reason=reason
             )
 
-            if result.success:
-                if result.status == "auto_approved":
-                    # Replacement approved automatically
-                    text = (
-                        (
+            # Helper to format replacement ID
+            def format_replacement_id(rep_id: str | None) -> str:
+                if rep_id:
+                    return rep_id[:8]
+                return "N/A"
+
+            # Helper to get replacement messages
+            def get_replacement_message(is_approved: bool, is_ru: bool) -> str:
+                if is_approved:
+                    if is_ru:
+                        return (
                             "✅ <b>Замена одобрена!</b>\n\n"
                             f"Новый товар будет доставлен в течение 1-4 часов.\n\n"
-                            f"ID замены: #{result.replacement_id[:8] if result.replacement_id else 'N/A'}"
+                            f"ID замены: #{format_replacement_id(result.replacement_id)}"
                         )
-                        if lang == "ru"
-                        else (
-                            "✅ <b>Replacement approved!</b>\n\n"
-                            f"New product will be delivered in 1-4 hours.\n\n"
-                            f"Replacement ID: #{result.replacement_id[:8] if result.replacement_id else 'N/A'}"
-                        )
+                    return (
+                        "✅ <b>Replacement approved!</b>\n\n"
+                        f"New product will be delivered in 1-4 hours.\n\n"
+                        f"Replacement ID: #{format_replacement_id(result.replacement_id)}"
                     )
-                else:
-                    # Pending review
-                    text = (
-                        (
-                            "⏳ <b>Запрос на замену отправлен</b>\n\n"
-                            "Ваш запрос будет рассмотрен в течение 24 часов.\n\n"
-                            f"ID запроса: #{result.replacement_id[:8] if result.replacement_id else 'N/A'}"
-                        )
-                        if lang == "ru"
-                        else (
-                            "⏳ <b>Replacement request submitted</b>\n\n"
-                            "Your request will be reviewed within 24 hours.\n\n"
-                            f"Request ID: #{result.replacement_id[:8] if result.replacement_id else 'N/A'}"
-                        )
+                # Pending review
+                if is_ru:
+                    return (
+                        "⏳ <b>Запрос на замену отправлен</b>\n\n"
+                        "Ваш запрос будет рассмотрен в течение 24 часов.\n\n"
+                        f"ID запроса: #{format_replacement_id(result.replacement_id)}"
                     )
+                return (
+                    "⏳ <b>Replacement request submitted</b>\n\n"
+                    "Your request will be reviewed within 24 hours.\n\n"
+                    f"Request ID: #{format_replacement_id(result.replacement_id)}"
+                )
+
+            if result.success:
+                is_approved = result.status == "auto_approved"
+                text = get_replacement_message(is_approved, lang == "ru")
 
                 await callback.message.edit_text(
                     text,
