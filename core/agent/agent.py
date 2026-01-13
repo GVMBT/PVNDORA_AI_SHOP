@@ -323,30 +323,28 @@ class ShopAgent:
             return " ".join(parts).strip()
         return str(raw_content).strip()
 
+    def _detect_action_from_tool_calls(self, tool_calls: list) -> tuple[str, str | None]:
+        """Detect action and extract product_id from tool calls (reduces cognitive complexity)."""
+        action = "none"
+        product_id = None
 
-def _detect_action_from_tool_calls(tool_calls: list) -> tuple[str, str | None]:
-    """Detect action and extract product_id from tool calls (reduces cognitive complexity)."""
-    action = "none"
-    product_id = None
+        for tc in tool_calls:
+            tool_name = tc.get("name", "")
+            tool_args = tc.get("args", {})
 
-    for tc in tool_calls:
-        tool_name = tc.get("name", "")
-        tool_args = tc.get("args", {})
+            if tool_name == "add_to_cart":
+                action = "add_to_cart"
+                product_id = tool_args.get("product_id")
+            elif tool_name in ("get_order_credentials", "resend_order_credentials"):
+                action = "show_credentials"
+            elif tool_name == "create_support_ticket":
+                action = "create_ticket"
+            elif tool_name == "request_refund":
+                action = "refund_request"
+            elif tool_name == "pay_from_balance":
+                action = "offer_payment"
 
-        if tool_name == "add_to_cart":
-            action = "add_to_cart"
-            product_id = tool_args.get("product_id")
-        elif tool_name in ("get_order_credentials", "resend_order_credentials"):
-            action = "show_credentials"
-        elif tool_name == "create_support_ticket":
-            action = "create_ticket"
-        elif tool_name == "request_refund":
-            action = "refund_request"
-        elif tool_name == "pay_from_balance":
-            action = "offer_payment"
-
-    return action, product_id
-
+        return action, product_id
 
     def _parse_result(self, result: dict[str, Any]) -> AgentResponse:
         """Parse agent result into AgentResponse."""
@@ -365,7 +363,7 @@ def _detect_action_from_tool_calls(tool_calls: list) -> tuple[str, str | None]:
         if last_ai:
             content = self._extract_content_from_ai_message(last_ai)
             tool_calls = getattr(last_ai, "tool_calls", []) or []
-            action, product_id = _detect_action_from_tool_calls(tool_calls)
+            action, product_id = self._detect_action_from_tool_calls(tool_calls)
 
         # Ensure we have some content
         if not content:
