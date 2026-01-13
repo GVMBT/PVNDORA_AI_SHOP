@@ -486,6 +486,133 @@ async def get_financial_overview(
     }
 
 
+# Helper: Initialize daily data entry (reduces cognitive complexity)
+def _init_daily_entry(order_date: str) -> dict[str, Any]:
+    """Initialize daily data entry structure."""
+    return {
+        "date": order_date,
+        "orders_count": 0,
+        "revenue_by_currency": {},
+        "revenue_usd": 0.0,
+        "cogs": 0.0,
+        "acquiring_fees": 0.0,
+        "referral_payouts": 0.0,
+        "reserves": 0.0,
+        "review_cashbacks": 0.0,
+        "replacement_costs": 0.0,
+    }
+
+
+# Helper: Process order expenses into daily entry (reduces cognitive complexity)
+def _add_order_expenses_to_day(day: dict[str, Any], expenses: dict[str, Any]) -> None:
+    """Add order expenses to daily entry."""
+    day["cogs"] += float(expenses.get("cogs_amount", 0) or 0)
+    day["acquiring_fees"] += float(expenses.get("acquiring_fee_amount", 0) or 0)
+    day["referral_payouts"] += float(expenses.get("referral_payout_amount", 0) or 0)
+    day["reserves"] += float(expenses.get("reserve_amount", 0) or 0)
+    day["review_cashbacks"] += float(expenses.get("review_cashback_amount", 0) or 0)
+    day["replacement_costs"] += float(expenses.get("insurance_replacement_cost", 0) or 0)
+
+
+# Helper: Process order into daily data (reduces cognitive complexity)
+def _process_order_for_daily(
+    order: dict[str, Any], daily_data: dict[str, dict[str, Any]]
+) -> None:
+    """Process a single order and add it to daily data."""
+    created_at_raw = order.get("created_at", "")
+    created_at_str = str(created_at_raw) if created_at_raw else ""
+    order_date = created_at_str[:10] if len(created_at_str) >= 10 else ""
+
+    if order_date not in daily_data:
+        daily_data[order_date] = _init_daily_entry(order_date)
+
+    day = daily_data[order_date]
+    day["orders_count"] += 1
+
+    # Extract order data
+    currency, fiat_amount, amount_usd, expenses = extract_order_data(order)
+    real_amount = float(fiat_amount) if fiat_amount is not None else amount_usd
+
+    # Add expenses
+    if expenses:
+        _add_order_expenses_to_day(day, expenses)
+
+    # Add revenue
+    if currency not in day["revenue_by_currency"]:
+        day["revenue_by_currency"][currency] = {"revenue": 0.0, "orders_count": 0}
+    day["revenue_by_currency"][currency]["revenue"] += real_amount
+    day["revenue_by_currency"][currency]["orders_count"] += 1
+    day["revenue_usd"] += amount_usd
+
+
+# Helper: Get insurance revenue by date (reduces cognitive complexity)
+async def _get_insurance_by_date(
+    db: Any, start_date: datetime
+) -> dict[str, float]:
+    """Get insurance revenue grouped by date."""
+    insurance_by_date: dict[str, float] = {}
+    insurance_result = (
+        await db.client.table("insurance_revenue")
+        .select("price, created_at")
+        .gte("created_at", start_date.isoformat())
+        .execute()
+    )
+
+    for raw_ins in insurance_result.data or []:
+        if not isinstance(raw_ins, dict):
+            continue
+        ins = cast(dict[str, Any], raw_ins)
+        created_at_raw = ins.get("created_at", "")
+        created_at_str = str(created_at_raw) if created_at_raw else ""
+        ins_date = created_at_str[:10] if len(created_at_str) >= 10 else ""
+        price_raw = ins.get("price", 0)
+        price = float(price_raw) if isinstance(price_raw, (int, float)) else 0.0
+        insurance_by_date[ins_date] = insurance_by_date.get(ins_date, 0.0) + price
+
+    return insurance_by_date
+
+
+# Helper: Calculate profits for daily entries (reduces cognitive complexity)
+def _calculate_daily_profits(
+    daily_data: dict[str, dict[str, Any]], insurance_by_date: dict[str, float], comprehensive: bool
+) -> None:
+    """Calculate profit metrics for each day."""
+    for date, day in daily_data.items():
+        revenue_usd = day["revenue_usd"]
+        cogs = day["cogs"]
+
+        day["gross_profit_usd"] = round(revenue_usd - cogs, 2)
+
+        operating_expenses = (
+            day["acquiring_fees"]
+            + day["referral_payouts"]
+            + day["reserves"]
+            + day["review_cashbacks"]
+            + day["replacement_costs"]
+        )
+        day["operating_profit_usd"] = round(day["gross_profit_usd"] - operating_expenses, 2)
+
+        if comprehensive:
+            day["insurance_revenue"] = round(insurance_by_date.get(date, 0), 2)
+            day["net_profit_usd"] = round(day["operating_profit_usd"] + day["insurance_revenue"], 2)
+        else:
+            day["net_profit_usd"] = day["operating_profit_usd"]
+
+        # Round all fields
+        day["cogs"] = round(cogs, 2)
+        day["acquiring_fees"] = round(day["acquiring_fees"], 2)
+        day["referral_payouts"] = round(day["referral_payouts"], 2)
+        day["reserves"] = round(day["reserves"], 2)
+        day["review_cashbacks"] = round(day["review_cashbacks"], 2)
+        day["replacement_costs"] = round(day["replacement_costs"], 2)
+        day["revenue_usd"] = round(revenue_usd, 2)
+
+        # Round currency revenues
+        for curr_data in day["revenue_by_currency"].values():
+            if isinstance(curr_data.get("revenue"), float):
+                curr_data["revenue"] = round(curr_data["revenue"], 2)
+
+
 @router.get("/accounting/pl/daily")
 async def get_daily_pl(
     days: int = Query(30, ge=1, le=365),
@@ -523,142 +650,16 @@ async def get_daily_pl(
     daily_data: dict = {}
 
     for raw_order in orders:
-        # Ensure order is a dict
         if not isinstance(raw_order, dict):
             continue
         order = cast(dict[str, Any], raw_order)
-
-        created_at_raw = order.get("created_at", "")
-        created_at_str = str(created_at_raw) if created_at_raw else ""
-        order_date = created_at_str[:10] if len(created_at_str) >= 10 else ""  # YYYY-MM-DD
-
-        if order_date not in daily_data:
-            daily_data[order_date] = {
-                "date": order_date,
-                "orders_count": 0,
-                "revenue_by_currency": {},
-                "revenue_usd": 0.0,  # For expense calculations
-                "cogs": 0.0,
-                "acquiring_fees": 0.0,
-                "referral_payouts": 0.0,
-                "reserves": 0.0,
-                "review_cashbacks": 0.0,
-                "replacement_costs": 0.0,
-            }
-
-        day = daily_data[order_date]
-        day["orders_count"] += 1
-
-        # Revenue by currency
-        currency_raw = order.get("fiat_currency")
-        currency = str(currency_raw) if currency_raw else "USD"
-        fiat_amount_raw = order.get("fiat_amount")
-        fiat_amount = float(fiat_amount_raw) if isinstance(fiat_amount_raw, (int, float)) else None
-        amount_raw = order.get("amount", 0)
-        amount_usd = float(amount_raw) if isinstance(amount_raw, (int, float)) else 0.0
-
-        # Expenses (USD) & Promo Discount
-        expenses_raw = order.get("order_expenses")
-        expenses: dict[str, Any] | None = None
-        if expenses_raw:
-            if isinstance(expenses_raw, list):
-                expenses = (
-                    cast(dict[str, Any], expenses_raw[0])
-                    if expenses_raw and isinstance(expenses_raw[0], dict)
-                    else None
-                )
-            elif isinstance(expenses_raw, dict):
-                expenses = cast(dict[str, Any], expenses_raw)
-
-        if expenses:
-            cogs_raw = expenses.get("cogs_amount", 0)
-            day["cogs"] += float(cogs_raw) if isinstance(cogs_raw, (int, float)) else 0.0
-            acquiring_raw = expenses.get("acquiring_fee_amount", 0)
-            day["acquiring_fees"] += (
-                float(acquiring_raw) if isinstance(acquiring_raw, (int, float)) else 0.0
-            )
-            referral_raw = expenses.get("referral_payout_amount", 0)
-            day["referral_payouts"] += (
-                float(referral_raw) if isinstance(referral_raw, (int, float)) else 0.0
-            )
-            reserve_raw = expenses.get("reserve_amount", 0)
-            day["reserves"] += float(reserve_raw) if isinstance(reserve_raw, (int, float)) else 0.0
-            review_raw = expenses.get("review_cashback_amount", 0)
-            day["review_cashbacks"] += (
-                float(review_raw) if isinstance(review_raw, (int, float)) else 0.0
-            )
-            replacement_raw = expenses.get("insurance_replacement_cost", 0)
-            day["replacement_costs"] += (
-                float(replacement_raw) if isinstance(replacement_raw, (int, float)) else 0.0
-            )
-
-        real_amount = float(fiat_amount) if fiat_amount is not None else amount_usd
-
-        if currency not in day["revenue_by_currency"]:
-            day["revenue_by_currency"][currency] = {
-                "revenue": 0.0,
-                "orders_count": 0,
-            }
-        day["revenue_by_currency"][currency]["revenue"] += real_amount
-        day["revenue_by_currency"][currency]["orders_count"] += 1
-        day["revenue_usd"] += amount_usd
+        _process_order_for_daily(order, daily_data)
 
     # Get insurance revenue if comprehensive
-    insurance_by_date: dict = {}
-    if comprehensive:
-        insurance_result = (
-            await db.client.table("insurance_revenue")
-            .select("price, created_at")
-            .gte("created_at", start_date.isoformat())
-            .execute()
-        )
-
-        for raw_ins in insurance_result.data or []:
-            if not isinstance(raw_ins, dict):
-                continue
-            ins = cast(dict[str, Any], raw_ins)
-            created_at_raw = ins.get("created_at", "")
-            created_at_str = str(created_at_raw) if created_at_raw else ""
-            ins_date = created_at_str[:10] if len(created_at_str) >= 10 else ""
-            price_raw = ins.get("price", 0)
-            price = float(price_raw) if isinstance(price_raw, (int, float)) else 0.0
-            insurance_by_date[ins_date] = insurance_by_date.get(ins_date, 0.0) + price
+    insurance_by_date = await _get_insurance_by_date(db, start_date) if comprehensive else {}
 
     # Calculate profits for each day
-    for date, day in daily_data.items():
-        revenue_usd = day["revenue_usd"]
-        cogs = day["cogs"]
-
-        day["gross_profit_usd"] = round(revenue_usd - cogs, 2)
-
-        operating_expenses = (
-            day["acquiring_fees"]
-            + day["referral_payouts"]
-            + day["reserves"]
-            + day["review_cashbacks"]
-            + day["replacement_costs"]
-        )
-        day["operating_profit_usd"] = round(day["gross_profit_usd"] - operating_expenses, 2)
-
-        if comprehensive:
-            day["insurance_revenue"] = round(insurance_by_date.get(date, 0), 2)
-            day["net_profit_usd"] = round(day["operating_profit_usd"] + day["insurance_revenue"], 2)
-        else:
-            day["net_profit_usd"] = day["operating_profit_usd"]
-
-        # Round expense fields
-        day["cogs"] = round(cogs, 2)
-        day["acquiring_fees"] = round(day["acquiring_fees"], 2)
-        day["referral_payouts"] = round(day["referral_payouts"], 2)
-        day["reserves"] = round(day["reserves"], 2)
-        day["review_cashbacks"] = round(day["review_cashbacks"], 2)
-        day["replacement_costs"] = round(day["replacement_costs"], 2)
-        day["revenue_usd"] = round(revenue_usd, 2)
-
-        # Round currency revenues
-        for curr_data in day["revenue_by_currency"].values():
-            if isinstance(curr_data.get("revenue"), float):
-                curr_data["revenue"] = round(curr_data["revenue"], 2)
+    _calculate_daily_profits(daily_data, insurance_by_date, comprehensive)
 
     # Sort by date descending
     daily_list = sorted(daily_data.values(), key=lambda x: x["date"], reverse=True)
