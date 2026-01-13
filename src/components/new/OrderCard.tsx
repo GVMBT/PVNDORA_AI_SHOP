@@ -138,16 +138,13 @@ const OrderCard: React.FC<OrderCardProps> = ({
       {/* Order Card */}
       <div className="bg-[#080808] border border-white/10 hover:border-white/20 transition-all relative overflow-hidden">
         {/* Card Header */}
-        <div
-          className="bg-white/5 p-3 flex justify-between items-center border-b border-white/5 cursor-pointer hover:bg-white/10 transition-colors"
+        <button
+          type="button"
+          className="bg-white/5 p-3 flex justify-between items-center border-b border-white/5 cursor-pointer hover:bg-white/10 transition-colors w-full text-left"
           onClick={handleToggleExpand}
         >
           <div className="flex items-center gap-4 flex-1">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleToggleExpand();
-              }}
+            <div
               className="p-1 hover:bg-white/10 rounded transition-colors"
               title={isExpanded ? t("orders.collapseItems") : t("orders.expandItems")}
             >
@@ -156,7 +153,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
               ) : (
                 <ChevronDown size={16} className="text-gray-400 hover:text-pandora-cyan" />
               )}
-            </button>
+            </div>
             <div className="flex items-center gap-4 flex-1">
               <span className="font-mono text-xs text-pandora-cyan tracking-wider">
                 ID: {order.displayId || order.id}
@@ -178,7 +175,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
               {formatPrice(order.total, order.currency || "USD")}
             </span>
           </div>
-        </div>
+        </button>
 
         {/* Status Explanation Banner */}
         {order.statusMessage && order.rawStatus !== "prepaid" && (

@@ -111,8 +111,9 @@ const NavbarComponent: React.FC<NavbarProps> = ({
         style={{ willChange: "width" }}
       >
         {/* Logo Section */}
-        <div
-          className="h-24 flex items-center shrink-0 relative cursor-pointer"
+        <button
+          type="button"
+          className="h-24 flex items-center shrink-0 relative cursor-pointer border-0 bg-transparent w-full"
           onClick={() => handleClick(onNavigateHome)}
         >
           {/* Unified Logo Container - fixed position, flex layout */}
@@ -422,7 +423,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
               )}
             </AnimatePresence>
           </motion.div>
-        </div>
+        </button>
 
         {/* Navigation Items */}
         <div className="flex-1 flex flex-col gap-4 py-6 px-3 w-full">

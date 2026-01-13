@@ -273,9 +273,10 @@ const Orders: React.FC<OrdersProps> = ({
         {/* Footer */}
         {onOpenSupport && (
           <div className="mt-16 border-t border-white/10 pt-8 text-center">
-            <div
+            <button
+              type="button"
               onClick={() => onOpenSupport()}
-              className="inline-flex flex-col items-center gap-2 group cursor-pointer"
+              className="inline-flex flex-col items-center gap-2 group cursor-pointer bg-transparent border-0"
             >
               <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 group-hover:border-pandora-cyan group-hover:text-pandora-cyan transition-all">
                 <Box size={18} />
@@ -283,7 +284,7 @@ const Orders: React.FC<OrdersProps> = ({
               <span className="text-[10px] font-mono text-gray-500 group-hover:text-white transition-colors">
                 {t("orders.initSupport").toUpperCase()}
               </span>
-            </div>
+            </button>
           </div>
         )}
       </div>

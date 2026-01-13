@@ -84,11 +84,12 @@ const ProfileNetwork: React.FC<ProfileNetworkProps> = ({
                   {/* Horizontal Connector Line */}
                   <div className="absolute left-6 top-9 w-6 h-px bg-white/10 group-hover:bg-pandora-cyan/50 transition-colors" />
 
-                  <div
+                  <button
+                    type="button"
                     onClick={() => onNodeClick(node.id)}
                     className={`
                       bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 hover:shadow-[0_0_15px_rgba(0,255,255,0.1)] 
-                      transition-all duration-300 rounded-sm p-4 relative overflow-hidden cursor-pointer
+                      transition-all duration-300 rounded-sm p-4 relative overflow-hidden cursor-pointer text-left w-full
                       ${node.status === "VIP" ? "border-l-2 border-l-yellow-500" : ""}
                     `}
                   >
@@ -156,7 +157,7 @@ const ProfileNetwork: React.FC<ProfileNetworkProps> = ({
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 </div>
               );
             })
