@@ -10,10 +10,7 @@ from core.logging import get_logger
 from core.services.database import User, get_database
 from core.services.domains import InsuranceService, PromoCodeService, PromoTriggers
 
-from ..keyboards import (
-    get_issue_result_keyboard,
-    get_issue_types_keyboard,
-)
+from ..keyboards import get_issue_result_keyboard, get_issue_types_keyboard
 
 logger = get_logger(__name__)
 
@@ -203,14 +200,15 @@ async def _get_promo_for_insurance_status(
 
     if has_insurance and not can_replace:
         # Check if replacement failed due to limit
-        if replacement_result and replacement_result.get("status") == "rejected":
-            if "limit" in replacement_result.get("message", "").lower():
-                return await _generate_promo_for_issue(
-                    promo_service,
-                    order_item["user_id"],
-                    telegram_id,
-                    PromoTriggers.REPLACEMENT_LIMIT,
-                )
+        replacement_status = replacement_result.get("status") if replacement_result else None
+        replacement_message = (replacement_result.get("message") or "").lower() if replacement_result else ""
+        if replacement_status == "rejected" and "limit" in replacement_message:
+            return await _generate_promo_for_issue(
+                promo_service,
+                order_item["user_id"],
+                telegram_id,
+                PromoTriggers.REPLACEMENT_LIMIT,
+            )
 
         # Insurance expired
         return await _generate_promo_for_issue(
@@ -250,8 +248,7 @@ def _get_issue_result_message(has_insurance: bool, can_replace: bool, lang: str)
         )
     else:
         header = (
-            "⚠️ <b>Нет страховки</b>\n\n"
-            "К сожалению, без страховки замена не предусмотрена.\n\n"
+            "⚠️ <b>Нет страховки</b>\n\nК сожалению, без страховки замена не предусмотрена.\n\n"
             if lang == "ru"
             else "⚠️ <b>No insurance</b>\n\n"
             "Unfortunately, no replacement is available without insurance.\n\n"
@@ -290,9 +287,7 @@ async def cb_issue_type_selected(callback: CallbackQuery, db_user: User):
     replacement_result = None
     if has_insurance:
         # Check if insurance is valid and replacements available
-        is_valid, _, remaining = await insurance_service.check_insurance_valid(
-            order_item["id"]
-        )
+        is_valid, _, remaining = await insurance_service.check_insurance_valid(order_item["id"])
         can_replace = is_valid and remaining > 0
 
         if can_replace:
