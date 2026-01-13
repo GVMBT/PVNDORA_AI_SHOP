@@ -30,6 +30,41 @@ class AuthMiddleware(BaseMiddleware):
     Creates user if not exists, blocks banned users.
     """
 
+    async def _should_refresh_photo(self, db_user) -> bool:
+        """Check if user photo should be refreshed (reduces cognitive complexity)."""
+        # No photo - need to fetch
+        if not getattr(db_user, "photo_url", None):
+            return True
+
+        # Check if photo_url is an old Telegram file link (they expire)
+        photo_url = getattr(db_user, "photo_url", "") or ""
+        if "api.telegram.org/file/" not in photo_url:
+            return False
+
+        # Telegram file links can expire, refresh periodically
+        # Check last_activity - if > 6 hours since last photo update
+        from datetime import datetime, timedelta
+
+        last_update = getattr(db_user, "last_activity_at", None)
+        if not last_update:
+            return False
+
+        try:
+            if isinstance(last_update, str):
+                # Use built-in fromisoformat (Python 3.7+) instead of dateutil
+                # Handle 'Z' suffix (UTC) - convert to +00:00 format
+                iso_str = (
+                    last_update.replace("Z", "+00:00") if last_update.endswith("Z") else last_update
+                )
+                last_update = datetime.fromisoformat(iso_str)
+                # Ensure timezone-aware
+                if last_update.tzinfo is None:
+                    last_update = last_update.replace(tzinfo=UTC)
+            age = datetime.now(UTC) - last_update
+            return age > timedelta(hours=6)
+        except Exception:
+            return False
+
     async def _update_user_photo(self, db, telegram_id: int, data: dict[str, Any]) -> None:
         """Fetch and save user's profile photo from Telegram."""
         try:
@@ -90,42 +125,8 @@ class AuthMiddleware(BaseMiddleware):
             # Fetch and save user's profile photo for new users
             await self._update_user_photo(db, user.id, data)
         else:
-            # For existing users, update photo if they don't have one
-            # OR refresh every 6 hours to capture avatar updates
-            should_refresh = False
-
-            if not getattr(db_user, "photo_url", None):
-                should_refresh = True
-            else:
-                # Check if photo_url is an old Telegram file link (they expire)
-                photo_url = getattr(db_user, "photo_url", "") or ""
-                if "api.telegram.org/file/" in photo_url:
-                    # Telegram file links can expire, refresh periodically
-                    # Check last_activity - if > 6 hours since last photo update
-                    from datetime import datetime, timedelta
-
-                    last_update = getattr(db_user, "last_activity_at", None)
-                    if last_update:
-                        try:
-                            if isinstance(last_update, str):
-                                # Use built-in fromisoformat (Python 3.7+) instead of dateutil
-                                # Handle 'Z' suffix (UTC) - convert to +00:00 format
-                                iso_str = (
-                                    last_update.replace("Z", "+00:00")
-                                    if last_update.endswith("Z")
-                                    else last_update
-                                )
-                                last_update = datetime.fromisoformat(iso_str)
-                                # Ensure timezone-aware
-                                if last_update.tzinfo is None:
-                                    last_update = last_update.replace(tzinfo=UTC)
-                            age = datetime.now(UTC) - last_update
-                            if age > timedelta(hours=6):
-                                should_refresh = True
-                        except Exception:
-                            pass
-
-            if should_refresh:
+            # For existing users, update photo if needed
+            if await self._should_refresh_photo(db_user):
                 await self._update_user_photo(db, user.id, data)
 
         # Check if banned
