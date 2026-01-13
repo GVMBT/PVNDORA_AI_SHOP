@@ -70,7 +70,8 @@ class OrderRepository(BaseRepository):
             import logging
 
             logger = logging.getLogger(__name__)
-            logger.error(f"ERROR: product_id found in order data: {data}")
+            # Don't log full data dict (may contain user-controlled data)
+            logger.error("ERROR: product_id found in order data")
             raise ValueError(
                 "product_id should not be in order data - it was removed from orders table"
             )
@@ -87,7 +88,7 @@ class OrderRepository(BaseRepository):
                 import logging
 
                 logger = logging.getLogger(__name__)
-                logger.warning(f"Removed deprecated field '{field}' from order data before insert")
+                logger.warning("Removed deprecated field '%s' from order data before insert", field)
                 data.pop(field, None)
 
         result = await self.client.table("orders").insert(data).execute()

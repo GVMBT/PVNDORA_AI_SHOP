@@ -81,7 +81,7 @@ async def get_embedding(text: str) -> list[float]:
         return []
 
     except Exception as e:
-        logger.error(f"Embedding generation failed: {e}", exc_info=True)
+        logger.error("Embedding generation failed: %s", type(e).__name__, exc_info=True)
         return []
 
 
@@ -143,7 +143,9 @@ class ProductSearch:
         embedding = await get_embedding(content)
 
         if not embedding:
-            logger.warning(f"Failed to generate embedding for {name}")
+            from core.logging import sanitize_string_for_logging
+
+            logger.warning("Failed to generate embedding for %s", sanitize_string_for_logging(name))
             return False
 
         try:
@@ -163,7 +165,14 @@ class ProductSearch:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to index product {product_id}: {e}", exc_info=True)
+            from core.logging import sanitize_id_for_logging
+
+            logger.error(
+                "Failed to index product %s: %s",
+                sanitize_id_for_logging(product_id),
+                type(e).__name__,
+                exc_info=True,
+            )
             return False
 
     async def search(
@@ -222,7 +231,7 @@ class ProductSearch:
             return products
 
         except Exception as e:
-            logger.error(f"Semantic search failed: {e}", exc_info=True)
+            logger.error("Semantic search failed: %s", type(e).__name__, exc_info=True)
             return []
 
     async def index_all_products(self) -> int:
@@ -244,7 +253,7 @@ class ProductSearch:
                 logger.info("No active products found")
                 return 0
 
-            logger.info(f"Found {len(result.data)} products to index")
+            logger.info("Found %d products to index", len(result.data))
 
             indexed = 0
             for product in result.data:
@@ -261,7 +270,7 @@ class ProductSearch:
             return indexed
 
         except Exception as e:
-            logger.error(f"Failed to index products: {e}", exc_info=True)
+            logger.error("Failed to index products: %s", type(e).__name__, exc_info=True)
             return 0
 
     async def delete_product(self, product_id: str) -> bool:

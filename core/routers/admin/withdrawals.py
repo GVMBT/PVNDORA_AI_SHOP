@@ -486,9 +486,7 @@ async def complete_withdrawal(
             withdrawal.get("users", {}).get("telegram_id") if withdrawal.get("users") else None
         )
 
-        admin_id = str(admin.id) if admin and admin.id else None
-        if not admin_id:
-            raise HTTPException(status_code=500, detail="Admin ID not available")
+        admin_id = get_admin_id(admin)
 
         # Update withdrawal status to completed
         await (

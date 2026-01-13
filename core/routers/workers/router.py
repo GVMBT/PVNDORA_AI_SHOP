@@ -42,7 +42,9 @@ async def _deliver_items_for_order(
     CRITICAL: This function should ONLY be called AFTER payment is confirmed via webhook.
     Orders with status 'pending' should NOT be processed - payment is not confirmed yet.
     """
-    logger.debug(f"deliver-goods: starting for order {order_id}, only_instant={only_instant}")
+    from core.logging import sanitize_id_for_logging
+
+    logger.debug("deliver-goods: starting for order %s, only_instant=%s", sanitize_id_for_logging(order_id), only_instant)
 
     # OPTIMIZATION: Load all order data in one query (combines requests #1, #6, #8)
     # Fields needed:
@@ -61,7 +63,9 @@ async def _deliver_items_for_order(
         )
 
         if not order_data.data:
-            logger.warning(f"deliver-goods: Order {order_id} not found")
+            from core.logging import sanitize_id_for_logging
+
+            logger.warning("deliver-goods: Order %s not found", sanitize_id_for_logging(order_id))
             return {"delivered": 0, "waiting": 0, "note": "not_found", "error": "Order not found"}
 
         order_status = order_data.data.get("status", "").lower()
@@ -69,15 +73,21 @@ async def _deliver_items_for_order(
 
         # SKIP discount orders - they have separate delayed delivery via QStash worker
         if source_channel == "discount":
+            from core.logging import sanitize_id_for_logging
+
             logger.info(
-                f"deliver-goods: Order {order_id} is from discount channel - skipping (uses separate delivery)"
+                "deliver-goods: Order %s is from discount channel - skipping (uses separate delivery)",
+                sanitize_id_for_logging(order_id),
             )
             return {"delivered": 0, "waiting": 0, "note": "discount_channel", "skipped": True}
 
         # If order is still pending, payment is NOT confirmed - DO NOT process
         if order_status == "pending":
+            from core.logging import sanitize_id_for_logging
+
             logger.warning(
-                f"deliver-goods: Order {order_id} is still PENDING - payment not confirmed. Skipping delivery."
+                "deliver-goods: Order %s is still PENDING - payment not confirmed. Skipping delivery.",
+                sanitize_id_for_logging(order_id),
             )
             return {
                 "delivered": 0,
@@ -92,8 +102,12 @@ async def _deliver_items_for_order(
         # - 'partial': Some items delivered
         # - 'delivered': All items delivered
         if order_status not in ("paid", "prepaid", "partial", "delivered"):
+            from core.logging import sanitize_id_for_logging, sanitize_string_for_logging
+
             logger.warning(
-                f"deliver-goods: Order {order_id} has invalid status '{order_status}' for delivery. Skipping."
+                "deliver-goods: Order %s has invalid status '%s' for delivery. Skipping.",
+                sanitize_id_for_logging(order_id),
+                sanitize_string_for_logging(order_status),
             )
             return {
                 "delivered": 0,
@@ -102,14 +116,21 @@ async def _deliver_items_for_order(
                 "error": f"Order status '{order_status}' is not valid for delivery",
             }
     except Exception as e:
+        from core.logging import sanitize_id_for_logging
+
         logger.error(
-            f"deliver-goods: Failed to check order status for {order_id}: {e}", exc_info=True
+            "deliver-goods: Failed to check order status for %s: %s",
+            sanitize_id_for_logging(order_id),
+            type(e).__name__,
+            exc_info=True,
         )
         # Continue with delivery attempt, but log the error
 
     now = datetime.now(UTC)
     items = await db.get_order_items_by_order(order_id)
-    logger.debug(f"deliver-goods: found {len(items) if items else 0} items for order {order_id}")
+    from core.logging import sanitize_id_for_logging
+
+    logger.debug("deliver-goods: found %d items for order %s", len(items) if items else 0, sanitize_id_for_logging(order_id))
     if not items:
         return {"delivered": 0, "waiting": 0, "note": "no_items"}
 
@@ -328,7 +349,14 @@ async def _deliver_items_for_order(
                 .execute()
             )
     except Exception as e:
-        logger.error(f"deliver-goods: failed to update order status {order_id}: {e}", exc_info=True)
+        from core.logging import sanitize_id_for_logging
+
+        logger.error(
+            "deliver-goods: failed to update order status %s: %s",
+            sanitize_id_for_logging(order_id),
+            type(e).__name__,
+            exc_info=True,
+        )
 
     # Update user's total_saved (discount savings)
     # Calculate saved amount = original_price - amount
@@ -455,6 +483,13 @@ async def _deliver_items_for_order(
                 f"deliver-goods: Sent delivery notification for order {order_id} to user {telegram_id} (new_items={delivered_count}, was_missing={not delivered_lines})"
             )
     except Exception as e:
-        logger.error(f"deliver-goods: failed to notify for order {order_id}: {e}", exc_info=True)
+        from core.logging import sanitize_id_for_logging
+
+        logger.error(
+            "deliver-goods: failed to notify for order %s: %s",
+            sanitize_id_for_logging(order_id),
+            type(e).__name__,
+            exc_info=True,
+        )
 
     return {"delivered": delivered_count, "waiting": waiting_count}

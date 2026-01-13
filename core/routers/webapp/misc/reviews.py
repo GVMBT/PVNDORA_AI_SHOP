@@ -223,15 +223,18 @@ async def _create_review_record(db, db_user, request, product_id: str) -> str:
         )
     except Exception as e:
         if _is_duplicate_key_error(e):
+            from core.logging import sanitize_id_for_logging
+
             logger.info(
-                "Review already exists for order %s, product %s", request.order_id, product_id
+                "Review already exists for order %s, product %s",
+                sanitize_id_for_logging(request.order_id),
+                sanitize_id_for_logging(product_id),
             )
             raise HTTPException(status_code=400, detail="Вы уже оставили отзыв на этот товар")
 
-        error_str = str(e)
         error_type = type(e).__name__
-        logger.exception("Error creating review: %s: %s", error_type, error_str)
-        raise HTTPException(status_code=500, detail=f"Ошибка при создании отзыва: {error_str}")
+        logger.exception("Error creating review: %s", error_type)
+        raise HTTPException(status_code=500, detail="Ошибка при создании отзыва")
 
     if not result.data or len(result.data) == 0:
         raise HTTPException(status_code=500, detail="Ошибка при создании отзыва")

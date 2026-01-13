@@ -209,7 +209,7 @@ async def get_user_profile() -> dict:
             "partner_mode": user.get("partner_mode", "commission"),
         }
     except Exception as e:
-        logger.error(f"get_user_profile error: {e}", exc_info=True)
+        logger.error("get_user_profile error: %s", type(e).__name__, exc_info=True)
         return {"success": False, "error": str(e)}
 
 
@@ -299,7 +299,7 @@ async def get_referral_info() -> dict:
             "balance": float(user.get("balance", 0) or 0),
         }
     except Exception as e:
-        logger.error(f"get_referral_info error: {e}", exc_info=True)
+        logger.error("get_referral_info error: %s", type(e).__name__, exc_info=True)
         return {"success": False, "error": str(e)}
 
 

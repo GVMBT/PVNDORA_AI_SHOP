@@ -37,7 +37,9 @@ async def _queue_replacement_for_stock(db, ticket_id: str) -> None:
         .eq("id", ticket_id)
         .execute()
     )
-    logger.info(f"Ticket {ticket_id} queued for replacement when stock available")
+    from core.logging import sanitize_id_for_logging
+
+    logger.info("Ticket %s queued for replacement when stock available", sanitize_id_for_logging(ticket_id))
 
 
 async def _notify_replacement_queued(
@@ -56,7 +58,7 @@ async def _notify_replacement_queued(
             ),
         )
     except Exception as e:
-        logger.warning(f"Failed to send replacement queued notification: {e}")
+        logger.warning("Failed to send replacement queued notification: %s", type(e).__name__)
 
 
 async def _get_buyer_name(db, buyer_id: str) -> str:
@@ -286,7 +288,14 @@ async def worker_calculate_referral(request: Request):
         }
     except Exception as e:
         # If referral program not unlocked or percent is null, skip bonus and continue
-        logger.warning(f"Referral bonus failed for order {order_id}: {e}", exc_info=True)
+        from core.logging import sanitize_id_for_logging
+
+        logger.warning(
+            "Referral bonus failed for order %s: %s",
+            sanitize_id_for_logging(order_id),
+            type(e).__name__,
+            exc_info=True,
+        )
         return {
             "success": True,
             "turnover": turnover_data,
@@ -349,7 +358,9 @@ async def worker_process_replacement(request: Request):
     )
 
     if not item_res.data or len(item_res.data) == 0:
-        logger.error(f"process-replacement: Order item {item_id} not found")
+        from core.logging import sanitize_id_for_logging
+
+        logger.error("process-replacement: Order item %s not found", sanitize_id_for_logging(item_id))
         return {"error": "Order item not found"}
 
     item_data = item_res.data[0]
@@ -414,7 +425,9 @@ async def worker_process_replacement(request: Request):
         )
 
         if not update_result.data:
-            logger.warning(f"process-replacement: stock {stock_id} was already reserved")
+            from core.logging import sanitize_id_for_logging
+
+            logger.warning("process-replacement: stock %s was already reserved", sanitize_id_for_logging(stock_id))
             return {
                 "queued": True,
                 "reason": "Stock item was already reserved - will retry",

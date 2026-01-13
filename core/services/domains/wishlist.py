@@ -77,7 +77,7 @@ class WishlistService:
 
             return items
         except Exception as e:
-            logger.error(f"Failed to get wishlist: {e}", exc_info=True)
+            logger.error("Failed to get wishlist: %s", type(e).__name__, exc_info=True)
             return []
 
     async def add_item(self, user_id: str, product_id: str) -> dict[str, Any]:
@@ -125,7 +125,7 @@ class WishlistService:
         except Exception as e:
             if "duplicate" in str(e).lower() or "unique" in str(e).lower():
                 return {"success": False, "reason": "Already in wishlist"}
-            logger.error(f"Failed to add to wishlist: {e}", exc_info=True)
+            logger.error("Failed to add to wishlist: %s", type(e).__name__, exc_info=True)
             return {"success": False, "reason": "Database error"}
 
     async def remove_item(self, user_id: str, product_id: str) -> dict[str, Any]:
@@ -150,7 +150,7 @@ class WishlistService:
 
             return {"success": True, "message": "Removed from wishlist"}
         except Exception as e:
-            logger.error(f"Failed to remove from wishlist: {e}", exc_info=True)
+            logger.error("Failed to remove from wishlist: %s", type(e).__name__, exc_info=True)
             return {"success": False, "reason": "Failed to remove"}
 
     async def is_in_wishlist(self, user_id: str, product_id: str) -> bool:

@@ -47,23 +47,26 @@ async def safe_answer(message: Message, text: str, **kwargs) -> bool:
     """
     try:
         if not text or not text.strip():
-            logger.error(f"Attempted to send empty message to chat {message.chat.id}")
+            # Don't log chat.id (user-controlled data) - just log error type
+            logger.error("Attempted to send empty message")
             return False
 
-        logger.debug(f"safe_answer - chat_id: {message.chat.id}, text_length: {len(text)}")
+        logger.debug("safe_answer - text_length: %d", len(text))
         await message.answer(text, **kwargs)
-        logger.debug(f"Message sent successfully to chat {message.chat.id}")
+        logger.debug("Message sent successfully")
         return True
     except (TelegramBadRequest, TelegramForbiddenError) as e:
         error_msg = str(e).lower()
         logger.exception("Telegram API error in safe_answer")
         if "chat not found" in error_msg:
-            logger.warning(f"Cannot send message to chat {message.chat.id}: chat not found")
+            # Don't log chat.id (user-controlled data)
+            logger.warning("Cannot send message: chat not found")
         elif "bot was blocked" in error_msg or "forbidden" in error_msg:
-            logger.warning(f"Bot blocked by user {message.chat.id}")
+            # Don't log chat.id (user-controlled data)
+            logger.warning("Bot blocked by user")
         else:
-            logger.exception(f"Traceback: {traceback.format_exc()}")
+            logger.exception("Traceback: %s", traceback.format_exc())
         return False
     except Exception as e:
-        logger.error(f"Unexpected error in safe_answer: {type(e).__name__}: {e}", exc_info=True)
+        logger.error("Unexpected error in safe_answer: %s", type(e).__name__, exc_info=True)
         return False

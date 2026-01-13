@@ -103,7 +103,7 @@ async def _batch_fetch_social_proof(
                 if pid:
                     social_proof_map[pid] = sp
     except Exception as e:
-        logger.warning(f"Failed to batch fetch social proof: {e}")
+        logger.warning("Failed to batch fetch social proof: %s", type(e).__name__)
 
     return social_proof_map
 
@@ -129,7 +129,7 @@ async def _batch_fetch_ratings(db: Database, product_ids: list[str]) -> dict[str
             if rating is not None:
                 ratings_map[pid].append(float(rating))
     except Exception as e:
-        logger.warning(f"Failed to batch fetch ratings: {e}")
+        logger.warning("Failed to batch fetch ratings: %s", type(e).__name__)
 
     # Compute aggregates
     result_map: dict[str, dict[str, Any]] = {}

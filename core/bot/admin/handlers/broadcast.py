@@ -214,7 +214,9 @@ async def safe_edit_text(callback: CallbackQuery, text: str, **kwargs) -> bool:
         error_msg = str(e).lower()
         if "message is not modified" in error_msg:
             # Message already has the same content - not an error
-            logger.debug(f"Message not modified (already correct): {callback.data}")
+            from core.logging import sanitize_string_for_logging
+
+            logger.debug("Message not modified (already correct): %s", sanitize_string_for_logging(callback.data))
             return False
         # Re-raise other BadRequest errors
         raise
@@ -748,9 +750,11 @@ async def cb_buttons_done(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
 
     # Debug: log state data
-    logger.debug(f"cb_buttons_done: state data keys = {list(data.keys())}")
+    logger.debug("cb_buttons_done: state data keys = %s", list(data.keys()))
     logger.debug(
-        f"cb_buttons_done: target_bot = {data.get('target_bot')}, target_audience = {data.get('target_audience')}"
+        "cb_buttons_done: target_bot = %s, target_audience = %s",
+        data.get("target_bot"),
+        data.get("target_audience"),
     )
 
     # Validate required fields
@@ -759,7 +763,7 @@ async def cb_buttons_done(callback: CallbackQuery, state: FSMContext):
 
     if not target_bot or not target_audience:
         # Try to restore from callback data or provide better error message
-        logger.warning(f"Missing broadcast data in state. Available keys: {list(data.keys())}")
+        logger.warning("Missing broadcast data in state. Available keys: %s", list(data.keys()))
         await callback.answer(
             "⚠️ Данные рассылки потеряны.\n\n"
             "Возможные причины:\n"
@@ -921,10 +925,12 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
             callback, broadcast_id, recipients, queued_count, failed_queues, total_batches
         )
 
-        logger.info(f"Broadcast {broadcast_id}: Handler completed successfully")
+        from core.logging import sanitize_id_for_logging
+
+        logger.info("Broadcast %s: Handler completed successfully", sanitize_id_for_logging(broadcast_id))
 
     except Exception as e:
-        logger.error(f"Broadcast CRITICAL ERROR: {e}", exc_info=True)
+        logger.error("Broadcast CRITICAL ERROR: %s", type(e).__name__, exc_info=True)
         await safe_edit_text(callback, f"❌ Критическая ошибка: {str(e)[:200]}")
         await state.clear()
 

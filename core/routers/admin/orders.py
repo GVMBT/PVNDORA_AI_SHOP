@@ -140,13 +140,15 @@ async def admin_check_payment(order_id: str, admin=Depends(verify_admin)):
                 "message": f"Invoice state: {state}",
             }
         except Exception as e:
-            logger.exception(f"Failed to check CrystalPay invoice {payment_id}")
+            from core.logging import sanitize_id_for_logging
+
+            logger.exception("Failed to check CrystalPay invoice %s", sanitize_id_for_logging(payment_id))
             return {
                 "order_id": order_id,
                 "payment_id": payment_id,
                 "gateway": payment_gateway,
                 "error": str(e),
-                "message": f"Failed to check payment status: {e}",
+                "message": f"Failed to check payment status: {type(e).__name__}",
             }
     else:
         return {
