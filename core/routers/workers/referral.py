@@ -332,40 +332,8 @@ async def worker_process_replacement(request: Request):
     )
 
     if not stock_res.data:
-        # No stock available - keep ticket approved, will be processed by auto_alloc cron
-        await db.client.table("tickets").update(
-            {
-                "admin_comment": "Replacement queued: waiting for stock. Will be auto-delivered when available."
-            }
-        ).eq("id", ticket_id).execute()
-
-        # Notify user that replacement is queued
-        if user_telegram_id:
-            try:
-                # Get product name for notification
-                product_res = (
-                    await db.client.table("products")
-                    .select("name")
-                    .eq("id", product_id)
-                    .single()
-                    .execute()
-                )
-                _product_name = (
-                    product_res.data.get("name", "Product") if product_res.data else "Product"
-                )
-
-                await notification_service.send_message(
-                    telegram_id=user_telegram_id,
-                    text=(
-                        f"⏳ <b>Replacement Queued</b>\n\n"
-                        f"Your replacement for {_product_name} has been approved, "
-                        f"but no stock is currently available.\n\n"
-                        f"You will automatically receive a new account as soon as stock arrives."
-                    ),
-                )
-            except Exception as e:
-                logger.warning(f"Failed to send queue notification: {e}")
-
+        await _queue_replacement_for_stock(db, ticket_id)
+        await _notify_replacement_queued(notification_service, user_telegram_id, product_id)
         return {
             "queued": True,
             "reason": "No stock available - queued for auto-delivery",
