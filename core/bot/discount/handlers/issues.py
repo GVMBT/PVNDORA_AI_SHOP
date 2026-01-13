@@ -117,6 +117,149 @@ async def cb_issue_start(callback: CallbackQuery, db_user: User):
     await callback.answer()
 
 
+# Helper: Generate promo code based on trigger (reduces cognitive complexity)
+async def _generate_promo_for_issue(
+    promo_service: PromoCodeService,
+    user_id: str,
+    telegram_id: int,
+    trigger: PromoTriggers,
+) -> str | None:
+    """Generate or get existing promo code for issue trigger."""
+    existing_promo = await promo_service.get_promo_by_trigger(user_id, trigger)
+    if existing_promo:
+        return existing_promo.code
+    promo = await promo_service.generate_personal_promo(
+        user_id=user_id,
+        telegram_id=telegram_id,
+        trigger=trigger,
+        discount_percent=50,
+    )
+    return promo
+
+
+# Helper: Get issue reason from type (reduces cognitive complexity)
+def _get_issue_reason(issue_type: str) -> str:
+    """Map issue type to reason string."""
+    reason_map = {
+        "login_failed": "Cannot login to account",
+        "banned": "Account was banned",
+        "wrong_product": "Received wrong product",
+        "other": "Other issue",
+    }
+    return reason_map.get(issue_type, issue_type)
+
+
+# Helper: Handle replacement request (reduces cognitive complexity)
+async def _handle_replacement_request(
+    insurance_service: InsuranceService,
+    order_item: dict,
+    telegram_id: int,
+    reason: str,
+    lang: str,
+    callback: CallbackQuery,
+) -> tuple[bool, dict | None]:
+    """Handle replacement request, return (success, result_dict)."""
+    result = await insurance_service.request_replacement(
+        order_item_id=order_item["id"], telegram_id=telegram_id, reason=reason
+    )
+
+    if not result.success:
+        result_dict = {"success": False, "status": result.status, "message": result.message}
+        return False, result_dict
+
+    is_approved = result.status == "auto_approved"
+    text = (
+        _get_replacement_approved_message(result.replacement_id, lang == "ru")
+        if is_approved
+        else _get_replacement_pending_message(result.replacement_id, lang == "ru")
+    )
+
+    await callback.message.edit_text(
+        text,
+        reply_markup=get_issue_result_keyboard(True, False, None, lang),
+        parse_mode=ParseMode.HTML,
+    )
+    await callback.answer()
+    return True, None
+
+
+# Helper: Get promo code based on insurance status (reduces cognitive complexity)
+async def _get_promo_for_insurance_status(
+    promo_service: PromoCodeService,
+    order_item: dict,
+    telegram_id: int,
+    has_insurance: bool,
+    can_replace: bool,
+    replacement_result: dict | None = None,
+) -> str | None:
+    """Get promo code based on insurance and replacement status."""
+    if not has_insurance:
+        return await _generate_promo_for_issue(
+            promo_service,
+            order_item["user_id"],
+            telegram_id,
+            PromoTriggers.ISSUE_NO_INSURANCE,
+        )
+
+    if has_insurance and not can_replace:
+        # Check if replacement failed due to limit
+        if replacement_result and replacement_result.get("status") == "rejected":
+            if "limit" in replacement_result.get("message", "").lower():
+                return await _generate_promo_for_issue(
+                    promo_service,
+                    order_item["user_id"],
+                    telegram_id,
+                    PromoTriggers.REPLACEMENT_LIMIT,
+                )
+
+        # Insurance expired
+        return await _generate_promo_for_issue(
+            promo_service,
+            order_item["user_id"],
+            telegram_id,
+            PromoTriggers.INSURANCE_EXPIRED,
+        )
+
+    return None
+
+
+# Helper: Get message text for issue result (reduces cognitive complexity)
+def _get_issue_result_message(has_insurance: bool, can_replace: bool, lang: str) -> str:
+    """Get message text based on insurance and replacement status."""
+    pvndora_pitch = (
+        "💡 <b>Попробуйте PVNDORA:</b>\n"
+        "• Мгновенная доставка\n"
+        "• Гарантии на все товары\n"
+        "• Партнерская программа 10/7/3%\n"
+        "• Круглосуточная поддержка"
+        if lang == "ru"
+        else "💡 <b>Try PVNDORA:</b>\n"
+        "• Instant delivery\n"
+        "• Warranty on all products\n"
+        "• Affiliate program 10/7/3%\n"
+        "• 24/7 support"
+    )
+
+    if has_insurance and not can_replace:
+        header = (
+            "⚠️ <b>Страховка истекла</b>\n\n"
+            "К сожалению, срок действия страховки истёк или лимит замен исчерпан.\n\n"
+            if lang == "ru"
+            else "⚠️ <b>Insurance expired</b>\n\n"
+            "Unfortunately, your insurance has expired or replacement limit reached.\n\n"
+        )
+    else:
+        header = (
+            "⚠️ <b>Нет страховки</b>\n\n"
+            "К сожалению, без страховки замена не предусмотрена.\n\n"
+            if lang == "ru"
+            else "⚠️ <b>No insurance</b>\n\n"
+            "Unfortunately, no replacement is available without insurance.\n\n"
+        )
+
+    return f"{header}{pvndora_pitch}"
+
+
 @router.callback_query(F.data.startswith("discount:issue_type:"))
 async def cb_issue_type_selected(callback: CallbackQuery, db_user: User):
     """Process issue type and check insurance."""
@@ -136,14 +279,7 @@ async def cb_issue_type_selected(callback: CallbackQuery, db_user: User):
         )
         return
 
-    # Issue type to reason mapping
-    reason_map = {
-        "login_failed": "Cannot login to account",
-        "banned": "Account was banned",
-        "wrong_product": "Received wrong product",
-        "other": "Other issue",
-    }
-    reason = reason_map.get(issue_type, issue_type)
+    reason = _get_issue_reason(issue_type)
 
     # Check insurance
     insurance_service = InsuranceService(db.client)
@@ -151,8 +287,9 @@ async def cb_issue_type_selected(callback: CallbackQuery, db_user: User):
 
     has_insurance = order_item.get("insurance_id") is not None
     can_replace = False
-    promo_code = None
+    replacement_result = None
 
+    replacement_result = None
     if has_insurance:
         # Check if insurance is valid and replacements available
         is_valid, _, remaining = await insurance_service.check_insurance_valid(
@@ -161,110 +298,29 @@ async def cb_issue_type_selected(callback: CallbackQuery, db_user: User):
         can_replace = is_valid and remaining > 0
 
         if can_replace:
-            # Request replacement
-            result = await insurance_service.request_replacement(
-                order_item_id=order_item["id"], telegram_id=db_user.telegram_id, reason=reason
+            # Try to request replacement
+            success, result = await _handle_replacement_request(
+                insurance_service, order_item, db_user.telegram_id, reason, lang, callback
             )
-
-            if result.success:
-                is_approved = result.status == "auto_approved"
-                text = (
-                    _get_replacement_approved_message(result.replacement_id, lang == "ru")
-                    if is_approved
-                    else _get_replacement_pending_message(result.replacement_id, lang == "ru")
-                )
-
-                await callback.message.edit_text(
-                    text,
-                    reply_markup=get_issue_result_keyboard(True, False, None, lang),
-                    parse_mode=ParseMode.HTML,
-                )
-                await callback.answer()
+            if success:
                 return
-            # Replacement failed (limit reached, blocked, etc.)
+
+            # Replacement failed - store result for promo code logic
             can_replace = False
+            replacement_result = result
 
-            # Check if it's a limit issue -> offer PVNDORA
-            if result.status == "rejected" and "limit" in result.message.lower():
-                # Generate promo for limit reached
-                promo_code = await promo_service.generate_personal_promo(
-                    user_id=order_item["user_id"],
-                    telegram_id=db_user.telegram_id,
-                    trigger=PromoTriggers.REPLACEMENT_LIMIT,
-                    discount_percent=50,
-                )
+    # Get promo code based on status
+    promo_code = await _get_promo_for_insurance_status(
+        promo_service,
+        order_item,
+        db_user.telegram_id,
+        has_insurance,
+        can_replace,
+        replacement_result,
+    )
 
-    # No insurance or can't replace
-    if not has_insurance:
-        # Generate promo for no insurance
-        promo_code = await promo_service.generate_personal_promo(
-            user_id=order_item["user_id"],
-            telegram_id=db_user.telegram_id,
-            trigger=PromoTriggers.ISSUE_NO_INSURANCE,
-            discount_percent=50,
-        )
-
-    if has_insurance and not can_replace:
-        # Insurance expired or limit reached
-        existing_promo = await promo_service.get_promo_by_trigger(
-            order_item["user_id"], PromoTriggers.INSURANCE_EXPIRED
-        )
-
-        if not existing_promo:
-            promo_code = await promo_service.generate_personal_promo(
-                user_id=order_item["user_id"],
-                telegram_id=db_user.telegram_id,
-                trigger=PromoTriggers.INSURANCE_EXPIRED,
-                discount_percent=50,
-            )
-        else:
-            promo_code = existing_promo.code
-
-    # Show result
-    if has_insurance and not can_replace:
-        text = (
-            (
-                "⚠️ <b>Страховка истекла</b>\n\n"
-                "К сожалению, срок действия страховки истёк или лимит замен исчерпан.\n\n"
-                "💡 <b>Попробуйте PVNDORA:</b>\n"
-                "• Мгновенная доставка\n"
-                "• Гарантии на все товары\n"
-                "• Партнерская программа 10/7/3%\n"
-                "• Круглосуточная поддержка"
-            )
-            if lang == "ru"
-            else (
-                "⚠️ <b>Insurance expired</b>\n\n"
-                "Unfortunately, your insurance has expired or replacement limit reached.\n\n"
-                "💡 <b>Try PVNDORA:</b>\n"
-                "• Instant delivery\n"
-                "• Warranty on all products\n"
-                "• Affiliate program 10/7/3%\n"
-                "• 24/7 support"
-            )
-        )
-    else:
-        text = (
-            (
-                "⚠️ <b>Нет страховки</b>\n\n"
-                "К сожалению, без страховки замена не предусмотрена.\n\n"
-                "💡 <b>Попробуйте PVNDORA:</b>\n"
-                "• Мгновенная доставка\n"
-                "• Гарантии на все товары\n"
-                "• Партнерская программа 10/7/3%\n"
-                "• Круглосуточная поддержка"
-            )
-            if lang == "ru"
-            else (
-                "⚠️ <b>No insurance</b>\n\n"
-                "Unfortunately, no replacement is available without insurance.\n\n"
-                "💡 <b>Try PVNDORA:</b>\n"
-                "• Instant delivery\n"
-                "• Warranty on all products\n"
-                "• Affiliate program 10/7/3%\n"
-                "• 24/7 support"
-            )
-        )
+    # Show result message
+    text = _get_issue_result_message(has_insurance, can_replace, lang)
 
     if promo_code:
         text += f"\n\n🎁 <b>Ваш промокод: {promo_code}</b>\n(-50% на первую покупку в PVNDORA)"
