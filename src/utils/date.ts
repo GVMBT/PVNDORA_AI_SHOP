@@ -20,7 +20,7 @@ export function formatRelativeTime(date: string | Date): string {
   if (!date) return "Unknown";
 
   const dateObj = typeof date === "string" ? new Date(date) : date;
-  if (isNaN(dateObj.getTime())) return "Invalid date";
+  if (Number.isNaN(dateObj.getTime())) return "Invalid date";
 
   const now = new Date();
   const diffMs = now.getTime() - dateObj.getTime();
@@ -44,7 +44,7 @@ export function formatDate(date: string | Date, options?: Intl.DateTimeFormatOpt
   if (!date) return "Unknown";
 
   const dateObj = typeof date === "string" ? new Date(date) : date;
-  if (isNaN(dateObj.getTime())) return "Invalid date";
+  if (Number.isNaN(dateObj.getTime())) return "Invalid date";
 
   const defaultOptions: Intl.DateTimeFormatOptions = {
     dateStyle: "medium",
@@ -69,7 +69,7 @@ export function formatDateISO(date: string | Date): string {
   if (!date) return "";
 
   const dateObj = typeof date === "string" ? new Date(date) : date;
-  if (isNaN(dateObj.getTime())) return "";
+  if (Number.isNaN(dateObj.getTime())) return "";
 
   return dateObj.toISOString().split("T")[0];
 }
@@ -90,7 +90,7 @@ export function formatDateTime(date: string | Date, options?: Intl.DateTimeForma
   if (!date) return "Unknown";
 
   const dateObj = typeof date === "string" ? new Date(date) : date;
-  if (isNaN(dateObj.getTime())) return "Invalid date";
+  if (Number.isNaN(dateObj.getTime())) return "Invalid date";
 
   const defaultOptions: Intl.DateTimeFormatOptions = {
     dateStyle: "medium",

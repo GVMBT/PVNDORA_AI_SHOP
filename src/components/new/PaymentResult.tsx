@@ -93,7 +93,7 @@ export function PaymentResult({
   const consecutive404sRef = useRef(0); // Use ref to avoid triggering effect re-runs
 
   // Check if we're in Telegram Mini App or external browser
-  const isTelegramMiniApp = typeof window !== "undefined" && !!(window as any).Telegram?.WebApp;
+  const isTelegramMiniApp = globalThis.window !== undefined && !!(globalThis.window as any).Telegram?.WebApp;
 
   // Add log entry
   const addLog = useCallback((message: string, type: LogEntry["type"] = "info") => {

@@ -501,7 +501,7 @@ const Catalog: React.FC<CatalogProps> = ({
                         )}
                       </div>
                       <div className="text-[10px] font-mono text-gray-500">
-                        SKU: {product.sku} // VER: {product.version}
+                        SKU: {product.sku} {" // "} VER: {product.version}
                       </div>
                     </div>
                   </div>

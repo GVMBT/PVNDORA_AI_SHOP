@@ -20,7 +20,7 @@ export function useAdmin() {
   const [checking, setChecking] = useState(true);
 
   const checkAdminStatus = useCallback(async () => {
-    if (typeof window === "undefined") {
+    if (globalThis.window === undefined) {
       setChecking(false);
       return;
     }

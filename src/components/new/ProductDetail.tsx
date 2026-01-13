@@ -321,7 +321,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
           <div className="flex items-center gap-2 text-[10px] font-mono text-pandora-cyan tracking-widest uppercase">
             <DatabaseIcon category={product.category} />
             <span>
-              {t("product.database")} // {product.category.toUpperCase()} // {product.sku}
+              {t("product.database")} {" // "} {product.category.toUpperCase()} {" // "} {product.sku}
             </span>
           </div>
         </div>
@@ -586,7 +586,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
                     {rel.name}
                   </div>
                   <div className="text-[9px] font-mono text-gray-500 mb-1">
-                    {rel.category} // {rel.stock > 0 ? "ONLINE" : "OFFLINE"}
+                    {rel.category} {" // "} {rel.stock > 0 ? "ONLINE" : "OFFLINE"}
                   </div>
                   <div className="text-xs font-mono text-white font-bold">
                     {formatPrice(rel.price, rel.currency)}
