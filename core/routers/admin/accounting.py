@@ -369,16 +369,20 @@ async def get_financial_overview(
     # ==========================================================================
     # Calculate Profit (in USD for now, since COGS is in USD)
     # ==========================================================================
-    gross_profit_usd = total_revenue_usd - total_cogs
-    operating_expenses_usd = (
-        total_acquiring_fees
-        + total_referral_payouts
-        + total_reserves
-        + total_review_cashbacks
-        + total_replacement_costs
+    profit_data = _calculate_profit_metrics(
+        total_revenue_usd,
+        total_cogs,
+        total_acquiring_fees,
+        total_referral_payouts,
+        total_reserves,
+        total_review_cashbacks,
+        total_replacement_costs,
+        total_other_expenses,
+        total_insurance_revenue,
     )
-    operating_profit_usd = gross_profit_usd - operating_expenses_usd
-    net_profit_usd = operating_profit_usd - total_other_expenses + total_insurance_revenue
+    gross_profit_usd = profit_data["gross_profit"]
+    operating_profit_usd = profit_data["operating_profit"]
+    net_profit_usd = profit_data["net_profit"]
 
     # ==========================================================================
     # Build Response
@@ -430,24 +434,7 @@ async def get_financial_overview(
         # =====================================================================
         "liabilities_by_currency": liabilities_by_currency,
         # Legacy liabilities (sum converted to USD for compatibility)
-        "total_user_balances": sum(
-            (
-                float(data.get("user_balances", 0))
-                if isinstance(data.get("user_balances"), (int, float))
-                else 0.0
-            )
-            for data in liabilities_by_currency.values()
-            if isinstance(data, dict)
-        ),
-        "pending_withdrawals": sum(
-            (
-                float(data.get("pending_withdrawals", 0))
-                if isinstance(data.get("pending_withdrawals"), (int, float))
-                else 0.0
-            )
-            for data in liabilities_by_currency.values()
-            if isinstance(data, dict)
-        ),
+        **_calculate_liability_totals(liabilities_by_currency),
         # =====================================================================
         # PROFIT (In USD, since COGS is in $)
         # =====================================================================
