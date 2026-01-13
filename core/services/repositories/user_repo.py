@@ -132,7 +132,7 @@ class UserRepository(BaseRepository):
                 logger.info(f"Successfully updated preferences for user {telegram_id}")
             except Exception as e:
                 logger.error(
-                    f"Failed to update preferences for user {telegram_id}: {e}", exc_info=True
+                    "Failed to update preferences for user %s: %s", telegram_id, e, exc_info=True
                 )
                 raise
 

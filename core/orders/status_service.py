@@ -97,7 +97,7 @@ class OrderStatusService:
         if check_transition:
             can_transition, reason_msg = await self.can_transition_to(order_id, new_status)
             if not can_transition:
-                logger.warning(f"Cannot update order {order_id} status: {reason_msg}")
+                logger.warning("Cannot update order %s status: %s", order_id, reason_msg)
                 return False
 
         try:
@@ -123,7 +123,7 @@ class OrderStatusService:
 
             if rows_affected == 0:
                 logger.warning(
-                    f"[StatusService] NO ROWS UPDATED for order {order_id}! Order might not exist."
+                    "[StatusService] NO ROWS UPDATED for order %s! Order might not exist.", order_id
                 )
                 return False
 
@@ -216,7 +216,7 @@ class OrderStatusService:
                         "id", order_id
                     ).execute()
                 except Exception as e:
-                    logger.warning(f"Failed to update payment_id for {order_id}: {e}")
+                    logger.warning("Failed to update payment_id for %s: %s", order_id, e)
 
             logger.debug(
                 f"[mark_payment_confirmed] About to call update_status with final_status={final_status}"
@@ -296,14 +296,14 @@ class OrderStatusService:
 
             if not update_result:
                 logger.error(
-                    f"[mark_payment_confirmed] FAILED to update order {order_id} status to {final_status}!"
+                    "[mark_payment_confirmed] FAILED to update order %s status to %s!", order_id, final_status
                 )
             else:
                 # Send admin alert for paid orders (best-effort)
                 try:
                     await self._send_order_alert(order_id, order_amount, user_id)
                 except Exception as e:
-                    logger.warning(f"Failed to send admin alert for order {order_id}: {e}")
+                    logger.warning("Failed to send admin alert for order %s: %s", order_id, e)
 
                 # Send payment confirmation to user (best-effort)
                 try:
@@ -335,7 +335,7 @@ class OrderStatusService:
                         )
                 except Exception as e:
                     logger.warning(
-                        f"Failed to send payment confirmation to user for order {order_id}: {e}"
+                        "Failed to send payment confirmation to user for order %s: %s", order_id, e
                     )
 
             # Create balance_transaction record for purchase (for system_log visibility)
@@ -382,7 +382,7 @@ class OrderStatusService:
                         )
                 except Exception as e:
                     logger.warning(
-                        f"Failed to create balance_transaction for order {order_id}: {e}"
+                        "Failed to create balance_transaction for order %s: %s", order_id, e
                     )
                     # Non-critical - don't fail the payment confirmation
 
@@ -409,7 +409,7 @@ class OrderStatusService:
                         f"[mark_payment_confirmed] Order {order_id} has no preorder items, skipping fulfillment_deadline"
                     )
             except Exception as e:
-                logger.warning(f"Failed to set fulfillment deadline for {order_id}: {e}")
+                logger.warning("Failed to set fulfillment deadline for %s: %s", order_id, e)
 
             # CRITICAL: Create order_expenses for accounting (best-effort, non-blocking)
             if update_result:
@@ -424,7 +424,7 @@ class OrderStatusService:
                         f"[mark_payment_confirmed] Successfully created order_expenses for order {order_id}"
                     )
                 except Exception as e:
-                    logger.warning(f"Failed to create order_expenses for order {order_id}: {e}")
+                    logger.warning("Failed to create order_expenses for order %s: %s", order_id, e)
                     # Non-critical - don't fail payment confirmation
 
             return final_status

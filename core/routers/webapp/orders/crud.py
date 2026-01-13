@@ -146,7 +146,7 @@ async def verify_order_payment(order_id: str, user=Depends(verify_telegram_auth)
                             deduplication_id=f"deliver-{order_id}",
                         )
                     except Exception as e:
-                        logger.warning(f"Failed to queue delivery for {order_id}: {e}")
+                        logger.warning("Failed to queue delivery for %s: %s", order_id, e)
 
                     return {"status": final_status, "verified": True}
                 if gateway_status == "processing":
@@ -162,7 +162,7 @@ async def verify_order_payment(order_id: str, user=Depends(verify_telegram_auth)
                         "message": "Payment not received",
                     }
         except Exception as e:
-            logger.warning(f"Failed to verify payment for order {order_id}: {e}")
+            logger.warning("Failed to verify payment for order %s: %s", order_id, e)
             return {"status": order["status"], "verified": False, "message": "Verification failed"}
 
     return {"status": order["status"], "verified": False, "message": "Unknown gateway"}
