@@ -19,7 +19,7 @@ export function useProfileTyped() {
   const getProfile = useCallback(async (): Promise<ProfileData | null> => {
     try {
       const response: APIProfileResponse = await get("/profile");
-      const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+      const telegramUser = globalThis.Telegram?.WebApp?.initDataUnsafe?.user;
       const adapted = adaptProfile(response, telegramUser);
 
       // Also fetch referral network for all 3 levels

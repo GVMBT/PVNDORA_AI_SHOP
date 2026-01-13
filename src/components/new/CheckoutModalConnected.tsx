@@ -154,7 +154,7 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({ onClose
       }
 
       if (response.payment_url && method !== "internal") {
-        window.location.href = response.payment_url;
+        globalThis.location.href = response.payment_url;
         return null;
       }
 

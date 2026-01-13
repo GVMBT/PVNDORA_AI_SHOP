@@ -408,16 +408,16 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
     };
 
     // Telegram WebView frequently emits pointer/touch before click.
-    window.addEventListener("pointerdown", tryPlay, { passive: true });
-    window.addEventListener("touchstart", tryPlay, { passive: true });
-    window.addEventListener("click", tryPlay);
-    window.addEventListener("keydown", tryPlay);
+    globalThis.addEventListener("pointerdown", tryPlay, { passive: true });
+    globalThis.addEventListener("touchstart", tryPlay, { passive: true });
+    globalThis.addEventListener("click", tryPlay);
+    globalThis.addEventListener("keydown", tryPlay);
 
     return () => {
-      window.removeEventListener("pointerdown", tryPlay);
-      window.removeEventListener("touchstart", tryPlay);
-      window.removeEventListener("click", tryPlay);
-      window.removeEventListener("keydown", tryPlay);
+      globalThis.removeEventListener("pointerdown", tryPlay);
+      globalThis.removeEventListener("touchstart", tryPlay);
+      globalThis.removeEventListener("click", tryPlay);
+      globalThis.removeEventListener("keydown", tryPlay);
     };
   }, [autoPlay, isLoading, loadError, isMuted]);
 

@@ -7,11 +7,11 @@ import { useMemo } from "react";
 export function useSearchParams(): URLSearchParams {
   // Single initialization path - compute everything synchronously
   const params = useMemo(() => {
-    const p = new URLSearchParams(window.location.search);
+    const p = new URLSearchParams(globalThis.location.search);
 
     // Also check hash for Telegram Mini App params
-    if (window.location.hash) {
-      const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    if (globalThis.location.hash) {
+      const hashParams = new URLSearchParams(globalThis.location.hash.slice(1));
       hashParams.forEach((value, key) => {
         if (!p.has(key)) {
           p.set(key, value);

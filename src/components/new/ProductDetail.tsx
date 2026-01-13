@@ -103,7 +103,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
   const mouseY = useSpring(y, { stiffness: 150, damping: 20 });
 
   function handleMouseMove({ currentTarget, clientX, clientY }: React.MouseEvent) {
-    if (window.innerWidth < 768) return;
+    if (globalThis.innerWidth < 768) return;
     const { left, top, width, height } = currentTarget.getBoundingClientRect();
     const xPct = (clientX - left) / width - 0.5;
     const yPct = (clientY - top) / height - 0.5;

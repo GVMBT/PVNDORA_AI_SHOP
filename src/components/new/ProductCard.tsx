@@ -56,7 +56,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const cardY = useMotionValue(0);
 
   const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (window.innerWidth < 768) return;
+    if (globalThis.innerWidth < 768) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width - 0.5;
     const y = (e.clientY - rect.top) / rect.height - 0.5;

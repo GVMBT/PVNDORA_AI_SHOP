@@ -62,10 +62,10 @@ import { logger } from "./utils/logger";
  */
 function usePaymentRedirect() {
   return useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
+    if (typeof globalThis.window === "undefined") return null;
 
-    if (window.location.pathname === "/payment/result") {
-      const urlParams = new URLSearchParams(window.location.search);
+    if (globalThis.location.pathname === "/payment/result") {
+      const urlParams = new URLSearchParams(globalThis.location.search);
       const orderId = urlParams.get("order_id");
       const topupId = urlParams.get("topup_id");
       if (orderId) return orderId;
@@ -74,9 +74,9 @@ function usePaymentRedirect() {
 
     // Try to get start_param from Telegram WebApp
     const startParam = getStartParam();
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(globalThis.location.search);
     const urlStartapp = urlParams.get("tgWebAppStartParam") || urlParams.get("startapp");
-    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const hashParams = new URLSearchParams(globalThis.location.hash.slice(1));
     const hashStartapp = hashParams.get("tgWebAppStartParam");
 
     const effectiveStartParam = startParam || urlStartapp || hashStartapp;
@@ -206,9 +206,9 @@ function NewAppInner() {
         AudioEngine.open();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
+    globalThis.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      globalThis.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
 
@@ -219,7 +219,7 @@ function NewAppInner() {
       setSelectedProduct(null);
       setIsCheckoutOpen(false);
       setCurrentView(view);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      globalThis.scrollTo({ top: 0, behavior: "smooth" });
     },
     [handleFeedback]
   );
@@ -229,7 +229,7 @@ function NewAppInner() {
       handleFeedback("light");
       setLegalDoc(doc);
       setCurrentView("legal");
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      globalThis.scrollTo({ top: 0, behavior: "smooth" });
     },
     [handleFeedback]
   );
@@ -239,14 +239,14 @@ function NewAppInner() {
     removeSessionToken();
     setIsAuthenticated(false);
     setCurrentView("home");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    globalThis.scrollTo({ top: 0, behavior: "smooth" });
   }, [handleFeedback]);
 
   const handleProductSelect = useCallback(
     (product: CatalogProduct) => {
       handleFeedback("medium");
       setSelectedProduct(product);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      globalThis.scrollTo({ top: 0, behavior: "smooth" });
     },
     [handleFeedback]
   );
@@ -285,7 +285,7 @@ function NewAppInner() {
     getCart();
     setIsCheckoutOpen(false);
     setCurrentView("orders");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    globalThis.scrollTo({ top: 0, behavior: "smooth" });
     AudioEngine.transaction();
     hud.success(t("checkout.success.title"), t("checkout.success.description1"));
   }, [getCart, hud, t]);
@@ -344,8 +344,8 @@ function NewAppInner() {
 
   // Payment redirect URL cleanup
   useEffect(() => {
-    if (isPaymentRedirect && window.location.pathname === "/payment/result") {
-      window.history.replaceState({}, "", "/");
+    if (isPaymentRedirect && globalThis.location.pathname === "/payment/result") {
+      globalThis.history.replaceState({}, "", "/");
     }
   }, [isPaymentRedirect]);
 
@@ -362,8 +362,8 @@ function NewAppInner() {
     if (!isBooted || !isAuthenticated) return;
 
     // Get startapp from various sources
-    const urlParams = new URLSearchParams(window.location.search);
-    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const urlParams = new URLSearchParams(globalThis.location.search);
+    const hashParams = new URLSearchParams(globalThis.location.hash.slice(1));
     const startParam = getStartParam();
     const startapp =
       startParam ||
@@ -377,7 +377,7 @@ function NewAppInner() {
     if (startapp === "checkout" || startapp === "cart") {
       setIsCheckoutOpen(true);
       // Clean up URL
-      window.history.replaceState({}, "", window.location.pathname);
+      globalThis.history.replaceState({}, "", globalThis.location.pathname);
       return;
     }
 
@@ -392,7 +392,7 @@ function NewAppInner() {
           setSelectedProduct(product);
         }
       }
-      window.history.replaceState({}, "", window.location.pathname);
+      globalThis.history.replaceState({}, "", globalThis.location.pathname);
       return;
     }
 
@@ -403,7 +403,7 @@ function NewAppInner() {
       if (product) {
         setSelectedProduct(product);
       }
-      window.history.replaceState({}, "", window.location.pathname);
+      globalThis.history.replaceState({}, "", globalThis.location.pathname);
     }
   }, [isBooted, isAuthenticated, allProducts]);
 

@@ -371,7 +371,7 @@ export function PaymentResult({
           {/* Check URL params to determine which bot to return to */}
           <a
             href={(() => {
-              const urlParams = new URLSearchParams(window.location.search);
+              const urlParams = new URLSearchParams(globalThis.location.search);
               const source = urlParams.get("source");
               // If source=discount, return to discount bot, otherwise main bot
               const botUsername =
@@ -505,7 +505,7 @@ export function PaymentResult({
                 (status === "unknown" && isComplete && consecutive404sRef.current >= 3)) && (
                 <>
                   <button
-                    onClick={() => window.location.reload()}
+                    onClick={() => globalThis.location.reload()}
                     className="w-full py-3 bg-white/10 text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-white/20 transition-colors"
                   >
                     <RefreshCw size={16} />

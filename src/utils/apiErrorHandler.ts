@@ -21,7 +21,7 @@ export function parseApiError(error: unknown, endpoint?: string): ApiError {
   if (error instanceof Error) {
     // Check for HTTP status codes in message
     const statusMatch = error.message.match(/HTTP (\d+)/);
-    const status = statusMatch ? parseInt(statusMatch[1], 10) : undefined;
+    const status = statusMatch ? Number.parseInt(statusMatch[1], 10) : undefined;
 
     // Determine if error is retryable
     const retryable = status ? [429, 502, 503, 504].includes(status) : false;

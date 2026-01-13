@@ -37,7 +37,7 @@ export function useLeaderboardTyped() {
         const response: APILeaderboardResponse = await get(
           `/leaderboard?limit=${limit}&offset=${offset}`
         );
-        const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+        const telegramUser = globalThis.Telegram?.WebApp?.initDataUnsafe?.user;
         // Use currency from context (user preference) instead of language-based detection
         const currency = contextCurrency || "USD";
         const adapted = adaptLeaderboard(response, telegramUser?.id?.toString(), currency);

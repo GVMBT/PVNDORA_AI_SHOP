@@ -6,9 +6,7 @@
 
 import type {
   APIProduct,
-  APIProductDetailed,
   APIProductResponse,
-  ProductStatus,
 } from "../types/api";
 import type {
   CatalogProduct,

@@ -35,7 +35,7 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
       if (
         categoryDropdownRef.current &&
         !categoryDropdownRef.current.contains(event.target as Node) &&
-        window.innerWidth >= 768 // Only for desktop
+        globalThis.innerWidth >= 768 // Only for desktop
       ) {
         setIsCategoryDrawerOpen(false);
       }
@@ -297,7 +297,7 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                       {onDeleteProduct && (
                         <button
                           onClick={() => {
-                            if (window.confirm(`Delete "${p.name}"?`)) {
+                            if (globalThis.confirm(`Delete "${p.name}"?`)) {
                               onDeleteProduct(String(p.id));
                             }
                           }}
@@ -358,7 +358,7 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                 {onDeleteProduct && (
                   <button
                     onClick={() => {
-                      if (window.confirm(`Delete "${p.name}"?`)) {
+                      if (globalThis.confirm(`Delete "${p.name}"?`)) {
                         onDeleteProduct(String(p.id));
                       }
                     }}

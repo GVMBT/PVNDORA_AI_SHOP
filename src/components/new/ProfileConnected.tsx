@@ -172,7 +172,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
       const { prepared_message_id } = await createShareLink();
 
       // Try Telegram's shareMessage first
-      const tgWebApp = window.Telegram?.WebApp;
+      const tgWebApp = globalThis.Telegram?.WebApp;
       if (tgWebApp?.shareMessage) {
         tgWebApp.shareMessage(prepared_message_id, () => {
           // Share completed
@@ -299,7 +299,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
         const result = await createTopUp(amount, currency);
 
         if (result.payment_url) {
-          window.location.href = result.payment_url;
+          globalThis.location.href = result.payment_url;
         }
       },
     });

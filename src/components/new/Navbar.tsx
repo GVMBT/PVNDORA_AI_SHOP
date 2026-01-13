@@ -520,7 +520,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                     } else {
                       // Fallback: direct logout if no handler provided
                       removeSessionToken();
-                      window.location.reload();
+                      globalThis.location.reload();
                     }
                   }}
                   className="flex items-center gap-2 mt-2 text-xs text-red-400 hover:text-red-300 transition-colors font-mono uppercase cursor-pointer"

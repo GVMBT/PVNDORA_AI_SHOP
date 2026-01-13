@@ -55,7 +55,7 @@ class AudioEngineClass {
     if (this.ctx) return;
 
     try {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      const AudioContextClass = globalThis.AudioContext || globalThis.webkitAudioContext;
       if (!AudioContextClass) {
         logger.warn("[AudioEngine] Web Audio API not supported");
         return;

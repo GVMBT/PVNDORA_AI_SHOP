@@ -36,12 +36,12 @@ function isChunkLoadError(error: unknown): boolean {
  */
 function forceReload(): void {
   // Mark that we're reloading to prevent infinite loops
-  const reloadCount = parseInt(sessionStorage.getItem(RELOAD_KEY) || "0", 10);
+  const reloadCount = Number.parseInt(sessionStorage.getItem(RELOAD_KEY) || "0", 10);
 
   if (reloadCount < 2) {
     sessionStorage.setItem(RELOAD_KEY, String(reloadCount + 1));
     // Force reload bypassing cache
-    window.location.reload();
+    globalThis.location.reload();
   } else {
     // Clear reload counter and let error boundary show error
     sessionStorage.removeItem(RELOAD_KEY);
@@ -91,14 +91,14 @@ export function lazyWithRetry<T extends ComponentType<unknown>>(
  * Add this to your main.tsx or index.tsx
  */
 export function setupChunkErrorHandler(): void {
-  window.addEventListener("error", (event) => {
+  globalThis.addEventListener("error", (event: ErrorEvent) => {
     if (isChunkLoadError(event.error)) {
       event.preventDefault();
       forceReload();
     }
   });
 
-  window.addEventListener("unhandledrejection", (event) => {
+  globalThis.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
     if (isChunkLoadError(event.reason)) {
       event.preventDefault();
       forceReload();

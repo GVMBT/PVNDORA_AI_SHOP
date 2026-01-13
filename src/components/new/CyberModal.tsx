@@ -175,8 +175,8 @@ const Modal: React.FC<{
   // Fetch withdrawal preview when amount changes (for withdraw modal only)
   useEffect(() => {
     if (state.type === "withdraw" && state.isOpen && state.previewWithdrawal && inputValue) {
-      const amount = parseFloat(inputValue);
-      if (!isNaN(amount) && amount > 0 && amount <= (state.balance || 0)) {
+      const amount = Number.parseFloat(inputValue);
+      if (!Number.isNaN(amount) && amount > 0 && amount <= (state.balance || 0)) {
         setLoadingPreview(true);
         state
           .previewWithdrawal(amount)
@@ -197,8 +197,8 @@ const Modal: React.FC<{
   const handleSubmit = async () => {
     // Validate for topup/withdraw
     if (state.type === "topup" || state.type === "withdraw") {
-      const amount = parseFloat(inputValue);
-      if (isNaN(amount) || amount <= 0) {
+      const amount = Number.parseFloat(inputValue);
+      if (Number.isNaN(amount) || amount <= 0) {
         setError(t("modal.errors.enterAmount"));
         return;
       }
@@ -236,12 +236,12 @@ const Modal: React.FC<{
 
     if (state.type === "withdraw") {
       onSubmit({
-        amount: parseFloat(inputValue),
+        amount: Number.parseFloat(inputValue),
         method: withdrawMethod,
         details: withdrawDetails,
       });
     } else if (state.type === "topup" || state.type === "prompt") {
-      onSubmit(state.inputType === "number" ? parseFloat(inputValue) : inputValue);
+      onSubmit(state.inputType === "number" ? Number.parseFloat(inputValue) : inputValue);
     } else {
       onSubmit(undefined);
     }
@@ -425,7 +425,7 @@ const Modal: React.FC<{
                   {state.type === "withdraw" &&
                     withdrawPreview &&
                     !loadingPreview &&
-                    parseFloat(inputValue) > 0 && (
+                    Number.parseFloat(inputValue) > 0 && (
                       <div className="bg-white/5 border border-white/10 p-4 rounded space-y-2">
                         <div className="text-[10px] text-gray-500 font-mono uppercase mb-2">
                           {t("modal.withdraw.preview") || "РАСЧЁТ ВЫВОДА"}

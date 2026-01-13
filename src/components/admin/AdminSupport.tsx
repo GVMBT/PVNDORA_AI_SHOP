@@ -5,7 +5,7 @@
  */
 
 import React, { useState, memo, useCallback } from "react";
-import { MessageSquare, ArrowUpRight, Check, X, Send, ExternalLink } from "lucide-react";
+import { MessageSquare, ArrowUpRight, Check, X, ExternalLink } from "lucide-react";
 import type { TicketData } from "./types";
 import { useAdmin } from "../../hooks/useAdmin";
 import { logger } from "../../utils/logger";

@@ -158,7 +158,7 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                   <input
                     type="number"
                     value={newDiscount}
-                    onChange={(e) => setNewDiscount(parseInt(e.target.value) || 0)}
+                    onChange={(e) => setNewDiscount(Number.parseInt(e.target.value) || 0)}
                     min={1}
                     max={100}
                     className="w-full bg-black border border-white/20 px-3 py-2.5 text-white font-mono focus:border-pandora-cyan focus:outline-none"
@@ -197,7 +197,7 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                     type="number"
                     value={newLimit || ""}
                     onChange={(e) =>
-                      setNewLimit(e.target.value ? parseInt(e.target.value) : undefined)
+                      setNewLimit(e.target.value ? Number.parseInt(e.target.value) : undefined)
                     }
                     placeholder="Без ограничений"
                     min={1}

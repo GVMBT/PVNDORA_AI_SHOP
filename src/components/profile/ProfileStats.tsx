@@ -27,8 +27,8 @@ import type { ProfileDataProp } from "./types";
 
 // Format balance for display (remove excessive decimals)
 function formatBalance(balance: string | number, currency: string): string {
-  const num = typeof balance === "string" ? parseFloat(balance) : balance;
-  if (isNaN(num)) return "0";
+  const num = typeof balance === "string" ? Number.parseFloat(balance) : balance;
+  if (Number.isNaN(num)) return "0";
 
   // Integer currencies (no decimals)
   const integerCurrencies = ["RUB", "UAH", "TRY", "INR"];

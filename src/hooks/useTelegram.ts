@@ -53,7 +53,7 @@ export function useTelegram(): UseTelegramReturn {
   const [colorScheme, setColorScheme] = useState<ColorScheme>("dark");
 
   useEffect(() => {
-    const tg: WebApp | undefined = window.Telegram?.WebApp;
+    const tg: WebApp | undefined = globalThis.Telegram?.WebApp;
 
     if (tg) {
       // Mark as ready
@@ -87,29 +87,29 @@ export function useTelegram(): UseTelegramReturn {
   }, []);
 
   const showConfirm = useCallback((message: string): Promise<boolean> => {
-    const tg: WebApp | undefined = window.Telegram?.WebApp;
+    const tg: WebApp | undefined = globalThis.Telegram?.WebApp;
     if (tg?.showConfirm) {
       return new Promise((resolve) => {
         tg.showConfirm(message, resolve);
       });
     }
-    return Promise.resolve(window.confirm(message));
+    return Promise.resolve(globalThis.confirm(message));
   }, []);
 
   const showAlert = useCallback((message: string): Promise<void> => {
-    const tg: WebApp | undefined = window.Telegram?.WebApp;
+    const tg: WebApp | undefined = globalThis.Telegram?.WebApp;
     if (tg?.showAlert) {
       return new Promise((resolve) => {
         tg.showAlert(message, resolve);
       });
     }
-    window.alert(message);
+    globalThis.alert(message);
     return Promise.resolve();
   }, []);
 
   const hapticFeedback = useCallback(
     (type: HapticType = "impact", style: HapticStyle = "medium"): void => {
-      const haptic = window.Telegram?.WebApp?.HapticFeedback;
+      const haptic = globalThis.Telegram?.WebApp?.HapticFeedback;
       if (haptic) {
         if (type === "impact") {
           // Map custom styles to Telegram styles
@@ -118,14 +118,12 @@ export function useTelegram(): UseTelegramReturn {
           haptic.impactOccurred(telegramStyle);
         } else if (type === "notification") {
           // Map custom styles to Telegram notification types
-          const notificationType: HapticNotificationType =
-            style === "success"
-              ? "success"
-              : style === "warning"
-                ? "warning"
-                : style === "error"
-                  ? "error"
-                  : "error";
+          const notificationMap: Record<string, HapticNotificationType> = {
+            success: "success",
+            warning: "warning",
+            error: "error",
+          };
+          const notificationType: HapticNotificationType = notificationMap[style] || "error";
           haptic.notificationOccurred(notificationType);
         } else if (type === "selection") {
           haptic.selectionChanged();
@@ -136,23 +134,23 @@ export function useTelegram(): UseTelegramReturn {
   );
 
   const close = useCallback((): void => {
-    window.Telegram?.WebApp?.close();
+    globalThis.Telegram?.WebApp?.close();
   }, []);
 
   const openLink = useCallback((url: string): void => {
-    window.Telegram?.WebApp?.openLink(url);
+    globalThis.Telegram?.WebApp?.openLink(url);
   }, []);
 
   const openTelegramLink = useCallback((url: string): void => {
-    window.Telegram?.WebApp?.openTelegramLink(url);
+    globalThis.Telegram?.WebApp?.openTelegramLink(url);
   }, []);
 
   const sendData = useCallback((data: unknown): void => {
-    window.Telegram?.WebApp?.sendData(JSON.stringify(data));
+    globalThis.Telegram?.WebApp?.sendData(JSON.stringify(data));
   }, []);
 
   const setMainButton = useCallback((config: MainButtonConfig): void => {
-    const btn = window.Telegram?.WebApp?.MainButton;
+    const btn = globalThis.Telegram?.WebApp?.MainButton;
     if (btn) {
       if (config.text) btn.setText(config.text);
       if (config.color) btn.setParams({ color: config.color });
@@ -168,7 +166,7 @@ export function useTelegram(): UseTelegramReturn {
   }, []);
 
   const setBackButton = useCallback((config: BackButtonConfig): void => {
-    const btn = window.Telegram?.WebApp?.BackButton;
+    const btn = globalThis.Telegram?.WebApp?.BackButton;
     if (btn) {
       if (config.onClick) btn.onClick(config.onClick);
       if (config.isVisible !== undefined) {

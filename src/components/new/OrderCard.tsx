@@ -112,7 +112,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
           setPaymentCheckResult("✅ Оплата подтверждена! Обновление статуса...");
           // Reload page after 2 seconds to show updated status
           setTimeout(() => {
-            window.location.reload();
+            globalThis.location.reload();
           }, 2000);
         } else {
           setPaymentCheckResult(
@@ -215,7 +215,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
                   disabled={isPaymentExpired}
                   onClick={() => {
                     if (isPaymentExpired) return;
-                    window.location.href = order.payment_url!;
+                    globalThis.location.href = order.payment_url!;
                   }}
                   className={`px-4 py-2 font-mono text-xs font-bold uppercase transition-colors ${
                     isPaymentExpired

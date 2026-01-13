@@ -101,21 +101,21 @@ const getHumanValue = (value: string): string => {
 
   // Handle dynamic values like "3 DAYS" or "24 HOURS"
   if (value.includes("DAYS")) {
-    const num = parseInt(value);
-    if (!isNaN(num)) {
+    const num = Number.parseInt(value);
+    if (!Number.isNaN(num)) {
       return `${num} ${num === 1 ? "день" : num < 5 ? "дня" : "дней"}`;
     }
   }
   if (value.includes("HOURS")) {
-    const num = parseInt(value);
-    if (!isNaN(num)) {
+    const num = Number.parseInt(value);
+    if (!Number.isNaN(num)) {
       return `${num} ${num === 1 ? "час" : num < 5 ? "часа" : "часов"}`;
     }
   }
   if (value.includes("ALLOCATION_QUEUE")) {
     const match = value.match(/~?(\d+)H?/);
     if (match) {
-      const hours = parseInt(match[1]);
+      const hours = Number.parseInt(match[1]);
       return `~${hours} ч`;
     }
   }

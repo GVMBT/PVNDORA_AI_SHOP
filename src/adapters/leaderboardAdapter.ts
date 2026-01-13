@@ -45,7 +45,7 @@ function adaptLeaderboardEntry(entry: APILeaderboardEntry): LeaderboardUser {
   return {
     rank: entry.rank,
     name: entry.name,
-    handle: `@${entry.name.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
+    handle: `@${entry.name.toLowerCase().replaceAll(/[^a-z0-9]/g, "")}`,
     marketSpend: Math.round(marketSpend),
     actualSpend: Math.round(actualSpend),
     saved: entry.total_saved,
@@ -81,7 +81,7 @@ export function adaptLeaderboard(
   // user_rank === null means backend couldn't determine rank (should not happen)
   if (!currentUserInList && user_rank != null && user_rank > 0) {
     // Get actual user name from Telegram if available
-    const telegramUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    const telegramUser = globalThis.Telegram?.WebApp?.initDataUnsafe?.user;
     const userName = telegramUser?.first_name || "YOU";
     const userHandle = telegramUser?.username ? `@${telegramUser.username}` : "@you";
     const avatarUrl =

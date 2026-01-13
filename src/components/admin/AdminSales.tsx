@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useMemo, memo, useCallback } from "react";
-import { Search, RefreshCw, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Search, RefreshCw, CheckCircle, XCircle } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import type { OrderData } from "./types";
 import { apiRequest } from "../../utils/apiClient";

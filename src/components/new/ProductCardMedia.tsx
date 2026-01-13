@@ -46,7 +46,7 @@ class ParticleSystem {
   }
 
   private resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2); // Limit DPR for performance
+    const dpr = Math.min(globalThis.devicePixelRatio || 1, 2); // Limit DPR for performance
     this.canvas.width = this.canvas.offsetWidth * dpr;
     this.canvas.height = this.canvas.offsetHeight * dpr;
     this.ctx.scale(dpr, dpr);
@@ -212,7 +212,7 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
 
     try {
       const system = new ParticleSystem(canvasRef.current);
-      const particleCount = window.innerWidth < 768 ? 15 : 30; // Fewer particles on mobile
+      const particleCount = globalThis.innerWidth < 768 ? 15 : 30; // Fewer particles on mobile
       system.init(particleCount);
       particleSystemRef.current = system;
 

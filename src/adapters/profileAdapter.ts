@@ -9,14 +9,14 @@ import type { ProfileData, CareerLevel, BillingLog, NetworkNode } from "../types
 import type { CurrencyCode } from "../utils/currency";
 
 // Valid currency codes for type validation
-const VALID_CURRENCIES: CurrencyCode[] = ["USD", "RUB", "EUR", "UAH", "TRY", "INR", "AED", "GBP"];
+const VALID_CURRENCIES = new Set<CurrencyCode>(["USD", "RUB", "EUR", "UAH", "TRY", "INR", "AED", "GBP"]);
 
 /**
  * Validate and normalize currency code from API
  */
 function normalizeCurrency(currency: string | undefined): CurrencyCode {
   const upperCurrency = (currency || "USD").toUpperCase();
-  if (VALID_CURRENCIES.includes(upperCurrency as CurrencyCode)) {
+  if (VALID_CURRENCIES.has(upperCurrency as CurrencyCode)) {
     return upperCurrency as CurrencyCode;
   }
   return "USD"; // Default fallback
@@ -243,7 +243,7 @@ export function adaptProfile(
   // Calculate conversion rate
   const conversionRate =
     referral_stats.click_count > 0
-      ? parseFloat(((referral_stats.level1_count / referral_stats.click_count) * 100).toFixed(1))
+      ? Number.parseFloat(((referral_stats.level1_count / referral_stats.click_count) * 100).toFixed(1))
       : 0;
 
   // Use telegramUser from initData first, fallback to profile data from DB

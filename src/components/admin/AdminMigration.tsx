@@ -5,12 +5,7 @@
  */
 
 import React, { useEffect, useState } from "react";
-import {
-  useAdminMigrationApi,
-  MigrationStats,
-  MigrationTrend,
-  TopMigratingProduct,
-} from "../../hooks/api/useAdminMigrationApi";
+import { useAdminMigrationApi } from "../../hooks/api/useAdminMigrationApi";
 import { ArrowUpRight, Users, ShoppingBag, DollarSign, TrendingUp, Tag } from "lucide-react";
 import StatCard from "./StatCard";
 

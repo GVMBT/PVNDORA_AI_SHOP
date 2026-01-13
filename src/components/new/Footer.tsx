@@ -53,7 +53,7 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
                   <MessageCircle size={18} />
                 </button>
                 <button
-                  onClick={() => window.open("mailto:support@pvndora.app")}
+                  onClick={() => globalThis.open("mailto:support@pvndora.app")}
                   className="w-10 h-10 border border-white/10 rounded-sm flex items-center justify-center text-gray-400 hover:text-pandora-cyan hover:border-pandora-cyan transition-all"
                 >
                   <Mail size={18} />

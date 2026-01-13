@@ -108,8 +108,8 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
   // Update balance
   const handleUpdateBalance = async () => {
     if (!balanceModal || !balanceAmount) return;
-    const amount = parseFloat(balanceAmount);
-    if (isNaN(amount)) return;
+    const amount = Number.parseFloat(balanceAmount);
+    if (Number.isNaN(amount)) return;
 
     setProcessing(true);
     try {

@@ -12,7 +12,7 @@ import type { WebApp } from "./types/telegram";
 setupChunkErrorHandler();
 
 // Initialize Telegram WebApp
-const tgWebApp: WebApp | undefined = window.Telegram?.WebApp;
+const tgWebApp: WebApp | undefined = globalThis.Telegram?.WebApp;
 if (tgWebApp) {
   tgWebApp.ready();
   tgWebApp.expand();
@@ -44,10 +44,10 @@ const unlockAudio = () => {
 };
 
 // Add listeners for all possible interaction events
-window.addEventListener("pointerdown", unlockAudio, { once: true, passive: true });
-window.addEventListener("touchstart", unlockAudio, { once: true, passive: true });
-window.addEventListener("click", unlockAudio, { once: true });
-window.addEventListener("keydown", unlockAudio, { once: true });
+globalThis.addEventListener("pointerdown", unlockAudio, { once: true, passive: true });
+globalThis.addEventListener("touchstart", unlockAudio, { once: true, passive: true });
+globalThis.addEventListener("click", unlockAudio, { once: true });
+globalThis.addEventListener("keydown", unlockAudio, { once: true });
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {

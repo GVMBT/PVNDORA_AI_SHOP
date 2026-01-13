@@ -119,44 +119,44 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
           endDate: data.end_date,
 
           // Orders
-          totalOrders: parseInt(data.total_orders) || 0,
+          totalOrders: Number.parseInt(data.total_orders) || 0,
 
           // Revenue by currency (NEW - real amounts!)
           revenueByCurrency: data.revenue_by_currency || {},
 
           // Legacy totals in USD
-          totalRevenue: parseFloat(data.total_revenue) || 0,
-          revenueGross: parseFloat(data.total_revenue_gross) || 0,
-          totalDiscountsGiven: parseFloat(data.total_discounts_given) || 0,
+          totalRevenue: Number.parseFloat(data.total_revenue) || 0,
+          revenueGross: Number.parseFloat(data.total_revenue_gross) || 0,
+          totalDiscountsGiven: Number.parseFloat(data.total_discounts_given) || 0,
 
           // Expenses (always in USD)
-          totalCogs: parseFloat(data.total_cogs) || 0,
-          totalAcquiringFees: parseFloat(data.total_acquiring_fees) || 0,
-          totalReferralPayouts: parseFloat(data.total_referral_payouts) || 0,
-          totalReserves: parseFloat(data.total_reserves) || 0,
-          totalReviewCashbacks: parseFloat(data.total_review_cashbacks) || 0,
-          totalReplacementCosts: parseFloat(data.total_replacement_costs) || 0,
-          totalOtherExpenses: parseFloat(data.total_other_expenses) || 0,
-          totalInsuranceRevenue: parseFloat(data.total_insurance_revenue) || 0,
+          totalCogs: Number.parseFloat(data.total_cogs) || 0,
+          totalAcquiringFees: Number.parseFloat(data.total_acquiring_fees) || 0,
+          totalReferralPayouts: Number.parseFloat(data.total_referral_payouts) || 0,
+          totalReserves: Number.parseFloat(data.total_reserves) || 0,
+          totalReviewCashbacks: Number.parseFloat(data.total_review_cashbacks) || 0,
+          totalReplacementCosts: Number.parseFloat(data.total_replacement_costs) || 0,
+          totalOtherExpenses: Number.parseFloat(data.total_other_expenses) || 0,
+          totalInsuranceRevenue: Number.parseFloat(data.total_insurance_revenue) || 0,
 
           // Liabilities by currency (NEW - real amounts!)
           liabilitiesByCurrency: data.liabilities_by_currency || {},
 
           // Legacy liabilities
-          totalUserBalances: parseFloat(data.total_user_balances) || 0,
-          pendingWithdrawals: parseFloat(data.pending_withdrawals) || 0,
+          totalUserBalances: Number.parseFloat(data.total_user_balances) || 0,
+          pendingWithdrawals: Number.parseFloat(data.pending_withdrawals) || 0,
 
           // Profit (USD)
-          netProfit: parseFloat(data.net_profit) || 0,
-          grossProfit: parseFloat(data.profit_usd?.gross_profit) || undefined,
-          operatingProfit: parseFloat(data.profit_usd?.operating_profit) || undefined,
-          grossMarginPct: parseFloat(data.profit_usd?.gross_margin_pct) || undefined,
-          netMarginPct: parseFloat(data.profit_usd?.net_margin_pct) || undefined,
+          netProfit: Number.parseFloat(data.net_profit) || 0,
+          grossProfit: Number.parseFloat(data.profit_usd?.gross_profit) || undefined,
+          operatingProfit: Number.parseFloat(data.profit_usd?.operating_profit) || undefined,
+          grossMarginPct: Number.parseFloat(data.profit_usd?.gross_margin_pct) || undefined,
+          netMarginPct: Number.parseFloat(data.profit_usd?.net_margin_pct) || undefined,
 
           // Reserves
-          reservesAccumulated: parseFloat(data.reserves_accumulated) || 0,
-          reservesUsed: parseFloat(data.reserves_used) || 0,
-          reservesAvailable: parseFloat(data.reserves_available) || 0,
+          reservesAccumulated: Number.parseFloat(data.reserves_accumulated) || 0,
+          reservesUsed: Number.parseFloat(data.reserves_used) || 0,
+          reservesAvailable: Number.parseFloat(data.reserves_available) || 0,
 
           // Deprecated (kept for backward compatibility)
           currencyBreakdown: data.currency_breakdown || data.revenue_by_currency || {},
@@ -255,7 +255,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     // Update ref with fresh mapping
     const newMap = new Map<number, string>();
     const result = users.map((u) => {
-      const telegramId = parseInt(u.telegram_id) || 0;
+      const telegramId = Number.parseInt(u.telegram_id) || 0;
       newMap.set(telegramId, u.id);
       return {
         id: telegramId,
@@ -357,9 +357,9 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     (telegramId: number, _amount: number) => {
       const userId = userIdMapRef.current.get(telegramId);
       if (userId) {
-        const amount = window.prompt("Enter amount to add (negative to subtract):", "0");
+        const amount = globalThis.prompt("Enter amount to add (negative to subtract):", "0");
         if (amount !== null) {
-          const parsed = parseFloat(amount);
+          const parsed = Number.parseFloat(amount);
           if (!isNaN(parsed)) {
             updateBalance(userId, parsed);
           }

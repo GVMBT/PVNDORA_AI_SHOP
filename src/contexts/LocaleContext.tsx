@@ -69,7 +69,7 @@ interface LocaleProviderProps {
 function getDefaultLocale(): LocaleCode {
   if (typeof window === "undefined") return "en";
 
-  const tgLang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
+  const tgLang = globalThis.Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
   const browserLang = navigator.language?.split("-")[0];
   const detectedLang = tgLang || browserLang || "en";
 

@@ -108,10 +108,8 @@ async def send_telegram_message(chat_id: str, text: str) -> bool:
     )
 
 
-def format_stock_alert(products: list) -> str:
-    """Format stock alert message in Russian with actionable instructions."""
-
-    # Group by status for better readability
+def _group_products_by_status(products: list) -> tuple[list, list, list]:
+    """Group products by stock status."""
     out_of_stock = []
     critical = []
     low = []
@@ -125,35 +123,43 @@ def format_stock_alert(products: list) -> str:
         else:
             low.append(p)
 
-    lines = ["<b>📦 КОНТРОЛЬ ЗАПАСОВ</b>\n"]
+    return out_of_stock, critical, low
 
-    # Out of stock - urgent
-    if out_of_stock:
-        lines.append("🔴 <b>НЕТ В НАЛИЧИИ</b> — требуется срочное пополнение:")
-        for p in out_of_stock:
-            name = p.get("name", "Неизвестно")
+
+def _format_stock_section(products: list, title: str, show_price: bool = False) -> list[str]:
+    """Format a section of products for the alert message."""
+    if not products:
+        return []
+
+    lines = [title]
+    for p in products:
+        name = p.get("name", "Неизвестно")
+        if show_price:
             discount_price = p.get("discount_price")
             price_str = f" (${discount_price})" if discount_price else ""
             lines.append(f"   • {name}{price_str}")
-        lines.append("")
-
-    # Critical - action needed
-    if critical:
-        lines.append("🟠 <b>КРИТИЧЕСКИ МАЛО</b> (1-2 шт) — пополнить в ближайшее время:")
-        for p in critical:
-            name = p.get("name", "Неизвестно")
+        else:
             count = p.get("available_count", 0)
             lines.append(f"   • {name}: {count} шт")
-        lines.append("")
+    lines.append("")
+    return lines
 
-    # Low stock - warning
-    if low:
-        lines.append("🟡 <b>ЗАКАНЧИВАЕТСЯ</b> (3-5 шт) — запланировать пополнение:")
-        for p in low:
-            name = p.get("name", "Неизвестно")
-            count = p.get("available_count", 0)
-            lines.append(f"   • {name}: {count} шт")
-        lines.append("")
+
+def format_stock_alert(products: list) -> str:
+    """Format stock alert message in Russian with actionable instructions."""
+    out_of_stock, critical, low = _group_products_by_status(products)
+
+    lines = ["<b>📦 КОНТРОЛЬ ЗАПАСОВ</b>\n"]
+
+    lines.extend(_format_stock_section(
+        out_of_stock, "🔴 <b>НЕТ В НАЛИЧИИ</b> — требуется срочное пополнение:", show_price=True
+    ))
+    lines.extend(_format_stock_section(
+        critical, "🟠 <b>КРИТИЧЕСКИ МАЛО</b> (1-2 шт) — пополнить в ближайшее время:"
+    ))
+    lines.extend(_format_stock_section(
+        low, "🟡 <b>ЗАКАНЧИВАЕТСЯ</b> (3-5 шт) — запланировать пополнение:"
+    ))
 
     # Action summary
     total = len(out_of_stock) + len(critical) + len(low)

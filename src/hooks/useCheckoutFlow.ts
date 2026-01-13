@@ -240,7 +240,7 @@ export function useCheckoutFlow({
         if (result.payment_url) {
           // Replace current window with payment URL
           // After payment, CrystalPay will redirect to /payment/result for polling
-          window.location.href = result.payment_url;
+          globalThis.location.href = result.payment_url;
           return;
         } else {
           await showAlert(t("checkout.orderCreated"));

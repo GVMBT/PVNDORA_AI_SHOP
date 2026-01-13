@@ -50,16 +50,16 @@ export class ErrorBoundary extends Component<Props, State> {
 
     // Auto-reload on chunk errors (stale cache)
     if (isChunkLoadError(error)) {
-      const reloadCount = parseInt(sessionStorage.getItem("pvndora_chunk_reload") || "0", 10);
+      const reloadCount = Number.parseInt(sessionStorage.getItem("pvndora_chunk_reload") || "0", 10);
       if (reloadCount < 2) {
         sessionStorage.setItem("pvndora_chunk_reload", String(reloadCount + 1));
-        window.location.reload();
+        globalThis.location.reload();
       }
     }
   }
 
   handleReload = () => {
-    window.location.reload();
+    globalThis.location.reload();
   };
 
   handleReset = () => {

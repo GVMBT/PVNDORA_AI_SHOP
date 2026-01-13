@@ -170,14 +170,42 @@ async def process_paid_order(db, order_id: str, order_data: dict):
         logger.exception(f"Failed to process paid order {order_id}")
 
 
+async def _process_invoice_state(
+    db: Any, order_id_str: str, invoice_id_str: str, order_dict: dict[str, Any], state: str
+) -> bool:
+    """Process invoice state. Returns True if payment was processed."""
+    if state == "payed":
+        logger.info(f"Invoice {invoice_id_str} is PAID - processing order {order_id_str}")
+        await process_paid_order(db, order_id_str, order_dict)
+        return True
+
+    if state in ["cancelled", "failed"]:
+        await db.client.table("orders").update(
+            {"status": "cancelled", "notes": f"Payment {state}"}
+        ).eq("id", order_id_str).execute()
+        logger.info(f"Order {order_id_str} marked as cancelled (invoice {state})")
+
+    return False
+
+
+async def _fetch_pending_orders(db: Any, cutoff_time: datetime) -> list[Any]:
+    """Fetch pending CrystalPay orders."""
+    result = (
+        await db.client.table("orders")
+        .select("id, payment_id, source_channel, user_telegram_id, amount")
+        .eq("status", "pending")
+        .eq("payment_gateway", "crystalpay")
+        .not_.is_("payment_id", "null")
+        .gte("created_at", cutoff_time.isoformat())
+        .limit(20)
+        .execute()
+    )
+    return result.data or []
+
+
 @app.get("/api/cron/check_pending_payments")
 async def check_pending_payments(request: Request):
-    """
-    Check pending CrystalPay orders and update their status.
-
-    This is a fallback when webhook doesn't work.
-    """
-    # Verify the request is from Vercel Cron
+    """Check pending CrystalPay orders and update their status."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
@@ -188,30 +216,14 @@ async def check_pending_payments(request: Request):
 
     try:
         db = await get_database_async()
-
-        # Get pending orders with payment_id (CrystalPay invoice)
-        # Only check orders created in last 2 hours (invoice lifetime)
         cutoff_time = datetime.now(UTC) - timedelta(hours=2)
-
-        result = (
-            await db.client.table("orders")
-            .select("id, payment_id, source_channel, user_telegram_id, amount")
-            .eq("status", "pending")
-            .eq("payment_gateway", "crystalpay")
-            .not_.is_("payment_id", "null")
-            .gte("created_at", cutoff_time.isoformat())
-            .limit(20)
-            .execute()
-        )
-
-        pending_orders = result.data or []
+        pending_orders = await _fetch_pending_orders(db, cutoff_time)
 
         if not pending_orders:
             logger.info("No pending CrystalPay orders to check")
             return JSONResponse({"ok": True, "checked": 0, "paid": 0})
 
         logger.info(f"Checking {len(pending_orders)} pending CrystalPay orders")
-
         paid_count = 0
 
         for order in pending_orders:
@@ -224,30 +236,12 @@ async def check_pending_payments(request: Request):
             if not order_id or not invoice_id:
                 continue
 
-            order_id_str = str(order_id)
-            invoice_id_str = str(invoice_id)
-
-            # Check invoice status
-            status_result = await check_invoice_status(invoice_id_str)
-
+            status_result = await check_invoice_status(str(invoice_id))
             if status_result.get("success"):
                 state = status_result.get("state", "").lower()
-
-                if state == "payed":
-                    # Invoice is paid! Process the order
-                    logger.info(
-                        f"Invoice {invoice_id_str} is PAID - processing order {order_id_str}"
-                    )
-                    await process_paid_order(db, order_id_str, order_dict)
+                if await _process_invoice_state(db, str(order_id), str(invoice_id), order_dict, state):
                     paid_count += 1
-                elif state in ["cancelled", "failed"]:
-                    # Invoice cancelled/failed - update order
-                    await db.client.table("orders").update(
-                        {"status": "cancelled", "notes": f"Payment {state}"}
-                    ).eq("id", order_id_str).execute()
-                    logger.info(f"Order {order_id_str} marked as cancelled (invoice {state})")
 
-            # Small delay between API calls
             await asyncio.sleep(0.2)
 
         return JSONResponse({"ok": True, "checked": len(pending_orders), "paid": paid_count})

@@ -56,7 +56,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
         saveSessionToken(data.session_token);
         onLoginSuccess();
         if (redirectPath) {
-          window.location.replace(redirectPath);
+          globalThis.location.replace(redirectPath);
         }
       } catch (err: unknown) {
         logger.error("Login error", err instanceof Error ? err : new Error(String(err)));
@@ -78,7 +78,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
         if (data?.valid) {
           onLoginSuccess();
           if (redirectPath) {
-            window.location.replace(redirectPath);
+            globalThis.location.replace(redirectPath);
           }
         } else {
           removeSessionToken();
@@ -89,7 +89,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
     checkExistingSession();
 
     // Setup global callback for Telegram Widget
-    window.onTelegramAuth = handleTelegramAuth;
+    globalThis.onTelegramAuth = handleTelegramAuth;
 
     // Load Telegram widget script
     const script = document.createElement("script");
@@ -108,7 +108,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
     }
 
     return () => {
-      delete window.onTelegramAuth;
+      delete globalThis.onTelegramAuth;
       if (container && script.parentNode === container) {
         container.removeChild(script);
       }

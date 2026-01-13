@@ -65,8 +65,8 @@ export function useErrorHandler() {
       if (shouldShowAlert) {
         const message = userMessage || getErrorMessage(err, context);
         showAlert(message).catch(() => {
-          // Fallback to window.alert if Telegram alert fails
-          window.alert(message);
+          // Fallback to globalThis.alert if Telegram alert fails
+          globalThis.alert(message);
         });
       }
 

@@ -22,15 +22,15 @@ import { apiPost } from "./apiClient";
  * ```
  */
 export function persistSessionTokenFromQuery(): string | null {
-  if (typeof window === "undefined") return null;
+  if (typeof globalThis.window === "undefined") return null;
   try {
-    const url = new URL(window.location.href);
+    const url = new URL(globalThis.location.href);
     const token = url.searchParams.get("session_token");
     if (token) {
       localStorage.set(CACHE.SESSION_TOKEN_KEY, token);
       // Remove token from URL to avoid leaking
       url.searchParams.delete("session_token");
-      window.history.replaceState({}, "", url.toString());
+      globalThis.history.replaceState({}, "", url.toString());
       return token;
     }
   } catch {

@@ -12,11 +12,9 @@ import {
   Users,
   Check,
   X,
-  MessageSquare,
   RefreshCw,
   User,
   Calendar,
-  DollarSign,
   ExternalLink,
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
