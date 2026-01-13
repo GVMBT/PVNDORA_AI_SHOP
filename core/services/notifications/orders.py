@@ -17,6 +17,59 @@ logger = get_logger(__name__)
 # =============================================================================
 
 
+def _format_amount(amount: float, currency: str) -> str:
+    """Format amount with currency symbol (reduces cognitive complexity)."""
+    from core.services.currency import CURRENCY_SYMBOLS
+
+    symbol = CURRENCY_SYMBOLS.get(currency, currency)
+    if currency in ["RUB", "UAH", "TRY", "INR"]:
+        return f"{int(amount)} {symbol}"
+    return f"{amount:.2f} {symbol}"
+
+
+def _categorize_order_items(items_data: list) -> tuple[list[str], list[str]]:
+    """Categorize order items into instant and prepaid (reduces cognitive complexity)."""
+    instant_items = []
+    prepaid_items = []
+
+    for item in items_data:
+        product_name = (
+            item.get("products", {}).get("name")
+            if isinstance(item.get("products"), dict)
+            else "Product"
+        )
+        quantity = item.get("quantity", 1)
+        fulfillment_type = item.get("fulfillment_type", "instant")
+
+        item_text = f"• {product_name}" + (f" × {quantity}" if quantity > 1 else "")
+
+        if fulfillment_type == "preorder":
+            prepaid_items.append(item_text)
+        else:
+            instant_items.append(item_text)
+
+    return instant_items, prepaid_items
+
+
+def _build_items_list_text(
+    lang: str, instant_items: list[str], prepaid_items: list[str]
+) -> str:
+    """Build items list text for notification (reduces cognitive complexity)."""
+    if instant_items and prepaid_items:
+        items_list_text = "\n"
+        items_list_text += "📦 <b>В наличии:</b>\n" if lang == "ru" else "📦 <b>In stock:</b>\n"
+        items_list_text += "\n".join(instant_items) + "\n\n"
+        items_list_text += "⏳ <b>По предзаказу:</b>\n" if lang == "ru" else "⏳ <b>Preorder:</b>\n"
+        items_list_text += "\n".join(prepaid_items) + "\n"
+        return items_list_text
+
+    all_items = instant_items + prepaid_items
+    if all_items:
+        return "\n" + "\n".join(all_items) + "\n"
+
+    return ""
+
+
 def _build_delivery_info(lang: str, instant_items: list, prepaid_items: list) -> str:
     """Build delivery info text based on item types (reduces cognitive complexity)."""
     from .base import _msg
@@ -99,6 +152,26 @@ class OrderNotificationsMixin(NotificationServiceBase):
         except Exception:
             logger.exception("Failed to send review request")
 
+    async def _fetch_order_items(self, order_id: str) -> tuple[list[str], list[str]]:
+        """Fetch and categorize order items (reduces cognitive complexity)."""
+        instant_items: list[str] = []
+        prepaid_items: list[str] = []
+
+        try:
+            db = get_database()
+            items_result = (
+                await db.client.table("order_items")
+                .select("quantity, fulfillment_type, products(name)")
+                .eq("order_id", order_id)
+                .execute()
+            )
+            if items_result.data:
+                instant_items, prepaid_items = _categorize_order_items(items_result.data)
+        except Exception as e:
+            logger.warning("Failed to fetch order items for notification %s: %s", order_id, e)
+
+        return instant_items, prepaid_items
+
     async def send_expiration_reminder(
         self, telegram_id: int, product_name: str, days_left: int, language: str
     ) -> None:
@@ -134,68 +207,15 @@ class OrderNotificationsMixin(NotificationServiceBase):
             has_instant_items: Whether order has instant delivery items
             preorder_count: Number of preorder items waiting
         """
-        from core.services.currency import CURRENCY_SYMBOLS
-
         from .base import _msg, get_user_language
 
         lang = await get_user_language(telegram_id)
-
-        # Format amount
-        symbol = CURRENCY_SYMBOLS.get(currency, currency)
-        if currency in ["RUB", "UAH", "TRY", "INR"]:
-            amount_formatted = f"{int(amount)} {symbol}"
-        else:
-            amount_formatted = f"{amount:.2f} {symbol}"
-
+        amount_formatted = _format_amount(amount, currency)
         short_id = order_id[:8] if len(order_id) > 8 else order_id
 
-        # Get order items with product names and fulfillment types
-        items_list_text = ""
-        instant_items = []
-        prepaid_items = []
-        try:
-            db = get_database()
-            items_result = (
-                await db.client.table("order_items")
-                .select("quantity, fulfillment_type, products(name)")
-                .eq("order_id", order_id)
-                .execute()
-            )
-
-            if items_result.data:
-                for item in items_result.data:
-                    product_name = (
-                        item.get("products", {}).get("name")
-                        if isinstance(item.get("products"), dict)
-                        else "Product"
-                    )
-                    quantity = item.get("quantity", 1)
-                    fulfillment_type = item.get("fulfillment_type", "instant")
-
-                    item_text = f"• {product_name}" + (f" × {quantity}" if quantity > 1 else "")
-
-                    if fulfillment_type == "preorder":
-                        prepaid_items.append(item_text)
-                    else:
-                        instant_items.append(item_text)
-
-                # Build items list - separate sections for combined orders
-                if instant_items and prepaid_items:
-                    # COMBINED: Show instant and prepaid separately
-                    items_list_text = "\n"
-                    items_list_text += (
-                        "📦 <b>В наличии:</b>\n" if lang == "ru" else "📦 <b>In stock:</b>\n"
-                    )
-                    items_list_text += "\n".join(instant_items) + "\n\n"
-                    items_list_text += (
-                        "⏳ <b>По предзаказу:</b>\n" if lang == "ru" else "⏳ <b>Preorder:</b>\n"
-                    )
-                    items_list_text += "\n".join(prepaid_items) + "\n"
-                elif all_items := (instant_items + prepaid_items):
-                    # SINGLE TYPE: Show all items together
-                    items_list_text = "\n" + "\n".join(all_items) + "\n"
-        except Exception as e:
-            logger.warning("Failed to fetch order items for notification %s: %s", order_id, e)
+        # Fetch and categorize order items
+        instant_items, prepaid_items = await self._fetch_order_items(order_id)
+        items_list_text = _build_items_list_text(lang, instant_items, prepaid_items)
 
         delivery_info = _build_delivery_info(lang, instant_items, prepaid_items)
 

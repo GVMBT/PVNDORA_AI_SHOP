@@ -61,7 +61,7 @@ async def get_webapp_order_status(
 
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERROR_USER_NOT_FOUND)
 
     result = (
         await db.client.table("orders")
@@ -182,7 +182,7 @@ async def verify_order_payment(order_id: str, user=Depends(verify_telegram_auth)
 
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERROR_USER_NOT_FOUND)
 
     result = await db.client.table("orders").select("*").eq("id", order_id).single().execute()
 
@@ -237,7 +237,7 @@ async def get_webapp_orders(
     db_user = await db.get_user_by_telegram_id(user.id)
 
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERROR_USER_NOT_FOUND)
 
     # Build query
     query = (
@@ -423,7 +423,7 @@ async def get_payment_methods(
 
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERROR_USER_NOT_FOUND)
 
     # Determine user's currency
     user_lang = getattr(db_user, "interface_language", None) or (
