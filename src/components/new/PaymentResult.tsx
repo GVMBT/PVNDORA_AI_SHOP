@@ -106,48 +106,44 @@ export function PaymentResult({
     setLogs((prev) => [...prev.slice(-9), { timestamp, message, type }]);
   }, []);
 
+  // Helper to map backend status to PaymentStatus (reduces cognitive complexity)
+  const mapBackendStatus = (backendStatus: string): PaymentStatus => {
+    const status = backendStatus.toLowerCase();
+    if (["delivered", "completed", "ready"].includes(status)) return "delivered";
+    if (["paid", "processing", "prepaid"].includes(status)) return "paid";
+    if (status === "partial") return "partial";
+    if (["pending", "awaiting_payment"].includes(status)) return "pending";
+    if (["expired", "cancelled"].includes(status)) return "expired";
+    if (["failed", "refunded"].includes(status)) return "failed";
+    return "unknown";
+  };
+
+  // Helper to handle 404 errors (reduces cognitive complexity)
+  const handle404Error = (error: unknown): { status: PaymentStatus; error: Error; httpStatus: number } | null => {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes("404") || errorMessage.includes("ORDER_NOT_FOUND")) {
+      return {
+        status: "unknown" as PaymentStatus,
+        error: new Error("ORDER_NOT_FOUND"),
+        httpStatus: 404,
+      };
+    }
+    return null;
+  };
+
   // Check order/topup status
   const checkStatus = useCallback(async () => {
     try {
-      // Use different endpoint for topup vs order
       const endpoint = isTopUp ? `/profile/topup/${orderId}/status` : `/orders/${orderId}/status`;
 
-      // Use apiClient for consistent error handling
-      // Note: We need to handle 404 specially, so we'll catch and check
       try {
         const data = await apiRequest<OrderStatusResponse>(endpoint);
-
-        // Map backend status to our status type
         const backendStatus = data.status?.toLowerCase() || "unknown";
-        let newStatus: PaymentStatus = "unknown";
-
-        if (["delivered", "completed", "ready"].includes(backendStatus)) {
-          newStatus = "delivered";
-        } else if (["paid", "processing"].includes(backendStatus)) {
-          newStatus = "paid";
-        } else if (backendStatus === "partial") {
-          newStatus = "partial";
-        } else if (["pending", "awaiting_payment"].includes(backendStatus)) {
-          newStatus = "pending";
-        } else if (["expired", "cancelled"].includes(backendStatus)) {
-          newStatus = "expired";
-        } else if (["failed", "refunded"].includes(backendStatus)) {
-          newStatus = "failed";
-        } else if (backendStatus === "prepaid") {
-          newStatus = "paid"; // Prepaid means payment confirmed, waiting for stock
-        }
-
+        const newStatus = mapBackendStatus(backendStatus);
         return { status: newStatus, data };
       } catch (error: unknown) {
-        // Handle 404 specifically - order might not exist yet or invalid ID
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        if (errorMessage.includes("404") || errorMessage.includes("ORDER_NOT_FOUND")) {
-          return {
-            status: "unknown" as PaymentStatus,
-            error: new Error("ORDER_NOT_FOUND"),
-            httpStatus: 404,
-          };
-        }
+        const notFoundResult = handle404Error(error);
+        if (notFoundResult) return notFoundResult;
         throw error;
       }
     } catch (error: unknown) {
@@ -191,13 +187,100 @@ export function PaymentResult({
       return delay;
     };
 
+    // Helper to handle 404 errors (reduces cognitive complexity)
+    const handle404Response = (result: Awaited<ReturnType<typeof checkStatus>>, attempt: number): boolean => {
+      const is404 = result.httpStatus === 404 || (result.error && result.error.message === "ORDER_NOT_FOUND");
+      if (!is404) return false;
+
+      consecutive404sRef.current += 1;
+      const new404Count = consecutive404sRef.current;
+
+      if (new404Count >= 3) {
+        addLog(t("paymentResult.logs.errorNotFound"), "error");
+        addLog(t("paymentResult.logs.infoVerifyOrder"), "info");
+        setStatus("failed");
+        setIsComplete(true);
+        return true; // shouldStop
+      }
+
+      if (attempt <= 3) {
+        addLog(t("paymentResult.logs.waitOrder"), "warning");
+      } else {
+        addLog(t("paymentResult.logs.warnNotFound"), "warning");
+      }
+      return false;
+    };
+
+    // Helper to complete polling with success (reduces cognitive complexity)
+    const completePolling = () => {
+      setProgress(100);
+      setIsComplete(true);
+      return true; // shouldStop
+    };
+
+    // Helper to handle status updates (reduces cognitive complexity)
+    const handleStatusUpdate = (status: PaymentStatus): boolean => {
+      setStatus(status);
+
+      if (status === "delivered") {
+        addLog(t("paymentResult.logs.recvConfirmedGateway"), "success");
+        if (isTopUp) {
+          addLog(t("paymentResult.logs.execBalance"), "success");
+          addLog(t("paymentResult.logs.doneTopup"), "success");
+        } else {
+          addLog(t("paymentResult.logs.execDelivery"), "success");
+          addLog(t("paymentResult.logs.doneAllTransferred"), "success");
+        }
+        return completePolling();
+      }
+
+      if (status === "paid") {
+        addLog(t("paymentResult.logs.recvConfirmed"), "success");
+        if (isTopUp) {
+          addLog(t("paymentResult.logs.execBalance"), "success");
+          addLog(t("paymentResult.logs.doneTopup"), "success");
+        } else {
+          addLog(t("paymentResult.logs.execOrderConfirmed"), "success");
+          addLog(t("paymentResult.logs.doneCheckOrders"), "success");
+        }
+        return completePolling();
+      }
+
+      if (status === "partial") {
+        addLog(t("paymentResult.logs.recvConfirmed"), "success");
+        addLog(t("paymentResult.logs.execSomeDelivered"), "success");
+        addLog(t("paymentResult.logs.infoPreorder"), "info");
+        addLog(t("paymentResult.logs.doneFullStatus"), "success");
+        return completePolling();
+      }
+
+      if (status === "prepaid") {
+        addLog(t("paymentResult.logs.recvConfirmed"), "success");
+        addLog(t("paymentResult.logs.infoPreorderQueue"), "info");
+        addLog(t("paymentResult.logs.doneCheckOrders"), "success");
+        return completePolling();
+      }
+
+      if (status === "pending") {
+        addLog(t("paymentResult.logs.waitPayment"), "warning");
+        return false;
+      }
+
+      if (status === "expired" || status === "failed") {
+        addLog(t("paymentResult.logs.failPayment", { status }), "error");
+        setIsComplete(true);
+        return true;
+      }
+
+      return false;
+    };
+
     const poll = async () => {
       if (shouldStop || isComplete) return;
 
       currentAttempt++;
       setPollCount(currentAttempt);
 
-      // Check if we've exceeded max attempts
       if (currentAttempt > MAX_POLL_ATTEMPTS) {
         addLog(t("paymentResult.logs.timeout", { max: String(MAX_POLL_ATTEMPTS) }), "warning");
         addLog(t("paymentResult.logs.infoProcessing"), "info");
@@ -207,105 +290,24 @@ export function PaymentResult({
       }
 
       addLog(t("paymentResult.logs.scan"), "info");
-
       const result = await checkStatus();
 
-      // Handle 404 specifically
-      if (
-        result.httpStatus === 404 ||
-        (result.error && result.error.message === "ORDER_NOT_FOUND")
-      ) {
-        consecutive404sRef.current += 1;
-        const new404Count = consecutive404sRef.current;
+      // Handle 404 errors
+      if (handle404Response(result, currentAttempt)) {
+        shouldStop = true;
+        return;
+      }
 
-        // If we get multiple consecutive 404s, order likely doesn't exist
-        if (new404Count >= 3) {
-          addLog(t("paymentResult.logs.errorNotFound"), "error");
-          addLog(t("paymentResult.logs.infoVerifyOrder"), "info");
-          setStatus("failed");
-          setIsComplete(true);
-          shouldStop = true;
-          return;
-        }
+      // Reset 404 counter on successful response
+      if (consecutive404sRef.current > 0) {
+        consecutive404sRef.current = 0;
+      }
 
-        // First few 404s might be temporary (order not yet in DB after redirect)
-        if (currentAttempt <= 3) {
-          addLog(t("paymentResult.logs.waitOrder"), "warning");
-        } else {
-          addLog(t("paymentResult.logs.warnNotFound"), "warning");
-        }
-      } else {
-        // Reset 404 counter on successful response
-        if (consecutive404sRef.current > 0) {
-          consecutive404sRef.current = 0;
-        }
-
-        // Handle successful response
-        if (result.status !== "unknown" || !result.error) {
-          setStatus(result.status);
-
-          switch (result.status) {
-            case "delivered":
-              addLog(t("paymentResult.logs.recvConfirmedGateway"), "success");
-              if (isTopUp) {
-                addLog(t("paymentResult.logs.execBalance"), "success");
-                addLog(t("paymentResult.logs.doneTopup"), "success");
-              } else {
-                addLog(t("paymentResult.logs.execDelivery"), "success");
-                addLog(t("paymentResult.logs.doneAllTransferred"), "success");
-              }
-              setProgress(100);
-              setIsComplete(true);
-              shouldStop = true;
-              break;
-            case "paid":
-              addLog(t("paymentResult.logs.recvConfirmed"), "success");
-              if (isTopUp) {
-                addLog(t("paymentResult.logs.execBalance"), "success");
-                addLog(t("paymentResult.logs.doneTopup"), "success");
-              } else {
-                addLog(t("paymentResult.logs.execOrderConfirmed"), "success");
-                addLog(t("paymentResult.logs.doneCheckOrders"), "success");
-              }
-              setProgress(100);
-              setIsComplete(true);
-              shouldStop = true;
-              break;
-            case "partial":
-              addLog(t("paymentResult.logs.recvConfirmed"), "success");
-              addLog(t("paymentResult.logs.execSomeDelivered"), "success");
-              addLog(t("paymentResult.logs.infoPreorder"), "info");
-              addLog(t("paymentResult.logs.doneFullStatus"), "success");
-              setProgress(100);
-              setIsComplete(true);
-              shouldStop = true;
-              break;
-            case "prepaid":
-              addLog(t("paymentResult.logs.recvConfirmed"), "success");
-              addLog(t("paymentResult.logs.infoPreorderQueue"), "info");
-              addLog(t("paymentResult.logs.doneCheckOrders"), "success");
-              setProgress(100);
-              setIsComplete(true);
-              shouldStop = true;
-              break;
-            case "pending":
-              addLog(t("paymentResult.logs.waitPayment"), "warning");
-              break;
-            case "expired":
-            case "failed":
-              addLog(t("paymentResult.logs.failPayment", { status: result.status }), "error");
-              setIsComplete(true);
-              shouldStop = true;
-              break;
-            default:
-              if (result.error) {
-                addLog(t("paymentResult.logs.warnDelayed"), "warning");
-              }
-          }
-        } else if (result.error) {
-          // Generic error handling
-          addLog(t("paymentResult.logs.warnDelayed"), "warning");
-        }
+      // Handle successful response
+      if (result.status !== "unknown" && !result.error) {
+        shouldStop = handleStatusUpdate(result.status);
+      } else if (result.error) {
+        addLog(t("paymentResult.logs.warnDelayed"), "warning");
       }
 
       // Schedule next poll if we should continue
