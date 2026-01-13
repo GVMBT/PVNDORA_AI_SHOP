@@ -146,6 +146,62 @@ def round_currency_value(value: float, currency: str) -> float:
     return round(value, 2)
 
 
+# Helper: Calculate profit metrics (reduces cognitive complexity)
+def _calculate_profit_metrics(
+    total_revenue_usd: float,
+    total_cogs: float,
+    total_acquiring_fees: float,
+    total_referral_payouts: float,
+    total_reserves: float,
+    total_review_cashbacks: float,
+    total_replacement_costs: float,
+    total_other_expenses: float,
+    total_insurance_revenue: float,
+) -> dict[str, float]:
+    """Calculate profit metrics from revenue and expenses."""
+    gross_profit_usd = total_revenue_usd - total_cogs
+    operating_expenses_usd = (
+        total_acquiring_fees
+        + total_referral_payouts
+        + total_reserves
+        + total_review_cashbacks
+        + total_replacement_costs
+    )
+    operating_profit_usd = gross_profit_usd - operating_expenses_usd
+    net_profit_usd = operating_profit_usd - total_other_expenses + total_insurance_revenue
+
+    return {
+        "gross_profit": gross_profit_usd,
+        "operating_profit": operating_profit_usd,
+        "net_profit": net_profit_usd,
+    }
+
+
+# Helper: Calculate liability totals (reduces cognitive complexity)
+def _calculate_liability_totals(liabilities_by_currency: dict) -> dict[str, float]:
+    """Calculate total user balances and pending withdrawals."""
+    return {
+        "total_user_balances": sum(
+            (
+                float(data.get("user_balances", 0))
+                if isinstance(data.get("user_balances"), (int, float))
+                else 0.0
+            )
+            for data in liabilities_by_currency.values()
+            if isinstance(data, dict)
+        ),
+        "pending_withdrawals": sum(
+            (
+                float(data.get("pending_withdrawals", 0))
+                if isinstance(data.get("pending_withdrawals"), (int, float))
+                else 0.0
+            )
+            for data in liabilities_by_currency.values()
+            if isinstance(data, dict)
+        ),
+    }
+
+
 # =============================================================================
 # Models
 # =============================================================================
