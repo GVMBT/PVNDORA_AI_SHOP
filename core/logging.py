@@ -73,5 +73,38 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
+def sanitize_id_for_logging(id_value: str | None) -> str:
+    """
+    Sanitize ID for safe logging (truncate to first 8 chars to avoid logging user-controlled data).
+
+    Args:
+        id_value: ID value to sanitize (can be None)
+
+    Returns:
+        Sanitized ID string (first 8 chars) or "N/A" if None
+    """
+    if not id_value:
+        return "N/A"
+    return id_value[:8] if len(id_value) > 8 else id_value
+
+
+def sanitize_string_for_logging(value: str | None, max_length: int = 50) -> str:
+    """
+    Sanitize string for safe logging (truncate to max_length to avoid logging large user-controlled data).
+
+    Args:
+        value: String value to sanitize (can be None)
+        max_length: Maximum length to keep (default: 50)
+
+    Returns:
+        Sanitized string or "N/A" if None
+    """
+    if not value:
+        return "N/A"
+    if len(value) <= max_length:
+        return value
+    return value[:max_length] + "..."
+
+
 # Convenience exports
-__all__ = ["LOG_FORMAT", "LOG_FORMAT_SIMPLE", "get_logger"]
+__all__ = ["LOG_FORMAT", "LOG_FORMAT_SIMPLE", "get_logger", "sanitize_id_for_logging", "sanitize_string_for_logging"]

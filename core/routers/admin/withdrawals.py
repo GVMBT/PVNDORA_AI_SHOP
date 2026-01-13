@@ -143,7 +143,9 @@ async def get_withdrawal(withdrawal_id: str, admin=Depends(verify_admin)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception(f"Error fetching withdrawal {withdrawal_id}")
+        from core.logging import sanitize_id_for_logging
+
+        logger.exception("Error fetching withdrawal %s", sanitize_id_for_logging(withdrawal_id))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -278,8 +280,16 @@ async def approve_withdrawal(
                 detail="Failed to deduct balance. Withdrawal request remains pending.",
             )
 
+        from core.logging import sanitize_id_for_logging, sanitize_string_for_logging
+
         logger.info(
-            f"Admin {admin_id} approved withdrawal {withdrawal_id}: {amount_debited:.2f} {balance_currency} → {amount_to_pay_usdt:.2f} USDT to {wallet_address}"
+            "Admin %s approved withdrawal %s: %.2f %s → %.2f USDT to %s",
+            sanitize_id_for_logging(admin_id),
+            sanitize_id_for_logging(withdrawal_id),
+            amount_debited,
+            balance_currency,
+            amount_to_pay_usdt,
+            sanitize_string_for_logging(wallet_address, max_length=20),
         )
 
         # Send user notification (best-effort)
@@ -307,7 +317,14 @@ async def approve_withdrawal(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error approving withdrawal {withdrawal_id}: {e}", exc_info=True)
+        from core.logging import sanitize_id_for_logging
+
+        logger.error(
+            "Error approving withdrawal %s: %s",
+            sanitize_id_for_logging(withdrawal_id),
+            type(e).__name__,
+            exc_info=True,
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -405,7 +422,14 @@ async def reject_withdrawal(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error rejecting withdrawal {withdrawal_id}: {e}", exc_info=True)
+        from core.logging import sanitize_id_for_logging
+
+        logger.error(
+            "Error rejecting withdrawal %s: %s",
+            sanitize_id_for_logging(withdrawal_id),
+            type(e).__name__,
+            exc_info=True,
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -464,7 +488,13 @@ async def complete_withdrawal(
             .execute()
         )
 
-        logger.info(f"Admin {admin_id} marked withdrawal {withdrawal_id} as completed")
+        from core.logging import sanitize_id_for_logging
+
+        logger.info(
+            "Admin %s marked withdrawal %s as completed",
+            sanitize_id_for_logging(admin_id),
+            sanitize_id_for_logging(withdrawal_id),
+        )
 
         # Send user notification (best-effort)
         if user_telegram_id:
@@ -489,5 +519,12 @@ async def complete_withdrawal(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error completing withdrawal {withdrawal_id}: {e}", exc_info=True)
+        from core.logging import sanitize_id_for_logging
+
+        logger.error(
+            "Error completing withdrawal %s: %s",
+            sanitize_id_for_logging(withdrawal_id),
+            type(e).__name__,
+            exc_info=True,
+        )
         raise HTTPException(status_code=500, detail=str(e))

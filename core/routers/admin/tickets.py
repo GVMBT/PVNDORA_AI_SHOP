@@ -106,7 +106,9 @@ async def get_ticket(ticket_id: str, admin=Depends(verify_admin)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception(f"Error fetching ticket {ticket_id}")
+        from core.logging import sanitize_id_for_logging
+
+        logger.exception("Error fetching ticket %s", sanitize_id_for_logging(ticket_id))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -236,10 +238,12 @@ async def resolve_ticket(
 
             except Exception as e:
                 # Log error but don't fail the request - ticket is already updated
+                from core.logging import sanitize_id_for_logging
+
                 logger.error(
                     "Failed to trigger automatic processing for ticket %s: %s",
-                    ticket_id,
-                    e,
+                    sanitize_id_for_logging(ticket_id),
+                    type(e).__name__,
                     exc_info=True,
                 )
 
@@ -248,7 +252,9 @@ async def resolve_ticket(
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception(f"Error resolving ticket {ticket_id}")
+        from core.logging import sanitize_id_for_logging
+
+        logger.exception("Error resolving ticket %s", sanitize_id_for_logging(ticket_id))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -269,5 +275,7 @@ async def close_ticket(
         return {"success": True, "status": "closed"}
 
     except Exception as e:
-        logger.exception(f"Error closing ticket {ticket_id}")
+        from core.logging import sanitize_id_for_logging
+
+        logger.exception("Error closing ticket %s", sanitize_id_for_logging(ticket_id))
         raise HTTPException(status_code=500, detail=str(e))

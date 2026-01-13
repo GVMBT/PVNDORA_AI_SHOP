@@ -240,7 +240,11 @@ async def _process_confirmed_payment(order_id: str, payment_id: str, db) -> dict
             deduplication_id=f"deliver-{order_id}",
         )
     except Exception as e:
-        logger.warning("Failed to queue delivery for %s: %s", order_id, e)
+        from core.logging import sanitize_id_for_logging
+
+        logger.warning(
+            "Failed to queue delivery for %s: %s", sanitize_id_for_logging(order_id), type(e).__name__
+        )
 
     return {"status": final_status, "verified": True}
 
@@ -317,7 +321,13 @@ async def verify_order_payment(order_id: str, user=Depends(verify_telegram_auth)
                     gateway_status, order_id, order["status"], payment_id, db
                 )
         except Exception as e:
-            logger.warning("Failed to verify payment for order %s: %s", order_id, e)
+            from core.logging import sanitize_id_for_logging
+
+            logger.warning(
+                "Failed to verify payment for order %s: %s",
+                sanitize_id_for_logging(order_id),
+                type(e).__name__,
+            )
             return {"status": order["status"], "verified": False, "message": "Verification failed"}
 
     return {"status": order["status"], "verified": False, "message": "Unknown gateway"}

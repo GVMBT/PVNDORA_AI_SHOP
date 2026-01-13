@@ -532,8 +532,8 @@ class OrderStatusService:
                 amount=display_amount,
                 currency=display_currency,
                 status=final_status,
-                has_instant_items=has_instant,
-                preorder_count=preorder_count,
+                _has_instant_items=has_instant,
+                _preorder_count=preorder_count,
             )
         except Exception:
             logger.warning("Failed to send payment confirmation to user", exc_info=True)

@@ -147,10 +147,16 @@ class UserRepository(BaseRepository):
                     .eq("telegram_id", telegram_id)
                     .execute()
                 )
-                logger.info("Successfully updated preferences for user %s", telegram_id)
+                # Don't log telegram_id (user-controlled data) - just log success
+                logger.info("Successfully updated user preferences")
             except Exception as e:
+                from core.logging import sanitize_string_for_logging
+
+                # Don't log full telegram_id (user-controlled), just log error type
                 logger.error(
-                    "Failed to update preferences for user %s: %s", telegram_id, e, exc_info=True
+                    "Failed to update preferences for user: %s",
+                    type(e).__name__,
+                    exc_info=True,
                 )
                 raise
 

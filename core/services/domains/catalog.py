@@ -198,7 +198,7 @@ class CatalogService:
         self, query: str, category: str, limit: int
     ) -> list[SearchResult]:
         """Perform RAG search and return results (reduces cognitive complexity)."""
-        results = []
+        results: list[SearchResult] = []
         rag_search = self._get_rag_search()
         if not rag_search:
             return results

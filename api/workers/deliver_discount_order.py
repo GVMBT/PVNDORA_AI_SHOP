@@ -223,8 +223,8 @@ async def _send_loyal_promo_if_eligible(
     promo_service = PromoCodeService(db.client)
 
     try:
-        existing = await promo_service.get_user_promos_by_trigger(
-            user_id, PromoTriggers.LOYAL_CUSTOMER
+        existing = await promo_service.get_promo_by_trigger(
+            user_id, PromoTriggers.LOYAL_3_PURCHASES
         )
         if existing:
             return False
@@ -232,7 +232,7 @@ async def _send_loyal_promo_if_eligible(
         promo_code = await promo_service.generate_personal_promo(
             user_id=user_id,
             telegram_id=telegram_id,
-            trigger=PromoTriggers.LOYAL_CUSTOMER,
+            trigger=PromoTriggers.LOYAL_3_PURCHASES,
             discount_percent=50,
             expiration_days=7,
         )

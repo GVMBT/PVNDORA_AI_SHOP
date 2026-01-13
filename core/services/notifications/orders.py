@@ -17,9 +17,6 @@ logger = get_logger(__name__)
 # =============================================================================
 
 
-def _sanitize_id_for_logging(id_value: str) -> str:
-    """Sanitize ID for safe logging (truncate to first 8 chars)."""
-    return id_value[:8] if id_value else "N/A"
 
 
 def _format_amount(amount: float, currency: str) -> str:
@@ -171,9 +168,13 @@ class OrderNotificationsMixin(NotificationServiceBase):
             if items_result.data:
                 instant_items, prepaid_items = _categorize_order_items(items_result.data)
         except Exception as e:
-            sanitized_order_id = _sanitize_id_for_logging(order_id)
+            from core.logging import sanitize_id_for_logging
+
+            sanitized_order_id = sanitize_id_for_logging(order_id)
             logger.warning(
-                "Failed to fetch order items for notification %s: %s", sanitized_order_id, e
+                "Failed to fetch order items for notification %s: %s",
+                sanitized_order_id,
+                type(e).__name__,
             )
 
         return instant_items, prepaid_items

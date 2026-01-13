@@ -184,7 +184,9 @@ async def get_migration_trend(
     db = get_database()
     trend = []
 
-    for i in range(days, -1, -1):
+    # Security: Cap loop iterations to prevent DoS (max 90 days per validation, but add hard limit)
+    max_days = min(days, 90)
+    for i in range(max_days, -1, -1):
         date = datetime.now(UTC) - timedelta(days=i)
         date_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
         date_end = date.replace(hour=23, minute=59, second=59, microsecond=999999)
