@@ -117,13 +117,13 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
     amount_to_credit = await _calculate_amount_to_credit(
         currency, balance_currency, request.amount, currency_service
     )
-            # Round for non-RUB/USD currencies
-            amount_to_credit = float(
-                round_money(
-                    Decimal(amount_to_credit),
-                    to_int=(balance_currency in ["RUB", "UAH", "TRY", "INR"]),
-                )
-            )
+    # Round for non-RUB/USD currencies
+    amount_to_credit = float(
+        round_money(
+            Decimal(amount_to_credit),
+            to_int=(balance_currency in ["RUB", "UAH", "TRY", "INR"]),
+        )
+    )
 
     # Create pending transaction record in user's balance_currency
     try:
