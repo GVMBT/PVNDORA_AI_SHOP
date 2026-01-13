@@ -188,9 +188,7 @@ class PromoCodeService:
         if promo.get("valid_until"):
             valid_until = datetime.fromisoformat(promo["valid_until"].replace("Z", "+00:00"))
             if now > valid_until:
-                return PromoValidationResult(
-                    valid=False, error_message="Promo code has expired"
-                )
+                return PromoValidationResult(valid=False, error_message="Promo code has expired")
         return None
 
     def _check_usage_limit(self, promo: dict) -> PromoValidationResult | None:
@@ -296,9 +294,12 @@ class PromoCodeService:
             current = result.data.get("current_uses", 0)
 
             # Increment
-            await self.client.table("promo_codes").update({"current_uses": current + 1}).eq(
-                "code", code.upper()
-            ).execute()
+            await (
+                self.client.table("promo_codes")
+                .update({"current_uses": current + 1})
+                .eq("code", code.upper())
+                .execute()
+            )
 
             logger.info(f"Used promo code {code}, new count: {current + 1}")
             return True
@@ -353,9 +354,12 @@ class PromoCodeService:
     async def deactivate_promo(self, promo_id: str) -> bool:
         """Deactivate a promo code."""
         try:
-            await self.client.table("promo_codes").update({"is_active": False}).eq(
-                "id", promo_id
-            ).execute()
+            await (
+                self.client.table("promo_codes")
+                .update({"is_active": False})
+                .eq("id", promo_id)
+                .execute()
+            )
 
             logger.info(f"Deactivated promo code {promo_id}")
             return True

@@ -237,7 +237,9 @@ async def resolve_ticket(
             except Exception as e:
                 # Log error but don't fail the request - ticket is already updated
                 logger.error(
-                    "Failed to trigger automatic processing for ticket %s: %s", ticket_id, e,
+                    "Failed to trigger automatic processing for ticket %s: %s",
+                    ticket_id,
+                    e,
                     exc_info=True,
                 )
 

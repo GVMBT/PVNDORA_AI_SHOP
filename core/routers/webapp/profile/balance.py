@@ -182,23 +182,31 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
 
         if not result or not result.get("payment_url"):
             # Rollback transaction
-            await db.client.table("balance_transactions").update({"status": "failed"}).eq(
-                "id", topup_id
-            ).execute()
+            await (
+                db.client.table("balance_transactions")
+                .update({"status": "failed"})
+                .eq("id", topup_id)
+                .execute()
+            )
             raise HTTPException(status_code=500, detail="Failed to create payment")
 
         # Update transaction with payment_id
-        await db.client.table("balance_transactions").update(
-            {
-                "reference_type": "payment",
-                "reference_id": result.get("invoice_id"),
-                "metadata": {
-                    "original_currency": currency,
-                    "original_amount": request.amount,
-                    "invoice_id": result.get("invoice_id"),
-                },
-            }
-        ).eq("id", topup_id).execute()
+        await (
+            db.client.table("balance_transactions")
+            .update(
+                {
+                    "reference_type": "payment",
+                    "reference_id": result.get("invoice_id"),
+                    "metadata": {
+                        "original_currency": currency,
+                        "original_amount": request.amount,
+                        "invoice_id": result.get("invoice_id"),
+                    },
+                }
+            )
+            .eq("id", topup_id)
+            .execute()
+        )
 
         return {
             "success": True,
@@ -213,9 +221,12 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
     except Exception as e:
         logger.exception("Failed to create CrystalPay payment")
         # Rollback transaction
-        await db.client.table("balance_transactions").update({"status": "failed"}).eq(
-            "id", topup_id
-        ).execute()
+        await (
+            db.client.table("balance_transactions")
+            .update({"status": "failed"})
+            .eq("id", topup_id)
+            .execute()
+        )
         raise HTTPException(status_code=500, detail=f"Payment creation failed: {e!s}")
 
 

@@ -93,12 +93,17 @@ async def _update_order_status_if_all_refunded(
     )
 
     if not remaining_items.data:
-        await db.client.table("orders").update(
-            {
-                "status": "refunded",
-                "refund_reason": "Auto-refund: fulfillment deadline exceeded",
-            }
-        ).eq("id", order_id).execute()
+        await (
+            db.client.table("orders")
+            .update(
+                {
+                    "status": "refunded",
+                    "refund_reason": "Auto-refund: fulfillment deadline exceeded",
+                }
+            )
+            .eq("id", order_id)
+            .execute()
+        )
         results["orders_updated"] += 1
 
     processed_orders.add(order_id)
@@ -155,7 +160,9 @@ async def _process_single_refund(
     item_price = to_float(item.get("price", 0))
     product_name = product_data.get("name", "Unknown")
     order_amount = to_float(order_data.get("amount", 0))
-    order_fiat_amount = to_float(order_data.get("fiat_amount")) if order_data.get("fiat_amount") else None
+    order_fiat_amount = (
+        to_float(order_data.get("fiat_amount")) if order_data.get("fiat_amount") else None
+    )
     order_fiat_currency = order_data.get("fiat_currency")
 
     balance_currency = await _get_user_balance_currency(db, user_id)
@@ -184,7 +191,9 @@ async def _process_single_refund(
     if telegram_id:
         await _notify_user_refund(telegram_id, product_name, refund_amount, balance_currency)
 
-    logger.info(f"Auto-refunded item {item_id}: {refund_amount} {balance_currency} for {product_name}")
+    logger.info(
+        f"Auto-refunded item {item_id}: {refund_amount} {balance_currency} for {product_name}"
+    )
     return True
 
 

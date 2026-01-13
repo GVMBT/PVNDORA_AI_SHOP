@@ -260,8 +260,7 @@ class AdminAlertService:
         return await self.send_alert(
             title="🎫 Новый тикет поддержки",
             message=(
-                f"<b>Тип:</b> {issue_type}\n"
-                f"<b>Пользователь:</b> <code>{user_telegram_id}</code>"
+                f"<b>Тип:</b> {issue_type}\n<b>Пользователь:</b> <code>{user_telegram_id}</code>"
             ),
             severity=AlertSeverity.INFO,
             metadata=metadata,

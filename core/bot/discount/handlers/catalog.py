@@ -264,8 +264,13 @@ def _get_stock_status_text(is_ru: bool, is_available: bool) -> str:
 
 # Helper to format product card text (reduces cognitive complexity)
 def _format_product_card_text(
-    name: str, description: str, price_label: str, status_label: str,
-    stock_status: str, currency_symbol: str, discount_price_display: float
+    name: str,
+    description: str,
+    price_label: str,
+    status_label: str,
+    stock_status: str,
+    currency_symbol: str,
+    discount_price_display: float,
 ) -> str:
     """Format product card text."""
     return (
@@ -312,8 +317,13 @@ async def cb_product_selected(callback: CallbackQuery, db_user: User):
     stock_status = _get_stock_status_text(lang == "ru", available > 0)
 
     text = _format_product_card_text(
-        name, description, price_label, status_label, stock_status,
-        currency_symbol, discount_price_display
+        name,
+        description,
+        price_label,
+        status_label,
+        stock_status,
+        currency_symbol,
+        discount_price_display,
     )
 
     if insurance_options:

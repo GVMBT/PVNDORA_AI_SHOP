@@ -46,9 +46,7 @@ def _compute_anchor_msrp(
     return formatter.convert(msrp_usd)
 
 
-async def _fetch_single_product(
-    db: Database, product_id: str
-) -> dict[str, Any]:
+async def _fetch_single_product(db: Database, product_id: str) -> dict[str, Any]:
     """Fetch and validate a single product from database."""
     product_result = (
         await db.client.table("products_with_stock_summary")
@@ -67,9 +65,7 @@ async def _fetch_single_product(
     return cast(dict[str, Any], product_raw)
 
 
-async def _fetch_social_proof_single(
-    db: Database, product_id: str
-) -> dict[str, Any]:
+async def _fetch_social_proof_single(db: Database, product_id: str) -> dict[str, Any]:
     """Fetch social proof for a single product."""
     try:
         result = (
@@ -112,9 +108,7 @@ async def _batch_fetch_social_proof(
     return social_proof_map
 
 
-async def _batch_fetch_ratings(
-    db: Database, product_ids: list[str]
-) -> dict[str, dict[str, Any]]:
+async def _batch_fetch_ratings(db: Database, product_ids: list[str]) -> dict[str, dict[str, Any]]:
     """Batch fetch and aggregate ratings for multiple products."""
     if not product_ids:
         return {}
@@ -222,7 +216,9 @@ def _build_product_response(
         "available_count": stock_count,
         "available": stock_count > 0,
         "can_fulfill_on_demand": product.get("status") == "active",
-        "fulfillment_time_hours": fulfillment_time_hours if product.get("status") == "active" else None,
+        "fulfillment_time_hours": fulfillment_time_hours
+        if product.get("status") == "active"
+        else None,
         "type": product.get("type"),
         "rating": rating_info.get("average", 0),
         "reviews_count": rating_info.get("count", 0),
@@ -235,12 +231,14 @@ def _build_product_response(
     }
 
     if include_full_details:
-        base_response.update({
-            "exchange_rate": formatter.exchange_rate,
-            "duration_days": product.get("duration_days"),
-            "instructions": product.get("instructions"),
-            "instruction_files": product.get("instruction_files") or [],
-        })
+        base_response.update(
+            {
+                "exchange_rate": formatter.exchange_rate,
+                "duration_days": product.get("duration_days"),
+                "instructions": product.get("instructions"),
+                "instruction_files": product.get("instruction_files") or [],
+            }
+        )
         # Override sales_count from social_proof_data if provided
         if social_proof_data:
             base_response["sales_count"] = social_proof_data.get("sales_count", 0)

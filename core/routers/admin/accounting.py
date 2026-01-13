@@ -63,7 +63,9 @@ def parse_date_range(
     return start_date, end_date
 
 
-def extract_order_data(order: dict[str, Any]) -> tuple[str, float | None, float, dict[str, Any] | None]:
+def extract_order_data(
+    order: dict[str, Any],
+) -> tuple[str, float | None, float, dict[str, Any] | None]:
     """Extract currency, amounts, and expenses from order (reduces cognitive complexity)."""
     currency_raw = order.get("fiat_currency")
     currency = str(currency_raw) if currency_raw else "USD"
@@ -486,7 +488,9 @@ def _process_single_order_for_report(
         expense_totals["referrals"] += float(expenses.get("referral_payout_amount", 0) or 0)
         expense_totals["reserves"] += float(expenses.get("reserve_amount", 0) or 0)
         expense_totals["review_cashbacks"] += float(expenses.get("review_cashback_amount", 0) or 0)
-        expense_totals["replacement_costs"] += float(expenses.get("insurance_replacement_cost", 0) or 0)
+        expense_totals["replacement_costs"] += float(
+            expenses.get("insurance_replacement_cost", 0) or 0
+        )
 
 
 # Helper: Process orders for accounting report (reduces cognitive complexity)
@@ -555,9 +559,7 @@ async def _get_other_expenses(
 
 
 # Helper: Get insurance revenue (reduces cognitive complexity)
-async def _get_insurance_revenue(
-    db: Any, start_date: datetime | None, end_date: datetime
-) -> float:
+async def _get_insurance_revenue(db: Any, start_date: datetime | None, end_date: datetime) -> float:
     """Get total insurance revenue."""
     insurance_query = db.client.table("insurance_revenue").select("price")
     if start_date:
@@ -652,9 +654,11 @@ async def get_financial_overview(
     total_replacement_costs = expense_totals["replacement_costs"]
 
     # Get other expenses and insurance revenue
-    total_other_expenses, expenses_by_category, total_insurance_revenue = (
-        await _get_other_expenses_and_insurance(db, start_date, end_date)
-    )
+    (
+        total_other_expenses,
+        expenses_by_category,
+        total_insurance_revenue,
+    ) = await _get_other_expenses_and_insurance(db, start_date, end_date)
 
     # ==========================================================================
     # Liabilities by Currency (REAL amounts)
@@ -812,9 +816,7 @@ def _add_order_expenses_to_day(day: dict[str, Any], expenses: dict[str, Any]) ->
 
 
 # Helper: Process order into daily data (reduces cognitive complexity)
-def _process_order_for_daily(
-    order: dict[str, Any], daily_data: dict[str, dict[str, Any]]
-) -> None:
+def _process_order_for_daily(order: dict[str, Any], daily_data: dict[str, dict[str, Any]]) -> None:
     """Process a single order and add it to daily data."""
     created_at_raw = order.get("created_at", "")
     created_at_str = str(created_at_raw) if created_at_raw else ""
@@ -843,9 +845,7 @@ def _process_order_for_daily(
 
 
 # Helper: Get insurance revenue by date (reduces cognitive complexity)
-async def _get_insurance_by_date(
-    db: Any, start_date: datetime
-) -> dict[str, float]:
+async def _get_insurance_by_date(db: Any, start_date: datetime) -> dict[str, float]:
     """Get insurance revenue grouped by date."""
     insurance_by_date: dict[str, float] = {}
     insurance_result = (
@@ -1077,7 +1077,9 @@ async def get_monthly_pl(months: int = Query(12, ge=1, le=36), admin=Depends(ver
         )
 
     # Group by month and calculate profits
-    monthly_data = await _process_orders_by_month(orders, other_expenses_by_month, insurance_by_month)
+    monthly_data = await _process_orders_by_month(
+        orders, other_expenses_by_month, insurance_by_month
+    )
 
     # Sort by month descending and limit
     monthly_list = sorted(monthly_data.values(), key=lambda x: x["month"], reverse=True)[:months]
@@ -1257,9 +1259,12 @@ async def update_accounting_settings(settings: AccountingSettings, admin=Depends
         "updated_at": datetime.now(UTC).isoformat(),
     }
 
-    await db.client.table("accounting_settings").update(data).eq(
-        "id", "00000000-0000-0000-0000-000000000001"
-    ).execute()
+    await (
+        db.client.table("accounting_settings")
+        .update(data)
+        .eq("id", "00000000-0000-0000-0000-000000000001")
+        .execute()
+    )
 
     return {"success": True, "settings": data}
 
@@ -1285,10 +1290,7 @@ async def _process_user_balances(db, liabilities_by_currency: dict):
     """Process user balances by currency."""
     try:
         balances_result = (
-            await db.client.table("users")
-            .select(SELECT_BALANCE_FIELDS)
-            .gt("balance", 0)
-            .execute()
+            await db.client.table("users").select(SELECT_BALANCE_FIELDS).gt("balance", 0).execute()
         )
 
         for user in balances_result.data or []:

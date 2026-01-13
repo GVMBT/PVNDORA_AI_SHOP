@@ -162,9 +162,12 @@ async def _process_single_replacement(
         return False
 
     # Mark stock as sold
-    await db.client.table("stock_items").update(
-        {"status": "sold", "reserved_at": now.isoformat(), "sold_at": now.isoformat()}
-    ).eq("id", stock_id).execute()
+    await (
+        db.client.table("stock_items")
+        .update({"status": "sold", "reserved_at": now.isoformat(), "sold_at": now.isoformat()})
+        .eq("id", stock_id)
+        .execute()
+    )
 
     duration_days, product_name = await _get_product_expiry_info(db, product_id)
     expires_at_str = (
@@ -184,12 +187,17 @@ async def _process_single_replacement(
     await db.client.table("order_items").update(update_data).eq("id", item_id).execute()
 
     # Close ticket
-    await db.client.table("tickets").update(
-        {
-            "status": "closed",
-            "admin_comment": "Replacement auto-delivered when stock became available.",
-        }
-    ).eq("id", ticket_id).execute()
+    await (
+        db.client.table("tickets")
+        .update(
+            {
+                "status": "closed",
+                "admin_comment": "Replacement auto-delivered when stock became available.",
+            }
+        )
+        .eq("id", ticket_id)
+        .execute()
+    )
 
     await _notify_replacement_user(db, notification_service, order_id, product_name, item_id)
     logger.info("auto_alloc: Delivered replacement for ticket %s", ticket_id)

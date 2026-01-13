@@ -138,9 +138,12 @@ async def cb_terms_accept(callback: CallbackQuery, db_user: User):
 
     # Update terms_accepted
     try:
-        await db.client.table("users").update(
-            {"terms_accepted": True, "terms_accepted_at": datetime.now(UTC).isoformat()}
-        ).eq("id", db_user.id).execute()
+        await (
+            db.client.table("users")
+            .update({"terms_accepted": True, "terms_accepted_at": datetime.now(UTC).isoformat()})
+            .eq("id", db_user.id)
+            .execute()
+        )
 
         logger.info(f"User {db_user.telegram_id} accepted terms")
     except Exception:

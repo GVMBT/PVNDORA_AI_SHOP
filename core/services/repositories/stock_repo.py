@@ -51,7 +51,7 @@ class StockRepository(BaseRepository):
 
         return len(result.data) > 0
 
-    async def calculate_discount(self, stock_item: StockItem, product: Product) -> int:
+    def calculate_discount(self, stock_item: StockItem, product: Product) -> int:
         """Calculate age-based discount (max 20%)."""
         if not stock_item.created_at:
             return 0

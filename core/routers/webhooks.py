@@ -30,11 +30,7 @@ router = APIRouter(tags=["webhooks"])
 async def _lookup_order_by_payment_id(db, invoice_id: str) -> tuple[dict[str, Any] | None, str]:
     """Lookup order by payment_id (reduces cognitive complexity)."""
     lookup_result = (
-        await db.client.table("orders")
-        .select("*")
-        .eq("payment_id", invoice_id)
-        .limit(1)
-        .execute()
+        await db.client.table("orders").select("*").eq("payment_id", invoice_id).limit(1).execute()
     )
     if not lookup_result.data:
         return None, ""
@@ -53,11 +49,7 @@ async def _lookup_order_by_payment_id(db, invoice_id: str) -> tuple[dict[str, An
 async def _lookup_order_by_id(db, order_id: str) -> tuple[dict[str, Any] | None, str]:
     """Lookup order by order_id (reduces cognitive complexity)."""
     direct_result = (
-        await db.client.table("orders")
-        .select("*")
-        .eq("id", order_id)
-        .limit(1)
-        .execute()
+        await db.client.table("orders").select("*").eq("id", order_id).limit(1).execute()
     )
     if not direct_result.data:
         return None, ""
@@ -83,7 +75,9 @@ async def _find_order_data(db, invoice_id: str, order_id: str) -> tuple[dict[str
     if order_data:
         return order_data, real_order_id
 
-    logger.warning("CrystalPay webhook: Order not found for invoice %s, extra %s", invoice_id, order_id)
+    logger.warning(
+        "CrystalPay webhook: Order not found for invoice %s, extra %s", invoice_id, order_id
+    )
     return None, ""
 
 
@@ -110,27 +104,22 @@ async def _handle_cancelled_order_recovery(
     db, order_data: dict[str, Any], real_order_id: str, result: dict[str, Any]
 ) -> JSONResponse | None:
     """Handle recovery of cancelled order (reduces cognitive complexity)."""
-    product_id = (
-        str(order_data.get("product_id", ""))
-        if order_data.get("product_id")
-        else None
-    )
+    product_id = str(order_data.get("product_id", "")) if order_data.get("product_id") else None
 
     can_fulfill = await _check_stock_availability(db, product_id)
 
     if can_fulfill:
         logger.info("CrystalPay webhook: Restoring order %s - stock available", real_order_id)
-        await db.client.table("orders").update(
-            {"status": "pending", "notes": "Restored after late payment"}
-        ).eq("id", real_order_id).execute()
+        await (
+            db.client.table("orders")
+            .update({"status": "pending", "notes": "Restored after late payment"})
+            .eq("id", real_order_id)
+            .execute()
+        )
         return None
 
     logger.warning("CrystalPay webhook: Order %s - no stock, creating refund ticket", real_order_id)
-    user_id = (
-        str(order_data.get("user_id", ""))
-        if order_data.get("user_id")
-        else None
-    )
+    user_id = str(order_data.get("user_id", "")) if order_data.get("user_id") else None
     result_dict = result if isinstance(result, dict) else {}
     amount = (
         float(result_dict.get("amount", 0))
@@ -140,22 +129,31 @@ async def _handle_cancelled_order_recovery(
 
     if user_id:
         try:
-            await db.client.table("tickets").insert(
-                {
-                    "user_id": user_id,
-                    "order_id": real_order_id,
-                    "issue_type": "refund",
-                    "description": f"Late payment after order expired. Amount: {amount}. Stock unavailable.",
-                    "status": "open",
-                }
-            ).execute()
-            await db.client.table("orders").update(
-                {
-                    "status": "refund_pending",
-                    "refund_requested": True,
-                    "notes": "Late payment - stock unavailable",
-                }
-            ).eq("id", real_order_id).execute()
+            await (
+                db.client.table("tickets")
+                .insert(
+                    {
+                        "user_id": user_id,
+                        "order_id": real_order_id,
+                        "issue_type": "refund",
+                        "description": f"Late payment after order expired. Amount: {amount}. Stock unavailable.",
+                        "status": "open",
+                    }
+                )
+                .execute()
+            )
+            await (
+                db.client.table("orders")
+                .update(
+                    {
+                        "status": "refund_pending",
+                        "refund_requested": True,
+                        "notes": "Late payment - stock unavailable",
+                    }
+                )
+                .eq("id", real_order_id)
+                .execute()
+            )
         except Exception as e:
             logger.error("CrystalPay webhook: Failed to create refund ticket: %s", e, exc_info=True)
 
@@ -225,8 +223,14 @@ async def crystalpay_webhook(request: Request):
 
             order_status = str(order_data.get("status", "pending"))
             if order_status == "cancelled":
-                logger.info("CrystalPay webhook: Order %s was %s, attempting recovery", real_order_id, order_status)
-                recovery_response = await _handle_cancelled_order_recovery(db, order_data, real_order_id, result)
+                logger.info(
+                    "CrystalPay webhook: Order %s was %s, attempting recovery",
+                    real_order_id,
+                    order_status,
+                )
+                recovery_response = await _handle_cancelled_order_recovery(
+                    db, order_data, real_order_id, result
+                )
                 if recovery_response:
                     return recovery_response
 
@@ -312,9 +316,12 @@ async def crystalpay_webhook(request: Request):
                                 else None
                             )
 
-                            await db.client.table("stock_items").update({"status": "reserved"}).eq(
-                                "id", stock_item_id
-                            ).execute()
+                            await (
+                                db.client.table("stock_items")
+                                .update({"status": "reserved"})
+                                .eq("id", stock_item_id)
+                                .execute()
+                            )
 
                             discount_service = DiscountOrderService(db.client)
                             order_item_id = str(order_item.get("id", ""))
@@ -575,13 +582,18 @@ async def crystalpay_topup_webhook(request: Request):
         await db.client.table("users").update({"balance": new_balance}).eq("id", user_id).execute()
 
         # Update transaction status
-        await db.client.table("balance_transactions").update(
-            {
-                "status": "completed",
-                "balance_before": current_balance,
-                "balance_after": new_balance,
-            }
-        ).eq("id", topup_id).execute()
+        await (
+            db.client.table("balance_transactions")
+            .update(
+                {
+                    "status": "completed",
+                    "balance_before": current_balance,
+                    "balance_after": new_balance,
+                }
+            )
+            .eq("id", topup_id)
+            .execute()
+        )
 
         logger.info(
             f"CrystalPay TOPUP webhook: SUCCESS! User {user_id} balance: {current_balance:.2f} {balance_currency} -> {new_balance:.2f} {balance_currency}"

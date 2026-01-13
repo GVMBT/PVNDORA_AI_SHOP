@@ -40,9 +40,12 @@ async def _process_referral_from_start(message: Message, db_user: User, db):
             ).execute()
 
             if not db_user.referrer_id:
-                await db.client.table("users").update({"referrer_id": referrer.id}).eq(
-                    "id", db_user.id
-                ).execute()
+                await (
+                    db.client.table("users")
+                    .update({"referrer_id": referrer.id})
+                    .eq("id", db_user.id)
+                    .execute()
+                )
         except Exception as e:
             logger.warning("Failed to process referral: %s", e, exc_info=True)
 

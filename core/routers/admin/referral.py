@@ -104,9 +104,12 @@ async def admin_update_referral_settings(
     _update_commissions(update_data, request)
     _update_anchor_thresholds(update_data, request)
 
-    await db.client.table("referral_settings").update(update_data).eq(
-        "id", "00000000-0000-0000-0000-000000000001"
-    ).execute()
+    await (
+        db.client.table("referral_settings")
+        .update(update_data)
+        .eq("id", "00000000-0000-0000-0000-000000000001")
+        .execute()
+    )
 
     return {"success": True, "updated": update_data}
 
@@ -472,14 +475,19 @@ async def admin_review_application(request: ReviewApplicationRequest, admin=Depe
     if not admin_id:
         raise HTTPException(status_code=500, detail="Admin ID not available")
 
-    await db.client.table("partner_applications").update(
-        {
-            "status": new_status,
-            "admin_comment": request.admin_comment,
-            "reviewed_by": admin_id,
-            "reviewed_at": datetime.now(UTC).isoformat(),
-        }
-    ).eq("id", request.application_id).execute()
+    await (
+        db.client.table("partner_applications")
+        .update(
+            {
+                "status": new_status,
+                "admin_comment": request.admin_comment,
+                "reviewed_by": admin_id,
+                "reviewed_at": datetime.now(UTC).isoformat(),
+            }
+        )
+        .eq("id", request.application_id)
+        .execute()
+    )
 
     if request.approve:
         await db.client.rpc(

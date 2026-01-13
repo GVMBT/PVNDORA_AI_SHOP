@@ -160,13 +160,18 @@ async def worker_process_refund(request: Request):
     ).execute()
 
     # 3. Update order status
-    await db.client.table("orders").update(
-        {
-            "status": "refunded",
-            "refund_reason": reason,
-            "refund_processed_at": datetime.now(UTC).isoformat(),
-        }
-    ).eq("id", order_id).execute()
+    await (
+        db.client.table("orders")
+        .update(
+            {
+                "status": "refunded",
+                "refund_reason": reason,
+                "refund_processed_at": datetime.now(UTC).isoformat(),
+            }
+        )
+        .eq("id", order_id)
+        .execute()
+    )
 
     # 4. Notify user with correct currency
     await notification_service.send_refund_notification(
@@ -264,9 +269,7 @@ async def worker_process_review_cashback(request: Request):
         return {"error": ERROR_ORDER_NOT_FOUND}
     order_data = order_result.data
 
-    cashback_base = await _calculate_cashback_base(
-        order_data, order_amount, balance_currency
-    )
+    cashback_base = await _calculate_cashback_base(order_data, order_amount, balance_currency)
 
     # Calculate 5% cashback in user's balance_currency
     cashback_amount = cashback_base * 0.05
@@ -282,22 +285,26 @@ async def worker_process_review_cashback(request: Request):
     await db.client.table("users").update({"balance": new_balance}).eq("id", db_user.id).execute()
 
     # 2. Create balance_transaction for history (amount in balance_currency!)
-    await db.client.table("balance_transactions").insert(
-        {
-            "user_id": db_user.id,
-            "type": "cashback",
-            "amount": cashback_amount,  # In balance_currency
-            "currency": balance_currency,  # User's balance currency
-            "status": "completed",
-            "description": "5% кэшбек за отзыв",
-            "reference_id": order_id,
-        }
-    ).execute()
+    await (
+        db.client.table("balance_transactions")
+        .insert(
+            {
+                "user_id": db_user.id,
+                "type": "cashback",
+                "amount": cashback_amount,  # In balance_currency
+                "currency": balance_currency,  # User's balance currency
+                "status": "completed",
+                "description": "5% кэшбек за отзыв",
+                "reference_id": order_id,
+            }
+        )
+        .execute()
+    )
 
     # 3. Mark review as processed
-    await db.client.table("reviews").update({"cashback_given": True}).eq(
-        "id", review["id"]
-    ).execute()
+    await (
+        db.client.table("reviews").update({"cashback_given": True}).eq("id", review["id"]).execute()
+    )
 
     # 4. Update order_expenses for accounting (cashback in USD for financial reports)
     try:
@@ -327,9 +334,12 @@ async def worker_process_review_cashback(request: Request):
 
         if current_expenses.data and len(current_expenses.data) > 0:
             # Update existing order_expenses
-            await db.client.table("order_expenses").update(
-                {"review_cashback_amount": total_cashback_usd}
-            ).eq("order_id", order_id).execute()
+            await (
+                db.client.table("order_expenses")
+                .update({"review_cashback_amount": total_cashback_usd})
+                .eq("order_id", order_id)
+                .execute()
+            )
             logger.info(
                 f"Updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD (added {cashback_usd:.2f} USD)"
             )
@@ -341,9 +351,12 @@ async def worker_process_review_cashback(request: Request):
             await db.client.rpc("calculate_order_expenses", {"p_order_id": order_id}).execute()
 
             # Now update review_cashback_amount
-            await db.client.table("order_expenses").update(
-                {"review_cashback_amount": total_cashback_usd}
-            ).eq("order_id", order_id).execute()
+            await (
+                db.client.table("order_expenses")
+                .update({"review_cashback_amount": total_cashback_usd})
+                .eq("order_id", order_id)
+                .execute()
+            )
             logger.info(
                 f"Created and updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD"
             )

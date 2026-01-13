@@ -28,9 +28,15 @@ def _calculate_date_ranges(days: int) -> tuple[datetime, datetime, datetime, dat
 
 # Helper to calculate totals from results (reduces cognitive complexity)
 def _calculate_totals(
-    revenue_result, orders_today_result, orders_week_result, orders_month_result,
-    total_users_result, pending_orders_result, open_tickets_result,
-    user_balances_result, pending_withdrawals_result
+    revenue_result,
+    orders_today_result,
+    orders_week_result,
+    orders_month_result,
+    total_users_result,
+    pending_orders_result,
+    open_tickets_result,
+    user_balances_result,
+    pending_withdrawals_result,
 ) -> dict:
     """Calculate totals from query results."""
     return {
@@ -41,8 +47,12 @@ def _calculate_totals(
         "total_users": total_users_result.count or 0,
         "pending_orders": pending_orders_result.count or 0,
         "open_tickets": open_tickets_result.count or 0,
-        "total_user_balances": sum(float(u.get("balance", 0)) for u in (user_balances_result.data or [])),
-        "pending_withdrawals": sum(float(w.get("amount", 0)) for w in (pending_withdrawals_result.data or [])),
+        "total_user_balances": sum(
+            float(u.get("balance", 0)) for u in (user_balances_result.data or [])
+        ),
+        "pending_withdrawals": sum(
+            float(w.get("amount", 0)) for w in (pending_withdrawals_result.data or [])
+        ),
     }
 
 
@@ -116,9 +126,15 @@ async def admin_get_analytics(days: int = 7, admin=Depends(verify_admin)):
     )
 
     totals = _calculate_totals(
-        revenue_result, orders_today_result, orders_week_result, orders_month_result,
-        total_users_result, pending_orders_result, open_tickets_result,
-        user_balances_result, pending_withdrawals_result
+        revenue_result,
+        orders_today_result,
+        orders_week_result,
+        orders_month_result,
+        total_users_result,
+        pending_orders_result,
+        open_tickets_result,
+        user_balances_result,
+        pending_withdrawals_result,
     )
 
     total_revenue = totals["total_revenue"]

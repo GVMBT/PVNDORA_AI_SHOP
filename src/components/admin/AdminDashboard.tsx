@@ -85,9 +85,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
           </div>
         </div>
         <div className="p-6 h-48 flex items-end justify-between gap-2">
-          {chartBars.map((bar, i) => (
+          {chartBars.map((bar) => (
             <div
-              key={i}
+              key={bar.date}
               className="flex-1 bg-white/5 hover:bg-pandora-cyan transition-colors rounded-t-sm relative group cursor-pointer"
               style={{ height: `${bar.height}%` }}
             >

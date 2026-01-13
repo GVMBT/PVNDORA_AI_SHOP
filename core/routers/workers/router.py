@@ -234,9 +234,12 @@ async def _deliver_items_for_order(
                         if expires_at_str:
                             update_data["expires_at"] = expires_at_str
 
-                        await db.client.table("order_items").update(update_data).eq(
-                            "id", item_id
-                        ).execute()
+                        await (
+                            db.client.table("order_items")
+                            .update(update_data)
+                            .eq("id", item_id)
+                            .execute()
+                        )
                         delivered_count += 1
                         delivered_lines.append(f"{prod_name}:\n{stock_content}")
 
@@ -250,9 +253,14 @@ async def _deliver_items_for_order(
                         )
                         # Rollback: mark stock item as available again
                         try:
-                            await db.client.table("stock_items").update(
-                                {"status": "available", "reserved_at": None, "sold_at": None}
-                            ).eq("id", stock_id).execute()
+                            await (
+                                db.client.table("stock_items")
+                                .update(
+                                    {"status": "available", "reserved_at": None, "sold_at": None}
+                                )
+                                .eq("id", stock_id)
+                                .execute()
+                            )
                         except Exception:
                             logger.exception("deliver-goods: failed to rollback stock item")
                 else:
@@ -278,9 +286,12 @@ async def _deliver_items_for_order(
             # Don't change status - keep it as is (should be 'prepaid' if payment confirmed, 'pending' if not)
             # Only update timestamp to track that we checked
             try:
-                await db.client.table("order_items").update({"updated_at": now.isoformat()}).eq(
-                    "id", item_id
-                ).execute()
+                await (
+                    db.client.table("order_items")
+                    .update({"updated_at": now.isoformat()})
+                    .eq("id", item_id)
+                    .execute()
+                )
             except Exception as e:
                 logger.error(
                     f"deliver-goods: failed to update timestamp for item {item_id}: {e}",
@@ -310,9 +321,12 @@ async def _deliver_items_for_order(
         )
         if new_status == "delivered":
             # Update delivered_at timestamp
-            await db.client.table("orders").update({"delivered_at": now.isoformat()}).eq(
-                "id", order_id
-            ).execute()
+            await (
+                db.client.table("orders")
+                .update({"delivered_at": now.isoformat()})
+                .eq("id", order_id)
+                .execute()
+            )
     except Exception as e:
         logger.error(f"deliver-goods: failed to update order status {order_id}: {e}", exc_info=True)
 
@@ -347,14 +361,20 @@ async def _deliver_items_for_order(
                     new_saved = current_saved + saved_amount
 
                     # Update user's total_saved
-                    await db.client.table("users").update({"total_saved": new_saved}).eq(
-                        "id", user_id
-                    ).execute()
+                    await (
+                        db.client.table("users")
+                        .update({"total_saved": new_saved})
+                        .eq("id", user_id)
+                        .execute()
+                    )
 
                     # Mark order as processed (idempotency flag)
-                    await db.client.table("orders").update({"saved_calculated": True}).eq(
-                        "id", order_id
-                    ).execute()
+                    await (
+                        db.client.table("orders")
+                        .update({"saved_calculated": True})
+                        .eq("id", order_id)
+                        .execute()
+                    )
 
                     logger.info(
                         f"deliver-goods: Updated total_saved for user {user_id}: {current_saved:.2f} -> {new_saved:.2f} (+{saved_amount:.2f} from order {order_id}, original={original_price:.2f}, final={final_amount:.2f})"

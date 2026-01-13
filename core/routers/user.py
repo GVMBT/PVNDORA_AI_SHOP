@@ -277,19 +277,26 @@ async def submit_review(request: SubmitReviewRequest, user=Depends(verify_telegr
 
         logging.warning(f"QStash failed for review cashback: {e}")
         await db.update_user_balance(db_user.id, cashback)
-        await db.client.table("reviews").update({"cashback_given": True}).eq(
-            "order_id", request.order_id
-        ).execute()
-        await db.client.table("balance_transactions").insert(
-            {
-                "user_id": db_user.id,
-                "type": "cashback",
-                "amount": cashback,
-                "status": "completed",
-                "description": "5% кэшбек за отзыв",
-                "reference_id": request.order_id,
-            }
-        ).execute()
+        await (
+            db.client.table("reviews")
+            .update({"cashback_given": True})
+            .eq("order_id", request.order_id)
+            .execute()
+        )
+        await (
+            db.client.table("balance_transactions")
+            .insert(
+                {
+                    "user_id": db_user.id,
+                    "type": "cashback",
+                    "amount": cashback,
+                    "status": "completed",
+                    "description": "5% кэшбек за отзыв",
+                    "reference_id": request.order_id,
+                }
+            )
+            .execute()
+        )
 
     return {
         "success": True,

@@ -18,6 +18,17 @@ interface AdminSalesProps {
   onRefresh?: () => void;
 }
 
+interface CheckPaymentResponse {
+  invoice_state?: string;
+  current_status: string;
+  message: string;
+}
+
+interface ForceStatusResponse {
+  success: boolean;
+  message: string;
+}
+
 // Helper functions to avoid nested ternaries
 const getSourceChannelStyle = (channel: string): string => {
   if (channel === "discount") return "bg-yellow-500/20 text-yellow-400";
@@ -48,7 +59,9 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
     async (orderId: string) => {
       setCheckingOrderId(orderId);
       try {
-        const result = await apiRequest<any>(`${API.ADMIN_URL}/orders/${orderId}/check-payment`);
+        const result = await apiRequest<CheckPaymentResponse>(
+          `${API.ADMIN_URL}/orders/${orderId}/check-payment`
+        );
         logger.info("Payment check result", result);
 
         alert(
@@ -76,10 +89,13 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
 
       setProcessingOrderId(orderId);
       try {
-        const result = await apiRequest<any>(`${API.ADMIN_URL}/orders/${orderId}/force-status`, {
-          method: "POST",
-          body: JSON.stringify({ new_status: newStatus }),
-        });
+        const result = await apiRequest<ForceStatusResponse>(
+          `${API.ADMIN_URL}/orders/${orderId}/force-status`,
+          {
+            method: "POST",
+            body: JSON.stringify({ new_status: newStatus }),
+          }
+        );
 
         logger.info("Force status result", result);
         alert(result.message || "Статус обновлён");
@@ -167,6 +183,7 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
                     {isPending && (
                       <div className="flex items-center justify-end gap-1">
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleCheckPayment(o.id);
@@ -181,6 +198,7 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
                           />
                         </button>
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleForceStatus(o.id, "paid");
@@ -192,6 +210,7 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
                           <CheckCircle size={12} className="text-green-400" />
                         </button>
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleForceStatus(o.id, "cancelled");

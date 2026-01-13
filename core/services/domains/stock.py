@@ -19,5 +19,5 @@ class StockDomain:
     async def reserve(self, stock_item_id: str) -> bool:
         return await self.repo.reserve(stock_item_id)
 
-    async def calculate_discount(self, stock_item: StockItem, product: Product) -> int:
-        return await self.repo.calculate_discount(stock_item, product)
+    def calculate_discount(self, stock_item: StockItem, product: Product) -> int:
+        return self.repo.calculate_discount(stock_item, product)

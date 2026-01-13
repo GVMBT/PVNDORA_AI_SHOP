@@ -30,7 +30,9 @@ BUTTON_BACK = "◀️ Назад"
 # =============================================================================
 
 
-async def validate_broadcast_data(data: dict, callback: CallbackQuery, state: FSMContext) -> tuple[str, str] | None:
+async def validate_broadcast_data(
+    data: dict, callback: CallbackQuery, state: FSMContext
+) -> tuple[str, str] | None:
     """Validate broadcast data and return target_bot, target_audience or None (reduces cognitive complexity)."""
     target_bot = data.get("target_bot")
     target_audience = data.get("target_audience")
@@ -156,13 +158,21 @@ async def queue_broadcast_batches(
             logger.exception("Broadcast %s: Batch %s EXCEPTION", broadcast_id, batch_idx + 1)
 
     logger.info(
-        "Broadcast %s: %s/%s batches queued successfully", broadcast_id, queued_count, len(user_batches)
+        "Broadcast %s: %s/%s batches queued successfully",
+        broadcast_id,
+        queued_count,
+        len(user_batches),
     )
     return queued_count, failed_queues
 
 
 async def send_broadcast_response(
-    callback: CallbackQuery, broadcast_id: str, recipients: list, queued_count: int, failed_queues: list, total_batches: int
+    callback: CallbackQuery,
+    broadcast_id: str,
+    recipients: list,
+    queued_count: int,
+    failed_queues: list,
+    total_batches: int,
 ):
     """Send final response to user (reduces cognitive complexity)."""
     if failed_queues:
@@ -727,7 +737,7 @@ async def msg_button_input(message: Message, state: FSMContext):
     await state.update_data(buttons=buttons)
 
     await message.answer(
-        f"✅ Кнопка добавлена! (всего: {len(buttons)})\n\n" "Добавить ещё или продолжить?",
+        f"✅ Кнопка добавлена! (всего: {len(buttons)})\n\nДобавить ещё или продолжить?",
         reply_markup=get_buttons_keyboard(True),
     )
 

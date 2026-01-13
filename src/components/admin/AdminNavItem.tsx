@@ -17,6 +17,7 @@ interface AdminNavItemProps {
 
 const AdminNavItem: React.FC<AdminNavItemProps> = ({ icon, label, active, onClick, collapsed }) => (
   <button
+    type="button"
     onClick={onClick}
     className={`flex items-center gap-3 w-full p-3 rounded-sm transition-all relative group ${
       active ? "bg-white/10 text-white" : "text-gray-500 hover:text-white hover:bg-white/5"

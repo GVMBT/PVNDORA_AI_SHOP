@@ -76,6 +76,7 @@ async def _convert_balance_to_usd(balance_in_local: float, balance_currency: str
     rate = await currency_service.get_exchange_rate(balance_currency)
     return balance_in_local / rate if rate > 0 else balance_in_local
 
+
 # Cache for referral_settings (TTL 10 minutes)
 _referral_settings_cache = None
 _referral_settings_cache_ttl = 10 * 60  # 10 minutes
@@ -255,7 +256,8 @@ async def get_webapp_profile(db_user: User = Depends(get_db_user)):
 
     redis = get_redis()
     formatter = await CurrencyFormatter.create(
-        db_user=db_user, redis=redis  # Pass db_user directly (already fetched above)
+        db_user=db_user,
+        redis=redis,  # Pass db_user directly (already fetched above)
     )
 
     referral_program = await _build_default_referral_program(
@@ -431,29 +433,38 @@ async def convert_balance(request: ConvertBalanceRequest, user=Depends(verify_te
     )
 
     # Update balance and currency in database
-    await db.client.table("users").update(
-        {"balance": new_balance, "balance_currency": target_currency}
-    ).eq("telegram_id", user.id).execute()
+    await (
+        db.client.table("users")
+        .update({"balance": new_balance, "balance_currency": target_currency})
+        .eq("telegram_id", user.id)
+        .execute()
+    )
 
     # Log the conversion (amount = 0 because balance doesn't change, only currency)
     # This is a system transaction that doesn't affect balance amount
-    await db.client.table("balance_transactions").insert(
-        {
-            "user_id": db_user.id,
-            "type": "conversion",
-            "amount": 0,  # Balance doesn't change, only currency changes
-            "currency": target_currency,
-            "balance_before": current_balance,
-            "balance_after": new_balance,
-            "status": "completed",
-            "description": f"Конвертация {current_balance:.2f} {current_currency} → {new_balance:.2f} {target_currency}",
-            "metadata": {
-                "from_currency": current_currency,
-                "to_currency": target_currency,
-                "exchange_rate": calculate_exchange_rate(rate, current_currency, target_currency),
-            },
-        }
-    ).execute()
+    await (
+        db.client.table("balance_transactions")
+        .insert(
+            {
+                "user_id": db_user.id,
+                "type": "conversion",
+                "amount": 0,  # Balance doesn't change, only currency changes
+                "currency": target_currency,
+                "balance_before": current_balance,
+                "balance_after": new_balance,
+                "status": "completed",
+                "description": f"Конвертация {current_balance:.2f} {current_currency} → {new_balance:.2f} {target_currency}",
+                "metadata": {
+                    "from_currency": current_currency,
+                    "to_currency": target_currency,
+                    "exchange_rate": calculate_exchange_rate(
+                        rate, current_currency, target_currency
+                    ),
+                },
+            }
+        )
+        .execute()
+    )
 
     logger.info(
         f"User {user.id} converted balance: {current_balance:.2f} {current_currency} → {new_balance:.2f} {target_currency}"

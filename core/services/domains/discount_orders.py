@@ -127,9 +127,12 @@ class DiscountOrderService:
             )
 
             # Update order with scheduled delivery time
-            await self.client.table("orders").update(
-                {"scheduled_delivery_at": scheduled_at.isoformat()}
-            ).eq("id", order_id).execute()
+            await (
+                self.client.table("orders")
+                .update({"scheduled_delivery_at": scheduled_at.isoformat()})
+                .eq("id", order_id)
+                .execute()
+            )
 
             return DelayedDeliveryTask(
                 order_id=order_id,
@@ -167,9 +170,12 @@ class DiscountOrderService:
     async def mark_discount_user(self, telegram_id: int) -> bool:
         """Mark user as originating from discount tier."""
         try:
-            await self.client.table("users").update({"discount_tier_source": True}).eq(
-                "telegram_id", telegram_id
-            ).execute()
+            await (
+                self.client.table("users")
+                .update({"discount_tier_source": True})
+                .eq("telegram_id", telegram_id)
+                .execute()
+            )
 
             logger.info(f"Marked user {telegram_id} as discount_tier_source")
             return True
@@ -180,12 +186,17 @@ class DiscountOrderService:
     async def accept_terms(self, telegram_id: int) -> bool:
         """Record user's acceptance of terms in discount bot."""
         try:
-            await self.client.table("users").update(
-                {
-                    "terms_accepted": True,
-                    "terms_accepted_at": datetime.now(UTC).isoformat(),
-                }
-            ).eq("telegram_id", telegram_id).execute()
+            await (
+                self.client.table("users")
+                .update(
+                    {
+                        "terms_accepted": True,
+                        "terms_accepted_at": datetime.now(UTC).isoformat(),
+                    }
+                )
+                .eq("telegram_id", telegram_id)
+                .execute()
+            )
 
             logger.info(f"User {telegram_id} accepted terms")
             return True

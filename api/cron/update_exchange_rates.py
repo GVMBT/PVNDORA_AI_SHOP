@@ -95,9 +95,11 @@ async def update_exchange_rates_entrypoint(request: Request):
             rate = rates.get(currency)
             if rate:
                 try:
-                    await supabase.table("exchange_rates").upsert(
-                        {"currency": currency, "rate": float(rate), "updated_at": now}
-                    ).execute()
+                    await (
+                        supabase.table("exchange_rates")
+                        .upsert({"currency": currency, "rate": float(rate), "updated_at": now})
+                        .execute()
+                    )
                     updated.append(currency)
                     logger.info(f"Updated {currency} rate: {rate}")
                 except Exception as e:

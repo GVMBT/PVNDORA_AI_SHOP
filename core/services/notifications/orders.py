@@ -56,9 +56,7 @@ def _categorize_order_items(items_data: list) -> tuple[list[str], list[str]]:
     return instant_items, prepaid_items
 
 
-def _build_items_list_text(
-    lang: str, instant_items: list[str], prepaid_items: list[str]
-) -> str:
+def _build_items_list_text(lang: str, instant_items: list[str], prepaid_items: list[str]) -> str:
     """Build items list text for notification (reduces cognitive complexity)."""
     if instant_items and prepaid_items:
         items_list_text = "\n"
@@ -174,7 +172,9 @@ class OrderNotificationsMixin(NotificationServiceBase):
                 instant_items, prepaid_items = _categorize_order_items(items_result.data)
         except Exception as e:
             sanitized_order_id = _sanitize_id_for_logging(order_id)
-            logger.warning("Failed to fetch order items for notification %s: %s", sanitized_order_id, e)
+            logger.warning(
+                "Failed to fetch order items for notification %s: %s", sanitized_order_id, e
+            )
 
         return instant_items, prepaid_items
 

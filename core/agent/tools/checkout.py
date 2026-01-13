@@ -157,9 +157,12 @@ async def _process_external_payment(
 
         # Update order with payment details
         if invoice_id:
-            await db.client.table("orders").update(
-                {"payment_id": str(invoice_id), "payment_url": payment_url}
-            ).eq("id", order.id).execute()
+            await (
+                db.client.table("orders")
+                .update({"payment_id": str(invoice_id), "payment_url": payment_url})
+                .eq("id", order.id)
+                .execute()
+            )
 
         # Apply promo code and clear cart
         if cart.promo_code:
@@ -281,7 +284,7 @@ async def _create_order_with_currency_snapshot(
 
 
 # Helper: Determine target currency for payment (reduces cognitive complexity)
-async def _determine_target_currency(
+def _determine_target_currency(
     payment_method: str,
     balance_currency: str,
     payment_gateway: str,
@@ -296,9 +299,7 @@ async def _determine_target_currency(
     if payment_gateway == "crystalpay":
         try:
             user_lang = (
-                db_user.get("interface_language")
-                or db_user.get("language_code")
-                or ctx.currency
+                db_user.get("interface_language") or db_user.get("language_code") or ctx.currency
             )
             preferred_currency = db_user.get("preferred_currency")
             user_currency = currency_service.get_user_currency(user_lang, preferred_currency)
@@ -306,7 +307,9 @@ async def _determine_target_currency(
             supported_currencies = ["USD", "RUB", "EUR", "UAH", "TRY", "INR", "AED"]
             if user_currency in supported_currencies:
                 return user_currency, user_currency
-            return GATEWAY_CURRENCY.get("crystalpay", "RUB"), GATEWAY_CURRENCY.get("crystalpay", "RUB")
+            return GATEWAY_CURRENCY.get("crystalpay", "RUB"), GATEWAY_CURRENCY.get(
+                "crystalpay", "RUB"
+            )
         except Exception:
             return "RUB", "RUB"
 
@@ -347,9 +350,7 @@ def _check_balance_sufficiency(
 
     balance_formatted = currency_service.format_price(to_float(user_balance), balance_currency)
     amount_formatted = currency_service.format_price(to_float(order_total), balance_currency)
-    error_msg = (
-        f"Недостаточно средств на балансе. Доступно: {balance_formatted}, требуется: {amount_formatted}"
-    )
+    error_msg = f"Недостаточно средств на балансе. Доступно: {balance_formatted}, требуется: {amount_formatted}"
 
     return {"success": False, "error": error_msg, "action": "suggest_card_payment"}
 
@@ -406,7 +407,9 @@ async def _finalize_balance_payment(
         )
         logger.info(f"Balance payment confirmed for order {order_id}, final_status={final_status}")
     except Exception as e:
-        logger.error(f"Failed to mark payment confirmed for balance order {order_id}: {e}", exc_info=True)
+        logger.error(
+            f"Failed to mark payment confirmed for balance order {order_id}: {e}", exc_info=True
+        )
         # Don't fail - order is created and balance is deducted
 
     # Queue delivery via QStash (async, don't block response)
@@ -439,11 +442,7 @@ async def _finalize_balance_payment(
 
     # Get updated balance for display
     updated_user_result = (
-        await db.client.table("users")
-        .select("balance")
-        .eq("id", ctx.user_id)
-        .single()
-        .execute()
+        await db.client.table("users").select("balance").eq("id", ctx.user_id).single().execute()
     )
     new_balance = (
         to_float(updated_user_result.data.get("balance", 0) or 0) if updated_user_result.data else 0
@@ -560,7 +559,7 @@ async def checkout_cart(payment_method: str = "card") -> dict:
         redis = get_redis()
         currency_service = get_currency_service(redis)
         payment_gateway = os.environ.get("DEFAULT_PAYMENT_GATEWAY", "crystalpay")
-        target_currency, gateway_currency = await _determine_target_currency(
+        target_currency, gateway_currency = _determine_target_currency(
             payment_method,
             balance_currency,
             payment_gateway,
@@ -570,7 +569,12 @@ async def checkout_cart(payment_method: str = "card") -> dict:
         )
 
         # 2. Validate cart items and calculate totals using Anchor Prices
-        total_amount, total_original, total_fiat_amount, order_items = await _validate_and_prepare_cart_items(
+        (
+            total_amount,
+            total_original,
+            total_fiat_amount,
+            order_items,
+        ) = await _validate_and_prepare_cart_items(
             db,
             cart.items,
             cart,
@@ -662,7 +666,9 @@ def _format_insufficient_balance_message(
             cart_total_formatted = currency_service.format_price(cart_total, user_currency)
             return f"Баланс: {balance_formatted}, нужно: {cart_total_formatted}. Пополни баланс или оплати картой."
         except Exception:
-            return f"Баланс: {balance:.0f}, нужно: {cart_total:.0f}. Пополни баланс или оплати картой."
+            return (
+                f"Баланс: {balance:.0f}, нужно: {cart_total:.0f}. Пополни баланс или оплати картой."
+            )
     return f"Баланс: {balance:.0f}, нужно: {cart_total:.0f}. Пополни баланс или оплати картой."
 
 
@@ -683,9 +689,7 @@ async def _calculate_balance_in_display_currency(
         else 1.0
     )
     display_rate = (
-        await currency_service.get_exchange_rate(user_currency)
-        if user_currency != "USD"
-        else 1.0
+        await currency_service.get_exchange_rate(user_currency) if user_currency != "USD" else 1.0
     )
 
     balance_usd = (

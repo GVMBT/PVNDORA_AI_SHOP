@@ -68,11 +68,7 @@ async def _get_review(db: Any, order_id: str) -> dict[str, Any] | None:
 async def _get_user_from_order(db: Any, order_id: str) -> User | None:
     """Get user from order. Returns None if not found."""
     order_result = (
-        await db.client.table("orders")
-        .select("user_id")
-        .eq("id", order_id)
-        .single()
-        .execute()
+        await db.client.table("orders").select("user_id").eq("id", order_id).single().execute()
     )
     if not order_result.data or not isinstance(order_result.data, dict):
         return None
@@ -138,17 +134,23 @@ async def _credit_user_balance(
     new_balance = current_balance + cashback_amount
 
     await db.client.table("users").update({"balance": new_balance}).eq("id", user.id).execute()
-    await db.client.table("balance_transactions").insert({
-        "user_id": user.id,
-        "type": "cashback",
-        "amount": cashback_amount,
-        "currency": balance_currency,
-        "status": "completed",
-        "description": "5% кэшбек за отзыв",
-        "reference_id": order_id,
-        "balance_before": current_balance,
-        "balance_after": new_balance,
-    }).execute()
+    await (
+        db.client.table("balance_transactions")
+        .insert(
+            {
+                "user_id": user.id,
+                "type": "cashback",
+                "amount": cashback_amount,
+                "currency": balance_currency,
+                "status": "completed",
+                "description": "5% кэшбек за отзыв",
+                "reference_id": order_id,
+                "balance_before": current_balance,
+                "balance_after": new_balance,
+            }
+        )
+        .execute()
+    )
 
     return new_balance
 
@@ -192,6 +194,7 @@ async def process_review_cashback(request: Request):
         return JSONResponse({"error": "order_id required"}, status_code=400)
 
     from core.services.database import get_database_async
+
     db = await get_database_async()
 
     # 1. Get and validate review
@@ -218,14 +221,22 @@ async def process_review_cashback(request: Request):
     cashback_amount = await _calculate_cashback(order_data, balance_currency, order_amount)
 
     # 5. Credit balance
-    new_balance = await _credit_user_balance(db, db_user, cashback_amount, balance_currency, order_id)
+    new_balance = await _credit_user_balance(
+        db, db_user, cashback_amount, balance_currency, order_id
+    )
 
     # 6. Mark review as processed
-    await db.client.table("reviews").update({"cashback_given": True}).eq("id", review["id"]).execute()
+    await (
+        db.client.table("reviews").update({"cashback_given": True}).eq("id", review["id"]).execute()
+    )
 
     # 7. Send notification
     if db_user.telegram_id:
-        await _send_cashback_notification(db_user.telegram_id, cashback_amount, new_balance, balance_currency)
+        await _send_cashback_notification(
+            db_user.telegram_id, cashback_amount, new_balance, balance_currency
+        )
 
-    logger.info(f"Cashback processed: user={db_user.telegram_id}, amount={cashback_amount} {balance_currency}")
+    logger.info(
+        f"Cashback processed: user={db_user.telegram_id}, amount={cashback_amount} {balance_currency}"
+    )
     return JSONResponse({"success": True, "cashback": cashback_amount, "new_balance": new_balance})

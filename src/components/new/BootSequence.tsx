@@ -204,9 +204,7 @@ const BootSequenceBackground: React.FC<{ glitchActive: boolean }> = ({ glitchAct
 // Helper: Terminal header component (reduces cognitive complexity)
 const TerminalHeader: React.FC<{ phase: BootPhase }> = ({ phase }) => (
   <div className="flex items-center gap-2 px-3 py-2 bg-gray-900/50 border-b border-gray-800">
-    <div
-      className={`w-3 h-3 rounded-full ${phase === "error" ? "bg-red-500" : "bg-red-500/50"}`}
-    />
+    <div className={`w-3 h-3 rounded-full ${phase === "error" ? "bg-red-500" : "bg-red-500/50"}`} />
     <div
       className={`w-3 h-3 rounded-full ${phase === "boot" ? "bg-yellow-500 animate-pulse" : "bg-yellow-500/50"}`}
     />
@@ -272,15 +270,7 @@ const BootSequenceContent: React.FC<{
   errorMessage: string | null;
   logsContainerRef: React.RefObject<HTMLDivElement>;
   onEnterSystem: () => void;
-}> = ({
-  glitchActive,
-  phase,
-  logs,
-  progress,
-  errorMessage,
-  logsContainerRef,
-  onEnterSystem,
-}) => (
+}> = ({ glitchActive, phase, logs, progress, errorMessage, logsContainerRef, onEnterSystem }) => (
   <motion.div
     className={`w-full max-w-2xl px-6 transition-transform ${glitchActive ? "translate-x-1" : ""}`}
     style={{ filter: glitchActive ? "hue-rotate(90deg)" : "none" }}
@@ -297,9 +287,7 @@ const BootSequenceContent: React.FC<{
         </h1>
         <div className="h-[2px] bg-gradient-to-r from-transparent via-pandora-cyan to-transparent" />
       </motion.div>
-      <p className="font-mono text-xs text-gray-500 mt-3 tracking-widest">
-        BLACK MARKET PROTOCOL
-      </p>
+      <p className="font-mono text-xs text-gray-500 mt-3 tracking-widest">BLACK MARKET PROTOCOL</p>
     </div>
 
     {/* Terminal window */}
@@ -307,10 +295,7 @@ const BootSequenceContent: React.FC<{
       <TerminalHeader phase={phase} />
 
       {/* Terminal content */}
-      <div
-        ref={logsContainerRef}
-        className="p-4 h-64 overflow-y-auto scrollbar-hide space-y-1"
-      >
+      <div ref={logsContainerRef} className="p-4 h-64 overflow-y-auto scrollbar-hide space-y-1">
         {logs.map((log) => (
           <LogLine key={log.id} entry={log} />
         ))}

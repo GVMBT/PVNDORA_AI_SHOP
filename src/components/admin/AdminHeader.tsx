@@ -33,7 +33,9 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ currentView }) => {
         <h2 className="text-2xl font-display font-bold text-white uppercase">
           {VIEW_LABELS[currentView] || currentView}
         </h2>
-        <div className="text-[10px] font-mono text-gray-500">LAST_LOGIN: 2025.10.02 // 14:00</div>
+        <div className="text-[10px] font-mono text-gray-500">
+          LAST_LOGIN: 2025.10.02 {/* 14:00 */}
+        </div>
       </div>
       <div className="flex items-center gap-4">
         <div className="text-right">

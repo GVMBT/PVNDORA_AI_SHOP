@@ -104,8 +104,7 @@ class OrderStatusService:
         if check_transition:
             can_transition, reason_msg = await self.can_transition_to(order_id, new_status)
             if not can_transition:
-                order_id_safe = _sanitize_id_for_logging(order_id)
-                logger.warning("Cannot update order %s status: transition not allowed", order_id_safe)
+                logger.warning("Cannot update order status: transition not allowed")
                 return False
 
         try:
@@ -129,12 +128,10 @@ class OrderStatusService:
             logger.debug("[StatusService] Update result: rows_affected=%d", rows_affected)
 
             if rows_affected == 0:
-                order_id_safe = _sanitize_id_for_logging(order_id)
-                logger.warning("[StatusService] NO ROWS UPDATED for order %s! Order might not exist.", order_id_safe)
+                logger.warning("[StatusService] NO ROWS UPDATED! Order might not exist.")
                 return False
 
-            order_id_safe = _sanitize_id_for_logging(order_id)
-            logger.info("Updated order %s status to '%s'", order_id_safe, new_status)
+            logger.info("Updated order status successfully")
             return True
         except Exception:
             logger.exception("Failed to update order status")
@@ -159,7 +156,11 @@ class OrderStatusService:
             Final status set ('paid' or 'prepaid')
         """
         order_id_safe = _sanitize_id_for_logging(order_id)
-        logger.debug("[mark_payment_confirmed] Called for order_id=%s, check_stock=%s", order_id_safe, check_stock)
+        logger.debug(
+            "[mark_payment_confirmed] Called for order_id=%s, check_stock=%s",
+            order_id_safe,
+            check_stock,
+        )
 
         # Get order info
         try:
@@ -193,11 +194,18 @@ class OrderStatusService:
             fiat_amount = order_result.data.get("fiat_amount")
             fiat_currency = order_result.data.get("fiat_currency")
 
-            logger.debug("[mark_payment_confirmed] Order status: current_status=%s, order_type=%s, payment_method=%s", current_status, order_type, payment_method)
+            logger.debug(
+                "[mark_payment_confirmed] Order status: current_status=%s, order_type=%s, payment_method=%s",
+                current_status,
+                order_type,
+                payment_method,
+            )
 
             # IDEMPOTENCY: If already paid/prepaid/delivered, return current status
             if current_status in ("paid", "prepaid", "delivered", "partial"):
-                logger.debug("Order already in status '%s' (idempotency check), skipping", current_status)
+                logger.debug(
+                    "Order already in status '%s' (idempotency check), skipping", current_status
+                )
                 return current_status
 
             # Determine final status based on stock availability
@@ -207,14 +215,19 @@ class OrderStatusService:
             if payment_id:
                 try:
                     logger.debug("[mark_payment_confirmed] Updating payment_id")
-                    await self.db.client.table("orders").update({"payment_id": payment_id}).eq(
-                        "id", order_id
-                    ).execute()
-                except Exception as e:
-                    order_id_safe = _sanitize_id_for_logging(order_id)
-                    logger.warning("Failed to update payment_id for %s: %s", order_id_safe, e)
+                    await (
+                        self.db.client.table("orders")
+                        .update({"payment_id": payment_id})
+                        .eq("id", order_id)
+                        .execute()
+                    )
+                except Exception:
+                    logger.warning("Failed to update payment_id", exc_info=True)
 
-            logger.debug("[mark_payment_confirmed] About to call update_status with final_status=%s", final_status)
+            logger.debug(
+                "[mark_payment_confirmed] About to call update_status with final_status=%s",
+                final_status,
+            )
             update_result = await self.update_status(
                 order_id, final_status, "Payment confirmed via webhook", check_transition=False
             )
@@ -233,8 +246,8 @@ class OrderStatusService:
                         .execute()
                     )
                     return result.data or []
-                except Exception as e:
-                    logger.warning("Failed to fetch order_items: %s", e)
+                except Exception:
+                    logger.warning("Failed to fetch order_items", exc_info=True)
                     return []
 
             async def fetch_user_balance_and_check_tx():
@@ -271,8 +284,8 @@ class OrderStatusService:
                             )
                             return balance, False  # (balance, tx_exists)
                         return None, True  # Transaction exists
-                    except Exception as e:
-                        logger.warning("Failed to fetch user balance: %s", e)
+                    except Exception:
+                        logger.warning("Failed to fetch user balance", exc_info=True)
                         return None, False
                 return None, False  # Not needed
 
@@ -289,15 +302,13 @@ class OrderStatusService:
                 tx_exists = False
 
             if not update_result:
-                order_id_safe = _sanitize_id_for_logging(order_id)
-                logger.error("[mark_payment_confirmed] FAILED to update order %s status to %s!", order_id_safe, final_status)
+                logger.error("[mark_payment_confirmed] FAILED to update order status")
             else:
                 # Send admin alert for paid orders (best-effort)
                 try:
                     await self._send_order_alert(order_id, order_amount, user_id)
-                except Exception as e:
-                    order_id_safe = _sanitize_id_for_logging(order_id)
-                    logger.warning("Failed to send admin alert for order %s: %s", order_id_safe, e)
+                except Exception:
+                    logger.warning("Failed to send admin alert", exc_info=True)
 
                 # Send payment confirmation to user (best-effort)
                 await self._send_payment_notification(
@@ -328,29 +339,38 @@ class OrderStatusService:
                             transaction_currency = "USD"
 
                         # Create purchase transaction record
-                        await self.db.client.table("balance_transactions").insert(
-                            {
-                                "user_id": user_id,
-                                "type": "purchase",
-                                "amount": transaction_amount,
-                                "currency": transaction_currency,
-                                "balance_before": current_balance,
-                                "balance_after": current_balance,  # Balance doesn't change for external payments
-                                "status": "completed",
-                                "description": f"Purchase: Order {order_id}",
-                                "metadata": {
-                                    "order_id": order_id,
-                                    "payment_method": payment_method,
-                                    "payment_id": payment_id,
-                                },
-                            }
-                        ).execute()
-                        logger.debug("[mark_payment_confirmed] Created balance_transaction for purchase: %s %s", transaction_amount, transaction_currency)
+                        await (
+                            self.db.client.table("balance_transactions")
+                            .insert(
+                                {
+                                    "user_id": user_id,
+                                    "type": "purchase",
+                                    "amount": transaction_amount,
+                                    "currency": transaction_currency,
+                                    "balance_before": current_balance,
+                                    "balance_after": current_balance,  # Balance doesn't change for external payments
+                                    "status": "completed",
+                                    "description": f"Purchase: Order {order_id}",
+                                    "metadata": {
+                                        "order_id": order_id,
+                                        "payment_method": payment_method,
+                                        "payment_id": payment_id,
+                                    },
+                                }
+                            )
+                            .execute()
+                        )
+                        logger.debug(
+                            "[mark_payment_confirmed] Created balance_transaction for purchase: %s %s",
+                            transaction_amount,
+                            transaction_currency,
+                        )
                     elif tx_exists:
-                        logger.debug("[mark_payment_confirmed] balance_transaction already exists, skipping")
-                except Exception as e:
-                    order_id_safe = _sanitize_id_for_logging(order_id)
-                    logger.warning("Failed to create balance_transaction for order %s: %s", order_id_safe, e)
+                        logger.debug(
+                            "[mark_payment_confirmed] balance_transaction already exists, skipping"
+                        )
+                except Exception:
+                    logger.warning("Failed to create balance_transaction", exc_info=True)
                     # Non-critical - don't fail the payment confirmation
 
             # Set fulfillment deadline for orders with preorder items
@@ -364,9 +384,8 @@ class OrderStatusService:
                         "calculate_order_expenses", {"p_order_id": order_id}
                     ).execute()
                     logger.debug("[mark_payment_confirmed] Successfully created order_expenses")
-                except Exception as e:
-                    order_id_safe = _sanitize_id_for_logging(order_id)
-                    logger.warning("Failed to create order_expenses for order %s: %s", order_id_safe, e)
+                except Exception:
+                    logger.warning("Failed to create order_expenses", exc_info=True)
                     # Non-critical - don't fail payment confirmation
 
             return final_status
@@ -463,13 +482,11 @@ class OrderStatusService:
                 product_name=product_display,
                 quantity=total_qty,
             )
-        except Exception as e:
-            logger.warning("Failed to send order alert: %s", e)
+        except Exception:
+            logger.warning("Failed to send order alert", exc_info=True)
 
     # Helper: Determine final status based on stock (reduces cognitive complexity)
-    async def _determine_final_status(
-        self, order_id: str, check_stock: bool
-    ) -> str:
+    async def _determine_final_status(self, order_id: str, check_stock: bool) -> str:
         """Determine final status (paid/prepaid) based on stock availability."""
         if not check_stock:
             return "prepaid"
@@ -477,7 +494,9 @@ class OrderStatusService:
         logger.debug("[mark_payment_confirmed] Checking stock availability...")
         has_stock = await self._check_stock_availability(order_id)
         final_status = "paid" if has_stock else "prepaid"
-        logger.debug("[mark_payment_confirmed] has_stock=%s, final_status=%s", has_stock, final_status)
+        logger.debug(
+            "[mark_payment_confirmed] has_stock=%s, final_status=%s", has_stock, final_status
+        )
         return final_status
 
     # Helper: Send payment confirmation notification (reduces cognitive complexity)
@@ -502,9 +521,7 @@ class OrderStatusService:
             preorder_count = sum(
                 1 for item in items_result if item.get("fulfillment_type") == "preorder"
             )
-            has_instant = any(
-                item.get("fulfillment_type") != "preorder" for item in items_result
-            )
+            has_instant = any(item.get("fulfillment_type") != "preorder" for item in items_result)
 
             from core.routers.deps import get_notification_service
 
@@ -518,9 +535,8 @@ class OrderStatusService:
                 has_instant_items=has_instant,
                 preorder_count=preorder_count,
             )
-        except Exception as e:
-            order_id_safe = _sanitize_id_for_logging(order_id)
-            logger.warning("Failed to send payment confirmation to user for order %s: %s", order_id_safe, e)
+        except Exception:
+            logger.warning("Failed to send payment confirmation to user", exc_info=True)
 
     # Helper: Create balance transaction for external payments (reduces cognitive complexity)
     async def _create_purchase_transaction(
@@ -538,34 +554,45 @@ class OrderStatusService:
         """Create balance_transaction record for external payment purchases."""
         if not user_balance or tx_exists:
             if tx_exists:
-                logger.debug("[mark_payment_confirmed] balance_transaction already exists, skipping")
+                logger.debug(
+                    "[mark_payment_confirmed] balance_transaction already exists, skipping"
+                )
             return
 
         try:
-            transaction_amount = float(fiat_amount) if fiat_amount is not None else float(order_amount)
+            transaction_amount = (
+                float(fiat_amount) if fiat_amount is not None else float(order_amount)
+            )
             transaction_currency = fiat_currency if fiat_amount else "USD"
 
-            await self.db.client.table("balance_transactions").insert(
-                {
-                    "user_id": user_id,
-                    "type": "purchase",
-                    "amount": transaction_amount,
-                    "currency": transaction_currency,
-                    "balance_before": user_balance,
-                    "balance_after": user_balance,  # Balance doesn't change for external payments
-                    "status": "completed",
-                    "description": f"Purchase: Order {order_id}",
-                    "metadata": {
-                        "order_id": order_id,
-                        "payment_method": payment_method,
-                        "payment_id": payment_id,
-                    },
-                }
-            ).execute()
-            logger.debug("[mark_payment_confirmed] Created balance_transaction for purchase: %s %s", transaction_amount, transaction_currency)
-        except Exception as e:
-            order_id_safe = _sanitize_id_for_logging(order_id)
-            logger.warning("Failed to create balance_transaction for order %s: %s", order_id_safe, e)
+            await (
+                self.db.client.table("balance_transactions")
+                .insert(
+                    {
+                        "user_id": user_id,
+                        "type": "purchase",
+                        "amount": transaction_amount,
+                        "currency": transaction_currency,
+                        "balance_before": user_balance,
+                        "balance_after": user_balance,  # Balance doesn't change for external payments
+                        "status": "completed",
+                        "description": f"Purchase: Order {order_id}",
+                        "metadata": {
+                            "order_id": order_id,
+                            "payment_method": payment_method,
+                            "payment_id": payment_id,
+                        },
+                    }
+                )
+                .execute()
+            )
+            logger.debug(
+                "[mark_payment_confirmed] Created balance_transaction for purchase: %s %s",
+                transaction_amount,
+                transaction_currency,
+            )
+        except Exception:
+            logger.warning("Failed to create balance_transaction", exc_info=True)
 
     # Helper: Set fulfillment deadline for preorder items (reduces cognitive complexity)
     async def _set_fulfillment_deadline(
@@ -577,18 +604,22 @@ class OrderStatusService:
         )
 
         if not has_preorder_items:
-            logger.debug("[mark_payment_confirmed] Order has no preorder items, skipping fulfillment_deadline")
+            logger.debug(
+                "[mark_payment_confirmed] Order has no preorder items, skipping fulfillment_deadline"
+            )
             return
 
         try:
-            logger.debug("[mark_payment_confirmed] Setting fulfillment deadline for preorder items (final_status=%s)", final_status)
+            logger.debug(
+                "[mark_payment_confirmed] Setting fulfillment deadline for preorder items (final_status=%s)",
+                final_status,
+            )
             await self.db.client.rpc(
                 "set_fulfillment_deadline_for_prepaid_order",
                 {"p_order_id": order_id, "p_hours_from_now": 24},
             ).execute()
-        except Exception as e:
-            order_id_safe = _sanitize_id_for_logging(order_id)
-            logger.warning("Failed to set fulfillment deadline for %s: %s", order_id_safe, e)
+        except Exception:
+            logger.warning("Failed to set fulfillment deadline", exc_info=True)
 
     async def _check_stock_availability(self, order_id: str) -> bool:
         """Check if order has available stock for instant delivery.

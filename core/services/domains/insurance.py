@@ -157,7 +157,7 @@ class InsuranceService:
             logger.exception("Failed to get insurance options")
             return []
 
-    async def calculate_insurance_price(
+    def calculate_insurance_price(
         self, product_discount_price: float, insurance_option: InsuranceOption
     ) -> float:
         """Calculate insurance price based on product discount price and option percentage."""
@@ -186,9 +186,14 @@ class InsuranceService:
             expires_at = base_date + timedelta(days=duration_days)
 
             # Update order item
-            await self.client.table("order_items").update(
-                {"insurance_id": insurance_id, "insurance_expires_at": expires_at.isoformat()}
-            ).eq("id", order_item_id).execute()
+            await (
+                self.client.table("order_items")
+                .update(
+                    {"insurance_id": insurance_id, "insurance_expires_at": expires_at.isoformat()}
+                )
+                .eq("id", order_item_id)
+                .execute()
+            )
 
             logger.info(
                 f"Attached insurance {insurance_id} to order_item {order_item_id}, expires {expires_at}"
@@ -425,14 +430,20 @@ class InsuranceService:
             replacement_id = result.data[0]["id"]
 
             # Update order item with new stock item
-            await self.client.table("order_items").update({"stock_item_id": new_stock_item_id}).eq(
-                "id", order_item_id
-            ).execute()
+            await (
+                self.client.table("order_items")
+                .update({"stock_item_id": new_stock_item_id})
+                .eq("id", order_item_id)
+                .execute()
+            )
 
             # Mark new stock item as sold
-            await self.client.table("stock_items").update(
-                {"status": "sold", "sold_at": datetime.now(UTC).isoformat()}
-            ).eq("id", new_stock_item_id).execute()
+            await (
+                self.client.table("stock_items")
+                .update({"status": "sold", "sold_at": datetime.now(UTC).isoformat()})
+                .eq("id", new_stock_item_id)
+                .execute()
+            )
 
             logger.info(
                 f"Auto-approved replacement {replacement_id} for order_item {order_item_id}"
@@ -579,9 +590,13 @@ class InsuranceService:
     async def remove_user_restriction(self, user_id: str, restriction_type: str) -> bool:
         """Remove a restriction from a user."""
         try:
-            await self.client.table("user_restrictions").delete().eq("user_id", user_id).eq(
-                "restriction_type", restriction_type
-            ).execute()
+            await (
+                self.client.table("user_restrictions")
+                .delete()
+                .eq("user_id", user_id)
+                .eq("restriction_type", restriction_type)
+                .execute()
+            )
 
             logger.info(f"Removed restriction {restriction_type} from user {user_id}")
             return True
@@ -679,20 +694,29 @@ class InsuranceService:
             if new_stock_item_id:
                 update_data["new_stock_item_id"] = new_stock_item_id
 
-            await self.client.table("insurance_replacements").update(update_data).eq(
-                "id", replacement_id
-            ).execute()
+            await (
+                self.client.table("insurance_replacements")
+                .update(update_data)
+                .eq("id", replacement_id)
+                .execute()
+            )
 
             # Update order item if we have a new stock item
             if new_stock_item_id:
-                await self.client.table("order_items").update(
-                    {"stock_item_id": new_stock_item_id}
-                ).eq("id", order_item_id).execute()
+                await (
+                    self.client.table("order_items")
+                    .update({"stock_item_id": new_stock_item_id})
+                    .eq("id", order_item_id)
+                    .execute()
+                )
 
                 # Mark stock item as sold
-                await self.client.table("stock_items").update(
-                    {"status": "sold", "sold_at": datetime.now(UTC).isoformat()}
-                ).eq("id", new_stock_item_id).execute()
+                await (
+                    self.client.table("stock_items")
+                    .update({"status": "sold", "sold_at": datetime.now(UTC).isoformat()})
+                    .eq("id", new_stock_item_id)
+                    .execute()
+                )
 
             logger.info(f"Approved replacement {replacement_id} by admin {admin_user_id}")
             return True
@@ -705,14 +729,19 @@ class InsuranceService:
     ) -> bool:
         """Reject a pending replacement."""
         try:
-            await self.client.table("insurance_replacements").update(
-                {
-                    "status": "rejected",
-                    "rejection_reason": rejection_reason,
-                    "processed_by": admin_user_id,
-                    "processed_at": datetime.now(UTC).isoformat(),
-                }
-            ).eq("id", replacement_id).execute()
+            await (
+                self.client.table("insurance_replacements")
+                .update(
+                    {
+                        "status": "rejected",
+                        "rejection_reason": rejection_reason,
+                        "processed_by": admin_user_id,
+                        "processed_at": datetime.now(UTC).isoformat(),
+                    }
+                )
+                .eq("id", replacement_id)
+                .execute()
+            )
 
             logger.info(f"Rejected replacement {replacement_id} by admin {admin_user_id}")
             return True

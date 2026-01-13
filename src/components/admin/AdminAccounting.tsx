@@ -344,6 +344,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
           <div className="flex flex-wrap bg-[#0e0e0e] border border-white/10 rounded-sm overflow-hidden">
             {(["today", "month", "all", "custom"] as const).map((p) => (
               <button
+                type="button"
                 key={p}
                 onClick={() => handlePeriodChange(p)}
                 className={`px-3 py-1.5 text-xs font-mono uppercase transition-colors ${
@@ -379,6 +380,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
                 className="bg-transparent text-xs text-white border-none outline-none"
               />
               <button
+                type="button"
                 onClick={() => {
                   if (onRefresh) onRefresh("custom", customFrom, customTo, "USD");
                 }}
@@ -399,6 +401,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
           )}
           {onRefresh && (
             <button
+              type="button"
               onClick={() =>
                 onRefresh(period, customFrom || undefined, customTo || undefined, "USD")
               }

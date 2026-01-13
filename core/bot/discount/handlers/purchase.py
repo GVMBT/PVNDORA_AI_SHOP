@@ -197,7 +197,9 @@ async def _get_display_prices(
 
 
 # Helper: Calculate insurance price and ID (reduces cognitive complexity)
-def _calculate_insurance_info(insurance: dict | None, discount_price: float) -> tuple[float, str | None]:
+def _calculate_insurance_info(
+    insurance: dict | None, discount_price: float
+) -> tuple[float, str | None]:
     """Calculate insurance price and return (price, id)."""
     if not insurance:
         return 0.0, None
@@ -239,15 +241,19 @@ async def _create_discount_order(
 
     order_id = order_result.data[0]["id"]
 
-    await db.client.table("order_items").insert(
-        {
-            "order_id": order_id,
-            "product_id": product_id,
-            "quantity": 1,
-            "price": discount_price,
-            "insurance_id": insurance_id,
-        }
-    ).execute()
+    await (
+        db.client.table("order_items")
+        .insert(
+            {
+                "order_id": order_id,
+                "product_id": product_id,
+                "quantity": 1,
+                "price": discount_price,
+                "insurance_id": insurance_id,
+            }
+        )
+        .execute()
+    )
 
     return order_id
 
@@ -361,7 +367,13 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
 
         # Create order and order item
         order_id = await _create_discount_order(
-            db, user_uuid, db_user.telegram_id, total_price, discount_price, product["id"], insurance_id
+            db,
+            user_uuid,
+            db_user.telegram_id,
+            total_price,
+            discount_price,
+            product["id"],
+            insurance_id,
         )
 
         # Determine user currency and create payment
@@ -385,17 +397,25 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
         invoice_id = payment_result.get("invoice_id")
 
         # Update order with payment URL and invoice_id (critical for webhook lookup!)
-        await db.client.table("orders").update(
-            {
-                "payment_url": payment_url,
-                "payment_id": invoice_id,  # Required for webhook to find order
-            }
-        ).eq("id", order_id).execute()
+        await (
+            db.client.table("orders")
+            .update(
+                {
+                    "payment_url": payment_url,
+                    "payment_id": invoice_id,  # Required for webhook to find order
+                }
+            )
+            .eq("id", order_id)
+            .execute()
+        )
 
         # Format price in user's currency for display
-        display_amount, display_discount_price, display_insurance_price, display_currency_symbol = (
-            await _get_display_prices(total_price, discount_price, insurance_price, user_currency)
-        )
+        (
+            display_amount,
+            display_discount_price,
+            display_insurance_price,
+            display_currency_symbol,
+        ) = await _get_display_prices(total_price, discount_price, insurance_price, user_currency)
 
         # Build and send payment message
         text = _build_payment_message(
@@ -592,11 +612,7 @@ def _format_delivery_info(order: dict[str, Any], lang: str) -> str:
             if lang == "ru"
             else f"\n📦 Expected delivery: {scheduled[:16].replace('T', ' ')}\n"
         )
-    return (
-        "\n📦 Доставка в течение 1-4 часов\n"
-        if lang == "ru"
-        else "\n📦 Delivery in 1-4 hours\n"
-    )
+    return "\n📦 Доставка в течение 1-4 часов\n" if lang == "ru" else "\n📦 Delivery in 1-4 hours\n"
 
 
 # Helper: Build order detail message (reduces cognitive complexity)

@@ -36,13 +36,21 @@ async def _cancel_single_order(db: Any, order: Any) -> bool:
     """Cancel a single expired/stale order. Returns True on success."""
     try:
         if order.stock_item_id:
-            await db.client.table("stock_items").update(
-                {"status": "available", "reserved_at": None}
-            ).eq("id", order.stock_item_id).eq("status", "reserved").execute()
+            await (
+                db.client.table("stock_items")
+                .update({"status": "available", "reserved_at": None})
+                .eq("id", order.stock_item_id)
+                .eq("status", "reserved")
+                .execute()
+            )
 
-        await db.client.table("orders").update({"status": "cancelled"}).eq("id", order.id).eq(
-            "status", "pending"
-        ).execute()
+        await (
+            db.client.table("orders")
+            .update({"status": "cancelled"})
+            .eq("id", order.id)
+            .eq("status", "pending")
+            .execute()
+        )
         return True
     except Exception:
         logger.exception(f"Failed to cancel order {order.id}")

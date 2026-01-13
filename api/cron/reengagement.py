@@ -85,9 +85,12 @@ async def _process_inactive_users(db: Any, now: datetime) -> int:
         message = get_text("reengagement_message", lang, name=name)
 
         if await _send_telegram_message(user["telegram_id"], message):
-            await db.client.table("users").update(
-                {"last_reengagement_at": now.isoformat()}
-            ).eq("id", user["id"]).execute()
+            await (
+                db.client.table("users")
+                .update({"last_reengagement_at": now.isoformat()})
+                .eq("id", user["id"])
+                .execute()
+            )
             sent_count += 1
 
     return sent_count
@@ -131,9 +134,12 @@ async def _process_wishlist_reminders(db: Any, now: datetime) -> int:
         message = get_text("wishlist_reminder", lang, product=item.get("product_name", ""))
 
         if await _send_telegram_message(user_data["telegram_id"], message):
-            await db.client.table("wishlist").update({"reminded": True}).eq(
-                "id", item["id"]
-            ).execute()
+            await (
+                db.client.table("wishlist")
+                .update({"reminded": True})
+                .eq("id", item["id"])
+                .execute()
+            )
             wishlist_sent += 1
 
     return wishlist_sent
@@ -149,8 +155,7 @@ async def _process_expiring_subscriptions(db: Any, now: datetime) -> int:
     expiring_items = (
         await db.client.table("order_items")
         .select(
-            "id,order_id,expires_at,products(name),"
-            "orders(user_telegram_id,users(language_code))"
+            "id,order_id,expires_at,products(name),orders(user_telegram_id,users(language_code))"
         )
         .eq("status", "delivered")
         .gte("expires_at", expiry_window_start.isoformat())
@@ -223,7 +228,9 @@ async def reengagement_entrypoint(request: Request):
         results["tasks"]["wishlist_reminders_sent"] = await _process_wishlist_reminders(db, now)
 
         # 3. Expiring subscriptions
-        results["tasks"]["expiry_notifications_sent"] = await _process_expiring_subscriptions(db, now)
+        results["tasks"]["expiry_notifications_sent"] = await _process_expiring_subscriptions(
+            db, now
+        )
 
     except Exception as e:
         results["success"] = False

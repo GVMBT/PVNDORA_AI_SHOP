@@ -23,9 +23,7 @@ reviews_router = APIRouter(tags=["webapp-misc-reviews"])
 # ==================== REVIEW HELPER FUNCTIONS ====================
 
 
-def _determine_review_product_id(
-    request: WebAppReviewRequest, order_items: list
-) -> str | None:
+def _determine_review_product_id(request: WebAppReviewRequest, order_items: list) -> str | None:
     """Determine which product is being reviewed from request and order items."""
     if request.product_id:
         return request.product_id
@@ -154,9 +152,12 @@ async def _update_order_expenses_cashback(
 
         if current_expenses.data and len(current_expenses.data) > 0:
             # Update existing order_expenses
-            await db.client.table("order_expenses").update(
-                {"review_cashback_amount": total_cashback_usd}
-            ).eq("order_id", order_id).execute()
+            await (
+                db.client.table("order_expenses")
+                .update({"review_cashback_amount": total_cashback_usd})
+                .eq("order_id", order_id)
+                .execute()
+            )
             logger.info(
                 f"Updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD (added {cashback_usd:.2f} USD)"
             )
@@ -168,9 +169,12 @@ async def _update_order_expenses_cashback(
             await db.client.rpc("calculate_order_expenses", {"p_order_id": order_id}).execute()
 
             # Now update review_cashback_amount
-            await db.client.table("order_expenses").update(
-                {"review_cashback_amount": total_cashback_usd}
-            ).eq("order_id", order_id).execute()
+            await (
+                db.client.table("order_expenses")
+                .update({"review_cashback_amount": total_cashback_usd})
+                .eq("order_id", order_id)
+                .execute()
+            )
             logger.info(
                 f"Created and updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD"
             )
@@ -190,9 +194,7 @@ def _validate_order_for_review(db_user, order) -> None:
 
 
 # Helper to create review record (reduces cognitive complexity)
-async def _create_review_record(
-    db, db_user, request, product_id: str
-) -> str:
+async def _create_review_record(db, db_user, request, product_id: str) -> str:
     """Create review record and return review_id."""
     existing = (
         await db.client.table("reviews")
@@ -221,7 +223,9 @@ async def _create_review_record(
         )
     except Exception as e:
         if _is_duplicate_key_error(e):
-            logger.info("Review already exists for order %s, product %s", request.order_id, product_id)
+            logger.info(
+                "Review already exists for order %s, product %s", request.order_id, product_id
+            )
             raise HTTPException(status_code=400, detail="Вы уже оставили отзыв на этот товар")
 
         error_str = str(e)
@@ -237,7 +241,13 @@ async def _create_review_record(
 
 # Helper to process cashback (reduces cognitive complexity)
 async def _process_review_cashback(
-    db, db_user, review_id: str, request, cashback_amount: float, balance_currency: str, currency_service
+    db,
+    db_user,
+    review_id: str,
+    request,
+    cashback_amount: float,
+    balance_currency: str,
+    currency_service,
 ) -> float:
     """Process cashback for review and return new balance."""
     current_balance = to_float(db_user.balance) if db_user.balance else 0.0

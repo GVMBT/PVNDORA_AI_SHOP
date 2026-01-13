@@ -90,15 +90,24 @@ async def _mark_order_delivered(
 ) -> None:
     """Mark stock as sold and order as delivered."""
     now_iso = datetime.now(UTC).isoformat()
-    await db.client.table("stock_items").update(
-        {"status": "sold", "sold_at": now_iso}
-    ).eq("id", stock_item_id).execute()
-    await db.client.table("order_items").update(
-        {"stock_item_id": stock_item_id, "delivered_at": now_iso}
-    ).eq("id", order_item_id).execute()
-    await db.client.table("orders").update(
-        {"status": "delivered", "delivered_at": now_iso}
-    ).eq("id", order_id).execute()
+    await (
+        db.client.table("stock_items")
+        .update({"status": "sold", "sold_at": now_iso})
+        .eq("id", stock_item_id)
+        .execute()
+    )
+    await (
+        db.client.table("order_items")
+        .update({"stock_item_id": stock_item_id, "delivered_at": now_iso})
+        .eq("id", order_item_id)
+        .execute()
+    )
+    await (
+        db.client.table("orders")
+        .update({"status": "delivered", "delivered_at": now_iso})
+        .eq("id", order_id)
+        .execute()
+    )
 
 
 async def _get_user_info(db: Any, telegram_id: int) -> tuple[str | None, str]:
@@ -214,7 +223,9 @@ async def _send_loyal_promo_if_eligible(
     promo_service = PromoCodeService(db.client)
 
     try:
-        existing = await promo_service.get_user_promos_by_trigger(user_id, PromoTriggers.LOYAL_CUSTOMER)
+        existing = await promo_service.get_user_promos_by_trigger(
+            user_id, PromoTriggers.LOYAL_CUSTOMER
+        )
         if existing:
             return False
 
@@ -264,6 +275,7 @@ async def deliver_discount_order(request: Request):
 
     try:
         import json
+
         payload = json.loads(body)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON")
@@ -277,6 +289,7 @@ async def deliver_discount_order(request: Request):
         return JSONResponse({"error": "Missing required fields"}, status_code=400)
 
     from core.services.database import get_database_async
+
     db = await get_database_async()
 
     # 1. Validate order
@@ -314,9 +327,11 @@ async def deliver_discount_order(request: Request):
     if purchase_count >= 3 and user_id:
         await _send_loyal_promo_if_eligible(user_id, telegram_id, lang, purchase_count)
 
-    return JSONResponse({
-        "success": True,
-        "order_id": order_id,
-        "telegram_id": telegram_id,
-        "delivered_at": datetime.now(UTC).isoformat(),
-    })
+    return JSONResponse(
+        {
+            "success": True,
+            "order_id": order_id,
+            "telegram_id": telegram_id,
+            "delivered_at": datetime.now(UTC).isoformat(),
+        }
+    )

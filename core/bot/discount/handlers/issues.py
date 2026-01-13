@@ -201,7 +201,9 @@ async def _get_promo_for_insurance_status(
     if has_insurance and not can_replace:
         # Check if replacement failed due to limit
         replacement_status = replacement_result.get("status") if replacement_result else None
-        replacement_message = (replacement_result.get("message") or "").lower() if replacement_result else ""
+        replacement_message = (
+            (replacement_result.get("message") or "").lower() if replacement_result else ""
+        )
         if replacement_status == "rejected" and "limit" in replacement_message:
             return await _generate_promo_for_issue(
                 promo_service,

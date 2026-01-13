@@ -196,7 +196,7 @@ async def cmd_users(message: Message):
             "🌐 <b>ЯЗЫКИ</b>\n" + "\n".join(lang_lines) + "\n\n"
             "🔗 <b>РЕФЕРАЛЫ</b>\n"
             f"└ Пришли по ссылке: <code>{with_referrers:,}</code>\n\n"
-            f"<i>Конверсия: {unique_buyers/total_users*100:.1f}%</i>"
+            f"<i>Конверсия: {unique_buyers / total_users * 100:.1f}%</i>"
             if total_users
             else ""
         ),

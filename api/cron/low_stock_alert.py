@@ -159,15 +159,19 @@ def format_stock_alert(products: list) -> str:
 
     lines = ["<b>📦 КОНТРОЛЬ ЗАПАСОВ</b>\n"]
 
-    lines.extend(_format_stock_section(
-        out_of_stock, "🔴 <b>НЕТ В НАЛИЧИИ</b> — требуется срочное пополнение:", show_price=True
-    ))
-    lines.extend(_format_stock_section(
-        critical, "🟠 <b>КРИТИЧЕСКИ МАЛО</b> (1-2 шт) — пополнить в ближайшее время:"
-    ))
-    lines.extend(_format_stock_section(
-        low, "🟡 <b>ЗАКАНЧИВАЕТСЯ</b> (3-5 шт) — запланировать пополнение:"
-    ))
+    lines.extend(
+        _format_stock_section(
+            out_of_stock, "🔴 <b>НЕТ В НАЛИЧИИ</b> — требуется срочное пополнение:", show_price=True
+        )
+    )
+    lines.extend(
+        _format_stock_section(
+            critical, "🟠 <b>КРИТИЧЕСКИ МАЛО</b> (1-2 шт) — пополнить в ближайшее время:"
+        )
+    )
+    lines.extend(
+        _format_stock_section(low, "🟡 <b>ЗАКАНЧИВАЕТСЯ</b> (3-5 шт) — запланировать пополнение:")
+    )
 
     # Action summary
     total = len(out_of_stock) + len(critical) + len(low)
@@ -245,7 +249,11 @@ async def low_stock_alert_entrypoint(request: Request):
 
         results["success"] = True
         results["products"] = [
-            {"name": p.get("name"), "count": p.get("available_count"), "status": p.get("stock_status")}
+            {
+                "name": p.get("name"),
+                "count": p.get("available_count"),
+                "status": p.get("stock_status"),
+            }
             for p in new_alerts
         ]
 

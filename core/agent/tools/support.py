@@ -49,7 +49,11 @@ def _calculate_order_warranty_status(order_date: datetime | None, product_name: 
     now = datetime.now(UTC)
     days_since = (now - order_date).days
     product_name_lower = product_name.lower()
-    is_trial = "trial" in product_name_lower or "7 дней" in product_name_lower or "7 day" in product_name_lower
+    is_trial = (
+        "trial" in product_name_lower
+        or "7 дней" in product_name_lower
+        or "7 day" in product_name_lower
+    )
     warranty_days = 1 if is_trial else 14
     return "in_warranty" if days_since <= warranty_days else "out_of_warranty"
 
@@ -170,9 +174,7 @@ async def create_support_ticket(
 
             if order:
                 order_id = order.id
-                warranty_status = await _get_warranty_status(
-                    db, order, extracted_item_id
-                )
+                warranty_status = await _get_warranty_status(db, order, extracted_item_id)
 
         result = await db.support_domain.create_ticket(
             user_id=ctx.user_id,

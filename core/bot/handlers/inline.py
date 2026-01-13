@@ -92,7 +92,9 @@ async def handle_inline_query(query: InlineQuery, db_user: User, bot: Bot):
 
             for product in products:
                 # Use SHA256 for ID generation (MD5 is cryptographically insecure)
-                result_id = hashlib.sha256(f"{product.id}:{user_telegram_id}".encode()).hexdigest()[:16]
+                result_id = hashlib.sha256(f"{product.id}:{user_telegram_id}".encode()).hexdigest()[
+                    :16
+                ]
                 product_link = f"https://t.me/{bot_info.username}?start=product_{product.id}_ref_{user_telegram_id}"
                 description = (product.description or "")[:100]
 

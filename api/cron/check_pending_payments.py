@@ -127,7 +127,12 @@ async def _process_discount_order(db: Any, order_id: str, order_data: dict[str, 
     stock_item_id = stock_result.data[0]["id"]
     telegram_id = order_data.get("user_telegram_id")
 
-    await db.client.table("stock_items").update({"status": "reserved"}).eq("id", stock_item_id).execute()
+    await (
+        db.client.table("stock_items")
+        .update({"status": "reserved"})
+        .eq("id", stock_item_id)
+        .execute()
+    )
 
     discount_service = DiscountOrderService(db.client)
     delivery_task = await discount_service.schedule_delayed_delivery(
@@ -138,7 +143,9 @@ async def _process_discount_order(db: Any, order_id: str, order_data: dict[str, 
     )
 
     if delivery_task:
-        logger.info(f"Discount order {order_id} scheduled for delayed delivery in {delivery_task.delay_minutes} min")
+        logger.info(
+            f"Discount order {order_id} scheduled for delayed delivery in {delivery_task.delay_minutes} min"
+        )
     else:
         logger.warning(f"Failed to schedule discount delivery for order {order_id}")
 
@@ -181,9 +188,12 @@ async def _process_invoice_state(
         return True
 
     if state in ["cancelled", "failed"]:
-        await db.client.table("orders").update(
-            {"status": "cancelled", "notes": f"Payment {state}"}
-        ).eq("id", order_id_str).execute()
+        await (
+            db.client.table("orders")
+            .update({"status": "cancelled", "notes": f"Payment {state}"})
+            .eq("id", order_id_str)
+            .execute()
+        )
         logger.info(f"Order {order_id_str} marked as cancelled (invoice {state})")
 
     return False

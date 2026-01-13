@@ -109,23 +109,31 @@ async def _get_stock_content(db: Any, stock_item_id: str) -> tuple[str, str]:
 
 async def _mark_stock_as_sold(db: Any, stock_item_id: str) -> None:
     """Mark stock item as sold."""
-    await db.client.table("stock_items").update(
-        {"status": "sold", "sold_at": datetime.now(UTC).isoformat()}
-    ).eq("id", stock_item_id).execute()
+    await (
+        db.client.table("stock_items")
+        .update({"status": "sold", "sold_at": datetime.now(UTC).isoformat()})
+        .eq("id", stock_item_id)
+        .execute()
+    )
 
 
 async def _update_order_item_delivered(
     db: Any, order_item_id: str, stock_item_id: str, content: str
 ) -> None:
     """Update order item with delivery content and status."""
-    await db.client.table("order_items").update(
-        {
-            "stock_item_id": stock_item_id,
-            "delivery_content": content,
-            "status": "delivered",
-            "delivered_at": datetime.now(UTC).isoformat(),
-        }
-    ).eq("id", order_item_id).execute()
+    await (
+        db.client.table("order_items")
+        .update(
+            {
+                "stock_item_id": stock_item_id,
+                "delivery_content": content,
+                "status": "delivered",
+                "delivered_at": datetime.now(UTC).isoformat(),
+            }
+        )
+        .eq("id", order_item_id)
+        .execute()
+    )
 
 
 async def _get_user_language(db: Any, telegram_id: int) -> str:
@@ -410,9 +418,12 @@ async def deliver_discount_order(db: Any, order_id: str, order_data: dict[str, A
 
         # Only mark order as delivered if ALL items were successfully delivered
         if all_delivered:
-            await db.client.table("orders").update(
-                {"status": "delivered", "delivered_at": datetime.now(UTC).isoformat()}
-            ).eq("id", order_id).execute()
+            await (
+                db.client.table("orders")
+                .update({"status": "delivered", "delivered_at": datetime.now(UTC).isoformat()})
+                .eq("id", order_id)
+                .execute()
+            )
             logger.info(f"Discount order {order_id} delivered successfully via cron fallback")
             return True
 

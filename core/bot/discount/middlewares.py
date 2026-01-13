@@ -57,9 +57,12 @@ class DiscountAuthMiddleware(BaseMiddleware):
 
             # Mark as discount tier origin
             try:
-                await db.client.table("users").update({"discount_tier_source": True}).eq(
-                    "id", db_user.id
-                ).execute()
+                await (
+                    db.client.table("users")
+                    .update({"discount_tier_source": True})
+                    .eq("id", db_user.id)
+                    .execute()
+                )
             except Exception:
                 logger.exception("Failed to mark discount_tier_source")
         else:

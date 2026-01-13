@@ -33,7 +33,7 @@ class PaymentService:
         # HTTP client (lazy init)
         self._http_client: httpx.AsyncClient | None = None
 
-    async def _get_http_client(self) -> httpx.AsyncClient:
+    def _get_http_client(self) -> httpx.AsyncClient:
         """Lazy creation of shared httpx client with timeouts."""
         if self._http_client is None:
             self._http_client = httpx.AsyncClient(
@@ -65,9 +65,12 @@ class PaymentService:
             from core.services.database import get_database
 
             db = get_database()
-            await db.client.table("orders").update({"payment_id": pid_value}).eq(
-                "id", order_id
-            ).execute()
+            await (
+                db.client.table("orders")
+                .update({"payment_id": pid_value})
+                .eq("id", order_id)
+                .execute()
+            )
         except Exception as e:
             logger.warning("Failed to save payment reference for order %s: %s", order_id, e)
 
@@ -153,7 +156,7 @@ class PaymentService:
             user_id=user_telegram_id,
         )
 
-    async def list_payment_methods(self) -> dict[str, Any]:
+    def list_payment_methods(self) -> dict[str, Any]:
         """
         Return available payment methods.
         CrystalPay supports card, crypto, etc.
@@ -232,7 +235,7 @@ class PaymentService:
             payment_currency,
         )
 
-        client = await self._get_http_client()
+        client = self._get_http_client()
         try:
             response = await client.post(
                 f"{api_url}/invoice/create/", headers=headers, json=payload
@@ -345,7 +348,7 @@ class PaymentService:
             user_id,
         )
 
-        client = await self._get_http_client()
+        client = self._get_http_client()
         try:
             response = await client.post(
                 f"{api_url}/invoice/create/", headers=headers, json=payload
@@ -408,13 +411,17 @@ class PaymentService:
         logger.error("CrystalPay webhook: order_id not found")
         return None, "order_id not found"
 
-    def _verify_signature(self, invoice_id: str, received_signature: str, salt: str) -> tuple[bool, str]:
+    def _verify_signature(
+        self, invoice_id: str, received_signature: str, salt: str
+    ) -> tuple[bool, str]:
         """Verify webhook signature (reduces cognitive complexity)."""
         if not received_signature:
             return True, ""  # No signature to verify
 
         if not salt:
-            logger.warning("CrystalPay webhook: Signature provided but CRYSTALPAY_SALT not configured!")
+            logger.warning(
+                "CrystalPay webhook: Signature provided but CRYSTALPAY_SALT not configured!"
+            )
             return True, ""  # Continue without verification
 
         sign_string = f"{invoice_id}:{salt}"
@@ -481,7 +488,9 @@ class PaymentService:
                 return {"success": False, "error": sig_error}
 
             if state != "payed":
-                logger.warning("CrystalPay webhook: Payment state '%s' for order %s", state, order_id)
+                logger.warning(
+                    "CrystalPay webhook: Payment state '%s' for order %s", state, order_id
+                )
                 return {"success": False, "error": f"Payment not successful. State: {state}"}
 
             amount, rub_amount = self._parse_amounts(amount_str, rub_amount_str)
@@ -517,7 +526,7 @@ class PaymentService:
             "Accept": "application/json",
         }
 
-        client = await self._get_http_client()
+        client = self._get_http_client()
         try:
             response = await client.post(f"{api_url}/invoice/info/", headers=headers, json=payload)
             data = response.json()
@@ -592,19 +601,26 @@ class PaymentService:
                     return {"success": False, "error": "Refund request limit reached"}
 
             # Create support ticket for manual refund
-            await db.client.table("tickets").insert(
-                {
-                    "user_id": getattr(order, "user_id", None),
-                    "order_id": order_id,
-                    "issue_type": "refund",
-                    "description": f"Manual refund requested, amount={amount}",
-                    "status": "open",
-                }
-            ).execute()
+            await (
+                db.client.table("tickets")
+                .insert(
+                    {
+                        "user_id": getattr(order, "user_id", None),
+                        "order_id": order_id,
+                        "issue_type": "refund",
+                        "description": f"Manual refund requested, amount={amount}",
+                        "status": "open",
+                    }
+                )
+                .execute()
+            )
 
-            await db.client.table("orders").update(
-                {"refund_requested": True, "status": "refund_pending"}
-            ).eq("id", order_id).execute()
+            await (
+                db.client.table("orders")
+                .update({"refund_requested": True, "status": "refund_pending"})
+                .eq("id", order_id)
+                .execute()
+            )
 
             return {
                 "success": True,

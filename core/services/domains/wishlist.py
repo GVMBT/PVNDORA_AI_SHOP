@@ -140,9 +140,13 @@ class WishlistService:
             Success/failure result
         """
         try:
-            await self.db.client.table("wishlist").delete().eq("user_id", user_id).eq(
-                "product_id", product_id
-            ).execute()
+            await (
+                self.db.client.table("wishlist")
+                .delete()
+                .eq("user_id", user_id)
+                .eq("product_id", product_id)
+                .execute()
+            )
 
             return {"success": True, "message": "Removed from wishlist"}
         except Exception as e:

@@ -29,7 +29,7 @@ EMBEDDING_DIMENSION = 3072  # text-embedding-3-large dimension
 _http_client: httpx.AsyncClient | None = None
 
 
-async def get_http_client() -> httpx.AsyncClient:
+def get_http_client() -> httpx.AsyncClient:
     """Get or create async HTTP client."""
     global _http_client
     if _http_client is None:
@@ -49,7 +49,7 @@ async def get_embedding(text: str) -> list[float]:
         return []
 
     try:
-        client = await get_http_client()
+        client = get_http_client()
 
         response = await client.post(
             OPENROUTER_EMBEDDINGS_URL,
@@ -151,10 +151,14 @@ class ProductSearch:
             embedding_str = f"[{','.join(map(str, embedding))}]"
 
             # Upsert embedding
-            await self.db.client.table("product_embeddings").upsert(
-                {"product_id": product_id, "content": content, "embedding": embedding_str},
-                on_conflict="product_id",
-            ).execute()
+            await (
+                self.db.client.table("product_embeddings")
+                .upsert(
+                    {"product_id": product_id, "content": content, "embedding": embedding_str},
+                    on_conflict="product_id",
+                )
+                .execute()
+            )
 
             return True
 
@@ -263,9 +267,12 @@ class ProductSearch:
     async def delete_product(self, product_id: str) -> bool:
         """Remove product from search index."""
         try:
-            await self.db.client.table("product_embeddings").delete().eq(
-                "product_id", product_id
-            ).execute()
+            await (
+                self.db.client.table("product_embeddings")
+                .delete()
+                .eq("product_id", product_id)
+                .execute()
+            )
             return True
         except Exception:
             return False

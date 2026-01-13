@@ -355,9 +355,12 @@ class SupportService:
             if not ticket_result.data:
                 return {"success": False, "reason": "Failed to create support ticket"}
 
-            await self.db.client.table("orders").update({"refund_requested": True}).eq(
-                "id", order_id
-            ).execute()
+            await (
+                self.db.client.table("orders")
+                .update({"refund_requested": True})
+                .eq("id", order_id)
+                .execute()
+            )
 
             return {
                 "success": True,

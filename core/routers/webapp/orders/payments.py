@@ -827,12 +827,17 @@ async def confirm_manual_payment(
         )
 
     # Update order status
-    await db.client.table("orders").update(
-        {
-            "status": "payment_pending",
-            "notes": "User confirmed manual payment, awaiting gateway confirmation",
-        }
-    ).eq("id", request.order_id).execute()
+    await (
+        db.client.table("orders")
+        .update(
+            {
+                "status": "payment_pending",
+                "notes": "User confirmed manual payment, awaiting gateway confirmation",
+            }
+        )
+        .eq("id", request.order_id)
+        .execute()
+    )
 
     return {
         "success": True,

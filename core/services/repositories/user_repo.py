@@ -58,37 +58,52 @@ class UserRepository(BaseRepository):
 
     async def update_language(self, telegram_id: int, language_code: str) -> None:
         """Update user's language."""
-        await self.client.table("users").update({"language_code": language_code}).eq(
-            "telegram_id", telegram_id
-        ).execute()
+        await (
+            self.client.table("users")
+            .update({"language_code": language_code})
+            .eq("telegram_id", telegram_id)
+            .execute()
+        )
 
     async def update_activity(self, telegram_id: int) -> None:
         """Update last activity timestamp."""
-        await self.client.table("users").update(
-            {"last_activity_at": datetime.now(UTC).isoformat()}
-        ).eq("telegram_id", telegram_id).execute()
+        await (
+            self.client.table("users")
+            .update({"last_activity_at": datetime.now(UTC).isoformat()})
+            .eq("telegram_id", telegram_id)
+            .execute()
+        )
 
     async def update_photo(self, telegram_id: int, photo_url: str | None) -> None:
         """Update user's photo URL."""
         if photo_url:
-            await self.client.table("users").update({"photo_url": photo_url}).eq(
-                "telegram_id", telegram_id
-            ).execute()
+            await (
+                self.client.table("users")
+                .update({"photo_url": photo_url})
+                .eq("telegram_id", telegram_id)
+                .execute()
+            )
 
     async def update_balance(self, user_id: str, amount: float) -> None:
         """Add amount to balance (can be negative)."""
         user = await self.client.table("users").select("balance").eq("id", user_id).execute()
         if user.data:
             new_balance = to_float(to_decimal(user.data[0]["balance"] or 0) + to_decimal(amount))
-            await self.client.table("users").update({"balance": new_balance}).eq(
-                "id", user_id
-            ).execute()
+            await (
+                self.client.table("users")
+                .update({"balance": new_balance})
+                .eq("id", user_id)
+                .execute()
+            )
 
     async def ban(self, telegram_id: int, ban: bool = True) -> None:
         """Ban or unban user."""
-        await self.client.table("users").update({"is_banned": ban}).eq(
-            "telegram_id", telegram_id
-        ).execute()
+        await (
+            self.client.table("users")
+            .update({"is_banned": ban})
+            .eq("telegram_id", telegram_id)
+            .execute()
+        )
 
     async def add_warning(self, telegram_id: int) -> int:
         """Add warning, return new count. Auto-ban at 3."""
@@ -101,9 +116,9 @@ class UserRepository(BaseRepository):
         if new_count >= 3:
             update_data["is_banned"] = True
 
-        await self.client.table("users").update(update_data).eq(
-            "telegram_id", telegram_id
-        ).execute()
+        await (
+            self.client.table("users").update(update_data).eq("telegram_id", telegram_id).execute()
+        )
         return new_count
 
     async def update_preferences(
@@ -126,9 +141,12 @@ class UserRepository(BaseRepository):
         if update_data:
             logger.info("Updating preferences for user %s: %s", telegram_id, update_data)
             try:
-                await self.client.table("users").update(update_data).eq(
-                    "telegram_id", telegram_id
-                ).execute()
+                await (
+                    self.client.table("users")
+                    .update(update_data)
+                    .eq("telegram_id", telegram_id)
+                    .execute()
+                )
                 logger.info("Successfully updated preferences for user %s", telegram_id)
             except Exception as e:
                 logger.error(

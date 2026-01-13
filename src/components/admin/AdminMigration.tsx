@@ -56,6 +56,7 @@ const AdminMigration: React.FC = () => {
         <div className="flex gap-2">
           {[7, 30, 90].map((days) => (
             <button
+              type="button"
               key={days}
               onClick={() => setPeriod(days)}
               className={`px-3 py-1 text-sm rounded-sm transition-colors ${
@@ -121,7 +122,7 @@ const AdminMigration: React.FC = () => {
         <div className="bg-[#0e0e0e] border border-white/10 p-6 rounded-sm">
           <h3 className="text-lg font-bold text-white mb-4">Migration Trend (14 days)</h3>
           <div className="h-64 flex items-end justify-between gap-2">
-            {trend.map((day, i) => {
+            {trend.map((day) => {
               const maxOrders = Math.max(
                 ...trend.map((d) => Math.max(d.discount_orders, d.pvndora_orders || 0))
               );
@@ -130,7 +131,7 @@ const AdminMigration: React.FC = () => {
                 maxOrders > 0 ? ((day.pvndora_orders || 0) / maxOrders) * 100 : 0;
 
               return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
                   <div className="w-full flex flex-col gap-1" style={{ height: "200px" }}>
                     <div
                       className="w-full bg-orange-500/50 hover:bg-orange-500 transition-colors rounded-t-sm"

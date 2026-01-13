@@ -194,7 +194,9 @@ class CatalogService:
             filters["type"] = {"$eq": category_map[category]}
         return filters
 
-    async def _perform_rag_search(self, query: str, category: str, limit: int) -> list[SearchResult]:
+    async def _perform_rag_search(
+        self, query: str, category: str, limit: int
+    ) -> list[SearchResult]:
         """Perform RAG search and return results (reduces cognitive complexity)."""
         results = []
         rag_search = self._get_rag_search()
@@ -223,7 +225,9 @@ class CatalogService:
 
         return results
 
-    async def _supplement_with_text_search(self, query: str, results: list[SearchResult], limit: int) -> list[SearchResult]:
+    async def _supplement_with_text_search(
+        self, query: str, results: list[SearchResult], limit: int
+    ) -> list[SearchResult]:
         """Supplement results with text search (reduces cognitive complexity)."""
         if len(results) >= 3:
             return results

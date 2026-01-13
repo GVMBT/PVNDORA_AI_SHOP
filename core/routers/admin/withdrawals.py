@@ -206,56 +206,73 @@ async def approve_withdrawal(
         admin_id = get_admin_id(admin)
 
         # Update withdrawal status to processing (balance will be deducted)
-        await db.client.table("withdrawal_requests").update(
-            {
-                "status": "processing",
-                "admin_comment": request.admin_comment,
-                "processed_by": admin_id,
-                "processed_at": datetime.now(UTC).isoformat(),
-            }
-        ).eq("id", withdrawal_id).execute()
+        await (
+            db.client.table("withdrawal_requests")
+            .update(
+                {
+                    "status": "processing",
+                    "admin_comment": request.admin_comment,
+                    "processed_by": admin_id,
+                    "processed_at": datetime.now(UTC).isoformat(),
+                }
+            )
+            .eq("id", withdrawal_id)
+            .execute()
+        )
 
         # Deduct balance (amount_debited in user's currency)
         new_balance = current_balance - amount_debited
         try:
             # Update balance directly
-            await db.client.table("users").update({"balance": new_balance}).eq(
-                "id", user_id
-            ).execute()
+            await (
+                db.client.table("users")
+                .update({"balance": new_balance})
+                .eq("id", user_id)
+                .execute()
+            )
 
             # Create withdrawal transaction with correct currency
-            await db.client.table("balance_transactions").insert(
-                {
-                    "user_id": user_id,
-                    "type": "withdrawal",
-                    "amount": amount_debited,  # Amount in user's currency
-                    "currency": balance_currency,  # User's balance currency
-                    "balance_before": current_balance,
-                    "balance_after": new_balance,
-                    "status": "completed",
-                    "description": f"Вывод {amount_to_pay_usdt:.2f} USDT на {wallet_address[:8]}...",
-                    "reference_type": "withdrawal_request",
-                    "reference_id": withdrawal_id,
-                    "metadata": {
-                        "payment_method": payment_method,
-                        "wallet_address": wallet_address,
-                        "usdt_amount": amount_to_pay_usdt,
-                        "exchange_rate": withdrawal.get("exchange_rate"),
-                        "network_fee": withdrawal.get("network_fee"),
-                    },
-                }
-            ).execute()
+            await (
+                db.client.table("balance_transactions")
+                .insert(
+                    {
+                        "user_id": user_id,
+                        "type": "withdrawal",
+                        "amount": amount_debited,  # Amount in user's currency
+                        "currency": balance_currency,  # User's balance currency
+                        "balance_before": current_balance,
+                        "balance_after": new_balance,
+                        "status": "completed",
+                        "description": f"Вывод {amount_to_pay_usdt:.2f} USDT на {wallet_address[:8]}...",
+                        "reference_type": "withdrawal_request",
+                        "reference_id": withdrawal_id,
+                        "metadata": {
+                            "payment_method": payment_method,
+                            "wallet_address": wallet_address,
+                            "usdt_amount": amount_to_pay_usdt,
+                            "exchange_rate": withdrawal.get("exchange_rate"),
+                            "network_fee": withdrawal.get("network_fee"),
+                        },
+                    }
+                )
+                .execute()
+            )
         except Exception:
             logger.exception(f"Failed to deduct balance for withdrawal {withdrawal_id}")
             # Rollback withdrawal status
-            await db.client.table("withdrawal_requests").update(
-                {
-                    "status": "pending",
-                    "admin_comment": None,
-                    "processed_by": None,
-                    "processed_at": None,
-                }
-            ).eq("id", withdrawal_id).execute()
+            await (
+                db.client.table("withdrawal_requests")
+                .update(
+                    {
+                        "status": "pending",
+                        "admin_comment": None,
+                        "processed_by": None,
+                        "processed_at": None,
+                    }
+                )
+                .eq("id", withdrawal_id)
+                .execute()
+            )
             raise HTTPException(
                 status_code=500,
                 detail="Failed to deduct balance. Withdrawal request remains pending.",
@@ -349,14 +366,19 @@ async def reject_withdrawal(
             )
 
         # Update withdrawal status to rejected
-        await db.client.table("withdrawal_requests").update(
-            {
-                "status": "rejected",
-                "admin_comment": request.admin_comment,
-                "processed_by": admin_id,
-                "processed_at": datetime.now(UTC).isoformat(),
-            }
-        ).eq("id", withdrawal_id).execute()
+        await (
+            db.client.table("withdrawal_requests")
+            .update(
+                {
+                    "status": "rejected",
+                    "admin_comment": request.admin_comment,
+                    "processed_by": admin_id,
+                    "processed_at": datetime.now(UTC).isoformat(),
+                }
+            )
+            .eq("id", withdrawal_id)
+            .execute()
+        )
 
         logger.info(f"Admin {admin_id} rejected withdrawal {withdrawal_id}")
 
@@ -428,14 +450,19 @@ async def complete_withdrawal(
             raise HTTPException(status_code=500, detail="Admin ID not available")
 
         # Update withdrawal status to completed
-        await db.client.table("withdrawal_requests").update(
-            {
-                "status": "completed",
-                "admin_comment": request.admin_comment,
-                "processed_by": admin_id,
-                "processed_at": datetime.now(UTC).isoformat(),
-            }
-        ).eq("id", withdrawal_id).execute()
+        await (
+            db.client.table("withdrawal_requests")
+            .update(
+                {
+                    "status": "completed",
+                    "admin_comment": request.admin_comment,
+                    "processed_by": admin_id,
+                    "processed_at": datetime.now(UTC).isoformat(),
+                }
+            )
+            .eq("id", withdrawal_id)
+            .execute()
+        )
 
         logger.info(f"Admin {admin_id} marked withdrawal {withdrawal_id} as completed")
 

@@ -94,20 +94,18 @@ def _build_pagination_buttons(
         nav_buttons.append(
             InlineKeyboardButton(
                 text="◀️",
-                callback_data=f"discount:page:{page-1}:{category_id[:8] if category_id else 'all'}",
+                callback_data=f"discount:page:{page - 1}:{category_id[:8] if category_id else 'all'}",
             )
         )
 
     total_pages = (total_products - 1) // page_size + 1
-    nav_buttons.append(
-        InlineKeyboardButton(text=f"{page+1}/{total_pages}", callback_data="noop")
-    )
+    nav_buttons.append(InlineKeyboardButton(text=f"{page + 1}/{total_pages}", callback_data="noop"))
 
     if has_next:
         nav_buttons.append(
             InlineKeyboardButton(
                 text="▶️",
-                callback_data=f"discount:page:{page+1}:{category_id[:8] if category_id else 'all'}",
+                callback_data=f"discount:page:{page + 1}:{category_id[:8] if category_id else 'all'}",
             )
         )
 
@@ -140,7 +138,9 @@ def get_products_keyboard(
         stock = p.get("available_count", 0)
 
         display_price = discount_price_usd * exchange_rate
-        price_str = _format_product_price(discount_price_usd, display_price, currency, currency_symbol)
+        price_str = _format_product_price(
+            discount_price_usd, display_price, currency, currency_symbol
+        )
 
         stock_emoji = "🟢" if stock > 0 else "🟡"
 
@@ -184,9 +184,7 @@ def _get_buy_button_text(price_formatted: str, lang: str, in_stock: bool) -> str
     if in_stock:
         return f"💳 Купить — {price_formatted}" if lang == "ru" else f"💳 Buy — {price_formatted}"
     return (
-        f"💳 Предзаказ — {price_formatted}"
-        if lang == "ru"
-        else f"💳 Pre-order — {price_formatted}"
+        f"💳 Предзаказ — {price_formatted}" if lang == "ru" else f"💳 Pre-order — {price_formatted}"
     )
 
 
@@ -220,11 +218,7 @@ def get_product_card_keyboard(
 
     buy_text = _get_buy_button_text(price_formatted, lang, in_stock)
     buttons.append(
-        [
-            InlineKeyboardButton(
-                text=buy_text, callback_data=f"discount:buy:{product_id[:8]}:0"
-            )
-        ]
+        [InlineKeyboardButton(text=buy_text, callback_data=f"discount:buy:{product_id[:8]}:0")]
     )
 
     if insurance_options:

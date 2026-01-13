@@ -26,12 +26,17 @@ referral_router = APIRouter()
 
 async def _queue_replacement_for_stock(db, ticket_id: str) -> None:
     """Queue ticket for replacement when stock becomes available."""
-    await db.client.table("insurance_replacements").update(
-        {
-            "status": "queued",
-            "notes": "Queued for auto-delivery when stock available",
-        }
-    ).eq("id", ticket_id).execute()
+    await (
+        db.client.table("insurance_replacements")
+        .update(
+            {
+                "status": "queued",
+                "notes": "Queued for auto-delivery when stock available",
+            }
+        )
+        .eq("id", ticket_id)
+        .execute()
+    )
     logger.info(f"Ticket {ticket_id} queued for replacement when stock available")
 
 
@@ -65,15 +70,17 @@ async def _get_buyer_name(db, buyer_id: str) -> str:
     )
     if not buyer_result.data:
         return "Реферал"
-    return (
-        buyer_result.data.get("username")
-        or buyer_result.data.get("first_name")
-        or "Реферал"
-    )
+    return buyer_result.data.get("username") or buyer_result.data.get("first_name") or "Реферал"
 
 
 async def _send_level_bonus_notification(
-    db, notification_service, buyer_id: str, buyer_name: str, level: int, bonus_amount: float, purchase_amount: float
+    db,
+    notification_service,
+    buyer_id: str,
+    buyer_name: str,
+    level: int,
+    bonus_amount: float,
+    purchase_amount: float,
 ):
     """Send notification for a specific level bonus (reduces cognitive complexity)."""
     bonus_record = (
@@ -122,7 +129,13 @@ async def _send_referral_bonus_notifications(
 
             if bonus_amount and float(bonus_amount) > 0:
                 await _send_level_bonus_notification(
-                    db, notification_service, buyer_id, buyer_name, level, bonus_amount, purchase_amount
+                    db,
+                    notification_service,
+                    buyer_id,
+                    buyer_name,
+                    level,
+                    bonus_amount,
+                    purchase_amount,
                 )
     except Exception as e:
         logger.warning("Failed to send referral bonus notifications: %s", e)
@@ -130,15 +143,23 @@ async def _send_referral_bonus_notifications(
 
 # Helper to unlock referral program (reduces cognitive complexity)
 async def _unlock_referral_program(
-    db, user_id: str, was_unlocked: bool, is_partner: bool, telegram_id: int | None, notification_service
+    db,
+    user_id: str,
+    was_unlocked: bool,
+    is_partner: bool,
+    telegram_id: int | None,
+    notification_service,
 ):
     """Unlock referral program for first purchase (reduces cognitive complexity)."""
     if was_unlocked:
         return
 
-    await db.client.table("users").update({"referral_program_unlocked": True}).eq(
-        "id", user_id
-    ).execute()
+    await (
+        db.client.table("users")
+        .update({"referral_program_unlocked": True})
+        .eq("id", user_id)
+        .execute()
+    )
 
     if not is_partner and telegram_id:
         await notification_service.send_referral_unlock_notification(telegram_id)
@@ -161,7 +182,9 @@ async def _send_level_up_notification(
         return
 
     if is_partner and partner_level_override == 3:
-        logger.debug("Skipping level_up notification for VIP partner %s (already has level 3)", user_id)
+        logger.debug(
+            "Skipping level_up notification for VIP partner %s (already has level 3)", user_id
+        )
         return
 
     await notification_service.send_referral_level_up_notification(telegram_id, new_level)
@@ -415,9 +438,12 @@ async def worker_process_replacement(request: Request):
     if not product_res.data or len(product_res.data) == 0:
         logger.error(f"process-replacement: Product {product_id} not found")
         # Rollback stock reservation
-        await db.client.table("stock_items").update(
-            {"status": "available", "reserved_at": None, "sold_at": None}
-        ).eq("id", stock_id).execute()
+        await (
+            db.client.table("stock_items")
+            .update({"status": "available", "reserved_at": None, "sold_at": None})
+            .eq("id", stock_id)
+            .execute()
+        )
         return {"error": f"Product {product_id} not found"}
 
     product = product_res.data[0]
@@ -452,20 +478,28 @@ async def worker_process_replacement(request: Request):
         )
         # Rollback stock reservation
         try:
-            await db.client.table("stock_items").update(
-                {"status": "available", "reserved_at": None, "sold_at": None}
-            ).eq("id", stock_id).execute()
+            await (
+                db.client.table("stock_items")
+                .update({"status": "available", "reserved_at": None, "sold_at": None})
+                .eq("id", stock_id)
+                .execute()
+            )
         except Exception:
             logger.exception("process-replacement: Failed to rollback stock item")
         return {"error": "Failed to update order item"}
 
     # Close ticket
-    await db.client.table("tickets").update(
-        {
-            "status": "closed",
-            "admin_comment": "Replacement completed automatically. New account delivered.",
-        }
-    ).eq("id", ticket_id).execute()
+    await (
+        db.client.table("tickets")
+        .update(
+            {
+                "status": "closed",
+                "admin_comment": "Replacement completed automatically. New account delivered.",
+            }
+        )
+        .eq("id", ticket_id)
+        .execute()
+    )
 
     # Notify user
     if user_telegram_id:

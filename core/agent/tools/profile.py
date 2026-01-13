@@ -50,9 +50,7 @@ def _get_line_unlocked_status(user: dict) -> tuple[bool, bool, bool]:
     return line1_unlocked, line2_unlocked, line3_unlocked
 
 
-async def _convert_to_currency(
-    currency_service, amount: float, target_currency: str
-) -> float:
+async def _convert_to_currency(currency_service, amount: float, target_currency: str) -> float:
     """Convert amount to target currency (reduces cognitive complexity)."""
     if target_currency == "USD" or amount <= 0:
         return amount
@@ -94,27 +92,40 @@ async def _get_referral_settings_full(db) -> dict:
     }
 
 
-async def _get_network_stats(
-    db, user_id: str, line2_unlocked: bool, line3_unlocked: bool
-) -> dict:
+async def _get_network_stats(db, user_id: str, line2_unlocked: bool, line3_unlocked: bool) -> dict:
     """Get referral network statistics (reduces cognitive complexity)."""
     network = {"line1": 0, "line2": 0, "line3": 0}
 
-    l1 = await db.client.table("users").select("id", count="exact").eq("referrer_id", user_id).execute()
+    l1 = (
+        await db.client.table("users")
+        .select("id", count="exact")
+        .eq("referrer_id", user_id)
+        .execute()
+    )
     network["line1"] = l1.count or 0
 
     l1_ids = [u["id"] for u in (l1.data or [])]
     if not l1_ids or not line2_unlocked:
         return network
 
-    l2 = await db.client.table("users").select("id", count="exact").in_("referrer_id", l1_ids).execute()
+    l2 = (
+        await db.client.table("users")
+        .select("id", count="exact")
+        .in_("referrer_id", l1_ids)
+        .execute()
+    )
     network["line2"] = l2.count or 0
 
     l2_ids = [u["id"] for u in (l2.data or [])]
     if not l2_ids or not line3_unlocked:
         return network
 
-    l3 = await db.client.table("users").select("id", count="exact").in_("referrer_id", l2_ids).execute()
+    l3 = (
+        await db.client.table("users")
+        .select("id", count="exact")
+        .in_("referrer_id", l2_ids)
+        .execute()
+    )
     network["line3"] = l3.count or 0
 
     return network
@@ -168,8 +179,12 @@ async def get_user_profile() -> dict:
 
         # Convert amounts to target currency
         balance_converted = await _convert_to_currency(currency_service, balance, target_currency)
-        total_saved_converted = await _convert_to_currency(currency_service, total_saved, target_currency)
-        referral_earnings_converted = await _convert_to_currency(currency_service, referral_earnings, target_currency)
+        total_saved_converted = await _convert_to_currency(
+            currency_service, total_saved, target_currency
+        )
+        referral_earnings_converted = await _convert_to_currency(
+            currency_service, referral_earnings, target_currency
+        )
 
         return {
             "success": True,

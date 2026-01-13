@@ -137,7 +137,9 @@ async def _build_order_dict(
         "product_name": product_data.get("name") if product_data else "Multiple items",
         "amount": usd_amount,
         "amount_display": display_amount,
-        "original_price": float(row.get("original_price", 0)) if row.get("original_price") else None,
+        "original_price": float(row.get("original_price", 0))
+        if row.get("original_price")
+        else None,
         "discount_percent": int(row.get("discount_percent", 0)),
         "status": row["status"],
         "order_type": row.get("order_type", "instant"),
@@ -389,8 +391,7 @@ async def get_webapp_orders(
 
             # Build items using helper
             items = [
-                _build_order_item(item, row["status"], reviewed_product_ids)
-                for item in items_data
+                _build_order_item(item, row["status"], reviewed_product_ids) for item in items_data
             ]
             # Fix: Add fallback fulfillment_deadline from order
             for i, item in enumerate(items_data):

@@ -35,6 +35,7 @@ async def _get_user_language_from_db(telegram_id: int) -> str:
         db_user = await db.get_user_by_telegram_id(telegram_id)
         if db_user:
             from .dependencies import _cache_db_user
+
             _cache_db_user(telegram_id, db_user)
             if db_user.language_code:
                 language_code = db_user.language_code
@@ -47,6 +48,7 @@ def _update_user_activity(user_id: int) -> None:
     """Update user activity with debounce (fire-and-forget, reduces cognitive complexity)."""
     try:
         from core.routers.webapp.middleware import update_user_activity_with_debounce
+
         update_user_activity_with_debounce(user_id)
     except Exception as e:
         logger.debug(f"Failed to schedule activity update: {e}")
@@ -168,6 +170,7 @@ def _get_redis_client():
     """Get Redis client, return None if unavailable."""
     try:
         from core.db import get_redis
+
         return get_redis()
     except (ValueError, ImportError):
         return None

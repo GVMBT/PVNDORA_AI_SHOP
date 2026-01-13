@@ -62,7 +62,7 @@ async def admin_get_orders(
             product_data = items[0].get("products") or {}
             product_name = product_data.get("name", "Unknown Product")
             if len(items) > 1:
-                product_name += f" +{len(items)-1}"
+                product_name += f" +{len(items) - 1}"
 
         created_at = order.get("created_at")
 

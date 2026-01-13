@@ -124,9 +124,11 @@ async def _format_cart_response(cart, db, user_telegram_id: int):
         final_price_usd = to_float(item.final_price)
         total_price_usd = to_float(item.total_price)
 
-        unit_price_display, final_price_display, total_price_display = await _calculate_display_prices(
-            item, product, currency_service, formatter
-        )
+        (
+            unit_price_display,
+            final_price_display,
+            total_price_display,
+        ) = await _calculate_display_prices(item, product, currency_service, formatter)
 
         items_with_details.append(
             {

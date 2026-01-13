@@ -162,8 +162,8 @@ class Database:
     async def reserve_stock_item(self, stock_item_id: str) -> bool:
         return await self.stock_domain.reserve(stock_item_id)
 
-    async def calculate_discount(self, stock_item: StockItem, product: Product) -> int:
-        return await self.stock_domain.calculate_discount(stock_item, product)
+    def calculate_discount(self, stock_item: StockItem, product: Product) -> int:
+        return self.stock_domain.calculate_discount(stock_item, product)
 
     # ==================== ORDER OPERATIONS (delegated) ====================
 
@@ -306,15 +306,21 @@ class Database:
         )
         if existing.data:
             return
-        await self.client.table("waitlist").insert(
-            {"user_id": user_id, "product_name": product_name}
-        ).execute()
+        await (
+            self.client.table("waitlist")
+            .insert({"user_id": user_id, "product_name": product_name})
+            .execute()
+        )
 
     async def add_to_wishlist(self, user_id: str, product_id: str) -> None:
         """Add product to user's wishlist."""
-        await self.client.table("wishlist").upsert(
-            {"user_id": user_id, "product_id": product_id}, on_conflict="user_id,product_id"
-        ).execute()
+        await (
+            self.client.table("wishlist")
+            .upsert(
+                {"user_id": user_id, "product_id": product_id}, on_conflict="user_id,product_id"
+            )
+            .execute()
+        )
 
     async def get_wishlist(self, user_id: str) -> list[Product]:
         """Get user's wishlist with product details."""
@@ -334,9 +340,13 @@ class Database:
 
     async def remove_from_wishlist(self, user_id: str, product_id: str) -> None:
         """Remove product from wishlist."""
-        await self.client.table("wishlist").delete().eq("user_id", user_id).eq(
-            "product_id", product_id
-        ).execute()
+        await (
+            self.client.table("wishlist")
+            .delete()
+            .eq("user_id", user_id)
+            .eq("product_id", product_id)
+            .execute()
+        )
 
     # ==================== REVIEWS ====================
 
@@ -344,15 +354,19 @@ class Database:
         self, user_id: str, order_id: str, product_id: str, rating: int, text: str | None = None
     ) -> None:
         """Create product review."""
-        await self.client.table("reviews").insert(
-            {
-                "user_id": user_id,
-                "order_id": order_id,
-                "product_id": product_id,
-                "rating": rating,
-                "text": text,
-            }
-        ).execute()
+        await (
+            self.client.table("reviews")
+            .insert(
+                {
+                    "user_id": user_id,
+                    "order_id": order_id,
+                    "product_id": product_id,
+                    "rating": rating,
+                    "text": text,
+                }
+            )
+            .execute()
+        )
 
     async def get_product_reviews(self, product_id: str, limit: int = 5) -> list[dict]:
         """Get recent reviews for product."""
@@ -432,9 +446,11 @@ class Database:
         self, user_id: str | None, event_type: str, metadata: dict | None = None
     ) -> None:
         """Log analytics event."""
-        await self.client.table("analytics_events").insert(
-            {"user_id": user_id, "event_type": event_type, "metadata": metadata or {}}
-        ).execute()
+        await (
+            self.client.table("analytics_events")
+            .insert({"user_id": user_id, "event_type": event_type, "metadata": metadata or {}})
+            .execute()
+        )
 
     # ==================== REFERRAL ====================
 
@@ -472,16 +488,20 @@ class Database:
             bonus = round(order.amount * (percent / 100), 2)
             await self.update_user_balance(referrer_id, bonus)
 
-            await self.client.table("referral_bonuses").insert(
-                {
-                    "user_id": referrer_id,
-                    "from_user_id": str(order.user_id),
-                    "order_id": str(order.id),
-                    "level": level,
-                    "percent": percent,
-                    "amount": bonus,
-                }
-            ).execute()
+            await (
+                self.client.table("referral_bonuses")
+                .insert(
+                    {
+                        "user_id": referrer_id,
+                        "from_user_id": str(order.user_id),
+                        "order_id": str(order.id),
+                        "level": level,
+                        "percent": percent,
+                        "amount": bonus,
+                    }
+                )
+                .execute()
+            )
 
             await self.client.rpc(
                 "increment_referral_earnings", {"p_user_id": referrer_id, "p_amount": bonus}

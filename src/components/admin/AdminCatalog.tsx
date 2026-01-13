@@ -92,6 +92,7 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
           {/* Category Filter Button (Mobile Drawer Trigger) */}
           <div className="relative md:hidden w-full">
             <button
+              type="button"
               onClick={() => setIsCategoryDrawerOpen(true)}
               className="w-full flex items-center justify-between gap-2 bg-black border border-white/20 px-4 py-2 text-xs font-mono text-white hover:border-pandora-cyan transition-colors"
             >
@@ -106,6 +107,7 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
           {/* Category Filter Dropdown (Desktop) */}
           <div ref={categoryDropdownRef} className="hidden md:block relative">
             <button
+              type="button"
               onClick={() => setIsCategoryDrawerOpen(!isCategoryDrawerOpen)}
               className="flex items-center justify-between gap-2 bg-black border border-white/20 px-4 py-2 text-xs font-mono text-white hover:border-pandora-cyan transition-colors min-w-[160px]"
             >
@@ -130,6 +132,7 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                 >
                   {PRODUCT_CATEGORIES.map((cat) => (
                     <button
+                      type="button"
                       key={cat}
                       onClick={() => {
                         setActiveCategory(cat);
@@ -148,6 +151,7 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
         </div>
 
         <button
+          type="button"
           onClick={onNewProduct}
           className="w-full md:w-auto flex items-center justify-center gap-2 bg-pandora-cyan text-black px-4 py-2 text-xs font-bold uppercase hover:bg-white transition-colors"
         >
@@ -178,6 +182,7 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                   Filter by Category
                 </h3>
                 <button
+                  type="button"
                   onClick={() => setIsCategoryDrawerOpen(false)}
                   className="text-gray-400 hover:text-white"
                 >
@@ -187,6 +192,7 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
               <div className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-80px)]">
                 {PRODUCT_CATEGORIES.map((cat) => (
                   <button
+                    type="button"
                     key={cat}
                     onClick={() => {
                       setActiveCategory(cat);
@@ -289,6 +295,7 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
+                        type="button"
                         onClick={() => onEditProduct(p)}
                         className="hover:text-pandora-cyan p-1"
                         title="Edit"
@@ -349,6 +356,7 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
               </div>
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   onClick={() => onEditProduct(p)}
                   className="p-2 border border-white/10 rounded-full text-gray-400 hover:text-white hover:border-pandora-cyan"
                   title="Edit"
@@ -357,6 +365,7 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                 </button>
                 {onDeleteProduct && (
                   <button
+                    type="button"
                     onClick={() => {
                       if (globalThis.confirm(`Delete "${p.name}"?`)) {
                         onDeleteProduct(String(p.id));

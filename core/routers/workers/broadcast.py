@@ -261,9 +261,13 @@ async def worker_send_broadcast(request: Request):
                 sent += 1
 
                 # Update recipient status
-                await db.client.table("broadcast_recipients").update(
-                    {"status": "sent", "sent_at": datetime.now(UTC).isoformat()}
-                ).eq("broadcast_id", broadcast_id).eq("user_id", user_id).execute()
+                await (
+                    db.client.table("broadcast_recipients")
+                    .update({"status": "sent", "sent_at": datetime.now(UTC).isoformat()})
+                    .eq("broadcast_id", broadcast_id)
+                    .eq("user_id", user_id)
+                    .execute()
+                )
 
             except Exception as e:
                 failed += 1
@@ -283,15 +287,22 @@ async def worker_send_broadcast(request: Request):
 
                 if is_blocked:
                     # Mark user as unreachable for future broadcasts
-                    await db.client.table("users").update(
-                        {"bot_blocked_at": datetime.now(UTC).isoformat()}
-                    ).eq("id", user_id).execute()
+                    await (
+                        db.client.table("users")
+                        .update({"bot_blocked_at": datetime.now(UTC).isoformat()})
+                        .eq("id", user_id)
+                        .execute()
+                    )
                     logger.info(f"Marked user {user_id} as blocked (telegram_id={telegram_id})")
 
                 # Update recipient status with error
-                await db.client.table("broadcast_recipients").update(
-                    {"status": "failed", "error_message": error_msg[:500]}
-                ).eq("broadcast_id", broadcast_id).eq("user_id", user_id).execute()
+                await (
+                    db.client.table("broadcast_recipients")
+                    .update({"status": "failed", "error_message": error_msg[:500]})
+                    .eq("broadcast_id", broadcast_id)
+                    .eq("user_id", user_id)
+                    .execute()
+                )
 
             # Rate limiting - 30 messages per second max for bots
             import asyncio
@@ -302,9 +313,12 @@ async def worker_send_broadcast(request: Request):
         new_sent_count = broadcast.get("sent_count", 0) + sent
         new_failed_count = broadcast.get("failed_count", 0) + failed
 
-        await db.client.table("broadcast_messages").update(
-            {"sent_count": new_sent_count, "failed_count": new_failed_count}
-        ).eq("id", broadcast_id).execute()
+        await (
+            db.client.table("broadcast_messages")
+            .update({"sent_count": new_sent_count, "failed_count": new_failed_count})
+            .eq("id", broadcast_id)
+            .execute()
+        )
 
         # Check if broadcast is complete (all recipients processed)
         # Query actual counts from DB instead of relying on broadcast data
@@ -340,9 +354,12 @@ async def worker_send_broadcast(request: Request):
 
         if total_processed >= total_recipients > 0:
             # All recipients processed - mark as completed
-            await db.client.table("broadcast_messages").update(
-                {"status": "sent", "completed_at": datetime.now(UTC).isoformat()}
-            ).eq("id", broadcast_id).execute()
+            await (
+                db.client.table("broadcast_messages")
+                .update({"status": "sent", "completed_at": datetime.now(UTC).isoformat()})
+                .eq("id", broadcast_id)
+                .execute()
+            )
             logger.info(
                 f"Broadcast {broadcast_id} completed: {total_sent_in_db} sent, {total_failed_in_db} failed"
             )

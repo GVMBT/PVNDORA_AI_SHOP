@@ -124,10 +124,9 @@ class AuthMiddleware(BaseMiddleware):
 
             # Fetch and save user's profile photo for new users
             await self._update_user_photo(db, user.id, data)
-        else:
-            # For existing users, update photo if needed
-            if await self._should_refresh_photo(db_user):
-                await self._update_user_photo(db, user.id, data)
+        # For existing users, update photo if needed
+        elif await self._should_refresh_photo(db_user):
+            await self._update_user_photo(db, user.id, data)
 
         # Check if banned
         if db_user.is_banned:

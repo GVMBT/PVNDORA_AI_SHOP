@@ -207,13 +207,17 @@ class CurrencyService:
             from core.services.database import get_database
 
             db = get_database()
-            await db.client.table("exchange_rates").upsert(
-                {
-                    "currency": currency,
-                    "rate": rate,
-                    "updated_at": datetime.now(UTC).isoformat(),
-                }
-            ).execute()
+            await (
+                db.client.table("exchange_rates")
+                .upsert(
+                    {
+                        "currency": currency,
+                        "rate": rate,
+                        "updated_at": datetime.now(UTC).isoformat(),
+                    }
+                )
+                .execute()
+            )
         except Exception as e:
             logger.warning(f"Failed to update rate in DB for {currency}: {e}")
 
@@ -381,7 +385,9 @@ class CurrencyService:
 
         return bool(prices and currency in prices and prices[currency] is not None)
 
-    def _extract_settings_data(self, settings: dict[str, Any] | Any, level: int) -> tuple[dict, float]:
+    def _extract_settings_data(
+        self, settings: dict[str, Any] | Any, level: int
+    ) -> tuple[dict, float]:
         """Extract thresholds_by_currency and base_threshold_usd from settings (reduces cognitive complexity)."""
         if hasattr(settings, "__getitem__"):
             thresholds_by_currency = settings.get("thresholds_by_currency") or {}
@@ -412,11 +418,16 @@ class CurrencyService:
         if anchor_threshold is None:
             return None
 
-        logger.debug("Using anchor threshold for %s level%s: %s", target_currency, level, anchor_threshold)
+        logger.debug(
+            "Using anchor threshold for %s level%s: %s", target_currency, level, anchor_threshold
+        )
         return to_decimal(anchor_threshold)
 
     async def get_anchor_threshold(
-        self, settings: dict[str, Any] | Any, target_currency: str, level: int  # 2 or 3
+        self,
+        settings: dict[str, Any] | Any,
+        target_currency: str,
+        level: int,  # 2 or 3
     ) -> Decimal:
         """
         Get referral threshold for specified level and currency using anchor thresholds.
