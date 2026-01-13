@@ -199,7 +199,7 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
         try:
             data = await request.json()
         except Exception as err:  # pylint: disable=broad-exception-caught
-            logger.warning("Failed to parse JSON: %s", err)
+            logger.warning(ERROR_PARSE_JSON, err)
             return JSONResponse(
                 status_code=200,  # Return 200 to prevent retries
                 content={"ok": False, "error": f"Invalid JSON: {err!s}"},
@@ -209,7 +209,7 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
         try:
             update = Update.model_validate(data, context={"bot": bot_instance})
         except Exception as err:  # pylint: disable=broad-exception-caught
-            logger.warning("Failed to validate update: %s", err)
+            logger.warning(ERROR_VALIDATE_UPDATE, err)
             return JSONResponse(
                 status_code=200,  # Return 200 to prevent retries
                 content={"ok": False, "error": f"Invalid update: {err!s}"},
@@ -288,7 +288,7 @@ async def discount_webhook(request: Request, background_tasks: BackgroundTasks):
         try:
             data = await request.json()
         except Exception as err:  # pylint: disable=broad-exception-caught
-            logger.warning("Failed to parse JSON: %s", err)
+            logger.warning(ERROR_PARSE_JSON, err)
             return JSONResponse(
                 status_code=200, content={"ok": False, "error": f"Invalid JSON: {err!s}"}
             )
@@ -296,7 +296,7 @@ async def discount_webhook(request: Request, background_tasks: BackgroundTasks):
         try:
             update = Update.model_validate(data, context={"bot": bot_instance})
         except Exception as err:  # pylint: disable=broad-exception-caught
-            logger.warning("Failed to validate update: %s", err)
+            logger.warning(ERROR_VALIDATE_UPDATE, err)
             return JSONResponse(
                 status_code=200, content={"ok": False, "error": f"Invalid update: {err!s}"}
             )
@@ -389,7 +389,7 @@ async def admin_webhook(request: Request, background_tasks: BackgroundTasks):
         try:
             data = await request.json()
         except Exception as err:  # pylint: disable=broad-exception-caught
-            logger.warning("Failed to parse JSON: %s", err)
+            logger.warning(ERROR_PARSE_JSON, err)
             return JSONResponse(
                 status_code=200, content={"ok": False, "error": f"Invalid JSON: {err!s}"}
             )
@@ -397,7 +397,7 @@ async def admin_webhook(request: Request, background_tasks: BackgroundTasks):
         try:
             update = Update.model_validate(data, context={"bot": bot_instance})
         except Exception as err:  # pylint: disable=broad-exception-caught
-            logger.warning("Failed to validate update: %s", err)
+            logger.warning(ERROR_VALIDATE_UPDATE, err)
             return JSONResponse(
                 status_code=200, content={"ok": False, "error": f"Invalid update: {err!s}"}
             )

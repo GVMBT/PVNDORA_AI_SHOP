@@ -140,8 +140,8 @@ async def create_promo_code(request: PromoCodeCreate, admin=Depends(verify_admin
     except HTTPException:
         raise
     except Exception:
-        logger.exception("Failed to create promo code")
-        raise HTTPException(status_code=500, detail="Failed to create promo code")
+        logger.exception(ERROR_FAILED_CREATE_PROMO)
+        raise HTTPException(status_code=500, detail=ERROR_FAILED_CREATE_PROMO)
 
 
 @router.put("/promo/{promo_id}")

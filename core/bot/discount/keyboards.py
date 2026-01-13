@@ -388,7 +388,7 @@ def get_issue_result_keyboard(
     else:
         pvndora_text = "⭐ Попробуй PVNDORA" if lang == "ru" else "⭐ Try PVNDORA"
 
-    buttons.append([InlineKeyboardButton(text=pvndora_text, url="https://t.me/pvndora_ai_bot")])
+    buttons.append([InlineKeyboardButton(text=pvndora_text, url=PVNDORA_BOT_URL)])
 
     # Back to orders
     back_text = "⬅️ К заказам" if lang == "ru" else "⬅️ To orders"
@@ -414,6 +414,6 @@ def get_help_keyboard(lang: str) -> InlineKeyboardMarkup:
     buttons.append([InlineKeyboardButton(text=faq_text, callback_data="discount:help:faq")])
     buttons.append([InlineKeyboardButton(text=payment_text, callback_data="discount:help:crypto")])
     buttons.append([InlineKeyboardButton(text=support_text, url="https://t.me/pvndora_support")])
-    buttons.append([InlineKeyboardButton(text=pvndora_text, url="https://t.me/pvndora_ai_bot")])
+    buttons.append([InlineKeyboardButton(text=pvndora_text, url=PVNDORA_BOT_URL)])
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
