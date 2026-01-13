@@ -161,28 +161,9 @@ async def get_referral_info() -> dict:
         turnover = float(user.get("turnover_usd", 0) or 0)
         earnings = float(user.get("total_referral_earnings", 0) or 0)
 
-        line1_unlocked = user.get("level1_unlocked_at") is not None or user.get(
-            "referral_program_unlocked", False
+        career_level, next_level, turnover_to_next = _determine_career_level(
+            user, threshold_l2, threshold_l3, turnover
         )
-        line2_unlocked = turnover >= threshold_l2 or user.get("level2_unlocked_at") is not None
-        line3_unlocked = turnover >= threshold_l3 or user.get("level3_unlocked_at") is not None
-
-        if line3_unlocked:
-            career_level = "ARCHITECT"
-            next_level = None
-            turnover_to_next = 0
-        elif line2_unlocked:
-            career_level = "OPERATOR"
-            next_level = "ARCHITECT"
-            turnover_to_next = max(0, threshold_l3 - turnover)
-        elif line1_unlocked:
-            career_level = "PROXY"
-            next_level = "OPERATOR"
-            turnover_to_next = max(0, threshold_l2 - turnover)
-        else:
-            career_level = "LOCKED"
-            next_level = "PROXY"
-            turnover_to_next = 0
 
         network = {"line1": 0, "line2": 0, "line3": 0}
 

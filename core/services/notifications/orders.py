@@ -12,6 +12,53 @@ from .base import NotificationServiceBase
 
 logger = get_logger(__name__)
 
+# =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
+
+
+def _build_delivery_info(lang: str, instant_items: list, prepaid_items: list) -> str:
+    """Build delivery info text based on item types (reduces cognitive complexity)."""
+    from .base import _msg
+
+    if instant_items and prepaid_items:
+        instant_count = len(instant_items)
+        prepaid_count = len(prepaid_items)
+        return _msg(
+            lang,
+            f"\n📦 <b>ДОСТАВКА</b>\n"
+            f"• В наличии ({instant_count}): доставка в течение минуты\n"
+            f"• По предзаказу ({prepaid_count}): уведомим при поступлении\n\n"
+            f"Вы получите уведомления с данными для доступа по мере готовности товаров.",
+            f"\n📦 <b>DELIVERY</b>\n"
+            f"• In stock ({instant_count}): delivery within a minute\n"
+            f"• Preorder ({prepaid_count}): we'll notify when ready\n\n"
+            f"You'll receive notifications with access details as items become available.",
+        )
+
+    if instant_items:
+        return _msg(
+            lang,
+            "\n📦 Товар будет доставлен в течение минуты.\n"
+            "Вы получите уведомление с данными для доступа.",
+            "\n📦 Your item will be delivered within a minute.\n"
+            "You'll receive a notification with access details.",
+        )
+
+    if prepaid_items:
+        prepaid_count = len(prepaid_items)
+        return _msg(
+            lang,
+            f"\n📋 Заказ добавлен в очередь доставки.\n"
+            f"⏳ Ожидает поступления: {prepaid_count} товар(ов)\n"
+            f"Мы уведомим вас, когда товар будет готов к доставке.",
+            f"\n📋 Order added to delivery queue.\n"
+            f"⏳ Waiting for stock: {prepaid_count} item(s)\n"
+            f"We'll notify you when your item is ready for delivery.",
+        )
+
+    return ""
+
 
 class OrderNotificationsMixin(NotificationServiceBase):
     """Mixin for order-related notifications."""
@@ -150,18 +197,7 @@ class OrderNotificationsMixin(NotificationServiceBase):
         except Exception as e:
             logger.warning("Failed to fetch order items for notification %s: %s", order_id, e)
 
-        # Build delivery info based on item types
-        delivery_info = ""
-        if instant_items and prepaid_items:
-            # COMBINED ORDER: Both instant and prepaid items
-            instant_count = len(instant_items)
-            prepaid_count = len(prepaid_items)
-            delivery_info = _msg(
-                lang,
-                f"\n📦 <b>ДОСТАВКА</b>\n"
-                f"• В наличии ({instant_count}): доставка в течение минуты\n"
-                f"• По предзаказу ({prepaid_count}): уведомим при поступлении\n\n"
-                f"Вы получите уведомления с данными для доступа по мере готовности товаров.",
+        delivery_info = _build_delivery_info(lang, instant_items, prepaid_items)
                 f"\n📦 <b>DELIVERY</b>\n"
                 f"• In stock ({instant_count}): delivery within a minute\n"
                 f"• Preorder ({prepaid_count}): we'll notify when ready\n\n"

@@ -50,6 +50,23 @@ async def _calculate_conversion_rate(
         return await currency_service.get_exchange_rate("RUB")
     return await currency_service.get_exchange_rate("RUB")
 
+
+async def _convert_balance_to_usd(balance_in_local: float, balance_currency: str, redis) -> float:
+    """Convert balance to USD for calculations (reduces cognitive complexity)."""
+    from core.services.currency import get_currency_service
+
+    currency_service = get_currency_service(redis)
+
+    if balance_currency == "USD":
+        return balance_in_local
+
+    if balance_currency == "RUB":
+        balance_usd_decimal = await currency_service.convert_balance("RUB", "USD", balance_in_local)
+        return float(balance_usd_decimal)
+
+    rate = await currency_service.get_exchange_rate(balance_currency)
+    return balance_in_local / rate if rate > 0 else balance_in_local
+
 # Cache for referral_settings (TTL 10 minutes)
 _referral_settings_cache = None
 _referral_settings_cache_ttl = 10 * 60  # 10 minutes
@@ -267,22 +284,7 @@ async def get_webapp_profile(db_user: User = Depends(get_db_user)):
     balance_in_local = float(db_user.balance) if db_user.balance else 0
     balance_currency = getattr(db_user, "balance_currency", "USD") or "USD"
 
-    # Convert balance to USD for calculations (if needed)
-    from core.services.currency import get_currency_service
-
-    currency_service = get_currency_service(redis)
-
-    if balance_currency == "USD":
-        balance_usd = balance_in_local
-    elif balance_currency == "RUB":
-        # Use convert_balance for RUB → USD (uses proper rounding)
-        balance_usd_decimal = await currency_service.convert_balance("RUB", "USD", balance_in_local)
-        balance_usd = float(balance_usd_decimal)
-    else:
-        # Fallback: shouldn't happen per plan (only RUB/USD supported for balance)
-        # But handle gracefully if balance_currency is somehow set to another currency
-        rate = await currency_service.get_exchange_rate(balance_currency)
-        balance_usd = balance_in_local / rate if rate > 0 else balance_in_local
+    balance_usd = await _convert_balance_to_usd(balance_in_local, balance_currency, redis)
 
     # Other USD amounts (referral earnings and saved are tracked in USD)
     total_referral_earnings_usd = (

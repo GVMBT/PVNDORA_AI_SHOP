@@ -219,24 +219,9 @@ async def worker_process_review_cashback(request: Request):
         return {"error": ERROR_ORDER_NOT_FOUND}
     order_data = order_result.data
 
-    # Determine cashback base amount - use fiat_amount if available
-    from core.db import get_redis
-    from core.services.currency import get_currency_service
-
-    redis = get_redis()
-    currency_service = get_currency_service(redis)
-
-    if order_data.get("fiat_amount") and order_data.get("fiat_currency") == balance_currency:
-        # Use fiat_amount (what user actually paid in their currency)
-        cashback_base = to_float(order_data["fiat_amount"])
-    else:
-        # Fallback: convert from USD amount
-        cashback_base_usd = to_float(order_data.get("amount", order_amount or 0))
-        if balance_currency == "USD":
-            cashback_base = cashback_base_usd
-        else:
-            rate = await currency_service.get_exchange_rate(balance_currency)
-            cashback_base = cashback_base_usd * rate
+    cashback_base = await _calculate_cashback_base(
+        order_data, order_amount, balance_currency
+    )
 
     # Calculate 5% cashback in user's balance_currency
     cashback_amount = cashback_base * 0.05
