@@ -22,6 +22,9 @@ from ..states import BroadcastStates
 logger = get_logger(__name__)
 router = Router(name="broadcast")
 
+# Constants (avoid string duplication)
+BUTTON_BACK = "◀️ Назад"
+
 
 async def safe_edit_text(callback: CallbackQuery, text: str, **kwargs) -> bool:
     """
@@ -116,7 +119,7 @@ def get_languages_keyboard(selected: list[str]) -> InlineKeyboardMarkup:
 
     buttons.append(
         [
-            InlineKeyboardButton(text="◀️ Назад", callback_data="bc:back:audience"),
+            InlineKeyboardButton(text=BUTTON_BACK, callback_data="bc:back:audience"),
             InlineKeyboardButton(text="✅ Далее", callback_data="bc:lang:done"),
         ]
     )
@@ -146,7 +149,7 @@ def get_content_keyboard(
 
     # Navigation
     all_filled = all(filled.get(lang) for lang in languages)
-    nav_row = [InlineKeyboardButton(text="◀️ Назад", callback_data="bc:back:languages")]
+    nav_row = [InlineKeyboardButton(text=BUTTON_BACK, callback_data="bc:back:languages")]
     if all_filled:
         nav_row.append(InlineKeyboardButton(text="✅ Готово", callback_data="bc:content:done"))
     buttons.append(nav_row)
@@ -174,7 +177,7 @@ def get_buttons_keyboard(has_buttons: bool) -> InlineKeyboardMarkup:
         )
     else:
         buttons.append([InlineKeyboardButton(text="⏭ Без кнопок", callback_data="bc:btn:skip")])
-    buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="bc:back:media")])
+    buttons.append([InlineKeyboardButton(text=BUTTON_BACK, callback_data="bc:back:media")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 

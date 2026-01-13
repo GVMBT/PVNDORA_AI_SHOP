@@ -15,6 +15,9 @@ from core.services.money import to_float
 
 logger = get_logger(__name__)
 
+# Constants (avoid string duplication)
+ERROR_ORDER_NOT_FOUND = "Order not found"
+
 payments_router = APIRouter()
 
 
@@ -52,7 +55,7 @@ async def worker_process_refund(request: Request):
     )
 
     if not order.data:
-        return {"error": "Order not found"}
+        return {"error": ERROR_ORDER_NOT_FOUND}
 
     if order.data["status"] not in ["prepaid", "paid", "partial", "delivered"]:
         return {"skipped": True, "reason": f"Order status is {order.data['status']}, cannot refund"}
@@ -189,7 +192,7 @@ async def worker_process_review_cashback(request: Request):
             .execute()
         )
         if not order_result.data:
-            return {"error": "Order not found"}
+            return {"error": ERROR_ORDER_NOT_FOUND}
         user_result = (
             await db.client.table("users")
             .select("*")
@@ -213,7 +216,7 @@ async def worker_process_review_cashback(request: Request):
         .execute()
     )
     if not order_result.data:
-        return {"error": "Order not found"}
+        return {"error": ERROR_ORDER_NOT_FOUND}
     order_data = order_result.data
 
     # Determine cashback base amount - use fiat_amount if available

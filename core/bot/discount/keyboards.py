@@ -7,6 +7,9 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
 )
 
+# Constants (avoid string duplication)
+PVNDORA_BOT_URL = "https://t.me/pvndora_ai_bot"
+
 # ============================================
 # Main Menu
 # ============================================
@@ -322,7 +325,7 @@ def get_order_detail_keyboard(order: dict, lang: str) -> InlineKeyboardMarkup:
 
         # PVNDORA promo
         pvndora_text = "⭐ Перейти в PVNDORA" if lang == "ru" else "⭐ Go to PVNDORA"
-        buttons.append([InlineKeyboardButton(text=pvndora_text, url="https://t.me/pvndora_ai_bot")])
+        buttons.append([InlineKeyboardButton(text=pvndora_text, url=PVNDORA_BOT_URL)])
 
     # Back
     back_text = "⬅️ К заказам" if lang == "ru" else "⬅️ To orders"

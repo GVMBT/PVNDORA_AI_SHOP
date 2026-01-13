@@ -69,6 +69,10 @@ except ImportError:
 # Set up logging
 logger = logging.getLogger(__name__)
 
+# Constants for error messages (avoid string duplication)
+ERROR_PARSE_JSON = "Failed to parse JSON: %s"
+ERROR_VALIDATE_UPDATE = "Failed to validate update: %s"
+ADMIN_API_PREFIX = "/api/admin"
 
 # ==================== BOT INITIALIZATION ====================
 
@@ -448,7 +452,7 @@ app.include_router(workers_router)
 app.include_router(webapp_router)
 
 # Admin routers
-app.include_router(admin_products_router, prefix="/api/admin")
-app.include_router(admin_users_router, prefix="/api/admin")
-app.include_router(accounting_router, prefix="/api/admin")
-app.include_router(analytics_router, prefix="/api/admin")
+app.include_router(admin_products_router, prefix=ADMIN_API_PREFIX)
+app.include_router(admin_users_router, prefix=ADMIN_API_PREFIX)
+app.include_router(accounting_router, prefix=ADMIN_API_PREFIX)
+app.include_router(analytics_router, prefix=ADMIN_API_PREFIX)

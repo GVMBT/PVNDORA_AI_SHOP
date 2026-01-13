@@ -14,6 +14,9 @@ from core.services.database import get_database
 logger = get_logger(__name__)
 router = APIRouter(tags=["admin-promo"])
 
+# Constants (avoid string duplication)
+ERROR_FAILED_CREATE_PROMO = "Failed to create promo code"
+
 
 class PromoCodeCreate(BaseModel):
     code: str
@@ -120,7 +123,7 @@ async def create_promo_code(request: PromoCodeCreate, admin=Depends(verify_admin
         result = await db.client.table("promo_codes").insert(data).execute()
 
         if not result.data:
-            raise HTTPException(status_code=500, detail="Failed to create promo code")
+            raise HTTPException(status_code=500, detail=ERROR_FAILED_CREATE_PROMO)
 
         p = result.data[0]
         return {

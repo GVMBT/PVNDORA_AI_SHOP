@@ -14,6 +14,9 @@ from .constants import MAX_TICKETS_PER_USER, MIN_TICKET_MESSAGE_LENGTH
 
 support_router = APIRouter(tags=["webapp-misc-support"])
 
+# Constants (avoid string duplication)
+ERROR_USER_NOT_FOUND = "User not found"
+
 
 # --- Support Ticket Models ---
 class CreateTicketRequest(BaseModel):
@@ -34,7 +37,7 @@ async def get_user_tickets(user=Depends(verify_telegram_auth)):
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERROR_USER_NOT_FOUND)
 
     result = (
         await db.client.table("tickets")
@@ -69,7 +72,7 @@ async def create_user_ticket(request: CreateTicketRequest, user=Depends(verify_t
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERROR_USER_NOT_FOUND)
 
     if len(request.message.strip()) < MIN_TICKET_MESSAGE_LENGTH:
         raise HTTPException(
@@ -128,7 +131,7 @@ async def get_user_ticket(ticket_id: str, user=Depends(verify_telegram_auth)):
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERROR_USER_NOT_FOUND)
 
     result = (
         await db.client.table("tickets")

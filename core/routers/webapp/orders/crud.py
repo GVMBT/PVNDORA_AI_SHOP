@@ -17,6 +17,10 @@ from ..models import OrdersListResponse, OrderStatusResponse, PaymentMethod, Pay
 
 logger = logging.getLogger(__name__)
 
+# Constants (avoid string duplication)
+ERROR_USER_NOT_FOUND = "User not found"
+ERROR_ORDER_NOT_FOUND = "Order not found"
+
 crud_router = APIRouter()
 
 
@@ -40,7 +44,7 @@ async def get_webapp_order_status(
     )
 
     if not result.data:
-        raise HTTPException(status_code=404, detail="Order not found")
+        raise HTTPException(status_code=404, detail=ERROR_ORDER_NOT_FOUND)
 
     order = result.data
 
@@ -101,7 +105,7 @@ async def verify_order_payment(order_id: str, user=Depends(verify_telegram_auth)
     result = await db.client.table("orders").select("*").eq("id", order_id).single().execute()
 
     if not result.data:
-        raise HTTPException(status_code=404, detail="Order not found")
+        raise HTTPException(status_code=404, detail=ERROR_ORDER_NOT_FOUND)
 
     order = result.data
 

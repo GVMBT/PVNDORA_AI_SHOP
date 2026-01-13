@@ -18,6 +18,9 @@ from core.services.database import get_database
 logger = get_logger(__name__)
 router = APIRouter(tags=["admin-accounting"])
 
+# Constants (avoid string duplication)
+SELECT_BALANCE_FIELDS = "balance, balance_currency"
+SELECT_WITHDRAWAL_FIELDS = "amount_debited, balance_currency"
 
 # =============================================================================
 # Models
@@ -338,7 +341,7 @@ async def get_financial_overview(
     try:
         balances_result = (
             await db.client.table("users")
-            .select("balance, balance_currency")
+            .select(SELECT_BALANCE_FIELDS)
             .gt("balance", 0)
             .execute()
         )
@@ -367,7 +370,7 @@ async def get_financial_overview(
     try:
         withdrawals_result = (
             await db.client.table("withdrawal_requests")
-            .select("amount_debited, balance_currency")
+            .select(SELECT_WITHDRAWAL_FIELDS)
             .eq("status", "pending")
             .execute()
         )
@@ -1118,7 +1121,7 @@ async def get_liabilities(admin=Depends(verify_admin)):
     try:
         balances_result = (
             await db.client.table("users")
-            .select("balance, balance_currency")
+            .select(SELECT_BALANCE_FIELDS)
             .gt("balance", 0)
             .execute()
         )
@@ -1143,7 +1146,7 @@ async def get_liabilities(admin=Depends(verify_admin)):
     try:
         withdrawals_result = (
             await db.client.table("withdrawal_requests")
-            .select("amount_debited, balance_currency")
+            .select(SELECT_WITHDRAWAL_FIELDS)
             .eq("status", "pending")
             .execute()
         )
@@ -1471,7 +1474,7 @@ async def get_accounting_report(
     try:
         balances_result = (
             await db.client.table("users")
-            .select("balance, balance_currency")
+            .select(SELECT_BALANCE_FIELDS)
             .gt("balance", 0)
             .execute()
         )
@@ -1493,7 +1496,7 @@ async def get_accounting_report(
     try:
         withdrawals_result = (
             await db.client.table("withdrawal_requests")
-            .select("amount_debited, balance_currency")
+            .select(SELECT_WITHDRAWAL_FIELDS)
             .eq("status", "pending")
             .execute()
         )
