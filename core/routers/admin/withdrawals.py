@@ -20,6 +20,49 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/withdrawals", tags=["admin-withdrawals"])
 
+# =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
+
+
+def extract_withdrawal_amounts(withdrawal: dict) -> tuple[float, str, float]:
+    """Extract withdrawal amounts and currency (reduces cognitive complexity)."""
+    amount_debited = float(withdrawal.get("amount_debited") or withdrawal["amount"])
+    balance_currency = withdrawal.get("balance_currency") or "USD"
+    amount_to_pay = float(withdrawal.get("amount_to_pay") or withdrawal["amount"])
+    return amount_debited, balance_currency, amount_to_pay
+
+
+def validate_withdrawal_status(withdrawal: dict, allowed_statuses: list[str]) -> None:
+    """Validate withdrawal status (reduces cognitive complexity)."""
+    if withdrawal["status"] not in allowed_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Withdrawal request is already {withdrawal['status']}",
+        )
+
+
+def get_admin_id(admin) -> str:
+    """Get admin ID from admin object (reduces cognitive complexity)."""
+    admin_id = str(admin.id) if admin and admin.id else None
+    if not admin_id:
+        raise HTTPException(status_code=500, detail="Admin ID not available")
+    return admin_id
+
+
+def validate_user_balance(
+    current_balance: float,
+    amount_debited: float,
+    user_currency: str,
+    withdrawal_currency: str,
+) -> None:
+    """Validate user has sufficient balance (reduces cognitive complexity)."""
+    if current_balance < amount_debited:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient balance. User has {current_balance:.2f} {user_currency}, requested {amount_debited:.2f} {withdrawal_currency}",
+        )
+
 
 @router.get("")
 async def get_withdrawals(
@@ -132,18 +175,12 @@ async def approve_withdrawal(
             raise HTTPException(status_code=404, detail="Withdrawal request not found")
 
         withdrawal = withdrawal_result.data
-        if withdrawal["status"] != "pending":
-            raise HTTPException(
-                status_code=400, detail=f"Withdrawal request is already {withdrawal['status']}"
-            )
+        validate_withdrawal_status(withdrawal, ["pending"])
 
         user_id = withdrawal["user_id"]
-
-        # Use snapshot fields if available, fallback to legacy 'amount' (USD)
-        amount_debited = float(withdrawal.get("amount_debited") or withdrawal["amount"])
-        balance_currency = withdrawal.get("balance_currency") or "USD"
-        amount_to_pay_usdt = float(withdrawal.get("amount_to_pay") or withdrawal["amount"])
-
+        amount_debited, balance_currency, amount_to_pay_usdt = extract_withdrawal_amounts(
+            withdrawal
+        )
         payment_method = withdrawal.get("payment_method", "crypto")
         wallet_address = withdrawal.get("wallet_address", "")
 
@@ -163,16 +200,10 @@ async def approve_withdrawal(
         user_balance_currency = user_result.data.get("balance_currency") or "USD"
         user_telegram_id = user_result.data.get("telegram_id")
 
-        # Check balance (amount_debited is in user's balance currency)
-        if current_balance < amount_debited:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Insufficient balance. User has {current_balance:.2f} {user_balance_currency}, requested {amount_debited:.2f} {balance_currency}",
-            )
-
-        admin_id = str(admin.id) if admin and admin.id else None
-        if not admin_id:
-            raise HTTPException(status_code=500, detail="Admin ID not available")
+        validate_user_balance(
+            current_balance, amount_debited, user_balance_currency, balance_currency
+        )
+        admin_id = get_admin_id(admin)
 
         # Update withdrawal status to processing (balance will be deducted)
         await db.client.table("withdrawal_requests").update(
@@ -291,25 +322,16 @@ async def reject_withdrawal(
             raise HTTPException(status_code=404, detail="Withdrawal request not found")
 
         withdrawal = withdrawal_result.data
-        if withdrawal["status"] not in ("pending", "processing"):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Cannot reject withdrawal with status '{withdrawal['status']}'",
-            )
+        validate_withdrawal_status(withdrawal, ["pending", "processing"])
 
         user_id = withdrawal["user_id"]
-        # Use snapshot fields if available
-        amount_debited = float(withdrawal.get("amount_debited") or withdrawal["amount"])
-        balance_currency = withdrawal.get("balance_currency") or "USD"
-        amount_to_pay = float(withdrawal.get("amount_to_pay") or withdrawal["amount"])
+        amount_debited, balance_currency, amount_to_pay = extract_withdrawal_amounts(withdrawal)
 
         user_telegram_id = (
             withdrawal.get("users", {}).get("telegram_id") if withdrawal.get("users") else None
         )
 
-        admin_id = str(admin.id) if admin and admin.id else None
-        if not admin_id:
-            raise HTTPException(status_code=500, detail="Admin ID not available")
+        admin_id = get_admin_id(admin)
 
         # If status was processing, we need to return balance
         if withdrawal["status"] == "processing":
