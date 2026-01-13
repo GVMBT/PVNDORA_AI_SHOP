@@ -211,57 +211,70 @@ const Modal: React.FC<{
     }
   }, [state.type, state.isOpen, state.previewWithdrawal, state.balance, inputValue]);
 
+  // Helper to validate amount (reduces cognitive complexity)
+  const validateAmount = (amount: number): string | null => {
+    if (Number.isNaN(amount) || amount <= 0) {
+      return t("modal.errors.enterAmount");
+    }
+    if (state.minAmount && amount < state.minAmount) {
+      return `${t("modal.errors.minAmount")}: ${state.minAmount} ${state.currency}`;
+    }
+    if (state.maxAmount && amount > state.maxAmount) {
+      return `${t("modal.errors.maxAmount")}: ${state.maxAmount} ${state.currency}`;
+    }
+    return null;
+  };
+
+  // Helper to validate withdrawal (reduces cognitive complexity)
+  const validateWithdrawal = (amount: number): string | null => {
+    if (state.balance && amount > state.balance) {
+      return t("modal.errors.insufficientFunds");
+    }
+    if (withdrawPreview && !withdrawPreview.can_withdraw) {
+      return "Сумма слишком мала. После комиссии вы получите менее 8.5 USDT (требование биржи: минимум 10 USD).";
+    }
+    if (!withdrawDetails || !withdrawDetails.trim()) {
+      return "Укажите адрес кошелька";
+    }
+    return null;
+  };
+
+  // Helper to prepare submit data (reduces cognitive complexity)
+  const prepareSubmitData = () => {
+    if (state.type === "withdraw") {
+      return {
+        amount: Number.parseFloat(inputValue),
+        method: withdrawMethod,
+        details: withdrawDetails,
+      };
+    }
+    if (state.type === "topup" || state.type === "prompt") {
+      return state.inputType === "number" ? Number.parseFloat(inputValue) : inputValue;
+    }
+    return undefined;
+  };
+
   const handleSubmit = async () => {
     // Validate for topup/withdraw
     if (state.type === "topup" || state.type === "withdraw") {
       const amount = Number.parseFloat(inputValue);
-      if (Number.isNaN(amount) || amount <= 0) {
-        setError(t("modal.errors.enterAmount"));
+      const amountError = validateAmount(amount);
+      if (amountError) {
+        setError(amountError);
         return;
       }
-      if (state.minAmount && amount < state.minAmount) {
-        setError(`${t("modal.errors.minAmount")}: ${state.minAmount} ${state.currency}`);
-        return;
-      }
-      if (state.maxAmount && amount > state.maxAmount) {
-        setError(`${t("modal.errors.maxAmount")}: ${state.maxAmount} ${state.currency}`);
-        return;
-      }
+
       if (state.type === "withdraw") {
-        if (state.balance && amount > state.balance) {
-          setError(t("modal.errors.insufficientFunds"));
+        const withdrawError = validateWithdrawal(amount);
+        if (withdrawError) {
+          setError(withdrawError);
           return;
         }
-        if (withdrawPreview && !withdrawPreview.can_withdraw) {
-          setError(
-            "Сумма слишком мала. После комиссии вы получите менее 8.5 USDT (требование биржи: минимум 10 USD)."
-          );
-          return;
-        }
-        if (!withdrawDetails || !withdrawDetails.trim()) {
-          setError("Укажите адрес кошелька");
-          return;
-        }
-      }
-      if (state.type === "withdraw" && !withdrawDetails.trim()) {
-        setError(t("modal.errors.enterDetails"));
-        return;
       }
     }
 
     setError(null);
-
-    if (state.type === "withdraw") {
-      onSubmit({
-        amount: Number.parseFloat(inputValue),
-        method: withdrawMethod,
-        details: withdrawDetails,
-      });
-    } else if (state.type === "topup" || state.type === "prompt") {
-      onSubmit(state.inputType === "number" ? Number.parseFloat(inputValue) : inputValue);
-    } else {
-      onSubmit(undefined);
-    }
+    onSubmit(prepareSubmitData());
   };
 
   const getIcon = () => {

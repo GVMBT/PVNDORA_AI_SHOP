@@ -131,7 +131,6 @@ class PaymentService:
             amount=amount,
             product_name=product_name,
             currency=currency,
-            user_id=user_id,
             is_telegram_miniapp=is_telegram_miniapp,
         )
 

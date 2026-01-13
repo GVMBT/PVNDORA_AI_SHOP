@@ -248,7 +248,7 @@ class ShopAgent:
         try:
             products = await self.db.get_products(status="active")
             product_catalog = await format_product_catalog(
-                products, language, exchange_rate=user_ctx.exchange_rate
+                products, language
             )
         except Exception as e:
             logger.warning(f"Failed to load catalog: {e}")
