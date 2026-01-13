@@ -530,6 +530,101 @@ async def cb_orders(callback: CallbackQuery, db_user: User):
         await callback.answer("Ошибка" if lang == "ru" else "Error", show_alert=True)
 
 
+# Helper: Find order by short ID (reduces cognitive complexity)
+async def _find_order_by_short_id(
+    db: Any, user_uuid: str, order_short_id: str
+) -> dict[str, Any] | None:
+    """Find order by short ID prefix."""
+    orders_result = (
+        await db.client.table("orders")
+        .select("*")
+        .eq("user_id", user_uuid)
+        .eq("source_channel", "discount")
+        .execute()
+    )
+
+    short_id_lower = order_short_id.lower().replace("-", "")
+    for o in orders_result.data or []:
+        order_uuid = str(o["id"]).lower().replace("-", "")
+        if order_uuid.startswith(short_id_lower):
+            return o
+    return None
+
+
+# Helper: Get status text (reduces cognitive complexity)
+def _get_status_text(status: str, lang: str) -> str:
+    """Get localized status text."""
+    status_map = {
+        "pending": ("⏳ Ожидает оплаты", "⏳ Pending payment"),
+        "paid": ("💳 Оплачен", "💳 Paid"),
+        "prepaid": ("💳 Ожидает поставки", "💳 Awaiting supply"),
+        "delivered": ("✅ Доставлен", "✅ Delivered"),
+        "cancelled": ("❌ Отменён", "❌ Cancelled"),
+        "refunded": ("↩️ Возврат", "↩️ Refunded"),
+    }
+    ru_text, en_text = status_map.get(status, (status, status))
+    return ru_text if lang == "ru" else en_text
+
+
+# Helper: Format order items text (reduces cognitive complexity)
+def _format_order_items_text(items: list[dict[str, Any]], lang: str) -> str:
+    """Format order items list as text."""
+    text = ""
+    for item in items:
+        product_name = (
+            item.get("products", {}).get("name", "Product")
+            if isinstance(item.get("products"), dict)
+            else "Product"
+        )
+        text += f"• {product_name}\n"
+        if item.get("insurance_id"):
+            text += "  🛡 Со страховкой\n" if lang == "ru" else "  🛡 With insurance\n"
+    return text
+
+
+# Helper: Format delivery info (reduces cognitive complexity)
+def _format_delivery_info(order: dict[str, Any], lang: str) -> str:
+    """Format delivery information text."""
+    scheduled = order.get("scheduled_delivery_at")
+    if scheduled:
+        return (
+            f"\n📦 Доставка ожидается: {scheduled[:16].replace('T', ' ')}\n"
+            if lang == "ru"
+            else f"\n📦 Expected delivery: {scheduled[:16].replace('T', ' ')}\n"
+        )
+    return (
+        "\n📦 Доставка в течение 1-4 часов\n"
+        if lang == "ru"
+        else "\n📦 Delivery in 1-4 hours\n"
+    )
+
+
+# Helper: Build order detail message (reduces cognitive complexity)
+def _build_order_detail_message(
+    order: dict[str, Any],
+    items: list[dict[str, Any]],
+    currency_symbol: str,
+    display_amount: float,
+    lang: str,
+) -> str:
+    """Build order detail message text."""
+    status_text = _get_status_text(order["status"], lang)
+
+    text = (
+        f"📦 <b>Заказ #{order['id'][:8]}</b>\n\n"
+        f"Статус: {status_text}\n"
+        f"Сумма: {currency_symbol}{display_amount:.0f}\n"
+        f"Создан: {order['created_at'][:10]}\n\n"
+    )
+
+    text += _format_order_items_text(items, lang)
+
+    if order["status"] == "paid":
+        text += _format_delivery_info(order, lang)
+
+    return text
+
+
 @router.callback_query(F.data.startswith("discount:order:"))
 async def cb_order_detail(callback: CallbackQuery, db_user: User):
     """Show order details."""
@@ -539,8 +634,7 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User):
     order_short_id = callback.data.split(":")[2]
 
     try:
-        # Get user's discount orders and filter by short ID prefix
-        # (ilike doesn't work with UUID fields in PostgREST)
+        # Get user UUID
         user_result = (
             await db.client.table("users")
             .select("id")
@@ -555,23 +649,8 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User):
 
         user_uuid = user_result.data["id"]
 
-        orders_result = (
-            await db.client.table("orders")
-            .select("*")
-            .eq("user_id", user_uuid)
-            .eq("source_channel", "discount")
-            .execute()
-        )
-
-        # Filter by short ID prefix
-        order = None
-        short_id_lower = order_short_id.lower().replace("-", "")
-        for o in orders_result.data or []:
-            order_uuid = str(o["id"]).lower().replace("-", "")
-            if order_uuid.startswith(short_id_lower):
-                order = o
-                break
-
+        # Find order by short ID
+        order = await _find_order_by_short_id(db, user_uuid, order_short_id)
         if not order:
             await callback.answer(
                 "Заказ не найден" if lang == "ru" else "Order not found", show_alert=True
@@ -587,62 +666,19 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User):
         )
 
         items = items_result.data or []
-
-        # Check if has insurance
         has_insurance = any(item.get("insurance_id") for item in items)
         order["has_insurance"] = has_insurance
 
         # Get currency info
         currency, exchange_rate = await get_user_currency_info(db_user)
-        # Use currency symbols from single source of truth
         from core.services.currency import CURRENCY_SYMBOLS
 
         currency_symbol = CURRENCY_SYMBOLS.get(currency, currency)
-
         amount_usd = float(order.get("amount", 0) or 0)
         display_amount = amount_usd * exchange_rate
 
-        status_text = {
-            "pending": "⏳ Ожидает оплаты" if lang == "ru" else "⏳ Pending payment",
-            "paid": "💳 Оплачен" if lang == "ru" else "💳 Paid",
-            "prepaid": "💳 Ожидает поставки" if lang == "ru" else "💳 Awaiting supply",
-            "delivered": "✅ Доставлен" if lang == "ru" else "✅ Delivered",
-            "cancelled": "❌ Отменён" if lang == "ru" else "❌ Cancelled",
-            "refunded": "↩️ Возврат" if lang == "ru" else "↩️ Refunded",
-        }.get(order["status"], order["status"])
-
-        text = (
-            f"📦 <b>Заказ #{order['id'][:8]}</b>\n\n"
-            f"Статус: {status_text}\n"
-            f"Сумма: {currency_symbol}{display_amount:.0f}\n"
-            f"Создан: {order['created_at'][:10]}\n\n"
-        )
-
-        for item in items:
-            product_name = (
-                item.get("products", {}).get("name", "Product")
-                if isinstance(item.get("products"), dict)
-                else "Product"
-            )
-            text += f"• {product_name}\n"
-            if item.get("insurance_id"):
-                text += "  🛡 Со страховкой\n" if lang == "ru" else "  🛡 With insurance\n"
-
-        if order["status"] == "paid":
-            # Show scheduled delivery
-            scheduled = order.get("scheduled_delivery_at")
-            if scheduled:
-                text += (
-                    f"\n📦 Доставка ожидается: {scheduled[:16].replace('T', ' ')}\n"
-                    if lang == "ru"
-                    else f"\n📦 Expected delivery: {scheduled[:16].replace('T', ' ')}\n"
-                )
-            else:
-                text += (
-                    "\n📦 Доставка в течение 1-4 часов\n"
-                    if lang == "ru"
-                    else "\n📦 Delivery in 1-4 hours\n"
-                )
+        # Build and send message
+        text = _build_order_detail_message(order, items, currency_symbol, display_amount, lang)
 
         await callback.message.edit_text(
             text, reply_markup=get_order_detail_keyboard(order, lang), parse_mode=ParseMode.HTML
