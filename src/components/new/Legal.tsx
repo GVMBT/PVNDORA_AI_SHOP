@@ -654,11 +654,11 @@ const Legal: React.FC<LegalProps> = ({ doc, onBack }) => {
   const renderContent = () => {
     // Get content based on document type and locale (default to English if not Russian)
     const isRussian = locale === "ru";
-    const docLocale = isRussian ? "ru" : "en";
+    const docLocale: "ru" | "en" = isRussian ? "ru" : "en";
 
     switch (doc) {
       case "terms":
-        const termsContent = legalContent.terms[docLocale as "ru" | "en"];
+        const termsContent = legalContent.terms[docLocale];
         return (
           <div>
             <h2 className="text-white font-display text-xl mb-4">{termsContent.title}</h2>
@@ -666,7 +666,7 @@ const Legal: React.FC<LegalProps> = ({ doc, onBack }) => {
           </div>
         );
       case "privacy":
-        const privacyContent = legalContent.privacy[docLocale as "ru" | "en"];
+        const privacyContent = legalContent.privacy[docLocale];
         return (
           <div>
             <h2 className="text-white font-display text-xl mb-4">{privacyContent.title}</h2>
@@ -674,7 +674,7 @@ const Legal: React.FC<LegalProps> = ({ doc, onBack }) => {
           </div>
         );
       case "refund":
-        const refundContent = legalContent.refund[docLocale as "ru" | "en"];
+        const refundContent = legalContent.refund[docLocale];
         return (
           <div>
             <h2 className="text-white font-display text-xl mb-4">{refundContent.title}</h2>
@@ -682,7 +682,7 @@ const Legal: React.FC<LegalProps> = ({ doc, onBack }) => {
           </div>
         );
       case "payment":
-        const paymentContent = legalContent.payment[docLocale as "ru" | "en"];
+        const paymentContent = legalContent.payment[docLocale];
         return (
           <div>
             <h2 className="text-white font-display text-xl mb-4">{paymentContent.title}</h2>

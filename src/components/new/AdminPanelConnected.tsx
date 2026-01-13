@@ -272,9 +272,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
         earned: u.total_referral_earnings || 0, // Referral earnings
         savings: 0,
         // Partner-specific fields
-        rewardType: (u.partner_mode === "discount" ? "discount" : "commission") as
-          | "commission"
-          | "discount",
+        rewardType: u.partner_mode === "discount" ? "discount" : "commission",
       };
     });
     userIdMapRef.current = newMap;

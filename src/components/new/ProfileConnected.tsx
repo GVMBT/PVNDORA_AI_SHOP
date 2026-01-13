@@ -326,8 +326,8 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
       }
       if (interface_language) {
         // Only RU/EN supported - normalize to these
-        const normalizedLang = interface_language === "ru" ? "ru" : "en";
-        setLocale(normalizedLang as "en" | "ru");
+        const normalizedLang: "en" | "ru" = interface_language === "ru" ? "ru" : "en";
+        setLocale(normalizedLang);
       }
 
       try {
@@ -363,8 +363,8 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
           }
           if (interface_language) {
             // Only RU/EN supported
-            const originalLang = profile.language === "ru" ? "ru" : "en";
-            setLocale(originalLang as "en" | "ru");
+            const originalLang: "en" | "ru" = profile.language === "ru" ? "ru" : "en";
+            setLocale(originalLang);
           }
         }
         throw error;
