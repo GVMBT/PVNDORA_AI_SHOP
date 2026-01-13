@@ -105,6 +105,55 @@ async def _get_target_users(db, request: BroadcastRequest) -> list[dict]:
     return result.data or []
 
 
+# Helper: Get bot tokens for target (reduces cognitive complexity)
+def _get_bot_tokens(target_bot: str) -> list[tuple[str, str]]:
+    """Get list of (bot_name, token) tuples for target bot."""
+    bot_tokens = []
+    if target_bot in ("main", "all") and TELEGRAM_TOKEN:
+        bot_tokens.append(("main", TELEGRAM_TOKEN))
+    if target_bot in ("discount", "all") and DISCOUNT_BOT_TOKEN:
+        bot_tokens.append(("discount", DISCOUNT_BOT_TOKEN))
+    return bot_tokens
+
+
+# Helper: Send messages to users with rate limiting (reduces cognitive complexity)
+async def _send_broadcast_messages(
+    target_users: list[dict],
+    bot_tokens: list[tuple[str, str]],
+    message: str,
+    parse_mode: str | None,
+) -> tuple[int, int, list[int]]:
+    """Send messages to users, return (sent_count, failed_count, failed_user_ids)."""
+    sent_count = 0
+    failed_count = 0
+    failed_user_ids = []
+
+    for user in target_users:
+        telegram_id = user.get("telegram_id")
+        if not telegram_id:
+            continue
+
+        # Try each bot token
+        message_sent = False
+        for bot_name, bot_token in bot_tokens:
+            success = await send_telegram_message(bot_token, telegram_id, message, parse_mode)
+            if success:
+                message_sent = True
+                break  # Don't send via multiple bots
+
+        if message_sent:
+            sent_count += 1
+        else:
+            failed_count += 1
+            failed_user_ids.append(telegram_id)
+
+        # Rate limiting: ~20 messages per second
+        if (sent_count + failed_count) % 20 == 0:
+            await asyncio.sleep(1)
+
+    return sent_count, failed_count, failed_user_ids
+
+
 @router.post("", response_model=BroadcastResult)
 async def send_broadcast(request: BroadcastRequest, admin_user=Depends(verify_admin)):
     """
@@ -120,7 +169,6 @@ async def send_broadcast(request: BroadcastRequest, admin_user=Depends(verify_ad
     db = get_database()
 
     target_users = await _get_target_users(db, request)
-
     target_count = len(target_users)
 
     # Preview mode - just return count
@@ -134,46 +182,16 @@ async def send_broadcast(request: BroadcastRequest, admin_user=Depends(verify_ad
         )
 
     # Determine which bot tokens to use
-    bot_tokens = []
-    if request.target_bot in ("main", "all") and TELEGRAM_TOKEN:
-        bot_tokens.append(("main", TELEGRAM_TOKEN))
-    if request.target_bot in ("discount", "all") and DISCOUNT_BOT_TOKEN:
-        bot_tokens.append(("discount", DISCOUNT_BOT_TOKEN))
-
+    bot_tokens = _get_bot_tokens(request.target_bot)
     if not bot_tokens:
         raise HTTPException(
             status_code=400, detail=f"No bot token configured for target: {request.target_bot}"
         )
 
-    sent_count = 0
-    failed_count = 0
-    failed_user_ids = []
-
-    # Send messages with rate limiting (30 messages per second max)
-    for user in target_users:
-        telegram_id = user.get("telegram_id")
-        if not telegram_id:
-            continue
-
-        # Try each bot token
-        message_sent = False
-        for bot_name, bot_token in bot_tokens:
-            success = await send_telegram_message(
-                bot_token, telegram_id, request.message, request.parse_mode
-            )
-            if success:
-                message_sent = True
-                break  # Don't send via multiple bots
-
-        if message_sent:
-            sent_count += 1
-        else:
-            failed_count += 1
-            failed_user_ids.append(telegram_id)
-
-        # Rate limiting: ~20 messages per second
-        if (sent_count + failed_count) % 20 == 0:
-            await asyncio.sleep(1)
+    # Send messages with rate limiting
+    sent_count, failed_count, failed_user_ids = await _send_broadcast_messages(
+        target_users, bot_tokens, request.message, request.parse_mode
+    )
 
     logger.info(
         f"Broadcast completed: sent={sent_count}, failed={failed_count}, "
