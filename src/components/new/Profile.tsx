@@ -179,7 +179,7 @@ const Profile: React.FC<ProfileProps> = ({
     if (onSetPartnerMode) {
       try {
         await onSetPartnerMode(apiMode);
-      } catch (e) {
+      } catch (_e) {
         // Revert on error
         setRewardMode(rewardMode);
       }

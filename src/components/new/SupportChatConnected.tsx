@@ -119,7 +119,7 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
       loadHistory().then(() => {
         // After history loads, apply context if needed (check current initialContext)
         const currentContext = initialContext;
-        if (currentContext && currentContext.orderId && !contextAppliedRef.current) {
+        if (currentContext?.orderId && !contextAppliedRef.current) {
           const products = currentContext.productNames?.join(", ") || "N/A";
           const itemInfo = currentContext.itemId ? `\n• Item ID: ${currentContext.itemId}` : "";
           const reason = currentContext.reason || "Проблема с аккаунтом";
@@ -130,7 +130,7 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
         }
       });
     }
-  }, [isOpen]); // Don't include initialContext to avoid re-loading history
+  }, [isOpen, initialContext, loadHistory]); // Don't include initialContext to avoid re-loading history
 
   const loadHistory = useCallback(async () => {
     const history = await getHistory(20);
@@ -152,7 +152,7 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
     if (isOpen && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isTyping, isOpen]);
+  }, [isOpen]);
 
   const handleSend = async () => {
     if (!inputValue.trim() || loading || isTyping) return;
@@ -220,7 +220,7 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
         };
         setMessages((prev) => [...prev, errorMsg]);
       }
-    } catch (err) {
+    } catch (_err) {
       const errorMsg: DisplayMessage = {
         id: `error-${Date.now()}`,
         text: "Failed to reach AI. Check your connection.",

@@ -580,7 +580,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
             {relatedProducts.map((rel) => (
               <div
                 key={rel.id}
-                onClick={() => onProductSelect && onProductSelect(rel)}
+                onClick={() => onProductSelect?.(rel)}
                 className="bg-[#0a0a0a] border border-white/10 p-3 flex gap-3 cursor-pointer hover:border-pandora-cyan/50 hover:bg-white/[0.02] transition-all group"
               >
                 <div className="w-12 h-12 bg-black shrink-0 border border-white/10 relative overflow-hidden">

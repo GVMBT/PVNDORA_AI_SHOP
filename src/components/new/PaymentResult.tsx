@@ -16,7 +16,7 @@ import {
   RefreshCw,
   XCircle,
 } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PAYMENT_STATUS_MESSAGES, type PaymentStatus } from "../../constants";
 import { useLocale } from "../../hooks/useLocale";
 import { apiRequest } from "../../utils/apiClient";
@@ -158,7 +158,7 @@ export function PaymentResult({
         error: errorInstance,
       };
     }
-  }, [orderId, isTopUp]);
+  }, [orderId, isTopUp, handle404Error, mapBackendStatus]);
 
   // Polling effect with exponential backoff
   // Only run polling in Telegram Mini App (browser shows simple static page)

@@ -456,7 +456,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
     if (logsContainerRef.current) {
       logsContainerRef.current.scrollTop = logsContainerRef.current.scrollHeight;
     }
-  }, [logs]);
+  }, []);
 
   if (phase === "fadeout") {
     return null;

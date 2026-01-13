@@ -49,7 +49,7 @@ interface CatalogProps {
 // Decorative hex codes - static IDs used since items never reorder
 const HEX_IDS = ["h0", "h1", "h2", "h3", "h4", "h5", "h6", "h7"] as const;
 
-const HexStream = () => {
+const _HexStream = () => {
   return (
     <div className="flex flex-col text-[8px] font-mono text-pandora-cyan/60 leading-tight opacity-50">
       {HEX_IDS.map((id) => (
@@ -156,7 +156,14 @@ const Catalog: React.FC<CatalogProps> = ({
     });
 
     return result;
-  }, [productsData, searchQuery, activeCategory, activeAvailability, sortBy]);
+  }, [
+    productsData,
+    searchQuery,
+    activeCategory,
+    activeAvailability,
+    sortBy,
+    getProductAvailability,
+  ]);
 
   const handleCategoryChange = (cat: string) => {
     if (onHaptic) onHaptic("light");

@@ -7,7 +7,7 @@
  */
 
 import { AnimatePresence, motion } from "framer-motion";
-import React, { memo, Suspense } from "react";
+import { memo, Suspense } from "react";
 import type { CatalogProduct } from "../../types/component";
 import { lazyWithRetry } from "../../utils/lazyWithRetry";
 import {

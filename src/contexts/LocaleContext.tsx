@@ -11,7 +11,7 @@
  * - Use display values or convertFromUsd() for UI
  */
 
-import React, {
+import {
   createContext,
   type ReactNode,
   useCallback,

@@ -649,7 +649,7 @@ const legalContent = {
 // Helper to render standard document content (reduces cognitive complexity)
 const renderStandardDocument = (
   content: { title: string; content: React.ReactNode },
-  docLocale: "ru" | "en"
+  _docLocale: "ru" | "en"
 ) => {
   return (
     <div>

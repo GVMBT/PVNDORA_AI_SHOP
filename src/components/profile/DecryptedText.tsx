@@ -61,7 +61,7 @@ const DecryptedText: React.FC<DecryptedTextProps> = ({
         setDisplayText(
           textStr
             .split("")
-            .map((letter, index) => {
+            .map((_letter, index) => {
               if (index < iteration) {
                 return textStr[index];
               }

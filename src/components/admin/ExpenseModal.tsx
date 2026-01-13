@@ -169,7 +169,10 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
           <div className="space-y-4">
             {/* Description */}
             <div>
-              <label htmlFor="expense-description" className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
+              <label
+                htmlFor="expense-description"
+                className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1"
+              >
                 <FileText size={12} />
                 Описание
               </label>
@@ -193,7 +196,10 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
             {/* Amount & Currency */}
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
-                <label htmlFor="expense-amount" className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
+                <label
+                  htmlFor="expense-amount"
+                  className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1"
+                >
                   <DollarSign size={12} />
                   Сумма
                 </label>
@@ -275,7 +281,10 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
 
             {/* Date */}
             <div>
-              <label htmlFor="expense-date" className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
+              <label
+                htmlFor="expense-date"
+                className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1"
+              >
                 <Calendar size={12} />
                 Дата
               </label>

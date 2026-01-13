@@ -41,7 +41,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<Error | null>(null);
-  const [loadStartTime] = useState(Date.now());
+  const [_loadStartTime] = useState(Date.now());
   const retryCountRef = useRef(0);
   const maxRetries = 3;
 
@@ -370,7 +370,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
     };
   }, [autoPlay, isMuted]);
 
-  const togglePlay = () => {
+  const _togglePlay = () => {
     if (!audioRef.current) return;
 
     if (isPlaying) {

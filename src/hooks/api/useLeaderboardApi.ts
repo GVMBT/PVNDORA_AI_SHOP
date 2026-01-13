@@ -5,7 +5,7 @@
  * Uses user's preferred currency from context.
  */
 
-import React, { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { adaptLeaderboard } from "../../adapters";
 import { PAGINATION } from "../../config";
 import { useLocaleContext } from "../../contexts/LocaleContext";

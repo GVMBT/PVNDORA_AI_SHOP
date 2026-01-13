@@ -38,7 +38,7 @@ import {
   Zap,
 } from "lucide-react";
 import type React from "react";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useAdminProductsTyped } from "../../hooks/api/useAdminApi";
 import type { ProductData } from "./types";
 
@@ -86,16 +86,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
     }
     setInventoryText("");
     setStockItems([]);
-  }, [product, isOpen]);
+  }, [product]);
 
-  // Load stock when inventory tab is active and product has ID
-  useEffect(() => {
-    if (activeTab === "inventory" && editingProduct.id && typeof editingProduct.id === "string") {
-      loadStock();
-    }
-  }, [activeTab, editingProduct.id]);
-
-  const loadStock = async () => {
+  // Load stock callback (defined before useEffect that uses it)
+  const loadStock = useCallback(async () => {
     if (!editingProduct.id || typeof editingProduct.id !== "string") return;
     setLoadingStock(true);
     try {
@@ -106,7 +100,14 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
     } finally {
       setLoadingStock(false);
     }
-  };
+  }, [editingProduct.id, getStock]);
+
+  // Load stock when inventory tab is active and product has ID
+  useEffect(() => {
+    if (activeTab === "inventory" && editingProduct.id && typeof editingProduct.id === "string") {
+      loadStock();
+    }
+  }, [activeTab, editingProduct.id, loadStock]);
 
   const handleAddStock = async () => {
     if (!editingProduct.id || typeof editingProduct.id !== "string") {
@@ -329,8 +330,16 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                 <div className="flex gap-4 items-start">
                   {/* Загрузка изображения */}
                   <div
+                    role="button"
+                    tabIndex={0}
                     className="relative group w-32 h-32 bg-black border border-white/20 flex items-center justify-center cursor-pointer hover:border-pandora-cyan transition-colors rounded-sm"
                     onClick={triggerFileInput}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        triggerFileInput();
+                      }
+                    }}
                   >
                     {editingProduct?.image ? (
                       <img
@@ -356,10 +365,11 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                   {/* URL */}
                   <div className="flex-1 space-y-3">
                     <div>
-                      <label className="text-[10px] text-gray-500 block mb-1 uppercase">
+                      <label htmlFor="product-image-url" className="text-[10px] text-gray-500 block mb-1 uppercase">
                         URL изображения
                       </label>
                       <input
+                        id="product-image-url"
                         type="text"
                         value={editingProduct?.image || ""}
                         onChange={(e) =>
@@ -370,10 +380,11 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] text-gray-500 mb-1 uppercase flex items-center gap-1">
+                      <label htmlFor="product-video-url" className="text-[10px] text-gray-500 mb-1 uppercase flex items-center gap-1">
                         <Video size={10} /> URL видео (опционально)
                       </label>
                       <input
+                        id="product-video-url"
                         type="text"
                         value={editingProduct?.video || ""}
                         onChange={(e) =>
@@ -449,8 +460,9 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Статус */}
               <div>
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Статус</label>
+                <label htmlFor="product-status" className="text-[10px] text-gray-500 block mb-1 uppercase">Статус</label>
                 <select
+                  id="product-status"
                   value={editingProduct?.status || "active"}
                   onChange={(e) => setEditingProduct({ ...editingProduct, status: e.target.value })}
                   className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"

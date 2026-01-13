@@ -142,7 +142,7 @@ const DecryptText: React.FC<DecryptTextProps> = ({ text, revealed }) => {
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [revealed, text]);
+  }, [revealed, text, maskChar]);
 
   return <span className="font-mono whitespace-pre-wrap">{display}</span>;
 };

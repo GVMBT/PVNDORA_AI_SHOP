@@ -424,7 +424,7 @@ const Modal: React.FC<{
                         <button
                           type="button"
                           onClick={() => {
-                            setInputValue(state.maxAmount!.toString());
+                            setInputValue(state.maxAmount?.toString());
                           }}
                           className="text-[10px] text-purple-400 font-mono uppercase hover:text-purple-300 transition-colors"
                         >
@@ -538,7 +538,6 @@ const Modal: React.FC<{
                   onChange={(e) => setInputValue(e.target.value)}
                   placeholder={state.placeholder}
                   className="w-full bg-black border border-white/20 focus:border-pandora-cyan px-4 py-3 text-white font-mono outline-none transition-colors"
-                  autoFocus
                 />
               )}
 

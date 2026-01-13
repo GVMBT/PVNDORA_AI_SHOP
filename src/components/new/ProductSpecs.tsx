@@ -115,13 +115,13 @@ const getHumanValue = (value: string): string => {
 
   // Handle dynamic values like "3 DAYS" or "24 HOURS"
   if (value.includes("DAYS")) {
-    const num = Number.parseInt(value);
+    const num = Number.parseInt(value, 10);
     if (!Number.isNaN(num)) {
       return `${num} ${getRuDaysPlural(num)}`;
     }
   }
   if (value.includes("HOURS")) {
-    const num = Number.parseInt(value);
+    const num = Number.parseInt(value, 10);
     if (!Number.isNaN(num)) {
       return `${num} ${getRuHoursPlural(num)}`;
     }
@@ -129,7 +129,7 @@ const getHumanValue = (value: string): string => {
   if (value.includes("ALLOCATION_QUEUE")) {
     const match = value.match(/~?(\d+)H?/);
     if (match) {
-      const hours = Number.parseInt(match[1]);
+      const hours = Number.parseInt(match[1], 10);
       return `~${hours} ч`;
     }
   }
@@ -155,49 +155,49 @@ const ProductSpecs: React.FC<ProductSpecsProps> = ({
     >
       <SpecRow
         label="ACCESS_PROTOCOL"
-        humanLabel={humanLabels["ACCESS_PROTOCOL"].label}
+        humanLabel={humanLabels.ACCESS_PROTOCOL.label}
         value={accessProtocol}
         humanValue={getHumanValue(accessProtocol)}
         valueColor={nodeStatusColor}
-        tooltip={humanLabels["ACCESS_PROTOCOL"].tooltip}
+        tooltip={humanLabels.ACCESS_PROTOCOL.tooltip}
       />
       <SpecRow
         label="UPTIME_ASSURANCE"
-        humanLabel={humanLabels["UPTIME_ASSURANCE"].label}
+        humanLabel={humanLabels.UPTIME_ASSURANCE.label}
         value={warrantyLabel}
         humanValue={getHumanValue(warrantyLabel)}
         valueColor="text-pandora-cyan"
-        tooltip={humanLabels["UPTIME_ASSURANCE"].tooltip}
+        tooltip={humanLabels.UPTIME_ASSURANCE.tooltip}
       />
       <SpecRow
         label="SESSION_DURATION"
-        humanLabel={humanLabels["SESSION_DURATION"].label}
+        humanLabel={humanLabels.SESSION_DURATION.label}
         value={durationLabel}
         humanValue={getHumanValue(durationLabel)}
-        tooltip={humanLabels["SESSION_DURATION"].tooltip}
+        tooltip={humanLabels.SESSION_DURATION.tooltip}
       />
       <SpecRow
         label="DEPLOY_MODE"
-        humanLabel={humanLabels["DEPLOY_MODE"].label}
+        humanLabel={humanLabels.DEPLOY_MODE.label}
         value={deliveryLabel}
         humanValue={getHumanValue(deliveryLabel)}
         valueColor={nodeStatusColor}
-        tooltip={humanLabels["DEPLOY_MODE"].tooltip}
+        tooltip={humanLabels.DEPLOY_MODE.tooltip}
       />
       <SpecRow
         label="SECURE_UPLINK"
-        humanLabel={humanLabels["SECURE_UPLINK"].label}
+        humanLabel={humanLabels.SECURE_UPLINK.label}
         value="AES-256-GCM"
         humanValue="AES-256"
-        tooltip={humanLabels["SECURE_UPLINK"].tooltip}
+        tooltip={humanLabels.SECURE_UPLINK.tooltip}
       />
       <SpecRow
         label="NODE_STATUS"
-        humanLabel={humanLabels["NODE_STATUS"].label}
+        humanLabel={humanLabels.NODE_STATUS.label}
         value={nodeStatus}
         humanValue={getHumanValue(nodeStatus)}
         valueColor={nodeStatusColor}
-        tooltip={humanLabels["NODE_STATUS"].tooltip}
+        tooltip={humanLabels.NODE_STATUS.tooltip}
       />
     </motion.div>
   );

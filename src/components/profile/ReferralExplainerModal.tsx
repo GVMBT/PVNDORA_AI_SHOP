@@ -252,7 +252,7 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                 </h3>
 
                 <div className="space-y-2">
-                  {LEVELS.map((lvl, i) => {
+                  {LEVELS.map((lvl, _i) => {
                     const isCurrentLevel = lvl.level === currentLevel;
                     const isUnlocked = lvl.level <= currentLevel;
                     const threshold = getLevelThreshold(

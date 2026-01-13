@@ -96,7 +96,7 @@ export function useCheckoutFlow({
   const loadCart = useCallback(async () => {
     try {
       const data = await getCart();
-      if (data && data.items && Array.isArray(data.items) && data.items.length > 0) {
+      if (data?.items && Array.isArray(data.items) && data.items.length > 0) {
         // Cart is automatically updated via CartContext, just sync promo code
         if (data.promoCode) {
           setPromoCode(data.promoCode);
@@ -259,8 +259,6 @@ export function useCheckoutFlow({
       hapticFeedback,
       isCartMode,
       onSuccess,
-      openLink,
-      close,
       productId,
       promoCode,
       promoResult,

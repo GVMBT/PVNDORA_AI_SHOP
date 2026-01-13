@@ -38,7 +38,6 @@ class AudioEngineClass {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private enabled: boolean = true;
-  private initialized: boolean = false;
 
   // AudioBuffer cache for instant playback
   private soundCache: Map<string, AudioBuffer> = new Map();
@@ -146,7 +145,7 @@ class AudioEngineClass {
         }
 
         const arrayBuffer = await response.arrayBuffer();
-        const audioBuffer = await this.ctx!.decodeAudioData(arrayBuffer);
+        const audioBuffer = await this.ctx?.decodeAudioData(arrayBuffer);
 
         // Cache the buffer
         this.soundCache.set(key, audioBuffer);

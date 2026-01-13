@@ -333,7 +333,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
     return () => {
       observer.disconnect();
     };
-  }, [onLoadMore, restList.length]); // Re-attach when list changes
+  }, [onLoadMore]); // Re-attach when list changes
 
   // Find current user for the sticky footer
   const currentUser = data.find((u) => u.isMe);

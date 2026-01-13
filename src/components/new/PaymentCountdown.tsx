@@ -5,7 +5,7 @@
  */
 
 import { AlertTriangle, Clock } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 interface PaymentCountdownProps {
   deadline: string;
@@ -23,7 +23,7 @@ export function PaymentCountdown({ deadline }: PaymentCountdownProps) {
         const deadlineDate = new Date(deadline);
 
         // Validate date
-        if (isNaN(deadlineDate.getTime())) {
+        if (Number.isNaN(deadlineDate.getTime())) {
           console.error("PaymentCountdown: Invalid date", deadline);
           setTimeLeft("--:--");
           return;

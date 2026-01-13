@@ -41,7 +41,7 @@ const CatalogConnected: React.FC<CatalogConnectedProps> = ({
     };
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps - run only on mount
+  }, [getProducts]); // Empty deps - run only on mount
 
   // Reload products ONLY when currency or language actually changes (not on initial mount)
   useEffect(() => {

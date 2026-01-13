@@ -147,6 +147,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
         <div className="flex gap-2">
           {(["ALL", "USER", "VIP", "ADMIN"] as const).map((role) => (
             <button
+              type="button"
               key={role}
               onClick={() => setRoleFilter(role)}
               className={`px-3 py-2 text-[10px] font-bold uppercase border transition-colors ${
@@ -244,6 +245,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
+                        type="button"
                         onClick={() => setBalanceModal(u)}
                         className="p-1.5 border border-white/10 hover:border-pandora-cyan hover:text-pandora-cyan transition-colors"
                         title="Изменить баланс"
@@ -251,6 +253,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
                         <DollarSign size={14} />
                       </button>
                       <button
+                        type="button"
                         onClick={() => setSelectedUser(u)}
                         className={`p-1.5 border transition-colors ${
                           u.role === "VIP"
@@ -262,6 +265,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
                         <Crown size={14} />
                       </button>
                       <button
+                        type="button"
                         onClick={() => onBanUser?.(u.id, !u.isBanned)}
                         className={`p-1.5 border transition-colors ${
                           u.isBanned
@@ -336,12 +340,14 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
 
               <div className="flex gap-2">
                 <button
+                  type="button"
                   onClick={() => setBalanceModal(u)}
                   className="flex-1 flex items-center justify-center gap-2 py-2 text-[10px] bg-white/5 hover:bg-pandora-cyan hover:text-black transition-colors uppercase font-bold"
                 >
                   <DollarSign size={12} /> Баланс
                 </button>
                 <button
+                  type="button"
                   onClick={() => setSelectedUser(u)}
                   className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] uppercase font-bold ${
                     u.role === "VIP"
@@ -352,6 +358,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
                   <Crown size={12} /> VIP
                 </button>
                 <button
+                  type="button"
                   onClick={() => onBanUser?.(u.id, !u.isBanned)}
                   className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] uppercase font-bold transition-colors ${
                     u.isBanned
@@ -372,8 +379,13 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
         {selectedUser && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
             <div
+              role="button"
+              tabIndex={0}
               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
               onClick={() => !processing && setSelectedUser(null)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape" && !processing) setSelectedUser(null);
+              }}
             />
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -390,6 +402,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
                   <p className="text-xs text-gray-500 mt-1">@{selectedUser.username}</p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => !processing && setSelectedUser(null)}
                   className="text-gray-500 hover:text-white"
                 >
@@ -429,6 +442,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
 
               {/* Toggle Button */}
               <button
+                type="button"
                 onClick={handleToggleVIP}
                 disabled={processing}
                 className={`w-full py-3 font-bold text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
@@ -459,8 +473,13 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
         {balanceModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
             <div
+              role="button"
+              tabIndex={0}
               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
               onClick={() => !processing && setBalanceModal(null)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape" && !processing) setBalanceModal(null);
+              }}
             />
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -477,6 +496,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
                   <p className="text-xs text-gray-500 mt-1">@{balanceModal.username}</p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => !processing && setBalanceModal(null)}
                   className="text-gray-500 hover:text-white"
                 >
@@ -494,10 +514,14 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
 
               {/* Amount Input */}
               <div className="mb-4">
-                <label className="text-[10px] text-gray-500 uppercase mb-1 block">
+                <label
+                  htmlFor="balance-amount"
+                  className="text-[10px] text-gray-500 uppercase mb-1 block"
+                >
                   Сумма (+ или -)
                 </label>
                 <input
+                  id="balance-amount"
                   type="number"
                   value={balanceAmount}
                   onChange={(e) => setBalanceAmount(e.target.value)}
@@ -513,6 +537,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
               {/* Actions */}
               <div className="flex gap-3">
                 <button
+                  type="button"
                   onClick={handleUpdateBalance}
                   disabled={processing || !balanceAmount}
                   className="flex-1 py-2.5 bg-pandora-cyan text-black font-bold text-sm hover:bg-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
@@ -521,6 +546,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
                   Применить
                 </button>
                 <button
+                  type="button"
                   onClick={() => setBalanceModal(null)}
                   disabled={processing}
                   className="flex-1 py-2.5 bg-white/10 text-white font-bold text-sm hover:bg-white/20 transition-colors flex items-center justify-center gap-2"

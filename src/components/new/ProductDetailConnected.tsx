@@ -56,7 +56,7 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
   useEffect(() => {
     AudioEngine.resume();
     AudioEngine.productOpen();
-  }, [productId]);
+  }, []);
 
   const loadProductData = useCallback(async () => {
     // Fetch detailed product
@@ -80,7 +80,7 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
   useEffect(() => {
     loadProductData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId]); // Only re-fetch when productId changes
+  }, [loadProductData]); // Only re-fetch when productId changes
 
   // Reload product ONLY when currency or language actually changes
   useEffect(() => {

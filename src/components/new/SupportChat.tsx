@@ -40,14 +40,14 @@ const SupportChat: React.FC<SupportChatProps> = ({
         { id: 3, text: t("support.messages.greeting"), sender: "agent", timestamp: "10:00" },
       ]);
     }
-  }, [t]); // Only on mount/locale change if empty
+  }, [t, messages.length]); // Only on mount/locale change if empty
 
   // Auto-scroll to bottom
   useEffect(() => {
     if (isOpen && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isTyping, isOpen]);
+  }, [isOpen]);
 
   const handleSend = () => {
     if (!inputValue.trim()) return;
@@ -221,7 +221,6 @@ const SupportChat: React.FC<SupportChatProps> = ({
                     onKeyDown={handleKeyDown}
                     placeholder={t("support.inputPlaceholder")}
                     className="flex-1 bg-transparent border-none outline-none text-white font-mono text-[11px] placeholder:text-gray-700 h-8 py-2 resize-none leading-relaxed"
-                    autoFocus
                   />
                   <button
                     onClick={handleSend}

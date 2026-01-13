@@ -5,7 +5,7 @@
  * Solves the issue of multiple useCartTyped() instances having separate state.
  */
 
-import React, { createContext, type ReactNode, useCallback, useContext, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useState } from "react";
 import { adaptCart } from "../adapters/cartAdapter";
 import { useApi } from "../hooks/useApi";
 import type { APICartResponse } from "../types/api";

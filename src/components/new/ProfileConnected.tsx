@@ -230,7 +230,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
       if (onHaptic) onHaptic("medium");
 
       // Use converted balance for UI display (in display currency)
-      const displayBalance = convertedProfile?.balance || 0;
+      const _displayBalance = convertedProfile?.balance || 0;
 
       showWithdraw({
         currency: preview.amount_requested_currency || currency, // Use balance_currency from backend
@@ -269,6 +269,9 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
     showModalAlert,
     onHaptic,
     t,
+    convertedProfile?.balanceInBalanceCurrency,
+    formatPrice,
+    profile?.balance,
   ]);
 
   const handleTopUp = useCallback(() => {
@@ -373,16 +376,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
         throw error;
       }
     },
-    [
-      updatePreferences,
-      setCurrency,
-      setLocale,
-      setExchangeRate,
-      getProfile,
-      profile,
-      clearCartState,
-      updateFromProfile,
-    ]
+    [updatePreferences, applyOptimisticUpdates, reloadProfileForCurrency, rollbackPreferences]
   );
 
   // Handler for toggling partner reward mode
@@ -421,7 +415,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
       } else {
         setPartnerApplication(null);
       }
-    } catch (err) {
+    } catch (_err) {
       // Ignore error, will show form anyway
       setPartnerApplication(null);
     }

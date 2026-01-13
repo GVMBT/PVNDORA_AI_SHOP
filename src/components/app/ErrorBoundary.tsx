@@ -6,7 +6,7 @@
  */
 
 import { AlertTriangle, RefreshCw } from "lucide-react";
-import React, { Component, type ErrorInfo, type ReactNode } from "react";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 import { logger } from "../../utils/logger";
 
 interface Props {
@@ -101,6 +101,7 @@ export class ErrorBoundary extends Component<Props, State> {
             {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
+                type="button"
                 onClick={this.handleReload}
                 className="flex items-center justify-center gap-2 px-6 py-3 bg-pandora-cyan text-black font-bold text-sm uppercase tracking-wider hover:bg-white transition-colors"
               >
@@ -108,6 +109,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 Reload System
               </button>
               <button
+                type="button"
                 onClick={this.handleReset}
                 className="flex items-center justify-center gap-2 px-6 py-3 bg-white/5 border border-white/10 text-gray-400 font-bold text-sm uppercase tracking-wider hover:bg-white/10 transition-colors"
               >

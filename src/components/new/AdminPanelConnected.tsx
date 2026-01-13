@@ -120,7 +120,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
           endDate: data.end_date,
 
           // Orders
-          totalOrders: Number.parseInt(data.total_orders) || 0,
+          totalOrders: Number.parseInt(data.total_orders, 10) || 0,
 
           // Revenue by currency (NEW - real amounts!)
           revenueByCurrency: data.revenue_by_currency || {},
@@ -204,7 +204,16 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     return () => {
       isMounted = false;
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [
+    fetchAccounting,
+    fetchTickets,
+    fetchWithdrawals,
+    getAnalytics,
+    getOrders,
+    getProducts,
+    getPromoCodes,
+    getUsers,
+  ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ALL useMemo hooks MUST be before any conditional returns (Rules of Hooks)
 
@@ -256,7 +265,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     // Update ref with fresh mapping
     const newMap = new Map<number, string>();
     const result = users.map((u) => {
-      const telegramId = Number.parseInt(u.telegram_id) || 0;
+      const telegramId = Number.parseInt(u.telegram_id, 10) || 0;
       newMap.set(telegramId, u.id);
       return {
         id: telegramId,
@@ -359,7 +368,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
         const amount = globalThis.prompt("Enter amount to add (negative to subtract):", "0");
         if (amount !== null) {
           const parsed = Number.parseFloat(amount);
-          if (!isNaN(parsed)) {
+          if (!Number.isNaN(parsed)) {
             updateBalance(userId, parsed);
           }
         }
