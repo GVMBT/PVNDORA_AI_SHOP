@@ -16,7 +16,10 @@ from typing import Any, cast
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-# ASGI app
+from core.logging import get_logger
+
+logger = get_logger(__name__)
+
 app = FastAPI()
 
 QSTASH_CURRENT_SIGNING_KEY = os.environ.get("QSTASH_CURRENT_SIGNING_KEY", "")
@@ -41,44 +44,226 @@ def verify_qstash_signature(request: Request, body: bytes) -> bool:
         if hmac.compare_digest(signature, expected):
             return True
 
-    # In development, allow if no keys configured
     return bool(not QSTASH_CURRENT_SIGNING_KEY and not QSTASH_NEXT_SIGNING_KEY)
 
 
-async def send_telegram_message(chat_id: int, text: str, token: str = None) -> bool:
-    """Send a message via Telegram Bot API.
-
-    Wrapper around consolidated telegram_messaging service.
-    """
+async def send_telegram_message(chat_id: int, text: str, token: str | None = None) -> bool:
+    """Send a message via Telegram Bot API."""
     from core.services.telegram_messaging import send_telegram_message as _send_msg
 
     bot_token = token or DISCOUNT_BOT_TOKEN
     return await _send_msg(chat_id=chat_id, text=text, parse_mode="HTML", bot_token=bot_token)
 
 
+async def _validate_order(db: Any, order_id: str) -> str | None:
+    """Validate order exists and is paid. Returns status or None if not found."""
+    order_result = (
+        await db.client.table("orders").select("status").eq("id", order_id).single().execute()
+    )
+    if not order_result.data or not isinstance(order_result.data, dict):
+        return None
+    return cast(dict[str, Any], order_result.data).get("status")
+
+
+async def _get_stock_item(db: Any, stock_item_id: str) -> tuple[str, str] | None:
+    """Get stock item content and product name. Returns (content, product_name) or None."""
+    stock_result = (
+        await db.client.table("stock_items")
+        .select("id, product_id, content, products(name)")
+        .eq("id", stock_item_id)
+        .single()
+        .execute()
+    )
+    if not stock_result.data or not isinstance(stock_result.data, dict):
+        return None
+    stock_item = cast(dict[str, Any], stock_result.data)
+    product_name = (
+        stock_item.get("products", {}).get("name", "Product")
+        if isinstance(stock_item.get("products"), dict)
+        else "Product"
+    )
+    return stock_item.get("content", ""), product_name
+
+
+async def _mark_order_delivered(
+    db: Any, order_id: str, order_item_id: str, stock_item_id: str
+) -> None:
+    """Mark stock as sold and order as delivered."""
+    now_iso = datetime.now(UTC).isoformat()
+    await db.client.table("stock_items").update(
+        {"status": "sold", "sold_at": now_iso}
+    ).eq("id", stock_item_id).execute()
+    await db.client.table("order_items").update(
+        {"stock_item_id": stock_item_id, "delivered_at": now_iso}
+    ).eq("id", order_item_id).execute()
+    await db.client.table("orders").update(
+        {"status": "delivered", "delivered_at": now_iso}
+    ).eq("id", order_id).execute()
+
+
+async def _get_user_info(db: Any, telegram_id: int) -> tuple[str | None, str]:
+    """Get user_id and language. Returns (user_id, lang)."""
+    user_result = (
+        await db.client.table("users")
+        .select("id, language_code")
+        .eq("telegram_id", telegram_id)
+        .single()
+        .execute()
+    )
+    if user_result.data and isinstance(user_result.data, dict):
+        user_data = cast(dict[str, Any], user_result.data)
+        return user_data.get("id"), user_data.get("language_code", "en")
+    return None, "en"
+
+
+def _format_delivery_message(lang: str, product_name: str, order_id: str, content: str) -> str:
+    """Format delivery notification message."""
+    truncated = content[:500] + ("...(truncated)" if len(content) > 500 else "")
+    if lang == "ru":
+        return (
+            f"╔══════════════════════════════╗\n"
+            f"     ✅ <b>ЗАКАЗ ДОСТАВЛЕН</b>\n"
+            f"╚══════════════════════════════╝\n\n"
+            f"📦 <b>Товар:</b> {product_name}\n"
+            f"🔖 <b>Заказ:</b> <code>#{order_id[:8]}</code>\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🔐 <b>ДАННЫЕ ДОСТУПА:</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"<code>{truncated}</code>\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"⚠️ <b>СОХРАНИТЕ ЭТИ ДАННЫЕ!</b>\n\n"
+            f"💬 Проблема? → /orders → выберите заказ"
+        )
+    return (
+        f"╔══════════════════════════════╗\n"
+        f"      ✅ <b>ORDER DELIVERED</b>\n"
+        f"╚══════════════════════════════╝\n\n"
+        f"📦 <b>Product:</b> {product_name}\n"
+        f"🔖 <b>Order:</b> <code>#{order_id[:8]}</code>\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"🔐 <b>ACCESS CREDENTIALS:</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"<code>{truncated}</code>\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"⚠️ <b>SAVE THIS DATA!</b>\n\n"
+        f"💬 Problem? → /orders → select order"
+    )
+
+
+def _get_progress_text(lang: str, purchase_count: int) -> str:
+    """Get personalized progress text based on purchase count."""
+    if lang == "ru":
+        if purchase_count == 1:
+            return "🎯 <b>Это твоя первая покупка!</b>\n   В PVNDORA ты сразу получишь партнёрку\n"
+        if purchase_count < 3:
+            return f"🎯 <b>Уже {purchase_count} покупок!</b>\n   Ещё {3 - purchase_count} — и персональная скидка 50%\n"
+        return "🎯 <b>Ты наш постоянный клиент!</b>\n   Смотри ниже — там подарок!\n"
+    if purchase_count == 1:
+        return "🎯 <b>This is your first purchase!</b>\n   In PVNDORA you instantly get affiliate\n"
+    if purchase_count < 3:
+        return f"🎯 <b>Already {purchase_count} purchases!</b>\n   {3 - purchase_count} more — and personal 50% discount\n"
+    return "🎯 <b>You're a loyal customer!</b>\n   Check below — there's a gift!\n"
+
+
+def _format_offer_message(lang: str, product_name: str, progress_text: str) -> str:
+    """Format PVNDORA offer message."""
+    if lang == "ru":
+        return (
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"💎 <b>ПОНРАВИЛСЯ {product_name.upper()}?</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n{progress_text}\n"
+            f"В <b>PVNDORA</b> такие товары:\n\n"
+            f"⚡️ <b>Доставляются мгновенно</b>\n   Не ждёшь 1-4 часа в очереди\n\n"
+            f"🛡 <b>С полной гарантией</b>\n   Проблема? Бесплатная замена\n\n"
+            f"💰 <b>+ Партнёрка 10/7/3%</b>\n   Пригласи друга — получи 10% с его покупок\n\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n👉 <b>@pvndora_ai_bot</b>"
+        )
+    return (
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"💎 <b>LIKED {product_name.upper()}?</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n{progress_text}\n"
+        f"In <b>PVNDORA</b> such products:\n\n"
+        f"⚡️ <b>Delivered instantly</b>\n   No 1-4 hour queue wait\n\n"
+        f"🛡 <b>With full warranty</b>\n   Problem? Free replacement\n\n"
+        f"💰 <b>+ Affiliate 10/7/3%</b>\n   Invite a friend — get 10% of their purchases\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n👉 <b>@pvndora_ai_bot</b>"
+    )
+
+
+async def _get_purchase_count(db: Any, telegram_id: int) -> int:
+    """Get user's delivered discount order count."""
+    result = (
+        await db.client.table("orders")
+        .select("id", count="exact")  # type: ignore[arg-type]
+        .eq("user_telegram_id", telegram_id)
+        .eq("source_channel", "discount")
+        .eq("status", "delivered")
+        .execute()
+    )
+    return result.count if result.count else 1
+
+
+async def _send_loyal_promo_if_eligible(
+    user_id: str, telegram_id: int, lang: str, purchase_count: int
+) -> bool:
+    """Send loyal customer promo code immediately after 3rd purchase."""
+    from core.services.database import get_database_async
+    from core.services.domains.promo import PromoCodeService, PromoTriggers
+
+    db = await get_database_async()
+    promo_service = PromoCodeService(db.client)
+
+    try:
+        existing = await promo_service.get_user_promos_by_trigger(user_id, PromoTriggers.LOYAL_CUSTOMER)
+        if existing:
+            return False
+
+        promo = await promo_service.generate_personal_promo(
+            user_id=user_id,
+            discount_percent=50,
+            trigger=PromoTriggers.LOYAL_CUSTOMER,
+            valid_hours=168,
+            max_uses=1,
+        )
+        if not promo:
+            return False
+
+        await asyncio.sleep(5)
+
+        if lang == "ru":
+            loyal_msg = (
+                f"🎁 <b>ПЕРСОНАЛЬНЫЙ ПОДАРОК</b>\n\n"
+                f"Ты сделал {purchase_count} покупок — это круто!\n"
+                f"Держи промокод на <b>50% скидку</b>:\n\n"
+                f"<code>{promo.code}</code>\n\n"
+                f"⏰ Действует 7 дней\n👉 @pvndora_ai_bot"
+            )
+        else:
+            loyal_msg = (
+                f"🎁 <b>PERSONAL GIFT</b>\n\n"
+                f"You made {purchase_count} purchases — that's awesome!\n"
+                f"Here's a promo code for <b>50% discount</b>:\n\n"
+                f"<code>{promo.code}</code>\n\n"
+                f"⏰ Valid for 7 days\n👉 @pvndora_ai_bot"
+            )
+
+        await send_telegram_message(telegram_id, loyal_msg, token=TELEGRAM_TOKEN)
+        return True
+
+    except Exception:
+        logger.exception("Failed to send loyal promo")
+        return False
+
+
 @app.post("/api/workers/deliver-discount-order")
 async def deliver_discount_order(request: Request):
-    """
-    Deliver a discount order after delay.
-
-    Expected payload:
-    {
-        "order_id": "uuid",
-        "order_item_id": "uuid",
-        "telegram_id": 123456,
-        "stock_item_id": "uuid",
-        "scheduled_at": "2026-01-03T20:00:00Z"
-    }
-    """
+    """Deliver a discount order after delay."""
     body = await request.body()
-
-    # Verify signature
     if not verify_qstash_signature(request, body):
         raise HTTPException(status_code=401, detail="Invalid signature")
 
     try:
         import json
-
         payload = json.loads(body)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON")
@@ -92,281 +277,46 @@ async def deliver_discount_order(request: Request):
         return JSONResponse({"error": "Missing required fields"}, status_code=400)
 
     from core.services.database import get_database_async
-
     db = await get_database_async()
 
-    # 1. Validate order status
-    order_result = (
-        await db.client.table("orders").select("status").eq("id", order_id).single().execute()
-    )
-
-    if not order_result.data:
+    # 1. Validate order
+    order_status = await _validate_order(db, order_id)
+    if not order_status:
         return JSONResponse({"error": "Order not found"}, status_code=404)
-
-    order_data_raw = order_result.data
-    if not isinstance(order_data_raw, dict):
-        return JSONResponse({"error": "Invalid order data"}, status_code=500)
-    order_data = cast(dict[str, Any], order_data_raw)
-    order_status = order_data.get("status")
     if order_status != "paid":
         return JSONResponse({"error": f"Order status is {order_status}, not paid", "skipped": True})
 
-    # 2. Get stock item data
-    stock_result = (
-        await db.client.table("stock_items")
-        .select("id, product_id, content, products(name)")
-        .eq("id", stock_item_id)
-        .single()
-        .execute()
-    )
-
-    if not stock_result.data:
+    # 2. Get stock item
+    stock_info = await _get_stock_item(db, stock_item_id)
+    if not stock_info:
         return JSONResponse({"error": "Stock item not found"}, status_code=404)
+    content, product_name = stock_info
 
-    stock_item_raw = stock_result.data
-    if not isinstance(stock_item_raw, dict):
-        return JSONResponse({"error": "Invalid stock data"}, status_code=500)
-    stock_item = cast(dict[str, Any], stock_item_raw)
-    product_name = (
-        stock_item.get("products", {}).get("name", "Product")
-        if isinstance(stock_item.get("products"), dict)
-        else "Product"
-    )
-    content = stock_item.get("content", "")
+    # 3. Mark as delivered
+    await _mark_order_delivered(db, order_id, order_item_id, stock_item_id)
 
-    # 3. Mark stock as sold and update order
-    await db.client.table("stock_items").update(
-        {"status": "sold", "sold_at": datetime.now(UTC).isoformat()}
-    ).eq("id", stock_item_id).execute()
+    # 4. Get user info
+    user_id, lang = await _get_user_info(db, telegram_id)
 
-    await db.client.table("order_items").update(
-        {"stock_item_id": stock_item_id, "delivered_at": datetime.now(UTC).isoformat()}
-    ).eq("id", order_item_id).execute()
+    # 5. Send delivery notification
+    delivery_msg = _format_delivery_message(lang, product_name, order_id, content)
+    await send_telegram_message(telegram_id, delivery_msg)
 
-    await db.client.table("orders").update(
-        {"status": "delivered", "delivered_at": datetime.now(UTC).isoformat()}
-    ).eq("id", order_id).execute()
-
-    # 4. Get user language and user_id
-    user_result = (
-        await db.client.table("users")
-        .select("id, language_code")
-        .eq("telegram_id", telegram_id)
-        .single()
-        .execute()
-    )
-    user_data_raw = user_result.data
-    if isinstance(user_data_raw, dict):
-        user_data = cast(dict[str, Any], user_data_raw)
-        lang = user_data.get("language_code", "en")
-        user_id = user_data.get("id")
-    else:
-        lang = "en"
-        user_id = None
-
-    # 5. Send delivery message (structured format)
-    if lang == "ru":
-        delivery_text = (
-            f"╔══════════════════════════════╗\n"
-            f"     ✅ <b>ЗАКАЗ ДОСТАВЛЕН</b>\n"
-            f"╚══════════════════════════════╝\n\n"
-            f"📦 <b>Товар:</b> {product_name}\n"
-            f"🔖 <b>Заказ:</b> <code>#{order_id[:8]}</code>\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"🔐 <b>ДАННЫЕ ДОСТУПА:</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"<code>{content[:500]}</code>"
-            f"{'...(обрезано)' if len(content) > 500 else ''}\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"⚠️ <b>СОХРАНИТЕ ЭТИ ДАННЫЕ!</b>\n\n"
-            f"💬 Проблема? → /orders → выберите заказ"
-        )
-    else:
-        delivery_text = (
-            f"╔══════════════════════════════╗\n"
-            f"      ✅ <b>ORDER DELIVERED</b>\n"
-            f"╚══════════════════════════════╝\n\n"
-            f"📦 <b>Product:</b> {product_name}\n"
-            f"🔖 <b>Order:</b> <code>#{order_id[:8]}</code>\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"🔐 <b>ACCESS CREDENTIALS:</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"<code>{content[:500]}</code>"
-            f"{'...(truncated)' if len(content) > 500 else ''}\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"⚠️ <b>SAVE THIS DATA!</b>\n\n"
-            f"💬 Problem? → /orders → select order"
-        )
-
-    await send_telegram_message(telegram_id, delivery_text)
-
-    # 6. Get user purchase count for personalization
-    user_orders_result = (
-        await db.client.table("orders")
-        .select("id", count="exact")  # type: ignore[arg-type]
-        .eq("user_telegram_id", telegram_id)
-        .eq("source_channel", "discount")
-        .eq("status", "delivered")
-        .execute()
-    )
-    purchase_count = user_orders_result.count if user_orders_result.count else 1
-
-    # 7. Send personalized PVNDORA warm-up offer (delay for natural feel)
+    # 6. Get purchase count and send offer
+    purchase_count = await _get_purchase_count(db, telegram_id)
     await asyncio.sleep(10)
 
-    # Progress to affiliate - in PVNDORA, first purchase unlocks affiliate
-    if lang == "ru":
-        # Personalized based on product and purchase count
-        if purchase_count == 1:
-            progress_text = (
-                "🎯 <b>Это твоя первая покупка!</b>\n"
-                "   В PVNDORA ты сразу получишь партнёрку\n"
-                "   и сможешь зарабатывать 10% с друзей\n"
-            )
-        elif purchase_count < 3:
-            remaining = 3 - purchase_count
-            progress_text = (
-                f"🎯 <b>Уже {purchase_count} покупок!</b>\n"
-                f"   Ещё {remaining} — и персональная скидка 50%\n"
-            )
-        else:
-            # User reached 3+ purchases - send loyal offer NOW (not via delayed cron)
-            progress_text = "🎯 <b>Ты наш постоянный клиент!</b>\n   Смотри ниже — там подарок!\n"
+    progress_text = _get_progress_text(lang, purchase_count)
+    offer_msg = _format_offer_message(lang, product_name, progress_text)
+    await send_telegram_message(telegram_id, offer_msg)
 
-        offer_text = (
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"💎 <b>ПОНРАВИЛСЯ {product_name.upper()}?</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"{progress_text}\n"
-            f"В <b>PVNDORA</b> такие товары:\n\n"
-            f"⚡️ <b>Доставляются мгновенно</b>\n"
-            f"   Не ждёшь 1-4 часа в очереди\n\n"
-            f"🛡 <b>С полной гарантией</b>\n"
-            f"   Проблема? Бесплатная замена\n\n"
-            f"💰 <b>+ Партнёрка 10/7/3%</b>\n"
-            f"   Пригласи друга — получи 10% с его покупок\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"👉 <b>@pvndora_ai_bot</b>"
-        )
-    else:
-        if purchase_count == 1:
-            progress_text = (
-                "🎯 <b>This is your first purchase!</b>\n"
-                "   In PVNDORA you instantly get affiliate\n"
-                "   and can earn 10% from friends' orders\n"
-            )
-        elif purchase_count < 3:
-            remaining = 3 - purchase_count
-            progress_text = (
-                f"🎯 <b>Already {purchase_count} purchases!</b>\n"
-                f"   {remaining} more — and personal 50% discount\n"
-            )
-        else:
-            # User reached 3+ purchases - send loyal offer NOW (not via delayed cron)
-            progress_text = "🎯 <b>You're a loyal customer!</b>\n   Check below — there's a gift!\n"
-
-        offer_text = (
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"💎 <b>LIKED {product_name.upper()}?</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"{progress_text}\n"
-            f"In <b>PVNDORA</b> such products:\n\n"
-            f"⚡️ <b>Delivered instantly</b>\n"
-            f"   No 1-4 hour queue wait\n\n"
-            f"🛡 <b>With full warranty</b>\n"
-            f"   Problem? Free replacement\n\n"
-            f"💰 <b>+ Affiliate 10/7/3%</b>\n"
-            f"   Invite a friend — get 10% of their purchases\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"👉 <b>@pvndora_ai_bot</b>"
-        )
-
-    await send_telegram_message(telegram_id, offer_text)
-
-    # If user reached 3+ purchases, send loyal promo immediately (not via delayed cron)
+    # 7. Send loyal promo if eligible
     if purchase_count >= 3 and user_id:
         await _send_loyal_promo_if_eligible(user_id, telegram_id, lang, purchase_count)
 
-    return JSONResponse(
-        {
-            "success": True,
-            "order_id": order_id,
-            "telegram_id": telegram_id,
-            "delivered_at": datetime.now(UTC).isoformat(),
-        }
-    )
-
-
-async def _send_loyal_promo_if_eligible(
-    user_id: str, telegram_id: int, lang: str, purchase_count: int
-) -> bool:
-    """Send loyal customer promo code immediately after 3rd purchase.
-
-    Returns True if promo was sent, False otherwise.
-    """
-    from core.services.database import get_database_async
-    from core.services.domains.promo import PromoCodeService, PromoTriggers
-
-    db = await get_database_async()
-    promo_service = PromoCodeService(db.client)
-
-    try:
-        # Check if already received loyal promo
-        existing = await promo_service.get_promo_by_trigger(
-            user_id, PromoTriggers.LOYAL_3_PURCHASES
-        )
-        if existing:
-            return False  # Already has promo, skip
-
-        # Generate personal promo code
-        promo_code = await promo_service.generate_personal_promo(
-            user_id=user_id,
-            telegram_id=telegram_id,
-            trigger=PromoTriggers.LOYAL_3_PURCHASES,
-            discount_percent=50,
-        )
-
-        if not promo_code:
-            return False
-
-        # Send promo message (to PVNDORA bot, not discount bot)
-        text = (
-            (
-                f"🎉 <b>Спасибо за доверие!</b>\n\n"
-                f"Вы совершили {purchase_count} покупок — это круто!\n\n"
-                f"В благодарность дарим вам <b>-50% на первую покупку</b> в PVNDORA:\n\n"
-                f"🎁 <b>Промокод: {promo_code}</b>\n\n"
-                f"В PVNDORA вас ждут:\n"
-                f"• 🚀 Мгновенная доставка\n"
-                f"• 🛡 Гарантии на все товары\n"
-                f"• 💰 Партнерка 10/7/3%\n"
-                f"• 🎧 Круглосуточная поддержка\n\n"
-                f"👉 @pvndora_ai_bot"
-            )
-            if lang == "ru"
-            else (
-                f"🎉 <b>Thank you for your loyalty!</b>\n\n"
-                f"You've made {purchase_count} purchases — awesome!\n\n"
-                f"As a thank you, we're giving you "
-                f"<b>-50% off your first purchase</b> in PVNDORA:\n\n"
-                f"🎁 <b>Promo code: {promo_code}</b>\n\n"
-                f"In PVNDORA you get:\n"
-                f"• 🚀 Instant delivery\n"
-                f"• 🛡 Warranty on all products\n"
-                f"• 💰 Affiliate 10/7/3%\n"
-                f"• 🎧 24/7 support\n\n"
-                f"👉 @pvndora_ai_bot"
-            )
-        )
-
-        # Send to PVNDORA main bot (not discount bot)
-        pvndora_token = TELEGRAM_TOKEN  # Main bot token
-        await send_telegram_message(telegram_id, text, pvndora_token)
-
-        return True
-
-    except Exception as e:
-        import logging
-
-        logging.warning(f"Failed to send loyal promo to {telegram_id}: {e}")
-        return False
+    return JSONResponse({
+        "success": True,
+        "order_id": order_id,
+        "telegram_id": telegram_id,
+        "delivered_at": datetime.now(UTC).isoformat(),
+    })

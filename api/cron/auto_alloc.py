@@ -78,9 +78,7 @@ async def _process_order_items(db: Any, notification_service: Any, results: dict
             logger.exception("auto_alloc: Failed to deliver order %s", oid)
 
 
-async def _get_replacement_context(
-    db: Any, item_id: str
-) -> tuple[str | None, str | None]:
+async def _get_replacement_context(db: Any, item_id: str) -> tuple[str | None, str | None]:
     """Get product_id and order_id for replacement item."""
     item_res = (
         await db.client.table("order_items")
@@ -129,7 +127,9 @@ async def _get_product_expiry_info(db: Any, product_id: str) -> tuple[int, str]:
     )
     product = cast(dict[str, Any], product_res.data) if isinstance(product_res.data, dict) else {}
     duration_raw = product.get("duration_days")
-    duration = int(duration_raw) if isinstance(duration_raw, (int, float)) and duration_raw > 0 else 0
+    duration = (
+        int(duration_raw) if isinstance(duration_raw, (int, float)) and duration_raw > 0 else 0
+    )
     return duration, str(product.get("name", "Product"))
 
 
@@ -159,7 +159,9 @@ async def _process_single_replacement(
     ).eq("id", stock_id).execute()
 
     duration_days, product_name = await _get_product_expiry_info(db, product_id)
-    expires_at_str = (now + timedelta(days=duration_days)).isoformat() if duration_days > 0 else None
+    expires_at_str = (
+        (now + timedelta(days=duration_days)).isoformat() if duration_days > 0 else None
+    )
 
     # Update order item
     update_data: dict[str, Any] = {
@@ -175,7 +177,10 @@ async def _process_single_replacement(
 
     # Close ticket
     await db.client.table("tickets").update(
-        {"status": "closed", "admin_comment": "Replacement auto-delivered when stock became available."}
+        {
+            "status": "closed",
+            "admin_comment": "Replacement auto-delivered when stock became available.",
+        }
     ).eq("id", ticket_id).execute()
 
     await _notify_replacement_user(db, notification_service, order_id, product_name, item_id)
