@@ -19,6 +19,58 @@ logger = get_logger(__name__)
 referral_router = APIRouter()
 
 
+async def _get_buyer_name(db, buyer_id: str) -> str:
+    """Get buyer name for notification (reduces cognitive complexity)."""
+    buyer_result = (
+        await db.client.table("users")
+        .select("username, first_name")
+        .eq("id", buyer_id)
+        .single()
+        .execute()
+    )
+    if not buyer_result.data:
+        return "Реферал"
+    return (
+        buyer_result.data.get("username")
+        or buyer_result.data.get("first_name")
+        or "Реферал"
+    )
+
+
+async def _send_level_bonus_notification(
+    db, notification_service, buyer_id: str, buyer_name: str, level: int, bonus_amount: float, purchase_amount: float
+):
+    """Send notification for a specific level bonus (reduces cognitive complexity)."""
+    bonus_record = (
+        await db.client.table("referral_bonuses")
+        .select("user_id, users(telegram_id)")
+        .eq("from_user_id", buyer_id)
+        .eq("level", level)
+        .eq("eligible", True)
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+
+    if not bonus_record.data:
+        return
+
+    referrer_telegram_id = bonus_record.data[0].get("users", {}).get("telegram_id")
+    if not referrer_telegram_id:
+        return
+
+    try:
+        await notification_service.send_referral_bonus_notification(
+            telegram_id=referrer_telegram_id,
+            bonus_amount=float(bonus_amount),
+            referral_name=buyer_name,
+            purchase_amount=purchase_amount,
+            line=level,
+        )
+    except Exception as e:
+        logger.warning("Failed to send referral bonus notification (level %s): %s", level, e)
+
+
 async def _send_referral_bonus_notifications(
     db, notification_service, bonuses: dict, buyer_id: str, purchase_amount: float
 ) -> None:
@@ -27,57 +79,18 @@ async def _send_referral_bonus_notifications(
         return
 
     try:
-        # Get buyer info for notification
-        buyer_result = (
-            await db.client.table("users")
-            .select("username, first_name")
-            .eq("id", buyer_id)
-            .single()
-            .execute()
-        )
-        buyer_name = "Реферал"
-        if buyer_result.data:
-            buyer_name = (
-                buyer_result.data.get("username")
-                or buyer_result.data.get("first_name")
-                or "Реферал"
-            )
+        buyer_name = await _get_buyer_name(db, buyer_id)
 
-        # Process each level bonus
         for level in [1, 2, 3]:
             bonus_key = f"level{level}"
             bonus_amount = bonuses.get(bonus_key)
 
             if bonus_amount and float(bonus_amount) > 0:
-                # Get referrer's telegram_id from referral_bonuses table
-                bonus_record = (
-                    await db.client.table("referral_bonuses")
-                    .select("user_id, users(telegram_id)")
-                    .eq("from_user_id", buyer_id)
-                    .eq("level", level)
-                    .eq("eligible", True)
-                    .order("created_at", desc=True)
-                    .limit(1)
-                    .execute()
+                await _send_level_bonus_notification(
+                    db, notification_service, buyer_id, buyer_name, level, bonus_amount, purchase_amount
                 )
-
-                if bonus_record.data:
-                    referrer_telegram_id = bonus_record.data[0].get("users", {}).get("telegram_id")
-                    if referrer_telegram_id:
-                        try:
-                            await notification_service.send_referral_bonus_notification(
-                                telegram_id=referrer_telegram_id,
-                                bonus_amount=float(bonus_amount),
-                                referral_name=buyer_name,
-                                purchase_amount=purchase_amount,
-                                line=level,
-                            )
-                        except Exception as e:
-                            logger.warning(
-                                f"Failed to send referral bonus notification (level {level}): {e}"
-                            )
     except Exception as e:
-        logger.warning(f"Failed to send referral bonus notifications: {e}")
+        logger.warning("Failed to send referral bonus notifications: %s", e)
 
 
 # Helper to unlock referral program (reduces cognitive complexity)

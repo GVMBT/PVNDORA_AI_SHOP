@@ -22,6 +22,145 @@ logger = get_logger(__name__)
 
 router = APIRouter(tags=["webhooks"])
 
+# =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
+
+
+async def _lookup_order_by_payment_id(db, invoice_id: str) -> tuple[dict[str, Any] | None, str]:
+    """Lookup order by payment_id (reduces cognitive complexity)."""
+    lookup_result = (
+        await db.client.table("orders")
+        .select("*")
+        .eq("payment_id", invoice_id)
+        .limit(1)
+        .execute()
+    )
+    if not lookup_result.data:
+        return None, ""
+
+    raw_order = lookup_result.data[0]
+    if not isinstance(raw_order, dict):
+        logger.error("CrystalPay webhook: Invalid order data type: %s", type(raw_order))
+        return None, "invalid_type"
+
+    order_data = cast(dict[str, Any], raw_order)
+    real_order_id = str(order_data.get("id", ""))
+    logger.debug("CrystalPay webhook: mapped invoice %s -> order %s", invoice_id, real_order_id)
+    return order_data, real_order_id
+
+
+async def _lookup_order_by_id(db, order_id: str) -> tuple[dict[str, Any] | None, str]:
+    """Lookup order by order_id (reduces cognitive complexity)."""
+    direct_result = (
+        await db.client.table("orders")
+        .select("*")
+        .eq("id", order_id)
+        .limit(1)
+        .execute()
+    )
+    if not direct_result.data:
+        return None, ""
+
+    raw_order = direct_result.data[0]
+    if not isinstance(raw_order, dict):
+        logger.error("CrystalPay webhook: Invalid order data type: %s", type(raw_order))
+        return None, "invalid_type"
+
+    order_data = cast(dict[str, Any], raw_order)
+    real_order_id = str(order_data.get("id", ""))
+    logger.debug("CrystalPay webhook: direct order lookup for %s", real_order_id)
+    return order_data, real_order_id
+
+
+async def _find_order_data(db, invoice_id: str, order_id: str) -> tuple[dict[str, Any] | None, str]:
+    """Find order data by payment_id or order_id (reduces cognitive complexity)."""
+    order_data, real_order_id = await _lookup_order_by_payment_id(db, invoice_id)
+    if order_data:
+        return order_data, real_order_id
+
+    order_data, real_order_id = await _lookup_order_by_id(db, order_id)
+    if order_data:
+        return order_data, real_order_id
+
+    logger.warning("CrystalPay webhook: Order not found for invoice %s, extra %s", invoice_id, order_id)
+    return None, ""
+
+
+async def _check_stock_availability(db, product_id: str) -> bool:
+    """Check if product has available stock (reduces cognitive complexity)."""
+    if not product_id:
+        return False
+    try:
+        stock_check = (
+            await db.client.table("stock_items")
+            .select("id")
+            .eq("product_id", product_id)
+            .eq("status", "available")
+            .limit(1)
+            .execute()
+        )
+        return bool(stock_check.data)
+    except Exception as e:
+        logger.error("CrystalPay webhook: Stock check error: %s", e, exc_info=True)
+        return False
+
+
+async def _handle_cancelled_order_recovery(
+    db, order_data: dict[str, Any], real_order_id: str, result: dict[str, Any]
+) -> JSONResponse | None:
+    """Handle recovery of cancelled order (reduces cognitive complexity)."""
+    product_id = (
+        str(order_data.get("product_id", ""))
+        if order_data.get("product_id")
+        else None
+    )
+
+    can_fulfill = await _check_stock_availability(db, product_id)
+
+    if can_fulfill:
+        logger.info("CrystalPay webhook: Restoring order %s - stock available", real_order_id)
+        await db.client.table("orders").update(
+            {"status": "pending", "notes": "Restored after late payment"}
+        ).eq("id", real_order_id).execute()
+        return None
+
+    logger.warning("CrystalPay webhook: Order %s - no stock, creating refund ticket", real_order_id)
+    user_id = (
+        str(order_data.get("user_id", ""))
+        if order_data.get("user_id")
+        else None
+    )
+    result_dict = result if isinstance(result, dict) else {}
+    amount = (
+        float(result_dict.get("amount", 0))
+        if isinstance(result_dict.get("amount"), (int, float))
+        else 0.0
+    )
+
+    if user_id:
+        try:
+            await db.client.table("tickets").insert(
+                {
+                    "user_id": user_id,
+                    "order_id": real_order_id,
+                    "issue_type": "refund",
+                    "description": f"Late payment after order expired. Amount: {amount}. Stock unavailable.",
+                    "status": "open",
+                }
+            ).execute()
+            await db.client.table("orders").update(
+                {
+                    "status": "refund_pending",
+                    "refund_requested": True,
+                    "notes": "Late payment - stock unavailable",
+                }
+            ).eq("id", real_order_id).execute()
+        except Exception as e:
+            logger.error("CrystalPay webhook: Failed to create refund ticket: %s", e, exc_info=True)
+
+    return JSONResponse({"ok": True, "note": "refund_pending"}, status_code=200)
+
 
 # ==================== CRYSTALPAY WEBHOOK ====================
 
@@ -74,137 +213,22 @@ async def crystalpay_webhook(request: Request):
 
             db = get_database()
 
-            order_data = None
             try:
-                # Try lookup by payment_id (invoice_id saved during creation)
-                lookup_result = (
-                    await db.client.table("orders")
-                    .select("*")
-                    .eq("payment_id", invoice_id)
-                    .limit(1)
-                    .execute()
-                )
-                if lookup_result.data:
-                    # Supabase returns JSON type, need to cast to dict
-                    raw_order = lookup_result.data[0]
-                    if isinstance(raw_order, dict):
-                        order_data = cast(dict[str, Any], raw_order)
-                        real_order_id = str(order_data.get("id", ""))
-                    else:
-                        logger.error(
-                            f"CrystalPay webhook: Invalid order data type: {type(raw_order)}"
-                        )
+                order_data, real_order_id = await _find_order_data(db, invoice_id, order_id)
+                if not order_data:
+                    if real_order_id == "invalid_type":
                         return JSONResponse({"error": "Invalid order data"}, status_code=500)
-                    logger.debug(
-                        f"CrystalPay webhook: mapped invoice {invoice_id} -> order {real_order_id}"
-                    )
-                else:
-                    # Fallback: try direct lookup by order_id from extra
-                    direct_result = (
-                        await db.client.table("orders")
-                        .select("*")
-                        .eq("id", order_id)
-                        .limit(1)
-                        .execute()
-                    )
-                    if direct_result.data:
-                        # Supabase returns JSON type, need to cast to dict
-                        raw_order = direct_result.data[0]
-                        if isinstance(raw_order, dict):
-                            order_data = cast(dict[str, Any], raw_order)
-                            real_order_id = str(order_data.get("id", ""))
-                        else:
-                            logger.error(
-                                f"CrystalPay webhook: Invalid order data type: {type(raw_order)}"
-                            )
-                            return JSONResponse({"error": "Invalid order data"}, status_code=500)
-                        logger.debug(f"CrystalPay webhook: direct order lookup for {real_order_id}")
-                    else:
-                        logger.warning(
-                            f"CrystalPay webhook: Order not found for invoice {invoice_id}, extra {order_id}"
-                        )
-                        return JSONResponse({"error": "Order not found"}, status_code=404)
+                    return JSONResponse({"error": "Order not found"}, status_code=404)
             except Exception as e:
-                logger.error(f"CrystalPay webhook: Order lookup error: {e}", exc_info=True)
+                logger.error("CrystalPay webhook: Order lookup error: %s", e, exc_info=True)
+                return JSONResponse({"error": "Order lookup failed"}, status_code=500)
 
-            # Handle edge case: payment came after order expired/cancelled
-            # order_data is already checked to be dict above
-            order_status = str(order_data.get("status", "pending")) if order_data else "pending"
+            order_status = str(order_data.get("status", "pending"))
             if order_status == "cancelled":
-                logger.info(
-                    f"CrystalPay webhook: Order {real_order_id} was {order_status}, attempting recovery"
-                )
-
-                product_id = (
-                    str(order_data.get("product_id", ""))
-                    if (order_data and order_data.get("product_id"))
-                    else None
-                )
-                can_fulfill = False
-
-                if product_id:
-                    try:
-                        stock_check = (
-                            await db.client.table("stock_items")
-                            .select("id")
-                            .eq("product_id", product_id)
-                            .eq("status", "available")
-                            .limit(1)
-                            .execute()
-                        )
-                        can_fulfill = bool(stock_check.data)
-                    except Exception as e:
-                        logger.error(f"CrystalPay webhook: Stock check error: {e}", exc_info=True)
-
-                if can_fulfill:
-                    logger.info(
-                        f"CrystalPay webhook: Restoring order {real_order_id} - stock available"
-                    )
-                    await db.client.table("orders").update(
-                        {"status": "pending", "notes": "Restored after late payment"}
-                    ).eq("id", real_order_id).execute()
-                else:
-                    logger.warning(
-                        f"CrystalPay webhook: Order {real_order_id} - no stock, creating refund ticket"
-                    )
-                    user_id = (
-                        str(order_data.get("user_id", ""))
-                        if (order_data and order_data.get("user_id"))
-                        else None
-                    )
-                    # result is from verify_crystalpay_webhook, should be dict
-                    result_dict = result if isinstance(result, dict) else {}
-                    amount = (
-                        float(result_dict.get("amount", 0))
-                        if isinstance(result_dict.get("amount"), (int, float))
-                        else 0.0
-                    )
-
-                    if user_id:
-                        try:
-                            await db.client.table("tickets").insert(
-                                {
-                                    "user_id": user_id,
-                                    "order_id": real_order_id,
-                                    "issue_type": "refund",
-                                    "description": f"Late payment after order expired. Amount: {amount}. Stock unavailable.",
-                                    "status": "open",
-                                }
-                            ).execute()
-                            await db.client.table("orders").update(
-                                {
-                                    "status": "refund_pending",
-                                    "refund_requested": True,
-                                    "notes": "Late payment - stock unavailable",
-                                }
-                            ).eq("id", real_order_id).execute()
-                        except Exception as e:
-                            logger.error(
-                                f"CrystalPay webhook: Failed to create refund ticket: {e}",
-                                exc_info=True,
-                            )
-
-                    return JSONResponse({"ok": True, "note": "refund_pending"}, status_code=200)
+                logger.info("CrystalPay webhook: Order %s was %s, attempting recovery", real_order_id, order_status)
+                recovery_response = await _handle_cancelled_order_recovery(db, order_data, real_order_id, result)
+                if recovery_response:
+                    return recovery_response
 
             # CRITICAL: Mark payment as confirmed
             try:
