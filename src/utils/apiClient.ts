@@ -13,6 +13,60 @@ interface ApiClientOptions extends RequestInit {
   headers?: Record<string, string>;
 }
 
+// Helper to extract error message from response (reduces cognitive complexity)
+async function extractErrorMessage(response: Response): Promise<string> {
+  let errorMessage = `HTTP ${response.status}`;
+
+  try {
+    const errorData = await response.json();
+    errorMessage = errorData.detail || errorData.error || errorData.message || errorMessage;
+  } catch {
+    try {
+      const textError = await response.text();
+      if (textError && textError.length < 200) {
+        errorMessage = textError;
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  return errorMessage;
+}
+
+// Helper to handle specific HTTP status codes (reduces cognitive complexity)
+function handleSpecificStatusCodes(status: number, errorMessage: string): string {
+  if (status === 429) {
+    const cleaned = errorMessage.replace(/^CrystalPay API error:\s*/i, "");
+    if (!cleaned || cleaned === `HTTP ${status}`) {
+      return "Слишком много запросов. Подождите минуту и попробуйте снова.";
+    }
+    return cleaned;
+  }
+  if (status === 502 || status === 503) {
+    return "Платёжная система временно недоступна. Попробуйте позже.";
+  }
+  return errorMessage;
+}
+
+// Helper to parse response data (reduces cognitive complexity)
+async function parseResponseData<T>(response: Response, endpoint: string): Promise<T> {
+  try {
+    return await response.json();
+  } catch {
+    logger.warn("API returned non-JSON response", { endpoint });
+    return {} as T;
+  }
+}
+
+// Helper to build request URL (reduces cognitive complexity)
+function buildRequestUrl(endpoint: string): string {
+  if (endpoint.startsWith("http") || endpoint.startsWith("/api/")) {
+    return endpoint;
+  }
+  return `${API.BASE_URL}${endpoint}`;
+}
+
 /**
  * Make API request (for use outside React components)
  *
@@ -31,12 +85,7 @@ export async function apiRequest<T = unknown>(
   endpoint: string,
   options: ApiClientOptions = {}
 ): Promise<T> {
-  // If endpoint is full URL or already has /api/ prefix, use as-is
-  // Otherwise prepend BASE_URL for relative paths
-  const url =
-    endpoint.startsWith("http") || endpoint.startsWith("/api/")
-      ? endpoint
-      : `${API.BASE_URL}${endpoint}`;
+  const url = buildRequestUrl(endpoint);
 
   try {
     const response = await fetch(url, {
@@ -48,45 +97,13 @@ export async function apiRequest<T = unknown>(
     });
 
     if (!response.ok) {
-      let errorMessage = `HTTP ${response.status}`;
-
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.detail || errorData.error || errorData.message || errorMessage;
-      } catch {
-        try {
-          const textError = await response.text();
-          if (textError && textError.length < 200) {
-            errorMessage = textError;
-          }
-        } catch {
-          // Ignore
-        }
-      }
-
-      // Handle specific status codes
-      if (response.status === 429) {
-        errorMessage = errorMessage.replace(/^CrystalPay API error:\s*/i, "");
-        if (!errorMessage || errorMessage === `HTTP ${response.status}`) {
-          errorMessage = "Слишком много запросов. Подождите минуту и попробуйте снова.";
-        }
-      } else if (response.status === 502 || response.status === 503) {
-        errorMessage = "Платёжная система временно недоступна. Попробуйте позже.";
-      }
-
-      logger.error("API request failed", { endpoint, status: response.status, errorMessage });
-      throw new Error(errorMessage);
+      const errorMessage = await extractErrorMessage(response);
+      const finalErrorMessage = handleSpecificStatusCodes(response.status, errorMessage);
+      logger.error("API request failed", { endpoint, status: response.status, errorMessage: finalErrorMessage });
+      throw new Error(finalErrorMessage);
     }
 
-    let data: T;
-    try {
-      data = await response.json();
-    } catch {
-      logger.warn("API returned non-JSON response", { endpoint });
-      data = {} as T;
-    }
-
-    return data;
+    return await parseResponseData<T>(response, endpoint);
   } catch (err) {
     logger.error("API request error", { endpoint, error: err });
     throw err;
