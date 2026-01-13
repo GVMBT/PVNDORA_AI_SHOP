@@ -36,7 +36,7 @@ def calculate_exchange_rate(rate: float, from_currency: str, to_currency: str) -
     """Format exchange rate for display (e.g., 1 USD = X RUB)."""
     if from_currency == "USD" and to_currency != "USD":
         return rate  # Already in correct format (USD -> other)
-    elif from_currency != "USD" and to_currency == "USD":
+    if from_currency != "USD" and to_currency == "USD":
         return 1 / rate if rate > 0 else 0  # Invert for other -> USD
     return rate
 
@@ -53,7 +53,7 @@ async def _calculate_conversion_rate(
         if current_balance > 0:
             return float(new_balance_decimal) / current_balance
         return await currency_service.get_exchange_rate("RUB")
-    elif current_currency == "RUB" and target_currency == "USD":
+    if current_currency == "RUB" and target_currency == "USD":
         if new_balance_decimal > 0:
             return current_balance / float(new_balance_decimal)
         return await currency_service.get_exchange_rate("RUB")

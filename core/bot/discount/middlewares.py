@@ -177,12 +177,14 @@ class TermsAcceptanceMiddleware(BaseMiddleware):
 
     def _is_exempt(self, event: TelegramObject) -> bool:
         """Check if event is exempt from terms check (reduces cognitive complexity)."""
-        if isinstance(event, Message):
-            if event.text and any(event.text.startswith(cmd) for cmd in self.EXEMPT_COMMANDS):
-                return True
-        elif isinstance(event, CallbackQuery):
-            if event.data and any(cb in event.data for cb in self.EXEMPT_CALLBACKS):
-                return True
+        if isinstance(event, Message) and event.text and any(
+            event.text.startswith(cmd) for cmd in self.EXEMPT_COMMANDS
+        ):
+            return True
+        if isinstance(event, CallbackQuery) and event.data and any(
+            cb in event.data for cb in self.EXEMPT_CALLBACKS
+        ):
+            return True
         return False
 
     def _get_terms_text(self, lang: str) -> str:

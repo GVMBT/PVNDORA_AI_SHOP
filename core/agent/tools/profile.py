@@ -30,10 +30,9 @@ def _determine_career_level(
     """
     if turnover >= threshold_l3:
         return 3, None, 0
-    elif turnover >= threshold_l2:
+    if turnover >= threshold_l2:
         return 2, 3, threshold_l3 - turnover
-    else:
-        return 1, 2, threshold_l2 - turnover
+    return 1, 2, threshold_l2 - turnover
 
 
 def _get_line_unlocked_status(user: dict) -> tuple[bool, bool, bool]:
