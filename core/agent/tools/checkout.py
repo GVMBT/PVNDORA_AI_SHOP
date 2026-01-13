@@ -534,10 +534,10 @@ async def _calculate_balance_in_display_currency(
     balance_currency: str,
     user_currency: str,
     currency_service,
-) -> tuple[float, float]:
-    """Calculate balance and cart total in display currency."""
+) -> float:
+    """Calculate balance in display currency."""
     if user_currency == balance_currency:
-        return balance_in_balance_currency, balance_in_balance_currency
+        return balance_in_balance_currency
 
     balance_rate = (
         await currency_service.get_exchange_rate(balance_currency)
@@ -557,7 +557,7 @@ async def _calculate_balance_in_display_currency(
     )
     balance = balance_usd * display_rate if display_rate > 0 else balance_usd
 
-    return balance, balance
+    return balance
 
 
 @tool
@@ -606,7 +606,7 @@ async def pay_cart_from_balance() -> dict:
             redis = get_redis()
             currency_service = get_currency_service(redis)
 
-            balance, _ = await _calculate_balance_in_display_currency(
+            balance = await _calculate_balance_in_display_currency(
                 balance_in_balance_currency, balance_currency, user_currency, currency_service
             )
             cart_total = float(cart.total)
