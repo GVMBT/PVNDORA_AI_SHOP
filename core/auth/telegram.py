@@ -83,6 +83,56 @@ def _extract_init_data(authorization: str | None, x_init_data: str | None) -> st
     return None
 
 
+# Helper: Try Bearer token authentication (reduces cognitive complexity)
+async def _try_bearer_auth(authorization: str, x_init_data: str | None) -> TelegramUser | None:
+    """Try to authenticate using Bearer token, return user if successful."""
+    if not authorization:
+        return None
+
+    parts = authorization.split(" ")
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        return None
+
+    user = await _verify_bearer_token(parts[1])
+    if user:
+        return user
+
+    # If Bearer token is invalid and no X-Init-Data, raise error
+    if not x_init_data:
+        raise HTTPException(status_code=401, detail="Invalid session token")
+
+    return None
+
+
+# Helper: Verify and extract user from initData (reduces cognitive complexity)
+async def _verify_and_extract_user_from_init_data(
+    init_data: str,
+) -> TelegramUser:
+    """Verify initData signature and extract user."""
+    token = _get_telegram_token()
+    if not validate_telegram_init_data(init_data, token):
+        raise HTTPException(status_code=401, detail="Invalid initData signature")
+
+    extracted_user = extract_user_from_init_data(init_data)
+    if not extracted_user:
+        raise HTTPException(status_code=401, detail="Could not extract user")
+
+    return extracted_user
+
+
+# Helper: Update user photo if provided (reduces cognitive complexity)
+async def _update_user_photo_if_provided(user: TelegramUser) -> None:
+    """Update user's photo URL if provided in initData."""
+    if not user.photo_url:
+        return
+
+    try:
+        db = get_database()
+        await db.update_user_photo(user.id, user.photo_url)
+    except Exception as e:
+        logger.warning(f"Failed to update user photo: {e}")
+
+
 async def verify_telegram_auth(
     authorization: str = Header(None, alias="Authorization"),
     x_init_data: str = Header(None, alias="X-Init-Data"),
@@ -95,36 +145,19 @@ async def verify_telegram_auth(
     - X-Init-Data: <initData> (for Telegram Mini App)
     """
     # Try Bearer token first (web session)
-    if authorization:
-        parts = authorization.split(" ")
-        if len(parts) == 2 and parts[0].lower() == "bearer":
-            user = await _verify_bearer_token(parts[1])
-            if user:
-                return user
-            # If Bearer token is invalid and no X-Init-Data, raise error
-            if not x_init_data:
-                raise HTTPException(status_code=401, detail="Invalid session token")
+    bearer_user = await _try_bearer_auth(authorization, x_init_data)
+    if bearer_user:
+        return bearer_user
 
     # Try TMA initData
     init_data = _extract_init_data(authorization, x_init_data)
     if not init_data:
         raise HTTPException(status_code=401, detail="No authorization header")
 
-    token = _get_telegram_token()
-    if not validate_telegram_init_data(init_data, token):
-        raise HTTPException(status_code=401, detail="Invalid initData signature")
-
-    extracted_user = extract_user_from_init_data(init_data)
-    if not extracted_user:
-        raise HTTPException(status_code=401, detail="Could not extract user")
+    extracted_user = await _verify_and_extract_user_from_init_data(init_data)
 
     # Update user's photo_url if provided
-    if extracted_user.photo_url:
-        try:
-            db = get_database()
-            await db.update_user_photo(extracted_user.id, extracted_user.photo_url)
-        except Exception as e:
-            logger.warning(f"Failed to update user photo: {e}")
+    await _update_user_photo_if_provided(extracted_user)
 
     _update_user_activity(extracted_user.id)
     return extracted_user
