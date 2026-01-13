@@ -654,161 +654,141 @@ const legalContent = {
   },
 };
 
+// Helper to render standard document content (reduces cognitive complexity)
+const renderStandardDocument = (
+  content: { title: string; content: React.ReactNode },
+  docLocale: "ru" | "en"
+) => {
+  return (
+    <div>
+      <h2 className="text-white font-display text-xl mb-4">{content.title}</h2>
+      {content.content}
+    </div>
+  );
+};
+
+// Helper to render FAQ content (reduces cognitive complexity)
+const renderFAQContent = (isRussian: boolean) => {
+  const faqItems = [
+    {
+      question: isRussian ? "Как быстро я получу доступ?" : "How quickly will I receive access?",
+      answer: isRussian
+        ? "В 99% случаев выдача происходит мгновенно после оплаты. Данные отобразятся в личном кабинете и придут на почту."
+        : "In 99% of cases, delivery happens instantly after payment. Data will be displayed in your account and sent via email.",
+    },
+    {
+      question: isRussian ? "Нужен ли VPN?" : "Do I need a VPN?",
+      answer: isRussian
+        ? "Зависит от ресурса. В карточке каждой услуги мы указываем требования к подключению."
+        : "Depends on the service. We specify connection requirements in each service card.",
+    },
+    {
+      question: isRussian
+        ? "Что делать, если доступ не работает?"
+        : "What if access does not work?",
+      answer: isRussian
+        ? "Напишите в нашу поддержку (support@pvndora.app). Мы проверим токен и, если он невалиден, выдадим замену."
+        : "Contact our support (support@pvndora.app). We will check the token and, if invalid, provide a replacement.",
+    },
+    {
+      question: isRussian
+        ? "Какие способы оплаты доступны?"
+        : "What payment methods are available?",
+      answer: isRussian
+        ? "Мы принимаем оплату через внутренний баланс или внешние платежные системы (CrystalPay) с поддержкой банковских карт, криптовалют (USDT, BTC) и других методов."
+        : "We accept payments via internal balance or external payment systems (CrystalPay) supporting bank cards, cryptocurrencies (USDT, BTC), and other methods.",
+    },
+  ];
+
+  return (
+    <div className="space-y-8">
+      <h2 className="text-white font-display text-xl mb-6">
+        FAQ {isRussian ? "(Частые вопросы)" : "(Frequently Asked Questions)"}
+      </h2>
+      {faqItems.map((item, index) => (
+        <div key={index} className="border border-white/10 p-4 bg-white/5">
+          <h3 className="text-white font-bold mb-2">{item.question}</h3>
+          <p className="text-gray-400 font-mono text-xs">{item.answer}</p>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Helper to render support content (reduces cognitive complexity)
+const renderSupportContent = (isRussian: boolean) => {
+  return (
+    <div className="space-y-8">
+      <h2 className="text-white font-display text-xl mb-6">
+        {isRussian ? "Техническая поддержка" : "Technical Support"}
+      </h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="border border-white/10 p-6 bg-[#0a0a0a] flex flex-col items-center text-center">
+          <div className="w-12 h-12 bg-pandora-cyan text-black rounded-full flex items-center justify-center mb-4">
+            <Terminal size={24} />
+          </div>
+          <h3 className="text-white font-bold mb-2">Telegram Support</h3>
+          <p className="text-gray-500 text-xs font-mono mb-4">
+            {isRussian ? "Самый быстрый способ получить ответ." : "The fastest way to get an answer."}
+          </p>
+          <a
+            href="https://t.me/pvndora_support"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-pandora-cyan font-bold hover:underline"
+          >
+            @pvndora_support
+          </a>
+        </div>
+
+        <div className="border border-white/10 p-6 bg-[#0a0a0a] flex flex-col items-center text-center">
+          <div className="w-12 h-12 bg-white/10 text-white rounded-full flex items-center justify-center mb-4">
+            <Mail size={24} />
+          </div>
+          <h3 className="text-white font-bold mb-2">Email</h3>
+          <p className="text-gray-500 text-xs font-mono mb-4">
+            {isRussian ? "Для деловых предложений и жалоб." : "For business inquiries and complaints."}
+          </p>
+          <a href="mailto:support@pvndora.app" className="text-white font-bold hover:underline">
+            support@pvndora.app
+          </a>
+        </div>
+      </div>
+
+      <div className="bg-white/5 p-4 border-l-2 border-pandora-cyan">
+        <p className="text-gray-300 text-sm">
+          {isRussian ? "Время работы поддержки: " : "Support hours: "}
+          <span className="text-white font-bold">
+            {isRussian ? "10:00 - 22:00 (МСК)" : "10:00 - 22:00 (MSC)"}
+          </span>
+          {isRussian ? ", без выходных." : ", daily."}
+        </p>
+      </div>
+    </div>
+  );
+};
+
 const Legal: React.FC<LegalProps> = ({ doc, onBack }) => {
   const { t, locale } = useLocale();
 
   const renderContent = () => {
-    // Get content based on document type and locale (default to English if not Russian)
     const isRussian = locale === "ru";
     const docLocale: "ru" | "en" = isRussian ? "ru" : "en";
 
     switch (doc) {
       case "terms":
-        const termsContent = legalContent.terms[docLocale];
-        return (
-          <div>
-            <h2 className="text-white font-display text-xl mb-4">{termsContent.title}</h2>
-            {termsContent.content}
-          </div>
-        );
+        return renderStandardDocument(legalContent.terms[docLocale], docLocale);
       case "privacy":
-        const privacyContent = legalContent.privacy[docLocale];
-        return (
-          <div>
-            <h2 className="text-white font-display text-xl mb-4">{privacyContent.title}</h2>
-            {privacyContent.content}
-          </div>
-        );
+        return renderStandardDocument(legalContent.privacy[docLocale], docLocale);
       case "refund":
-        const refundContent = legalContent.refund[docLocale];
-        return (
-          <div>
-            <h2 className="text-white font-display text-xl mb-4">{refundContent.title}</h2>
-            {refundContent.content}
-          </div>
-        );
+        return renderStandardDocument(legalContent.refund[docLocale], docLocale);
       case "payment":
-        const paymentContent = legalContent.payment[docLocale];
-        return (
-          <div>
-            <h2 className="text-white font-display text-xl mb-4">{paymentContent.title}</h2>
-            {paymentContent.content}
-          </div>
-        );
+        return renderStandardDocument(legalContent.payment[docLocale], docLocale);
       case "faq":
-        return (
-          <div className="space-y-8">
-            <h2 className="text-white font-display text-xl mb-6">
-              FAQ {isRussian ? "(Частые вопросы)" : "(Frequently Asked Questions)"}
-            </h2>
-
-            <div className="border border-white/10 p-4 bg-white/5">
-              <h3 className="text-white font-bold mb-2">
-                {isRussian ? "Как быстро я получу доступ?" : "How quickly will I receive access?"}
-              </h3>
-              <p className="text-gray-400 font-mono text-xs">
-                {isRussian
-                  ? "В 99% случаев выдача происходит мгновенно после оплаты. Данные отобразятся в личном кабинете и придут на почту."
-                  : "In 99% of cases, delivery happens instantly after payment. Data will be displayed in your account and sent via email."}
-              </p>
-            </div>
-
-            <div className="border border-white/10 p-4 bg-white/5">
-              <h3 className="text-white font-bold mb-2">
-                {isRussian ? "Нужен ли VPN?" : "Do I need a VPN?"}
-              </h3>
-              <p className="text-gray-400 font-mono text-xs">
-                {isRussian
-                  ? "Зависит от ресурса. В карточке каждой услуги мы указываем требования к подключению."
-                  : "Depends on the service. We specify connection requirements in each service card."}
-              </p>
-            </div>
-
-            <div className="border border-white/10 p-4 bg-white/5">
-              <h3 className="text-white font-bold mb-2">
-                {isRussian
-                  ? "Что делать, если доступ не работает?"
-                  : "What if access does not work?"}
-              </h3>
-              <p className="text-gray-400 font-mono text-xs">
-                {isRussian
-                  ? "Напишите в нашу поддержку (support@pvndora.app). Мы проверим токен и, если он невалиден, выдадим замену."
-                  : "Contact our support (support@pvndora.app). We will check the token and, if invalid, provide a replacement."}
-              </p>
-            </div>
-
-            <div className="border border-white/10 p-4 bg-white/5">
-              <h3 className="text-white font-bold mb-2">
-                {isRussian
-                  ? "Какие способы оплаты доступны?"
-                  : "What payment methods are available?"}
-              </h3>
-              <p className="text-gray-400 font-mono text-xs">
-                {isRussian
-                  ? "Мы принимаем оплату через внутренний баланс или внешние платежные системы (CrystalPay) с поддержкой банковских карт, криптовалют (USDT, BTC) и других методов."
-                  : "We accept payments via internal balance or external payment systems (CrystalPay) supporting bank cards, cryptocurrencies (USDT, BTC), and other methods."}
-              </p>
-            </div>
-          </div>
-        );
+        return renderFAQContent(isRussian);
       case "support":
-        return (
-          <div className="space-y-8">
-            <h2 className="text-white font-display text-xl mb-6">
-              {isRussian ? "Техническая поддержка" : "Technical Support"}
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="border border-white/10 p-6 bg-[#0a0a0a] flex flex-col items-center text-center">
-                <div className="w-12 h-12 bg-pandora-cyan text-black rounded-full flex items-center justify-center mb-4">
-                  <Terminal size={24} />
-                </div>
-                <h3 className="text-white font-bold mb-2">Telegram Support</h3>
-                <p className="text-gray-500 text-xs font-mono mb-4">
-                  {isRussian
-                    ? "Самый быстрый способ получить ответ."
-                    : "The fastest way to get an answer."}
-                </p>
-                <a
-                  href="https://t.me/pvndora_support"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-pandora-cyan font-bold hover:underline"
-                >
-                  @pvndora_support
-                </a>
-              </div>
-
-              <div className="border border-white/10 p-6 bg-[#0a0a0a] flex flex-col items-center text-center">
-                <div className="w-12 h-12 bg-white/10 text-white rounded-full flex items-center justify-center mb-4">
-                  <Mail size={24} />
-                </div>
-                <h3 className="text-white font-bold mb-2">Email</h3>
-                <p className="text-gray-500 text-xs font-mono mb-4">
-                  {isRussian
-                    ? "Для деловых предложений и жалоб."
-                    : "For business inquiries and complaints."}
-                </p>
-                <a
-                  href="mailto:support@pvndora.app"
-                  className="text-white font-bold hover:underline"
-                >
-                  support@pvndora.app
-                </a>
-              </div>
-            </div>
-
-            <div className="bg-white/5 p-4 border-l-2 border-pandora-cyan">
-              <p className="text-gray-300 text-sm">
-                {isRussian ? "Время работы поддержки: " : "Support hours: "}
-                <span className="text-white font-bold">
-                  {isRussian ? "10:00 - 22:00 (МСК)" : "10:00 - 22:00 (MSC)"}
-                </span>
-                {isRussian ? ", без выходных." : ", daily."}
-              </p>
-            </div>
-          </div>
-        );
+        return renderSupportContent(isRussian);
       default:
         return <div>Document not found</div>;
     }

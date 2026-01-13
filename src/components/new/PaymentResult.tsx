@@ -110,7 +110,8 @@ export function PaymentResult({
   const mapBackendStatus = (backendStatus: string): PaymentStatus => {
     const status = backendStatus.toLowerCase();
     if (["delivered", "completed", "ready"].includes(status)) return "delivered";
-    if (["paid", "processing", "prepaid"].includes(status)) return "paid";
+    if (["paid", "processing"].includes(status)) return "paid";
+    if (status === "prepaid") return "prepaid";
     if (status === "partial") return "partial";
     if (["pending", "awaiting_payment"].includes(status)) return "pending";
     if (["expired", "cancelled"].includes(status)) return "expired";
@@ -304,7 +305,7 @@ export function PaymentResult({
       }
 
       // Handle successful response
-      if (result.status !== "unknown" && !result.error) {
+      if (result.status !== "unknown" || !result.error) {
         shouldStop = handleStatusUpdate(result.status);
       } else if (result.error) {
         addLog(t("paymentResult.logs.warnDelayed"), "warning");
