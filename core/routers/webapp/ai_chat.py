@@ -89,7 +89,7 @@ async def send_chat_message(request: ChatMessageRequest, user=Depends(verify_tel
 
     # Get user language and normalize it
     from core.i18n import detect_language
-    
+
     raw_language = getattr(db_user, "language_code", "en") or "en"
     language = detect_language(raw_language)
 

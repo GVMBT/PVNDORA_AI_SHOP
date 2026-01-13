@@ -198,32 +198,6 @@ class OrderNotificationsMixin(NotificationServiceBase):
             logger.warning("Failed to fetch order items for notification %s: %s", order_id, e)
 
         delivery_info = _build_delivery_info(lang, instant_items, prepaid_items)
-                f"\n📦 <b>DELIVERY</b>\n"
-                f"• In stock ({instant_count}): delivery within a minute\n"
-                f"• Preorder ({prepaid_count}): we'll notify when ready\n\n"
-                f"You'll receive notifications with access details as items become available.",
-            )
-        elif instant_items:
-            # INSTANT ONLY: All items in stock
-            delivery_info = _msg(
-                lang,
-                "\n📦 Товар будет доставлен в течение минуты.\n"
-                "Вы получите уведомление с данными для доступа.",
-                "\n📦 Your item will be delivered within a minute.\n"
-                "You'll receive a notification with access details.",
-            )
-        elif prepaid_items:
-            # PREPAID ONLY: All items waiting for stock
-            prepaid_count = len(prepaid_items)
-            delivery_info = _msg(
-                lang,
-                f"\n📋 Заказ добавлен в очередь доставки.\n"
-                f"⏳ Ожидает поступления: {prepaid_count} товар(ов)\n"
-                f"Мы уведомим вас, когда товар будет готов к доставке.",
-                f"\n📋 Order added to delivery queue.\n"
-                f"⏳ Waiting for stock: {prepaid_count} item(s)\n"
-                f"We'll notify you when your item is ready for delivery.",
-            )
 
         # Build message
         message = _msg(

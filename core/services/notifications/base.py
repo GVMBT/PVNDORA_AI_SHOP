@@ -16,7 +16,7 @@ async def get_user_language(telegram_id: int) -> str:
     """Get user's preferred language from database."""
     try:
         from core.i18n import detect_language
-        
+
         db = get_database()
         result = (
             await db.client.table("users")

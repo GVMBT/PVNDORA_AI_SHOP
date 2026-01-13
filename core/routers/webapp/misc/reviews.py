@@ -69,7 +69,7 @@ async def _calculate_review_cashback(
     target_item: dict, order, balance_currency: str, currency_service
 ) -> float:
     """Calculate 5% cashback amount in user's balance currency.
-    
+
     Uses order's fiat_amount and exchange_rate_snapshot for accurate calculation
     based on the currency rate at the time of purchase, not current rate.
     """
@@ -80,7 +80,7 @@ async def _calculate_review_cashback(
 
     # Determine cashback base amount (item price in user's balance currency)
     order_amount_usd = to_float(order.amount) if hasattr(order, "amount") and order.amount else 0
-    
+
     # Priority 1: Use order's fiat_amount if available and currency matches
     # This ensures we use the exact amount user paid, not current exchange rate
     if (
