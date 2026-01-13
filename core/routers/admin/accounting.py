@@ -239,6 +239,121 @@ class ExpenseCreate(BaseModel):
     date: str | None = None  # ISO date
 
 
+# Helper: Process orders for financial overview (reduces cognitive complexity)
+async def _process_orders_for_overview(
+    orders: list[dict[str, Any]],
+) -> tuple[dict[str, dict[str, float]], dict[str, float]]:
+    """Process orders and calculate revenue by currency and expense totals."""
+    revenue_by_currency: dict = {}
+    expense_totals = {
+        "revenue_usd": 0.0,
+        "revenue_gross_usd": 0.0,
+        "cogs": 0.0,
+        "acquiring_fees": 0.0,
+        "referral_payouts": 0.0,
+        "reserves": 0.0,
+        "review_cashbacks": 0.0,
+        "replacement_costs": 0.0,
+    }
+
+    for raw_order in orders:
+        if not isinstance(raw_order, dict):
+            continue
+        order = cast(dict[str, Any], raw_order)
+
+        currency, fiat_amount, amount_usd, expenses = extract_order_data(order)
+        real_amount = float(fiat_amount) if fiat_amount is not None else amount_usd
+        fiat_gross, fiat_promo_discount, revenue_gross_usd = calculate_revenue_amounts(
+            amount_usd, real_amount, expenses, currency
+        )
+
+        # Initialize currency bucket
+        if currency not in revenue_by_currency:
+            revenue_by_currency[currency] = {
+                "orders_count": 0,
+                "revenue": 0.0,
+                "revenue_gross": 0.0,
+                "discounts_given": 0.0,
+            }
+
+        revenue_by_currency[currency]["orders_count"] += 1
+        revenue_by_currency[currency]["revenue"] += real_amount
+        revenue_by_currency[currency]["revenue_gross"] += fiat_gross
+        revenue_by_currency[currency]["discounts_given"] += fiat_promo_discount
+
+        # USD totals for expense calculations
+        expense_totals["revenue_usd"] += amount_usd
+        expense_totals["revenue_gross_usd"] += revenue_gross_usd
+
+        # Expenses (from order_expenses, always in USD)
+        if expenses and isinstance(expenses, dict):
+            exp = extract_expenses(expenses)
+            expense_totals["cogs"] += exp["cogs"]
+            expense_totals["acquiring_fees"] += exp["acquiring"]
+            expense_totals["referral_payouts"] += exp["referral"]
+            expense_totals["reserves"] += exp["reserve"]
+            expense_totals["review_cashbacks"] += exp["review"]
+            expense_totals["replacement_costs"] += exp["replacement"]
+
+    # Round currency values
+    for currency_key in revenue_by_currency:
+        for key in revenue_by_currency[currency_key]:
+            if key != "orders_count":
+                revenue_by_currency[currency_key][key] = round_currency_value(
+                    revenue_by_currency[currency_key][key], currency_key
+                )
+
+    return revenue_by_currency, expense_totals
+
+
+# Helper: Get other expenses and insurance revenue (reduces cognitive complexity)
+async def _get_other_expenses_and_insurance(
+    db: Any, start_date: datetime | None, end_date: datetime
+) -> tuple[float, dict[str, float], float]:
+    """Get other expenses, expenses by category, and insurance revenue."""
+    # Other Expenses
+    expenses_query = db.client.table("expenses").select("amount_usd, category")
+    if start_date:
+        expenses_query = expenses_query.gte("date", start_date.date().isoformat())
+    if end_date:
+        expenses_query = expenses_query.lte("date", end_date.date().isoformat())
+
+    other_expenses_result = await expenses_query.execute()
+    total_other_expenses = 0.0
+    expenses_by_category: dict[str, float] = {}
+    for raw_e in other_expenses_result.data or []:
+        if isinstance(raw_e, dict):
+            e = cast(dict[str, Any], raw_e)
+            amount_raw = e.get("amount_usd", 0)
+            total_other_expenses += (
+                float(amount_raw) if isinstance(amount_raw, (int, float)) else 0.0
+            )
+
+            cat_raw = e.get("category", "other")
+            cat = str(cat_raw) if cat_raw else "other"
+            amount = float(amount_raw) if isinstance(amount_raw, (int, float)) else 0.0
+            expenses_by_category[cat] = expenses_by_category.get(cat, 0.0) + amount
+
+    # Insurance Revenue
+    insurance_query = db.client.table("insurance_revenue").select("price")
+    if start_date:
+        insurance_query = insurance_query.gte("created_at", start_date.isoformat())
+    if end_date:
+        insurance_query = insurance_query.lte("created_at", end_date.isoformat())
+
+    insurance_result = await insurance_query.execute()
+    total_insurance_revenue = 0.0
+    for raw_i in insurance_result.data or []:
+        if isinstance(raw_i, dict):
+            i = cast(dict[str, Any], raw_i)
+            price_raw = i.get("price", 0)
+            total_insurance_revenue += (
+                float(price_raw) if isinstance(price_raw, (int, float)) else 0.0
+            )
+
+    return total_other_expenses, expenses_by_category, total_insurance_revenue
+
+
 # =============================================================================
 # Financial Overview (Multi-Currency with Date Filtering)
 # =============================================================================
