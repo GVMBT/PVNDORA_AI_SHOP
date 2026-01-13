@@ -9,6 +9,7 @@ Used for critical operations that must be guaranteed to execute:
 - Leaderboard updates
 """
 
+import asyncio
 import os
 from functools import wraps
 
@@ -114,7 +115,9 @@ async def publish_to_worker(
     safe_retries = min(retries, 2)
 
     try:
-        result = qstash.message.publish_json(
+        # Wrap sync QStash call in asyncio.to_thread for async execution
+        result = await asyncio.to_thread(
+            qstash.message.publish_json,
             url=url,
             body=body,
             retries=safe_retries,
@@ -147,8 +150,13 @@ async def publish_to_queue(
     base_url = get_base_url()
     url = f"{base_url}{endpoint}"
 
-    result = qstash.message.enqueue_json(
-        queue=queue_name, url=url, body=body, deduplication_id=deduplication_id
+    # Wrap sync QStash call in asyncio.to_thread for async execution
+    result = await asyncio.to_thread(
+        qstash.message.enqueue_json,
+        queue=queue_name,
+        url=url,
+        body=body,
+        deduplication_id=deduplication_id,
     )
 
     return {"message_id": result.message_id}

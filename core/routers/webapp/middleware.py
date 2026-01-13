@@ -75,7 +75,10 @@ def update_user_activity_with_debounce(telegram_id: int) -> None:
     try:
         # Use asyncio.create_task to run in background
         # This works because we're called from within an async context (FastAPI)
-        asyncio.create_task(_update_user_activity_async(telegram_id))
+        # Store task reference to prevent premature garbage collection
+        _ = asyncio.create_task(_update_user_activity_async(telegram_id))
+        # Task runs in background - we don't await it (fire-and-forget)
+        # Storing the reference ensures the task isn't garbage collected before it completes
     except Exception as e:
         # Non-fatal - activity tracking shouldn't break requests
         logger.debug(f"Failed to schedule activity update: {e}")

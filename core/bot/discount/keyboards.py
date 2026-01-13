@@ -405,9 +405,7 @@ def get_issue_result_keyboard(
 
     # PVNDORA offer
     if promo_code:
-        pvndora_text = (
-            f"⭐ PVNDORA -50% ({promo_code})" if lang == "ru" else f"⭐ PVNDORA -50% ({promo_code})"
-        )
+        pvndora_text = f"⭐ PVNDORA -50% ({promo_code})"
     else:
         pvndora_text = "⭐ Попробуй PVNDORA" if lang == "ru" else "⭐ Try PVNDORA"
 
@@ -429,7 +427,7 @@ def get_help_keyboard(lang: str) -> InlineKeyboardMarkup:
     """Help menu."""
     buttons = []
 
-    faq_text = "❓ FAQ" if lang == "ru" else "❓ FAQ"
+    faq_text = "❓ FAQ"
     payment_text = "💳 Как платить криптой" if lang == "ru" else "💳 How to pay with crypto"
     support_text = "💬 Поддержка" if lang == "ru" else "💬 Support"
     pvndora_text = "⭐ О PVNDORA" if lang == "ru" else "⭐ About PVNDORA"

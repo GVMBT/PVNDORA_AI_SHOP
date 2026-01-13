@@ -88,7 +88,7 @@ async def handle_inline_query(query: InlineQuery, db_user: User, bot: Bot):
         # Search products to share
         try:
             db = get_database()
-            products = await db.search_products(query_text, limit=10)
+            products = await db.search_products(query_text)
 
             for product in products:
                 # Use SHA256 for ID generation (MD5 is cryptographically insecure)

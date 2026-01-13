@@ -23,7 +23,7 @@ reviews_router = APIRouter(tags=["webapp-misc-reviews"])
 # ==================== REVIEW HELPER FUNCTIONS ====================
 
 
-async def _determine_review_product_id(
+def _determine_review_product_id(
     request: WebAppReviewRequest, order_items: list
 ) -> str | None:
     """Determine which product is being reviewed from request and order items."""
@@ -311,7 +311,7 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
     if not order_items:
         raise HTTPException(status_code=400, detail="Order has no products")
 
-    product_id = await _determine_review_product_id(request, order_items)
+    product_id = _determine_review_product_id(request, order_items)
     if not product_id:
         raise HTTPException(status_code=400, detail="Product not found in order")
 

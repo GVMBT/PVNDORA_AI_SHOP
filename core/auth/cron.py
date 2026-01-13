@@ -5,7 +5,7 @@ import os
 from fastapi import Header, HTTPException
 
 
-async def verify_cron_secret(authorization: str = Header(None, alias="Authorization")):
+def verify_cron_secret(authorization: str = Header(None, alias="Authorization")):
     """
     Verify CRON_SECRET for scheduled jobs and internal workers.
 
