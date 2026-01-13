@@ -4,6 +4,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 
 import os
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from aiogram import F, Router
 from aiogram.enums import ParseMode
@@ -195,6 +196,103 @@ async def _get_display_prices(
         return total_price, discount_price, insurance_price, "$"
 
 
+# Helper: Calculate insurance price and ID (reduces cognitive complexity)
+def _calculate_insurance_info(insurance: dict | None, discount_price: float) -> tuple[float, str | None]:
+    """Calculate insurance price and return (price, id)."""
+    if not insurance:
+        return 0.0, None
+    insurance_price = discount_price * (float(insurance.get("price_percent", 0)) / 100)
+    return insurance_price, insurance["id"]
+
+
+# Helper: Create order and order item (reduces cognitive complexity)
+async def _create_discount_order(
+    db: Any,
+    user_uuid: str,
+    telegram_id: int,
+    total_price: float,
+    discount_price: float,
+    product_id: str,
+    insurance_id: str | None,
+) -> str:
+    """Create order and order item, return order_id."""
+    expires_at = datetime.now(UTC) + timedelta(hours=1)
+
+    order_result = (
+        await db.client.table("orders")
+        .insert(
+            {
+                "user_id": user_uuid,
+                "amount": total_price,
+                "original_price": discount_price,
+                "discount_percent": 0,
+                "status": "pending",
+                "payment_method": "crypto",
+                "payment_gateway": "crystalpay",
+                "source_channel": "discount",
+                "user_telegram_id": telegram_id,
+                "expires_at": expires_at.isoformat(),
+            }
+        )
+        .execute()
+    )
+
+    order_id = order_result.data[0]["id"]
+
+    await db.client.table("order_items").insert(
+        {
+            "order_id": order_id,
+            "product_id": product_id,
+            "quantity": 1,
+            "price": discount_price,
+            "insurance_id": insurance_id,
+        }
+    ).execute()
+
+    return order_id
+
+
+# Helper: Build payment message text (reduces cognitive complexity)
+def _build_payment_message(
+    lang: str,
+    order_id: str,
+    product_name: str,
+    display_currency_symbol: str,
+    display_discount_price: float,
+    display_insurance_price: float,
+    display_amount: float,
+    insurance: dict | None,
+) -> str:
+    """Build payment message text from components."""
+    text = get_text("discount.order.header", lang, order_id=order_id[:8])
+    text += get_text("discount.order.product", lang, name=product_name) + "\n"
+    text += (
+        get_text(
+            "discount.order.price",
+            lang,
+            amount=f"{display_currency_symbol}{display_discount_price:.0f}",
+        )
+        + "\n"
+    )
+
+    if insurance:
+        text += (
+            get_text(
+                "discount.order.insurance",
+                lang,
+                amount=f"{display_currency_symbol}{display_insurance_price:.0f}",
+                days=insurance.get("duration_days", 7),
+            )
+            + "\n"
+        )
+
+    text += f"\n<b>{get_text('discount.order.total', lang, amount=f'{display_currency_symbol}{display_amount:.0f}')}</b>\n\n"
+    text += get_text("discount.order.linkExpires", lang) + "\n"
+    text += get_text("discount.order.deliveryTime", lang)
+
+    return text
+
+
 async def get_insurance_option(db, short_id: str) -> dict | None:
     """Get insurance option by short ID."""
     if not short_id or short_id == "0":
@@ -244,15 +342,9 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
         await callback.answer(get_text("discount.order.productUnavailable", lang), show_alert=True)
         return
 
-    # Get insurance option
+    # Get insurance option and calculate prices
     insurance = await get_insurance_option(db, insurance_short_id)
-    insurance_price = 0
-    insurance_id = None
-
-    if insurance:
-        insurance_price = discount_price * (float(insurance.get("price_percent", 0)) / 100)
-        insurance_id = insurance["id"]
-
+    insurance_price, insurance_id = _calculate_insurance_info(insurance, discount_price)
     total_price = discount_price + insurance_price
 
     # Create order
@@ -267,46 +359,13 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
         )
         user_uuid = user_result.data["id"]
 
-        # Create order with source_channel='discount'
-        expires_at = datetime.now(UTC) + timedelta(hours=1)
-
-        order_result = (
-            await db.client.table("orders")
-            .insert(
-                {
-                    "user_id": user_uuid,
-                    "amount": total_price,
-                    "original_price": discount_price,
-                    "discount_percent": 0,
-                    "status": "pending",
-                    "payment_method": "crypto",
-                    "payment_gateway": "crystalpay",
-                    "source_channel": "discount",
-                    "user_telegram_id": db_user.telegram_id,
-                    "expires_at": expires_at.isoformat(),
-                }
-            )
-            .execute()
+        # Create order and order item
+        order_id = await _create_discount_order(
+            db, user_uuid, db_user.telegram_id, total_price, discount_price, product["id"], insurance_id
         )
 
-        order = order_result.data[0]
-        order_id = order["id"]
-
-        # Create order item
-        await db.client.table("order_items").insert(
-            {
-                "order_id": order_id,
-                "product_id": product["id"],
-                "quantity": 1,
-                "price": discount_price,
-                "insurance_id": insurance_id,
-            }
-        ).execute()
-
-        # Determine user currency
+        # Determine user currency and create payment
         user_currency = _determine_user_currency(db_user)
-
-        # Create payment
         description = f"Order {order_id[:8]} - {product.get('name', 'Product')}"
         if insurance:
             description += f" + {insurance.get('duration_days', 7)}d insurance"
@@ -338,32 +397,17 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
             await _get_display_prices(total_price, discount_price, insurance_price, user_currency)
         )
 
-        # Send payment message
-        text = get_text("discount.order.header", lang, order_id=order_id[:8])
-        text += get_text("discount.order.product", lang, name=product.get("name", "Product")) + "\n"
-        text += (
-            get_text(
-                "discount.order.price",
-                lang,
-                amount=f"{display_currency_symbol}{display_discount_price:.0f}",
-            )
-            + "\n"
+        # Build and send payment message
+        text = _build_payment_message(
+            lang,
+            order_id,
+            product.get("name", "Product"),
+            display_currency_symbol,
+            display_discount_price,
+            display_insurance_price,
+            display_amount,
+            insurance,
         )
-
-        if insurance:
-            text += (
-                get_text(
-                    "discount.order.insurance",
-                    lang,
-                    amount=f"{display_currency_symbol}{display_insurance_price:.0f}",
-                    days=insurance.get("duration_days", 7),
-                )
-                + "\n"
-            )
-
-        text += f"\n<b>{get_text('discount.order.total', lang, amount=f'{display_currency_symbol}{display_amount:.0f}')}</b>\n\n"
-        text += get_text("discount.order.linkExpires", lang) + "\n"
-        text += get_text("discount.order.deliveryTime", lang)
 
         await callback.message.edit_text(
             text, reply_markup=get_payment_keyboard(payment_url, lang), parse_mode=ParseMode.HTML

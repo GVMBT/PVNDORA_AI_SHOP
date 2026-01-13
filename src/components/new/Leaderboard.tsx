@@ -43,6 +43,9 @@ interface LeaderboardProps {
 
 // MOCK DATA removed - use real API data only
 
+// Type for podium ranks
+type PodiumRank = 1 | 2 | 3;
+
 // Helper constants for podium styling (reduces cognitive complexity)
 const RANK_LABELS = { 1: "RANK_01", 2: "RANK_02", 3: "RANK_03" } as const;
 const ORDER_CLASSES = {
@@ -52,7 +55,7 @@ const ORDER_CLASSES = {
 } as const;
 
 // Helper function to get podium styles (reduces cognitive complexity)
-const getPodiumStyles = (rank: 1 | 2 | 3) => {
+const getPodiumStyles = (rank: PodiumRank) => {
   const isFirst = rank === 1;
   return {
     isFirst,
@@ -96,7 +99,7 @@ const VacantPodiumSlot: React.FC<{ rank: 1 | 2 | 3; t: (key: string) => string }
 // Helper component for podium rank (reduces cognitive complexity)
 interface PodiumRankProps {
   user: LeaderboardUserData | null;
-  rank: 1 | 2 | 3;
+  rank: PodiumRank;
   displayCurrency: string;
   t: (key: string) => string;
   isVacant: boolean;
