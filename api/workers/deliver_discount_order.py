@@ -218,14 +218,14 @@ async def _send_loyal_promo_if_eligible(
         if existing:
             return False
 
-        promo = await promo_service.generate_personal_promo(
+        promo_code = await promo_service.generate_personal_promo(
             user_id=user_id,
-            discount_percent=50,
+            telegram_id=telegram_id,
             trigger=PromoTriggers.LOYAL_CUSTOMER,
-            valid_hours=168,
-            max_uses=1,
+            discount_percent=50,
+            expiration_days=7,
         )
-        if not promo:
+        if not promo_code:
             return False
 
         await asyncio.sleep(5)
@@ -235,7 +235,7 @@ async def _send_loyal_promo_if_eligible(
                 f"🎁 <b>ПЕРСОНАЛЬНЫЙ ПОДАРОК</b>\n\n"
                 f"Ты сделал {purchase_count} покупок — это круто!\n"
                 f"Держи промокод на <b>50% скидку</b>:\n\n"
-                f"<code>{promo.code}</code>\n\n"
+                f"<code>{promo_code}</code>\n\n"
                 f"⏰ Действует 7 дней\n👉 @pvndora_ai_bot"
             )
         else:
@@ -243,7 +243,7 @@ async def _send_loyal_promo_if_eligible(
                 f"🎁 <b>PERSONAL GIFT</b>\n\n"
                 f"You made {purchase_count} purchases — that's awesome!\n"
                 f"Here's a promo code for <b>50% discount</b>:\n\n"
-                f"<code>{promo.code}</code>\n\n"
+                f"<code>{promo_code}</code>\n\n"
                 f"⏰ Valid for 7 days\n👉 @pvndora_ai_bot"
             )
 
