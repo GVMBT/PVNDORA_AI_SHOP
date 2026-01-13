@@ -18,36 +18,44 @@ logger = get_logger(__name__)
 router = Router()
 
 
+# Helper to process referral from start parameter (reduces cognitive complexity)
+async def _process_referral_from_start(message: Message, db_user: User, db):
+    """Process referral code from /start command."""
+    if not (message.text and "start" in message.text.lower()):
+        return
+
+    parts = message.text.split()
+    for part in parts:
+        if not part.startswith("ref_"):
+            continue
+
+        try:
+            referral_id = int(part.replace("ref_", ""))
+            referrer = await db.get_user_by_telegram_id(referral_id)
+            if not referrer or referrer.id == db_user.id:
+                continue
+
+            await db.client.rpc(
+                "increment_referral_click", {"referrer_user_id": referrer.id}
+            ).execute()
+
+            if not db_user.referrer_id:
+                await db.client.table("users").update({"referrer_id": referrer.id}).eq(
+                    "id", db_user.id
+                ).execute()
+        except Exception as e:
+            logger.warning("Failed to process referral: %s", e, exc_info=True)
+
+
 @router.message(CommandStart())
 async def cmd_start(message: Message, db_user: User, bot: Bot):
     """Handle /start command with optional referral and onboarding"""
     db = get_database()
 
-    # Check if this is a returning user
     history = await db.get_chat_history(db_user.id, limit=1)
     is_new_user = not history
 
-    # Parse referral from start parameter
-    if message.text and "start" in message.text.lower():
-        parts = message.text.split()
-        for part in parts:
-            if part.startswith("ref_"):
-                try:
-                    referral_id = int(part.replace("ref_", ""))
-                    referrer = await db.get_user_by_telegram_id(referral_id)
-                    if referrer and referrer.id != db_user.id:
-                        # Track referral click (increment referrer's click count)
-                        await db.client.rpc(
-                            "increment_referral_click", {"referrer_user_id": referrer.id}
-                        ).execute()
-
-                        # Set referrer for new user if not already set
-                        if not db_user.referrer_id:
-                            await db.client.table("users").update({"referrer_id": referrer.id}).eq(
-                                "id", db_user.id
-                            ).execute()
-                except Exception as e:
-                    logger.warning(f"Failed to process referral: {e}", exc_info=True)
+    await _process_referral_from_start(message, db_user, db)
 
     onboarding_text = get_text("welcome" if is_new_user else "welcome_back", db_user.language_code)
 

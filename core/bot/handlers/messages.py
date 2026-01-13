@@ -15,6 +15,40 @@ logger = get_logger(__name__)
 router = Router()
 
 
+async def _get_product_keyboard_for_response(
+    response, db_user: User, db
+) -> InlineKeyboardMarkup | None:
+    """Get product keyboard for response (reduces cognitive complexity)."""
+    if not response.product_id:
+        return None
+
+    product = await db.get_product_by_id(response.product_id)
+    if not product:
+        return None
+
+    return get_product_keyboard(
+        db_user.language_code,
+        response.product_id,
+        WEBAPP_URL,
+        in_stock=product.stock_count > 0,
+        quantity=response.quantity or 1,
+    )
+
+
+async def _get_keyboard_for_payment_action(
+    response, db_user: User, db
+) -> InlineKeyboardMarkup | None:
+    """Get keyboard for payment action (reduces cognitive complexity)."""
+    product_keyboard = await _get_product_keyboard_for_response(response, db_user, db)
+    if product_keyboard:
+        return product_keyboard
+
+    if response.cart_items and len(response.cart_items) > 0:
+        return get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
+
+    return get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
+
+
 async def _get_keyboard_for_response(response, db_user: User, db):
     """Get keyboard based on AI response action."""
     from core.models import ActionType
@@ -23,45 +57,16 @@ async def _get_keyboard_for_response(response, db_user: User, db):
         return get_shop_keyboard(db_user.language_code, WEBAPP_URL)
 
     if response.action == ActionType.OFFER_PAYMENT:
-        if response.product_id:
-            product = await db.get_product_by_id(response.product_id)
-            if product:
-                return get_product_keyboard(
-                    db_user.language_code,
-                    response.product_id,
-                    WEBAPP_URL,
-                    in_stock=product.stock_count > 0,
-                    quantity=response.quantity or 1,
-                )
-        elif response.cart_items and len(response.cart_items) > 0:
-            return get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
-        else:
-            return get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
+        return await _get_keyboard_for_payment_action(response, db_user, db)
 
-    elif response.action == ActionType.ADD_TO_CART:
-        if response.product_id:
-            product = await db.get_product_by_id(response.product_id)
-            if product:
-                return get_product_keyboard(
-                    db_user.language_code,
-                    response.product_id,
-                    WEBAPP_URL,
-                    in_stock=product.stock_count > 0,
-                    quantity=response.quantity or 1,
-                )
-        else:
-            return get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
+    if response.action == ActionType.ADD_TO_CART:
+        product_keyboard = await _get_product_keyboard_for_response(response, db_user, db)
+        if product_keyboard:
+            return product_keyboard
+        return get_checkout_keyboard(db_user.language_code, WEBAPP_URL)
 
-    elif response.product_id:
-        product = await db.get_product_by_id(response.product_id)
-        if product:
-            return get_product_keyboard(
-                db_user.language_code,
-                response.product_id,
-                WEBAPP_URL,
-                in_stock=product.stock_count > 0,
-                quantity=response.quantity or 1,
-            )
+    if response.product_id:
+        return await _get_product_keyboard_for_response(response, db_user, db)
 
     return None
 

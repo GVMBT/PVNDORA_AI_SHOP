@@ -88,6 +88,60 @@ async def get_webapp_order_status(
     )
 
 
+# Helper to process confirmed payment (reduces cognitive complexity)
+async def _process_confirmed_payment(order_id: str, payment_id: str, db) -> dict:
+    """Process confirmed payment and queue delivery."""
+    from core.orders.status_service import OrderStatusService
+
+    status_service = OrderStatusService(db)
+    final_status = await status_service.mark_payment_confirmed(
+        order_id=order_id, payment_id=payment_id, check_stock=True
+    )
+
+    try:
+        from core.queue import WorkerEndpoints, publish_to_worker
+
+        await publish_to_worker(
+            endpoint=WorkerEndpoints.DELIVER_GOODS,
+            body={"order_id": order_id},
+            retries=2,
+            deduplication_id=f"deliver-{order_id}",
+        )
+    except Exception as e:
+        logger.warning("Failed to queue delivery for %s: %s", order_id, e)
+
+    return {"status": final_status, "verified": True}
+
+
+# Helper to handle gateway status (reduces cognitive complexity)
+async def _handle_gateway_status(
+    gateway_status: str, order_id: str, order_status: str, payment_id: str, db
+) -> dict:
+    """Handle different gateway payment statuses."""
+    if gateway_status == "payed":
+        return await _process_confirmed_payment(order_id, payment_id, db)
+
+    if gateway_status == "processing":
+        return {
+            "status": "processing",
+            "verified": False,
+            "message": "Payment is being processed",
+        }
+
+    if gateway_status in ("notpayed", "failed"):
+        return {
+            "status": order_status,
+            "verified": False,
+            "message": "Payment not received",
+        }
+
+    return {
+        "status": order_status,
+        "verified": False,
+        "message": "Unknown payment status",
+    }
+
+
 @crud_router.post("/orders/{order_id}/verify-payment")
 async def verify_order_payment(order_id: str, user=Depends(verify_telegram_auth)):
     """
@@ -112,11 +166,9 @@ async def verify_order_payment(order_id: str, user=Depends(verify_telegram_auth)
     if order["user_id"] != db_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Already processed
     if order["status"] in ("paid", "delivered", "completed"):
         return {"status": order["status"], "verified": True}
 
-    # Check payment gateway status
     payment_id = order.get("payment_id")
     payment_gateway = order.get("payment_gateway")
 
@@ -129,42 +181,9 @@ async def verify_order_payment(order_id: str, user=Depends(verify_telegram_auth)
             invoice_info = await payment_service.get_invoice_info(payment_id)
             if invoice_info:
                 gateway_status = invoice_info.get("state", "")
-
-                if gateway_status == "payed":
-                    # Payment confirmed by gateway - process it
-                    from core.orders.status_service import OrderStatusService
-
-                    status_service = OrderStatusService(db)
-                    final_status = await status_service.mark_payment_confirmed(
-                        order_id=order_id, payment_id=payment_id, check_stock=True
-                    )
-
-                    # Queue delivery
-                    try:
-                        from core.queue import WorkerEndpoints, publish_to_worker
-
-                        await publish_to_worker(
-                            endpoint=WorkerEndpoints.DELIVER_GOODS,
-                            body={"order_id": order_id},
-                            retries=2,
-                            deduplication_id=f"deliver-{order_id}",
-                        )
-                    except Exception as e:
-                        logger.warning("Failed to queue delivery for %s: %s", order_id, e)
-
-                    return {"status": final_status, "verified": True}
-                if gateway_status == "processing":
-                    return {
-                        "status": "processing",
-                        "verified": False,
-                        "message": "Payment is being processed",
-                    }
-                if gateway_status in ("notpayed", "failed"):
-                    return {
-                        "status": order["status"],
-                        "verified": False,
-                        "message": "Payment not received",
-                    }
+                return await _handle_gateway_status(
+                    gateway_status, order_id, order["status"], payment_id, db
+                )
         except Exception as e:
             logger.warning("Failed to verify payment for order %s: %s", order_id, e)
             return {"status": order["status"], "verified": False, "message": "Verification failed"}

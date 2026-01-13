@@ -91,6 +91,46 @@ class ChannelSubscriptionMiddleware(BaseMiddleware):
     This protects against ban - channel is harder to take down.
     """
 
+    def _get_subscription_text(self, lang: str) -> str:
+        """Get subscription required text (reduces cognitive complexity)."""
+        if lang == "ru":
+            return (
+                f"📢 Для использования бота подпишитесь на канал {REQUIRED_CHANNEL}\n\n"
+                f"После подписки нажмите кнопку ниже."
+            )
+        return (
+            f"📢 Please subscribe to {REQUIRED_CHANNEL} to use this bot.\n\n"
+            f"After subscribing, click the button below."
+        )
+
+    async def _show_subscription_prompt(self, event: TelegramObject, lang: str):
+        """Show subscription prompt (reduces cognitive complexity)."""
+        from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+        text = self._get_subscription_text(lang)
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="📢 Подписаться" if lang == "ru" else "📢 Subscribe",
+                        url=f"https://t.me/{REQUIRED_CHANNEL.lstrip('@')}",
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="✅ Я подписался" if lang == "ru" else "✅ I subscribed",
+                        callback_data="discount:check_sub",
+                    )
+                ],
+            ]
+        )
+
+        if isinstance(event, Message):
+            await event.answer(text, reply_markup=keyboard)
+        elif isinstance(event, CallbackQuery):
+            alert_text = "Подпишитесь на канал!" if lang == "ru" else "Subscribe first!"
+            await event.answer(alert_text, show_alert=True)
+
     async def __call__(
         self,
         handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
@@ -104,7 +144,6 @@ class ChannelSubscriptionMiddleware(BaseMiddleware):
         if not user:
             return await handler(event, data)
 
-        # Skip for callback checking subscription
         if isinstance(event, CallbackQuery) and event.data and "check_sub" in event.data:
             return await handler(event, data)
 
@@ -116,54 +155,13 @@ class ChannelSubscriptionMiddleware(BaseMiddleware):
             member = await bot.get_chat_member(chat_id=REQUIRED_CHANNEL, user_id=user.id)
 
             if member.status in ("left", "kicked"):
-                # Not subscribed - show subscription required message
                 db_user = data.get("db_user")
                 lang = db_user.language_code if db_user else "en"
-
-                text = (
-                    (
-                        f"📢 Для использования бота подпишитесь на канал {REQUIRED_CHANNEL}\n\n"
-                        f"После подписки нажмите кнопку ниже."
-                    )
-                    if lang == "ru"
-                    else (
-                        f"📢 Please subscribe to {REQUIRED_CHANNEL} to use this bot.\n\n"
-                        f"After subscribing, click the button below."
-                    )
-                )
-
-                from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-
-                keyboard = InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [
-                            InlineKeyboardButton(
-                                text="📢 Подписаться" if lang == "ru" else "📢 Subscribe",
-                                url=f"https://t.me/{REQUIRED_CHANNEL.lstrip('@')}",
-                            )
-                        ],
-                        [
-                            InlineKeyboardButton(
-                                text="✅ Я подписался" if lang == "ru" else "✅ I subscribed",
-                                callback_data="discount:check_sub",
-                            )
-                        ],
-                    ]
-                )
-
-                if isinstance(event, Message):
-                    await event.answer(text, reply_markup=keyboard)
-                elif isinstance(event, CallbackQuery):
-                    await event.answer(
-                        "Подпишитесь на канал!" if lang == "ru" else "Subscribe first!",
-                        show_alert=True,
-                    )
-
-                return None  # Stop processing
+                await self._show_subscription_prompt(event, lang)
+                return None
 
         except Exception as e:
-            logger.warning(f"Failed to check channel subscription: {e}")
-            # Continue anyway on error
+            logger.warning("Failed to check channel subscription: %s", e)
 
         return await handler(event, data)
 
