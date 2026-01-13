@@ -306,6 +306,109 @@ async def _process_orders_for_overview(
     return revenue_by_currency, expense_totals
 
 
+# Helper: Process orders by month (reduces cognitive complexity)
+async def _process_orders_by_month(
+    orders: list[dict[str, Any]],
+    other_expenses_by_month: dict[str, float],
+    insurance_by_month: dict[str, float],
+) -> dict[str, dict[str, Any]]:
+    """Process orders grouped by month and calculate profits."""
+    monthly_data: dict = {}
+
+    for order in orders:
+        order_month = order.get("created_at", "")[:7]  # YYYY-MM
+
+        if order_month not in monthly_data:
+            monthly_data[order_month] = _init_monthly_entry(order_month)
+
+        month = monthly_data[order_month]
+        month["orders_count"] += 1
+
+        # Revenue by currency
+        currency = order.get("fiat_currency") or "USD"
+        fiat_amount = order.get("fiat_amount")
+        amount_usd = float(order.get("amount", 0))
+        real_amount = float(fiat_amount) if fiat_amount is not None else amount_usd
+
+        if currency not in month["revenue_by_currency"]:
+            month["revenue_by_currency"][currency] = {"revenue": 0.0, "orders_count": 0}
+        month["revenue_by_currency"][currency]["revenue"] += real_amount
+        month["revenue_by_currency"][currency]["orders_count"] += 1
+        month["revenue_usd"] += amount_usd
+
+        # Expenses (USD)
+        expenses = order.get("order_expenses")
+        if expenses:
+            if isinstance(expenses, list):
+                expenses = expenses[0] if expenses else {}
+            _add_order_expenses_to_month(month, expenses)
+
+    # Calculate profits for each month
+    for month_key, month in monthly_data.items():
+        month["other_expenses"] = round(other_expenses_by_month.get(month_key, 0), 2)
+        month["insurance_revenue"] = round(insurance_by_month.get(month_key, 0), 2)
+
+        revenue_usd = month["revenue_usd"]
+        cogs = month["cogs"]
+
+        month["gross_profit_usd"] = round(revenue_usd - cogs, 2)
+
+        operating_expenses = (
+            month["acquiring_fees"]
+            + month["referral_payouts"]
+            + month["reserves"]
+            + month["review_cashbacks"]
+            + month["replacement_costs"]
+        )
+        month["operating_profit_usd"] = round(month["gross_profit_usd"] - operating_expenses, 2)
+        month["net_profit_usd"] = round(
+            month["operating_profit_usd"] - month["other_expenses"] + month["insurance_revenue"], 2
+        )
+
+        # Round all fields
+        month["revenue_usd"] = round(revenue_usd, 2)
+        month["cogs"] = round(cogs, 2)
+        month["acquiring_fees"] = round(month["acquiring_fees"], 2)
+        month["referral_payouts"] = round(month["referral_payouts"], 2)
+        month["reserves"] = round(month["reserves"], 2)
+        month["review_cashbacks"] = round(month["review_cashbacks"], 2)
+        month["replacement_costs"] = round(month["replacement_costs"], 2)
+
+        # Round currency revenues
+        for curr_data in month["revenue_by_currency"].values():
+            curr_data["revenue"] = round(curr_data["revenue"], 2)
+
+    return monthly_data
+
+
+# Helper: Initialize monthly entry (reduces cognitive complexity)
+def _init_monthly_entry(order_month: str) -> dict[str, Any]:
+    """Initialize monthly data entry structure."""
+    return {
+        "month": order_month,
+        "orders_count": 0,
+        "revenue_by_currency": {},
+        "revenue_usd": 0.0,
+        "cogs": 0.0,
+        "acquiring_fees": 0.0,
+        "referral_payouts": 0.0,
+        "reserves": 0.0,
+        "review_cashbacks": 0.0,
+        "replacement_costs": 0.0,
+    }
+
+
+# Helper: Add order expenses to monthly entry (reduces cognitive complexity)
+def _add_order_expenses_to_month(month: dict[str, Any], expenses: dict[str, Any]) -> None:
+    """Add order expenses to monthly entry."""
+    month["cogs"] += float(expenses.get("cogs_amount", 0) or 0)
+    month["acquiring_fees"] += float(expenses.get("acquiring_fee_amount", 0) or 0)
+    month["referral_payouts"] += float(expenses.get("referral_payout_amount", 0) or 0)
+    month["reserves"] += float(expenses.get("reserve_amount", 0) or 0)
+    month["review_cashbacks"] += float(expenses.get("review_cashback_amount", 0) or 0)
+    month["replacement_costs"] += float(expenses.get("insurance_replacement_cost", 0) or 0)
+
+
 # Helper: Get other expenses and insurance revenue (reduces cognitive complexity)
 async def _get_other_expenses_and_insurance(
     db: Any, start_date: datetime | None, end_date: datetime
@@ -842,88 +945,8 @@ async def get_monthly_pl(months: int = Query(12, ge=1, le=36), admin=Depends(ver
             ins.get("price", 0)
         )
 
-    # Group by month
-    monthly_data: dict = {}
-
-    for order in orders:
-        order_month = order.get("created_at", "")[:7]  # YYYY-MM
-
-        if order_month not in monthly_data:
-            monthly_data[order_month] = {
-                "month": order_month,
-                "orders_count": 0,
-                "revenue_by_currency": {},
-                "revenue_usd": 0.0,
-                "cogs": 0.0,
-                "acquiring_fees": 0.0,
-                "referral_payouts": 0.0,
-                "reserves": 0.0,
-                "review_cashbacks": 0.0,
-                "replacement_costs": 0.0,
-            }
-
-        month = monthly_data[order_month]
-        month["orders_count"] += 1
-
-        # Revenue by currency
-        currency = order.get("fiat_currency") or "USD"
-        fiat_amount = order.get("fiat_amount")
-        amount_usd = float(order.get("amount", 0))
-
-        real_amount = float(fiat_amount) if fiat_amount is not None else amount_usd
-
-        if currency not in month["revenue_by_currency"]:
-            month["revenue_by_currency"][currency] = {"revenue": 0.0, "orders_count": 0}
-        month["revenue_by_currency"][currency]["revenue"] += real_amount
-        month["revenue_by_currency"][currency]["orders_count"] += 1
-        month["revenue_usd"] += amount_usd
-
-        # Expenses (USD)
-        expenses = order.get("order_expenses")
-        if expenses:
-            if isinstance(expenses, list):
-                expenses = expenses[0] if expenses else {}
-            month["cogs"] += float(expenses.get("cogs_amount", 0))
-            month["acquiring_fees"] += float(expenses.get("acquiring_fee_amount", 0))
-            month["referral_payouts"] += float(expenses.get("referral_payout_amount", 0))
-            month["reserves"] += float(expenses.get("reserve_amount", 0))
-            month["review_cashbacks"] += float(expenses.get("review_cashback_amount", 0))
-            month["replacement_costs"] += float(expenses.get("insurance_replacement_cost", 0))
-
-    # Calculate profits for each month
-    for month_key, month in monthly_data.items():
-        month["other_expenses"] = round(other_expenses_by_month.get(month_key, 0), 2)
-        month["insurance_revenue"] = round(insurance_by_month.get(month_key, 0), 2)
-
-        revenue_usd = month["revenue_usd"]
-        cogs = month["cogs"]
-
-        month["gross_profit_usd"] = round(revenue_usd - cogs, 2)
-
-        operating_expenses = (
-            month["acquiring_fees"]
-            + month["referral_payouts"]
-            + month["reserves"]
-            + month["review_cashbacks"]
-            + month["replacement_costs"]
-        )
-        month["operating_profit_usd"] = round(month["gross_profit_usd"] - operating_expenses, 2)
-        month["net_profit_usd"] = round(
-            month["operating_profit_usd"] - month["other_expenses"] + month["insurance_revenue"], 2
-        )
-
-        # Round fields
-        month["revenue_usd"] = round(revenue_usd, 2)
-        month["cogs"] = round(cogs, 2)
-        month["acquiring_fees"] = round(month["acquiring_fees"], 2)
-        month["referral_payouts"] = round(month["referral_payouts"], 2)
-        month["reserves"] = round(month["reserves"], 2)
-        month["review_cashbacks"] = round(month["review_cashbacks"], 2)
-        month["replacement_costs"] = round(month["replacement_costs"], 2)
-
-        # Round currency revenues
-        for curr_data in month["revenue_by_currency"].values():
-            curr_data["revenue"] = round(curr_data["revenue"], 2)
+    # Group by month and calculate profits
+    monthly_data = await _process_orders_by_month(orders, other_expenses_by_month, insurance_by_month)
 
     # Sort by month descending and limit
     monthly_list = sorted(monthly_data.values(), key=lambda x: x["month"], reverse=True)[:months]
