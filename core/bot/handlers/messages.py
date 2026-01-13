@@ -2,7 +2,7 @@
 
 from aiogram import Bot, F, Router
 from aiogram.enums import ParseMode
-from aiogram.types import Message
+from aiogram.types import InlineKeyboardMarkup, Message
 
 from core.bot.handlers.helpers import WEBAPP_URL, safe_answer
 from core.bot.keyboards import get_checkout_keyboard, get_product_keyboard, get_shop_keyboard
