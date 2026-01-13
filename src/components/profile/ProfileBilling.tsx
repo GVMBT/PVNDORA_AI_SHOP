@@ -10,6 +10,13 @@ import { formatPrice } from "../../utils/currency";
 import { ArrowUpRight, ArrowDownLeft, Clock, History } from "lucide-react";
 import type { BillingLogData } from "./types";
 
+// Helper for log badge styling (avoid nested ternary)
+const getLogBadgeClasses = (isIncome: boolean, type: string): string => {
+  if (isIncome) return "text-green-500 border-green-500/20 bg-green-500/5";
+  if (type === "OUTCOME") return "text-pandora-cyan border-pandora-cyan/20 bg-pandora-cyan/5";
+  return "text-gray-500 border-white/10 bg-white/5";
+};
+
 interface ProfileBillingProps {
   logs: BillingLogData[];
   currency?: string;
@@ -180,15 +187,7 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
                         </span>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-gray-600 text-[9px] font-mono">#{log.id}</span>
-                          <span
-                            className={`px-1.5 py-0.5 text-[8px] font-bold border rounded-sm tracking-wider ${
-                              log.isIncome
-                                ? "text-green-500 border-green-500/20 bg-green-500/5"
-                                : log.type === "OUTCOME"
-                                  ? "text-pandora-cyan border-pandora-cyan/20 bg-pandora-cyan/5"
-                                  : "text-gray-500 border-white/10 bg-white/5"
-                            }`}
-                          >
+                          <span className={`px-1.5 py-0.5 text-[8px] font-bold border rounded-sm tracking-wider ${getLogBadgeClasses(log.isIncome, log.type)}`}>
                             {typeLabels[log.type] || log.type}
                           </span>
                         </div>

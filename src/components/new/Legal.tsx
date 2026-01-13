@@ -12,6 +12,12 @@ import { motion } from "framer-motion";
 import { useLocale } from "../../hooks/useLocale";
 import { generateHashId } from "../../utils/id";
 
+// Helper to get document icon (avoid nested ternary)
+const getDocumentIcon = (doc: string) => {
+  if (doc === "support" || doc === "faq") return <HelpCircle size={64} />;
+  return <FileText size={64} />;
+};
+
 interface LegalProps {
   doc: string;
   onBack: () => void;
@@ -861,13 +867,7 @@ const Legal: React.FC<LegalProps> = ({ doc, onBack }) => {
         <div className="bg-[#080808] border border-white/10 p-8 md:p-12 relative overflow-hidden shadow-2xl">
           {/* Decor */}
           <div className="absolute top-0 right-0 p-4 opacity-20">
-            {doc === "support" ? (
-              <HelpCircle size={64} />
-            ) : doc === "faq" ? (
-              <HelpCircle size={64} />
-            ) : (
-              <FileText size={64} />
-            )}
+            {getDocumentIcon(doc)}
           </div>
 
           {renderContent()}

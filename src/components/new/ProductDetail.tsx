@@ -171,11 +171,13 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
     const state = getAvailabilityState(hasStock, isPreorder);
 
     const accessProtocol = getAccessProtocol(state);
-    const deliveryLabel = hasStock
-      ? "INSTANT_DEPLOY"
-      : isPreorder
-        ? `ALLOCATION_QUEUE ~${product.fulfillment}H`
-        : "UNAVAILABLE";
+    // Helper for delivery label (avoid nested ternary)
+    const getDeliveryLabel = (): string => {
+      if (hasStock) return "INSTANT_DEPLOY";
+      if (isPreorder) return `ALLOCATION_QUEUE ~${product.fulfillment}H`;
+      return "UNAVAILABLE";
+    };
+    const deliveryLabel = getDeliveryLabel();
 
     const nodeStatus = getNodeStatus(state);
     const nodeStatusColor = getNodeStatusColor(state);

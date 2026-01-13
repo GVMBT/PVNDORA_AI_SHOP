@@ -19,6 +19,13 @@ import {
   Trophy,
 } from "lucide-react";
 
+// Helper to get status icon (avoid nested ternary)
+const getStatusIcon = (status: string) => {
+  if (status === "pending") return <Loader2 className="w-10 h-10 animate-spin" />;
+  if (status === "approved") return <CheckCircle className="w-10 h-10" />;
+  return <AlertCircle className="w-10 h-10" />;
+};
+
 interface PartnerApplicationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -214,13 +221,7 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
                   <div
                     className={`inline-flex items-center justify-center w-20 h-20 ${statusInfo.bg} border ${statusInfo.color} mb-4`}
                   >
-                    {existingApplication.status === "pending" ? (
-                      <Loader2 className="w-10 h-10 animate-spin" />
-                    ) : existingApplication.status === "approved" ? (
-                      <CheckCircle className="w-10 h-10" />
-                    ) : (
-                      <AlertCircle className="w-10 h-10" />
-                    )}
+                    {getStatusIcon(existingApplication.status)}
                   </div>
                   <p
                     className={`text-2xl font-mono font-bold tracking-wider ${statusInfo.color.split(" ")[0]}`}

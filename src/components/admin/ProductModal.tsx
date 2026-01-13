@@ -206,6 +206,40 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
   const deliveryType = getDeliveryType();
 
+  // Helper to render stock content (avoid nested ternary)
+  const renderStockContent = () => {
+    if (loadingStock) return <p className="text-xs text-gray-500">Загрузка...</p>;
+    if (stockItems.length === 0) return <p className="text-xs text-gray-500">Сток пуст</p>;
+    return (
+      <div className="max-h-48 overflow-y-auto space-y-2">
+        {stockItems.map((item: any) => (
+          <div
+            key={item.id}
+            className="flex items-start justify-between gap-2 p-2 bg-black/50 border border-white/5 rounded-sm"
+          >
+            <code className="text-[10px] text-green-400 flex-1 break-all font-mono">
+              {item.content}
+            </code>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className="text-[9px] text-gray-500 font-mono px-1.5 py-0.5 bg-gray-900 rounded">
+                {item.status}
+              </span>
+              {item.status === "available" && (
+                <button
+                  onClick={() => handleDeleteStock(item.id)}
+                  className="text-red-400 hover:text-red-300 p-1"
+                  title="Удалить"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -870,38 +904,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                       Обновить
                     </button>
                   </div>
-                  {loadingStock ? (
-                    <p className="text-xs text-gray-500">Загрузка...</p>
-                  ) : stockItems.length === 0 ? (
-                    <p className="text-xs text-gray-500">Сток пуст</p>
-                  ) : (
-                    <div className="max-h-48 overflow-y-auto space-y-2">
-                      {stockItems.map((item: any) => (
-                        <div
-                          key={item.id}
-                          className="flex items-start justify-between gap-2 p-2 bg-black/50 border border-white/5 rounded-sm"
-                        >
-                          <code className="text-[10px] text-green-400 flex-1 break-all font-mono">
-                            {item.content}
-                          </code>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="text-[9px] text-gray-500 font-mono px-1.5 py-0.5 bg-gray-900 rounded">
-                              {item.status}
-                            </span>
-                            {item.status === "available" && (
-                              <button
-                                onClick={() => handleDeleteStock(item.id)}
-                                className="text-red-400 hover:text-red-300 p-1"
-                                title="Удалить"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {renderStockContent()}
                 </div>
               )}
 
