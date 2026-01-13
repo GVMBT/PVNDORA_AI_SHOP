@@ -126,6 +126,50 @@ async def verify_telegram_auth(
     return user
 
 
+# Helper to get Redis client (reduces cognitive complexity)
+def _get_redis_client():
+    """Get Redis client, return None if unavailable."""
+    try:
+        from core.db import get_redis
+        return get_redis()
+    except (ValueError, ImportError):
+        return None
+
+
+# Helper to check cache (reduces cognitive complexity)
+async def _check_admin_cache(redis, cache_key: str, user_id: int):
+    """Check Redis cache for admin status, return cached result or None."""
+    try:
+        cached = await redis.get(cache_key)
+        if cached and cached != "0":
+            # User is admin (cached)
+            return type(
+                "AdminUser",
+                (),
+                {"id": cached, "telegram_id": user_id, "is_admin": True},
+            )()
+        if cached == "0":
+            # User is NOT admin (cached)
+            raise HTTPException(status_code=403, detail="Admin access required")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.debug("Redis cache check failed: %s", e)
+    return None
+
+
+# Helper to cache admin result (reduces cognitive complexity)
+async def _cache_admin_result(redis, cache_key: str, is_admin: bool, admin_id: str | None = None):
+    """Cache admin verification result."""
+    if not redis:
+        return
+    try:
+        value = str(admin_id) if is_admin and admin_id else "0"
+        await redis.set(cache_key, value, ex=60)
+    except Exception:
+        pass
+
+
 async def verify_admin(user: TelegramUser = Depends(verify_telegram_auth)):
     """
     Verify that user is an admin (via Telegram initData).
@@ -136,55 +180,23 @@ async def verify_admin(user: TelegramUser = Depends(verify_telegram_auth)):
     Cache stores: "0" for non-admin, or UUID for admin.
     Cache TTL: 60 seconds.
     """
-    from core.db import get_redis
-
-    redis = None
     cache_key = f"user:admin:{user.id}"
+    redis = _get_redis_client()
 
-    try:
-        redis = get_redis()
-        # Check Redis cache first (TTL 60s)
-        # Cache value: "0" = not admin, UUID string = admin with that user ID
-        cached = await redis.get(cache_key)
-        if cached and cached != "0":
-            # User is admin (cached) - return object with UUID from cache
-            # Some endpoints use admin.id for logging
-            return type(
-                "AdminUser",
-                (),
-                {"id": cached, "telegram_id": user.id, "is_admin": True},  # UUID stored in cache
-            )()
-        if cached == "0":
-            # User is NOT admin (cached) - raise immediately, don't fall through
-            raise HTTPException(status_code=403, detail="Admin access required")
-    except HTTPException:
-        # Re-raise HTTP exceptions (including cached denials)
-        raise
-    except (ValueError, ImportError):
-        # Redis not available - fall through to DB check
-        pass
-    except Exception as e:
-        # Only Redis errors - log and fall through to DB check
-        logger.debug(f"Redis cache check failed: {e}")
+    # Check cache first
+    if redis:
+        cached_result = await _check_admin_cache(redis, cache_key, user.id)
+        if cached_result:
+            return cached_result
 
     # Cache miss or error - check DB
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
 
     if not db_user or not db_user.is_admin:
-        # Cache negative result
-        if redis:
-            try:
-                await redis.set(cache_key, "0", ex=60)
-            except Exception:
-                pass
+        await _cache_admin_result(redis, cache_key, False)
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    # Cache positive result (store UUID for endpoints that need admin.id)
-    if redis:
-        try:
-            await redis.set(cache_key, str(db_user.id), ex=60)
-        except Exception:
-            pass
-
+    # Cache positive result
+    await _cache_admin_result(redis, cache_key, True, str(db_user.id))
     return db_user

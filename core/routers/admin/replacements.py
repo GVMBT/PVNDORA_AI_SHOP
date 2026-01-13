@@ -78,6 +78,42 @@ class AbuseStatsResponse(BaseModel):
 
 
 # ============================================
+# Helper Functions (reduce cognitive complexity)
+# ============================================
+
+
+def extract_telegram_id(row: dict) -> int | None:
+    """Extract telegram_id from row data (reduces cognitive complexity)."""
+    if row.get("order_items") and row["order_items"].get("orders"):
+        return row["order_items"]["orders"].get("user_telegram_id")
+    return None
+
+
+def extract_product_name(row: dict) -> str | None:
+    """Extract product_name from row data (reduces cognitive complexity)."""
+    if row.get("order_items") and row["order_items"].get("products"):
+        return row["order_items"]["products"].get("name")
+    return None
+
+
+def extract_order_id(row: dict) -> str | None:
+    """Extract order_id from row data (reduces cognitive complexity)."""
+    if row.get("order_items"):
+        return row["order_items"].get("order_id")
+    return None
+
+
+async def get_abuse_score(db_client, telegram_id: int | None) -> int:
+    """Get abuse score for user (reduces cognitive complexity)."""
+    if not telegram_id:
+        return 0
+    score_result = await db_client.rpc(
+        "get_user_abuse_score", {"p_telegram_id": telegram_id}
+    ).execute()
+    return score_result.data if score_result.data else 0
+
+
+# ============================================
 # Endpoints
 # ============================================
 
@@ -88,7 +124,6 @@ async def get_pending_replacements(limit: int = Query(50, ge=1, le=100)):
     db = get_database()
 
     try:
-        # Get pending replacements with related data
         result = (
             await db.client.table("insurance_replacements")
             .select(
@@ -102,25 +137,10 @@ async def get_pending_replacements(limit: int = Query(50, ge=1, le=100)):
 
         replacements = []
         for row in result.data or []:
-            # Get abuse score
-            telegram_id = None
-            if row.get("order_items") and row["order_items"].get("orders"):
-                telegram_id = row["order_items"]["orders"].get("user_telegram_id")
-
-            abuse_score = 0
-            if telegram_id:
-                score_result = await db.client.rpc(
-                    "get_user_abuse_score", {"p_telegram_id": telegram_id}
-                ).execute()
-                abuse_score = score_result.data if score_result.data else 0
-
-            product_name = None
-            if row.get("order_items") and row["order_items"].get("products"):
-                product_name = row["order_items"]["products"].get("name")
-
-            order_id = None
-            if row.get("order_items"):
-                order_id = row["order_items"].get("order_id")
+            telegram_id = extract_telegram_id(row)
+            abuse_score = await get_abuse_score(db.client, telegram_id)
+            product_name = extract_product_name(row)
+            order_id = extract_order_id(row)
 
             replacements.append(
                 ReplacementResponse(
