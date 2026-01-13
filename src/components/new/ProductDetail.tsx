@@ -1,32 +1,19 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
   ArrowLeft,
-  ShoppingCart,
-  Shield,
-  Download,
-  FileText,
-  Video,
-  Globe,
-  Star,
-  Cpu,
-  Terminal,
-  CheckCircle,
-  ChevronRight,
-  Plus,
-  HardDrive,
-  Wifi,
-  Lock,
-  Zap,
-  Box,
-  FileKey,
-  Clock,
-  Server,
-  MessageSquare,
-  Minus,
-  Radio,
-  FileCode,
-  Loader2,
   ArrowRight,
+  CheckCircle,
+  Cpu,
+  FileCode,
+  HardDrive,
+  Loader2,
+  Lock,
+  Minus,
+  Plus,
+  Radio,
+  Server,
+  Terminal,
+  Video,
 } from "lucide-react";
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "framer-motion";
 import { formatPrice } from "../../utils/currency";
@@ -41,8 +28,6 @@ import { logger } from "../../utils/logger";
 
 import type {
   ProductDetailData,
-  ProductFile,
-  ProductReview,
   CatalogProduct,
 } from "../../types/component";
 

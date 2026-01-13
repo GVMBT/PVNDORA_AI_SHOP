@@ -1,28 +1,15 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
-  Search,
-  ShoppingCart,
-  ArrowUpRight,
-  Zap,
-  List,
-  Grid,
-  ChevronDown,
   Check,
+  ChevronDown,
   Cpu,
-  HardDrive,
-  Disc,
-  Activity,
-  Lock,
-  ScanLine,
-  Crosshair,
-  Binary,
-  Box,
-  Database,
-  Server,
+  Grid,
+  List,
+  Search,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatPrice } from "../../utils/currency";
-import { PRODUCT_CATEGORIES, PRODUCT_AVAILABILITY, type AvailabilityFilter } from "../../constants";
+import { PRODUCT_CATEGORIES, type AvailabilityFilter } from "../../constants";
 import { useLocale } from "../../hooks/useLocale";
 import ProductCard from "./ProductCard";
 

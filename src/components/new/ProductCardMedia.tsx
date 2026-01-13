@@ -14,7 +14,7 @@
  * - Automatic quality reduction on mobile
  */
 
-import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useMotionValue, useTransform, MotionValue } from "framer-motion";
 
 interface ProductCardMediaProps {

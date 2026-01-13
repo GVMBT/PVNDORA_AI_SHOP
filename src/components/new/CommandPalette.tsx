@@ -1,17 +1,15 @@
 import React, { useState, useEffect, useRef, memo, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search,
   ChevronRight,
-  Command,
   Package,
-  User,
-  Terminal,
-  LogOut,
-  ShoppingCart,
+  Search,
   Shield,
+  ShoppingCart,
+  Terminal,
+  User,
 } from "lucide-react";
-import type { CatalogProduct, NavigationTarget, ViewType } from "../../types/component";
+import type { CatalogProduct, NavigationTarget } from "../../types/component";
 
 // Navigation views available in command palette (subset of ViewType)
 type NavView = "home" | "orders" | "profile" | "leaderboard";

@@ -7,18 +7,13 @@
 import React, { memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  ArrowRight,
+  Shield,
+  Sparkles,
+  Target,
+  Users,
   X,
   Zap,
-  Users,
-  TrendingUp,
-  Percent,
-  DollarSign,
-  Gift,
-  ChevronRight,
-  Shield,
-  Target,
-  ArrowRight,
-  Sparkles,
 } from "lucide-react";
 import { useLocale } from "../../hooks/useLocale";
 import type { CurrencyCode } from "../../utils/currency";

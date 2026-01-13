@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { ShieldCheck, Zap, Headphones, Lock, Activity, Server } from "lucide-react";
+import { Activity, Headphones, Lock, ShieldCheck, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLocale } from "../../hooks/useLocale";
 

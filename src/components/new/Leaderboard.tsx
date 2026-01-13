@@ -1,22 +1,16 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Trophy,
-  ChevronUp,
-  ChevronDown,
-  User,
-  Crown,
-  ArrowRight,
-  TrendingUp,
-  ShieldCheck,
   Activity,
-  Zap,
-  Terminal,
-  BarChart3,
-  Lock,
   ArrowLeft,
+  Crown,
+  ShieldCheck,
+  Terminal,
+  TrendingUp,
+  Trophy,
+  User,
 } from "lucide-react";
-import { formatPrice, getCurrencySymbol } from "../../utils/currency";
+import { formatPrice } from "../../utils/currency";
 import { useLocale } from "../../hooks/useLocale";
 import { useLocaleContext } from "../../contexts/LocaleContext";
 

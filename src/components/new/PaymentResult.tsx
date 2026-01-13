@@ -17,9 +17,6 @@ import {
   ArrowRight,
   RefreshCw,
 } from "lucide-react";
-import { API } from "../../config";
-import { localStorage } from "../../utils/storage";
-import { getApiHeaders } from "../../utils/apiHeaders";
 import { logger } from "../../utils/logger";
 import { apiRequest } from "../../utils/apiClient";
 import { randomFloat } from "../../utils/random";

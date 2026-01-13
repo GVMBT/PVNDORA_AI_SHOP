@@ -18,7 +18,7 @@ import {
   Settings,
   QrCode,
 } from "lucide-react";
-import { formatPrice, getCurrencySymbol } from "../../utils/currency";
+import { getCurrencySymbol } from "../../utils/currency";
 import { useLocaleContext } from "../../contexts/LocaleContext";
 import { useLocale } from "../../hooks/useLocale";
 import { logger } from "../../utils/logger";

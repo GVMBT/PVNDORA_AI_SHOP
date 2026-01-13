@@ -5,8 +5,6 @@
  * Does NOT include environment configuration (see src/config.ts).
  */
 
-import type { CareerLevelData } from "../components/profile/types";
-
 // ==========================================
 // PRODUCT CATALOG
 // ==========================================

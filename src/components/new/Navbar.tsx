@@ -1,17 +1,15 @@
 import React, { useState, useEffect, useRef, memo } from "react";
 import {
-  ShoppingBag,
-  Box,
-  User,
-  Trophy,
-  ShoppingCart,
   Activity,
-  Shield,
-  LogOut,
+  Box,
   ChevronRight,
-  Zap,
-  LayoutGrid,
   Command,
+  LayoutGrid,
+  LogOut,
+  Shield,
+  ShoppingCart,
+  Trophy,
+  User,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AudioEngine } from "../../lib/AudioEngine";

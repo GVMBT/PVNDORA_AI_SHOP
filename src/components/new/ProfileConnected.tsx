@@ -16,7 +16,6 @@ import type { CurrencyCode } from "../../utils/currency";
 import { useCart } from "../../contexts/CartContext";
 import { logger } from "../../utils/logger";
 import { PartnerApplicationModal, type PartnerApplicationData } from "../profile";
-import type { ProfileData } from "../../types/component";
 
 interface ProfileConnectedProps {
   onBack: () => void;

@@ -8,7 +8,6 @@ import React, { useEffect, useState, useCallback, memo } from "react";
 import Orders, { RefundContext } from "./Orders";
 import { useOrdersTyped, useReviewsTyped } from "../../hooks/useApiTyped";
 import { useLocale } from "../../hooks/useLocale";
-import type { Order } from "../../types/component";
 import { logger } from "../../utils/logger";
 
 interface OrdersConnectedProps {

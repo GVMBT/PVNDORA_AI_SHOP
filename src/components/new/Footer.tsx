@@ -1,12 +1,11 @@
 import React, { memo } from "react";
 import {
-  MessageCircle,
-  Mail,
-  FileText,
-  Shield,
-  HelpCircle,
   CreditCard,
-  ChevronRight,
+  FileText,
+  HelpCircle,
+  Mail,
+  MessageCircle,
+  Shield,
 } from "lucide-react";
 import { useLocale } from "../../hooks/useLocale";
 

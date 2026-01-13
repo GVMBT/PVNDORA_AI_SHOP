@@ -4,7 +4,6 @@ import { useCart } from "../contexts/CartContext";
 import { useLocale } from "./useLocale";
 import { useTelegram } from "./useTelegram";
 import { convertCartDataToLegacyCart, type LegacyCart } from "../utils/cartConverter";
-import type { CartData } from "../types/component";
 
 interface Product {
   id: string;

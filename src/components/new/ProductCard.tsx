@@ -3,8 +3,8 @@
  */
 
 import React from "react";
-import { motion, useMotionValue, useTransform } from "framer-motion";
-import { ShoppingCart, Zap, HardDrive, Activity, Crosshair } from "lucide-react";
+import { motion, useMotionValue } from "framer-motion";
+import { Activity, Crosshair, HardDrive, ShoppingCart, Zap } from "lucide-react";
 import { formatPrice } from "../../utils/currency";
 import { useLocale } from "../../hooks/useLocale";
 import ProductCardMedia from "./ProductCardMedia";

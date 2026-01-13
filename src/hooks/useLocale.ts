@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { useLocaleContext } from "../contexts/LocaleContext";
 
 // Import only RU/EN locale files (only supported languages)

@@ -6,7 +6,7 @@
 
 import React, { memo } from "react";
 import { motion } from "framer-motion";
-import { CreditCard, Wallet, Server, ShieldCheck, Globe, Bitcoin, Zap } from "lucide-react";
+import { Bitcoin, Globe, Server, ShieldCheck, Wallet, Zap } from "lucide-react";
 import { formatPrice } from "../../utils/currency";
 import { useLocale } from "../../hooks/useLocale";
 import type { PaymentMethod } from "./CheckoutModal";

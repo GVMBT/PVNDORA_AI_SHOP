@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { API } from "../config";
 import { logger } from "../utils/logger";
-import { apiGet, apiRequest, apiPost, apiPut } from "../utils/apiClient";
+import { apiGet, apiRequest } from "../utils/apiClient";
 import type { TicketData, WithdrawalData } from "../components/admin/types";
 
 // API response types
