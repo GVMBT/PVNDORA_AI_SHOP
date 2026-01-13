@@ -286,7 +286,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
                         activeCurrency === "USD"
                           ? "bg-pandora-cyan text-black"
                           : "text-gray-500 hover:text-white hover:bg-white/5"
-                      } ${!onUpdatePreferences ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                      } ${onUpdatePreferences ? "cursor-pointer" : "opacity-50 cursor-not-allowed"}`}
                     >
                       USD
                     </button>
@@ -301,7 +301,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
                         activeCurrency === "RUB"
                           ? "bg-pandora-cyan text-black"
                           : "text-gray-500 hover:text-white hover:bg-white/5"
-                      } ${!onUpdatePreferences ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                      } ${onUpdatePreferences ? "cursor-pointer" : "opacity-50 cursor-not-allowed"}`}
                     >
                       RUB
                     </button>

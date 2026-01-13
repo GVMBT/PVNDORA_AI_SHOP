@@ -305,9 +305,9 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                     // Use pre-calculated progress from adapter (if provided), otherwise calculate
                     // The adapter calculates it correctly: converts turnover to display currency and compares with anchor threshold
                     const progressPercent =
-                      propProgressPercent !== undefined
-                        ? propProgressPercent
-                        : Math.min(100, Math.max(0, (currentTurnover / nextThreshold) * 100));
+                      propProgressPercent === undefined
+                        ? Math.min(100, Math.max(0, (currentTurnover / nextThreshold) * 100))
+                        : propProgressPercent;
 
                     return (
                       <div className="mt-4 p-3 bg-pandora-cyan/5 border border-pandora-cyan/20 rounded-sm">

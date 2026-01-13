@@ -88,7 +88,7 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
             <div className="text-[10px] text-gray-600 mt-1 font-mono">
               Turnover:{" "}
               <span className="text-white font-bold">{formatPrice(currentTurnover, currency)}</span>{" "}
-              {maxTurnover !== Infinity ? `/ ${formatPrice(maxTurnover, currency)}` : ""}
+              {maxTurnover === Infinity ? "" : `/ ${formatPrice(maxTurnover, currency)}`}
             </div>
           </div>
 

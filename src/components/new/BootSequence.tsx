@@ -204,7 +204,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
 
   return (
     <AnimatePresence>
-      {phase !== "fadeout" ? (
+      {phase === "fadeout" ? null : (
         <motion.div
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}

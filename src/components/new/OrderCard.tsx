@@ -93,7 +93,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
   const [internalExpanded, setInternalExpanded] = useState(true);
 
   // Use prop if provided, otherwise use internal state
-  const isExpanded = propIsExpanded !== undefined ? propIsExpanded : internalExpanded;
+  const isExpanded = propIsExpanded === undefined ? internalExpanded : propIsExpanded;
   const handleToggleExpand = onToggleExpand || (() => setInternalExpanded((prev) => !prev));
 
   const handleCheckPayment = async () => {

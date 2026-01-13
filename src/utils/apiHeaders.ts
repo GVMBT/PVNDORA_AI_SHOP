@@ -36,7 +36,7 @@ export function getApiHeaders(): ApiHeaders {
 
   // Try Telegram initData first (Mini App)
   const tgWebApp: WebApp | undefined =
-    globalThis.window !== undefined ? globalThis.Telegram?.WebApp : undefined;
+    globalThis.window === undefined ? undefined : globalThis.Telegram?.WebApp;
 
   const initData = tgWebApp?.initData || "";
 
