@@ -578,6 +578,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
                 <div className="w-12 h-12 bg-black shrink-0 border border-white/10 relative overflow-hidden">
                   <img
                     src={rel.image}
+                    alt={rel.name}
                     className="w-full h-full object-cover opacity-60 grayscale group-hover:grayscale-0 group-hover:opacity-100 transition-all"
                   />
                 </div>

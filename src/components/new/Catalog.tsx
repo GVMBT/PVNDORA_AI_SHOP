@@ -483,6 +483,7 @@ const Catalog: React.FC<CatalogProps> = ({
                       {/* Small image for list view */}
                       <img
                         src={product.image}
+                        alt={product.name}
                         className="absolute inset-0 w-full h-full object-cover opacity-50 grayscale group-hover:opacity-100 group-hover:grayscale-0 transition-all"
                       />
                       <div className="relative z-10 font-mono text-[9px] text-white bg-black/50 px-1">
