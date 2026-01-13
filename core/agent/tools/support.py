@@ -17,6 +17,77 @@ from .base import get_db, get_user_context
 logger = get_logger(__name__)
 
 
+def _extract_item_id_from_message(message: str, provided_item_id: str | None) -> str | None:
+    """Extract item_id from message if not provided (reduces cognitive complexity)."""
+    if provided_item_id:
+        return provided_item_id
+    if "Item ID:" in message or "item_id" in message.lower():
+        item_id_match = re.search(r"Item ID:\s*([a-f0-9\-]{36})", message, re.IGNORECASE)
+        if item_id_match:
+            return item_id_match.group(1)
+    return None
+
+
+def _calculate_warranty_status(delivered_at: str | None, warranty_hours: int) -> str:
+    """Calculate warranty status based on delivery time (reduces cognitive complexity)."""
+    if not delivered_at:
+        return "unknown"
+    try:
+        item_delivered = datetime.fromisoformat(delivered_at.replace("Z", "+00:00"))
+        now = datetime.now(UTC)
+        days_since = (now - item_delivered).days
+        warranty_days = warranty_hours / 24
+        return "in_warranty" if days_since <= warranty_days else "out_of_warranty"
+    except Exception:
+        return "unknown"
+
+
+def _calculate_order_warranty_status(order_date: datetime | None, product_name: str) -> str:
+    """Calculate warranty status for order level (reduces cognitive complexity)."""
+    if not order_date:
+        return "unknown"
+    now = datetime.now(UTC)
+    days_since = (now - order_date).days
+    product_name_lower = product_name.lower()
+    is_trial = "trial" in product_name_lower or "7 дней" in product_name_lower or "7 day" in product_name_lower
+    warranty_days = 1 if is_trial else 14
+    return "in_warranty" if days_since <= warranty_days else "out_of_warranty"
+
+
+async def _get_warranty_status(db, order, extracted_item_id: str | None) -> str:
+    """Get warranty status for order/item (reduces cognitive complexity)."""
+    if extracted_item_id:
+        item_result = (
+            await db.client.table("order_items")
+            .select("id, order_id, delivered_at, product_id")
+            .eq("id", extracted_item_id)
+            .eq("order_id", order.id)
+            .limit(1)
+            .execute()
+        )
+        if item_result.data:
+            item_data = item_result.data[0]
+            product_result = (
+                await db.client.table("products")
+                .select("name, warranty_hours")
+                .eq("id", item_data.get("product_id"))
+                .limit(1)
+                .execute()
+            )
+            warranty_hours = 168
+            if product_result.data:
+                warranty_hours = product_result.data[0].get("warranty_hours", 168)
+            return _calculate_warranty_status(item_data.get("delivered_at"), warranty_hours)
+
+    # Check order-level warranty
+    items = await db.get_order_items_by_order(order.id)
+    if items and order.created_at:
+        product_name = items[0].get("product_name", "")
+        return _calculate_order_warranty_status(order.created_at, product_name)
+
+    return "unknown"
+
+
 @tool
 async def search_faq(question: str) -> dict:
     """
@@ -91,12 +162,7 @@ async def create_support_ticket(
 
         order_id = None
         warranty_status = "unknown"
-        extracted_item_id = item_id
-
-        if not extracted_item_id and ("Item ID:" in message or "item_id" in message.lower()):
-            item_id_match = re.search(r"Item ID:\s*([a-f0-9\-]{36})", message, re.IGNORECASE)
-            if item_id_match:
-                extracted_item_id = item_id_match.group(1)
+        extracted_item_id = _extract_item_id_from_message(message, item_id)
 
         if order_id_prefix:
             orders = await db.get_user_orders(ctx.user_id, limit=20)
@@ -104,63 +170,9 @@ async def create_support_ticket(
 
             if order:
                 order_id = order.id
-
-                if extracted_item_id:
-                    item_result = (
-                        await db.client.table("order_items")
-                        .select("id, order_id, delivered_at, product_id")
-                        .eq("id", extracted_item_id)
-                        .eq("order_id", order_id)
-                        .limit(1)
-                        .execute()
-                    )
-                    if item_result.data:
-                        item_data = item_result.data[0]
-                        if item_data.get("delivered_at"):
-                            item_delivered = datetime.fromisoformat(
-                                item_data["delivered_at"].replace("Z", "+00:00")
-                            )
-                            now = datetime.now(UTC)
-                            days_since = (now - item_delivered).days
-
-                            product_result = (
-                                await db.client.table("products")
-                                .select("name, warranty_hours")
-                                .eq("id", item_data.get("product_id"))
-                                .limit(1)
-                                .execute()
-                            )
-                            if product_result.data:
-                                product = product_result.data[0]
-                                warranty_hours = product.get("warranty_hours", 168)
-                                warranty_days = warranty_hours / 24
-
-                                if days_since <= warranty_days:
-                                    warranty_status = "in_warranty"
-                                else:
-                                    warranty_status = "out_of_warranty"
-                else:
-                    items = await db.get_order_items_by_order(order.id)
-
-                    if items and order.created_at:
-                        order_date = order.created_at
-                        now = datetime.now(UTC)
-                        days_since = (now - order_date).days
-
-                        product_name = items[0].get("product_name", "").lower()
-                        if (
-                            "trial" in product_name
-                            or "7 дней" in product_name
-                            or "7 day" in product_name
-                        ):
-                            warranty_days = 1
-                        else:
-                            warranty_days = 14
-
-                        if days_since <= warranty_days:
-                            warranty_status = "in_warranty"
-                        else:
-                            warranty_status = "out_of_warranty"
+                warranty_status = await _get_warranty_status(
+                    db, order, extracted_item_id
+                )
 
         result = await db.support_domain.create_ticket(
             user_id=ctx.user_id,

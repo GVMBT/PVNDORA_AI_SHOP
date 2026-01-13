@@ -50,6 +50,76 @@ def _get_line_unlocked_status(user: dict) -> tuple[bool, bool, bool]:
     return line1_unlocked, line2_unlocked, line3_unlocked
 
 
+async def _convert_to_currency(
+    currency_service, amount: float, target_currency: str
+) -> float:
+    """Convert amount to target currency (reduces cognitive complexity)."""
+    if target_currency == "USD" or amount <= 0:
+        return amount
+    try:
+        return await currency_service.convert_price(amount, target_currency)
+    except Exception:
+        return amount
+
+
+async def _get_referral_settings(db) -> tuple[float, float]:
+    """Get referral settings thresholds (reduces cognitive complexity)."""
+    settings_result = await db.client.table("referral_settings").select("*").limit(1).execute()
+    if settings_result.data:
+        s = settings_result.data[0]
+        threshold_l2 = float(s.get("level2_threshold_usd", 250) or 250)
+        threshold_l3 = float(s.get("level3_threshold_usd", 1000) or 1000)
+        return threshold_l2, threshold_l3
+    return 250.0, 1000.0
+
+
+async def _get_referral_settings_full(db) -> dict:
+    """Get full referral settings including commissions (reduces cognitive complexity)."""
+    settings_result = await db.client.table("referral_settings").select("*").limit(1).execute()
+    if settings_result.data:
+        s = settings_result.data[0]
+        return {
+            "threshold_l2": float(s.get("level2_threshold_usd", 250) or 250),
+            "threshold_l3": float(s.get("level3_threshold_usd", 1000) or 1000),
+            "commission_l1": float(s.get("level1_commission_percent", 10) or 10),
+            "commission_l2": float(s.get("level2_commission_percent", 7) or 7),
+            "commission_l3": float(s.get("level3_commission_percent", 3) or 3),
+        }
+    return {
+        "threshold_l2": 250.0,
+        "threshold_l3": 1000.0,
+        "commission_l1": 10.0,
+        "commission_l2": 7.0,
+        "commission_l3": 3.0,
+    }
+
+
+async def _get_network_stats(
+    db, user_id: str, line2_unlocked: bool, line3_unlocked: bool
+) -> dict:
+    """Get referral network statistics (reduces cognitive complexity)."""
+    network = {"line1": 0, "line2": 0, "line3": 0}
+
+    l1 = await db.client.table("users").select("id", count="exact").eq("referrer_id", user_id).execute()
+    network["line1"] = l1.count or 0
+
+    l1_ids = [u["id"] for u in (l1.data or [])]
+    if not l1_ids or not line2_unlocked:
+        return network
+
+    l2 = await db.client.table("users").select("id", count="exact").in_("referrer_id", l1_ids).execute()
+    network["line2"] = l2.count or 0
+
+    l2_ids = [u["id"] for u in (l2.data or [])]
+    if not l2_ids or not line3_unlocked:
+        return network
+
+    l3 = await db.client.table("users").select("id", count="exact").in_("referrer_id", l2_ids).execute()
+    network["line3"] = l3.count or 0
+
+    return network
+
+
 @tool
 async def get_user_profile() -> dict:
     """
@@ -67,14 +137,7 @@ async def get_user_profile() -> dict:
         ctx = get_user_context()
         db = get_db()
 
-        settings_result = await db.client.table("referral_settings").select("*").limit(1).execute()
-
-        if settings_result.data:
-            s = settings_result.data[0]
-            threshold_l2 = float(s.get("level2_threshold_usd", 250) or 250)
-            threshold_l3 = float(s.get("level3_threshold_usd", 1000) or 1000)
-        else:
-            threshold_l2, threshold_l3 = 250, 1000
+        threshold_l2, threshold_l3 = await _get_referral_settings(db)
 
         result = await db.client.table("users").select("*").eq("id", ctx.user_id).single().execute()
 
@@ -103,28 +166,10 @@ async def get_user_profile() -> dict:
         currency_service = get_currency_service(redis)
         target_currency = ctx.currency
 
-        if target_currency != "USD" and balance > 0:
-            try:
-                balance_converted = await currency_service.convert_price(balance, target_currency)
-            except Exception:
-                balance_converted = balance
-        else:
-            balance_converted = balance
-
-        if target_currency != "USD":
-            try:
-                total_saved_converted = await currency_service.convert_price(
-                    total_saved, target_currency
-                )
-                referral_earnings_converted = await currency_service.convert_price(
-                    referral_earnings, target_currency
-                )
-            except Exception:
-                total_saved_converted = total_saved
-                referral_earnings_converted = referral_earnings
-        else:
-            total_saved_converted = total_saved
-            referral_earnings_converted = referral_earnings
+        # Convert amounts to target currency
+        balance_converted = await _convert_to_currency(currency_service, balance, target_currency)
+        total_saved_converted = await _convert_to_currency(currency_service, total_saved, target_currency)
+        referral_earnings_converted = await _convert_to_currency(currency_service, referral_earnings, target_currency)
 
         return {
             "success": True,
@@ -166,18 +211,13 @@ async def get_referral_info() -> dict:
         ctx = get_user_context()
         db = get_db()
 
-        settings_result = await db.client.table("referral_settings").select("*").limit(1).execute()
-
-        if settings_result.data:
-            s = settings_result.data[0]
-            threshold_l2 = float(s.get("level2_threshold_usd", 250) or 250)
-            threshold_l3 = float(s.get("level3_threshold_usd", 1000) or 1000)
-            commission_l1 = float(s.get("level1_commission_percent", 10) or 10)
-            commission_l2 = float(s.get("level2_commission_percent", 7) or 7)
-            commission_l3 = float(s.get("level3_commission_percent", 3) or 3)
-        else:
-            threshold_l2, threshold_l3 = 250, 1000
-            commission_l1, commission_l2, commission_l3 = 10, 7, 3
+        settings = await _get_referral_settings_full(db)
+        threshold_l2, threshold_l3 = settings["threshold_l2"], settings["threshold_l3"]
+        commission_l1, commission_l2, commission_l3 = (
+            settings["commission_l1"],
+            settings["commission_l2"],
+            settings["commission_l3"],
+        )
 
         result = (
             await db.client.table("users")
@@ -201,39 +241,11 @@ async def get_referral_info() -> dict:
             user, threshold_l2, threshold_l3, turnover
         )
 
-        # Get line unlock status
+        # Get line unlock status and network stats
         line1_unlocked, line2_unlocked, line3_unlocked = _get_line_unlocked_status(user)
+        network = await _get_network_stats(db, ctx.user_id, line2_unlocked, line3_unlocked)
 
-        network = {"line1": 0, "line2": 0, "line3": 0}
-
-        l1 = (
-            await db.client.table("users")
-            .select("id", count="exact")
-            .eq("referrer_id", ctx.user_id)
-            .execute()
-        )
-        network["line1"] = l1.count or 0
-
-        l1_ids = [u["id"] for u in (l1.data or [])]
-        if l1_ids and line2_unlocked:
-            l2 = (
-                await db.client.table("users")
-                .select("id", count="exact")
-                .in_("referrer_id", l1_ids)
-                .execute()
-            )
-            network["line2"] = l2.count or 0
-
-            l2_ids = [u["id"] for u in (l2.data or [])]
-            if l2_ids and line3_unlocked:
-                l3 = (
-                    await db.client.table("users")
-                    .select("id", count="exact")
-                    .in_("referrer_id", l2_ids)
-                    .execute()
-                )
-                network["line3"] = l3.count or 0
-
+        # Build active commissions based on unlock status
         active_commissions = {}
         if line1_unlocked:
             active_commissions["line1"] = commission_l1
