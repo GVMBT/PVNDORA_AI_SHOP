@@ -106,7 +106,7 @@ class OrderStatusService:
                 "updated_at": datetime.now(UTC).isoformat(),
             }
 
-            logger.debug(f"[StatusService] Updating order {order_id} with data: {update_data}")
+            logger.debug("[StatusService] Updating order %s with data: %s", order_id, update_data)
 
             result = (
                 await self.db.client.table("orders")
@@ -127,7 +127,7 @@ class OrderStatusService:
                 )
                 return False
 
-            logger.info(f"Updated order {order_id} status to '{new_status}'")
+            logger.info("Updated order %s status to '%s'", order_id, new_status)
             return True
         except Exception:
             logger.exception(f"Failed to update order {order_id} status")
@@ -157,7 +157,7 @@ class OrderStatusService:
 
         # Get order info
         try:
-            logger.debug(f"[mark_payment_confirmed] Fetching order {order_id} from DB...")
+            logger.debug("[mark_payment_confirmed] Fetching order %s from DB...", order_id)
             # OPTIMIZATION #6: Include user_telegram_id to avoid duplicate query later
             order_result = (
                 await self.db.client.table("orders")
@@ -168,7 +168,7 @@ class OrderStatusService:
                 .single()
                 .execute()
             )
-            logger.debug(f"[mark_payment_confirmed] Order fetch result: {order_result.data}")
+            logger.debug("[mark_payment_confirmed] Order fetch result: %s", order_result.data)
 
             if not order_result.data:
                 raise ValueError(f"Order {order_id} not found")
@@ -211,7 +211,7 @@ class OrderStatusService:
             # Update payment_id if provided
             if payment_id:
                 try:
-                    logger.debug(f"[mark_payment_confirmed] Updating payment_id to {payment_id}")
+                    logger.debug("[mark_payment_confirmed] Updating payment_id to %s", payment_id)
                     await self.db.client.table("orders").update({"payment_id": payment_id}).eq(
                         "id", order_id
                     ).execute()
@@ -224,7 +224,7 @@ class OrderStatusService:
             update_result = await self.update_status(
                 order_id, final_status, "Payment confirmed via webhook", check_transition=False
             )
-            logger.debug(f"[mark_payment_confirmed] update_status returned: {update_result}")
+            logger.debug("[mark_payment_confirmed] update_status returned: %s", update_result)
 
             # OPTIMIZATION #6: Parallelize independent queries (order_items and user balance)
             import asyncio
@@ -240,7 +240,7 @@ class OrderStatusService:
                     )
                     return result.data or []
                 except Exception as e:
-                    logger.warning(f"Failed to fetch order_items: {e}")
+                    logger.warning("Failed to fetch order_items: %s", e)
                     return []
 
             async def fetch_user_balance_and_check_tx():
@@ -278,7 +278,7 @@ class OrderStatusService:
                             return balance, False  # (balance, tx_exists)
                         return None, True  # Transaction exists
                     except Exception as e:
-                        logger.warning(f"Failed to fetch user balance: {e}")
+                        logger.warning("Failed to fetch user balance: %s", e)
                         return None, False
                 return None, False  # Not needed
 
@@ -512,7 +512,7 @@ class OrderStatusService:
                 quantity=total_qty,
             )
         except Exception as e:
-            logger.warning(f"Failed to send order alert: {e}")
+            logger.warning("Failed to send order alert: %s", e)
 
     async def _check_stock_availability(self, order_id: str) -> bool:
         """Check if order has available stock for instant delivery.
@@ -586,7 +586,7 @@ class OrderStatusService:
 
         # Only update if payment is confirmed
         if current_status.lower() == "pending":
-            logger.warning(f"Order {order_id} is still pending - cannot update delivery status")
+            logger.warning("Order %s is still pending - cannot update delivery status", order_id)
             return None
 
         new_status = None

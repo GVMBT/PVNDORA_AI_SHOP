@@ -167,9 +167,9 @@ async def resolve_ticket(
                     reason=comment or "Your request was reviewed and could not be approved.",
                     language=user_language,
                 )
-                logger.info(f"Sent rejection notification for ticket {ticket_id}")
+                logger.info("Sent rejection notification for ticket %s", ticket_id)
             except Exception as e:
-                logger.error(f"Failed to send rejection notification: {e}", exc_info=True)
+                logger.error("Failed to send rejection notification: %s", e, exc_info=True)
 
         # If APPROVED, trigger automatic processing via QStash
         if approve and new_status == "approved":

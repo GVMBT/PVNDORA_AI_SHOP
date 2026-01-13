@@ -124,12 +124,12 @@ class UserRepository(BaseRepository):
             )
 
         if update_data:
-            logger.info(f"Updating preferences for user {telegram_id}: {update_data}")
+            logger.info("Updating preferences for user %s: %s", telegram_id, update_data)
             try:
                 await self.client.table("users").update(update_data).eq(
                     "telegram_id", telegram_id
                 ).execute()
-                logger.info(f"Successfully updated preferences for user {telegram_id}")
+                logger.info("Successfully updated preferences for user %s", telegram_id)
             except Exception as e:
                 logger.error(
                     "Failed to update preferences for user %s: %s", telegram_id, e, exc_info=True
