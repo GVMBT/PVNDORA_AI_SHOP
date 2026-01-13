@@ -1112,18 +1112,20 @@ async def update_accounting_settings(settings: AccountingSettings, admin=Depends
 # =============================================================================
 
 
-@router.get("/accounting/liabilities")
-async def get_liabilities(admin=Depends(verify_admin)):
-    """
-    Get current liabilities with REAL currency breakdown (no conversion).
+# Helper to initialize currency entry (reduces cognitive complexity)
+def _init_currency_entry() -> dict:
+    """Initialize currency entry in liabilities dict."""
+    return {
+        "user_balances": 0.0,
+        "users_count": 0,
+        "pending_withdrawals": 0.0,
+        "withdrawals_count": 0,
+    }
 
-    Returns user balances and pending withdrawals per currency.
-    """
-    db = get_database()
 
-    liabilities_by_currency: dict = {}
-
-    # User balances by currency
+# Helper to process user balances (reduces cognitive complexity)
+async def _process_user_balances(db, liabilities_by_currency: dict):
+    """Process user balances by currency."""
     try:
         balances_result = (
             await db.client.table("users")
@@ -1137,18 +1139,17 @@ async def get_liabilities(admin=Depends(verify_admin)):
             balance = float(user.get("balance", 0))
 
             if currency not in liabilities_by_currency:
-                liabilities_by_currency[currency] = {
-                    "user_balances": 0.0,
-                    "users_count": 0,
-                    "pending_withdrawals": 0.0,
-                    "withdrawals_count": 0,
-                }
+                liabilities_by_currency[currency] = _init_currency_entry()
+
             liabilities_by_currency[currency]["user_balances"] += balance
             liabilities_by_currency[currency]["users_count"] += 1
     except Exception as e:
-        logger.warning(f"Failed to get user balances: {e}")
+        logger.warning("Failed to get user balances: %s", e)
 
-    # Pending withdrawals by currency
+
+# Helper to process pending withdrawals (reduces cognitive complexity)
+async def _process_pending_withdrawals(db, liabilities_by_currency: dict):
+    """Process pending withdrawals by currency."""
     try:
         withdrawals_result = (
             await db.client.table("withdrawal_requests")
@@ -1162,21 +1163,22 @@ async def get_liabilities(admin=Depends(verify_admin)):
             amount = float(w.get("amount_debited", 0))
 
             if currency not in liabilities_by_currency:
-                liabilities_by_currency[currency] = {
-                    "user_balances": 0.0,
-                    "users_count": 0,
-                    "pending_withdrawals": 0.0,
-                    "withdrawals_count": 0,
-                }
+                liabilities_by_currency[currency] = _init_currency_entry()
+
             liabilities_by_currency[currency]["pending_withdrawals"] += amount
             liabilities_by_currency[currency]["withdrawals_count"] += 1
     except Exception as e:
         logger.warning("Failed to get pending withdrawals: %s", e)
 
-    # Round values appropriately
+
+# Helper to round currency values (reduces cognitive complexity)
+def _round_liability_values(liabilities_by_currency: dict):
+    """Round liability values based on currency type."""
+    INTEGER_CURRENCIES = ("RUB", "UAH", "TRY", "INR", "JPY", "KRW")
+
     for currency in liabilities_by_currency:
         data = liabilities_by_currency[currency]
-        if currency in ("RUB", "UAH", "TRY", "INR", "JPY", "KRW"):
+        if currency in INTEGER_CURRENCIES:
             data["user_balances"] = round(data["user_balances"])
             data["pending_withdrawals"] = round(data["pending_withdrawals"])
         else:
@@ -1184,18 +1186,30 @@ async def get_liabilities(admin=Depends(verify_admin)):
             data["pending_withdrawals"] = round(data["pending_withdrawals"], 2)
         data["total"] = data["user_balances"] + data["pending_withdrawals"]
 
-    # Calculate legacy totals (sum all currencies - for backward compatibility)
+
+@router.get("/accounting/liabilities")
+async def get_liabilities(admin=Depends(verify_admin)):
+    """
+    Get current liabilities with REAL currency breakdown (no conversion).
+
+    Returns user balances and pending withdrawals per currency.
+    """
+    db = get_database()
+
+    liabilities_by_currency: dict = {}
+
+    await _process_user_balances(db, liabilities_by_currency)
+    await _process_pending_withdrawals(db, liabilities_by_currency)
+    _round_liability_values(liabilities_by_currency)
+
     total_user_balances = sum(d.get("user_balances", 0) for d in liabilities_by_currency.values())
     total_pending = sum(d.get("pending_withdrawals", 0) for d in liabilities_by_currency.values())
 
     return {
-        # NEW: Multi-currency breakdown
         "liabilities_by_currency": liabilities_by_currency,
-        # Legacy fields (sum of all currencies - NOT converted, just summed!)
         "total_user_balances": total_user_balances,
         "pending_withdrawals": total_pending,
         "total_liabilities": total_user_balances + total_pending,
-        # Metadata
         "currencies_count": len(liabilities_by_currency),
     }
 

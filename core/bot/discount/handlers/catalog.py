@@ -246,15 +246,43 @@ async def cb_products_page(callback: CallbackQuery, db_user: User):
     await callback.answer()
 
 
+# Helper to format product description (reduces cognitive complexity)
+def _format_product_description(desc: str) -> str:
+    """Format product description with length limit."""
+    if len(desc) > 200:
+        return f"{desc[:200]}..."
+    return desc
+
+
+# Helper to get stock status text (reduces cognitive complexity)
+def _get_stock_status_text(is_ru: bool, is_available: bool) -> str:
+    """Get stock status text based on language and availability."""
+    if is_ru:
+        return "✅ В наличии" if is_available else "🟡 Предзаказ"
+    return "✅ In stock" if is_available else "🟡 Pre-order"
+
+
+# Helper to format product card text (reduces cognitive complexity)
+def _format_product_card_text(
+    name: str, description: str, price_label: str, status_label: str,
+    stock_status: str, currency_symbol: str, discount_price_display: float
+) -> str:
+    """Format product card text."""
+    return (
+        f"<b>{name}</b>\n\n"
+        f"{_format_product_description(description)}\n\n"
+        f"💰 <b>{price_label}:</b> {currency_symbol}{discount_price_display:.0f}\n"
+        f"📦 <b>{status_label}:</b> {stock_status}\n\n"
+    )
+
+
 @router.callback_query(F.data.startswith("discount:prod:"))
 async def cb_product_selected(callback: CallbackQuery, db_user: User):
     """Show product card."""
     lang = db_user.language_code
     db = get_database()
 
-    # Get user currency and exchange rate
     currency, exchange_rate = await get_user_currency_info(db_user)
-
     product_id = callback.data.split(":")[2]
 
     product = await get_product_by_id(db, product_id)
@@ -265,7 +293,6 @@ async def cb_product_selected(callback: CallbackQuery, db_user: User):
         )
         return
 
-    # Get insurance options
     insurance_service = InsuranceService(db.client)
     insurance_options = await insurance_service.get_options_for_product(product["id"])
 
@@ -274,39 +301,20 @@ async def cb_product_selected(callback: CallbackQuery, db_user: User):
     discount_price_usd = float(product.get("discount_price", 0) or 0)
     available = product.get("available_count", 0)
 
-    # Convert price for display
     discount_price_display = discount_price_usd * exchange_rate
 
-    # Use currency symbols from single source of truth
     from core.services.currency import CURRENCY_SYMBOLS
 
     currency_symbol = CURRENCY_SYMBOLS.get(currency, currency)
 
-    # Helper to format product description (avoid nested ternary)
-    def format_description(desc: str) -> str:
-        if len(desc) > 200:
-            return f"{desc[:200]}..."
-        return desc
+    price_label = "Цена" if lang == "ru" else "Price"
+    status_label = "Статус" if lang == "ru" else "Status"
+    stock_status = _get_stock_status_text(lang == "ru", available > 0)
 
-    # Helper to get stock status text
-    def get_stock_status_text(is_ru: bool, is_available: bool) -> str:
-        if is_ru:
-            return "✅ В наличии" if is_available else "🟡 Предзаказ"
-        return "✅ In stock" if is_available else "🟡 Pre-order"
-
-    # Helper to format product card text
-    def format_product_text(is_ru: bool) -> str:
-        price_label = "Цена" if is_ru else "Price"
-        status_label = "Статус" if is_ru else "Status"
-        stock_status = get_stock_status_text(is_ru, available > 0)
-        return (
-            f"<b>{name}</b>\n\n"
-            f"{format_description(description)}\n\n"
-            f"💰 <b>{price_label}:</b> {currency_symbol}{discount_price_display:.0f}\n"
-            f"📦 <b>{status_label}:</b> {stock_status}\n\n"
-        )
-
-    text = format_product_text(lang == "ru")
+    text = _format_product_card_text(
+        name, description, price_label, status_label, stock_status,
+        currency_symbol, discount_price_display
+    )
 
     if insurance_options:
         text += (
@@ -319,7 +327,7 @@ async def cb_product_selected(callback: CallbackQuery, db_user: User):
         text,
         reply_markup=get_product_card_keyboard(
             product["id"],
-            discount_price_usd,  # Pass USD price, keyboard will convert
+            discount_price_usd,
             [
                 {"id": io.id, "duration_days": io.duration_days, "price_percent": io.price_percent}
                 for io in insurance_options
