@@ -446,7 +446,8 @@ async def set_admin_webhook():
 
 
 app.include_router(webhooks_router, prefix="/api")
-app.include_router(workers_router, prefix="/api")
+# workers_router already has prefix="/api/workers" in core/routers/workers/router.py
+app.include_router(workers_router)
 # WebApp router - already has prefix /api/webapp in __init__.py
 app.include_router(webapp_router)
 

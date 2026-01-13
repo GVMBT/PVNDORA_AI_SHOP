@@ -15,6 +15,8 @@ logger = get_logger(__name__)
 async def get_user_language(telegram_id: int) -> str:
     """Get user's preferred language from database."""
     try:
+        from core.i18n import detect_language
+        
         db = get_database()
         result = (
             await db.client.table("users")
@@ -30,8 +32,8 @@ async def get_user_language(telegram_id: int) -> str:
                 or result.data[0].get("language_code")
                 or "en"
             )
-            # Normalize to supported languages (en/ru)
-            return "ru" if lang.lower().startswith("ru") else "en"
+            # Normalize using detect_language to support all languages
+            return detect_language(lang)
     except Exception as e:
         logger.warning(f"Failed to get user language for {telegram_id}: {e}")
     return "en"

@@ -13,12 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from core.auth import verify_telegram_auth
 from core.services.database import get_database
 
-from ..models import (
-    OrdersListResponse,
-    OrderStatusResponse,
-    PaymentMethod,
-    PaymentMethodsResponse,
-)
+from ..models import OrdersListResponse, OrderStatusResponse, PaymentMethod, PaymentMethodsResponse
 
 logger = logging.getLogger(__name__)
 

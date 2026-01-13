@@ -68,34 +68,46 @@ def _is_duplicate_key_error(exception: Exception) -> bool:
 async def _calculate_review_cashback(
     target_item: dict, order, balance_currency: str, currency_service
 ) -> float:
-    """Calculate 5% cashback amount in user's balance currency."""
+    """Calculate 5% cashback amount in user's balance currency.
+    
+    Uses order's fiat_amount and exchange_rate_snapshot for accurate calculation
+    based on the currency rate at the time of purchase, not current rate.
+    """
     # Get item price in USD
     item_price_usd = to_float(target_item.get("price", 0))
     if item_price_usd <= 0:
         raise HTTPException(status_code=400, detail="Invalid item price")
 
-    # Determine cashback base amount (item price in user's currency)
+    # Determine cashback base amount (item price in user's balance currency)
+    order_amount_usd = to_float(order.amount) if hasattr(order, "amount") and order.amount else 0
+    
+    # Priority 1: Use order's fiat_amount if available and currency matches
+    # This ensures we use the exact amount user paid, not current exchange rate
     if (
         hasattr(order, "fiat_amount")
         and order.fiat_amount
-        and hasattr(order, "amount")
-        and order.amount
+        and hasattr(order, "fiat_currency")
+        and order.fiat_currency == balance_currency
+        and order_amount_usd > 0
     ):
         # Calculate proportional item price in fiat currency
-        order_amount_usd = to_float(order.amount)
-        if order_amount_usd > 0:
-            item_price_fiat = item_price_usd / order_amount_usd * to_float(order.fiat_amount)
-            cashback_base = item_price_fiat
-        # Fallback: convert from USD
-        elif balance_currency == "USD":
-            cashback_base = item_price_usd
-        else:
-            rate = await currency_service.get_exchange_rate(balance_currency)
-            cashback_base = item_price_usd * rate
-    # Fallback: convert item price from USD to user's currency
+        # This preserves the exact exchange rate from when order was created
+        item_price_fiat = item_price_usd / order_amount_usd * to_float(order.fiat_amount)
+        cashback_base = item_price_fiat
+    # Priority 2: Use exchange_rate_snapshot from order if available (for orders without fiat_amount)
+    elif (
+        hasattr(order, "exchange_rate_snapshot")
+        and order.exchange_rate_snapshot
+        and balance_currency != "USD"
+    ):
+        # Use the exchange rate from when the order was created
+        rate = to_float(order.exchange_rate_snapshot)
+        cashback_base = item_price_usd * rate
+    # Fallback: convert item price from USD to user's currency using current rate
     elif balance_currency == "USD":
         cashback_base = item_price_usd
     else:
+        # Last resort: use current exchange rate (not ideal, but better than error)
         rate = await currency_service.get_exchange_rate(balance_currency)
         cashback_base = item_price_usd * rate
 

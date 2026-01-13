@@ -87,8 +87,11 @@ async def send_chat_message(request: ChatMessageRequest, user=Depends(verify_tel
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Get user language
-    language = getattr(db_user, "language_code", "en") or "en"
+    # Get user language and normalize it
+    from core.i18n import detect_language
+    
+    raw_language = getattr(db_user, "language_code", "en") or "en"
+    language = detect_language(raw_language)
 
     try:
         # Save user message to history
