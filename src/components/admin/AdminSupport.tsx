@@ -91,7 +91,15 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
         {tickets.map((t) => (
           <div
             key={t.id}
+            role="button"
+            tabIndex={0}
             onClick={() => setSelectedTicketId(t.id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setSelectedTicketId(t.id);
+              }
+            }}
             className={`bg-[#0e0e0e] border p-4 transition-colors cursor-pointer group relative ${
               selectedTicketId === t.id
                 ? "border-pandora-cyan bg-pandora-cyan/5"
@@ -122,7 +130,7 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
       {/* Chat Area */}
       <div
         className={`${
-          !selectedTicketId ? "hidden lg:flex" : "flex"
+          selectedTicketId ? "flex" : "hidden lg:flex"
         } lg:col-span-2 bg-[#0e0e0e] border border-white/10 flex-col h-full relative`}
       >
         {selectedTicket ? (

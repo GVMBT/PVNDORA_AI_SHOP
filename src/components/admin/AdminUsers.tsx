@@ -91,7 +91,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
         body: JSON.stringify({
           is_partner: !isCurrentlyVIP,
           // VIP always gets full access (level 3) - no partial levels
-          partner_level_override: !isCurrentlyVIP ? 3 : null,
+          partner_level_override: isCurrentlyVIP ? null : 3,
         }),
       });
 

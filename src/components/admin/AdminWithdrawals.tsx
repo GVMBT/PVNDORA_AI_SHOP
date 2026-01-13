@@ -104,6 +104,75 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
     }
   };
 
+  // Helper function to render action buttons based on withdrawal status
+  const renderActionButtons = () => {
+    if (!selectedWithdrawal) return null;
+
+    const status = selectedWithdrawal.status?.toUpperCase();
+
+    if (status === "PENDING") {
+      return (
+        <div className="p-4 border-t border-white/10 space-y-3">
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Комментарий (опционально)..."
+            className="w-full bg-black border border-white/20 p-3 text-xs text-white outline-none resize-none"
+            rows={3}
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleApprove}
+              disabled={processing}
+              className="flex-1 flex items-center justify-center gap-2 bg-green-500/20 border border-green-500/50 text-green-400 px-4 py-2 text-[10px] font-bold font-mono hover:bg-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Check size={14} />
+              ОДОБРИТЬ
+            </button>
+            <button
+              onClick={handleReject}
+              disabled={processing}
+              className="flex-1 flex items-center justify-center gap-2 bg-red-500/20 border border-red-500/50 text-red-400 px-4 py-2 text-[10px] font-bold font-mono hover:bg-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <X size={14} />
+              ОТКЛОНИТЬ
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (status === "PROCESSING") {
+      return (
+        <div className="p-4 border-t border-white/10 space-y-3">
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Комментарий при завершении (опционально)..."
+            className="w-full bg-black border border-white/20 p-3 text-xs text-white outline-none resize-none"
+            rows={3}
+          />
+          <button
+            onClick={handleComplete}
+            disabled={processing}
+            className="w-full flex items-center justify-center gap-2 bg-blue-500/20 border border-blue-500/50 text-blue-400 px-4 py-2 text-[10px] font-bold font-mono hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Send size={14} />
+            ОТМЕТИТЬ ВЫПОЛНЕННЫМ
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="p-4 border-t border-white/10">
+        <div className="text-center text-gray-600 text-xs">
+          Заявка {getStatusLabel(selectedWithdrawal.status).toLowerCase()}
+        </div>
+      </div>
+    );
+  };
+
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return "Н/Д";
     try {
@@ -146,7 +215,15 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
           withdrawals.map((w) => (
             <div
               key={w.id}
+              role="button"
+              tabIndex={0}
               onClick={() => setSelectedWithdrawalId(w.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setSelectedWithdrawalId(w.id);
+                }
+              }}
               className={`bg-[#0e0e0e] border p-4 transition-colors cursor-pointer group relative ${
                 selectedWithdrawalId === w.id
                   ? "border-pandora-cyan bg-pandora-cyan/5"
@@ -174,7 +251,7 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
       {/* Detail Area */}
       <div
         className={`${
-          !selectedWithdrawalId ? "hidden lg:flex" : "flex"
+          selectedWithdrawalId ? "flex" : "hidden lg:flex"
         } lg:col-span-2 bg-[#0e0e0e] border border-white/10 flex-col h-full relative`}
       >
         {selectedWithdrawal ? (
@@ -283,59 +360,7 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
             </div>
 
             {/* Action Buttons */}
-            {selectedWithdrawal.status?.toUpperCase() === "PENDING" ? (
-              <div className="p-4 border-t border-white/10 space-y-3">
-                <textarea
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="Комментарий (опционально)..."
-                  className="w-full bg-black border border-white/20 p-3 text-xs text-white outline-none resize-none"
-                  rows={3}
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleApprove}
-                    disabled={processing}
-                    className="flex-1 flex items-center justify-center gap-2 bg-green-500/20 border border-green-500/50 text-green-400 px-4 py-2 text-[10px] font-bold font-mono hover:bg-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Check size={14} />
-                    ОДОБРИТЬ
-                  </button>
-                  <button
-                    onClick={handleReject}
-                    disabled={processing}
-                    className="flex-1 flex items-center justify-center gap-2 bg-red-500/20 border border-red-500/50 text-red-400 px-4 py-2 text-[10px] font-bold font-mono hover:bg-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <X size={14} />
-                    ОТКЛОНИТЬ
-                  </button>
-                </div>
-              </div>
-            ) : selectedWithdrawal.status?.toUpperCase() === "PROCESSING" ? (
-              <div className="p-4 border-t border-white/10 space-y-3">
-                <textarea
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="Комментарий при завершении (опционально)..."
-                  className="w-full bg-black border border-white/20 p-3 text-xs text-white outline-none resize-none"
-                  rows={3}
-                />
-                <button
-                  onClick={handleComplete}
-                  disabled={processing}
-                  className="w-full flex items-center justify-center gap-2 bg-blue-500/20 border border-blue-500/50 text-blue-400 px-4 py-2 text-[10px] font-bold font-mono hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send size={14} />
-                  ОТМЕТИТЬ ВЫПОЛНЕННЫМ
-                </button>
-              </div>
-            ) : (
-              <div className="p-4 border-t border-white/10">
-                <div className="text-center text-gray-600 text-xs">
-                  Заявка {getStatusLabel(selectedWithdrawal.status).toLowerCase()}
-                </div>
-              </div>
-            )}
+            {renderActionButtons()}
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-gray-600 opacity-50">

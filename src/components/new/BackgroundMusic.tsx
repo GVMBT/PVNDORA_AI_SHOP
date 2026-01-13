@@ -11,7 +11,7 @@ import { logger } from "../../utils/logger";
 
 // Helper: Determine if running inside Telegram WebApp
 const isTelegramEnvironment = (): boolean =>
-  typeof globalThis.window !== "undefined" && !!(globalThis as any).Telegram?.WebApp;
+  globalThis.window !== undefined && !!(globalThis as any).Telegram?.WebApp;
 
 interface BackgroundMusicProps {
   src?: string;

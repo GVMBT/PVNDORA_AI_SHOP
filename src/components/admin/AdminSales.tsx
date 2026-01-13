@@ -17,6 +17,19 @@ interface AdminSalesProps {
   onRefresh?: () => void;
 }
 
+// Helper functions to avoid nested ternaries
+const getSourceChannelStyle = (channel: string): string => {
+  if (channel === "discount") return "bg-yellow-500/20 text-yellow-400";
+  if (channel === "webapp") return "bg-blue-500/20 text-blue-400";
+  return "bg-pandora-cyan/20 text-pandora-cyan";
+};
+
+const getSourceChannelLabel = (channel: string, short = false): string => {
+  if (channel === "discount") return short ? "DSC" : "DISCOUNT";
+  if (channel === "webapp") return short ? "WEB" : "WEBAPP";
+  return short ? "PVN" : "PVNDORA";
+};
+
 const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
   const [orderSearch, setOrderSearch] = useState("");
   const [checkingOrderId, setCheckingOrderId] = useState<string | null>(null);
@@ -140,19 +153,9 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
                   <td className="p-4 font-bold text-white">{o.product}</td>
                   <td className="p-4">
                     <span
-                      className={`text-[10px] font-mono px-2 py-0.5 rounded ${
-                        o.source_channel === "discount"
-                          ? "bg-yellow-500/20 text-yellow-400"
-                          : o.source_channel === "webapp"
-                            ? "bg-blue-500/20 text-blue-400"
-                            : "bg-pandora-cyan/20 text-pandora-cyan"
-                      }`}
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded ${getSourceChannelStyle(o.source_channel)}`}
                     >
-                      {o.source_channel === "discount"
-                        ? "DISCOUNT"
-                        : o.source_channel === "webapp"
-                          ? "WEBAPP"
-                          : "PVNDORA"}
+                      {getSourceChannelLabel(o.source_channel)}
                     </span>
                   </td>
                   <td className="p-4">
@@ -229,19 +232,9 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
                 <span className="text-gray-400">{o.user}</span>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`text-[10px] font-mono px-2 py-0.5 rounded ${
-                      o.source_channel === "discount"
-                        ? "bg-yellow-500/20 text-yellow-400"
-                        : o.source_channel === "webapp"
-                          ? "bg-blue-500/20 text-blue-400"
-                          : "bg-pandora-cyan/20 text-pandora-cyan"
-                    }`}
+                    className={`text-[10px] font-mono px-2 py-0.5 rounded ${getSourceChannelStyle(o.source_channel)}`}
                   >
-                    {o.source_channel === "discount"
-                      ? "DSC"
-                      : o.source_channel === "webapp"
-                        ? "WEB"
-                        : "PVN"}
+                    {getSourceChannelLabel(o.source_channel, true)}
                   </span>
                   <StatusBadge status={o.status} />
                 </div>

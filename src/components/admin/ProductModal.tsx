@@ -211,7 +211,12 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+        <button
+          type="button"
+          className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-default"
+          onClick={onClose}
+          aria-label="Close modal"
+        />
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -345,10 +350,11 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Название */}
               <div className="col-span-1 md:col-span-2">
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">
+                <label htmlFor="product-name" className="text-[10px] text-gray-500 block mb-1 uppercase">
                   Название товара *
                 </label>
                 <input
+                  id="product-name"
                   type="text"
                   value={editingProduct?.name || ""}
                   onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
@@ -359,8 +365,9 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Описание */}
               <div className="col-span-1 md:col-span-2">
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Описание</label>
+                <label htmlFor="product-description" className="text-[10px] text-gray-500 block mb-1 uppercase">Описание</label>
                 <textarea
+                  id="product-description"
                   value={editingProduct?.description || ""}
                   onChange={(e) =>
                     setEditingProduct({ ...editingProduct, description: e.target.value })
@@ -372,10 +379,11 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Категория */}
               <div>
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">
+                <label htmlFor="product-category" className="text-[10px] text-gray-500 block mb-1 uppercase">
                   Категория *
                 </label>
                 <select
+                  id="product-category"
                   value={editingProduct?.category || "ai"}
                   onChange={(e) =>
                     setEditingProduct({ ...editingProduct, category: e.target.value })
@@ -405,8 +413,9 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Тип выдачи */}
               <div>
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Тип выдачи</label>
+                <label htmlFor="product-fulfillment-type" className="text-[10px] text-gray-500 block mb-1 uppercase">Тип выдачи</label>
                 <select
+                  id="product-fulfillment-type"
                   value={editingProduct?.fulfillmentType || "auto"}
                   onChange={(e) =>
                     setEditingProduct({ ...editingProduct, fulfillmentType: e.target.value })
@@ -423,10 +432,11 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Время выполнения (для предзаказов) */}
               <div>
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase flex items-center gap-1">
+                <label htmlFor="product-fulfillment-hours" className="text-[10px] text-gray-500 block mb-1 uppercase flex items-center gap-1">
                   <Clock size={10} /> Время выполнения (часов)
                 </label>
                 <input
+                  id="product-fulfillment-hours"
                   type="number"
                   value={editingProduct?.fulfillment || 0}
                   onChange={(e) =>
@@ -442,10 +452,11 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Срок действия */}
               <div>
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">
+                <label htmlFor="product-duration" className="text-[10px] text-gray-500 block mb-1 uppercase">
                   Срок действия (дней)
                 </label>
                 <input
+                  id="product-duration"
                   type="number"
                   value={editingProduct?.duration || 30}
                   onChange={(e) =>
@@ -459,10 +470,11 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Гарантия */}
               <div>
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">
+                <label htmlFor="product-warranty" className="text-[10px] text-gray-500 block mb-1 uppercase">
                   Гарантия (дней)
                 </label>
                 <input
+                  id="product-warranty"
                   type="number"
                   value={warrantyDays}
                   onChange={(e) => setWarrantyDays(Number(e.target.value))}
@@ -474,10 +486,11 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Инструкции */}
               <div className="col-span-1 md:col-span-2">
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">
+                <label htmlFor="product-instructions" className="text-[10px] text-gray-500 block mb-1 uppercase">
                   Инструкция по активации
                 </label>
                 <textarea
+                  id="product-instructions"
                   value={editingProduct?.instructions || ""}
                   onChange={(e) =>
                     setEditingProduct({ ...editingProduct, instructions: e.target.value })
@@ -498,7 +511,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">
+                    <label htmlFor="product-price" className="text-[10px] text-gray-500 block mb-1 uppercase">
                       Цена (USD) *
                     </label>
                     <div className="relative">
@@ -506,6 +519,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                         $
                       </span>
                       <input
+                        id="product-price"
                         type="number"
                         value={editingProduct?.price || 0}
                         onChange={(e) =>
@@ -522,7 +536,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">
+                    <label htmlFor="product-msrp" className="text-[10px] text-gray-500 block mb-1 uppercase">
                       MSRP (зачёркнутая)
                     </label>
                     <div className="relative">
@@ -530,6 +544,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                         $
                       </span>
                       <input
+                        id="product-msrp"
                         type="number"
                         value={editingProduct?.msrp || 0}
                         onChange={(e) =>
@@ -546,7 +561,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-yellow-500 block mb-1 uppercase">
+                    <label htmlFor="product-discount-price" className="text-[10px] text-yellow-500 block mb-1 uppercase">
                       Цена скидочного канала
                     </label>
                     <div className="relative">
@@ -554,6 +569,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                         $
                       </span>
                       <input
+                        id="product-discount-price"
                         type="number"
                         value={editingProduct?.discountPrice || 0}
                         onChange={(e) =>
@@ -583,7 +599,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[10px] text-blue-400 block mb-1 uppercase">
+                    <label htmlFor="product-anchor-rub" className="text-[10px] text-blue-400 block mb-1 uppercase">
                       Цена в рублях (RUB)
                     </label>
                     <div className="relative">
@@ -591,6 +607,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                         ₽
                       </span>
                       <input
+                        id="product-anchor-rub"
                         type="number"
                         value={editingProduct?.prices?.RUB || ""}
                         onChange={(e) => {
@@ -618,7 +635,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-blue-400 block mb-1 uppercase">
+                    <label htmlFor="product-anchor-usd" className="text-[10px] text-blue-400 block mb-1 uppercase">
                       Цена в долларах (USD) — перезапись
                     </label>
                     <div className="relative">
@@ -626,6 +643,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                         $
                       </span>
                       <input
+                        id="product-anchor-usd"
                         type="number"
                         value={editingProduct?.prices?.USD || ""}
                         onChange={(e) => {
@@ -660,7 +678,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                   </h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-[10px] text-blue-300 block mb-1 uppercase">
+                      <label htmlFor="product-msrp-rub" className="text-[10px] text-blue-300 block mb-1 uppercase">
                         MSRP в рублях (RUB)
                       </label>
                       <div className="relative">
@@ -668,6 +686,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                           ₽
                         </span>
                         <input
+                          id="product-msrp-rub"
                           type="number"
                           value={editingProduct?.msrp_prices?.RUB || ""}
                           onChange={(e) => {
@@ -696,7 +715,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                     </div>
 
                     <div>
-                      <label className="text-[10px] text-blue-300 block mb-1 uppercase">
+                      <label htmlFor="product-msrp-usd" className="text-[10px] text-blue-300 block mb-1 uppercase">
                         MSRP в долларах (USD) — перезапись
                       </label>
                       <div className="relative">
@@ -704,6 +723,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                           $
                         </span>
                         <input
+                          id="product-msrp-usd"
                           type="number"
                           value={editingProduct?.msrp_prices?.USD || ""}
                           onChange={(e) => {
@@ -748,7 +768,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">
+                    <label htmlFor="product-cost-price" className="text-[10px] text-gray-500 block mb-1 uppercase">
                       Себестоимость (USD)
                     </label>
                     <div className="relative">
@@ -756,6 +776,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                         $
                       </span>
                       <input
+                        id="product-cost-price"
                         type="number"
                         value={editingProduct?.costPrice || 0}
                         onChange={(e) =>
@@ -773,7 +794,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">Маржа</label>
+                    <span className="text-[10px] text-gray-500 block mb-1 uppercase">Маржа</span>
                     <div className="p-2.5 bg-black/50 border border-white/10 rounded-sm">
                       {editingProduct?.price && editingProduct?.costPrice ? (
                         <>

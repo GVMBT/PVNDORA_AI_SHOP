@@ -44,7 +44,12 @@ const PartnerModal: React.FC<PartnerModalProps> = ({ partner, onClose, onSave })
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+        <button
+          type="button"
+          className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-default"
+          onClick={onClose}
+          aria-label="Close modal"
+        />
         <motion.div
           initial={{ scale: 0.9 }}
           animate={{ scale: 1 }}
@@ -72,7 +77,18 @@ const PartnerModal: React.FC<PartnerModalProps> = ({ partner, onClose, onSave })
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-black p-3 border border-white/10">
                 <label className="text-[9px] text-gray-500 block mb-2">PARTNER LEVEL</label>
-                <div className="flex items-center gap-2 cursor-pointer" onClick={togglePartnerVip}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="flex items-center gap-2 cursor-pointer"
+                  onClick={togglePartnerVip}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      togglePartnerVip();
+                    }
+                  }}
+                >
                   <div
                     className={`w-4 h-4 border border-white/30 flex items-center justify-center ${
                       editingPartner.level === "ARCHITECT"
@@ -95,7 +111,18 @@ const PartnerModal: React.FC<PartnerModalProps> = ({ partner, onClose, onSave })
               </div>
               <div className="bg-black p-3 border border-white/10">
                 <label className="text-[9px] text-gray-500 block mb-2">REWARD TYPE</label>
-                <div className="flex items-center gap-2 cursor-pointer" onClick={toggleRewardType}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="flex items-center gap-2 cursor-pointer"
+                  onClick={toggleRewardType}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleRewardType();
+                    }
+                  }}
+                >
                   <div
                     className={`w-8 h-4 rounded-full relative transition-colors ${
                       editingPartner.rewardType === "commission" ? "bg-green-500" : "bg-purple-500"

@@ -281,14 +281,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
   const liabilitiesByCurrency = d.liabilitiesByCurrency || {};
 
   // Calculated metrics (in USD since COGS is in USD)
-  const grossProfit = d.grossProfit ?? d.totalRevenue - d.totalCogs;
-  const operatingExpenses =
-    d.totalAcquiringFees +
-    d.totalReferralPayouts +
-    d.totalReserves +
-    d.totalReviewCashbacks +
-    d.totalReplacementCosts;
-  // Note: operatingProfit and grossMargin are calculated but used via d.* properties in the template
+  // grossProfit and operatingExpenses are available via d.* properties
   const netMargin =
     d.netMarginPct ?? (d.totalRevenue > 0 ? (d.netProfit / d.totalRevenue) * 100 : 0);
   const avgOrderValue = d.totalOrders > 0 ? d.totalRevenue / d.totalOrders : 0;
