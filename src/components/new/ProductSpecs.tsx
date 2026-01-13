@@ -9,6 +9,19 @@ import React, { memo, useState } from "react";
 import { motion } from "framer-motion";
 import { Info } from "lucide-react";
 
+// Helper for Russian pluralization (avoid nested ternaries)
+const getRuDaysPlural = (num: number): string => {
+  if (num === 1) return "день";
+  if (num >= 2 && num <= 4) return "дня";
+  return "дней";
+};
+
+const getRuHoursPlural = (num: number): string => {
+  if (num === 1) return "час";
+  if (num >= 2 && num <= 4) return "часа";
+  return "часов";
+};
+
 interface SpecRowProps {
   label: string;
   humanLabel: string;
@@ -103,13 +116,13 @@ const getHumanValue = (value: string): string => {
   if (value.includes("DAYS")) {
     const num = Number.parseInt(value);
     if (!Number.isNaN(num)) {
-      return `${num} ${num === 1 ? "день" : num < 5 ? "дня" : "дней"}`;
+      return `${num} ${getRuDaysPlural(num)}`;
     }
   }
   if (value.includes("HOURS")) {
     const num = Number.parseInt(value);
     if (!Number.isNaN(num)) {
-      return `${num} ${num === 1 ? "час" : num < 5 ? "часа" : "часов"}`;
+      return `${num} ${getRuHoursPlural(num)}`;
     }
   }
   if (value.includes("ALLOCATION_QUEUE")) {

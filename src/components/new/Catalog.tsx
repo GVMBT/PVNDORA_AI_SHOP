@@ -154,7 +154,8 @@ const Catalog: React.FC<CatalogProps> = ({
       if (sortBy === "price_asc") return a.price - b.price;
       if (sortBy === "price_desc") return b.price - a.price;
       // Default: Popular (Items with popular:true come first)
-      return a.popular === b.popular ? 0 : a.popular ? -1 : 1;
+      if (a.popular === b.popular) return 0;
+      return a.popular ? -1 : 1;
     });
 
     return result;
