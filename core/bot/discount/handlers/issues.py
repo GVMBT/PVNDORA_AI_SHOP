@@ -20,6 +20,44 @@ logger = get_logger(__name__)
 router = Router(name="discount_issues")
 
 
+# Helper functions (extracted to reduce cognitive complexity)
+def _format_replacement_id(rep_id: str | None) -> str:
+    """Format replacement ID for display."""
+    return rep_id[:8] if rep_id else "N/A"
+
+
+def _get_replacement_approved_message(rep_id: str | None, is_ru: bool) -> str:
+    """Get message for approved replacement."""
+    rep_id_short = _format_replacement_id(rep_id)
+    if is_ru:
+        return (
+            "✅ <b>Замена одобрена!</b>\n\n"
+            f"Новый товар будет доставлен в течение 1-4 часов.\n\n"
+            f"ID замены: #{rep_id_short}"
+        )
+    return (
+        "✅ <b>Replacement approved!</b>\n\n"
+        f"Your new item will be delivered within 1-4 hours.\n\n"
+        f"Replacement ID: #{rep_id_short}"
+    )
+
+
+def _get_replacement_pending_message(rep_id: str | None, is_ru: bool) -> str:
+    """Get message for pending replacement."""
+    rep_id_short = _format_replacement_id(rep_id)
+    if is_ru:
+        return (
+            "⏳ <b>Запрос на замену создан</b>\n\n"
+            f"Наша команда рассмотрит его в ближайшее время.\n\n"
+            f"ID замены: #{rep_id_short}"
+        )
+    return (
+        "⏳ <b>Replacement request created</b>\n\n"
+        f"Our team will review it shortly.\n\n"
+        f"Replacement ID: #{rep_id_short}"
+    )
+
+
 async def get_order_item_with_insurance(db, order_short_id: str) -> dict | None:
     """Get order item with insurance info."""
     try:
@@ -128,42 +166,13 @@ async def cb_issue_type_selected(callback: CallbackQuery, db_user: User):
                 order_item_id=order_item["id"], telegram_id=db_user.telegram_id, reason=reason
             )
 
-            # Helper to format replacement ID
-            def format_replacement_id(rep_id: str | None) -> str:
-                if rep_id:
-                    return rep_id[:8]
-                return "N/A"
-
-            # Helper to get replacement messages
-            def get_replacement_message(is_approved: bool, is_ru: bool) -> str:
-                if is_approved:
-                    if is_ru:
-                        return (
-                            "✅ <b>Замена одобрена!</b>\n\n"
-                            f"Новый товар будет доставлен в течение 1-4 часов.\n\n"
-                            f"ID замены: #{format_replacement_id(result.replacement_id)}"
-                        )
-                    return (
-                        "✅ <b>Replacement approved!</b>\n\n"
-                        f"New product will be delivered in 1-4 hours.\n\n"
-                        f"Replacement ID: #{format_replacement_id(result.replacement_id)}"
-                    )
-                # Pending review
-                if is_ru:
-                    return (
-                        "⏳ <b>Запрос на замену отправлен</b>\n\n"
-                        "Ваш запрос будет рассмотрен в течение 24 часов.\n\n"
-                        f"ID запроса: #{format_replacement_id(result.replacement_id)}"
-                    )
-                return (
-                    "⏳ <b>Replacement request submitted</b>\n\n"
-                    "Your request will be reviewed within 24 hours.\n\n"
-                    f"Request ID: #{format_replacement_id(result.replacement_id)}"
-                )
-
             if result.success:
                 is_approved = result.status == "auto_approved"
-                text = get_replacement_message(is_approved, lang == "ru")
+                text = (
+                    _get_replacement_approved_message(result.replacement_id, lang == "ru")
+                    if is_approved
+                    else _get_replacement_pending_message(result.replacement_id, lang == "ru")
+                )
 
                 await callback.message.edit_text(
                     text,

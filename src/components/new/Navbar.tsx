@@ -65,6 +65,12 @@ const Typewriter: React.FC<{ text: string; delay?: number; speed?: number }> = (
   return <span>{displayedText}</span>;
 };
 
+// Helper: Handle click with haptic feedback (extracted to reduce cognitive complexity)
+const createClickHandler = (onHaptic?: () => void) => (callback?: () => void) => {
+  if (onHaptic) onHaptic();
+  if (callback) callback();
+};
+
 const NavbarComponent: React.FC<NavbarProps> = ({
   showMobile = true,
   cartCount = 0,
@@ -81,6 +87,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
   const [isHovered, setIsHovered] = useState(false);
   const wasHoveredRef = useRef(false);
   const logoId = useRef(generateShortId("navbar-logo")).current;
+  const handleClick = createClickHandler(onHaptic);
 
   // Play typewriter sound when sidebar expands
   useEffect(() => {
@@ -92,11 +99,6 @@ const NavbarComponent: React.FC<NavbarProps> = ({
     }
     wasHoveredRef.current = isHovered;
   }, [isHovered]);
-
-  const handleClick = (callback?: () => void) => {
-    if (onHaptic) onHaptic();
-    if (callback) callback();
-  };
 
   return (
     <>

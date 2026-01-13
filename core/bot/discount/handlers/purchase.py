@@ -146,6 +146,55 @@ async def get_product_by_short_id(db, short_id: str) -> dict | None:
         return None
 
 
+async def _determine_user_currency(db_user) -> str:
+    """Determine user's payment currency for CrystalPay (reduces cognitive complexity)."""
+    user_currency = "USD"
+    try:
+        from core.db import get_redis
+        from core.services.currency import get_currency_service
+
+        redis = get_redis()
+        currency_service = get_currency_service(redis)
+
+        preferred_currency = getattr(db_user, "preferred_currency", None)
+        user_lang = getattr(db_user, "language_code", "en") or "en"
+        user_currency = currency_service.get_user_currency(user_lang, preferred_currency)
+
+        supported_currencies = ["USD", "RUB", "EUR", "UAH", "TRY", "INR", "AED"]
+        if user_currency not in supported_currencies:
+            logger.warning(f"Currency {user_currency} not supported by CrystalPay, using USD")
+            user_currency = "USD"
+    except Exception as e:
+        logger.warning(f"Failed to determine user currency: {e}, using USD")
+    return user_currency
+
+
+async def _get_display_prices(
+    total_price: float, discount_price: float, insurance_price: float, user_currency: str
+) -> tuple[float, float, float, str]:
+    """Convert prices to display currency (reduces cognitive complexity)."""
+    if user_currency == "USD":
+        return total_price, discount_price, insurance_price, "$"
+
+    try:
+        from core.db import get_redis
+        from core.services.currency import CURRENCY_SYMBOLS, get_currency_service
+
+        redis = get_redis()
+        currency_service = get_currency_service(redis)
+        rate = await currency_service.get_exchange_rate(user_currency)
+
+        return (
+            total_price * rate,
+            discount_price * rate,
+            insurance_price * rate,
+            CURRENCY_SYMBOLS.get(user_currency, user_currency),
+        )
+    except Exception as e:
+        logger.warning(f"Failed to convert price for display: {e}")
+        return total_price, discount_price, insurance_price, "$"
+
+
 async def get_insurance_option(db, short_id: str) -> dict | None:
     """Get insurance option by short ID."""
     if not short_id or short_id == "0":
@@ -255,29 +304,7 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
         ).execute()
 
         # Determine user currency
-        user_currency = "USD"  # Default
-        try:
-            from core.db import get_redis
-            from core.services.currency import get_currency_service
-
-            redis = get_redis()
-            currency_service = get_currency_service(redis)
-
-            # Get user's preferred currency or determine from language
-            preferred_currency = getattr(db_user, "preferred_currency", None)
-            user_lang = getattr(db_user, "language_code", "en") or "en"
-
-            user_currency = currency_service.get_user_currency(user_lang, preferred_currency)
-
-            # CrystalPay supports: USD, RUB, EUR, UAH, TRY, INR, AED
-            supported_currencies = ["USD", "RUB", "EUR", "UAH", "TRY", "INR", "AED"]
-            if user_currency not in supported_currencies:
-                logger.warning(
-                    f"User currency {user_currency} not supported by CrystalPay, using USD"
-                )
-                user_currency = "USD"
-        except Exception as e:
-            logger.warning(f"Failed to determine user currency: {e}, using USD")
+        user_currency = await _determine_user_currency(db_user)
 
         # Create payment
         description = f"Order {order_id[:8]} - {product.get('name', 'Product')}"
@@ -307,30 +334,9 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
         ).eq("id", order_id).execute()
 
         # Format price in user's currency for display
-        display_amount = total_price
-        display_discount_price = discount_price
-        display_insurance_price = insurance_price
-        display_currency_symbol = "$"
-        exchange_rate = 1.0
-
-        if user_currency != "USD":
-            try:
-                from core.db import get_redis
-                from core.services.currency import get_currency_service
-
-                redis = get_redis()
-                currency_service = get_currency_service(redis)
-                exchange_rate = await currency_service.get_exchange_rate(user_currency)
-                display_amount = total_price * exchange_rate
-                display_discount_price = discount_price * exchange_rate
-                display_insurance_price = insurance_price * exchange_rate
-
-                # Use currency symbols from single source of truth
-                from core.services.currency import CURRENCY_SYMBOLS
-
-                display_currency_symbol = CURRENCY_SYMBOLS.get(user_currency, user_currency)
-            except Exception as e:
-                logger.warning(f"Failed to convert price for display: {e}")
+        display_amount, display_discount_price, display_insurance_price, display_currency_symbol = (
+            await _get_display_prices(total_price, discount_price, insurance_price, user_currency)
+        )
 
         # Send payment message
         text = get_text("discount.order.header", lang, order_id=order_id[:8])
