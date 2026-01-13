@@ -32,6 +32,15 @@ profile_router = APIRouter()
 # =============================================================================
 
 
+def calculate_exchange_rate(rate: float, from_currency: str, to_currency: str) -> float:
+    """Format exchange rate for display (e.g., 1 USD = X RUB)."""
+    if from_currency == "USD" and to_currency != "USD":
+        return rate  # Already in correct format (USD -> other)
+    elif from_currency != "USD" and to_currency == "USD":
+        return 1 / rate if rate > 0 else 0  # Invert for other -> USD
+    return rate
+
+
 async def _calculate_conversion_rate(
     current_currency: str,
     target_currency: str,
@@ -305,7 +314,7 @@ async def get_webapp_profile(db_user: User = Depends(get_db_user)):
             "total_referral_earnings": formatter.convert(total_referral_earnings_usd),
             "total_saved": formatter.convert(total_saved_usd),
             # Formatted strings (ready for display)
-            "balance_formatted": currency_service.format_price(balance_in_local, balance_currency),
+            "balance_formatted": formatter.format_balance(balance_in_local, balance_currency),
             "referral_link": f"https://t.me/pvndora_ai_bot?start=ref_{db_user.telegram_id}",
             "created_at": db_user.created_at.isoformat() if db_user.created_at else None,
             "is_admin": db_user.is_admin or False,

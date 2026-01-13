@@ -22,6 +22,35 @@ logger = get_logger(__name__)
 router = APIRouter(tags=["admin-referral"])
 
 
+# =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
+
+
+def _update_thresholds(update_data: dict, request: ReferralSettingsRequest) -> None:
+    """Update threshold values if provided in request."""
+    if request.level2_threshold_usd is not None:
+        update_data["level2_threshold_usd"] = request.level2_threshold_usd
+    if request.level3_threshold_usd is not None:
+        update_data["level3_threshold_usd"] = request.level3_threshold_usd
+
+
+def _update_commissions(update_data: dict, request: ReferralSettingsRequest) -> None:
+    """Update commission values if provided in request."""
+    if request.level1_commission_percent is not None:
+        update_data["level1_commission_percent"] = request.level1_commission_percent
+    if request.level2_commission_percent is not None:
+        update_data["level2_commission_percent"] = request.level2_commission_percent
+    if request.level3_commission_percent is not None:
+        update_data["level3_commission_percent"] = request.level3_commission_percent
+
+
+def _update_anchor_thresholds(update_data: dict, request: ReferralSettingsRequest) -> None:
+    """Update anchor thresholds (currency-specific) if provided in request."""
+    if request.thresholds_by_currency is not None:
+        update_data["thresholds_by_currency"] = request.thresholds_by_currency
+
+
 # ==================== REFERRAL SETTINGS ====================
 
 

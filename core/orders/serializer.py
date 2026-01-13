@@ -15,6 +15,37 @@ logger = logging.getLogger(__name__)
 DELIVERED_STATES = ["delivered", "partial", "completed"]
 
 
+def _derive_product_name(items: list[dict[str, Any]], product: Any) -> str:
+    """
+    Derive product name from order items, falling back to product object.
+
+    Args:
+        items: List of order items with product info
+        product: Legacy product object (fallback)
+
+    Returns:
+        Product name string
+    """
+    if items:
+        # Get first item's product name
+        first_item = items[0]
+        if isinstance(first_item, dict):
+            # Try nested product dict first
+            if "product" in first_item and isinstance(first_item["product"], dict):
+                return first_item["product"].get("name", "Unknown")
+            # Try direct product_name
+            if "product_name" in first_item:
+                return first_item["product_name"]
+
+    # Fallback to product object
+    if product:
+        if isinstance(product, dict):
+            return product.get("name", "Unknown")
+        return getattr(product, "name", "Unknown")
+
+    return "Unknown"
+
+
 def convert_order_prices_with_formatter(
     amount: Decimal, original_price: Decimal | None, formatter: "CurrencyFormatter"
 ) -> dict[str, Any]:

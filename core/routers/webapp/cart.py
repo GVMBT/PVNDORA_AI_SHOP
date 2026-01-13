@@ -23,6 +23,54 @@ from .models import AddToCartRequest, ApplyPromoRequest, UpdateCartItemRequest
 
 logger = get_logger(__name__)
 
+
+# =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
+
+
+async def _calculate_display_prices(
+    item, product, currency_service, formatter
+) -> tuple[float, float, float]:
+    """
+    Calculate display prices using anchor pricing.
+
+    Args:
+        item: Cart item with USD prices
+        product: Product data
+        currency_service: Currency service for anchor prices
+        formatter: CurrencyFormatter for currency conversion
+
+    Returns:
+        (unit_price_display, final_price_display, total_price_display)
+    """
+    target_currency = formatter.currency
+
+    # Try anchor price first (product-level pricing)
+    if product and target_currency != "USD":
+        try:
+            anchor_price = await currency_service.get_anchor_price(product, target_currency)
+            if anchor_price and anchor_price > 0:
+                unit_price_display = anchor_price
+                # Apply discount if any
+                discount = item.discount_percent or 0
+                if discount > 0:
+                    final_price_display = anchor_price * (1 - discount / 100)
+                else:
+                    final_price_display = anchor_price
+                total_price_display = final_price_display * item.quantity
+                return unit_price_display, final_price_display, total_price_display
+        except Exception:
+            pass
+
+    # Fallback to exchange rate conversion
+    unit_price_display = formatter.convert(item.unit_price)
+    final_price_display = formatter.convert(item.final_price)
+    total_price_display = formatter.convert(item.total_price)
+
+    return unit_price_display, final_price_display, total_price_display
+
+
 router = APIRouter(tags=["webapp-cart"])
 
 

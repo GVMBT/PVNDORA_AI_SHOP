@@ -61,6 +61,50 @@ async def send_telegram_message(
     )
 
 
+async def _get_target_users(db, request: BroadcastRequest) -> list[dict]:
+    """
+    Get list of target users based on broadcast filters.
+
+    Args:
+        db: Database instance
+        request: Broadcast request with filters
+
+    Returns:
+        List of user dicts with telegram_id
+    """
+    query = db.client.table("users").select("telegram_id, language_code")
+
+    # Filter out banned and blocked users
+    query = query.eq("is_banned", False).is_("bot_blocked_at", "null")
+
+    # Apply language filter
+    if request.filter_language:
+        query = query.eq("language_code", request.filter_language)
+
+    # Apply orders filter
+    if request.filter_has_orders is True:
+        # Get users with delivered orders
+        orders_result = await db.client.table("orders").select("user_id").eq("status", "delivered").execute()
+        user_ids_with_orders = list(set(o["user_id"] for o in (orders_result.data or [])))
+        if user_ids_with_orders:
+            query = query.in_("id", user_ids_with_orders)
+        else:
+            return []  # No users with orders
+    elif request.filter_has_orders is False:
+        # Get users without delivered orders
+        orders_result = await db.client.table("orders").select("user_id").eq("status", "delivered").execute()
+        user_ids_with_orders = list(set(o["user_id"] for o in (orders_result.data or [])))
+        if user_ids_with_orders:
+            query = query.not_.in_("id", user_ids_with_orders)
+
+    # Apply bot-specific filter for discount bot
+    if request.target_bot == "discount":
+        query = query.eq("discount_tier_source", True)
+
+    result = await query.execute()
+    return result.data or []
+
+
 @router.post("", response_model=BroadcastResult)
 async def send_broadcast(request: BroadcastRequest, admin_user=Depends(verify_admin)):
     """

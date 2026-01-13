@@ -14,6 +14,43 @@ from .base import get_db, get_user_context
 logger = get_logger(__name__)
 
 
+# =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
+
+
+def _determine_career_level(
+    user: dict, threshold_l2: float, threshold_l3: float, turnover: float
+) -> tuple[int, int | None, float]:
+    """
+    Determine user's career level based on turnover.
+
+    Returns:
+        (career_level, next_level, turnover_to_next)
+    """
+    if turnover >= threshold_l3:
+        return 3, None, 0
+    elif turnover >= threshold_l2:
+        return 2, 3, threshold_l3 - turnover
+    else:
+        return 1, 2, threshold_l2 - turnover
+
+
+def _get_line_unlocked_status(user: dict) -> tuple[bool, bool, bool]:
+    """
+    Get line unlock status from user data.
+
+    Returns:
+        (line1_unlocked, line2_unlocked, line3_unlocked)
+    """
+    line1_unlocked = user.get("level1_unlocked_at") is not None or user.get(
+        "referral_program_unlocked", False
+    )
+    line2_unlocked = user.get("level2_unlocked_at") is not None
+    line3_unlocked = user.get("level3_unlocked_at") is not None
+    return line1_unlocked, line2_unlocked, line3_unlocked
+
+
 @tool
 async def get_user_profile() -> dict:
     """
@@ -164,6 +201,9 @@ async def get_referral_info() -> dict:
         career_level, next_level, turnover_to_next = _determine_career_level(
             user, threshold_l2, threshold_l3, turnover
         )
+
+        # Get line unlock status
+        line1_unlocked, line2_unlocked, line3_unlocked = _get_line_unlocked_status(user)
 
         network = {"line1": 0, "line2": 0, "line3": 0}
 

@@ -22,6 +22,64 @@ class ToggleVIPRequest(PydanticBaseModel):
 
 logger = get_logger(__name__)
 
+
+# =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
+
+
+def _prepare_partner_grant_data(
+    update_data: dict, partner_level_override: int | None, now
+) -> int | None:
+    """Prepare update data for granting VIP partner status."""
+    update_data["partner_granted_at"] = now.isoformat()
+    update_data["level1_unlocked_at"] = now.isoformat()
+    update_data["referral_program_unlocked"] = True
+
+    final_level_override = None
+    if partner_level_override:
+        update_data["partner_level_override"] = partner_level_override
+        final_level_override = partner_level_override
+        # Unlock levels based on override
+        if partner_level_override >= 2:
+            update_data["level2_unlocked_at"] = now.isoformat()
+        if partner_level_override >= 3:
+            update_data["level3_unlocked_at"] = now.isoformat()
+
+    return final_level_override
+
+
+def _prepare_partner_revoke_data(update_data: dict) -> None:
+    """Prepare update data for revoking VIP partner status."""
+    update_data["partner_granted_at"] = None
+    update_data["partner_level_override"] = None
+
+
+async def _send_vip_notification(telegram_id: int | None, is_partner: bool) -> None:
+    """Send VIP status notification to user (best-effort)."""
+    if not telegram_id:
+        return
+
+    try:
+        from core.routers.deps import get_notification_service
+
+        notification_service = get_notification_service()
+
+        if is_partner:
+            await notification_service.send_system_notification(
+                telegram_id=telegram_id,
+                message="🌟 Поздравляем! Вам присвоен VIP-статус партнёра!\n\n"
+                "Теперь у вас есть доступ к расширенным возможностям реферальной программы.",
+            )
+        else:
+            await notification_service.send_system_notification(
+                telegram_id=telegram_id,
+                message="ℹ️ Ваш VIP-статус партнёра был отозван.",
+            )
+    except Exception as e:
+        logger.warning(f"Failed to send VIP notification to {telegram_id}: {e}")
+
+
 router = APIRouter(tags=["admin-users"])
 
 

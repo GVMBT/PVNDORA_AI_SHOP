@@ -5,7 +5,6 @@ Since CrystalPay webhook may not work reliably, poll invoice status via API.
 Runs every 1 minute to check pending orders.
 """
 
-import asyncio
 import os
 import sys
 from datetime import UTC, datetime, timedelta

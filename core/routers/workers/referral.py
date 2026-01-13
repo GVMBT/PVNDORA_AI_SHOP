@@ -19,6 +19,41 @@ logger = get_logger(__name__)
 referral_router = APIRouter()
 
 
+# =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
+
+
+async def _queue_replacement_for_stock(db, ticket_id: str) -> None:
+    """Queue ticket for replacement when stock becomes available."""
+    await db.client.table("insurance_replacements").update(
+        {
+            "status": "queued",
+            "notes": "Queued for auto-delivery when stock available",
+        }
+    ).eq("id", ticket_id).execute()
+    logger.info(f"Ticket {ticket_id} queued for replacement when stock available")
+
+
+async def _notify_replacement_queued(
+    notification_service, user_telegram_id: int | None, product_id: str
+) -> None:
+    """Send notification about queued replacement."""
+    if not user_telegram_id:
+        return
+
+    try:
+        await notification_service.send_system_notification(
+            telegram_id=user_telegram_id,
+            message=(
+                "📋 Ваш запрос на замену добавлен в очередь.\n\n"
+                "Мы автоматически доставим новый товар, когда он появится на складе."
+            ),
+        )
+    except Exception as e:
+        logger.warning(f"Failed to send replacement queued notification: {e}")
+
+
 async def _get_buyer_name(db, buyer_id: str) -> str:
     """Get buyer name for notification (reduces cognitive complexity)."""
     buyer_result = (

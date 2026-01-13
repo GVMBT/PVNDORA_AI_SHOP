@@ -18,6 +18,51 @@ logger = get_logger(__name__)
 # Constants (avoid string duplication)
 ERROR_ORDER_NOT_FOUND = "Order not found"
 
+
+# =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
+
+
+async def _calculate_cashback_base(
+    order_data: dict, order_amount: float, balance_currency: str
+) -> float:
+    """
+    Calculate cashback base amount in user's balance currency.
+
+    Uses fiat_amount from order if currency matches, otherwise converts from USD.
+    """
+    # If order has fiat_amount in user's balance currency, use it directly
+    fiat_amount = order_data.get("fiat_amount")
+    fiat_currency = order_data.get("fiat_currency")
+
+    if fiat_amount is not None and fiat_currency == balance_currency:
+        return float(fiat_amount)
+
+    # Otherwise convert from USD
+    if balance_currency == "USD":
+        return float(order_amount)
+
+    # Convert USD to balance_currency
+    from core.db import get_redis
+    from core.services.currency import get_currency_service
+
+    redis = get_redis()
+    currency_service = get_currency_service(redis)
+    rate = await currency_service.get_exchange_rate(balance_currency)
+
+    return float(order_amount) * rate
+
+
+async def _get_currency_service():
+    """Get currency service instance."""
+    from core.db import get_redis
+    from core.services.currency import get_currency_service
+
+    redis = get_redis()
+    return get_currency_service(redis)
+
+
 payments_router = APIRouter()
 
 
@@ -260,6 +305,7 @@ async def worker_process_review_cashback(request: Request):
         if balance_currency == "USD":
             cashback_usd = cashback_amount
         else:
+            currency_service = await _get_currency_service()
             rate = await currency_service.get_exchange_rate(balance_currency)
             cashback_usd = cashback_amount / rate if rate > 0 else cashback_amount
 
