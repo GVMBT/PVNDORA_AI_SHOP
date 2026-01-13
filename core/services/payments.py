@@ -103,7 +103,7 @@ class PaymentService:
         product_name: str,
         method: str = "crystalpay",
         currency: str = "RUB",
-        _user_id: int | None = None,
+        user_id: int | None = None,
         is_telegram_miniapp: bool = True,
         **kwargs,
     ) -> dict[str, Any]:

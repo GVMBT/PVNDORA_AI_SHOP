@@ -234,7 +234,7 @@ const Modal: React.FC<{
       return "Сумма слишком мала. После комиссии вы получите менее 8.5 USDT (требование биржи: минимум 10 USD).";
     }
     if (!withdrawDetails || !withdrawDetails.trim()) {
-      return "Укажите адрес кошелька";
+      return t("modal.errors.enterDetails");
     }
     return null;
   };

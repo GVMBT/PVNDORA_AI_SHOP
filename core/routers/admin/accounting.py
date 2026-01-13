@@ -23,6 +23,130 @@ SELECT_BALANCE_FIELDS = "balance, balance_currency"
 SELECT_WITHDRAWAL_FIELDS = "amount_debited, balance_currency"
 
 # =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
+
+
+def parse_date_range(
+    from_date: str | None, to_date: str | None, period: str | None
+) -> tuple[datetime | None, datetime]:
+    """Parse date range from query parameters (reduces cognitive complexity)."""
+    now = datetime.now(UTC)
+    start_date: datetime | None = None
+    end_date: datetime = now
+
+    if from_date:
+        try:
+            start_date = datetime.fromisoformat(from_date.replace("Z", "+00:00"))
+            if not start_date.tzinfo:
+                start_date = start_date.replace(tzinfo=UTC)
+        except ValueError:
+            start_date = datetime.strptime(from_date, "%Y-%m-%d").replace(tzinfo=UTC)
+
+    if to_date:
+        try:
+            end_date = datetime.fromisoformat(to_date.replace("Z", "+00:00"))
+            if not end_date.tzinfo:
+                end_date = end_date.replace(tzinfo=UTC)
+            end_date = end_date.replace(hour=23, minute=59, second=59)
+        except ValueError:
+            end_date = datetime.strptime(to_date, "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59, tzinfo=UTC
+            )
+
+    if not start_date and period:
+        if period == "today":
+            start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif period == "month":
+            start_date = now - timedelta(days=30)
+
+    return start_date, end_date
+
+
+def extract_order_data(order: dict[str, Any]) -> tuple[str, float | None, float, dict[str, Any] | None]:
+    """Extract currency, amounts, and expenses from order (reduces cognitive complexity)."""
+    currency_raw = order.get("fiat_currency")
+    currency = str(currency_raw) if currency_raw else "USD"
+    fiat_amount_raw = order.get("fiat_amount")
+    fiat_amount = float(fiat_amount_raw) if isinstance(fiat_amount_raw, (int, float)) else None
+    amount_raw = order.get("amount", 0)
+    amount_usd = float(amount_raw) if isinstance(amount_raw, (int, float)) else 0.0
+
+    expenses_raw = order.get("order_expenses")
+    expenses: dict[str, Any] | None = None
+    if expenses_raw:
+        if isinstance(expenses_raw, list):
+            expenses = (
+                cast(dict[str, Any], expenses_raw[0])
+                if expenses_raw and isinstance(expenses_raw[0], dict)
+                else None
+            )
+        elif isinstance(expenses_raw, dict):
+            expenses = cast(dict[str, Any], expenses_raw)
+
+    return currency, fiat_amount, amount_usd, expenses
+
+
+def calculate_revenue_amounts(
+    amount_usd: float,
+    real_amount: float,
+    expenses: dict[str, Any] | None,
+    currency: str,
+) -> tuple[float, float, float]:
+    """Calculate gross revenue, promo discount in fiat currency (reduces cognitive complexity)."""
+    promo_discount_raw = expenses.get("promo_discount_amount", 0) if expenses else 0
+    promo_discount_usd = (
+        float(promo_discount_raw) if isinstance(promo_discount_raw, (int, float)) else 0.0
+    )
+
+    revenue_gross_usd = amount_usd + promo_discount_usd
+
+    if promo_discount_usd > 0:
+        if amount_usd > 0:
+            gross_ratio = revenue_gross_usd / amount_usd
+            fiat_gross = real_amount * gross_ratio
+        else:
+            fiat_gross = revenue_gross_usd
+        fiat_promo_discount = fiat_gross - real_amount
+    else:
+        fiat_gross = real_amount
+        fiat_promo_discount = 0.0
+
+    return fiat_gross, fiat_promo_discount, revenue_gross_usd
+
+
+def extract_expenses(expenses: dict[str, Any]) -> dict[str, float]:
+    """Extract expense amounts from order_expenses (reduces cognitive complexity)."""
+    return {
+        "cogs": float(expenses.get("cogs_amount", 0))
+        if isinstance(expenses.get("cogs_amount"), (int, float))
+        else 0.0,
+        "acquiring": float(expenses.get("acquiring_fee_amount", 0))
+        if isinstance(expenses.get("acquiring_fee_amount"), (int, float))
+        else 0.0,
+        "referral": float(expenses.get("referral_payout_amount", 0))
+        if isinstance(expenses.get("referral_payout_amount"), (int, float))
+        else 0.0,
+        "reserve": float(expenses.get("reserve_amount", 0))
+        if isinstance(expenses.get("reserve_amount"), (int, float))
+        else 0.0,
+        "review": float(expenses.get("review_cashback_amount", 0))
+        if isinstance(expenses.get("review_cashback_amount"), (int, float))
+        else 0.0,
+        "replacement": float(expenses.get("insurance_replacement_cost", 0))
+        if isinstance(expenses.get("insurance_replacement_cost"), (int, float))
+        else 0.0,
+    }
+
+
+def round_currency_value(value: float, currency: str) -> float:
+    """Round currency value based on currency type (reduces cognitive complexity)."""
+    if currency in ("RUB", "UAH", "TRY", "INR", "JPY", "KRW"):
+        return round(value)
+    return round(value, 2)
+
+
+# =============================================================================
 # Models
 # =============================================================================
 
@@ -90,38 +214,7 @@ async def get_financial_overview(
     db = get_database()
 
     # Determine date range
-    now = datetime.now(UTC)
-    start_date: datetime | None = None
-    end_date: datetime = now
-
-    if from_date:
-        try:
-            start_date = datetime.fromisoformat(from_date.replace("Z", "+00:00"))
-            if not start_date.tzinfo:
-                start_date = start_date.replace(tzinfo=UTC)
-        except ValueError:
-            # Try date-only format
-            start_date = datetime.strptime(from_date, "%Y-%m-%d").replace(tzinfo=UTC)
-
-    if to_date:
-        try:
-            end_date = datetime.fromisoformat(to_date.replace("Z", "+00:00"))
-            if not end_date.tzinfo:
-                end_date = end_date.replace(tzinfo=UTC)
-            # End of day
-            end_date = end_date.replace(hour=23, minute=59, second=59)
-        except ValueError:
-            end_date = datetime.strptime(to_date, "%Y-%m-%d").replace(
-                hour=23, minute=59, second=59, tzinfo=UTC
-            )
-
-    # If no from_date but period specified
-    if not start_date and period:
-        if period == "today":
-            start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        elif period == "month":
-            start_date = now - timedelta(days=30)
-        # "all" means no start_date filter
+    start_date, end_date = parse_date_range(from_date, to_date, period)
 
     # Build orders query with date filtering
     orders_query = (
@@ -158,77 +251,15 @@ async def get_financial_overview(
     total_replacement_costs = 0.0
 
     for raw_order in orders:
-        # Ensure order is a dict
         if not isinstance(raw_order, dict):
             continue
         order = cast(dict[str, Any], raw_order)
 
-        currency_raw = order.get("fiat_currency")
-        currency = str(currency_raw) if currency_raw else "USD"
-        fiat_amount_raw = order.get("fiat_amount")
-        fiat_amount = float(fiat_amount_raw) if isinstance(fiat_amount_raw, (int, float)) else None
-        amount_raw = order.get("amount", 0)
-        amount_usd = (
-            float(amount_raw) if isinstance(amount_raw, (int, float)) else 0.0
-        )  # Чистая выручка (после промокодов)
-
-        # Get promo discount amount from order_expenses
-        expenses_raw = order.get("order_expenses")
-        expenses: dict[str, Any] | None = None
-        promo_discount_usd = 0.0
-        if expenses_raw:
-            if isinstance(expenses_raw, list):
-                expenses = (
-                    cast(dict[str, Any], expenses_raw[0])
-                    if expenses_raw and isinstance(expenses_raw[0], dict)
-                    else None
-                )
-            elif isinstance(expenses_raw, dict):
-                expenses = cast(dict[str, Any], expenses_raw)
-            if expenses:
-                promo_discount_raw = expenses.get("promo_discount_amount", 0)
-                promo_discount_usd = (
-                    float(promo_discount_raw)
-                    if isinstance(promo_discount_raw, (int, float))
-                    else 0.0
-                )
-
-        # Determine real payment amount (net revenue after promo codes)
+        currency, fiat_amount, amount_usd, expenses = extract_order_data(order)
         real_amount = float(fiat_amount) if fiat_amount is not None else amount_usd
-
-        # Calculate gross revenue in fiat currency (our price before promo codes)
-        # If we have promo_discount, calculate gross = net + promo
-        if expenses:
-            promo_discount_raw = expenses.get("promo_discount_amount", 0)
-            promo_discount_usd = (
-                float(promo_discount_raw) if isinstance(promo_discount_raw, (int, float)) else 0.0
-            )
-        else:
-            promo_discount_usd = 0.0
-
-        # Override original_price logic - use ACTUAL sales price + discounts
-        # We don't care about MSRP (original_price) anymore for P&L
-        revenue_gross_usd = amount_usd + promo_discount_usd
-
-        if promo_discount_usd > 0:
-            # Gross in fiat = proportional to USD gross
-            if amount_usd > 0:
-                gross_ratio = revenue_gross_usd / amount_usd
-                fiat_gross = real_amount * gross_ratio
-            else:
-                # Full discount?
-                fiat_gross = revenue_gross_usd  # fallback, likely wrong if real_amount is 0
-                if real_amount == 0 and amount_usd == 0 and currency == "USD":
-                    # If both are 0, we can't infer exchange rate easily, but let's assume 1:1 if USD
-                    fiat_gross = revenue_gross_usd
-
-            # Promo discount in fiat
-            fiat_promo_discount = fiat_gross - real_amount
-        else:
-            # No discount, gross = net
-            fiat_gross = real_amount
-            fiat_promo_discount = 0.0
-            revenue_gross_usd = amount_usd
+        fiat_gross, fiat_promo_discount, revenue_gross_usd = calculate_revenue_amounts(
+            amount_usd, real_amount, expenses, currency
+        )
 
         # Initialize currency bucket
         if currency not in revenue_by_currency:
@@ -250,38 +281,21 @@ async def get_financial_overview(
 
         # Expenses (from order_expenses, always in USD)
         if expenses and isinstance(expenses, dict):
-            cogs_raw = expenses.get("cogs_amount", 0)
-            total_cogs += float(cogs_raw) if isinstance(cogs_raw, (int, float)) else 0.0
-            acquiring_raw = expenses.get("acquiring_fee_amount", 0)
-            total_acquiring_fees += (
-                float(acquiring_raw) if isinstance(acquiring_raw, (int, float)) else 0.0
-            )
-            referral_raw = expenses.get("referral_payout_amount", 0)
-            total_referral_payouts += (
-                float(referral_raw) if isinstance(referral_raw, (int, float)) else 0.0
-            )  # Эти идут в баланс, но считаем как расход
-            reserve_raw = expenses.get("reserve_amount", 0)
-            total_reserves += float(reserve_raw) if isinstance(reserve_raw, (int, float)) else 0.0
-            review_raw = expenses.get("review_cashback_amount", 0)
-            total_review_cashbacks += (
-                float(review_raw) if isinstance(review_raw, (int, float)) else 0.0
-            )
-            replacement_raw = expenses.get("insurance_replacement_cost", 0)
-            total_replacement_costs += (
-                float(replacement_raw) if isinstance(replacement_raw, (int, float)) else 0.0
-            )
+            exp = extract_expenses(expenses)
+            total_cogs += exp["cogs"]
+            total_acquiring_fees += exp["acquiring"]
+            total_referral_payouts += exp["referral"]
+            total_reserves += exp["reserve"]
+            total_review_cashbacks += exp["review"]
+            total_replacement_costs += exp["replacement"]
 
     # Round currency values
-    for currency in revenue_by_currency:
-        for key in revenue_by_currency[currency]:
+    for currency_key in revenue_by_currency:
+        for key in revenue_by_currency[currency_key]:
             if key != "orders_count":
-                # Integer rounding for RUB-like currencies
-                if currency in ("RUB", "UAH", "TRY", "INR", "JPY", "KRW"):
-                    revenue_by_currency[currency][key] = round(revenue_by_currency[currency][key])
-                else:
-                    revenue_by_currency[currency][key] = round(
-                        revenue_by_currency[currency][key], 2
-                    )
+                revenue_by_currency[currency_key][key] = round_currency_value(
+                    revenue_by_currency[currency_key][key], currency_key
+                )
 
     # ==========================================================================
     # Other Expenses (from expenses table, in USD)
@@ -395,21 +409,13 @@ async def get_financial_overview(
         logger.warning("Failed to get pending withdrawals: %s", e)
 
     # Round liabilities
-    for currency in liabilities_by_currency:
-        if currency in ("RUB", "UAH", "TRY", "INR", "JPY", "KRW"):
-            liabilities_by_currency[currency]["user_balances"] = round(
-                liabilities_by_currency[currency]["user_balances"]
-            )
-            liabilities_by_currency[currency]["pending_withdrawals"] = round(
-                liabilities_by_currency[currency]["pending_withdrawals"]
-            )
-        else:
-            liabilities_by_currency[currency]["user_balances"] = round(
-                liabilities_by_currency[currency]["user_balances"], 2
-            )
-            liabilities_by_currency[currency]["pending_withdrawals"] = round(
-                liabilities_by_currency[currency]["pending_withdrawals"], 2
-            )
+    for currency_key in liabilities_by_currency:
+        liabilities_by_currency[currency_key]["user_balances"] = round_currency_value(
+            liabilities_by_currency[currency_key]["user_balances"], currency_key
+        )
+        liabilities_by_currency[currency_key]["pending_withdrawals"] = round_currency_value(
+            liabilities_by_currency[currency_key]["pending_withdrawals"], currency_key
+        )
 
     # ==========================================================================
     # Reserves
