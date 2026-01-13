@@ -78,6 +78,61 @@ async def _process_order_items(db: Any, notification_service: Any, results: dict
             logger.exception("auto_alloc: Failed to deliver order %s", oid)
 
 
+async def _get_replacement_context(
+    db: Any, item_id: str
+) -> tuple[str | None, str | None]:
+    """Get product_id and order_id for replacement item."""
+    item_res = (
+        await db.client.table("order_items")
+        .select("product_id, order_id")
+        .eq("id", item_id)
+        .single()
+        .execute()
+    )
+    if not item_res.data or not isinstance(item_res.data, dict):
+        return None, None
+    item_data = cast(dict[str, Any], item_res.data)
+    product_id = str(item_data.get("product_id")) if item_data.get("product_id") else None
+    order_id = str(item_data.get("order_id")) if item_data.get("order_id") else None
+    return product_id, order_id
+
+
+async def _find_available_stock(db: Any, product_id: str) -> tuple[str | None, str]:
+    """Find available stock for product. Returns (stock_id, content)."""
+    stock_res = (
+        await db.client.table("stock_items")
+        .select("id, content")
+        .eq("product_id", product_id)
+        .eq("status", "available")
+        .limit(1)
+        .execute()
+    )
+    if not stock_res.data:
+        return None, ""
+    raw_stock = stock_res.data[0]
+    if not isinstance(raw_stock, dict):
+        return None, ""
+    stock_item = cast(dict[str, Any], raw_stock)
+    stock_id = str(stock_item.get("id")) if stock_item.get("id") else None
+    stock_content = str(stock_item.get("content", ""))
+    return stock_id, stock_content
+
+
+async def _get_product_expiry_info(db: Any, product_id: str) -> tuple[int, str]:
+    """Get product duration and name. Returns (duration_days, product_name)."""
+    product_res = (
+        await db.client.table("products")
+        .select("duration_days, name")
+        .eq("id", product_id)
+        .single()
+        .execute()
+    )
+    product = cast(dict[str, Any], product_res.data) if isinstance(product_res.data, dict) else {}
+    duration_raw = product.get("duration_days")
+    duration = int(duration_raw) if isinstance(duration_raw, (int, float)) and duration_raw > 0 else 0
+    return duration, str(product.get("name", "Product"))
+
+
 async def _process_single_replacement(
     db: Any,
     notification_service: Any,
@@ -87,81 +142,26 @@ async def _process_single_replacement(
     """Process a single replacement ticket. Returns True if delivered."""
     ticket_id = str(ticket.get("id", "")) if ticket.get("id") else None
     item_id = str(ticket.get("item_id")) if ticket.get("item_id") else None
-
     if not item_id:
         return False
 
-    # Get order item info
-    item_res = (
-        await db.client.table("order_items")
-        .select("product_id, order_id")
-        .eq("id", item_id)
-        .single()
-        .execute()
-    )
-
-    if not item_res.data or not isinstance(item_res.data, dict):
-        return False
-
-    item_data = cast(dict[str, Any], item_res.data)
-    product_id = str(item_data.get("product_id")) if item_data.get("product_id") else None
-    order_id = str(item_data.get("order_id")) if item_data.get("order_id") else None
-
+    product_id, order_id = await _get_replacement_context(db, item_id)
     if not product_id or not order_id:
         return False
 
-    # Check if stock is available
-    stock_res = (
-        await db.client.table("stock_items")
-        .select("id, content")
-        .eq("product_id", product_id)
-        .eq("status", "available")
-        .limit(1)
-        .execute()
-    )
-
-    if not stock_res.data:
-        return False
-
-    raw_stock = stock_res.data[0]
-    if not isinstance(raw_stock, dict):
-        return False
-
-    stock_item = cast(dict[str, Any], raw_stock)
-    stock_id = str(stock_item.get("id")) if stock_item.get("id") else None
+    stock_id, stock_content = await _find_available_stock(db, product_id)
     if not stock_id:
         return False
-    stock_content = str(stock_item.get("content", ""))
 
     # Mark stock as sold
     await db.client.table("stock_items").update(
         {"status": "sold", "reserved_at": now.isoformat(), "sold_at": now.isoformat()}
     ).eq("id", stock_id).execute()
 
-    # Get product info for expiration
-    product_res = (
-        await db.client.table("products")
-        .select("duration_days, name")
-        .eq("id", product_id)
-        .single()
-        .execute()
-    )
+    duration_days, product_name = await _get_product_expiry_info(db, product_id)
+    expires_at_str = (now + timedelta(days=duration_days)).isoformat() if duration_days > 0 else None
 
-    product = cast(dict[str, Any], product_res.data) if isinstance(product_res.data, dict) else {}
-    duration_days_raw = product.get("duration_days")
-    duration_days = (
-        int(duration_days_raw)
-        if isinstance(duration_days_raw, (int, float)) and duration_days_raw > 0
-        else 0
-    )
-    product_name = str(product.get("name", "Product"))
-
-    # Calculate expires_at
-    expires_at_str = None
-    if duration_days > 0:
-        expires_at_str = (now + timedelta(days=duration_days)).isoformat()
-
-    # Update order item with new credentials
+    # Update order item
     update_data: dict[str, Any] = {
         "stock_item_id": stock_id,
         "delivery_content": stock_content,
@@ -171,20 +171,14 @@ async def _process_single_replacement(
     }
     if expires_at_str:
         update_data["expires_at"] = expires_at_str
-
     await db.client.table("order_items").update(update_data).eq("id", item_id).execute()
 
     # Close ticket
     await db.client.table("tickets").update(
-        {
-            "status": "closed",
-            "admin_comment": "Replacement auto-delivered when stock became available.",
-        }
+        {"status": "closed", "admin_comment": "Replacement auto-delivered when stock became available."}
     ).eq("id", ticket_id).execute()
 
-    # Notify user
     await _notify_replacement_user(db, notification_service, order_id, product_name, item_id)
-
     logger.info("auto_alloc: Delivered replacement for ticket %s", ticket_id)
     return True
 

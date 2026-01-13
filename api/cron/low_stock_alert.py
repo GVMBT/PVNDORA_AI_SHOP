@@ -174,12 +174,43 @@ def format_stock_alert(products: list) -> str:
     return "\n".join(lines)
 
 
+async def _filter_new_alerts(
+    products: list[Any], now: datetime, results: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Filter products that haven't been alerted recently."""
+    new_alerts = []
+    for product_raw in products:
+        if not isinstance(product_raw, dict):
+            continue
+        product = cast(dict[str, Any], product_raw)
+        product_id = product.get("product_id", product.get("id", ""))
+        stock_status = product.get("stock_status", "low")
+
+        alert_key = get_alert_key(product_id, stock_status)
+        if await redis_get(alert_key):
+            results["skipped_cooldown"] += 1
+            continue
+
+        cooldown = ALERT_COOLDOWNS.get(stock_status, 2 * 60 * 60)
+        await redis_setex(alert_key, cooldown, now.isoformat())
+        new_alerts.append(product)
+        results["new_alerts"] += 1
+    return new_alerts
+
+
+async def _send_alerts_to_admins(new_alerts: list[dict[str, Any]], results: dict[str, Any]) -> None:
+    """Send formatted alert to all admin chat IDs."""
+    if not new_alerts:
+        return
+    message = format_stock_alert(new_alerts)
+    for chat_id in ADMIN_CHAT_IDS:
+        if chat_id.strip() and await send_telegram_message(chat_id, message):
+            results["notifications_sent"] += 1
+
+
 @app.get("/api/cron/low_stock_alert")
 async def low_stock_alert_entrypoint(request: Request):
-    """
-    Vercel Cron entrypoint for low stock alerts.
-    Uses Redis to deduplicate alerts - only sends once per product/status combo.
-    """
+    """Vercel Cron entrypoint for low stock alerts."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
@@ -197,55 +228,16 @@ async def low_stock_alert_entrypoint(request: Request):
     }
 
     try:
-        # Query low_stock_alert view
         low_stock_result = await db.client.table("low_stock_alert").select("*").execute()
-
         low_stock_products = low_stock_result.data or []
         results["low_stock_count"] = len(low_stock_products)
 
-        # Filter products that haven't been alerted recently
-        new_alerts = []
-        for product_raw in low_stock_products:
-            if not isinstance(product_raw, dict):
-                continue
-            product = cast(dict[str, Any], product_raw)
-            product_id = product.get("product_id", product.get("id", ""))
-            stock_status = product.get("stock_status", "low")
-
-            # Check if already alerted
-            alert_key = get_alert_key(product_id, stock_status)
-            existing = await redis_get(alert_key)
-
-            if existing:
-                # Already alerted, skip
-                results["skipped_cooldown"] += 1
-                continue
-
-            # Mark as alerted with cooldown
-            cooldown = ALERT_COOLDOWNS.get(stock_status, 2 * 60 * 60)
-            await redis_setex(alert_key, cooldown, now.isoformat())
-
-            new_alerts.append(product)
-            results["new_alerts"] += 1
-
-        if new_alerts:
-            # Format message only for new alerts
-            message = format_stock_alert(new_alerts)
-
-            # Send to all admin chat IDs
-            for chat_id in ADMIN_CHAT_IDS:
-                if chat_id.strip():
-                    success = await send_telegram_message(chat_id, message)
-                    if success:
-                        results["notifications_sent"] += 1
+        new_alerts = await _filter_new_alerts(low_stock_products, now, results)
+        await _send_alerts_to_admins(new_alerts, results)
 
         results["success"] = True
         results["products"] = [
-            {
-                "name": p.get("name"),
-                "count": p.get("available_count"),
-                "status": p.get("stock_status"),
-            }
+            {"name": p.get("name"), "count": p.get("available_count"), "status": p.get("stock_status")}
             for p in new_alerts
         ]
 

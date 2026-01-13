@@ -87,84 +87,78 @@ async def check_invoice_status(invoice_id: str) -> dict:
         return {"success": False, "error": str(e)}
 
 
-async def process_paid_order(db, order_id: str, order_data: dict):
+async def _process_discount_order(db: Any, order_id: str, order_data: dict[str, Any]) -> None:
+    """Process discount order - schedule delayed delivery."""
+    from core.services.domains import DiscountOrderService
+
+    order_items = (
+        await db.client.table("order_items")
+        .select("id, product_id")
+        .eq("order_id", order_id)
+        .limit(1)
+        .execute()
+    )
+
+    if not order_items.data:
+        return
+
+    order_item = order_items.data[0]
+    stock_result = (
+        await db.client.table("stock_items")
+        .select("id")
+        .eq("product_id", order_item["product_id"])
+        .eq("status", "available")
+        .is_("sold_at", "null")
+        .limit(1)
+        .execute()
+    )
+
+    if not stock_result.data:
+        logger.warning(f"No stock available for discount order {order_id}")
+        return
+
+    stock_item_id = stock_result.data[0]["id"]
+    telegram_id = order_data.get("user_telegram_id")
+
+    await db.client.table("stock_items").update({"status": "reserved"}).eq("id", stock_item_id).execute()
+
+    discount_service = DiscountOrderService(db.client)
+    delivery_task = await discount_service.schedule_delayed_delivery(
+        order_id=order_id,
+        order_item_id=order_item["id"],
+        telegram_id=telegram_id,
+        stock_item_id=stock_item_id,
+    )
+
+    if delivery_task:
+        logger.info(f"Discount order {order_id} scheduled for delayed delivery in {delivery_task.delay_minutes} min")
+    else:
+        logger.warning(f"Failed to schedule discount delivery for order {order_id}")
+
+
+async def _process_premium_order(order_id: str) -> None:
+    """Process premium order - instant delivery via QStash."""
+    from core.queue import WorkerEndpoints, publish_to_worker
+
+    await publish_to_worker(
+        endpoint=WorkerEndpoints.DELIVER_GOODS,
+        body={"order_id": order_id},
+        retries=2,
+        deduplication_id=f"deliver-{order_id}",
+    )
+    logger.info(f"Order {order_id} sent to delivery worker")
+
+
+async def process_paid_order(db: Any, order_id: str, order_data: dict[str, Any]) -> None:
     """Process a paid order - update status and schedule delivery."""
     try:
-        source_channel = order_data.get("source_channel")
-
-        # Update order status to paid
         await db.client.table("orders").update({"status": "paid"}).eq("id", order_id).execute()
-
         logger.info(f"Order {order_id} marked as paid via polling")
 
-        # For discount orders - schedule delayed delivery
-        if source_channel == "discount":
-            from core.services.domains import DiscountOrderService
-
-            # Get order_item info
-            order_items = (
-                await db.client.table("order_items")
-                .select("id, product_id")
-                .eq("order_id", order_id)
-                .limit(1)
-                .execute()
-            )
-
-            if order_items.data:
-                order_item = order_items.data[0]
-
-                # Find available stock item
-                stock_result = (
-                    await db.client.table("stock_items")
-                    .select("id")
-                    .eq("product_id", order_item["product_id"])
-                    .eq("status", "available")
-                    .is_("sold_at", "null")
-                    .limit(1)
-                    .execute()
-                )
-
-                if stock_result.data:
-                    stock_item_id = stock_result.data[0]["id"]
-                    telegram_id = order_data.get("user_telegram_id")
-
-                    # Reserve stock item
-                    await db.client.table("stock_items").update({"status": "reserved"}).eq(
-                        "id", stock_item_id
-                    ).execute()
-
-                    # Schedule delayed delivery
-                    discount_service = DiscountOrderService(db.client)
-                    delivery_task = await discount_service.schedule_delayed_delivery(
-                        order_id=order_id,
-                        order_item_id=order_item["id"],
-                        telegram_id=telegram_id,
-                        stock_item_id=stock_item_id,
-                    )
-
-                    if delivery_task is not None:
-                        logger.info(
-                            f"Discount order {order_id} scheduled for delayed delivery "
-                            f"in {delivery_task.delay_minutes} minutes"
-                        )
-                    else:
-                        logger.warning(f"Failed to schedule discount delivery for order {order_id}")
-                else:
-                    logger.warning(f"No stock available for discount order {order_id}")
+        if order_data.get("source_channel") == "discount":
+            await _process_discount_order(db, order_id, order_data)
         else:
-            # Premium orders - instant delivery via QStash
-            from core.queue import WorkerEndpoints, publish_to_worker
-
-            await publish_to_worker(
-                endpoint=WorkerEndpoints.DELIVER_GOODS,
-                body={"order_id": order_id},
-                retries=2,
-                deduplication_id=f"deliver-{order_id}",
-            )
-            logger.info(f"Order {order_id} sent to delivery worker")
-
-        # Note: Payment notifications are sent via OrderStatusService.mark_payment_confirmed
-        # (called from webhook handlers). No need to send here.
+            await _process_premium_order(order_id)
 
     except Exception:
         logger.exception(f"Failed to process paid order {order_id}")

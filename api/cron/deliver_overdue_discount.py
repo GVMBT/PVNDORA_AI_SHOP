@@ -132,9 +132,7 @@ async def _get_user_language(db: Any, telegram_id: int) -> str:
     return user_result.data.get("language_code", "en") if user_result.data else "en"
 
 
-def _format_delivery_message(
-    lang: str, product_name: str, order_id: str, content: str
-) -> str:
+def _format_delivery_message(lang: str, product_name: str, order_id: str, content: str) -> str:
     """Format delivery message."""
     truncated = content[:500]
     suffix = "...(обрезано)" if len(content) > 500 else ""
@@ -256,7 +254,9 @@ async def _send_loyal_promo_if_eligible(
     promo_service = PromoCodeService(db.client)
 
     try:
-        existing = await promo_service.get_promo_by_trigger(user_id, PromoTriggers.LOYAL_3_PURCHASES)
+        existing = await promo_service.get_promo_by_trigger(
+            user_id, PromoTriggers.LOYAL_3_PURCHASES
+        )
         if existing:
             return False
 
@@ -301,7 +301,9 @@ async def _send_loyal_promo_if_eligible(
 
         from core.services.telegram_messaging import send_telegram_message as _send_msg
 
-        return await _send_msg(chat_id=telegram_id, text=text, parse_mode="HTML", bot_token=TELEGRAM_TOKEN)
+        return await _send_msg(
+            chat_id=telegram_id, text=text, parse_mode="HTML", bot_token=TELEGRAM_TOKEN
+        )
 
     except Exception as e:
         logger.warning(f"Failed to send loyal promo to {telegram_id}: {e}")
@@ -366,22 +368,22 @@ async def deliver_discount_order(db: Any, order_id: str, order_data: dict[str, A
     try:
         telegram_id = order_data.get("user_telegram_id")
 
-        order_items = (
+        order_items_result = (
             await db.client.table("order_items")
             .select("id, product_id, stock_item_id")
             .eq("order_id", order_id)
             .execute()
         )
 
-        if not order_items.data:
+        if not order_items_result.data:
             logger.warning(f"No order items for order {order_id}")
             return False
 
         # Track delivery success for each item
         all_delivered = True
-        failed_items = []
+        failed_items: list[dict[str, str]] = []
 
-        for item_raw in order_items.data:
+        for item_raw in order_items_result.data:
             if not isinstance(item_raw, dict):
                 logger.warning(f"Invalid item format in order {order_id}: {item_raw}")
                 all_delivered = False
@@ -405,12 +407,14 @@ async def deliver_discount_order(db: Any, order_id: str, order_data: dict[str, A
             ).eq("id", order_id).execute()
             logger.info(f"Discount order {order_id} delivered successfully via cron fallback")
             return True
-        else:
-            logger.error(
-                f"Discount order {order_id} partially failed: {len(failed_items)}/{len(order_items.data)} items failed. "
-                f"Failed items: {failed_items}. Order status remains 'paid'."
-            )
-            return False
+
+        total_items = len(order_items_result.data) if order_items_result.data else 0
+        failed_count = len(failed_items)
+        logger.error(
+            f"Discount order {order_id} partially failed: {failed_count}/{total_items} items failed. "
+            f"Failed items: {failed_items}. Order status remains 'paid'."
+        )
+        return False
 
     except Exception:
         logger.exception(f"Failed to deliver discount order {order_id}")
@@ -454,7 +458,9 @@ async def deliver_overdue_discount(request: Request):
             if order.get("id") and await deliver_discount_order(db, order["id"], order):
                 delivered_count += 1
 
-        return JSONResponse({"ok": True, "checked": len(overdue_orders), "delivered": delivered_count})
+        return JSONResponse(
+            {"ok": True, "checked": len(overdue_orders), "delivered": delivered_count}
+        )
 
     except Exception as e:
         logger.exception("deliver_overdue_discount error")
