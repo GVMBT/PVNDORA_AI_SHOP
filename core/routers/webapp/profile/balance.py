@@ -118,6 +118,7 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
     amount_to_credit = await _calculate_amount_to_credit(
         currency, balance_currency, request.amount, currency_service
     )
+
     # Round for non-RUB/USD currencies
     amount_to_credit = float(
         round_money(
