@@ -13,6 +13,9 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { randomBoolWithProbability, randomFloat } from "../../utils/random";
 
+// Helper: Simple delay function
+const delay = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
 // Types for boot tasks
 export interface BootTask {
   id: string;
@@ -90,9 +93,9 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
     const runBootSequence = async () => {
       // Initial system messages
       addLog("sys", "PVNDORA PROTOCOL v2.7.4", "system");
-      await new Promise((r) => setTimeout(r, 150));
+      await delay(150);
       addLog("sys", "Initializing secure uplink...", "info");
-      await new Promise((r) => setTimeout(r, 100));
+      await delay(100);
 
       // Execute each task
       for (let i = 0; i < tasks.length; i++) {
@@ -127,13 +130,13 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
         setProgress(((i + 1) / tasks.length) * 100);
 
         // Small delay between tasks for visual effect
-        await new Promise((r) => setTimeout(r, 80));
+        await delay(80);
       }
 
       if (cancelled) return;
 
       // Final messages
-      await new Promise((r) => setTimeout(r, 200));
+      await delay(200);
       addLog("sys", "All systems operational", "success");
       addLog("sys", "SYSTEM READY", "system");
 
@@ -141,7 +144,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
       const elapsed = Date.now() - startTimeRef.current;
       const remainingTime = Math.max(0, minDuration - elapsed);
 
-      await new Promise((r) => setTimeout(r, remainingTime));
+      await delay(remainingTime);
 
       if (cancelled) return;
       setPhase("ready");

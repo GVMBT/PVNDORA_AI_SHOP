@@ -99,6 +99,13 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
     };
   }, [cart, propsTotal, propsTotalUsd]);
 
+  // Helper: Schedule a single log append with delay
+  const scheduleLogAppend = (log: string, delayMs: number) => {
+    setTimeout(() => {
+      setLogs((prev) => [...prev.slice(-4), log]);
+    }, delayMs);
+  };
+
   // Simulation logs for hacking aesthetic
   const simulateLogs = (method: PaymentMethod) => {
     const commonLogs = ["> INITIALIZING_SECURE_CHANNEL", "> HANDSHAKE_PROTOCOL_V4"];
@@ -113,24 +120,18 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     const internalLogs = [
       "> CHECKING_LOCAL_WALLET_INTEGRITY...",
-      `> BALANCE_CHECK: OK`,
+      "> BALANCE_CHECK: OK",
       "> FREEZING_ASSETS...",
       "> INTERNAL_TRANSFER_EXECUTED",
       "> LEDGER_UPDATED_SUCCESSFULLY",
     ];
 
-    let currentLogs = [...commonLogs];
-    let targetLogs = method === "internal" ? internalLogs : crystalLogs;
+    const targetLogs = method === "internal" ? internalLogs : crystalLogs;
 
-    setLogs(currentLogs);
+    setLogs([...commonLogs]);
 
     targetLogs.forEach((log, index) => {
-      setTimeout(
-        () => {
-          setLogs((prev) => [...prev.slice(-4), log]);
-        },
-        500 + index * 600
-      );
+      scheduleLogAppend(log, 500 + index * 600);
     });
   };
 

@@ -9,6 +9,10 @@ import React, { useEffect, useRef, useState, memo } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 import { logger } from "../../utils/logger";
 
+// Helper: Determine if running inside Telegram WebApp
+const isTelegramEnvironment = (): boolean =>
+  typeof globalThis.window !== "undefined" && !!(globalThis as any).Telegram?.WebApp;
+
 interface BackgroundMusicProps {
   src?: string;
   volume?: number; // 0-1
@@ -54,16 +58,23 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
     let cancelled = false;
     let ownedBlobUrl: string | null = null; // Track if we created the blob URL ourselves
 
+    // Helper: Fetch and create blob URL for audio
+    const fetchAudioBlob = async (): Promise<string> => {
+      const response = await fetch(src, { cache: "force-cache" });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const blob = await response.blob();
+      return URL.createObjectURL(blob);
+    };
+
     const loadAudio = async () => {
       try {
-        const isTelegramWebApp =
-          typeof window !== "undefined" && !!(window as any).Telegram?.WebApp;
-
         let audioSrc: string;
 
         // In Telegram Mini App we want the earliest possible autoplay attempt.
         // Using blob prefetch delays `play()` and increases the chance Telegram blocks it.
-        if (isTelegramWebApp) {
+        if (isTelegramEnvironment()) {
           audioSrc = src;
         } else if (preloadedBlobUrl) {
           // If preloaded blob URL provided, skip fetch entirely
@@ -71,13 +82,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
           // Don't mark as owned - boot sequence manages this URL's lifecycle
         } else {
           // Prefetch for smoother playback in regular browsers
-          const response = await fetch(src, { cache: "force-cache" });
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-
-          const blob = await response.blob();
-          const blobUrl = URL.createObjectURL(blob);
+          const blobUrl = await fetchAudioBlob();
           ownedBlobUrl = blobUrl; // Mark as owned so we revoke on cleanup
           audioSrc = blobUrl;
 

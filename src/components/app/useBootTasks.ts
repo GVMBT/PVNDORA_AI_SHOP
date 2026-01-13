@@ -17,6 +17,10 @@ import {
 } from "../../utils/auth";
 import type { BootTask } from "../new";
 
+// Helper: Safe fetch with null fallback (reduces nesting in prefetch task)
+const safeFetch = (url: string): Promise<Response | null> =>
+  fetch(url).catch((): null => null);
+
 interface UseBootTasksProps {
   getProducts: () => Promise<any>;
   getCart: () => Promise<any>;
@@ -107,11 +111,7 @@ export function useBootTasks({ getProducts, getCart, getProfile }: UseBootTasksP
         successLabel: "Resources cached",
         execute: async () => {
           const prefetchUrls = ["https://grainy-gradients.vercel.app/noise.svg"];
-          await Promise.allSettled(
-            prefetchUrls.map(
-              (url: string): Promise<Response | null> => fetch(url).catch((): null => null)
-            )
-          );
+          await Promise.allSettled(prefetchUrls.map(safeFetch));
           return true;
         },
       },

@@ -65,6 +65,128 @@ function ViewLoader() {
   );
 }
 
+// Helper: Render payment result view
+function renderPaymentResultView(
+  orderId: string,
+  onNavigate: (view: ViewType) => void
+) {
+  return (
+    <PaymentResult
+      key="payment-result"
+      orderId={orderId}
+      onComplete={() => onNavigate("home")}
+      onViewOrders={() => onNavigate("orders")}
+    />
+  );
+}
+
+// Helper: Render admin view
+function renderAdminView(onNavigate: (view: ViewType) => void) {
+  return (
+    <Suspense fallback={<ViewLoader />}>
+      <AdminPanelConnected key="admin" onExit={() => onNavigate("profile")} />
+    </Suspense>
+  );
+}
+
+// Helper: Render profile view
+function renderProfileView(
+  onNavigate: (view: ViewType) => void,
+  onHaptic: (type?: FeedbackType) => void
+) {
+  return (
+    <Suspense fallback={<ViewLoader />}>
+      <ProfileConnected
+        key="profile"
+        onBack={() => onNavigate("home")}
+        onHaptic={onHaptic}
+        onAdminEnter={() => onNavigate("admin")}
+      />
+    </Suspense>
+  );
+}
+
+// Helper: Render orders view
+function renderOrdersView(
+  onNavigate: (view: ViewType) => void,
+  onOpenSupport: (context?: RefundContext | null) => void
+) {
+  return (
+    <Suspense fallback={<ViewLoader />}>
+      <OrdersConnected
+        key="orders"
+        onBack={() => onNavigate("home")}
+        onOpenSupport={onOpenSupport}
+      />
+    </Suspense>
+  );
+}
+
+// Helper: Render leaderboard view
+function renderLeaderboardView(onNavigate: (view: ViewType) => void) {
+  return (
+    <Suspense fallback={<ViewLoader />}>
+      <LeaderboardConnected key="leaderboard" onBack={() => onNavigate("home")} />
+    </Suspense>
+  );
+}
+
+// Helper: Render legal view
+function renderLegalView(legalDoc: string, onNavigate: (view: ViewType) => void) {
+  return (
+    <Suspense fallback={<ViewLoader />}>
+      <Legal key="legal" doc={legalDoc} onBack={() => onNavigate("home")} />
+    </Suspense>
+  );
+}
+
+// Helper: Render product detail view
+function renderProductDetailView(
+  selectedProduct: CatalogProduct,
+  onBackToCatalog: () => void,
+  onAddToCart: (product: CatalogProduct, quantity?: number) => void,
+  onProductSelect: (product: CatalogProduct) => void,
+  onHaptic: (type?: FeedbackType) => void
+) {
+  return (
+    <ProductDetailConnected
+      key="detail"
+      productId={String(selectedProduct.id)}
+      onBack={onBackToCatalog}
+      onAddToCart={onAddToCart}
+      onProductSelect={onProductSelect}
+      onHaptic={onHaptic}
+    />
+  );
+}
+
+// Helper: Render home view (catalog)
+function renderHomeView(
+  onProductSelect: (product: CatalogProduct) => void,
+  onAddToCart: (product: CatalogProduct, quantity?: number) => void,
+  onHaptic: (type?: FeedbackType) => void,
+  onNavigateLegal: (doc: string) => void,
+  onOpenSupport: (context?: RefundContext | null) => void
+) {
+  return (
+    <motion.div
+      key="home"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <Hero />
+      <CatalogConnected
+        onSelectProduct={onProductSelect}
+        onAddToCart={onAddToCart}
+        onHaptic={onHaptic}
+      />
+      <Guarantees />
+      <Footer onNavigate={onNavigateLegal} onOpenSupport={() => onOpenSupport()} />
+    </motion.div>
+  );
+}
+
 function AppRouterComponent({
   currentView,
   selectedProduct,
@@ -78,72 +200,41 @@ function AppRouterComponent({
   onOpenSupport,
   onHaptic,
 }: AppRouterProps) {
+  // Determine which view to render based on currentView
+  const renderCurrentView = () => {
+    if (currentView === "payment-result" && paymentResultOrderId) {
+      return renderPaymentResultView(paymentResultOrderId, onNavigate);
+    }
+    if (currentView === "admin") {
+      return renderAdminView(onNavigate);
+    }
+    if (currentView === "profile") {
+      return renderProfileView(onNavigate, onHaptic);
+    }
+    if (currentView === "orders") {
+      return renderOrdersView(onNavigate, onOpenSupport);
+    }
+    if (currentView === "leaderboard") {
+      return renderLeaderboardView(onNavigate);
+    }
+    if (currentView === "legal") {
+      return renderLegalView(legalDoc, onNavigate);
+    }
+    if (selectedProduct) {
+      return renderProductDetailView(
+        selectedProduct,
+        onBackToCatalog,
+        onAddToCart,
+        onProductSelect,
+        onHaptic
+      );
+    }
+    return renderHomeView(onProductSelect, onAddToCart, onHaptic, onNavigateLegal, onOpenSupport);
+  };
+
   return (
     <main className="w-full relative z-10">
-      <AnimatePresence mode="wait">
-        {currentView === "payment-result" && paymentResultOrderId ? (
-          <PaymentResult
-            key="payment-result"
-            orderId={paymentResultOrderId}
-            onComplete={() => onNavigate("home")}
-            onViewOrders={() => onNavigate("orders")}
-          />
-        ) : currentView === "admin" ? (
-          <Suspense fallback={<ViewLoader />}>
-            <AdminPanelConnected key="admin" onExit={() => onNavigate("profile")} />
-          </Suspense>
-        ) : currentView === "profile" ? (
-          <Suspense fallback={<ViewLoader />}>
-            <ProfileConnected
-              key="profile"
-              onBack={() => onNavigate("home")}
-              onHaptic={onHaptic}
-              onAdminEnter={() => onNavigate("admin")}
-            />
-          </Suspense>
-        ) : currentView === "orders" ? (
-          <Suspense fallback={<ViewLoader />}>
-            <OrdersConnected
-              key="orders"
-              onBack={() => onNavigate("home")}
-              onOpenSupport={onOpenSupport}
-            />
-          </Suspense>
-        ) : currentView === "leaderboard" ? (
-          <Suspense fallback={<ViewLoader />}>
-            <LeaderboardConnected key="leaderboard" onBack={() => onNavigate("home")} />
-          </Suspense>
-        ) : currentView === "legal" ? (
-          <Suspense fallback={<ViewLoader />}>
-            <Legal key="legal" doc={legalDoc} onBack={() => onNavigate("home")} />
-          </Suspense>
-        ) : selectedProduct ? (
-          <ProductDetailConnected
-            key="detail"
-            productId={String(selectedProduct.id)}
-            onBack={onBackToCatalog}
-            onAddToCart={onAddToCart}
-            onProductSelect={onProductSelect}
-            onHaptic={onHaptic}
-          />
-        ) : (
-          <motion.div
-            key="home"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <Hero />
-            <CatalogConnected
-              onSelectProduct={onProductSelect}
-              onAddToCart={onAddToCart}
-              onHaptic={onHaptic}
-            />
-            <Guarantees />
-            <Footer onNavigate={onNavigateLegal} onOpenSupport={() => onOpenSupport()} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <AnimatePresence mode="wait">{renderCurrentView()}</AnimatePresence>
     </main>
   );
 }
