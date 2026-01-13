@@ -51,38 +51,9 @@ async def get_user_profile() -> dict:
         total_saved = float(user.get("total_saved", 0) or 0)
         referral_earnings = float(user.get("total_referral_earnings", 0) or 0)
 
-        # Check VIP status - VIP always gets ARCHITECT level
-        is_partner = user.get("is_partner", False)
-        partner_override = user.get("partner_level_override")
-
-        if is_partner and partner_override is not None:
-            # VIP with level override - always ARCHITECT
-            career_level = "ARCHITECT"
-            next_level = None
-            turnover_to_next = 0
-        else:
-            line1_unlocked = user.get("level1_unlocked_at") is not None or user.get(
-                "referral_program_unlocked", False
-            )
-            line2_unlocked = turnover >= threshold_l2 or user.get("level2_unlocked_at") is not None
-            line3_unlocked = turnover >= threshold_l3 or user.get("level3_unlocked_at") is not None
-
-            if line3_unlocked:
-                career_level = "ARCHITECT"
-                next_level = None
-                turnover_to_next = 0
-            elif line2_unlocked:
-                career_level = "OPERATOR"
-                next_level = "ARCHITECT"
-                turnover_to_next = max(0, threshold_l3 - turnover)
-            elif line1_unlocked:
-                career_level = "PROXY"
-                next_level = "OPERATOR"
-                turnover_to_next = max(0, threshold_l2 - turnover)
-            else:
-                career_level = "LOCKED"
-                next_level = "PROXY (make first purchase)"
-                turnover_to_next = 0
+        career_level, next_level, turnover_to_next = _determine_career_level(
+            user, threshold_l2, threshold_l3, turnover
+        )
 
         orders_result = (
             await db.client.table("orders")

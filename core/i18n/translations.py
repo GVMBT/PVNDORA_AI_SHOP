@@ -68,6 +68,39 @@ def _load_translations(lang: str) -> dict[str, Any]:
         return {}
 
 
+def _get_nested_value(translations: dict, key: str) -> Any:
+    """Get nested value from translations using dot notation (reduces cognitive complexity)."""
+    if "." not in key:
+        return translations.get(key)
+
+    keys = key.split(".")
+    current_val: Any = translations
+    try:
+        for k in keys:
+            current_val = current_val[k]
+        return current_val
+    except (KeyError, TypeError):
+        return None
+
+
+def _get_text_with_fallback(key: str, lang: str, default: str | None) -> str:
+    """Get text with English fallback (reduces cognitive complexity)."""
+    translations = _load_translations(lang)
+    text = _get_nested_value(translations, key)
+
+    if text is None and lang != DEFAULT_LANGUAGE:
+        eng_translations = _load_translations(DEFAULT_LANGUAGE)
+        text = _get_nested_value(eng_translations, key)
+
+    if text is None:
+        return default if default is not None else key
+
+    if not isinstance(text, str):
+        return default if default is not None else key
+
+    return text
+
+
 def get_text(key: str, lang: str = DEFAULT_LANGUAGE, default: str | None = None, **kwargs) -> str:
     """
     Get translated text by key.
@@ -81,53 +114,13 @@ def get_text(key: str, lang: str = DEFAULT_LANGUAGE, default: str | None = None,
     Returns:
         Translated string or key/default if not found
     """
-    # Normalize language code (take first part: "ru-RU" -> "ru")
     lang = lang.split("-")[0].lower() if lang else DEFAULT_LANGUAGE
 
-    # Check if language is supported
     if lang not in SUPPORTED_LANGUAGES:
         lang = DEFAULT_LANGUAGE
 
-    translations = _load_translations(lang)
+    text = _get_text_with_fallback(key, lang, default)
 
-    # Support nested keys with dot notation (e.g., "faq.title")
-    text: Any = None
-    if "." in key:
-        keys = key.split(".")
-        current_val: Any = translations
-        try:
-            for k in keys:
-                current_val = current_val[k]
-            text = current_val
-        except (KeyError, TypeError):
-            text = None
-    else:
-        text = translations.get(key)
-
-    # Fallback to English if key not found
-    if text is None and lang != DEFAULT_LANGUAGE:
-        eng_translations = _load_translations(DEFAULT_LANGUAGE)
-        if "." in key:
-            keys = key.split(".")
-            current_val = eng_translations
-            try:
-                for k in keys:
-                    current_val = current_val[k]
-                text = current_val
-            except (KeyError, TypeError):
-                text = None
-        else:
-            text = eng_translations.get(key)
-
-    # Return default or key if still not found
-    if text is None:
-        return default if default is not None else key
-
-    # If it's still a dict (partial key), return the key or default
-    if not isinstance(text, str):
-        return default if default is not None else key
-
-    # Format with kwargs if provided
     if kwargs:
         try:
             return text.format(**kwargs)

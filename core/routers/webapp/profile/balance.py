@@ -114,6 +114,7 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
 
     currency_service = get_currency_service(redis)
 
+    # Calculate amount to credit in balance currency
     amount_to_credit = await _calculate_amount_to_credit(
         currency, balance_currency, request.amount, currency_service
     )

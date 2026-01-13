@@ -23,6 +23,34 @@ ERROR_ORDER_NOT_FOUND = "Order not found"
 
 crud_router = APIRouter()
 
+# =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
+
+
+async def _check_balance_sufficiency(
+    amount: float | None,
+    user_currency: str,
+    balance_currency: str,
+    user_balance: float,
+    currency_service,
+) -> bool:
+    """Check if balance is sufficient for order amount (reduces cognitive complexity)."""
+    if not amount:
+        return True
+
+    if user_currency == balance_currency:
+        return user_balance >= amount
+
+    try:
+        user_rate = await currency_service.get_exchange_rate(user_currency)
+        balance_rate = await currency_service.get_exchange_rate(balance_currency)
+        usd_amount = amount / user_rate if user_rate > 0 else amount
+        amount_in_balance_currency = usd_amount * balance_rate
+        return user_balance >= amount_in_balance_currency
+    except Exception:
+        return user_balance >= amount
+
 
 @crud_router.get("/orders/{order_id}/status")
 async def get_webapp_order_status(
@@ -410,27 +438,11 @@ async def get_payment_methods(
 
     methods = []
 
-    # 1. Balance payment (always available if > 0)
     if user_balance > 0:
         balance_display = currency_service.format_price(user_balance, balance_currency)
-
-        # Check if balance is sufficient for the order
-        balance_sufficient = True
-        if amount:
-            # Convert amount to balance currency
-            if user_currency == balance_currency:
-                amount_in_balance_currency = amount
-            else:
-                # First convert user's currency amount to USD, then to balance currency
-                try:
-                    user_rate = await currency_service.get_exchange_rate(user_currency)
-                    balance_rate = await currency_service.get_exchange_rate(balance_currency)
-                    usd_amount = amount / user_rate if user_rate > 0 else amount
-                    amount_in_balance_currency = usd_amount * balance_rate
-                except Exception:
-                    amount_in_balance_currency = amount
-
-            balance_sufficient = user_balance >= amount_in_balance_currency
+        balance_sufficient = await _check_balance_sufficiency(
+            amount, user_currency, balance_currency, user_balance, currency_service
+        )
 
         methods.append(
             PaymentMethod(

@@ -71,54 +71,9 @@ async def admin_update_referral_settings(
 
     update_data = {"updated_at": datetime.now(UTC).isoformat()}
 
-    if request.level2_threshold_usd is not None:
-        if request.level2_threshold_usd < 0:
-            raise HTTPException(status_code=400, detail="Threshold must be >= 0")
-        update_data["level2_threshold_usd"] = request.level2_threshold_usd
-
-    if request.level3_threshold_usd is not None:
-        if request.level3_threshold_usd < 0:
-            raise HTTPException(status_code=400, detail="Threshold must be >= 0")
-        update_data["level3_threshold_usd"] = request.level3_threshold_usd
-
-    if request.level1_commission_percent is not None:
-        if not 0 <= request.level1_commission_percent <= 100:
-            raise HTTPException(status_code=400, detail="Commission must be 0-100%")
-        update_data["level1_commission_percent"] = request.level1_commission_percent
-
-    if request.level2_commission_percent is not None:
-        if not 0 <= request.level2_commission_percent <= 100:
-            raise HTTPException(status_code=400, detail="Commission must be 0-100%")
-        update_data["level2_commission_percent"] = request.level2_commission_percent
-
-    if request.level3_commission_percent is not None:
-        if not 0 <= request.level3_commission_percent <= 100:
-            raise HTTPException(status_code=400, detail="Commission must be 0-100%")
-        update_data["level3_commission_percent"] = request.level3_commission_percent
-
-    # Update anchor thresholds if provided
-    if request.thresholds_by_currency is not None:
-        # Validate structure
-        if not isinstance(request.thresholds_by_currency, dict):
-            raise HTTPException(
-                status_code=400, detail="thresholds_by_currency must be a dictionary"
-            )
-        # Validate each currency has level2 and level3
-        for currency, thresholds in request.thresholds_by_currency.items():
-            if not isinstance(thresholds, dict):
-                raise HTTPException(
-                    status_code=400, detail=f"Thresholds for {currency} must be a dictionary"
-                )
-            if "level2" not in thresholds or "level3" not in thresholds:
-                raise HTTPException(
-                    status_code=400, detail=f"Thresholds for {currency} must have level2 and level3"
-                )
-            if thresholds["level2"] < 0 or thresholds["level3"] < 0:
-                raise HTTPException(
-                    status_code=400, detail=f"Thresholds for {currency} must be >= 0"
-                )
-
-        update_data["thresholds_by_currency"] = request.thresholds_by_currency
+    _update_thresholds(update_data, request)
+    _update_commissions(update_data, request)
+    _update_anchor_thresholds(update_data, request)
 
     await db.client.table("referral_settings").update(update_data).eq(
         "id", "00000000-0000-0000-0000-000000000001"
