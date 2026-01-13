@@ -176,6 +176,59 @@ class PromoCodeService:
 
     # ==================== Validation ====================
 
+    def _check_validity_dates(self, promo: dict, now: datetime) -> PromoValidationResult | None:
+        """Check promo code validity dates (reduces cognitive complexity)."""
+        if promo.get("valid_from"):
+            valid_from = datetime.fromisoformat(promo["valid_from"].replace("Z", "+00:00"))
+            if now < valid_from:
+                return PromoValidationResult(
+                    valid=False, error_message="Promo code is not yet active"
+                )
+
+        if promo.get("valid_until"):
+            valid_until = datetime.fromisoformat(promo["valid_until"].replace("Z", "+00:00"))
+            if now > valid_until:
+                return PromoValidationResult(
+                    valid=False, error_message="Promo code has expired"
+                )
+        return None
+
+    def _check_usage_limit(self, promo: dict) -> PromoValidationResult | None:
+        """Check promo code usage limit (reduces cognitive complexity)."""
+        max_uses = promo.get("max_uses")
+        current_uses = promo.get("current_uses", 0)
+        if max_uses and current_uses >= max_uses:
+            return PromoValidationResult(
+                valid=False, error_message="Promo code usage limit reached"
+            )
+        return None
+
+    async def _check_personal_restriction(
+        self, promo: dict, user_id: str | None, telegram_id: int | None
+    ) -> PromoValidationResult | None:
+        """Check personal promo code restriction (reduces cognitive complexity)."""
+        if not (promo.get("is_personal") and promo.get("target_user_id")):
+            return None
+
+        target_user_id = promo["target_user_id"]
+
+        if not user_id and telegram_id:
+            user_result = (
+                await self.client.table("users")
+                .select("id")
+                .eq("telegram_id", telegram_id)
+                .single()
+                .execute()
+            )
+            if user_result.data:
+                user_id = user_result.data["id"]
+
+        if not user_id or user_id != target_user_id:
+            return PromoValidationResult(
+                valid=False, error_message="This promo code is for another user"
+            )
+        return None
+
     async def validate_promo_code(
         self, code: str, user_id: str | None = None, telegram_id: int | None = None
     ) -> PromoValidationResult:
@@ -184,7 +237,6 @@ class PromoCodeService:
         For personal promo codes, checks if the user matches target_user_id.
         """
         try:
-            # Fetch promo code
             result = (
                 await self.client.table("promo_codes")
                 .select("*")
@@ -202,57 +254,24 @@ class PromoCodeService:
             promo = result.data
             now = datetime.now(UTC)
 
-            # Check validity dates
-            if promo.get("valid_from"):
-                valid_from = datetime.fromisoformat(promo["valid_from"].replace("Z", "+00:00"))
-                if now < valid_from:
-                    return PromoValidationResult(
-                        valid=False, error_message="Promo code is not yet active"
-                    )
+            date_check = self._check_validity_dates(promo, now)
+            if date_check:
+                return date_check
 
-            if promo.get("valid_until"):
-                valid_until = datetime.fromisoformat(promo["valid_until"].replace("Z", "+00:00"))
-                if now > valid_until:
-                    return PromoValidationResult(
-                        valid=False, error_message="Promo code has expired"
-                    )
+            usage_check = self._check_usage_limit(promo)
+            if usage_check:
+                return usage_check
 
-            # Check usage limit
-            max_uses = promo.get("max_uses")
-            current_uses = promo.get("current_uses", 0)
-            if max_uses and current_uses >= max_uses:
-                return PromoValidationResult(
-                    valid=False, error_message="Promo code usage limit reached"
-                )
-
-            # Check personal promo code restriction
-            if promo.get("is_personal") and promo.get("target_user_id"):
-                target_user_id = promo["target_user_id"]
-
-                # Get user_id from telegram_id if needed
-                if not user_id and telegram_id:
-                    user_result = (
-                        await self.client.table("users")
-                        .select("id")
-                        .eq("telegram_id", telegram_id)
-                        .single()
-                        .execute()
-                    )
-
-                    if user_result.data:
-                        user_id = user_result.data["id"]
-
-                if not user_id or user_id != target_user_id:
-                    return PromoValidationResult(
-                        valid=False, error_message="This promo code is for another user"
-                    )
+            personal_check = await self._check_personal_restriction(promo, user_id, telegram_id)
+            if personal_check:
+                return personal_check
 
             return PromoValidationResult(
                 valid=True,
                 code=promo["code"],
                 discount_percent=promo.get("discount_percent", 0),
                 discount_amount=promo.get("discount_amount"),
-                product_id=promo.get("product_id"),  # NULL = cart-wide, NOT NULL = product-specific
+                product_id=promo.get("product_id"),
             )
 
         except Exception:

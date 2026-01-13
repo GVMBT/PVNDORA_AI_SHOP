@@ -15,18 +15,44 @@ from core.services.database import get_database
 router = APIRouter(tags=["admin-analytics"])
 
 
+# Helper to calculate date ranges (reduces cognitive complexity)
+def _calculate_date_ranges(days: int) -> tuple[datetime, datetime, datetime, datetime]:
+    """Calculate date ranges for analytics queries."""
+    now = datetime.now(UTC)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=7)
+    month_start = today_start - timedelta(days=30)
+    chart_days_start = today_start - timedelta(days=12)
+    return now, today_start, week_start, month_start, chart_days_start
+
+
+# Helper to calculate totals from results (reduces cognitive complexity)
+def _calculate_totals(
+    revenue_result, orders_today_result, orders_week_result, orders_month_result,
+    total_users_result, pending_orders_result, open_tickets_result,
+    user_balances_result, pending_withdrawals_result
+) -> dict:
+    """Calculate totals from query results."""
+    return {
+        "total_revenue": sum(float(o.get("amount", 0)) for o in (revenue_result.data or [])),
+        "orders_today": orders_today_result.count or 0,
+        "orders_this_week": orders_week_result.count or 0,
+        "orders_this_month": orders_month_result.count or 0,
+        "total_users": total_users_result.count or 0,
+        "pending_orders": pending_orders_result.count or 0,
+        "open_tickets": open_tickets_result.count or 0,
+        "total_user_balances": sum(float(u.get("balance", 0)) for u in (user_balances_result.data or [])),
+        "pending_withdrawals": sum(float(w.get("amount", 0)) for w in (pending_withdrawals_result.data or [])),
+    }
+
+
 @router.get("/analytics")
 async def admin_get_analytics(days: int = 7, admin=Depends(verify_admin)):
     """Get comprehensive sales analytics with real data from database"""
     db = get_database()
 
-    now = datetime.now(UTC)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    week_start = today_start - timedelta(days=7)
-    month_start = today_start - timedelta(days=30)
-    chart_days_start = today_start - timedelta(days=12)  # Last 12 days for chart
+    now, today_start, week_start, month_start, chart_days_start = _calculate_date_ranges(days)
 
-    # Execute all queries directly with await
     revenue_result = (
         await db.client.table("orders").select("amount").eq("status", "delivered").execute()
     )
@@ -89,29 +115,10 @@ async def admin_get_analytics(days: int = 7, admin=Depends(verify_admin)):
         .execute()
     )
 
-    # Calculate total revenue
-    total_revenue = sum(float(o.get("amount", 0)) for o in (revenue_result.data or []))
-
-    # Count orders
-    orders_today = orders_today_result.count or 0
-    orders_this_week = orders_week_result.count or 0
-    orders_this_month = orders_month_result.count or 0
-
-    # Total users (all registered)
-    total_users = total_users_result.count or 0
-
-    # Pending orders (active/unfulfilled)
-    pending_orders = pending_orders_result.count or 0
-
-    # Count open tickets
-    open_tickets = open_tickets_result.count or 0
-
-    # Calculate total user balances (liabilities)
-    total_user_balances = sum(float(u.get("balance", 0)) for u in (user_balances_result.data or []))
-
-    # Calculate pending withdrawals
-    pending_withdrawals = sum(
-        float(w.get("amount", 0)) for w in (pending_withdrawals_result.data or [])
+    totals = _calculate_totals(
+        revenue_result, orders_today_result, orders_week_result, orders_month_result,
+        total_users_result, pending_orders_result, open_tickets_result,
+        user_balances_result, pending_withdrawals_result
     )
 
     # Calculate revenue by day for chart

@@ -67,6 +67,53 @@ def get_categories_keyboard(categories: list[dict], lang: str) -> InlineKeyboard
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
+# Helper to format product price string (reduces cognitive complexity)
+def _format_product_price(
+    discount_price_usd: float, display_price: float, currency: str, currency_symbol: str
+) -> str:
+    """Format product price string."""
+    from core.services.currency import INTEGER_CURRENCIES
+
+    if not discount_price_usd:
+        return "N/A"
+    if currency in INTEGER_CURRENCIES:
+        return f"{int(display_price):,} {currency_symbol}"
+    return f"{currency_symbol}{display_price:.2f}"
+
+
+# Helper to build pagination buttons (reduces cognitive complexity)
+def _build_pagination_buttons(
+    page: int, total_products: int, page_size: int, category_id: str | None
+) -> list[InlineKeyboardButton]:
+    """Build pagination navigation buttons."""
+    nav_buttons = []
+    has_prev = page > 0
+    has_next = (page + 1) * page_size < total_products
+
+    if has_prev:
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="◀️",
+                callback_data=f"discount:page:{page-1}:{category_id[:8] if category_id else 'all'}",
+            )
+        )
+
+    total_pages = (total_products - 1) // page_size + 1
+    nav_buttons.append(
+        InlineKeyboardButton(text=f"{page+1}/{total_pages}", callback_data="noop")
+    )
+
+    if has_next:
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="▶️",
+                callback_data=f"discount:page:{page+1}:{category_id[:8] if category_id else 'all'}",
+            )
+        )
+
+    return nav_buttons
+
+
 def get_products_keyboard(
     products: list[dict],
     lang: str,
@@ -83,8 +130,7 @@ def get_products_keyboard(
     end_idx = start_idx + page_size
     page_products = products[start_idx:end_idx]
 
-    # Import currency symbols from single source of truth
-    from core.services.currency import CURRENCY_SYMBOLS, INTEGER_CURRENCIES
+    from core.services.currency import CURRENCY_SYMBOLS
 
     currency_symbol = CURRENCY_SYMBOLS.get(currency, currency)
 
@@ -93,14 +139,9 @@ def get_products_keyboard(
         discount_price_usd = float(p.get("discount_price", 0) or 0)
         stock = p.get("available_count", 0)
 
-        # Convert price and format
         display_price = discount_price_usd * exchange_rate
-        if currency in INTEGER_CURRENCIES:
-            price_str = f"{int(display_price):,} {currency_symbol}" if discount_price_usd else "N/A"
-        else:
-            price_str = f"{currency_symbol}{display_price:.2f}" if discount_price_usd else "N/A"
+        price_str = _format_product_price(discount_price_usd, display_price, currency, currency_symbol)
 
-        # Stock indicator
         stock_emoji = "🟢" if stock > 0 else "🟡"
 
         buttons.append(
@@ -112,37 +153,10 @@ def get_products_keyboard(
             ]
         )
 
-    # Pagination
-    nav_buttons = []
-    has_prev = page > 0
-    has_next = end_idx < len(products)
-
-    if has_prev:
-        nav_buttons.append(
-            InlineKeyboardButton(
-                text="◀️",
-                callback_data=f"discount:page:{page-1}:{category_id[:8] if category_id else 'all'}",
-            )
-        )
-
-    nav_buttons.append(
-        InlineKeyboardButton(
-            text=f"{page+1}/{(len(products)-1)//page_size + 1}", callback_data="noop"
-        )
-    )
-
-    if has_next:
-        nav_buttons.append(
-            InlineKeyboardButton(
-                text="▶️",
-                callback_data=f"discount:page:{page+1}:{category_id[:8] if category_id else 'all'}",
-            )
-        )
-
+    nav_buttons = _build_pagination_buttons(page, len(products), page_size, category_id)
     if nav_buttons:
         buttons.append(nav_buttons)
 
-    # Back button
     back_text = "⬅️ Назад" if lang == "ru" else "⬅️ Back"
     buttons.append([InlineKeyboardButton(text=back_text, callback_data="discount:catalog")])
 

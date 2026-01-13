@@ -381,6 +381,40 @@ class CurrencyService:
 
         return bool(prices and currency in prices and prices[currency] is not None)
 
+    def _extract_settings_data(self, settings: dict[str, Any] | Any, level: int) -> tuple[dict, float]:
+        """Extract thresholds_by_currency and base_threshold_usd from settings (reduces cognitive complexity)."""
+        if hasattr(settings, "__getitem__"):
+            thresholds_by_currency = settings.get("thresholds_by_currency") or {}
+            threshold_usd_key = f"level{level}_threshold_usd"
+            base_threshold_usd = settings.get(threshold_usd_key, 250 if level == 2 else 1000)
+        else:
+            thresholds_by_currency = getattr(settings, "thresholds_by_currency", None) or {}
+            threshold_usd_attr = f"level{level}_threshold_usd"
+            base_threshold_usd = getattr(settings, threshold_usd_attr, 250 if level == 2 else 1000)
+        return thresholds_by_currency, base_threshold_usd
+
+    def _get_anchor_threshold_from_settings(
+        self, thresholds_by_currency: dict, target_currency: str, level: int
+    ) -> Decimal | None:
+        """Get anchor threshold from settings if available (reduces cognitive complexity)."""
+        if not thresholds_by_currency or target_currency not in thresholds_by_currency:
+            return None
+
+        currency_thresholds = thresholds_by_currency[target_currency]
+        if not isinstance(currency_thresholds, dict):
+            return None
+
+        level_key = f"level{level}"
+        if level_key not in currency_thresholds:
+            return None
+
+        anchor_threshold = currency_thresholds[level_key]
+        if anchor_threshold is None:
+            return None
+
+        logger.debug("Using anchor threshold for %s level%s: %s", target_currency, level, anchor_threshold)
+        return to_decimal(anchor_threshold)
+
     async def get_anchor_threshold(
         self, settings: dict[str, Any] | Any, target_currency: str, level: int  # 2 or 3
     ) -> Decimal:
@@ -402,30 +436,14 @@ class CurrencyService:
         if level not in [2, 3]:
             raise ValueError(f"Level must be 2 or 3, got {level}")
 
-        # Handle both dict and object
-        if hasattr(settings, "__getitem__"):
-            thresholds_by_currency = settings.get("thresholds_by_currency") or {}
-            threshold_usd_key = f"level{level}_threshold_usd"
-            base_threshold_usd = settings.get(threshold_usd_key, 250 if level == 2 else 1000)
-        else:
-            thresholds_by_currency = getattr(settings, "thresholds_by_currency", None) or {}
-            threshold_usd_attr = f"level{level}_threshold_usd"
-            base_threshold_usd = getattr(settings, threshold_usd_attr, 250 if level == 2 else 1000)
+        thresholds_by_currency, base_threshold_usd = self._extract_settings_data(settings, level)
 
-        # Check for anchor threshold in target currency
-        if thresholds_by_currency and target_currency in thresholds_by_currency:
-            currency_thresholds = thresholds_by_currency[target_currency]
-            if isinstance(currency_thresholds, dict):
-                level_key = f"level{level}"
-                if level_key in currency_thresholds:
-                    anchor_threshold = currency_thresholds[level_key]
-                    if anchor_threshold is not None:
-                        logger.debug(
-                            f"Using anchor threshold for {target_currency} level{level}: {anchor_threshold}"
-                        )
-                        return to_decimal(anchor_threshold)
+        anchor_threshold = self._get_anchor_threshold_from_settings(
+            thresholds_by_currency, target_currency, level
+        )
+        if anchor_threshold is not None:
+            return anchor_threshold
 
-        # Fallback: convert from USD
         if target_currency == "USD":
             return to_decimal(base_threshold_usd)
 

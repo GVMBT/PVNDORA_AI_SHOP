@@ -71,44 +71,52 @@ async def _format_cart_response(cart, db, user_telegram_id: int):
     # Fetch all products in parallel
     products = await asyncio.gather(*[db.get_product_by_id(item.product_id) for item in cart.items])
 
-    items_with_details = []
-    for item, product in zip(cart.items, products, strict=False):
-        # USD values (base) - stored in cart
+    async def _calculate_display_prices(
+        item, product, currency_service, formatter
+    ) -> tuple[float, float, float]:
+        """Calculate display prices using anchor prices or conversion (reduces cognitive complexity)."""
         unit_price_usd = to_float(item.unit_price)
         final_price_usd = to_float(item.final_price)
         total_price_usd = to_float(item.total_price)
 
-        # CRITICAL: Use anchor prices for display, NOT conversion from USD
-        # This ensures prices match catalog display (which uses anchor prices)
-        if product:
-            product_dict = {
-                "price": product.price,
-                "prices": getattr(product, "prices", None) or {},
-            }
-            # Get anchor price in user's currency
-            anchor_price = float(
-                await currency_service.get_anchor_price(product_dict, formatter.currency)
+        if not product:
+            return (
+                formatter.convert(unit_price_usd),
+                formatter.convert(final_price_usd),
+                formatter.convert(total_price_usd),
             )
 
-            # Apply same discount that was applied in cart
-            discount_multiplier = 1 - (to_float(item.discount_percent) / 100)
-            anchor_final_price = anchor_price * discount_multiplier
+        product_dict = {
+            "price": product.price,
+            "prices": getattr(product, "prices", None) or {},
+        }
+        anchor_price = float(
+            await currency_service.get_anchor_price(product_dict, formatter.currency)
+        )
 
-            # Round for integer currencies
-            if formatter.currency in ["RUB", "UAH", "TRY", "INR"]:
-                anchor_final_price = round(anchor_final_price)
+        discount_multiplier = 1 - (to_float(item.discount_percent) / 100)
+        anchor_final_price = anchor_price * discount_multiplier
 
-            # Display prices using anchor prices
-            unit_price_display = (
-                anchor_final_price / item.quantity if item.quantity > 0 else anchor_final_price
-            )
-            final_price_display = anchor_final_price
-            total_price_display = anchor_final_price * item.quantity
-        else:
-            # Fallback to conversion if product not found
-            unit_price_display = formatter.convert(unit_price_usd)
-            final_price_display = formatter.convert(final_price_usd)
-            total_price_display = formatter.convert(total_price_usd)
+        if formatter.currency in ["RUB", "UAH", "TRY", "INR"]:
+            anchor_final_price = round(anchor_final_price)
+
+        unit_price_display = (
+            anchor_final_price / item.quantity if item.quantity > 0 else anchor_final_price
+        )
+        final_price_display = anchor_final_price
+        total_price_display = anchor_final_price * item.quantity
+
+        return unit_price_display, final_price_display, total_price_display
+
+    items_with_details = []
+    for item, product in zip(cart.items, products, strict=False):
+        unit_price_usd = to_float(item.unit_price)
+        final_price_usd = to_float(item.final_price)
+        total_price_usd = to_float(item.total_price)
+
+        unit_price_display, final_price_display, total_price_display = await _calculate_display_prices(
+            item, product, currency_service, formatter
+        )
 
         items_with_details.append(
             {
