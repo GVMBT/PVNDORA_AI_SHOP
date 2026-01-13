@@ -155,7 +155,7 @@ async def cb_issue_type_selected(callback: CallbackQuery, db_user: User):
 
     if has_insurance:
         # Check if insurance is valid and replacements available
-        is_valid, ins_id, remaining = await insurance_service.check_insurance_valid(
+        is_valid, _, remaining = await insurance_service.check_insurance_valid(
             order_item["id"]
         )
         can_replace = is_valid and remaining > 0

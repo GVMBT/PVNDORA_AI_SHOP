@@ -34,7 +34,7 @@ CRYSTALPAY_API_URL = os.environ.get("CRYSTALPAY_API_URL", "https://api.crystalpa
 
 async def create_crystalpay_payment(
     amount_usd: float, currency: str, order_id: str, description: str
-) -> str | None:
+) -> dict | None:
     """Create CrystalPay payment and return payment URL.
 
     Uses CrystalPay API v3.
@@ -146,7 +146,7 @@ async def get_product_by_short_id(db, short_id: str) -> dict | None:
         return None
 
 
-async def _determine_user_currency(db_user) -> str:
+def _determine_user_currency(db_user) -> str:
     """Determine user's payment currency for CrystalPay (reduces cognitive complexity)."""
     user_currency = "USD"
     try:
@@ -304,7 +304,7 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
         ).execute()
 
         # Determine user currency
-        user_currency = await _determine_user_currency(db_user)
+        user_currency = _determine_user_currency(db_user)
 
         # Create payment
         description = f"Order {order_id[:8]} - {product.get('name', 'Product')}"
