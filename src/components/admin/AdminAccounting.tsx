@@ -5,24 +5,18 @@
  * Локализация: RU
  */
 
-import React, { memo, useState } from "react";
 import {
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
-  Percent,
-  CreditCard,
-  Users,
-  Star,
-  Shield,
-  PiggyBank,
   BarChart3,
-  RefreshCw,
-  Plus,
-  ArrowDownRight,
   Calculator,
   Coins,
+  DollarSign,
+  Percent,
+  PiggyBank,
+  Plus,
+  RefreshCw,
+  Shield,
 } from "lucide-react";
+import React, { memo, useState } from "react";
 
 // Revenue breakdown by currency (REAL amounts, no conversion)
 export interface CurrencyRevenue {
@@ -120,7 +114,7 @@ interface AdminAccountingProps {
   isLoading?: boolean;
 }
 
-const formatMoney = (amount: number, currency: "USD" | "RUB" = "USD"): string => {
+const formatMoney = (amount: number, currency: DisplayCurrency = "USD"): string => {
   const symbol = currency === "USD" ? "$" : "₽";
   const formatted = new Intl.NumberFormat("ru-RU", {
     minimumFractionDigits: currency === "RUB" ? 0 : 2,
@@ -147,7 +141,7 @@ interface MetricRowProps {
   icon?: React.ReactNode;
   indent?: boolean;
   bold?: boolean;
-  displayCurrency: "USD" | "RUB";
+  displayCurrency: DisplayCurrency;
   dualCurrency?: { usd: number; rub: number };
   tooltip?: string;
 }
@@ -188,7 +182,7 @@ const renderSingleCurrencyValue = (
   isExpense: boolean,
   valueColor: string,
   bold: boolean,
-  displayCurrency: "USD" | "RUB"
+  displayCurrency: DisplayCurrency
 ) => (
   <span className={`font-mono ${valueColor} ${bold ? "font-bold text-lg" : ""}`}>
     {isExpense && value > 0 ? "-" : ""}
@@ -356,7 +350,11 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
                 }`}
               >
                 {(() => {
-                  const labels: Record<string, string> = { today: "Сегодня", month: "Месяц", all: "Всё" };
+                  const labels: Record<string, string> = {
+                    today: "Сегодня",
+                    month: "Месяц",
+                    all: "Всё",
+                  };
                   return labels[p] || "Период";
                 })()}
               </button>
