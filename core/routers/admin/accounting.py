@@ -351,71 +351,10 @@ async def get_financial_overview(
     # ==========================================================================
     liabilities_by_currency: dict = {}
 
-    # User balances by currency
-    try:
-        balances_result = (
-            await db.client.table("users")
-            .select(SELECT_BALANCE_FIELDS)
-            .gt("balance", 0)
-            .execute()
-        )
-
-        for raw_user in balances_result.data or []:
-            if not isinstance(raw_user, dict):
-                continue
-            user = cast(dict[str, Any], raw_user)
-            currency_raw = user.get("balance_currency")
-            currency = str(currency_raw) if currency_raw else "USD"
-            balance_raw = user.get("balance", 0)
-            balance = float(balance_raw) if isinstance(balance_raw, (int, float)) else 0.0
-
-            if currency not in liabilities_by_currency:
-                liabilities_by_currency[currency] = {
-                    "user_balances": 0.0,
-                    "users_count": 0,
-                    "pending_withdrawals": 0.0,
-                }
-            liabilities_by_currency[currency]["user_balances"] += balance
-            liabilities_by_currency[currency]["users_count"] += 1
-    except Exception as e:
-        logger.warning("Failed to get user balances by currency: %s", e)
-
-    # Pending withdrawals (debited from user balance in their currency)
-    try:
-        withdrawals_result = (
-            await db.client.table("withdrawal_requests")
-            .select(SELECT_WITHDRAWAL_FIELDS)
-            .eq("status", "pending")
-            .execute()
-        )
-
-        for raw_w in withdrawals_result.data or []:
-            if not isinstance(raw_w, dict):
-                continue
-            w = cast(dict[str, Any], raw_w)
-            currency_raw = w.get("balance_currency")
-            currency = str(currency_raw) if currency_raw else "USD"
-            amount_raw = w.get("amount_debited", 0)
-            amount = float(amount_raw) if isinstance(amount_raw, (int, float)) else 0.0
-
-            if currency not in liabilities_by_currency:
-                liabilities_by_currency[currency] = {
-                    "user_balances": 0.0,
-                    "users_count": 0,
-                    "pending_withdrawals": 0.0,
-                }
-            liabilities_by_currency[currency]["pending_withdrawals"] += amount
-    except Exception as e:
-        logger.warning("Failed to get pending withdrawals: %s", e)
-
-    # Round liabilities
-    for currency_key in liabilities_by_currency:
-        liabilities_by_currency[currency_key]["user_balances"] = round_currency_value(
-            liabilities_by_currency[currency_key]["user_balances"], currency_key
-        )
-        liabilities_by_currency[currency_key]["pending_withdrawals"] = round_currency_value(
-            liabilities_by_currency[currency_key]["pending_withdrawals"], currency_key
-        )
+    # Process user balances and pending withdrawals using helpers
+    await _process_user_balances(db, liabilities_by_currency)
+    await _process_pending_withdrawals(db, liabilities_by_currency)
+    _round_liability_values(liabilities_by_currency)
 
     # ==========================================================================
     # Reserves
