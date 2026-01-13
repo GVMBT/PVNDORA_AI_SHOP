@@ -31,6 +31,23 @@ interface NavbarProps {
 }
 
 // --- UTILITY: TYPEWRITER EFFECT ---
+// Helper to create typewriter interval (reduces nesting depth)
+const startTypewriterInterval = (
+  text: string,
+  speed: number,
+  setDisplayedText: React.Dispatch<React.SetStateAction<string>>
+): NodeJS.Timeout => {
+  let index = 0;
+  if (text.length > 0) setDisplayedText(text[0]);
+
+  return setInterval(() => {
+    index++;
+    if (index < text.length) {
+      setDisplayedText(text.slice(0, index + 1));
+    }
+  }, speed);
+};
+
 const Typewriter: React.FC<{ text: string; delay?: number; speed?: number }> = ({
   text,
   delay = 0,
@@ -39,27 +56,17 @@ const Typewriter: React.FC<{ text: string; delay?: number; speed?: number }> = (
   const [displayedText, setDisplayedText] = useState("");
 
   useEffect(() => {
-    // Reset on mount/change
     setDisplayedText("");
+    let intervalId: NodeJS.Timeout | null = null;
 
     const startTimeout = setTimeout(() => {
-      let index = 0;
-      // Start with first character immediately
-      if (text.length > 0) setDisplayedText(text[0]);
-
-      const interval = setInterval(() => {
-        index++;
-        if (index < text.length) {
-          setDisplayedText((prev) => text.slice(0, index + 1));
-        } else {
-          clearInterval(interval);
-        }
-      }, speed);
-
-      return () => clearInterval(interval);
+      intervalId = startTypewriterInterval(text, speed, setDisplayedText);
     }, delay);
 
-    return () => clearTimeout(startTimeout);
+    return () => {
+      clearTimeout(startTimeout);
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [text, delay, speed]);
 
   return <span>{displayedText}</span>;
