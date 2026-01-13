@@ -270,7 +270,11 @@ export function adaptProfile(
     earnedRefUsd: profile.total_referral_earnings_usd, // ALWAYS use _usd suffix (USD base amount)
     saved: profile.total_saved, // Converted to user currency
     savedUsd: profile.total_saved_usd, // ALWAYS use _usd suffix (USD base amount)
-    role: profile.is_admin ? "ADMIN" : referral_program.is_partner ? "VIP" : "USER",
+    role: (() => {
+      if (profile.is_admin) return "ADMIN";
+      if (referral_program.is_partner) return "VIP";
+      return "USER";
+    })(),
     isVip: referral_program.is_partner,
     partnerMode: referral_program.partner_mode || "commission",
     partnerDiscountPercent: referral_program.partner_discount_percent || 0,

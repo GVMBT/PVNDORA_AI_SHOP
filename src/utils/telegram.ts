@@ -11,7 +11,7 @@
 import type { WebApp } from "../types/telegram";
 
 export function getTelegramWebApp(): WebApp | undefined {
-  if (typeof globalThis.window === "undefined") return undefined;
+  if (globalThis.window === undefined) return undefined;
   return globalThis.Telegram?.WebApp;
 }
 

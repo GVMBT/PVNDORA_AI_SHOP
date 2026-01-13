@@ -62,7 +62,7 @@ import { logger } from "./utils/logger";
  */
 function usePaymentRedirect() {
   return useState<string | null>(() => {
-    if (typeof globalThis.window === "undefined") return null;
+    if (globalThis.window === undefined) return null;
 
     if (globalThis.location.pathname === "/payment/result") {
       const urlParams = new URLSearchParams(globalThis.location.search);

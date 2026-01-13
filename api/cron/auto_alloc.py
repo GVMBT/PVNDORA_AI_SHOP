@@ -71,9 +71,7 @@ async def _process_order_items(db: Any, notification_service: Any, results: dict
 
     for oid in order_ids:
         try:
-            res = await _deliver_items_for_order(
-                db, notification_service, oid, only_instant=False
-            )
+            res = await _deliver_items_for_order(db, notification_service, oid, only_instant=False)
             if res.get("delivered", 0) > 0:
                 results["order_items"]["delivered"] += res["delivered"]
         except Exception:
@@ -151,7 +149,11 @@ async def _process_single_replacement(
 
     product = cast(dict[str, Any], product_res.data) if isinstance(product_res.data, dict) else {}
     duration_days_raw = product.get("duration_days")
-    duration_days = int(duration_days_raw) if isinstance(duration_days_raw, (int, float)) and duration_days_raw > 0 else 0
+    duration_days = (
+        int(duration_days_raw)
+        if isinstance(duration_days_raw, (int, float)) and duration_days_raw > 0
+        else 0
+    )
     product_name = str(product.get("name", "Product"))
 
     # Calculate expires_at

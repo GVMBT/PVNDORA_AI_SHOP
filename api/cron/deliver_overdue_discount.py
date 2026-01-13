@@ -377,15 +377,40 @@ async def deliver_discount_order(db: Any, order_id: str, order_data: dict[str, A
             logger.warning(f"No order items for order {order_id}")
             return False
 
-        for item in order_items.data:
-            await _deliver_order_item(db, order_id, item, telegram_id)
+        # Track delivery success for each item
+        all_delivered = True
+        failed_items = []
 
-        await db.client.table("orders").update(
-            {"status": "delivered", "delivered_at": datetime.now(UTC).isoformat()}
-        ).eq("id", order_id).execute()
+        for item_raw in order_items.data:
+            if not isinstance(item_raw, dict):
+                logger.warning(f"Invalid item format in order {order_id}: {item_raw}")
+                all_delivered = False
+                continue
 
-        logger.info(f"Discount order {order_id} delivered successfully via cron fallback")
-        return True
+            item = cast(dict[str, Any], item_raw)
+            success = await _deliver_order_item(db, order_id, item, telegram_id)
+            if not success:
+                all_delivered = False
+                item_id = item.get("id", "unknown")
+                product_id = item.get("product_id", "unknown")
+                failed_items.append({"item_id": item_id, "product_id": product_id})
+                logger.warning(
+                    f"Failed to deliver item {item_id} (product {product_id}) for order {order_id}"
+                )
+
+        # Only mark order as delivered if ALL items were successfully delivered
+        if all_delivered:
+            await db.client.table("orders").update(
+                {"status": "delivered", "delivered_at": datetime.now(UTC).isoformat()}
+            ).eq("id", order_id).execute()
+            logger.info(f"Discount order {order_id} delivered successfully via cron fallback")
+            return True
+        else:
+            logger.error(
+                f"Discount order {order_id} partially failed: {len(failed_items)}/{len(order_items.data)} items failed. "
+                f"Failed items: {failed_items}. Order status remains 'paid'."
+            )
+            return False
 
     except Exception:
         logger.exception(f"Failed to deliver discount order {order_id}")

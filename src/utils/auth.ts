@@ -22,7 +22,7 @@ import { apiPost } from "./apiClient";
  * ```
  */
 export function persistSessionTokenFromQuery(): string | null {
-  if (typeof globalThis.window === "undefined") return null;
+  if (globalThis.window === undefined) return null;
   try {
     const url = new URL(globalThis.location.href);
     const token = url.searchParams.get("session_token");

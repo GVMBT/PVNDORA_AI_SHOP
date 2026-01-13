@@ -160,13 +160,11 @@ const MetricRow: React.FC<MetricRowProps> = ({
   dualCurrency,
   tooltip,
 }) => {
-  const valueColor = isProfit
-    ? value >= 0
-      ? "text-green-400"
-      : "text-red-400"
-    : isExpense
-      ? "text-red-400"
-      : "text-white";
+  const valueColor = (() => {
+    if (isProfit) return value >= 0 ? "text-green-400" : "text-red-400";
+    if (isExpense) return "text-red-400";
+    return "text-white";
+  })();
 
   // Show dual currency if provided
   const showDual = dualCurrency && (dualCurrency.usd > 0 || dualCurrency.rub > 0);
@@ -265,9 +263,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
     d.totalReserves +
     d.totalReviewCashbacks +
     d.totalReplacementCosts;
-  const operatingProfit = d.operatingProfit ?? grossProfit - operatingExpenses;
-  const grossMargin =
-    d.grossMarginPct ?? (d.totalRevenue > 0 ? (grossProfit / d.totalRevenue) * 100 : 0);
+  // Note: operatingProfit and grossMargin are calculated but used via d.* properties in the template
   const netMargin =
     d.netMarginPct ?? (d.totalRevenue > 0 ? (d.netProfit / d.totalRevenue) * 100 : 0);
   const avgOrderValue = d.totalOrders > 0 ? d.totalRevenue / d.totalOrders : 0;
@@ -337,13 +333,10 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
                   period === p ? "bg-pandora-cyan text-black" : "text-gray-400 hover:text-white"
                 }`}
               >
-                {p === "today"
-                  ? "Сегодня"
-                  : p === "month"
-                    ? "Месяц"
-                    : p === "all"
-                      ? "Всё"
-                      : "Период"}
+                {(() => {
+                  const labels: Record<string, string> = { today: "Сегодня", month: "Месяц", all: "Всё" };
+                  return labels[p] || "Период";
+                })()}
               </button>
             ))}
           </div>
