@@ -409,6 +409,72 @@ def _add_order_expenses_to_month(month: dict[str, Any], expenses: dict[str, Any]
     month["replacement_costs"] += float(expenses.get("insurance_replacement_cost", 0) or 0)
 
 
+# Helper: Process orders for accounting report (reduces cognitive complexity)
+async def _process_orders_for_report(
+    orders: list[dict[str, Any]],
+) -> tuple[dict[str, dict[str, Any]], dict[str, float]]:
+    """Process orders grouped by currency and calculate expense totals."""
+    orders_by_currency = {}
+    expense_totals = {
+        "revenue": 0.0,
+        "revenue_gross": 0.0,
+        "cogs": 0.0,
+        "acquiring": 0.0,
+        "referrals": 0.0,
+        "reserves": 0.0,
+        "review_cashbacks": 0.0,
+        "replacement_costs": 0.0,
+    }
+
+    for order in orders:
+        currency = order.get("fiat_currency") or "USD"
+        if currency not in orders_by_currency:
+            orders_by_currency[currency] = {
+                "orders": [],
+                "revenue_usd": 0.0,
+                "revenue_gross_usd": 0.0,
+                "revenue_fiat": 0.0,
+                "orders_count": 0,
+            }
+
+        currency_data = orders_by_currency[currency]
+        currency_data["orders"].append(order)
+        amount_usd = float(order.get("amount", 0))
+        currency_data["revenue_usd"] += amount_usd
+        expense_totals["revenue"] += amount_usd
+
+        # Calculate gross using ONLY promo_discount
+        expenses = order.get("order_expenses")
+        promo_discount_usd = 0.0
+        if expenses:
+            if isinstance(expenses, list):
+                expenses = expenses[0] if expenses else {}
+            promo_discount_usd = float(expenses.get("promo_discount_amount", 0) or 0)
+
+        currency_data["revenue_gross_usd"] += amount_usd + promo_discount_usd
+        expense_totals["revenue_gross"] += amount_usd + promo_discount_usd
+
+        fiat_amount = order.get("fiat_amount")
+        if fiat_amount is not None:
+            currency_data["revenue_fiat"] += float(fiat_amount)
+        else:
+            currency_data["revenue_fiat"] += amount_usd
+        currency_data["orders_count"] += 1
+
+        # Calculate expenses
+        if expenses:
+            if isinstance(expenses, list):
+                expenses = expenses[0] if expenses else {}
+            expense_totals["cogs"] += float(expenses.get("cogs_amount", 0) or 0)
+            expense_totals["acquiring"] += float(expenses.get("acquiring_fee_amount", 0) or 0)
+            expense_totals["referrals"] += float(expenses.get("referral_payout_amount", 0) or 0)
+            expense_totals["reserves"] += float(expenses.get("reserve_amount", 0) or 0)
+            expense_totals["review_cashbacks"] += float(expenses.get("review_cashback_amount", 0) or 0)
+            expense_totals["replacement_costs"] += float(expenses.get("insurance_replacement_cost", 0) or 0)
+
+    return orders_by_currency, expense_totals
+
+
 # Helper: Get other expenses and insurance revenue (reduces cognitive complexity)
 async def _get_other_expenses_and_insurance(
     db: Any, start_date: datetime | None, end_date: datetime
@@ -1408,79 +1474,30 @@ async def get_accounting_report(
 
     orders = orders_result.data or []
 
-    # Group orders by currency for breakdown
-    orders_by_currency = {}
-    for order in orders:
-        # Use fiat_currency if available, otherwise default to "USD"
-        currency = order.get("fiat_currency") or "USD"
-        if currency not in orders_by_currency:
-            orders_by_currency[currency] = {
-                "orders": [],
-                "revenue_usd": 0.0,
-                "revenue_gross_usd": 0.0,
-                "revenue_fiat": 0.0,  # Real amount in payment currency
-                "orders_count": 0,
-            }
-        orders_by_currency[currency]["orders"].append(order)
-        orders_by_currency[currency]["revenue_usd"] += float(order.get("amount", 0))
+    # Process orders by currency and calculate expenses
+    orders_by_currency, expense_totals = await _process_orders_for_report(orders)
+    revenue = expense_totals["revenue"]
+    revenue_gross = expense_totals["revenue_gross"]
+    total_discounts = revenue_gross - revenue
+    cogs = expense_totals["cogs"]
+    acquiring = expense_totals["acquiring"]
+    referrals = expense_totals["referrals"]
+    reserves = expense_totals["reserves"]
+    review_cashbacks = expense_totals["review_cashbacks"]
+    replacement_costs = expense_totals["replacement_costs"]
 
-        # Calculate gross using ONLY promo_discount (ignore MSRP)
-        expenses = order.get("order_expenses")
-        promo_discount_usd = 0.0
-        if expenses:
-            if isinstance(expenses, list):
-                expenses = expenses[0] if expenses else {}
-            promo_discount_usd = float(expenses.get("promo_discount_amount", 0))
-
-        orders_by_currency[currency]["revenue_gross_usd"] += (
-            float(order.get("amount", 0)) + promo_discount_usd
-        )
-
-        fiat_amount = order.get("fiat_amount")
-        if fiat_amount is not None:
-            orders_by_currency[currency]["revenue_fiat"] += float(fiat_amount)
-        else:
-            # Fallback: if no fiat_amount, assume it's USD (equal to amount)
-            orders_by_currency[currency]["revenue_fiat"] += float(order.get("amount", 0))
-        orders_by_currency[currency]["orders_count"] += 1
-
-    # Build currency_breakdown for response
-    currency_breakdown = {}
-    for currency, data in orders_by_currency.items():
-        currency_breakdown[currency] = {
+    # Build currency_breakdown
+    currency_breakdown = {
+        currency: {
             "orders_count": data["orders_count"],
             "revenue_usd": round(data["revenue_usd"], 2),
             "revenue_fiat": round(data["revenue_fiat"], 2),
             "revenue_gross_usd": round(data["revenue_gross_usd"], 2),
         }
+        for currency, data in orders_by_currency.items()
+    }
 
-    # Calculate totals
-    revenue = sum(float(o.get("amount", 0)) for o in orders)
-
-    # Calculate revenue_gross from breakdowns
-    revenue_gross = sum(data["revenue_gross_usd"] for data in orders_by_currency.values())
-    total_discounts = revenue_gross - revenue
-
-    cogs = 0
-    acquiring = 0
-    referrals = 0
-    reserves = 0
-    review_cashbacks = 0
-    replacement_costs = 0
-
-    for order in orders:
-        expenses = order.get("order_expenses")
-        if expenses:
-            if isinstance(expenses, list):
-                expenses = expenses[0] if expenses else {}
-            cogs += float(expenses.get("cogs_amount", 0))
-            acquiring += float(expenses.get("acquiring_fee_amount", 0))
-            referrals += float(expenses.get("referral_payout_amount", 0))
-            reserves += float(expenses.get("reserve_amount", 0))
-            review_cashbacks += float(expenses.get("review_cashback_amount", 0))
-            replacement_costs += float(expenses.get("insurance_replacement_cost", 0))
-
-    # Get insurance revenue
+    # Get insurance revenue and other expenses
     insurance_result = (
         await db.client.table("insurance_revenue")
         .select("price")
@@ -1489,7 +1506,6 @@ async def get_accounting_report(
     )
     insurance_revenue = sum(float(i.get("price", 0)) for i in (insurance_result.data or []))
 
-    # Get other expenses
     other_expenses_result = (
         await db.client.table("expenses")
         .select("amount_usd, category")
@@ -1498,8 +1514,6 @@ async def get_accounting_report(
     )
 
     other_expenses = sum(float(e.get("amount_usd", 0)) for e in (other_expenses_result.data or []))
-
-    # Expenses by category
     expenses_by_category = {}
     for e in other_expenses_result.data or []:
         cat = e.get("category", "other")
@@ -1513,58 +1527,11 @@ async def get_accounting_report(
     operating_profit = gross_profit - operating_expenses_total
     net_profit = operating_profit - other_expenses + insurance_revenue
 
-    # Get liabilities by currency (multi-currency!)
+    # Get liabilities by currency
     liabilities_by_currency: dict = {}
-
-    # User balances
-    try:
-        balances_result = (
-            await db.client.table("users")
-            .select(SELECT_BALANCE_FIELDS)
-            .gt("balance", 0)
-            .execute()
-        )
-
-        for user in balances_result.data or []:
-            curr = user.get("balance_currency") or "USD"
-            balance = float(user.get("balance", 0))
-
-            if curr not in liabilities_by_currency:
-                liabilities_by_currency[curr] = {
-                    "user_balances": 0.0,
-                    "pending_withdrawals": 0.0,
-                }
-            liabilities_by_currency[curr]["user_balances"] += balance
-    except Exception as e:
-        logger.warning("Failed to get user balances for report: %s", e)
-
-    # Pending withdrawals
-    try:
-        withdrawals_result = (
-            await db.client.table("withdrawal_requests")
-            .select(SELECT_WITHDRAWAL_FIELDS)
-            .eq("status", "pending")
-            .execute()
-        )
-
-        for w in withdrawals_result.data or []:
-            curr = w.get("balance_currency") or "USD"
-            amount = float(w.get("amount_debited", 0))
-
-            if curr not in liabilities_by_currency:
-                liabilities_by_currency[curr] = {
-                    "user_balances": 0.0,
-                    "pending_withdrawals": 0.0,
-                }
-            liabilities_by_currency[curr]["pending_withdrawals"] += amount
-    except Exception as e:
-        logger.warning("Failed to get withdrawals for report: %s", e)
-
-    # Calculate totals per currency
-    for curr_data in liabilities_by_currency.values():
-        curr_data["user_balances"] = round(curr_data["user_balances"], 2)
-        curr_data["pending_withdrawals"] = round(curr_data["pending_withdrawals"], 2)
-        curr_data["total"] = curr_data["user_balances"] + curr_data["pending_withdrawals"]
+    await _process_user_balances(db, liabilities_by_currency)
+    await _process_pending_withdrawals(db, liabilities_by_currency)
+    _round_liability_values(liabilities_by_currency)
 
     # Legacy totals
     total_user_balances = sum(d["user_balances"] for d in liabilities_by_currency.values())
