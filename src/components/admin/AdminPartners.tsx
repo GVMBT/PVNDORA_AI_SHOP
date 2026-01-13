@@ -128,11 +128,11 @@ const renderApplicationsContent = (
             {formatDateRu(app.created_at)}
           </div>
 
-          {app.motivation && (
+          {Boolean(app.motivation) && (
             <p className="text-xs text-gray-400 line-clamp-2 mb-2">{app.motivation}</p>
           )}
 
-          {app.expected_referrals && (
+          {app.expected_referrals != null && app.expected_referrals > 0 && (
             <div className="text-[10px] text-gray-500">
               Ожидаемые рефералы: {app.expected_referrals}
             </div>
