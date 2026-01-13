@@ -8,6 +8,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
 from datetime import UTC, datetime
+from typing import Any
 
 from core.logging import get_logger
 
@@ -195,18 +196,8 @@ class OrderStatusService:
                 )
                 return current_status
 
-            # Check stock availability for ALL payment methods (including balance)
-            # Balance payment doesn't mean stock is available!
-            if check_stock:
-                logger.debug("[mark_payment_confirmed] Checking stock availability...")
-                has_stock = await self._check_stock_availability(order_id)
-                final_status = "paid" if has_stock else "prepaid"
-                logger.debug(
-                    f"[mark_payment_confirmed] has_stock={has_stock}, final_status={final_status}, payment_method={payment_method}"
-                )
-            else:
-                # If not checking stock, default to 'prepaid' for safety
-                final_status = "prepaid"
+            # Determine final status based on stock availability
+            final_status = await self._determine_final_status(order_id, check_stock)
 
             # Update payment_id if provided
             if payment_id:
@@ -306,37 +297,15 @@ class OrderStatusService:
                     logger.warning("Failed to send admin alert for order %s: %s", order_id, e)
 
                 # Send payment confirmation to user (best-effort)
-                try:
-                    # OPTIMIZATION #6: Use user_telegram_id from first query (no duplicate query)
-                    if user_telegram_id:
-                        # Use fiat_amount from first query (already extracted)
-                        display_amount = float(fiat_amount) if fiat_amount else float(order_amount)
-                        display_currency = fiat_currency if fiat_amount else "USD"
-
-                        # Use order_items from parallel query
-                        preorder_count = sum(
-                            1 for item in items_result if item.get("fulfillment_type") == "preorder"
-                        )
-                        has_instant = any(
-                            item.get("fulfillment_type") != "preorder" for item in items_result
-                        )
-
-                        from core.routers.deps import get_notification_service
-
-                        notification_service = get_notification_service()
-                        await notification_service.send_payment_confirmed(
-                            telegram_id=user_telegram_id,
-                            order_id=order_id,
-                            amount=display_amount,
-                            currency=display_currency,
-                            status=final_status,
-                            has_instant_items=has_instant,
-                            preorder_count=preorder_count,
-                        )
-                except Exception as e:
-                    logger.warning(
-                        "Failed to send payment confirmation to user for order %s: %s", order_id, e
-                    )
+                await self._send_payment_notification(
+                    user_telegram_id,
+                    order_id,
+                    order_amount,
+                    fiat_amount,
+                    fiat_currency,
+                    final_status,
+                    items_result,
+                )
 
             # Create balance_transaction record for purchase (for system_log visibility)
             # Only for external payments (not balance) - balance payments already create records via add_to_user_balance
@@ -387,29 +356,7 @@ class OrderStatusService:
                     # Non-critical - don't fail the payment confirmation
 
             # Set fulfillment deadline for orders with preorder items
-            # OPTIMIZATION #6: Reuse order_items from parallel query (already fetched above)
-            try:
-                # Use order_items from parallel query (already fetched)
-                items_result_data = items_result
-
-                has_preorder_items = any(
-                    item.get("fulfillment_type") == "preorder" for item in items_result_data
-                )
-
-                if has_preorder_items:
-                    logger.debug(
-                        f"[mark_payment_confirmed] Setting fulfillment deadline for order {order_id} with preorder items (final_status={final_status})"
-                    )
-                    await self.db.client.rpc(
-                        "set_fulfillment_deadline_for_prepaid_order",
-                        {"p_order_id": order_id, "p_hours_from_now": 24},
-                    ).execute()
-                else:
-                    logger.debug(
-                        f"[mark_payment_confirmed] Order {order_id} has no preorder items, skipping fulfillment_deadline"
-                    )
-            except Exception as e:
-                logger.warning("Failed to set fulfillment deadline for %s: %s", order_id, e)
+            await self._set_fulfillment_deadline(order_id, items_result, final_status)
 
             # CRITICAL: Create order_expenses for accounting (best-effort, non-blocking)
             if update_result:
@@ -523,6 +470,131 @@ class OrderStatusService:
             )
         except Exception as e:
             logger.warning("Failed to send order alert: %s", e)
+
+    # Helper: Determine final status based on stock (reduces cognitive complexity)
+    async def _determine_final_status(
+        self, order_id: str, check_stock: bool
+    ) -> str:
+        """Determine final status (paid/prepaid) based on stock availability."""
+        if not check_stock:
+            return "prepaid"
+
+        logger.debug("[mark_payment_confirmed] Checking stock availability...")
+        has_stock = await self._check_stock_availability(order_id)
+        final_status = "paid" if has_stock else "prepaid"
+        logger.debug(f"[mark_payment_confirmed] has_stock={has_stock}, final_status={final_status}")
+        return final_status
+
+    # Helper: Send payment confirmation notification (reduces cognitive complexity)
+    async def _send_payment_notification(
+        self,
+        user_telegram_id: int | None,
+        order_id: str,
+        order_amount: float,
+        fiat_amount: float | None,
+        fiat_currency: str | None,
+        final_status: str,
+        items_result: list[dict[str, Any]],
+    ) -> None:
+        """Send payment confirmation notification to user."""
+        if not user_telegram_id:
+            return
+
+        try:
+            display_amount = float(fiat_amount) if fiat_amount else float(order_amount)
+            display_currency = fiat_currency if fiat_amount else "USD"
+
+            preorder_count = sum(
+                1 for item in items_result if item.get("fulfillment_type") == "preorder"
+            )
+            has_instant = any(
+                item.get("fulfillment_type") != "preorder" for item in items_result
+            )
+
+            from core.routers.deps import get_notification_service
+
+            notification_service = get_notification_service()
+            await notification_service.send_payment_confirmed(
+                telegram_id=user_telegram_id,
+                order_id=order_id,
+                amount=display_amount,
+                currency=display_currency,
+                status=final_status,
+                has_instant_items=has_instant,
+                preorder_count=preorder_count,
+            )
+        except Exception as e:
+            logger.warning("Failed to send payment confirmation to user for order %s: %s", order_id, e)
+
+    # Helper: Create balance transaction for external payments (reduces cognitive complexity)
+    async def _create_purchase_transaction(
+        self,
+        user_id: str,
+        order_id: str,
+        order_amount: float,
+        fiat_amount: float | None,
+        fiat_currency: str | None,
+        payment_method: str,
+        payment_id: str | None,
+        user_balance: float | None,
+        tx_exists: bool,
+    ) -> None:
+        """Create balance_transaction record for external payment purchases."""
+        if not user_balance or tx_exists:
+            if tx_exists:
+                logger.debug(f"[mark_payment_confirmed] balance_transaction already exists for order {order_id}, skipping")
+            return
+
+        try:
+            transaction_amount = float(fiat_amount) if fiat_amount is not None else float(order_amount)
+            transaction_currency = fiat_currency if fiat_amount else "USD"
+
+            await self.db.client.table("balance_transactions").insert(
+                {
+                    "user_id": user_id,
+                    "type": "purchase",
+                    "amount": transaction_amount,
+                    "currency": transaction_currency,
+                    "balance_before": user_balance,
+                    "balance_after": user_balance,  # Balance doesn't change for external payments
+                    "status": "completed",
+                    "description": f"Purchase: Order {order_id}",
+                    "metadata": {
+                        "order_id": order_id,
+                        "payment_method": payment_method,
+                        "payment_id": payment_id,
+                    },
+                }
+            ).execute()
+            logger.debug(
+                f"[mark_payment_confirmed] Created balance_transaction for purchase order {order_id}: {transaction_amount} {transaction_currency}"
+            )
+        except Exception as e:
+            logger.warning("Failed to create balance_transaction for order %s: %s", order_id, e)
+
+    # Helper: Set fulfillment deadline for preorder items (reduces cognitive complexity)
+    async def _set_fulfillment_deadline(
+        self, order_id: str, items_result: list[dict[str, Any]], final_status: str
+    ) -> None:
+        """Set fulfillment deadline for orders with preorder items."""
+        has_preorder_items = any(
+            item.get("fulfillment_type") == "preorder" for item in items_result
+        )
+
+        if not has_preorder_items:
+            logger.debug(f"[mark_payment_confirmed] Order {order_id} has no preorder items, skipping fulfillment_deadline")
+            return
+
+        try:
+            logger.debug(
+                f"[mark_payment_confirmed] Setting fulfillment deadline for order {order_id} with preorder items (final_status={final_status})"
+            )
+            await self.db.client.rpc(
+                "set_fulfillment_deadline_for_prepaid_order",
+                {"p_order_id": order_id, "p_hours_from_now": 24},
+            ).execute()
+        except Exception as e:
+            logger.warning("Failed to set fulfillment deadline for %s: %s", order_id, e)
 
     async def _check_stock_availability(self, order_id: str) -> bool:
         """Check if order has available stock for instant delivery.
