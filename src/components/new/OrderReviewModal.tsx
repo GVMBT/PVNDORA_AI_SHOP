@@ -1,6 +1,6 @@
-import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, Star, Send } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Send, Star, X } from "lucide-react";
+import type React from "react";
 import { useLocale } from "../../hooks/useLocale";
 
 interface ReviewModalProps {

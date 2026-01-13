@@ -4,7 +4,8 @@
  * Displays order status with appropriate styling and animations.
  */
 
-import React, { memo } from "react";
+import type React from "react";
+import { memo } from "react";
 
 type RawOrderStatus =
   | "pending"

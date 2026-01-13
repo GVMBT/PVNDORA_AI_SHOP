@@ -5,9 +5,9 @@
  * Supports both Telegram Mini App (initData) and web session (Bearer token).
  */
 
-import { localStorage } from "./storage";
 import { CACHE } from "../config";
 import type { WebApp } from "../types/telegram";
+import { localStorage } from "./storage";
 
 export interface ApiHeaders {
   "Content-Type": string;
@@ -46,7 +46,7 @@ export function getApiHeaders(): ApiHeaders {
     // Fallback to Bearer token (web session)
     const sessionToken = localStorage.get(CACHE.SESSION_TOKEN_KEY);
     if (sessionToken) {
-      headers["Authorization"] = `Bearer ${sessionToken}`;
+      headers.Authorization = `Bearer ${sessionToken}`;
     }
   }
 

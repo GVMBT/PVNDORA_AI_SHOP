@@ -4,24 +4,25 @@
  * Управление VIP партнёрами и заявками.
  */
 
-import React, { useState, useEffect, memo, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Edit,
-  Crown,
-  Users,
+  Calendar,
   Check,
-  X,
+  Crown,
+  Edit,
+  ExternalLink,
   RefreshCw,
   User,
-  Calendar,
-  ExternalLink,
+  Users,
+  X,
 } from "lucide-react";
+import type React from "react";
+import { memo, useCallback, useEffect, useState } from "react";
+import { API } from "../../config";
+import { apiRequest } from "../../utils/apiClient";
+import { logger } from "../../utils/logger";
 import StatusBadge from "./StatusBadge";
 import type { UserData } from "./types";
-import { apiRequest } from "../../utils/apiClient";
-import { API } from "../../config";
-import { logger } from "../../utils/logger";
 
 // Partner Application type
 interface PartnerApplication {

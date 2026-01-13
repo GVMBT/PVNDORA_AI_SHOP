@@ -4,22 +4,23 @@
  * Управление промокодами.
  */
 
-import React, { useState, memo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Tag,
-  Plus,
-  Trash2,
-  Check,
-  X,
   Calendar,
-  Users,
+  Check,
+  Package,
   Percent,
+  Plus,
+  ShoppingCart,
+  Tag,
   ToggleLeft,
   ToggleRight,
-  Package,
-  ShoppingCart,
+  Trash2,
+  Users,
+  X,
 } from "lucide-react";
+import type React from "react";
+import { memo, useState } from "react";
 
 export interface PromoCodeData {
   id: string;

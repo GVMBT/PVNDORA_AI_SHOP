@@ -1,6 +1,7 @@
-import React, { memo } from "react";
-import { Activity, Headphones, Lock, ShieldCheck, Zap } from "lucide-react";
 import { motion } from "framer-motion";
+import { Activity, Headphones, Lock, ShieldCheck, Zap } from "lucide-react";
+import type React from "react";
+import { memo } from "react";
 import { useLocale } from "../../hooks/useLocale";
 
 const GuaranteesComponent: React.FC = () => {

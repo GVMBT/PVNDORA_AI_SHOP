@@ -4,17 +4,10 @@
  * Cyberpunk-styled modal explaining the Network Clearance / Referral Program
  */
 
-import React, { memo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  ArrowRight,
-  Shield,
-  Sparkles,
-  Target,
-  Users,
-  X,
-  Zap,
-} from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowRight, Shield, Sparkles, Target, Users, X, Zap } from "lucide-react";
+import type React from "react";
+import { memo } from "react";
 import { useLocale } from "../../hooks/useLocale";
 import type { CurrencyCode } from "../../utils/currency";
 
@@ -262,7 +255,11 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                   {LEVELS.map((lvl, i) => {
                     const isCurrentLevel = lvl.level === currentLevel;
                     const isUnlocked = lvl.level <= currentLevel;
-                    const threshold = getLevelThreshold(lvl.level, thresholdLevel2, thresholdLevel3);
+                    const threshold = getLevelThreshold(
+                      lvl.level,
+                      thresholdLevel2,
+                      thresholdLevel3
+                    );
 
                     return (
                       <div

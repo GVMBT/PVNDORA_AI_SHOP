@@ -4,13 +4,14 @@
  * Displays career progress and level information.
  */
 
-import React, { memo, useState } from "react";
-import { ShieldCheck, Wifi, Radio, Crown, HelpCircle, Star } from "lucide-react";
 import { motion } from "framer-motion";
+import { Crown, HelpCircle, Radio, ShieldCheck, Star, Wifi } from "lucide-react";
+import type React from "react";
+import { memo, useState } from "react";
 import { useLocale } from "../../hooks/useLocale";
-import type { CareerLevelData } from "./types";
 import type { CurrencyCode } from "../../utils/currency";
 import ReferralExplainerModal from "./ReferralExplainerModal";
+import type { CareerLevelData } from "./types";
 
 // Helper to get level icon (avoid nested ternary)
 const getLevelIcon = (levelId: number) => {

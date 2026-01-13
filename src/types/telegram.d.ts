@@ -250,5 +250,3 @@ export interface BiometricRequestAccessParams {
 export interface BiometricAuthenticateParams {
   reason?: string;
 }
-
-export {};

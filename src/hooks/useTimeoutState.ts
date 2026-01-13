@@ -5,7 +5,7 @@
  * Useful for feedback states like "copied", "success", etc.
  */
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { UI } from "../config";
 
 interface UseTimeoutStateOptions {

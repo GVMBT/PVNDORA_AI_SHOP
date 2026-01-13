@@ -1,13 +1,6 @@
-import React from "react";
-import {
-  ArrowLeft,
-  FileText,
-  Shield,
-  HelpCircle,
-  Mail,
-  Terminal,
-} from "lucide-react";
 import { motion } from "framer-motion";
+import { ArrowLeft, FileText, HelpCircle, Mail, Shield, Terminal } from "lucide-react";
+import type React from "react";
 import { useLocale } from "../../hooks/useLocale";
 import { generateHashId } from "../../utils/id";
 
@@ -729,7 +722,9 @@ const renderSupportContent = (isRussian: boolean) => {
           </div>
           <h3 className="text-white font-bold mb-2">Telegram Support</h3>
           <p className="text-gray-500 text-xs font-mono mb-4">
-            {isRussian ? "Самый быстрый способ получить ответ." : "The fastest way to get an answer."}
+            {isRussian
+              ? "Самый быстрый способ получить ответ."
+              : "The fastest way to get an answer."}
           </p>
           <a
             href="https://t.me/pvndora_support"
@@ -747,7 +742,9 @@ const renderSupportContent = (isRussian: boolean) => {
           </div>
           <h3 className="text-white font-bold mb-2">Email</h3>
           <p className="text-gray-500 text-xs font-mono mb-4">
-            {isRussian ? "Для деловых предложений и жалоб." : "For business inquiries and complaints."}
+            {isRussian
+              ? "Для деловых предложений и жалоб."
+              : "For business inquiries and complaints."}
           </p>
           <a href="mailto:support@pvndora.app" className="text-white font-bold hover:underline">
             support@pvndora.app
@@ -845,9 +842,7 @@ const Legal: React.FC<LegalProps> = ({ doc, onBack }) => {
         {/* Document Container */}
         <div className="bg-[#080808] border border-white/10 p-8 md:p-12 relative overflow-hidden shadow-2xl">
           {/* Decor */}
-          <div className="absolute top-0 right-0 p-4 opacity-20">
-            {getDocumentIcon(doc)}
-          </div>
+          <div className="absolute top-0 right-0 p-4 opacity-20">{getDocumentIcon(doc)}</div>
 
           {renderContent()}
 

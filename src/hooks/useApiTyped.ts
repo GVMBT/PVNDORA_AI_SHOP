@@ -5,27 +5,27 @@
  * Use CartContext (from contexts/CartContext.tsx) for cart operations.
  */
 
+export {
+  type AdminAnalytics,
+  type AdminOrder,
+  type AdminProduct,
+  type AdminUser,
+  useAdminAnalyticsTyped,
+  useAdminOrdersTyped,
+  useAdminProductsTyped,
+  useAdminUsersTyped,
+} from "./api/useAdminApi";
+export { useLeaderboardTyped } from "./api/useLeaderboardApi";
+export { useOrdersTyped } from "./api/useOrdersApi";
 // Re-export all hooks from api/ folder
 export { useProductsTyped } from "./api/useProductsApi";
-export { useOrdersTyped } from "./api/useOrdersApi";
 export { useProfileTyped } from "./api/useProfileApi";
-export { useLeaderboardTyped } from "./api/useLeaderboardApi";
 export {
-  useReviewsTyped,
-  useSupportTyped,
   useAIChatTyped,
   usePromoTyped,
+  useReviewsTyped,
+  useSupportTyped,
 } from "./api/useSupportApi";
-export {
-  useAdminProductsTyped,
-  useAdminOrdersTyped,
-  useAdminUsersTyped,
-  useAdminAnalyticsTyped,
-  type AdminProduct,
-  type AdminOrder,
-  type AdminUser,
-  type AdminAnalytics,
-} from "./api/useAdminApi";
 
 // Note: useCartTyped has been removed.
 // Use useCart from '../contexts/CartContext' instead for cart operations.

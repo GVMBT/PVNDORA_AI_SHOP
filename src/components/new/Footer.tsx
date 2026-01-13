@@ -1,12 +1,6 @@
-import React, { memo } from "react";
-import {
-  CreditCard,
-  FileText,
-  HelpCircle,
-  Mail,
-  MessageCircle,
-  Shield,
-} from "lucide-react";
+import { CreditCard, FileText, HelpCircle, Mail, MessageCircle, Shield } from "lucide-react";
+import type React from "react";
+import { memo } from "react";
 import { useLocale } from "../../hooks/useLocale";
 
 interface FooterProps {

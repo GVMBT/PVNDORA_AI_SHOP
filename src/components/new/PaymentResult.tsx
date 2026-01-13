@@ -6,22 +6,22 @@
  * Works for both Mini App (startapp) and Browser (/payment/result) flows.
  */
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Cpu,
-  CheckCircle,
-  XCircle,
-  Clock,
   AlertTriangle,
   ArrowRight,
+  CheckCircle,
+  Clock,
+  Cpu,
   RefreshCw,
+  XCircle,
 } from "lucide-react";
-import { logger } from "../../utils/logger";
-import { apiRequest } from "../../utils/apiClient";
-import { randomFloat } from "../../utils/random";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { PAYMENT_STATUS_MESSAGES, type PaymentStatus } from "../../constants";
 import { useLocale } from "../../hooks/useLocale";
+import { apiRequest } from "../../utils/apiClient";
+import { logger } from "../../utils/logger";
+import { randomFloat } from "../../utils/random";
 
 // Helper functions for status-based styling (avoid nested ternaries)
 type StatusState = "success" | "failed" | "pending";
@@ -93,7 +93,8 @@ export function PaymentResult({
   const consecutive404sRef = useRef(0); // Use ref to avoid triggering effect re-runs
 
   // Check if we're in Telegram Mini App or external browser
-  const isTelegramMiniApp = globalThis.window !== undefined && !!(globalThis.window as any).Telegram?.WebApp;
+  const isTelegramMiniApp =
+    globalThis.window !== undefined && !!(globalThis.window as any).Telegram?.WebApp;
 
   // Add log entry
   const addLog = useCallback((message: string, type: LogEntry["type"] = "info") => {
@@ -120,7 +121,9 @@ export function PaymentResult({
   };
 
   // Helper to handle 404 errors (reduces cognitive complexity)
-  const handle404Error = (error: unknown): { status: PaymentStatus; error: Error; httpStatus: number } | null => {
+  const handle404Error = (
+    error: unknown
+  ): { status: PaymentStatus; error: Error; httpStatus: number } | null => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     if (errorMessage.includes("404") || errorMessage.includes("ORDER_NOT_FOUND")) {
       return {
@@ -181,15 +184,15 @@ export function PaymentResult({
 
     const calculateDelay = (attempt: number): number => {
       // Exponential backoff: 1s, 2s, 4s, 8s, 16s (max)
-      const delay = Math.min(
-        INITIAL_POLL_DELAY * Math.pow(BACKOFF_MULTIPLIER, attempt),
-        MAX_POLL_DELAY
-      );
+      const delay = Math.min(INITIAL_POLL_DELAY * BACKOFF_MULTIPLIER ** attempt, MAX_POLL_DELAY);
       return delay;
     };
 
     // Helper to handle 404 errors (reduces cognitive complexity)
-    const handle404Response = (result: Awaited<ReturnType<typeof checkStatus>>, attempt: number): boolean => {
+    const handle404Response = (
+      result: Awaited<ReturnType<typeof checkStatus>>,
+      attempt: number
+    ): boolean => {
       const is404 = result.httpStatus === 404 || result.error?.message === "ORDER_NOT_FOUND";
       if (!is404) return false;
 
@@ -497,9 +500,7 @@ export function PaymentResult({
                   className="mb-1 flex gap-2"
                 >
                   <span className="text-gray-600">{log.timestamp}</span>
-                  <span className={getLogTypeColor(log.type)}>
-                    {log.message}
-                  </span>
+                  <span className={getLogTypeColor(log.type)}>{log.message}</span>
                 </motion.div>
               ))}
             </AnimatePresence>

@@ -4,7 +4,8 @@
  * Animated text reveal effect with decryption animation.
  */
 
-import React, { useState, useEffect, useRef } from "react";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import { randomChar } from "../../utils/random";
 
 const CHARS = "ABCDEF0123456789!@#$%^&*()_+-=[]{}|;':\",./<>?";

@@ -4,8 +4,9 @@
  * Displays referral network tree with line filtering.
  */
 
-import React, { memo } from "react";
-import { GitBranch, Network, User, Crown } from "lucide-react";
+import { Crown, GitBranch, Network, User } from "lucide-react";
+import type React from "react";
+import { memo } from "react";
 import { useLocale } from "../../hooks/useLocale";
 import { formatPrice } from "../../utils/currency";
 import type { NetworkNodeData } from "./types";
@@ -13,13 +14,7 @@ import type { NetworkNodeData } from "./types";
 // Helper functions to avoid nested ternaries
 const getNodeAvatarContent = (node: NetworkNodeData) => {
   if (node.photoUrl) {
-    return (
-      <img
-        src={node.photoUrl}
-        alt={node.handle}
-        className="w-full h-full object-cover"
-      />
-    );
+    return <img src={node.photoUrl} alt={node.handle} className="w-full h-full object-cover" />;
   }
   if (node.status === "VIP") {
     return <Crown size={14} className="text-yellow-500" />;
@@ -137,7 +132,9 @@ const ProfileNetwork: React.FC<ProfileNetworkProps> = ({
                               <span className="font-bold text-white text-sm">{node.handle}</span>
                             )}
                             {node.rank && (
-                              <span className={`text-[8px] px-1 rounded-sm border ${getRankBadgeClasses(node.rank)}`}>
+                              <span
+                                className={`text-[8px] px-1 rounded-sm border ${getRankBadgeClasses(node.rank)}`}
+                              >
                                 {node.rank}
                               </span>
                             )}

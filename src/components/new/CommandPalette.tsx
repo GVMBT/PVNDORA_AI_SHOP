@@ -1,14 +1,7 @@
-import React, { useState, useEffect, useRef, memo, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  ChevronRight,
-  Package,
-  Search,
-  Shield,
-  ShoppingCart,
-  Terminal,
-  User,
-} from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronRight, Package, Search, Shield, ShoppingCart, Terminal, User } from "lucide-react";
+import type React from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { CatalogProduct, NavigationTarget } from "../../types/component";
 
 // Navigation views available in command palette (subset of ViewType)

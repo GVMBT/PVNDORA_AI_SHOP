@@ -4,22 +4,23 @@
  * Sidebar navigation for admin panel.
  */
 
-import React, { memo } from "react";
 import {
-  LayoutDashboard,
-  Package,
+  ArrowRightLeft,
   BarChart3,
-  Users,
+  Calculator,
   Crown,
+  LayoutDashboard,
   LifeBuoy,
   LogOut,
-  Terminal,
   Menu,
+  Package,
   Tag,
-  ArrowRightLeft,
-  Calculator,
+  Terminal,
+  Users,
   Wallet,
 } from "lucide-react";
+import type React from "react";
+import { memo } from "react";
 import AdminNavItem from "./AdminNavItem";
 import type { AdminView } from "./types";
 

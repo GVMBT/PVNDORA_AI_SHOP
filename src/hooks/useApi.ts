@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
-import { persistSessionTokenFromQuery } from "../utils/auth";
+import { useCallback, useState } from "react";
 import { apiRequest } from "../utils/apiClient";
+import { persistSessionTokenFromQuery } from "../utils/auth";
 
 interface RequestOptions extends RequestInit {
   headers?: Record<string, string>;

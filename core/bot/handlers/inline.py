@@ -91,8 +91,8 @@ async def handle_inline_query(query: InlineQuery, db_user: User, bot: Bot):
             products = await db.search_products(query_text, limit=10)
 
             for product in products:
-                # nosec B324 - MD5 used for non-cryptographic ID generation (Telegram inline query)
-                result_id = hashlib.md5(f"{product.id}:{user_telegram_id}".encode()).hexdigest()
+                # Use SHA256 for ID generation (MD5 is cryptographically insecure)
+                result_id = hashlib.sha256(f"{product.id}:{user_telegram_id}".encode()).hexdigest()[:16]
                 product_link = f"https://t.me/{bot_info.username}?start=product_{product.id}_ref_{user_telegram_id}"
                 description = (product.description or "")[:100]
 

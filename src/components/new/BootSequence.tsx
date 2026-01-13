@@ -9,8 +9,9 @@
  * - Caches critical resources
  */
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import type React from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { randomBoolWithProbability, randomFloat } from "../../utils/random";
 
 // Helper: Simple delay function
@@ -31,7 +32,7 @@ const runFinalMessages = async (
   addLog: (id: string, text: string, type: LogEntry["type"]) => void,
   startTime: number,
   minDuration: number,
-  setPhase: (phase: "boot" | "ready" | "error" | "fadeout") => void,
+  setPhase: (phase: BootPhase) => void,
   isCancelled: () => boolean
 ): Promise<void> => {
   await delay(200);
@@ -53,7 +54,7 @@ const runAllTasks = async (
   addLog: (id: string, text: string, type: LogEntry["type"]) => void,
   resultsRef: React.MutableRefObject<Record<string, any>>,
   setErrorMessage: (msg: string | null) => void,
-  setPhase: (phase: "boot" | "ready" | "error" | "fadeout") => void,
+  setPhase: (phase: BootPhase) => void,
   setProgress: (progress: number) => void,
   isCancelled: () => boolean
 ): Promise<boolean> => {
@@ -81,7 +82,7 @@ const executeTask = async (
   addLog: (id: string, text: string, type: LogEntry["type"]) => void,
   resultsRef: React.MutableRefObject<Record<string, any>>,
   setErrorMessage: (msg: string | null) => void,
-  setPhase: (phase: "boot" | "ready" | "error" | "fadeout") => void
+  setPhase: (phase: BootPhase) => void
 ): Promise<boolean> => {
   addLog(task.id, task.label, "info");
 
@@ -109,6 +110,8 @@ const executeTask = async (
 };
 
 // Types for boot tasks
+export type BootPhase = "boot" | "ready" | "error" | "fadeout";
+
 export interface BootTask {
   id: string;
   label: string; // Display text while loading
@@ -166,7 +169,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
 }) => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [progress, setProgress] = useState(0);
-  const [phase, setPhase] = useState<"boot" | "ready" | "error" | "fadeout">("boot");
+  const [phase, setPhase] = useState<BootPhase>("boot");
   const [glitchActive, setGlitchActive] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -202,7 +205,9 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
     };
 
     runBootSequence();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [tasks, addLog, minDuration]);
 
   const handleEnterSystem = async () => {

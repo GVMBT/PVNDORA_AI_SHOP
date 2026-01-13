@@ -9,14 +9,15 @@
  * - Never mixes currencies in calculations
  */
 
-import React, { useEffect, useState, useCallback } from "react";
-import CheckoutModal from "./CheckoutModal";
-import { useOrdersTyped, useProfileTyped } from "../../hooks/useApiTyped";
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useCart } from "../../contexts/CartContext";
 import { useLocaleContext } from "../../contexts/LocaleContext";
+import { useOrdersTyped, useProfileTyped } from "../../hooks/useApiTyped";
 import { useLocale } from "../../hooks/useLocale";
-import type { CartItem, PaymentMethod } from "../../types/component";
 import type { APICreateOrderRequest } from "../../types/api";
+import type { CartItem, PaymentMethod } from "../../types/component";
+import CheckoutModal from "./CheckoutModal";
 
 interface CheckoutModalConnectedProps {
   onClose: () => void;

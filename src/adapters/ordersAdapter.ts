@@ -8,8 +8,8 @@ import type { APIOrder, APIOrderItem, APIOrdersResponse } from "../types/api";
 import type {
   Order,
   OrderItem,
-  OrderStatus,
   OrderItemStatus,
+  OrderStatus,
   RawOrderStatus,
 } from "../types/component";
 
@@ -165,18 +165,16 @@ function formatDateWithTimezone(dateString: string): string {
   const tzSign = tzOffset >= 0 ? "+" : "";
   const tzString = `UTC${tzSign}${tzOffset}`;
 
-  return (
-    date
-      .toLocaleString("ru-RU", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      })
-      .replace(",", " //") + ` (${tzString})`
-  );
+  return `${date
+    .toLocaleString("ru-RU", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })
+    .replace(",", " //")} (${tzString})`;
 }
 
 /**
@@ -202,7 +200,7 @@ function calculateItemWarrantyUntil(
     const warrantyEnd = new Date(delivered);
     warrantyEnd.setDate(warrantyEnd.getDate() + warrantyDays);
     return warrantyEnd.toISOString();
-  } catch (e) {
+  } catch (_e) {
     return null;
   }
 }
@@ -212,7 +210,7 @@ function calculateItemWarrantyUntil(
  */
 function canItemRequestRefund(
   itemStatus: string,
-  deliveredAt: string | null | undefined,
+  _deliveredAt: string | null | undefined,
   warrantyUntil: string | null | undefined
 ): boolean {
   if (itemStatus !== "delivered") return false;
@@ -221,7 +219,7 @@ function canItemRequestRefund(
   try {
     const warrantyEnd = new Date(warrantyUntil);
     return new Date() < warrantyEnd;
-  } catch (e) {
+  } catch (_e) {
     return false;
   }
 }

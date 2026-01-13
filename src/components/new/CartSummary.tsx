@@ -4,12 +4,13 @@
  * Displays cart items and total summary in checkout modal.
  */
 
-import React, { memo, useState } from "react";
 import { motion } from "framer-motion";
-import { Trash2, ChevronRight, Tag, Loader2, Check, X, Minus, Plus } from "lucide-react";
-import { formatPrice } from "../../utils/currency";
+import { Check, ChevronRight, Loader2, Minus, Plus, Tag, Trash2, X } from "lucide-react";
+import type React from "react";
+import { memo, useState } from "react";
 import { useLocale } from "../../hooks/useLocale";
 import type { CartItem } from "../../types/component";
+import { formatPrice } from "../../utils/currency";
 
 interface CartSummaryProps {
   cart: CartItem[];

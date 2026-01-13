@@ -14,8 +14,9 @@
  * - Automatic quality reduction on mobile
  */
 
-import React, { useEffect, useRef, useState } from "react";
-import { useMotionValue, useTransform, MotionValue } from "framer-motion";
+import { type MotionValue, useMotionValue, useTransform } from "framer-motion";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface ProductCardMediaProps {
   image: string;

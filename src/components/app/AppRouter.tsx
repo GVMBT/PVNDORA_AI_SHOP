@@ -6,20 +6,20 @@
  * Heavy components are lazy-loaded for better initial bundle size.
  */
 
-import React, { memo, Suspense } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import React, { memo, Suspense } from "react";
+import type { CatalogProduct } from "../../types/component";
+import { lazyWithRetry } from "../../utils/lazyWithRetry";
 import {
-  Hero,
-  Guarantees,
-  Footer,
   CatalogConnected,
-  ProductDetailConnected,
+  Footer,
+  Guarantees,
+  Hero,
   PaymentResult,
+  ProductDetailConnected,
   type RefundContext,
 } from "../new";
-import type { CatalogProduct } from "../../types/component";
 import type { FeedbackType } from "./useFeedback";
-import { lazyWithRetry } from "../../utils/lazyWithRetry";
 
 // Lazy load heavy components with auto-retry on chunk errors
 const AdminPanelConnected = lazyWithRetry(() => import("../new/AdminPanelConnected"));
@@ -66,10 +66,7 @@ function ViewLoader() {
 }
 
 // Helper: Render payment result view
-function renderPaymentResultView(
-  orderId: string,
-  onNavigate: (view: ViewType) => void
-) {
+function renderPaymentResultView(orderId: string, onNavigate: (view: ViewType) => void) {
   return (
     <PaymentResult
       key="payment-result"
@@ -169,12 +166,7 @@ function renderHomeView(
   onOpenSupport: (context?: RefundContext | null) => void
 ) {
   return (
-    <motion.div
-      key="home"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
+    <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <Hero />
       <CatalogConnected
         onSelectProduct={onProductSelect}

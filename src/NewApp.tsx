@@ -7,55 +7,54 @@
  * - HUD Notifications (System Logs)
  */
 
-import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { AnimatePresence } from "framer-motion";
+import React, { Suspense, useCallback, useEffect, useState } from "react";
 
 // App Components
-import { AppLayout, AppRouter, useFeedback, useBootTasks, type ViewType } from "./components/app";
+import { AppLayout, AppRouter, useBootTasks, useFeedback, type ViewType } from "./components/app";
 
 // Connected Components (lazy load heavy ones)
 import {
-  Navbar,
-  SupportChatConnected,
-  LoginPage,
-  BootSequence,
-  useHUD,
   BackgroundMusic,
-  PaymentResult,
+  BootSequence,
   CyberModalProvider,
   HUDProvider,
+  LoginPage,
+  Navbar,
+  PaymentResult,
   type RefundContext,
+  SupportChatConnected,
+  useHUD,
 } from "./components/new";
 
 // Lazy load with auto-retry on chunk errors
-import { lazyWithRetry, clearReloadCounter } from "./utils/lazyWithRetry";
+import { clearReloadCounter, lazyWithRetry } from "./utils/lazyWithRetry";
+
 const CommandPalette = lazyWithRetry(() => import("./components/new/CommandPalette"));
 const CheckoutModalConnected = lazyWithRetry(
   () => import("./components/new/CheckoutModalConnected")
 );
 
-// Types
-import type { CatalogProduct, NavigationTarget } from "./types/component";
-import {
-  getStartParam,
-  getTelegramInitData,
-  requestFullscreen,
-  expandWebApp,
-} from "./utils/telegram";
-import { getSessionToken, verifySessionToken, removeSessionToken } from "./utils/auth";
+import { BOT, CACHE, UI } from "./config";
+import { useCart } from "./contexts/CartContext";
+import { LocaleProvider } from "./contexts/LocaleContext";
 
 // Hooks
 import { useProductsTyped, useProfileTyped } from "./hooks/useApiTyped";
-import { useCart } from "./contexts/CartContext";
-import { useTelegram } from "./hooks/useTelegram";
-import { LocaleProvider } from "./contexts/LocaleContext";
 import { useLocale } from "./hooks/useLocale";
-
 // Audio Engine
 import { AudioEngine } from "./lib/AudioEngine";
-import { BOT, CACHE, UI } from "./config";
-import { sessionStorage } from "./utils/storage";
+// Types
+import type { CatalogProduct, NavigationTarget } from "./types/component";
+import { getSessionToken, removeSessionToken, verifySessionToken } from "./utils/auth";
 import { logger } from "./utils/logger";
+import { sessionStorage } from "./utils/storage";
+import {
+  expandWebApp,
+  getStartParam,
+  getTelegramInitData,
+  requestFullscreen,
+} from "./utils/telegram";
 
 /**
  * Check for payment redirect on initial load
@@ -129,9 +128,8 @@ function NewAppInner() {
   const hud = useHUD();
   const handleFeedback = useFeedback();
   const { products: allProducts, getProducts } = useProductsTyped();
-  const { profile, getProfile } = useProfileTyped();
-  const { cart, getCart, addToCart, removeCartItem } = useCart();
-  const { user: telegramUser } = useTelegram();
+  const { getProfile } = useProfileTyped();
+  const { cart, getCart, addToCart } = useCart();
   const { t } = useLocale();
 
   // Boot tasks
@@ -318,8 +316,8 @@ function NewAppInner() {
 
   // Boot completion handler
   const handleBootComplete = useCallback(
-    (results: Record<string, any>) => {
-      const authResult = results.auth;
+    (results: Record<string, unknown>) => {
+      const authResult = results.auth as { authenticated?: boolean } | undefined;
       setIsAuthenticated(authResult?.authenticated || false);
 
       setIsBooted(true);
@@ -329,8 +327,10 @@ function NewAppInner() {
       clearReloadCounter();
       AudioEngine.connect();
 
-      const productCount = results.catalog?.productCount || 0;
-      const cartCount = results.cart?.itemCount || 0;
+      const catalogResult = results.catalog as { productCount?: number } | undefined;
+      const cartResult = results.cart as { itemCount?: number } | undefined;
+      const productCount = catalogResult?.productCount || 0;
+      const cartCount = cartResult?.itemCount || 0;
 
       setTimeout(() => {
         hud.system(

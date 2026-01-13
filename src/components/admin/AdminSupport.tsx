@@ -4,11 +4,12 @@
  * Support tickets management view.
  */
 
-import React, { useState, memo, useCallback } from "react";
-import { MessageSquare, ArrowUpRight, Check, X, ExternalLink } from "lucide-react";
-import type { TicketData } from "./types";
+import { ArrowUpRight, Check, ExternalLink, MessageSquare, X } from "lucide-react";
+import type React from "react";
+import { memo, useCallback, useState } from "react";
 import { useAdmin } from "../../hooks/useAdmin";
 import { logger } from "../../utils/logger";
+import type { TicketData } from "./types";
 
 interface AdminSupportProps {
   tickets: TicketData[];

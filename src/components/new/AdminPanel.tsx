@@ -4,36 +4,37 @@
  * Main admin panel container that orchestrates all admin views.
  */
 
-import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  AdminDashboard,
-  AdminCatalog,
-  AdminSales,
-  AdminUsers,
-  AdminPartners,
-  AdminSupport,
-  AdminWithdrawals,
-  AdminPromo,
-  AdminMigration,
-  AdminAccounting,
-  AdminSidebar,
-  AdminHeader,
-  ProductModal,
-  PartnerModal,
-  ExpenseModal,
-  type AdminView,
-  type ProductData,
-  type OrderData,
-  type UserData,
-  type TicketData,
-  type WithdrawalData,
-  type AdminStats,
-  type PromoCodeData,
-  type AccountingData,
-  type ExpenseData,
-} from "../admin";
+import { AnimatePresence, motion } from "framer-motion";
+import type React from "react";
+import { useState } from "react";
 import { logger } from "../../utils/logger";
+import {
+  type AccountingData,
+  AdminAccounting,
+  AdminCatalog,
+  AdminDashboard,
+  AdminHeader,
+  AdminMigration,
+  AdminPartners,
+  AdminPromo,
+  AdminSales,
+  AdminSidebar,
+  type AdminStats,
+  AdminSupport,
+  AdminUsers,
+  type AdminView,
+  AdminWithdrawals,
+  type ExpenseData,
+  ExpenseModal,
+  type OrderData,
+  PartnerModal,
+  type ProductData,
+  ProductModal,
+  type PromoCodeData,
+  type TicketData,
+  type UserData,
+  type WithdrawalData,
+} from "../admin";
 
 interface AdminPanelProps {
   onExit: () => void;

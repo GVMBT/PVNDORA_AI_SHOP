@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useProductsTyped, useOrdersTyped, usePromoTyped } from "./useApiTyped";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCart } from "../contexts/CartContext";
+import { convertCartDataToLegacyCart, type LegacyCart } from "../utils/cartConverter";
+import { useOrdersTyped, useProductsTyped, usePromoTyped } from "./useApiTyped";
 import { useLocale } from "./useLocale";
 import { useTelegram } from "./useTelegram";
-import { convertCartDataToLegacyCart, type LegacyCart } from "../utils/cartConverter";
 
 interface Product {
   id: string;

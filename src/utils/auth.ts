@@ -4,10 +4,10 @@
  * Shared authentication logic for web and Telegram Mini App.
  */
 
-import { API, CACHE } from "../config";
-import { localStorage } from "./storage";
-import { logger } from "./logger";
+import { CACHE } from "../config";
 import { apiPost } from "./apiClient";
+import { logger } from "./logger";
+import { localStorage } from "./storage";
 
 /**
  * Extract session_token from URL query and persist to localStorage.

@@ -4,9 +4,10 @@
  * Displays payment processing animation with logs.
  */
 
-import React, { memo } from "react";
 import { motion } from "framer-motion";
 import { Cpu } from "lucide-react";
+import type React from "react";
+import { memo } from "react";
 import type { PaymentMethod } from "./CheckoutModal";
 
 interface PaymentProcessingProps {

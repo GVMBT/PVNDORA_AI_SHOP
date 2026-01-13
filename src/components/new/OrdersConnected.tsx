@@ -4,11 +4,12 @@
  * Connected version of Orders component with real API data.
  */
 
-import React, { useEffect, useState, useCallback, memo } from "react";
-import Orders, { RefundContext } from "./Orders";
+import type React from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { useOrdersTyped, useReviewsTyped } from "../../hooks/useApiTyped";
 import { useLocale } from "../../hooks/useLocale";
 import { logger } from "../../utils/logger";
+import Orders, { type RefundContext } from "./Orders";
 
 interface OrdersConnectedProps {
   onBack: () => void;

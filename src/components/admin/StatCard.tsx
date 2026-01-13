@@ -4,8 +4,9 @@
  * Displays a statistic card with label, value, trend, and icon.
  */
 
-import React, { memo } from "react";
-import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import type React from "react";
+import { memo } from "react";
 
 interface StatCardProps {
   label: string;

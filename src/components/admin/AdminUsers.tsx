@@ -4,13 +4,14 @@
  * Управление пользователями - отображение и действия.
  */
 
-import React, { useState, memo, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Search, Ban, DollarSign, Crown, X, Check, ExternalLink } from "lucide-react";
-import type { UserData } from "./types";
-import { apiRequest } from "../../utils/apiClient";
+import { AnimatePresence, motion } from "framer-motion";
+import { Ban, Check, Crown, DollarSign, ExternalLink, Search, X } from "lucide-react";
+import type React from "react";
+import { memo, useMemo, useState } from "react";
 import { API } from "../../config";
+import { apiRequest } from "../../utils/apiClient";
 import { logger } from "../../utils/logger";
+import type { UserData } from "./types";
 
 interface AdminUsersProps {
   users: UserData[];

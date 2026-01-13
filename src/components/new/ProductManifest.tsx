@@ -4,8 +4,9 @@
  * Displays product description and deployment instructions.
  */
 
-import React, { memo } from "react";
 import { motion } from "framer-motion";
+import type React from "react";
+import { memo } from "react";
 
 interface ProductManifestProps {
   description: string;

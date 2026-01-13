@@ -4,24 +4,25 @@
  * Displays a complete order card with header, status banners, and items.
  */
 
-import React, { memo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Check,
-  Clock,
   AlertTriangle,
-  Package,
-  Shield,
-  RefreshCw,
+  Check,
   ChevronDown,
   ChevronUp,
+  Clock,
+  Package,
+  RefreshCw,
+  Shield,
 } from "lucide-react";
-import { formatPrice } from "../../utils/currency";
-import { useLocale } from "../../hooks/useLocale";
-import OrderStatusBadge from "./OrderStatusBadge";
-import OrderItem, { type OrderItemData } from "./OrderItem";
-import { PaymentCountdown } from "./PaymentCountdown";
+import type React from "react";
+import { memo, useState } from "react";
 import { useOrdersTyped } from "../../hooks/api/useOrdersApi";
+import { useLocale } from "../../hooks/useLocale";
+import { formatPrice } from "../../utils/currency";
+import OrderItem, { type OrderItemData } from "./OrderItem";
+import OrderStatusBadge from "./OrderStatusBadge";
+import { PaymentCountdown } from "./PaymentCountdown";
 
 export interface RefundContext {
   orderId: string;

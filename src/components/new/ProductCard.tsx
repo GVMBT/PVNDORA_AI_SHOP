@@ -2,11 +2,11 @@
  * ProductCard - Individual product card with optimized media and parallax
  */
 
-import React from "react";
 import { motion, useMotionValue } from "framer-motion";
 import { Activity, Crosshair, HardDrive, ShoppingCart, Zap } from "lucide-react";
-import { formatPrice } from "../../utils/currency";
+import type React from "react";
 import { useLocale } from "../../hooks/useLocale";
+import { formatPrice } from "../../utils/currency";
 import ProductCardMedia from "./ProductCardMedia";
 
 interface ProductCardProps {

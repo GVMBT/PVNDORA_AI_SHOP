@@ -1,9 +1,8 @@
 import { useCallback } from "react";
-import { useLocaleContext } from "../contexts/LocaleContext";
-
 // Import only RU/EN locale files (only supported languages)
 import en from "../../locales/en.json";
 import ru from "../../locales/ru.json";
+import { useLocaleContext } from "../contexts/LocaleContext";
 
 // Only RU/EN supported for now
 type LocaleCode = "en" | "ru";

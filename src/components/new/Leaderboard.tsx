@@ -1,4 +1,3 @@
-import React, { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Activity,
@@ -10,9 +9,10 @@ import {
   Trophy,
   User,
 } from "lucide-react";
-import { formatPrice } from "../../utils/currency";
-import { useLocale } from "../../hooks/useLocale";
+import React, { useState } from "react";
 import { useLocaleContext } from "../../contexts/LocaleContext";
+import { useLocale } from "../../hooks/useLocale";
+import { formatPrice } from "../../utils/currency";
 
 // Type matching LeaderboardUser from types/component
 interface LeaderboardUserData {
@@ -80,7 +80,10 @@ const getPodiumStyles = (rank: PodiumRank) => {
 };
 
 // Vacant podium slot component (reduces cognitive complexity)
-const VacantPodiumSlot: React.FC<{ rank: 1 | 2 | 3; t: (key: string) => string }> = ({ rank, t }) => (
+const VacantPodiumSlot: React.FC<{ rank: 1 | 2 | 3; t: (key: string) => string }> = ({
+  rank,
+  t,
+}) => (
   <div className={ORDER_CLASSES[rank]}>
     <div className="bg-[#0e0e0e] border border-white/5 p-6 opacity-30">
       <div className="absolute top-0 left-0 bg-white/5 px-2 py-1 text-[10px] font-bold font-mono text-gray-600">
@@ -111,7 +114,18 @@ const PodiumRank: React.FC<PodiumRankProps> = ({ user, rank, displayCurrency, t,
   }
 
   const styles = getPodiumStyles(rank);
-  const { isFirst, containerClasses, innerClasses, avatarSize, borderClasses, nameClasses, handleClasses, statBoxClasses, statLabelClasses, statValueClasses } = styles;
+  const {
+    isFirst,
+    containerClasses,
+    innerClasses,
+    avatarSize,
+    borderClasses,
+    nameClasses,
+    handleClasses,
+    statBoxClasses,
+    statLabelClasses,
+    statValueClasses,
+  } = styles;
 
   const content = (
     <>
@@ -120,13 +134,21 @@ const PodiumRank: React.FC<PodiumRankProps> = ({ user, rank, displayCurrency, t,
           <Crown size={20} fill="currentColor" />
         </div>
       )}
-      <div className={`absolute top-0 left-0 bg-white/10 px-2 py-1 text-[10px] font-bold font-mono ${isFirst ? "hidden" : "text-gray-300"}`}>
+      <div
+        className={`absolute top-0 left-0 bg-white/10 px-2 py-1 text-[10px] font-bold font-mono ${isFirst ? "hidden" : "text-gray-300"}`}
+      >
         {RANK_LABELS[rank]}
       </div>
       <div className="flex flex-col items-center text-center mt-4">
-        <div className={`${avatarSize} rounded-full ${borderClasses} p-1 ${isFirst ? "mb-4" : "mb-3"} overflow-hidden bg-gray-900 flex items-center justify-center ${isFirst ? "relative" : ""}`}>
-          {isFirst && <div className="absolute inset-0 rounded-full border border-pandora-cyan animate-ping opacity-20" />}
-          {isFirst && <div className="absolute inset-0 bg-gradient-to-tr from-pandora-cyan/20 to-transparent" />}
+        <div
+          className={`${avatarSize} rounded-full ${borderClasses} p-1 ${isFirst ? "mb-4" : "mb-3"} overflow-hidden bg-gray-900 flex items-center justify-center ${isFirst ? "relative" : ""}`}
+        >
+          {isFirst && (
+            <div className="absolute inset-0 rounded-full border border-pandora-cyan animate-ping opacity-20" />
+          )}
+          {isFirst && (
+            <div className="absolute inset-0 bg-gradient-to-tr from-pandora-cyan/20 to-transparent" />
+          )}
           {user.avatarUrl ? (
             <img
               src={user.avatarUrl}
@@ -154,16 +176,10 @@ const PodiumRank: React.FC<PodiumRankProps> = ({ user, rank, displayCurrency, t,
             </div>
           )}
         </div>
-        <h3 className={`font-bold text-white ${nameClasses}`}>
-          {user.name}
-        </h3>
-        <div className={`font-mono text-pandora-cyan ${handleClasses}`}>
-          {user.handle}
-        </div>
+        <h3 className={`font-bold text-white ${nameClasses}`}>{user.name}</h3>
+        <div className={`font-mono text-pandora-cyan ${handleClasses}`}>{user.handle}</div>
         <div className={`w-full ${statBoxClasses} rounded-sm`}>
-          <div className={`text-[9px] ${statLabelClasses}`}>
-            {t("leaderboard.totalSaved")}
-          </div>
+          <div className={`text-[9px] ${statLabelClasses}`}>{t("leaderboard.totalSaved")}</div>
           <div className={`font-bold text-white ${statValueClasses}`}>
             {formatPrice(user.saved, user.currency || displayCurrency)}
           </div>
@@ -174,7 +190,9 @@ const PodiumRank: React.FC<PodiumRankProps> = ({ user, rank, displayCurrency, t,
 
   return (
     <div className={ORDER_CLASSES[rank]}>
-      {!isFirst && <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />}
+      {!isFirst && (
+        <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      )}
       {isFirst && <div className="absolute inset-0 bg-pandora-cyan/20 blur-3xl -z-10" />}
       <div className={containerClasses}>
         {isFirst ? <div className={innerClasses}>{content}</div> : content}

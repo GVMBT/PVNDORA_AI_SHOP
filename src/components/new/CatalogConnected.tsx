@@ -5,12 +5,13 @@
  * Replaces mock data with live backend integration.
  */
 
-import React, { useEffect, useState, useCallback, memo, useRef } from "react";
-import Catalog from "./Catalog";
-import { useProductsTyped } from "../../hooks/useApiTyped";
+import type React from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useLocaleContext } from "../../contexts/LocaleContext";
+import { useProductsTyped } from "../../hooks/useApiTyped";
 import { useLocale } from "../../hooks/useLocale";
 import type { CatalogProduct } from "../../types/component";
+import Catalog from "./Catalog";
 
 interface CatalogConnectedProps {
   onSelectProduct?: (product: CatalogProduct) => void;

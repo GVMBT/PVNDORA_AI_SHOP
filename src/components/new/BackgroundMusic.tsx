@@ -5,8 +5,9 @@
  * Preloads sound.ogg completely before playing to avoid stuttering.
  */
 
-import React, { useEffect, useRef, useState, memo } from "react";
 import { Volume2, VolumeX } from "lucide-react";
+import type React from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { logger } from "../../utils/logger";
 
 // Helper: Determine if running inside Telegram WebApp
@@ -202,7 +203,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
           // Retry logic - exponential backoff with cap
           if (retryCountRef.current < maxRetries) {
             retryCountRef.current++;
-            const delay = Math.min(2000 * Math.pow(2, retryCountRef.current), 10000); // Max 10s delay
+            const delay = Math.min(2000 * 2 ** retryCountRef.current, 10000); // Max 10s delay
 
             setTimeout(() => {
               if (!cancelled) {

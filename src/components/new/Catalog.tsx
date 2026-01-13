@@ -1,16 +1,10 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
-import {
-  Check,
-  ChevronDown,
-  Cpu,
-  Grid,
-  List,
-  Search,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { formatPrice } from "../../utils/currency";
-import { PRODUCT_CATEGORIES, type AvailabilityFilter } from "../../constants";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, ChevronDown, Cpu, Grid, List, Search } from "lucide-react";
+import type React from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { type AvailabilityFilter, PRODUCT_CATEGORIES } from "../../constants";
 import { useLocale } from "../../hooks/useLocale";
+import { formatPrice } from "../../utils/currency";
 import ProductCard from "./ProductCard";
 
 type SortOption = "popular" | "price_asc" | "price_desc";

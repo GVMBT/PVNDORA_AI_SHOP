@@ -4,8 +4,9 @@
  * Header for admin panel main content area.
  */
 
-import React, { memo } from "react";
 import { Settings } from "lucide-react";
+import type React from "react";
+import { memo } from "react";
 import type { AdminView } from "./types";
 
 interface AdminHeaderProps {

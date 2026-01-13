@@ -4,9 +4,10 @@
  * Modal for managing partner settings.
  */
 
-import React, { useState, memo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, User, CheckCircle } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { CheckCircle, User, X } from "lucide-react";
+import type React from "react";
+import { memo, useState } from "react";
 import type { UserData } from "./types";
 
 interface PartnerModalProps {

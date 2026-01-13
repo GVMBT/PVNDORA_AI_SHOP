@@ -9,7 +9,7 @@
  * 2. Second failure: Force page reload to get new index.html
  */
 
-import { lazy, ComponentType } from "react";
+import { type ComponentType, lazy } from "react";
 
 // Track if we've already tried reloading
 const RELOAD_KEY = "pvndora_chunk_reload";

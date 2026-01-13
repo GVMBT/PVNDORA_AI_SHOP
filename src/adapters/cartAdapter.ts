@@ -9,7 +9,7 @@
  * - Use display values or formatPrice for UI
  */
 
-import type { APICartResponse, APICartItem } from "../types/api";
+import type { APICartItem, APICartResponse } from "../types/api";
 import type { CartData, CartItem } from "../types/component";
 
 /**

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, memo } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
   Box,
@@ -11,11 +11,12 @@ import {
   Trophy,
   User,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { AudioEngine } from "../../lib/AudioEngine";
-import { generateShortId } from "../../utils/id";
+import type React from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { useLocale } from "../../hooks/useLocale";
+import { AudioEngine } from "../../lib/AudioEngine";
 import { removeSessionToken } from "../../utils/auth";
+import { generateShortId } from "../../utils/id";
 
 interface NavbarProps {
   showMobile?: boolean;

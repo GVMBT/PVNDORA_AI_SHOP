@@ -4,20 +4,20 @@
  * Displays a single item within an order with its status, credentials, and actions.
  */
 
-import React, { memo, useState, useEffect } from "react";
 import {
+  Activity,
+  AlertTriangle,
   Check,
   Clock,
-  AlertTriangle,
-  Activity,
   Copy,
   Eye,
   EyeOff,
   MessageSquare,
   Timer,
 } from "lucide-react";
-import { randomChar } from "../../utils/random";
+import React, { memo, useEffect, useState } from "react";
 import { useLocale } from "../../hooks/useLocale";
+import { randomChar } from "../../utils/random";
 
 /**
  * Hook to calculate countdown from deadline

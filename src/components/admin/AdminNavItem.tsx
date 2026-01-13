@@ -4,7 +4,8 @@
  * Navigation item for admin sidebar.
  */
 
-import React, { memo } from "react";
+import type React from "react";
+import { memo } from "react";
 
 interface AdminNavItemProps {
   icon: React.ReactNode;

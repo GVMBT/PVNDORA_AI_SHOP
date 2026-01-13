@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Send, Terminal, Paperclip, MessageSquare, ChevronDown, Activity } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { randomInt } from "../../utils/random";
+import { AnimatePresence, motion } from "framer-motion";
+import { Activity, ChevronDown, MessageSquare, Paperclip, Send, Terminal } from "lucide-react";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocale } from "../../hooks/useLocale";
+import { randomInt } from "../../utils/random";
 
 interface SupportChatProps {
   isOpen: boolean;

@@ -5,8 +5,8 @@
  */
 
 import { useCallback } from "react";
-import { AudioEngine } from "../../lib/AudioEngine";
 import { useTelegram } from "../../hooks/useTelegram";
+import { AudioEngine } from "../../lib/AudioEngine";
 
 export type FeedbackType = "light" | "medium" | "heavy" | "success" | "error";
 

@@ -5,14 +5,14 @@
  * Uses user's preferred currency from context.
  */
 
-import React, { useState, useCallback, useRef } from "react";
-import { useApi } from "../useApi";
-import { logger } from "../../utils/logger";
-import type { APILeaderboardResponse } from "../../types/api";
-import type { LeaderboardUser } from "../../types/component";
+import React, { useCallback, useRef, useState } from "react";
 import { adaptLeaderboard } from "../../adapters";
 import { PAGINATION } from "../../config";
 import { useLocaleContext } from "../../contexts/LocaleContext";
+import type { APILeaderboardResponse } from "../../types/api";
+import type { LeaderboardUser } from "../../types/component";
+import { logger } from "../../utils/logger";
+import { useApi } from "../useApi";
 
 export function useLeaderboardTyped() {
   const { get, loading, error } = useApi();

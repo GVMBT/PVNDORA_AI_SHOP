@@ -4,13 +4,14 @@
  * Sales and orders management view.
  */
 
-import React, { useState, useMemo, memo, useCallback } from "react";
-import { Search, RefreshCw, CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, RefreshCw, Search, XCircle } from "lucide-react";
+import type React from "react";
+import { memo, useCallback, useMemo, useState } from "react";
+import { API } from "../../config";
+import { apiRequest } from "../../utils/apiClient";
+import { logger } from "../../utils/logger";
 import StatusBadge from "./StatusBadge";
 import type { OrderData } from "./types";
-import { apiRequest } from "../../utils/apiClient";
-import { API } from "../../config";
-import { logger } from "../../utils/logger";
 
 interface AdminSalesProps {
   orders: OrderData[];

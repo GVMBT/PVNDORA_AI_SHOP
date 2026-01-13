@@ -4,11 +4,12 @@
  * Displays payment method selection options.
  */
 
-import React, { memo } from "react";
 import { motion } from "framer-motion";
 import { Bitcoin, Globe, Server, ShieldCheck, Wallet, Zap } from "lucide-react";
-import { formatPrice } from "../../utils/currency";
+import type React from "react";
+import { memo } from "react";
 import { useLocale } from "../../hooks/useLocale";
+import { formatPrice } from "../../utils/currency";
 import type { PaymentMethod } from "./CheckoutModal";
 
 interface PaymentMethodSelectorProps {

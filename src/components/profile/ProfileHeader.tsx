@@ -4,8 +4,9 @@
  * User identity card with avatar, name, handle, and admin access button.
  */
 
-import React, { memo } from "react";
-import { User, ArrowLeft, Crown, LayoutDashboard } from "lucide-react";
+import { ArrowLeft, Crown, LayoutDashboard, User } from "lucide-react";
+import type React from "react";
+import { memo } from "react";
 import type { ProfileDataProp } from "./types";
 
 interface ProfileHeaderProps {

@@ -5,18 +5,19 @@
  * Clean, modern design with Telegram OAuth.
  */
 
-import React, { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Shield, Zap, ExternalLink, Loader2, Send } from "lucide-react";
-import {
-  verifySessionToken,
-  saveSessionToken,
-  removeSessionToken,
-  getSessionToken,
-} from "../../utils/auth";
+import { ExternalLink, Loader2, Send, Shield, Zap } from "lucide-react";
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BOT } from "../../config";
-import { logger } from "../../utils/logger";
 import { apiPost } from "../../utils/apiClient";
+import {
+  getSessionToken,
+  removeSessionToken,
+  saveSessionToken,
+  verifySessionToken,
+} from "../../utils/auth";
+import { logger } from "../../utils/logger";
 
 interface TelegramLoginData {
   id: number;

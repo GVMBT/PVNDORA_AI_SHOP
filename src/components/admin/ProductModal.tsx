@@ -20,26 +20,27 @@
  * - Сток = 0 && fulfillment = 0 → NO_STOCK (недоступен)
  */
 
-import React, { useState, useRef, memo, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  X,
-  Save,
-  Plus,
-  Terminal,
+  Clock,
+  DollarSign,
   Image as ImageIcon,
+  Info,
+  Package,
+  Plus,
+  RefreshCw,
+  Save,
+  Terminal,
+  Trash2,
   Upload,
   Video,
-  DollarSign,
-  Info,
+  X,
   Zap,
-  Clock,
-  Package,
-  Trash2,
-  RefreshCw,
 } from "lucide-react";
-import type { ProductData } from "./types";
+import type React from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { useAdminProductsTyped } from "../../hooks/api/useAdminApi";
+import type { ProductData } from "./types";
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -384,7 +385,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Название */}
               <div className="col-span-1 md:col-span-2">
-                <label htmlFor="product-name" className="text-[10px] text-gray-500 block mb-1 uppercase">
+                <label
+                  htmlFor="product-name"
+                  className="text-[10px] text-gray-500 block mb-1 uppercase"
+                >
                   Название товара *
                 </label>
                 <input
@@ -399,7 +403,12 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Описание */}
               <div className="col-span-1 md:col-span-2">
-                <label htmlFor="product-description" className="text-[10px] text-gray-500 block mb-1 uppercase">Описание</label>
+                <label
+                  htmlFor="product-description"
+                  className="text-[10px] text-gray-500 block mb-1 uppercase"
+                >
+                  Описание
+                </label>
                 <textarea
                   id="product-description"
                   value={editingProduct?.description || ""}
@@ -413,7 +422,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Категория */}
               <div>
-                <label htmlFor="product-category" className="text-[10px] text-gray-500 block mb-1 uppercase">
+                <label
+                  htmlFor="product-category"
+                  className="text-[10px] text-gray-500 block mb-1 uppercase"
+                >
                   Категория *
                 </label>
                 <select
@@ -447,7 +459,12 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Тип выдачи */}
               <div>
-                <label htmlFor="product-fulfillment-type" className="text-[10px] text-gray-500 block mb-1 uppercase">Тип выдачи</label>
+                <label
+                  htmlFor="product-fulfillment-type"
+                  className="text-[10px] text-gray-500 block mb-1 uppercase"
+                >
+                  Тип выдачи
+                </label>
                 <select
                   id="product-fulfillment-type"
                   value={editingProduct?.fulfillmentType || "auto"}
@@ -466,7 +483,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Время выполнения (для предзаказов) */}
               <div>
-                <label htmlFor="product-fulfillment-hours" className="text-[10px] text-gray-500 block mb-1 uppercase flex items-center gap-1">
+                <label
+                  htmlFor="product-fulfillment-hours"
+                  className="text-[10px] text-gray-500 block mb-1 uppercase flex items-center gap-1"
+                >
                   <Clock size={10} /> Время выполнения (часов)
                 </label>
                 <input
@@ -486,7 +506,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Срок действия */}
               <div>
-                <label htmlFor="product-duration" className="text-[10px] text-gray-500 block mb-1 uppercase">
+                <label
+                  htmlFor="product-duration"
+                  className="text-[10px] text-gray-500 block mb-1 uppercase"
+                >
                   Срок действия (дней)
                 </label>
                 <input
@@ -504,7 +527,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Гарантия */}
               <div>
-                <label htmlFor="product-warranty" className="text-[10px] text-gray-500 block mb-1 uppercase">
+                <label
+                  htmlFor="product-warranty"
+                  className="text-[10px] text-gray-500 block mb-1 uppercase"
+                >
                   Гарантия (дней)
                 </label>
                 <input
@@ -520,7 +546,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Инструкции */}
               <div className="col-span-1 md:col-span-2">
-                <label htmlFor="product-instructions" className="text-[10px] text-gray-500 block mb-1 uppercase">
+                <label
+                  htmlFor="product-instructions"
+                  className="text-[10px] text-gray-500 block mb-1 uppercase"
+                >
                   Инструкция по активации
                 </label>
                 <textarea
@@ -545,7 +574,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label htmlFor="product-price" className="text-[10px] text-gray-500 block mb-1 uppercase">
+                    <label
+                      htmlFor="product-price"
+                      className="text-[10px] text-gray-500 block mb-1 uppercase"
+                    >
                       Цена (USD) *
                     </label>
                     <div className="relative">
@@ -570,7 +602,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                   </div>
 
                   <div>
-                    <label htmlFor="product-msrp" className="text-[10px] text-gray-500 block mb-1 uppercase">
+                    <label
+                      htmlFor="product-msrp"
+                      className="text-[10px] text-gray-500 block mb-1 uppercase"
+                    >
                       MSRP (зачёркнутая)
                     </label>
                     <div className="relative">
@@ -595,7 +630,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                   </div>
 
                   <div>
-                    <label htmlFor="product-discount-price" className="text-[10px] text-yellow-500 block mb-1 uppercase">
+                    <label
+                      htmlFor="product-discount-price"
+                      className="text-[10px] text-yellow-500 block mb-1 uppercase"
+                    >
                       Цена скидочного канала
                     </label>
                     <div className="relative">
@@ -633,7 +671,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="product-anchor-rub" className="text-[10px] text-blue-400 block mb-1 uppercase">
+                    <label
+                      htmlFor="product-anchor-rub"
+                      className="text-[10px] text-blue-400 block mb-1 uppercase"
+                    >
                       Цена в рублях (RUB)
                     </label>
                     <div className="relative">
@@ -669,7 +710,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                   </div>
 
                   <div>
-                    <label htmlFor="product-anchor-usd" className="text-[10px] text-blue-400 block mb-1 uppercase">
+                    <label
+                      htmlFor="product-anchor-usd"
+                      className="text-[10px] text-blue-400 block mb-1 uppercase"
+                    >
                       Цена в долларах (USD) — перезапись
                     </label>
                     <div className="relative">
@@ -712,7 +756,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                   </h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="product-msrp-rub" className="text-[10px] text-blue-300 block mb-1 uppercase">
+                      <label
+                        htmlFor="product-msrp-rub"
+                        className="text-[10px] text-blue-300 block mb-1 uppercase"
+                      >
                         MSRP в рублях (RUB)
                       </label>
                       <div className="relative">
@@ -749,7 +796,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                     </div>
 
                     <div>
-                      <label htmlFor="product-msrp-usd" className="text-[10px] text-blue-300 block mb-1 uppercase">
+                      <label
+                        htmlFor="product-msrp-usd"
+                        className="text-[10px] text-blue-300 block mb-1 uppercase"
+                      >
                         MSRP в долларах (USD) — перезапись
                       </label>
                       <div className="relative">
@@ -802,7 +852,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="product-cost-price" className="text-[10px] text-gray-500 block mb-1 uppercase">
+                    <label
+                      htmlFor="product-cost-price"
+                      className="text-[10px] text-gray-500 block mb-1 uppercase"
+                    >
                       Себестоимость (USD)
                     </label>
                     <div className="relative">

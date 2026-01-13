@@ -4,8 +4,8 @@
  * Displays countdown timer for pending order payment deadline.
  */
 
-import React, { useState, useEffect } from "react";
-import { Clock, AlertTriangle } from "lucide-react";
+import { AlertTriangle, Clock } from "lucide-react";
+import React, { useEffect, useState } from "react";
 
 interface PaymentCountdownProps {
   deadline: string;

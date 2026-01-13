@@ -8,8 +8,9 @@
  * - Grain/scanline overlay
  */
 
-import React, { useEffect, memo } from "react";
-import { motion, useMotionValue, useMotionTemplate } from "framer-motion";
+import { motion, useMotionTemplate, useMotionValue } from "framer-motion";
+import type React from "react";
+import { memo, useEffect } from "react";
 
 interface AppLayoutProps {
   children: React.ReactNode;

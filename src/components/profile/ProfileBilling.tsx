@@ -4,10 +4,11 @@
  * Displays billing logs and transaction history with localization and currency conversion.
  */
 
-import React, { memo, useMemo } from "react";
+import { ArrowDownLeft, ArrowUpRight, Clock, History } from "lucide-react";
+import type React from "react";
+import { memo, useMemo } from "react";
 import { useLocale } from "../../hooks/useLocale";
 import { formatPrice } from "../../utils/currency";
-import { ArrowUpRight, ArrowDownLeft, Clock, History } from "lucide-react";
 import type { BillingLogData } from "./types";
 
 // Helper for log badge styling (avoid nested ternary)
@@ -187,7 +188,9 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
                         </span>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-gray-600 text-[9px] font-mono">#{log.id}</span>
-                          <span className={`px-1.5 py-0.5 text-[8px] font-bold border rounded-sm tracking-wider ${getLogBadgeClasses(log.isIncome, log.type)}`}>
+                          <span
+                            className={`px-1.5 py-0.5 text-[8px] font-bold border rounded-sm tracking-wider ${getLogBadgeClasses(log.isIncome, log.type)}`}
+                          >
                             {typeLabels[log.type] || log.type}
                           </span>
                         </div>

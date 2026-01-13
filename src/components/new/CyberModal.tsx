@@ -5,21 +5,21 @@
  * with styled modals matching PVNDORA aesthetic.
  */
 
-import React, { useState, useEffect, useCallback, createContext, useContext, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  X,
   AlertTriangle,
+  ArrowUpRight,
   CheckCircle,
   Info,
-  Wallet,
-  ArrowUpRight,
-  Plus,
   Loader2,
+  Plus,
+  Wallet,
+  X,
 } from "lucide-react";
-import { getCurrencySymbol } from "../../utils/currency";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useLocaleContext } from "../../contexts/LocaleContext";
 import { useLocale } from "../../hooks/useLocale";
+import { getCurrencySymbol } from "../../utils/currency";
 
 // Helper functions for button styling (avoid nested ternaries)
 const getButtonClassName = (type: string, icon?: string): string => {
@@ -28,10 +28,7 @@ const getButtonClassName = (type: string, icon?: string): string => {
   return "bg-pandora-cyan hover:bg-white text-black";
 };
 
-const getButtonText = (
-  type: string,
-  t: (key: string) => string
-): string => {
+const getButtonText = (type: string, t: (key: string) => string): string => {
   if (type === "topup") return t("modal.topUp.button");
   if (type === "withdraw") return t("modal.withdraw.button");
   if (type === "alert") return t("modal.ok");

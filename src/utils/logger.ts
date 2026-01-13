@@ -41,7 +41,7 @@ class Logger {
     return this.logLevels[level] >= this.logLevels[this.config.level];
   }
 
-  private formatMessage(level: LogLevel, message: string, ...args: unknown[]): string {
+  private formatMessage(level: LogLevel, message: string, ..._args: unknown[]): string {
     const timestamp = new Date().toISOString();
     const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
     return `${prefix} ${message}`;
@@ -75,7 +75,7 @@ class Logger {
     }
   }
 
-  private sendToRemote(level: LogLevel, message: string, args: unknown[]): void {
+  private sendToRemote(_level: LogLevel, _message: string, _args: unknown[]): void {
     // Placeholder for remote logging (Sentry, LogRocket, etc.)
     // Example:
     // if (window.Sentry) {

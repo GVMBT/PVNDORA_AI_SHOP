@@ -5,8 +5,9 @@
  * Финансы вынесены в Accounting.
  */
 
-import React, { memo } from "react";
-import { ShoppingBag, Users, LifeBuoy, Clock, TrendingUp, Package } from "lucide-react";
+import { Clock, LifeBuoy, Package, ShoppingBag, TrendingUp, Users } from "lucide-react";
+import type React from "react";
+import { memo } from "react";
 import StatCard from "./StatCard";
 import type { AdminStats } from "./types";
 

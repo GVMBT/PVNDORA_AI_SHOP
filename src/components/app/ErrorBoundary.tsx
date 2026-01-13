@@ -5,8 +5,8 @@
  * Automatically handles chunk load errors by refreshing the page.
  */
 
-import React, { Component, ErrorInfo, ReactNode } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import React, { Component, type ErrorInfo, type ReactNode } from "react";
 import { logger } from "../../utils/logger";
 
 interface Props {
@@ -50,7 +50,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
     // Auto-reload on chunk errors (stale cache)
     if (isChunkLoadError(error)) {
-      const reloadCount = Number.parseInt(sessionStorage.getItem("pvndora_chunk_reload") || "0", 10);
+      const reloadCount = Number.parseInt(
+        sessionStorage.getItem("pvndora_chunk_reload") || "0",
+        10
+      );
       if (reloadCount < 2) {
         sessionStorage.setItem("pvndora_chunk_reload", String(reloadCount + 1));
         globalThis.location.reload();

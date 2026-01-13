@@ -4,7 +4,8 @@
  * Displays a status badge with appropriate styling based on status value.
  */
 
-import React, { memo } from "react";
+import type React from "react";
+import { memo } from "react";
 
 interface StatusBadgeProps {
   status: string;

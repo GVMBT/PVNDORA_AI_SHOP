@@ -5,19 +5,20 @@
  * Matches PVNDORA's sci-fi neon aesthetic.
  */
 
-import React, { useState, useCallback, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  X,
-  Send,
-  Loader2,
-  CheckCircle,
   AlertCircle,
+  CheckCircle,
+  Loader2,
+  Send,
   Shield,
-  Zap,
-  Users,
   Trophy,
+  Users,
+  X,
+  Zap,
 } from "lucide-react";
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
 
 // Helper to get status icon (avoid nested ternary)
 const getStatusIcon = (status: string) => {

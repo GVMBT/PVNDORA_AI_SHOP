@@ -4,9 +4,10 @@
  * Shows discount bot migration statistics and analytics.
  */
 
-import React, { useEffect, useState } from "react";
+import { ArrowUpRight, DollarSign, ShoppingBag, Tag, TrendingUp, Users } from "lucide-react";
+import type React from "react";
+import { useEffect, useState } from "react";
 import { useAdminMigrationApi } from "../../hooks/api/useAdminMigrationApi";
-import { ArrowUpRight, Users, ShoppingBag, DollarSign, TrendingUp, Tag } from "lucide-react";
 import StatCard from "./StatCard";
 
 const AdminMigration: React.FC = () => {

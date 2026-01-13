@@ -4,9 +4,10 @@
  * Displays files included in the product package.
  */
 
-import React, { memo } from "react";
 import { motion } from "framer-motion";
-import { FileKey, FileText, Terminal, Globe, Lock } from "lucide-react";
+import { FileKey, FileText, Globe, Lock, Terminal } from "lucide-react";
+import type React from "react";
+import { memo } from "react";
 import type { ProductFile } from "../../types/component";
 
 interface ProductFilesProps {

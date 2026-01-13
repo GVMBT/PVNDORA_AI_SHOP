@@ -16,7 +16,8 @@ import {
   RefreshCw,
   Shield,
 } from "lucide-react";
-import React, { memo, useState } from "react";
+import type React from "react";
+import { memo, useState } from "react";
 
 // Revenue breakdown by currency (REAL amounts, no conversion)
 export interface CurrencyRevenue {

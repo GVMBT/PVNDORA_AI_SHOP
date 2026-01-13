@@ -4,7 +4,8 @@
  * Displays stock status with visual indicator.
  */
 
-import React, { memo } from "react";
+import type React from "react";
+import { memo } from "react";
 
 interface StockIndicatorProps {
   stock: number;

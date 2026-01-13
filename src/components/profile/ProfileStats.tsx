@@ -4,23 +4,24 @@
  * Displays balance card, referral link generator, and stats overview.
  */
 
-import React, { memo, useCallback } from "react";
 import {
-  Wallet,
-  Plus,
   ArrowUpRight,
-  Network,
-  Share2,
-  Copy,
   Check,
+  Copy,
+  Network,
   Percent,
+  Plus,
+  QrCode,
   RefreshCw,
   Settings,
-  QrCode,
+  Share2,
+  Wallet,
 } from "lucide-react";
-import { getCurrencySymbol } from "../../utils/currency";
+import type React from "react";
+import { memo, useCallback } from "react";
 import { useLocaleContext } from "../../contexts/LocaleContext";
 import { useLocale } from "../../hooks/useLocale";
+import { getCurrencySymbol } from "../../utils/currency";
 import { logger } from "../../utils/logger";
 import DecryptedText from "./DecryptedText";
 import type { ProfileDataProp } from "./types";

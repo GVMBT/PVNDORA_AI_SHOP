@@ -4,13 +4,13 @@
  * Type-safe hook for fetching profile and referral data.
  */
 
-import { useState, useCallback } from "react";
-import { useApi } from "../useApi";
-import { logger } from "../../utils/logger";
-import type { APIProfileResponse, APIReferralNetworkResponse } from "../../types/api";
-import type { ProfileData } from "../../types/component";
+import { useCallback, useState } from "react";
 import { adaptProfile, adaptReferralNetwork } from "../../adapters";
 import { PAGINATION } from "../../config";
+import type { APIProfileResponse, APIReferralNetworkResponse } from "../../types/api";
+import type { ProfileData } from "../../types/component";
+import { logger } from "../../utils/logger";
+import { useApi } from "../useApi";
 
 export function useProfileTyped() {
   const { get, post, put, loading, error } = useApi();

@@ -1,9 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import NewApp from "./NewApp";
-import { CartProvider } from "./contexts/CartContext";
 import { ErrorBoundary } from "./components/app";
+import { CartProvider } from "./contexts/CartContext";
 import { AudioEngine } from "./lib/AudioEngine";
+import NewApp from "./NewApp";
 import { setupChunkErrorHandler } from "./utils/lazyWithRetry";
 import "./index.css";
 import type { WebApp } from "./types/telegram";

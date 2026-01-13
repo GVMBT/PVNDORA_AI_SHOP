@@ -4,7 +4,7 @@
  * Transforms API leaderboard data into component-friendly format.
  */
 
-import type { APILeaderboardResponse, APILeaderboardEntry } from "../types/api";
+import type { APILeaderboardEntry, APILeaderboardResponse } from "../types/api";
 import type { LeaderboardUser } from "../types/component";
 
 /**

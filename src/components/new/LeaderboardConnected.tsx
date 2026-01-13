@@ -5,11 +5,12 @@
  * Supports infinite scroll pagination and period filtering.
  */
 
-import React, { useEffect, useState, useCallback, useRef, memo } from "react";
-import Leaderboard from "./Leaderboard";
+import type React from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { PAGINATION } from "../../config";
 import { useLeaderboardTyped } from "../../hooks/useApiTyped";
 import { useLocale } from "../../hooks/useLocale";
-import { PAGINATION } from "../../config";
+import Leaderboard from "./Leaderboard";
 
 interface LeaderboardConnectedProps {
   onBack: () => void;

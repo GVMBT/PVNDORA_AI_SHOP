@@ -5,20 +5,21 @@
  * All data transformations are memoized to prevent infinite re-renders.
  */
 
-import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import AdminPanel from "./AdminPanel";
-import {
-  useAdminProductsTyped,
-  useAdminOrdersTyped,
-  useAdminUsersTyped,
-  useAdminAnalyticsTyped,
-} from "../../hooks/useApiTyped";
-import { useAdminPromoTyped, PromoCodeData } from "../../hooks/api/useAdminPromoApi";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type PromoCodeData, useAdminPromoTyped } from "../../hooks/api/useAdminPromoApi";
 import { useAdmin } from "../../hooks/useAdmin";
-import { formatRelativeTime, formatDate } from "../../utils/date";
+import {
+  useAdminAnalyticsTyped,
+  useAdminOrdersTyped,
+  useAdminProductsTyped,
+  useAdminUsersTyped,
+} from "../../hooks/useApiTyped";
+import { formatDate, formatRelativeTime } from "../../utils/date";
 import { logger } from "../../utils/logger";
-import type { TicketData } from "../admin/types";
 import type { AccountingData } from "../admin";
+import type { TicketData } from "../admin/types";
+import AdminPanel from "./AdminPanel";
 
 interface AdminPanelConnectedProps {
   onExit: () => void;

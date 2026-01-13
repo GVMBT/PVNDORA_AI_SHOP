@@ -4,22 +4,23 @@
  * Main profile page container that orchestrates all profile views.
  */
 
-import React, { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
-import { User, ArrowLeft } from "lucide-react";
-import { AudioEngine } from "../../lib/AudioEngine";
+import { ArrowLeft, User } from "lucide-react";
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useClipboard } from "../../hooks/useClipboard";
 import { useLocale } from "../../hooks/useLocale";
+import { AudioEngine } from "../../lib/AudioEngine";
 import { logger } from "../../utils/logger";
 // Career levels come from API via profile.career - no hardcoded constants
 import {
-  ProfileHeader,
-  ProfileStats,
-  ProfileCareer,
-  ProfileNetwork,
   ProfileBilling,
-  ReferralDossier,
+  ProfileCareer,
   type ProfileDataProp,
+  ProfileHeader,
+  ProfileNetwork,
+  ProfileStats,
+  ReferralDossier,
 } from "../profile";
 
 interface ProfileProps {

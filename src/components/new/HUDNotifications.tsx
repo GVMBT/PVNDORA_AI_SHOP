@@ -5,22 +5,23 @@
  * Replaces boring alert() with immersive "system logs" experience.
  */
 
-import React, { createContext, useContext, useCallback, useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { generateId } from "../../utils/id";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Terminal,
-  CheckCircle,
   AlertTriangle,
-  XCircle,
-  Info,
+  CheckCircle,
   Cpu,
-  Zap,
-  Shield,
   Database,
+  Info,
+  Shield,
+  Terminal,
   Wifi,
+  XCircle,
+  Zap,
 } from "lucide-react";
+import type React from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AudioEngine } from "../../lib/AudioEngine";
+import { generateId } from "../../utils/id";
 
 // ============================================
 // TYPES

@@ -15,7 +15,8 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Calendar, DollarSign, FileText, Save, Tag, X } from "lucide-react";
-import React, { memo, useEffect, useState } from "react";
+import type React from "react";
+import { memo, useEffect, useState } from "react";
 
 export interface ExpenseData {
   description: string;

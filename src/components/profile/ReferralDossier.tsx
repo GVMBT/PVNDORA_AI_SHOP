@@ -4,9 +4,10 @@
  * Side drawer modal displaying detailed referral information.
  */
 
-import React, { memo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, ShieldCheck, User, Activity } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Activity, ShieldCheck, User, X } from "lucide-react";
+import type React from "react";
+import { memo } from "react";
 import DecryptedText from "./DecryptedText";
 import type { NetworkNodeData } from "./types";
 
@@ -89,9 +90,7 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
               <div className="space-y-1">
                 <div className="text-xs text-gray-500 font-mono">
                   STATUS:
-                  <span
-                    className={`ml-2 font-bold ${getStatusColor(referral.status)}`}
-                  >
+                  <span className={`ml-2 font-bold ${getStatusColor(referral.status)}`}>
                     <DecryptedText text={referral.status} reveal={true} />
                   </span>
                 </div>

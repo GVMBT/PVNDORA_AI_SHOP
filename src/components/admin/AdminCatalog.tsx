@@ -4,9 +4,10 @@
  * Catalog management view for products.
  */
 
-import React, { memo, useState, useMemo, useEffect, useRef } from "react";
-import { Search, Plus, Edit, Trash2, Filter, X, ChevronDown, Check } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, ChevronDown, Edit, Filter, Plus, Search, Trash2, X } from "lucide-react";
+import type React from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { PRODUCT_CATEGORIES, PRODUCT_CATEGORY_LABELS } from "../../constants";
 import StockIndicator from "./StockIndicator";
 import type { ProductData } from "./types";
@@ -335,8 +336,7 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                 <div>
                   <div className="font-bold text-white mb-1">{p.name}</div>
                   <div className="text-xs text-gray-500 mb-2">
-                    {PRODUCT_CATEGORY_LABELS[p.category] || p.category} •{" "}
-                    {(() => {
+                    {PRODUCT_CATEGORY_LABELS[p.category] || p.category} • {(() => {
                       const hasAnchorPrice =
                         p.prices && typeof p.prices === "object" && "RUB" in p.prices;
                       const displayPrice = hasAnchorPrice ? p.prices.RUB : p.price;

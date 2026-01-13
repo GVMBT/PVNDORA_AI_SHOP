@@ -5,8 +5,8 @@
  * This layer provides data normalization and type safety.
  */
 
-export { adaptProduct, adaptProductList, adaptProductDetail } from "./productAdapter";
-export { adaptOrders, adaptOrder } from "./ordersAdapter";
-export { adaptProfile, adaptReferralNetwork } from "./profileAdapter";
-export { adaptLeaderboard } from "./leaderboardAdapter";
 export { adaptCart } from "./cartAdapter";
+export { adaptLeaderboard } from "./leaderboardAdapter";
+export { adaptOrder, adaptOrders } from "./ordersAdapter";
+export { adaptProduct, adaptProductDetail, adaptProductList } from "./productAdapter";
+export { adaptProfile, adaptReferralNetwork } from "./profileAdapter";

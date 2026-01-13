@@ -99,7 +99,11 @@ export async function apiRequest<T = unknown>(
     if (!response.ok) {
       const errorMessage = await extractErrorMessage(response);
       const finalErrorMessage = handleSpecificStatusCodes(response.status, errorMessage);
-      logger.error("API request failed", { endpoint, status: response.status, errorMessage: finalErrorMessage });
+      logger.error("API request failed", {
+        endpoint,
+        status: response.status,
+        errorMessage: finalErrorMessage,
+      });
       throw new Error(finalErrorMessage);
     }
 

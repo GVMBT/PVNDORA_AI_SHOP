@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type {
-  WebAppUser,
-  WebApp,
-  HapticStyle as TelegramHapticStyle,
   HapticNotificationType,
+  HapticStyle as TelegramHapticStyle,
+  WebApp,
+  WebAppUser,
 } from "../types/telegram";
 
 // Re-export types for convenience

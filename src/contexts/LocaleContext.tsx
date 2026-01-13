@@ -13,12 +13,12 @@
 
 import React, {
   createContext,
-  useContext,
-  useState,
-  useEffect,
+  type ReactNode,
   useCallback,
-  ReactNode,
+  useContext,
+  useEffect,
   useMemo,
+  useState,
 } from "react";
 import type { ProfileData } from "../types/component";
 

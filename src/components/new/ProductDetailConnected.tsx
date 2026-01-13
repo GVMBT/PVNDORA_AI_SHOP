@@ -5,20 +5,21 @@
  * Fetches detailed product info and related products.
  */
 
-import React, { useEffect, useState, useCallback, useRef } from "react";
-import ProductDetail from "./ProductDetail";
-import { useProductsTyped } from "../../hooks/useApiTyped";
+import type React from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useCart } from "../../contexts/CartContext";
 import { useLocaleContext } from "../../contexts/LocaleContext";
+import { useProductsTyped } from "../../hooks/useApiTyped";
 import { useLocale } from "../../hooks/useLocale";
 import { AudioEngine } from "../../lib/AudioEngine";
-import { logger } from "../../utils/logger";
 import type {
   CatalogProduct,
   ProductDetailData,
-  ProductReview,
   ProductFile,
+  ProductReview,
 } from "../../types/component";
+import { logger } from "../../utils/logger";
+import ProductDetail from "./ProductDetail";
 
 interface ProductDetailConnectedProps {
   productId: string;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
@@ -15,21 +15,18 @@ import {
   Terminal,
   Video,
 } from "lucide-react";
-import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "framer-motion";
-import { formatPrice } from "../../utils/currency";
-import { useTimeoutState } from "../../hooks/useTimeoutState";
-import { useLocale } from "../../hooks/useLocale";
+import type React from "react";
+import { useEffect, useMemo, useState } from "react";
 import { UI } from "../../config";
+import { useLocale } from "../../hooks/useLocale";
+import { useTimeoutState } from "../../hooks/useTimeoutState";
+import type { CatalogProduct, ProductDetailData } from "../../types/component";
+import { formatPrice } from "../../utils/currency";
+import { logger } from "../../utils/logger";
 import { randomInt } from "../../utils/random";
-import ProductSpecs from "./ProductSpecs";
 import ProductFiles from "./ProductFiles";
 import ProductManifest from "./ProductManifest";
-import { logger } from "../../utils/logger";
-
-import type {
-  ProductDetailData,
-  CatalogProduct,
-} from "../../types/component";
+import ProductSpecs from "./ProductSpecs";
 
 // Helper functions for availability state (extracted to avoid nested ternaries)
 type AvailabilityState = "available" | "preorder" | "disabled";
@@ -270,16 +267,26 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
 
     if (isAllocating) {
       return (
-        <motion.div key="loading" {...motionProps} className="flex items-center gap-3 w-full justify-center">
+        <motion.div
+          key="loading"
+          {...motionProps}
+          className="flex items-center gap-3 w-full justify-center"
+        >
           <Loader2 size={20} className="animate-spin" />
-          <span>{isPreorder ? t("product.allocatingQueue") : t("product.allocatingResources")}</span>
+          <span>
+            {isPreorder ? t("product.allocatingQueue") : t("product.allocatingResources")}
+          </span>
         </motion.div>
       );
     }
 
     if (isSuccess) {
       return (
-        <motion.div key="success" {...motionProps} className="flex items-center gap-3 w-full justify-center">
+        <motion.div
+          key="success"
+          {...motionProps}
+          className="flex items-center gap-3 w-full justify-center"
+        >
           <CheckCircle size={20} />
           <span>{t("product.accessGranted")}</span>
         </motion.div>
@@ -321,7 +328,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
           <div className="flex items-center gap-2 text-[10px] font-mono text-pandora-cyan tracking-widest uppercase">
             <DatabaseIcon category={product.category} />
             <span>
-              {t("product.database")} {" // "} {product.category.toUpperCase()} {" // "} {product.sku}
+              {t("product.database")} {" // "} {product.category.toUpperCase()} {" // "}{" "}
+              {product.sku}
             </span>
           </div>
         </div>
@@ -648,9 +656,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
                 <span>--</span>
               </>
             ) : (
-              <AnimatePresence mode="wait">
-                {renderButtonContent()}
-              </AnimatePresence>
+              <AnimatePresence mode="wait">{renderButtonContent()}</AnimatePresence>
             )}
           </button>
         </div>

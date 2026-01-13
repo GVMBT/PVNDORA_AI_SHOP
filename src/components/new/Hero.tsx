@@ -1,8 +1,9 @@
-import React, { memo } from "react";
-import PandoraBox from "./PandoraBox";
-import { Cpu, Network, Activity, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
+import { Activity, Cpu, Network, ShieldCheck } from "lucide-react";
+import type React from "react";
+import { memo } from "react";
 import { useLocale } from "../../hooks/useLocale";
+import PandoraBox from "./PandoraBox";
 
 const HeroComponent: React.FC = () => {
   const { t } = useLocale();

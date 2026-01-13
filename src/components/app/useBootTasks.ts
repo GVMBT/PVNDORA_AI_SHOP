@@ -7,19 +7,18 @@
 
 import { useMemo } from "react";
 import { AudioEngine } from "../../lib/AudioEngine";
+import {
+  getSessionToken,
+  persistSessionTokenFromQuery,
+  removeSessionToken,
+  verifySessionToken,
+} from "../../utils/auth";
 import { logger } from "../../utils/logger";
 import { getTelegramInitData } from "../../utils/telegram";
-import {
-  persistSessionTokenFromQuery,
-  getSessionToken,
-  verifySessionToken,
-  removeSessionToken,
-} from "../../utils/auth";
 import type { BootTask } from "../new";
 
 // Helper: Safe fetch with null fallback (reduces nesting in prefetch task)
-const safeFetch = (url: string): Promise<Response | null> =>
-  fetch(url).catch((): null => null);
+const safeFetch = (url: string): Promise<Response | null> => fetch(url).catch((): null => null);
 
 interface UseBootTasksProps {
   getProducts: () => Promise<any>;

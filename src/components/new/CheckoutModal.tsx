@@ -7,16 +7,17 @@
  * - Never mixes currencies in calculations
  */
 
-import React, { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, CheckCircle, Server } from "lucide-react";
-import { formatPrice } from "../../utils/currency";
+import { AnimatePresence, motion } from "framer-motion";
+import { CheckCircle, Server, X } from "lucide-react";
+import type React from "react";
+import { useMemo, useState } from "react";
 import { useLocale } from "../../hooks/useLocale";
+import type { APICreateOrderResponse } from "../../types/api";
+import type { CartItem } from "../../types/component";
+import { formatPrice } from "../../utils/currency";
 import CartSummary from "./CartSummary";
 import PaymentMethodSelector from "./PaymentMethodSelector";
 import PaymentProcessing from "./PaymentProcessing";
-import type { CartItem } from "../../types/component";
-import type { APICreateOrderResponse } from "../../types/api";
 
 export type PaymentMethod = "crystalpay" | "internal";
 

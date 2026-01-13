@@ -4,13 +4,13 @@
  * Type-safe hook for fetching products with automatic data transformation.
  */
 
-import { useState, useCallback } from "react";
-import { useApi } from "../useApi";
+import { useCallback, useState } from "react";
+import { adaptProductDetail, adaptProductList } from "../../adapters";
 import { useLocaleContext } from "../../contexts/LocaleContext";
-import { logger } from "../../utils/logger";
-import type { APIProductsResponse, APIProductResponse } from "../../types/api";
+import type { APIProductResponse, APIProductsResponse } from "../../types/api";
 import type { CatalogProduct, ProductDetailData } from "../../types/component";
-import { adaptProductList, adaptProductDetail } from "../../adapters";
+import { logger } from "../../utils/logger";
+import { useApi } from "../useApi";
 
 export function useProductsTyped() {
   const { get, loading, error } = useApi();

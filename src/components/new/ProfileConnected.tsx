@@ -4,18 +4,19 @@
  * Connected version of Profile component with real API data.
  */
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
-import Profile from "./Profile";
-import { useProfileTyped } from "../../hooks/useApiTyped";
-import { useTelegram } from "../../hooks/useTelegram";
-import { useCyberModal } from "./CyberModal";
-import { useClipboard } from "../../hooks/useClipboard";
-import { useLocaleContext } from "../../contexts/LocaleContext";
-import { useLocale } from "../../hooks/useLocale";
-import type { CurrencyCode } from "../../utils/currency";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCart } from "../../contexts/CartContext";
+import { useLocaleContext } from "../../contexts/LocaleContext";
+import { useProfileTyped } from "../../hooks/useApiTyped";
+import { useClipboard } from "../../hooks/useClipboard";
+import { useLocale } from "../../hooks/useLocale";
+import { useTelegram } from "../../hooks/useTelegram";
+import type { CurrencyCode } from "../../utils/currency";
 import { logger } from "../../utils/logger";
-import { PartnerApplicationModal, type PartnerApplicationData } from "../profile";
+import { type PartnerApplicationData, PartnerApplicationModal } from "../profile";
+import { useCyberModal } from "./CyberModal";
+import Profile from "./Profile";
 
 interface ProfileConnectedProps {
   onBack: () => void;

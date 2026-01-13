@@ -4,17 +4,17 @@
  * Type-safe hook for fetching and creating orders.
  */
 
-import { useState, useCallback } from "react";
-import { useApi } from "../useApi";
-import { logger } from "../../utils/logger";
+import { useCallback, useState } from "react";
+import { adaptOrders } from "../../adapters";
 import type {
-  APIOrdersResponse,
   APICreateOrderRequest,
   APICreateOrderResponse,
+  APIOrdersResponse,
   APIPaymentMethodsResponse,
 } from "../../types/api";
 import type { Order } from "../../types/component";
-import { adaptOrders } from "../../adapters";
+import { logger } from "../../utils/logger";
+import { useApi } from "../useApi";
 
 export function useOrdersTyped() {
   const { get, post, loading, error } = useApi();

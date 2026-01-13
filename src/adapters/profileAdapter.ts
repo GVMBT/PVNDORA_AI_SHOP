@@ -5,11 +5,20 @@
  */
 
 import type { APIProfileResponse, APIReferralNode, TelegramUser } from "../types/api";
-import type { ProfileData, CareerLevel, BillingLog, NetworkNode } from "../types/component";
+import type { BillingLog, CareerLevel, NetworkNode, ProfileData } from "../types/component";
 import type { CurrencyCode } from "../utils/currency";
 
 // Valid currency codes for type validation
-const VALID_CURRENCIES = new Set<CurrencyCode>(["USD", "RUB", "EUR", "UAH", "TRY", "INR", "AED", "GBP"]);
+const VALID_CURRENCIES = new Set<CurrencyCode>([
+  "USD",
+  "RUB",
+  "EUR",
+  "UAH",
+  "TRY",
+  "INR",
+  "AED",
+  "GBP",
+]);
 
 /**
  * Validate and normalize currency code from API
@@ -34,7 +43,7 @@ function normalizeCurrency(currency: string | undefined): CurrencyCode {
  * @param effectiveLevel - Effective level from backend (0-3, calculated in USD)
  */
 function getCurrentLevel(
-  turnoverUsd: number,
+  _turnoverUsd: number,
   thresholds: { level2: number; level3: number },
   isVip: boolean = false,
   effectiveLevel?: number
@@ -93,7 +102,7 @@ function getNextLevel(
 /**
  * Calculate progress percentage within current level
  */
-function calculateProgressPercent(turnover: number, currentLevel: CareerLevel): number {
+function _calculateProgressPercent(turnover: number, currentLevel: CareerLevel): number {
   if (currentLevel.max === Infinity) return 100;
   const range = currentLevel.max - currentLevel.min;
   const progress = turnover - currentLevel.min;
@@ -243,7 +252,9 @@ export function adaptProfile(
   // Calculate conversion rate
   const conversionRate =
     referral_stats.click_count > 0
-      ? Number.parseFloat(((referral_stats.level1_count / referral_stats.click_count) * 100).toFixed(1))
+      ? Number.parseFloat(
+          ((referral_stats.level1_count / referral_stats.click_count) * 100).toFixed(1)
+        )
       : 0;
 
   // Use telegramUser from initData first, fallback to profile data from DB

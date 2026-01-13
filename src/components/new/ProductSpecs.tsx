@@ -5,9 +5,10 @@
  * Now with human-readable labels and tooltips.
  */
 
-import React, { memo, useState } from "react";
 import { motion } from "framer-motion";
 import { Info } from "lucide-react";
+import type React from "react";
+import { memo, useState } from "react";
 
 // Helper for Russian pluralization (avoid nested ternaries)
 const getRuDaysPlural = (num: number): string => {

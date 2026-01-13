@@ -5,24 +5,26 @@
  * The AI can answer questions, help with purchases, and create support tickets.
  */
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Send,
-  Terminal,
-  MessageSquare,
-  ChevronDown,
   Activity,
+  ChevronDown,
+  MessageSquare,
   RefreshCw,
-  Trash2,
+  Send,
   Sparkles,
+  Terminal,
+  Trash2,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import type React from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAIChatTyped } from "../../hooks/useApiTyped";
 import { useLocale } from "../../hooks/useLocale";
 
 // Helper for message styling (avoid nested ternary)
 const getMessageClasses = (sender: string): string => {
-  if (sender === "user") return "bg-pandora-cyan/20 border border-pandora-cyan/30 text-pandora-cyan";
+  if (sender === "user")
+    return "bg-pandora-cyan/20 border border-pandora-cyan/30 text-pandora-cyan";
   if (sender === "system") return "bg-white/5 border border-white/10 text-gray-500 italic";
   return "bg-white/5 border border-white/10 text-gray-300";
 };
@@ -352,7 +354,9 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
                     animate={{ opacity: 1, x: 0 }}
                     className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
                   >
-                    <div className={`max-w-[85%] p-2.5 text-xs font-mono ${getMessageClasses(msg.sender)}`}>
+                    <div
+                      className={`max-w-[85%] p-2.5 text-xs font-mono ${getMessageClasses(msg.sender)}`}
+                    >
                       {/* Render HTML safely for agent messages */}
                       {msg.sender === "agent" ? (
                         <p

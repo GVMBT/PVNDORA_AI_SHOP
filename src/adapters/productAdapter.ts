@@ -4,16 +4,13 @@
  * Transforms API product data into component-friendly format.
  */
 
-import type {
-  APIProduct,
-  APIProductResponse,
-} from "../types/api";
+import type { APIProduct, APIProductResponse } from "../types/api";
 import type {
   CatalogProduct,
-  ProductDetailData,
-  ProductReview,
-  ProductFile,
   ProductAvailability,
+  ProductDetailData,
+  ProductFile,
+  ProductReview,
 } from "../types/component";
 
 /**
