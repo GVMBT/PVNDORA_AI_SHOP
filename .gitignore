@@ -75,13 +75,8 @@ assets/
 *.sublime-project
 *.sublime-workspace
 .history/
-# Cursor IDE - ignore logs and plans, but keep rules
-.cursor/cache/
-.cursor/logs/
-.cursor/debug.log
-.cursor/plans/
-.cursor/*.log
-!.cursor/rules/
+# Cursor IDE - ignore everything
+.cursor/
 
 # OS
 .DS_Store
@@ -102,6 +97,13 @@ $RECYCLE.BIN/
 research/
 notes/
 TODO.md
+
+# Documentation
+*.md
+
+# Scripts and tests (excluded from SonarCloud)
+scripts/
+tests/
 
 # HTTP client request files
 *.http
