@@ -121,6 +121,16 @@ async def admin_get_analytics(days: int = 7, admin=Depends(verify_admin)):
         user_balances_result, pending_withdrawals_result
     )
 
+    total_revenue = totals["total_revenue"]
+    orders_today = totals["orders_today"]
+    orders_this_week = totals["orders_this_week"]
+    orders_this_month = totals["orders_this_month"]
+    total_users = totals["total_users"]
+    pending_orders = totals["pending_orders"]
+    open_tickets = totals["open_tickets"]
+    total_user_balances = totals["total_user_balances"]
+    pending_withdrawals = totals["pending_withdrawals"]
+
     # Calculate revenue by day for chart
     revenue_by_day_map = {}
     for o in revenue_by_day_result.data or []:
