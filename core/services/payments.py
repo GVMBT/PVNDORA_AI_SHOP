@@ -103,7 +103,7 @@ class PaymentService:
         product_name: str,
         method: str = "crystalpay",
         currency: str = "RUB",
-        user_id: int | None = None,
+        _user_id: int | None = None,  # Kept for API compatibility
         is_telegram_miniapp: bool = True,
         **kwargs,
     ) -> dict[str, Any]:
@@ -386,7 +386,7 @@ class PaymentService:
             logger.exception("CrystalPay TOPUP network error")
             raise ValueError(f"Failed to connect to CrystalPay API: {e!s}")
 
-    async def _extract_webhook_data(self, data: dict[str, Any]) -> dict[str, Any]:
+    def _extract_webhook_data(self, data: dict[str, Any]) -> dict[str, Any]:
         """Extract and normalize webhook data (reduces cognitive complexity)."""
         return {
             "invoice_id": str(data.get("id", "")).strip(),
@@ -449,7 +449,7 @@ class PaymentService:
         - amount, rub_amount, currency, etc.
         """
         try:
-            webhook_data = await self._extract_webhook_data(data)
+            webhook_data = self._extract_webhook_data(data)
             invoice_id = webhook_data["invoice_id"]
             received_signature = webhook_data["received_signature"]
             state = webhook_data["state"]

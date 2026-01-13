@@ -179,9 +179,7 @@ async def _update_order_expenses_cashback(
 
 
 # Helper to validate order for review (reduces cognitive complexity)
-async def _validate_order_for_review(
-    db, order_id: str, db_user, order
-) -> None:
+def _validate_order_for_review(db_user, order) -> None:
     """Validate order can be reviewed."""
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -239,7 +237,7 @@ async def _create_review_record(
 
 # Helper to process cashback (reduces cognitive complexity)
 async def _process_review_cashback(
-    db, db_user, review_id: str, target_item: dict, order, request, cashback_amount: float, balance_currency: str, currency_service
+    db, db_user, review_id: str, request, cashback_amount: float, balance_currency: str, currency_service
 ) -> float:
     """Process cashback for review and return new balance."""
     current_balance = to_float(db_user.balance) if db_user.balance else 0.0
@@ -307,7 +305,7 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
         raise HTTPException(status_code=404, detail="User not found")
 
     order = await db.get_order_by_id(request.order_id)
-    await _validate_order_for_review(db, request.order_id, db_user, order)
+    _validate_order_for_review(db_user, order)
 
     order_items = await db.get_order_items_by_order(request.order_id)
     if not order_items:
@@ -337,7 +335,7 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
     )
 
     new_balance = await _process_review_cashback(
-        db, db_user, review_id, target_item, order, request, cashback_amount, balance_currency, currency_service
+        db, db_user, review_id, request, cashback_amount, balance_currency, currency_service
     )
 
     await _send_cashback_notification(db_user, cashback_amount, new_balance, balance_currency)

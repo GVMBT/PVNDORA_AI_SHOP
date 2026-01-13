@@ -190,7 +190,7 @@ export function PaymentResult({
 
     // Helper to handle 404 errors (reduces cognitive complexity)
     const handle404Response = (result: Awaited<ReturnType<typeof checkStatus>>, attempt: number): boolean => {
-      const is404 = result.httpStatus === 404 || (result.error && result.error.message === "ORDER_NOT_FOUND");
+      const is404 = result.httpStatus === 404 || result.error?.message === "ORDER_NOT_FOUND";
       if (!is404) return false;
 
       consecutive404sRef.current += 1;

@@ -477,11 +477,14 @@ class OrderStatusService:
             product_names.append(name)
             total_qty += qty
 
+        if not product_names:
+            return "Unknown", total_qty
+
         product_display = ", ".join(product_names[:2])
         if len(product_names) > 2:
             product_display += f" +{len(product_names) - 2}"
 
-        return product_display or "Unknown", total_qty
+        return product_display, total_qty
 
     async def _send_order_alert(self, order_id: str, amount: float, user_id: str) -> None:
         """Send admin alert for new paid order (best-effort)."""

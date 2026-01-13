@@ -705,8 +705,8 @@ const renderFAQContent = (isRussian: boolean) => {
       <h2 className="text-white font-display text-xl mb-6">
         FAQ {isRussian ? "(Частые вопросы)" : "(Frequently Asked Questions)"}
       </h2>
-      {faqItems.map((item, index) => (
-        <div key={index} className="border border-white/10 p-4 bg-white/5">
+      {faqItems.map((item) => (
+        <div key={item.question} className="border border-white/10 p-4 bg-white/5">
           <h3 className="text-white font-bold mb-2">{item.question}</h3>
           <p className="text-gray-400 font-mono text-xs">{item.answer}</p>
         </div>

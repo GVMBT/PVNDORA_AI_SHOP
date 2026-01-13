@@ -214,11 +214,11 @@ async def _create_cart_order(
 
             # 2. Fiat Calculations (Anchor)
             # For original_price (MSRP), use msrp_prices if available, otherwise convert from USD MSRP
-            msrp_prices = getattr(product, "msrp_prices", None) or {}
-            if msrp_prices and target_curr in msrp_prices and msrp_prices[target_curr] is not None:
-                pass
-            #         converted_msrp = await curr_service.convert_price(float(product_msrp_usd), target_curr)
-            #         anchor_msrp = to_decimal(converted_msrp)
+            # Note: msrp_prices support reserved for future use
+            # msrp_prices = getattr(product, "msrp_prices", None) or {}
+            # if msrp_prices and target_curr in msrp_prices and msrp_prices[target_curr] is not None:
+            #     converted_msrp = await curr_service.convert_price(float(product_msrp_usd), target_curr)
+            #     anchor_msrp = to_decimal(converted_msrp)
             # original_price_fiat = multiply(anchor_msrp, item.quantity)  # Unused for now
 
             # For display price (product.price), use prices

@@ -16,13 +16,13 @@ router = APIRouter(tags=["admin-analytics"])
 
 
 # Helper to calculate date ranges (reduces cognitive complexity)
-def _calculate_date_ranges(days: int) -> tuple[datetime, datetime, datetime, datetime]:
+def _calculate_date_ranges(days: int) -> tuple[datetime, datetime, datetime, datetime, datetime]:
     """Calculate date ranges for analytics queries."""
     now = datetime.now(UTC)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=7)
     month_start = today_start - timedelta(days=30)
-    chart_days_start = today_start - timedelta(days=12)
+    chart_days_start = today_start - timedelta(days=days)  # Use days parameter
     return now, today_start, week_start, month_start, chart_days_start
 
 
@@ -51,7 +51,7 @@ async def admin_get_analytics(days: int = 7, admin=Depends(verify_admin)):
     """Get comprehensive sales analytics with real data from database"""
     db = get_database()
 
-    now, today_start, week_start, month_start, chart_days_start = _calculate_date_ranges(days)
+    _now, today_start, week_start, month_start, chart_days_start = _calculate_date_ranges(days)
 
     revenue_result = (
         await db.client.table("orders").select("amount").eq("status", "delivered").execute()

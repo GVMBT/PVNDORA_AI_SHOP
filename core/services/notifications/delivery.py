@@ -160,7 +160,7 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
     async def send_delivery(
         self,
         telegram_id: int,
-        product_name: str,
+        _product_name: str,  # Kept for API compatibility
         content: str,
         expires_at: datetime | None = None,
         order_id: str | None = None,
