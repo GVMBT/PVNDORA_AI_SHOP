@@ -154,6 +154,38 @@ def get_products_keyboard(
 # ============================================
 
 
+# Helper to format price (reduces cognitive complexity)
+def _format_price(display_price: float, currency: str, currency_symbol: str) -> str:
+    """Format price based on currency type."""
+    from core.services.currency import INTEGER_CURRENCIES
+
+    if currency in INTEGER_CURRENCIES:
+        return f"{int(display_price):,} {currency_symbol}"
+    return f"{currency_symbol}{display_price:.2f}"
+
+
+# Helper to get buy button text (reduces cognitive complexity)
+def _get_buy_button_text(price_formatted: str, lang: str, in_stock: bool) -> str:
+    """Get buy button text based on stock status and language."""
+    if in_stock:
+        return f"💳 Купить — {price_formatted}" if lang == "ru" else f"💳 Buy — {price_formatted}"
+    return (
+        f"💳 Предзаказ — {price_formatted}"
+        if lang == "ru"
+        else f"💳 Pre-order — {price_formatted}"
+    )
+
+
+# Helper to format insurance option text (reduces cognitive complexity)
+def _format_insurance_text(
+    days: int, currency_symbol: str, ins_price_display: float, lang: str
+) -> str:
+    """Format insurance option text."""
+    if lang == "ru":
+        return f"+{days}д замена — {currency_symbol}{ins_price_display:.0f}"
+    return f"+{days}d replacement — {currency_symbol}{ins_price_display:.0f}"
+
+
 def get_product_card_keyboard(
     product_id: str,
     discount_price: float,
@@ -166,39 +198,21 @@ def get_product_card_keyboard(
     """Product card with buy and insurance options."""
     buttons = []
 
-    # Use currency symbols from single source of truth
-    from core.services.currency import CURRENCY_SYMBOLS, INTEGER_CURRENCIES
+    from core.services.currency import CURRENCY_SYMBOLS
 
     currency_symbol = CURRENCY_SYMBOLS.get(currency, currency)
-
-    # Convert price and format
     display_price = discount_price * exchange_rate
-    if currency in INTEGER_CURRENCIES:
-        price_formatted = f"{int(display_price):,} {currency_symbol}"
-    else:
-        price_formatted = f"{currency_symbol}{display_price:.2f}"
+    price_formatted = _format_price(display_price, currency, currency_symbol)
 
-    # Buy button
-    if in_stock:
-        buy_text = (
-            f"💳 Купить — {price_formatted}" if lang == "ru" else f"💳 Buy — {price_formatted}"
-        )
-    else:
-        buy_text = (
-            f"💳 Предзаказ — {price_formatted}"
-            if lang == "ru"
-            else f"💳 Pre-order — {price_formatted}"
-        )
-
+    buy_text = _get_buy_button_text(price_formatted, lang, in_stock)
     buttons.append(
         [
             InlineKeyboardButton(
-                text=buy_text, callback_data=f"discount:buy:{product_id[:8]}:0"  # 0 = no insurance
+                text=buy_text, callback_data=f"discount:buy:{product_id[:8]}:0"
             )
         ]
     )
 
-    # Insurance options
     if insurance_options:
         insurance_header = "🛡 Со страховкой:" if lang == "ru" else "🛡 With Insurance:"
         buttons.append([InlineKeyboardButton(text=insurance_header, callback_data="noop")])
@@ -210,11 +224,7 @@ def get_product_card_keyboard(
             ins_price_usd = discount_price * (1 + percent / 100)
             ins_price_display = ins_price_usd * exchange_rate
 
-            ins_text = (
-                f"+{days}д замена — {currency_symbol}{ins_price_display:.0f}"
-                if lang == "ru"
-                else f"+{days}d replacement — {currency_symbol}{ins_price_display:.0f}"
-            )
+            ins_text = _format_insurance_text(days, currency_symbol, ins_price_display, lang)
 
             buttons.append(
                 [
@@ -224,7 +234,6 @@ def get_product_card_keyboard(
                 ]
             )
 
-    # Back button
     back_text = "⬅️ К каталогу" if lang == "ru" else "⬅️ To catalog"
     buttons.append([InlineKeyboardButton(text=back_text, callback_data="discount:catalog")])
 

@@ -80,6 +80,45 @@ async def _send_referral_bonus_notifications(
         logger.warning(f"Failed to send referral bonus notifications: {e}")
 
 
+# Helper to unlock referral program (reduces cognitive complexity)
+async def _unlock_referral_program(
+    db, user_id: str, was_unlocked: bool, is_partner: bool, telegram_id: int | None, notification_service
+):
+    """Unlock referral program for first purchase (reduces cognitive complexity)."""
+    if was_unlocked:
+        return
+
+    await db.client.table("users").update({"referral_program_unlocked": True}).eq(
+        "id", user_id
+    ).execute()
+
+    if not is_partner and telegram_id:
+        await notification_service.send_referral_unlock_notification(telegram_id)
+    elif is_partner:
+        logger.debug("VIP partner %s first purchase - skipping unlock notification", user_id)
+
+
+# Helper to send level up notification (reduces cognitive complexity)
+async def _send_level_up_notification(
+    level_up: bool,
+    new_level: int,
+    telegram_id: int | None,
+    is_partner: bool,
+    partner_level_override: int | None,
+    user_id: str,
+    notification_service,
+):
+    """Send level up notification if applicable (reduces cognitive complexity)."""
+    if not (level_up and new_level > 0 and telegram_id):
+        return
+
+    if is_partner and partner_level_override == 3:
+        logger.debug("Skipping level_up notification for VIP partner %s (already has level 3)", user_id)
+        return
+
+    await notification_service.send_referral_level_up_notification(telegram_id, new_level)
+
+
 @referral_router.post("/calculate-referral")
 async def worker_calculate_referral(request: Request):
     """
@@ -92,7 +131,7 @@ async def worker_calculate_referral(request: Request):
     """
     data = await verify_qstash(request)
     order_id = data.get("order_id")
-    usd_rate = data.get("usd_rate", 100)  # RUB/USD rate, default 100
+    usd_rate = data.get("usd_rate", 100)
 
     if not order_id:
         return {"error": "order_id required"}
@@ -100,7 +139,6 @@ async def worker_calculate_referral(request: Request):
     db = get_database()
     notification_service = get_notification_service()
 
-    # Get order with user info
     order = (
         await db.client.table("orders")
         .select(
@@ -121,8 +159,7 @@ async def worker_calculate_referral(request: Request):
     is_partner = order.data.get("users", {}).get("is_partner", False)
     partner_level_override = order.data.get("users", {}).get("partner_level_override")
 
-    # 1. Update buyer's turnover in USD (recalculates: own delivered orders + referral delivered orders)
-    #    This may trigger level unlocks
+    # Update buyer's turnover
     turnover_result = await db.client.rpc(
         "update_user_turnover",
         {"p_user_id": user_id, "p_amount_rub": amount, "p_usd_rate": usd_rate},
@@ -132,35 +169,23 @@ async def worker_calculate_referral(request: Request):
     level_up = turnover_data.get("level_up", False)
     new_level = turnover_data.get("new_level", 0)
 
-    # 2. Unlock referral program if first purchase
-    # IMPORTANT: Skip for VIP partners - they already have referral program via admin grant
-    if not was_unlocked and not is_partner:
-        await db.client.table("users").update({"referral_program_unlocked": True}).eq(
-            "id", user_id
-        ).execute()
+    # Unlock referral program
+    await _unlock_referral_program(
+        db, user_id, was_unlocked, is_partner, telegram_id, notification_service
+    )
 
-        # Send unlock notification (only for non-VIP users)
-        if telegram_id:
-            await notification_service.send_referral_unlock_notification(telegram_id)
-    elif not was_unlocked and is_partner:
-        # VIP partner making first purchase - just ensure referral_program_unlocked is True
-        # but DON'T send the unlock notification (they already know they're partners)
-        await db.client.table("users").update({"referral_program_unlocked": True}).eq(
-            "id", user_id
-        ).execute()
-        logger.debug(f"VIP partner {user_id} first purchase - skipping unlock notification")
+    # Send level up notification
+    await _send_level_up_notification(
+        level_up,
+        new_level,
+        telegram_id,
+        is_partner,
+        partner_level_override,
+        user_id,
+        notification_service,
+    )
 
-    # 3. Send level up notification if applicable (skip for VIP partners with all levels unlocked)
-    if level_up and new_level > 0 and telegram_id:
-        # Skip notification for VIP partners who already have all levels unlocked (level 3)
-        if is_partner and partner_level_override == 3:
-            logger.debug(
-                f"Skipping level_up notification for VIP partner {user_id} (already has level 3)"
-            )
-        else:
-            await notification_service.send_referral_level_up_notification(telegram_id, new_level)
-
-    # 4. Process referral bonuses for referrer chain (checks level unlock status)
+    # Process referral bonuses
     referrer_id = order.data.get("users", {}).get("referrer_id")
     if not referrer_id:
         return {
@@ -170,7 +195,6 @@ async def worker_calculate_referral(request: Request):
             "bonuses": "no_referrer",
         }
 
-    # Use new function that checks level unlock status
     try:
         bonus_result = await db.client.rpc(
             "process_referral_bonus",

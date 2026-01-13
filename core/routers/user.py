@@ -52,6 +52,38 @@ async def get_referral_info(user=Depends(verify_telegram_auth)):
     }
 
 
+# Helper to calculate user rank (reduces cognitive complexity)
+async def _calculate_user_rank(db, total_saved: int) -> int | None:
+    """Calculate user's leaderboard rank."""
+    if total_saved <= 0:
+        return None
+    rank_result = (
+        await db.client.table("users")
+        .select("id", count="exact")
+        .gt("total_saved", total_saved)
+        .execute()
+    )
+    return (rank_result.count or 0) + 1
+
+
+# Helper to get avatar URL (reduces cognitive complexity)
+def _get_avatar_url(user, display_name: str) -> str:
+    """Get user avatar URL or generate initials avatar."""
+    avatar_url = getattr(user, "photo_url", None)
+    if avatar_url:
+        return avatar_url
+    initials_seed = urllib.parse.quote(display_name)
+    return f"https://api.dicebear.com/7.x/initials/png?seed={initials_seed}&backgroundColor=1f1f2e,4c1d95&fontWeight=700"
+
+
+# Helper to get localized texts (reduces cognitive complexity)
+def _get_localized_texts(language_code: str) -> tuple[str, str]:
+    """Get localized caption and button texts."""
+    if language_code == "ru":
+        return "Экономлю на AI-подписках с PVNDORA", "🎁 Попробовать"
+    return "Saving on AI subscriptions with PVNDORA", "🎁 Try it"
+
+
 @router.post("/webapp/referral/share-link")
 async def create_referral_share_link(user=Depends(verify_telegram_auth)):
     """
@@ -69,7 +101,6 @@ async def create_referral_share_link(user=Depends(verify_telegram_auth)):
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Calculate savings or get from DB
     total_saved = (
         int(float(db_user.total_saved))
         if hasattr(db_user, "total_saved") and db_user.total_saved
@@ -77,28 +108,14 @@ async def create_referral_share_link(user=Depends(verify_telegram_auth)):
     )
     display_name = db_user.first_name or db_user.username or "User"
 
-    # Calculate leaderboard rank
-    user_rank = None
-    if total_saved > 0:
-        rank_result = (
-            await db.client.table("users")
-            .select("id", count="exact")
-            .gt("total_saved", total_saved)
-            .execute()
-        )
-        user_rank = (rank_result.count or 0) + 1
+    user_rank = await _calculate_user_rank(db, total_saved)
 
-    # Referral link
     bot_info = await bot_instance.get_me()
     ref_link = f"https://t.me/{bot_info.username}?start=ref_{user.id}"
 
-    # Dynamic Image URL powered by Vercel OG
     webapp_url = get_webapp_url()
     timestamp = int(datetime.now(UTC).timestamp())
-    avatar_url = getattr(user, "photo_url", None)
-    if not avatar_url:
-        initials_seed = urllib.parse.quote(display_name)
-        avatar_url = f"https://api.dicebear.com/7.x/initials/png?seed={initials_seed}&backgroundColor=1f1f2e,4c1d95&fontWeight=700"
+    avatar_url = _get_avatar_url(user, display_name)
 
     query_params = {
         "name": display_name,
@@ -115,20 +132,12 @@ async def create_referral_share_link(user=Depends(verify_telegram_auth)):
     photo_url = f"{webapp_url}/og/referral?{query_string}"
 
     result_id = f"share_{user.id}_{timestamp}"
+    caption_text, button_text = _get_localized_texts(db_user.language_code or "ru")
 
-    # Лаконичный caption от первого лица
-    if db_user.language_code == "ru":
-        caption_text = "Экономлю на AI-подписках с PVNDORA"
-        button_text = "🎁 Попробовать"
-    else:
-        caption_text = "Saving on AI subscriptions with PVNDORA"
-        button_text = "🎁 Try it"
-
-    # Using InlineQueryResultPhoto for "Major-style" large image
     photo = InlineQueryResultPhoto(
         id=result_id,
         photo_url=photo_url,
-        thumbnail_url=photo_url,  # Use same URL for thumb
+        thumbnail_url=photo_url,
         title="🎁 PVNDORA AI",
         description=caption_text,
         caption=caption_text,

@@ -386,6 +386,57 @@ class PaymentService:
             logger.exception("CrystalPay TOPUP network error")
             raise ValueError(f"Failed to connect to CrystalPay API: {e!s}")
 
+    async def _extract_webhook_data(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Extract and normalize webhook data (reduces cognitive complexity)."""
+        return {
+            "invoice_id": str(data.get("id", "")).strip(),
+            "received_signature": str(data.get("signature", "")).strip().lower(),
+            "state": str(data.get("state", "")).strip().lower(),
+            "order_id": str(data.get("extra", "")).strip(),
+            "amount_str": str(data.get("amount", "0")).strip(),
+            "rub_amount_str": str(data.get("rub_amount", "0")).strip(),
+            "currency": str(data.get("currency", "RUB")).strip().upper(),
+        }
+
+    async def _resolve_order_id(self, order_id: str, invoice_id: str) -> tuple[str | None, str]:
+        """Resolve order_id from extra or lookup (reduces cognitive complexity)."""
+        if order_id:
+            return order_id, ""
+        found_order_id, _ = await self._lookup_order_id(invoice_id)
+        if found_order_id:
+            return found_order_id, ""
+        logger.error("CrystalPay webhook: order_id not found")
+        return None, "order_id not found"
+
+    def _verify_signature(self, invoice_id: str, received_signature: str, salt: str) -> tuple[bool, str]:
+        """Verify webhook signature (reduces cognitive complexity)."""
+        if not received_signature:
+            return True, ""  # No signature to verify
+
+        if not salt:
+            logger.warning("CrystalPay webhook: Signature provided but CRYSTALPAY_SALT not configured!")
+            return True, ""  # Continue without verification
+
+        sign_string = f"{invoice_id}:{salt}"
+        # nosec B324 - SHA1 required by CrystalPay API for signature verification
+        expected_signature = hashlib.sha1(sign_string.encode()).hexdigest().lower()
+
+        if not hmac.compare_digest(received_signature, expected_signature):
+            logger.error("CrystalPay webhook: Signature mismatch for invoice %s", invoice_id)
+            return False, "Invalid signature"
+
+        logger.info("CrystalPay webhook: Signature verified for invoice %s", invoice_id)
+        return True, ""
+
+    def _parse_amounts(self, amount_str: str, rub_amount_str: str) -> tuple[float, float]:
+        """Parse amount strings to floats (reduces cognitive complexity)."""
+        try:
+            amount = to_float(amount_str) if amount_str else 0.0
+            rub_amount = to_float(rub_amount_str) if rub_amount_str else amount
+            return amount, rub_amount
+        except (ValueError, TypeError):
+            return 0.0, 0.0
+
     async def verify_crystalpay_webhook(self, data: dict[str, Any]) -> dict[str, Any]:
         """
         Verify CrystalPay webhook signature and extract order info.
@@ -398,14 +449,14 @@ class PaymentService:
         - amount, rub_amount, currency, etc.
         """
         try:
-            invoice_id = str(data.get("id", "")).strip()
-            received_signature = str(data.get("signature", "")).strip().lower()
-            state = str(data.get("state", "")).strip().lower()
-            order_id = str(data.get("extra", "")).strip()
-
-            amount_str = str(data.get("amount", "0")).strip()
-            rub_amount_str = str(data.get("rub_amount", "0")).strip()
-            currency = str(data.get("currency", "RUB")).strip().upper()
+            webhook_data = await self._extract_webhook_data(data)
+            invoice_id = webhook_data["invoice_id"]
+            received_signature = webhook_data["received_signature"]
+            state = webhook_data["state"]
+            order_id = webhook_data["order_id"]
+            amount_str = webhook_data["amount_str"]
+            rub_amount_str = webhook_data["rub_amount_str"]
+            currency = webhook_data["currency"]
 
             logger.info(
                 "CrystalPay webhook: id=%s, state=%s, order_id=%s, amount=%s %s",
@@ -420,47 +471,20 @@ class PaymentService:
                 logger.error("CrystalPay webhook: invoice id not found")
                 return {"success": False, "error": "invoice id not found"}
 
-            # If order_id not in extra, try to lookup by invoice_id
+            order_id, error = await self._resolve_order_id(order_id, invoice_id)
             if not order_id:
-                found_order_id, _ = await self._lookup_order_id(invoice_id)
-                if found_order_id:
-                    order_id = found_order_id
-                else:
-                    logger.error("CrystalPay webhook: order_id not found")
-                    return {"success": False, "error": "order_id not found"}
+                return {"success": False, "error": error}
 
-            # Verify signature: sha1(id + ':' + salt)
             salt = self.crystalpay_salt or ""
-            if received_signature and salt:
-                sign_string = f"{invoice_id}:{salt}"
-                # nosec B324 - SHA1 required by CrystalPay API for signature verification
-                expected_signature = hashlib.sha1(sign_string.encode()).hexdigest().lower()
+            is_valid, sig_error = self._verify_signature(invoice_id, received_signature, salt)
+            if not is_valid:
+                return {"success": False, "error": sig_error}
 
-                if not hmac.compare_digest(received_signature, expected_signature):
-                    logger.error(
-                        "CrystalPay webhook: Signature mismatch for invoice %s", invoice_id
-                    )
-                    return {"success": False, "error": "Invalid signature"}
-
-                logger.info("CrystalPay webhook: Signature verified for invoice %s", invoice_id)
-            elif received_signature and not salt:
-                logger.warning(
-                    "CrystalPay webhook: Signature provided but CRYSTALPAY_SALT not configured!"
-                )
-
-            # Check payment state
             if state != "payed":
-                logger.warning(
-                    "CrystalPay webhook: Payment state '%s' for order %s", state, order_id
-                )
+                logger.warning("CrystalPay webhook: Payment state '%s' for order %s", state, order_id)
                 return {"success": False, "error": f"Payment not successful. State: {state}"}
 
-            try:
-                amount = to_float(amount_str) if amount_str else 0.0
-                rub_amount = to_float(rub_amount_str) if rub_amount_str else amount
-            except (ValueError, TypeError):
-                amount = 0.0
-                rub_amount = 0.0
+            amount, rub_amount = self._parse_amounts(amount_str, rub_amount_str)
 
             logger.info(
                 "CrystalPay webhook verified: order=%s, amount=%s %s", order_id, amount, currency
