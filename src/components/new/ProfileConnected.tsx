@@ -312,61 +312,63 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
     onHaptic,
   ]);
 
+  // Helper to apply optimistic updates (reduces cognitive complexity)
+  const applyOptimisticUpdates = (preferred_currency?: string, interface_language?: string) => {
+    if (preferred_currency) {
+      logger.info("Setting currency optimistically to", preferred_currency);
+      setCurrency(preferred_currency as "USD" | "RUB" | "EUR" | "UAH" | "TRY" | "INR" | "AED");
+      clearCartState();
+    }
+    if (interface_language) {
+      const normalizedLang: "en" | "ru" = interface_language === "ru" ? "ru" : "en";
+      setLocale(normalizedLang);
+    }
+  };
+
+  // Helper to reload profile after currency change (reduces cognitive complexity)
+  const reloadProfileForCurrency = async (preferred_currency: string) => {
+    logger.info("Reloading profile to get exchange_rate for new currency");
+    const updatedProfile = await getProfile();
+    if (updatedProfile) {
+      logger.info("Updating context from profile with new currency", preferred_currency);
+      updateFromProfile(updatedProfile);
+      setCurrency(preferred_currency as "USD" | "RUB" | "EUR" | "UAH" | "TRY" | "INR" | "AED");
+    }
+  };
+
+  // Helper to rollback on error (reduces cognitive complexity)
+  const rollbackPreferences = (preferred_currency?: string, interface_language?: string) => {
+    if (!profile) return;
+    if (preferred_currency) {
+      logger.info("Rolling back currency to", profile.currency);
+      setCurrency(profile.currency as "USD" | "RUB" | "EUR" | "UAH" | "TRY" | "INR" | "AED");
+    }
+    if (interface_language) {
+      const originalLang: "en" | "ru" = profile.language === "ru" ? "ru" : "en";
+      setLocale(originalLang);
+    }
+  };
+
   // CRITICAL: All hooks must be called BEFORE any conditional returns
   const handleUpdatePreferences = useCallback(
     async (preferred_currency?: string, interface_language?: string) => {
       logger.info("handleUpdatePreferences called", { preferred_currency, interface_language });
 
-      // Optimistic update: change context IMMEDIATELY (UI updates right away)
-      if (preferred_currency) {
-        logger.info("Setting currency optimistically to", preferred_currency);
-        setCurrency(preferred_currency as "USD" | "RUB" | "EUR" | "UAH" | "TRY" | "INR" | "AED");
-        // Clear cart cache when currency changes - cart will be re-fetched with new currency
-        clearCartState();
-      }
-      if (interface_language) {
-        // Only RU/EN supported - normalize to these
-        const normalizedLang: "en" | "ru" = interface_language === "ru" ? "ru" : "en";
-        setLocale(normalizedLang);
-      }
+      applyOptimisticUpdates(preferred_currency, interface_language);
 
       try {
-        // Update preferences via API (in background)
         logger.info("Calling updatePreferences API");
         const result = await updatePreferences(preferred_currency, interface_language);
         logger.info("updatePreferences API result", result);
 
-        // Always reload profile when currency changes to get correct exchange_rate for new currency
         if (preferred_currency) {
-          logger.info("Reloading profile to get exchange_rate for new currency");
-          const updatedProfile = await getProfile(); // Reload to get exchange_rate for new currency
-          // Синхронизируем контекст с обновленным профилем
-          if (updatedProfile) {
-            logger.info("Updating context from profile with new currency", preferred_currency);
-            // Update context from profile (this will sync exchange rate and other data)
-            updateFromProfile(updatedProfile);
-            // Explicitly set currency again to ensure it matches user's selection
-            setCurrency(
-              preferred_currency as "USD" | "RUB" | "EUR" | "UAH" | "TRY" | "INR" | "AED"
-            );
-          }
+          await reloadProfileForCurrency(preferred_currency);
         }
 
         return result;
       } catch (error) {
         logger.error("Error updating preferences", error);
-        // Rollback on error: restore previous currency/language from profile
-        if (profile) {
-          if (preferred_currency) {
-            logger.info("Rolling back currency to", profile.currency);
-            setCurrency(profile.currency as "USD" | "RUB" | "EUR" | "UAH" | "TRY" | "INR" | "AED");
-          }
-          if (interface_language) {
-            // Only RU/EN supported
-            const originalLang: "en" | "ru" = profile.language === "ru" ? "ru" : "en";
-            setLocale(originalLang);
-          }
-        }
+        rollbackPreferences(preferred_currency, interface_language);
         throw error;
       }
     },
@@ -378,6 +380,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
       getProfile,
       profile,
       clearCartState,
+      updateFromProfile,
     ]
   );
 
