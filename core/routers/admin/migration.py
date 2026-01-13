@@ -85,7 +85,7 @@ async def get_migration_stats(
     )
     # Get unique users
     discount_users_data = discount_users_result.data or []
-    discount_user_ids = set(u["user_telegram_id"] for u in discount_users_data)
+    discount_user_ids = {u["user_telegram_id"] for u in discount_users_data}
     total_discount_users = len(discount_user_ids)
 
     # 2. Count PVNDORA users
@@ -96,7 +96,7 @@ async def get_migration_stats(
         .execute()
     )
     pvndora_users_data = pvndora_users_result.data or []
-    pvndora_user_ids = set(u["user_telegram_id"] for u in pvndora_users_data)
+    pvndora_user_ids = {u["user_telegram_id"] for u in pvndora_users_data}
     total_pvndora_users = len(pvndora_user_ids)
 
     # 3. Count migrated users (intersection)
@@ -236,7 +236,7 @@ async def get_top_migrating_products(
         .eq("source_channel", "discount")
         .execute()
     )
-    discount_user_ids = set(o["user_telegram_id"] for o in (discount_orders_result.data or []))
+    discount_user_ids = {o["user_telegram_id"] for o in (discount_orders_result.data or [])}
 
     if not discount_user_ids:
         return []

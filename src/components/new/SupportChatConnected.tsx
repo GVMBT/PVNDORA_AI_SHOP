@@ -29,18 +29,20 @@ const getMessageClasses = (sender: string): string => {
   return "bg-white/5 border border-white/10 text-gray-300";
 };
 
+type SupportChatInitialContext = {
+  orderId?: string;
+  itemId?: string; // Specific order item ID for replacements
+  orderTotal?: number;
+  productNames?: string[];
+  reason?: string;
+} | null;
+
 interface SupportChatConnectedProps {
   isOpen: boolean;
   onToggle: (isOpen: boolean) => void;
   onHaptic?: () => void;
   raiseOnMobile?: boolean;
-  initialContext?: {
-    orderId?: string;
-    itemId?: string; // Specific order item ID for replacements
-    orderTotal?: number;
-    productNames?: string[];
-    reason?: string;
-  } | null;
+  initialContext?: SupportChatInitialContext;
 }
 
 interface DisplayMessage {

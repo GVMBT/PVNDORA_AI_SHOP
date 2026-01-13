@@ -242,7 +242,7 @@ async def _create_order_with_currency_snapshot(
             f"Order created: {to_float(total_amount)} USD | {to_float(fiat_amount)} {fiat_currency} (Rate: {exchange_rate_snapshot})"
         )
     except Exception as e:
-        logger.warning(f"Failed to snapshot rate or recalculate USD amount: {e}")
+        logger.warning("Failed to snapshot rate or recalculate USD amount: %s", type(e).__name__)
         exchange_rate_snapshot = 1.0
 
     # Calculate discount percent
@@ -278,7 +278,9 @@ async def _create_order_with_currency_snapshot(
     except Exception:
         from core.logging import sanitize_id_for_logging
 
-        logger.exception("Failed to create order_items for order %s", sanitize_id_for_logging(order.id))
+        logger.exception(
+            "Failed to create order_items for order %s", sanitize_id_for_logging(order.id)
+        )
         await db.client.table("orders").delete().eq("id", order.id).execute()
         raise ValueError("Failed to create order items. Please try again.")
 
@@ -444,7 +446,9 @@ async def _finalize_balance_payment(
         )
         from core.logging import sanitize_id_for_logging
 
-        logger.info("Delivery queued for balance payment order %s", sanitize_id_for_logging(order_id))
+        logger.info(
+            "Delivery queued for balance payment order %s", sanitize_id_for_logging(order_id)
+        )
     except Exception as e:
         from core.logging import sanitize_id_for_logging
 
@@ -578,7 +582,7 @@ async def checkout_cart(payment_method: str = "card") -> dict:
                             return discount
                 return 0
             except Exception as e:
-                logger.warning(f"Failed to get partner discount: {e}")
+                logger.warning("Failed to get partner discount: %s", type(e).__name__)
                 return 0
 
         partner_discount = await get_partner_discount()
@@ -679,7 +683,7 @@ async def checkout_cart(payment_method: str = "card") -> dict:
         )
 
     except Exception as e:
-        logger.error("checkout_cart error: %s", e, exc_info=True)
+        logger.error("checkout_cart error: %s", type(e).__name__, exc_info=True)
         return {"success": False, "error": str(e)}
 
 
@@ -781,7 +785,9 @@ async def pay_cart_from_balance() -> dict:
             )
             cart_total = float(cart.total)
         except Exception as e:
-            logger.warning("Currency conversion failed in pay_cart_from_balance: %s", type(e).__name__)
+            logger.warning(
+                "Currency conversion failed in pay_cart_from_balance: %s", type(e).__name__
+            )
             balance = balance_in_balance_currency
             cart_total = float(cart.total)
             currency_service = None
@@ -814,5 +820,5 @@ async def pay_cart_from_balance() -> dict:
         }
 
     except Exception as e:
-        logger.error(f"pay_cart_from_balance error: {e}", exc_info=True)
+        logger.error("pay_cart_from_balance error: %s", type(e).__name__, exc_info=True)
         return {"success": False, "error": str(e)}

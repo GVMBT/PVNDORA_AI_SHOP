@@ -77,7 +77,7 @@ async def _fetch_social_proof_single(db: Database, product_id: str) -> dict[str,
         )
         return cast(dict[str, Any], result.data) if result.data else {}
     except Exception as e:
-        logger.warning(f"Failed to get social proof: {e}")
+        logger.warning("Failed to get social proof: %s", type(e).__name__)
         return {}
 
 

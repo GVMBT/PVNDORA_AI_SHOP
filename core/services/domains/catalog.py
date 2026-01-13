@@ -103,7 +103,7 @@ class CatalogService:
                     if not self._rag_search.is_available:
                         self._rag_search = False  # Mark as unavailable
             except (ImportError, Exception) as e:
-                logger.warning(f"RAG search unavailable: {e}")
+                logger.warning("RAG search unavailable: %s", type(e).__name__)
                 self._rag_search = False
         return self._rag_search if self._rag_search else None
 
@@ -221,7 +221,7 @@ class CatalogService:
                         )
                     )
         except Exception as e:
-            logger.warning("RAG search failed: %s", e)
+            logger.warning("RAG search failed: %s", type(e).__name__)
 
         return results
 

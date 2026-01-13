@@ -25,12 +25,7 @@ interface OrdersProps {
   ) => Promise<void>;
 }
 
-const Orders = ({
-  orders: propOrders,
-  onBack,
-  onOpenSupport,
-  onSubmitReview,
-}) => {
+const Orders = ({ orders: propOrders, onBack, onOpenSupport, onSubmitReview }) => {
   const { t } = useLocale();
   // Use provided orders - NO MOCK fallback
   const ordersData = propOrders || [];

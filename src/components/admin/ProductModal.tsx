@@ -365,7 +365,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                   {/* URL */}
                   <div className="flex-1 space-y-3">
                     <div>
-                      <label htmlFor="product-image-url" className="text-[10px] text-gray-500 block mb-1 uppercase">
+                      <label
+                        htmlFor="product-image-url"
+                        className="text-[10px] text-gray-500 block mb-1 uppercase"
+                      >
                         URL изображения
                       </label>
                       <input
@@ -380,7 +383,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                       />
                     </div>
                     <div>
-                      <label htmlFor="product-video-url" className="text-[10px] text-gray-500 mb-1 uppercase flex items-center gap-1">
+                      <label
+                        htmlFor="product-video-url"
+                        className="text-[10px] text-gray-500 mb-1 uppercase flex items-center gap-1"
+                      >
                         <Video size={10} /> URL видео (опционально)
                       </label>
                       <input
@@ -460,7 +466,12 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
               {/* Статус */}
               <div>
-                <label htmlFor="product-status" className="text-[10px] text-gray-500 block mb-1 uppercase">Статус</label>
+                <label
+                  htmlFor="product-status"
+                  className="text-[10px] text-gray-500 block mb-1 uppercase"
+                >
+                  Статус
+                </label>
                 <select
                   id="product-status"
                   value={editingProduct?.status || "active"}

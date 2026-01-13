@@ -71,7 +71,7 @@ def _get_avatar_url(user, display_name: str) -> str:
     """Get user avatar URL or generate initials avatar."""
     avatar_url = getattr(user, "photo_url", None)
     if avatar_url:
-        return avatar_url
+        return str(avatar_url)
     initials_seed = urllib.parse.quote(display_name)
     return f"https://api.dicebear.com/7.x/initials/png?seed={initials_seed}&backgroundColor=1f1f2e,4c1d95&fontWeight=700"
 

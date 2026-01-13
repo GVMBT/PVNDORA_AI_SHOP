@@ -1301,7 +1301,7 @@ async def _process_user_balances(db, liabilities_by_currency: dict):
             liabilities_by_currency[currency]["user_balances"] += balance
             liabilities_by_currency[currency]["users_count"] += 1
     except Exception as e:
-        logger.warning("Failed to get user balances: %s", e)
+        logger.warning("Failed to get user balances: %s", type(e).__name__)
 
 
 # Helper to process pending withdrawals (reduces cognitive complexity)
@@ -1325,7 +1325,7 @@ async def _process_pending_withdrawals(db, liabilities_by_currency: dict):
             liabilities_by_currency[currency]["pending_withdrawals"] += amount
             liabilities_by_currency[currency]["withdrawals_count"] += 1
     except Exception as e:
-        logger.warning("Failed to get pending withdrawals: %s", e)
+        logger.warning("Failed to get pending withdrawals: %s", type(e).__name__)
 
 
 # Helper to round currency values (reduces cognitive complexity)

@@ -247,4 +247,5 @@ class OrderNotificationsMixin(NotificationServiceBase):
                 f"Sent payment confirmed notification to {telegram_id} for order {order_id}"
             )
         except Exception:
-            logger.exception("Failed to send payment confirmed notification to %s", telegram_id)
+            # Don't log telegram_id (user-controlled data) - just log error
+            logger.exception("Failed to send payment confirmed notification")

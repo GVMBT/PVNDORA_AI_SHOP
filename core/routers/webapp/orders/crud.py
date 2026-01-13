@@ -83,7 +83,7 @@ async def _load_reviews_for_orders(db, order_ids: list[str]) -> dict[str, set]:
             if product_id:
                 reviews_by_order[order_id].add(product_id)
     except Exception as e:
-        logger.warning(f"Failed to load reviews for orders: {e}")
+        logger.warning("Failed to load reviews for orders: %s", type(e).__name__)
 
     return reviews_by_order
 
@@ -376,7 +376,9 @@ async def get_webapp_orders(
     user_currency = _get_user_currency(db_user, user, currency_service)
 
     if not result.data:
-        logger.info(f"No orders found for user {db_user.id} (telegram_id={user.id})")
+        from core.logging import sanitize_id_for_logging
+
+        logger.info("No orders found for user %s", sanitize_id_for_logging(str(db_user.id)))
         return OrdersListResponse(orders=[], count=0, currency=user_currency)
 
     orders = []
@@ -390,7 +392,11 @@ async def get_webapp_orders(
             items_data = row.get("order_items", [])
 
             if not items_data:
-                logger.warning(f"Order {row.get('id')} has no order_items")
+                from core.logging import sanitize_id_for_logging
+
+                logger.warning(
+                    "Order %s has no order_items", sanitize_id_for_logging(str(row.get("id")))
+                )
                 continue
 
             # Get first product for main display
@@ -417,10 +423,21 @@ async def get_webapp_orders(
 
             orders.append(order_dict)
         except Exception as e:
-            logger.error(f"Failed to process order {row.get('id')}: {e}", exc_info=True)
+                from core.logging import sanitize_id_for_logging
+
+                logger.error(
+                    "Failed to process order %s: %s",
+                    sanitize_id_for_logging(str(row.get("id"))),
+                    type(e).__name__,
+                    exc_info=True,
+                )
             continue
 
-    logger.info(f"Returning {len(orders)} orders for user {db_user.id}")
+    from core.logging import sanitize_id_for_logging
+
+    logger.info(
+        "Returning %d orders for user %s", len(orders), sanitize_id_for_logging(str(db_user.id))
+    )
 
     return OrdersListResponse(orders=orders, count=len(orders), currency=user_currency)
 

@@ -4,7 +4,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 
 import os
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from aiogram import F, Router
 from aiogram.enums import ParseMode
@@ -35,7 +35,7 @@ CRYSTALPAY_API_URL = os.environ.get("CRYSTALPAY_API_URL", "https://api.crystalpa
 
 async def create_crystalpay_payment(
     amount_usd: float, currency: str, order_id: str, description: str
-) -> dict | None:
+) -> dict[str, Any] | None:
     """Create CrystalPay payment and return payment URL.
 
     Uses CrystalPay API v3.
@@ -67,7 +67,7 @@ async def create_crystalpay_payment(
                     f"CrystalPay: converted ${amount_usd} USD to {payment_amount:.2f} {currency} (rate: {exchange_rate})"
                 )
             except Exception as e:
-                logger.warning(f"Currency conversion failed: {e}, using USD amount")
+                logger.warning("Currency conversion failed: %s, using USD amount", type(e).__name__)
                 currency = "USD"
                 payment_amount = amount_usd
 
@@ -106,13 +106,19 @@ async def create_crystalpay_payment(
             )
 
             if response.status_code == 200:
-                data = response.json()
+                data = cast(dict[str, Any], response.json())
                 if data.get("error", False) is False:
                     invoice_id = data.get("id")
                     payment_url = data.get("url")
-                    logger.info(f"CrystalPay invoice created: {invoice_id} for order {order_id}")
+                    from core.logging import sanitize_id_for_logging
+
+                    logger.info(
+                        "CrystalPay invoice created: %s for order %s",
+                        sanitize_id_for_logging(invoice_id),
+                        sanitize_id_for_logging(order_id),
+                    )
                     return {"url": payment_url, "invoice_id": invoice_id}
-                logger.error(f"CrystalPay API error: {data}")
+                logger.error("CrystalPay API error: %s", type(data).__name__)
 
         return None
     except Exception:
@@ -139,7 +145,7 @@ async def get_product_by_short_id(db, short_id: str) -> dict | None:
         for p in products:
             product_uuid_str = str(p["id"]).lower().replace("-", "")
             if product_uuid_str.startswith(short_id_lower):
-                return p
+                return cast(dict[str, Any], p)
 
         return None
     except Exception:
@@ -163,10 +169,10 @@ def _determine_user_currency(db_user) -> str:
 
         supported_currencies = ["USD", "RUB", "EUR", "UAH", "TRY", "INR", "AED"]
         if user_currency not in supported_currencies:
-            logger.warning(f"Currency {user_currency} not supported by CrystalPay, using USD")
+            logger.warning("Currency %s not supported by CrystalPay, using USD", user_currency)
             user_currency = "USD"
     except Exception as e:
-        logger.warning(f"Failed to determine user currency: {e}, using USD")
+        logger.warning("Failed to determine user currency: %s, using USD", type(e).__name__)
     return user_currency
 
 
@@ -192,7 +198,7 @@ async def _get_display_prices(
             CURRENCY_SYMBOLS.get(user_currency, user_currency),
         )
     except Exception as e:
-        logger.warning(f"Failed to convert price for display: {e}")
+        logger.warning("Failed to convert price for display: %s", type(e).__name__)
         return total_price, discount_price, insurance_price, "$"
 
 
@@ -239,7 +245,7 @@ async def _create_discount_order(
         .execute()
     )
 
-    order_id = order_result.data[0]["id"]
+    order_id = str(order_result.data[0]["id"])
 
     await (
         db.client.table("order_items")
@@ -319,11 +325,11 @@ async def get_insurance_option(db, short_id: str) -> dict | None:
         for option in result.data:
             option_uuid = str(option["id"]).lower().replace("-", "")
             if option_uuid.startswith(short_id_lower):
-                return option
+                return cast(dict[str, Any], option)
 
         return None
     except Exception as e:
-        logger.warning(f"Failed to get insurance option: {e}")
+        logger.warning("Failed to get insurance option: %s", type(e).__name__)
         return None
 
 
@@ -567,7 +573,7 @@ async def _find_order_by_short_id(
     for o in orders_result.data or []:
         order_uuid = str(o["id"]).lower().replace("-", "")
         if order_uuid.startswith(short_id_lower):
-            return o
+            return cast(dict[str, Any], o)
     return None
 
 

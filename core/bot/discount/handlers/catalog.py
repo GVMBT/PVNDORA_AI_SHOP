@@ -1,5 +1,7 @@
 """Discount bot catalog handlers."""
 
+from typing import Any, cast
+
 from aiogram import F, Router
 from aiogram.enums import ParseMode
 from aiogram.types import CallbackQuery, Message
@@ -46,7 +48,7 @@ async def get_user_currency_info(db_user: User) -> tuple[str, float]:
         if currency != "USD":
             exchange_rate = await currency_service.get_exchange_rate(currency)
     except Exception as e:
-        logger.warning(f"Failed to get user currency: {e}")
+        logger.warning("Failed to get user currency: %s", type(e).__name__)
 
     return currency, exchange_rate
 
@@ -132,7 +134,7 @@ async def get_product_by_id(db, product_id: str) -> dict | None:
             if str(p["id"]).startswith(product_id.lower()) or str(p["id"]).startswith(
                 product_id.upper()
             ):
-                product = p
+                product = cast(dict[str, Any], p)
                 break
 
         return product

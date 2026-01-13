@@ -139,7 +139,8 @@ class UserRepository(BaseRepository):
             )
 
         if update_data:
-            logger.info("Updating preferences for user %s: %s", telegram_id, update_data)
+            # Don't log telegram_id (user-controlled data) - just log success
+            logger.info("Updating user preferences: %s", update_data)
             try:
                 await (
                     self.client.table("users")

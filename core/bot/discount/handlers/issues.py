@@ -2,6 +2,8 @@
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
+from typing import Any, cast
+
 from aiogram import F, Router
 from aiogram.enums import ParseMode
 from aiogram.types import CallbackQuery
@@ -55,7 +57,7 @@ def _get_replacement_pending_message(rep_id: str | None, is_ru: bool) -> str:
     )
 
 
-async def get_order_item_with_insurance(db, order_short_id: str) -> dict | None:
+async def get_order_item_with_insurance(db, order_short_id: str) -> dict[str, Any] | None:
     """Get order item with insurance info."""
     try:
         # Get order
@@ -84,7 +86,7 @@ async def get_order_item_with_insurance(db, order_short_id: str) -> dict | None:
         if not items_result.data:
             return None
 
-        item = items_result.data[0]
+        item = cast(dict[str, Any], items_result.data[0])
         item["order_id"] = order["id"]
         item["user_id"] = order["user_id"]
 

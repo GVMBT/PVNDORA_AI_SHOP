@@ -7,6 +7,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -109,7 +110,7 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to check partner status: {e}", exc_info=True)
+        logger.error("Failed to check partner status: %s", type(e).__name__, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to verify partner status")
 
     # Get partner analytics from view
@@ -122,7 +123,7 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
         )
         analytics = analytics_result.data[0] if analytics_result.data else {}
     except Exception as e:
-        logger.warning(f"Failed to query partner_analytics: {e}")
+        logger.warning("Failed to query partner_analytics: %s", type(e).__name__)
         analytics = {}
 
     referrals = await _get_referrals_with_purchases(db, db_user.id)
@@ -141,17 +142,20 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
         )
 
         # Group by day
-        daily_earnings = defaultdict(float)
+        daily_earnings: defaultdict[str, float] = defaultdict(float)
         for bonus in earnings_result.data or []:
-            day = bonus.get("created_at", "")[:10]  # YYYY-MM-DD
-            daily_earnings[day] += to_float(bonus.get("amount", 0))
+            bonus_dict = cast(dict[str, Any], bonus)
+            created_at = bonus_dict.get("created_at", "")
+            day = str(created_at)[:10] if created_at else ""  # YYYY-MM-DD
+            amount = bonus_dict.get("amount", 0)
+            daily_earnings[day] += to_float(str(amount))
 
         earnings_history = [
             {"date": day, "amount": amount}
             for day, amount in sorted(daily_earnings.items(), reverse=True)
         ]
     except Exception as e:
-        logger.warning(f"Failed to query earnings history: {e}")
+        logger.warning("Failed to query earnings history: %s", type(e).__name__)
         earnings_history = []
 
     # Get top purchased products by referrals
@@ -161,7 +165,7 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
         ).execute()
         top_products = top_products_result.data or []
     except Exception as e:
-        logger.warning(f"get_partner_top_products RPC not available: {e}")
+        logger.warning("get_partner_top_products RPC not available: %s", type(e).__name__)
         top_products = []
 
     # Calculate summary
@@ -233,7 +237,7 @@ async def set_partner_mode(request: PartnerModeRequest, user=Depends(verify_tele
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to check partner status: {e}", exc_info=True)
+        logger.error("Failed to check partner status: %s", type(e).__name__, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to verify partner status")
 
     # Validate mode
@@ -270,7 +274,7 @@ async def set_partner_mode(request: PartnerModeRequest, user=Depends(verify_tele
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to update partner mode: {e}", exc_info=True)
+        logger.error("Failed to update partner mode: %s", type(e).__name__, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to update partner mode")
 
 
@@ -303,14 +307,15 @@ async def submit_partner_application(
 
         is_partner = False
         if extended_stats_result.data and len(extended_stats_result.data) > 0:
-            is_partner = extended_stats_result.data[0].get("is_partner", False) or False
+            partner_data = cast(dict[str, Any], extended_stats_result.data[0])
+            is_partner = bool(partner_data.get("is_partner", False))
 
         if is_partner:
             raise HTTPException(status_code=400, detail="You are already a partner")
     except HTTPException:
         raise
     except Exception as e:
-        logger.warning(f"Failed to check partner status: {e}")
+        logger.warning("Failed to check partner status: %s", type(e).__name__)
 
     # Check for existing pending application
     existing = (
@@ -348,7 +353,8 @@ async def submit_partner_application(
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create application")
 
-    application_id = result.data[0]["id"]
+    application_data = cast(dict[str, Any], result.data[0])
+    application_id = str(application_data["id"])
 
     # Send admin alert (best-effort)
     try:
@@ -362,7 +368,7 @@ async def submit_partner_application(
             audience_size=request.audience_size,
         )
     except Exception as e:
-        logger.warning(f"Failed to send admin alert for partner application: {e}")
+        logger.warning("Failed to send admin alert for partner application: %s", type(e).__name__)
 
     return {
         "success": True,
@@ -396,7 +402,7 @@ async def get_partner_application_status(user=Depends(verify_telegram_auth)):
         if is_partner:
             return {"is_partner": True, "application": None, "message": "You are already a partner"}
     except Exception as e:
-        logger.warning(f"Failed to check partner status: {e}")
+        logger.warning("Failed to check partner status: %s", type(e).__name__)
 
     # Get latest application
     result = (

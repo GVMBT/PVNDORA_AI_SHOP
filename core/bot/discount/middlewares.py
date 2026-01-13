@@ -73,7 +73,7 @@ class DiscountAuthMiddleware(BaseMiddleware):
                     await db.update_user_language(user.id, new_lang)
                     db_user.language_code = new_lang
                 except Exception as e:
-                    logger.warning(f"Failed to update user language: {e}")
+                    logger.warning("Failed to update user language: %s", type(e).__name__)
 
         # Check if banned
         if db_user.is_banned:
@@ -164,7 +164,7 @@ class ChannelSubscriptionMiddleware(BaseMiddleware):
                 return None
 
         except Exception as e:
-            logger.warning("Failed to check channel subscription: %s", e)
+            logger.warning("Failed to check channel subscription: %s", type(e).__name__)
 
         return await handler(event, data)
 
@@ -180,14 +180,17 @@ class TermsAcceptanceMiddleware(BaseMiddleware):
 
     def _is_exempt(self, event: TelegramObject) -> bool:
         """Check if event is exempt from terms check (reduces cognitive complexity)."""
-        return (
-            isinstance(event, Message)
-            and event.text
-            and any(event.text.startswith(cmd) for cmd in self.EXEMPT_COMMANDS)
-        ) or (
-            isinstance(event, CallbackQuery)
-            and event.data
-            and any(cb in event.data for cb in self.EXEMPT_CALLBACKS)
+        return bool(
+            (
+                isinstance(event, Message)
+                and event.text
+                and any(event.text.startswith(cmd) for cmd in self.EXEMPT_COMMANDS)
+            )
+            or (
+                isinstance(event, CallbackQuery)
+                and event.data
+                and any(cb in event.data for cb in self.EXEMPT_CALLBACKS)
+            )
         )
 
     def _get_terms_text(self, lang: str) -> str:

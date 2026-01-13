@@ -263,7 +263,11 @@ async def approve_withdrawal(
                 .execute()
             )
         except Exception:
-            logger.exception(f"Failed to deduct balance for withdrawal {withdrawal_id}")
+            from core.logging import sanitize_id_for_logging
+
+            logger.exception(
+                "Failed to deduct balance for withdrawal %s", sanitize_id_for_logging(withdrawal_id)
+            )
             # Rollback withdrawal status
             await (
                 db.client.table("withdrawal_requests")
@@ -306,7 +310,9 @@ async def approve_withdrawal(
                     method=f"TRC20 ({wallet_address[:8]}...)",
                 )
             except Exception as e:
-                logger.warning(f"Failed to send withdrawal approved notification: {e}")
+                logger.warning(
+                    "Failed to send withdrawal approved notification: %s", type(e).__name__
+                )
 
         return {
             "success": True,
@@ -400,7 +406,13 @@ async def reject_withdrawal(
             .execute()
         )
 
-        logger.info(f"Admin {admin_id} rejected withdrawal {withdrawal_id}")
+        from core.logging import sanitize_id_for_logging
+
+        logger.info(
+            "Admin %s rejected withdrawal %s",
+            sanitize_id_for_logging(admin_id),
+            sanitize_id_for_logging(withdrawal_id),
+        )
 
         # Send user notification (best-effort)
         if user_telegram_id:
@@ -413,7 +425,9 @@ async def reject_withdrawal(
                     reason=request.admin_comment or "Заявка отклонена администратором",
                 )
             except Exception as e:
-                logger.warning(f"Failed to send withdrawal rejected notification: {e}")
+                logger.warning(
+                    "Failed to send withdrawal rejected notification: %s", type(e).__name__
+                )
 
         return {
             "success": True,
@@ -510,7 +524,9 @@ async def complete_withdrawal(
                     method=payment_method,
                 )
             except Exception as e:
-                logger.warning(f"Failed to send withdrawal completed notification: {e}")
+                logger.warning(
+                    "Failed to send withdrawal completed notification: %s", type(e).__name__
+                )
 
         return {
             "success": True,
