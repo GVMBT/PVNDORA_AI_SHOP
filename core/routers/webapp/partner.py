@@ -28,6 +28,51 @@ class PartnerModeRequest(BaseModel):
 
 router = APIRouter(tags=["webapp-partner"])
 
+# =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
+
+
+async def _get_referrals_with_purchases(db, referrer_id: str) -> list[dict]:
+    """Get direct referrals with their purchase data (reduces cognitive complexity)."""
+    try:
+        referrals_result = (
+            await db.client.from_("users")
+            .select("id, telegram_id, username, first_name, created_at")
+            .eq("referrer_id", referrer_id)
+            .order("created_at", desc=True)
+            .limit(50)
+            .execute()
+        )
+
+        referrals = []
+        for ref in referrals_result.data or []:
+            orders_result = (
+                await db.client.table("orders")
+                .select("amount, status, created_at")
+                .eq("user_id", ref["id"])
+                .eq("status", "delivered")
+                .execute()
+            )
+            orders = orders_result.data or []
+            total_spent = sum(to_float(o.get("amount", 0)) for o in orders)
+
+            referrals.append(
+                {
+                    "telegram_id": ref.get("telegram_id"),
+                    "username": ref.get("username"),
+                    "first_name": ref.get("first_name"),
+                    "joined_at": ref.get("created_at"),
+                    "orders_count": len(orders),
+                    "total_spent": total_spent,
+                    "is_paying": len(orders) > 0,
+                }
+            )
+        return referrals
+    except Exception as e:
+        logger.warning("Failed to query referrals: %s", e)
+        return []
+
 
 @router.get("/partner/dashboard")
 async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
@@ -80,44 +125,7 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
         logger.warning(f"Failed to query partner_analytics: {e}")
         analytics = {}
 
-    # Get direct referrals with their purchase info
-    try:
-        referrals_result = (
-            await db.client.from_("users")
-            .select("id, telegram_id, username, first_name, created_at")
-            .eq("referrer_id", db_user.id)
-            .order("created_at", desc=True)
-            .limit(50)
-            .execute()
-        )
-
-        # Enrich with purchase data
-        referrals = []
-        for ref in referrals_result.data or []:
-            orders_result = (
-                await db.client.table("orders")
-                .select("amount, status, created_at")
-                .eq("user_id", ref["id"])
-                .eq("status", "delivered")
-                .execute()
-            )
-            orders = orders_result.data or []
-            total_spent = sum(to_float(o.get("amount", 0)) for o in orders)
-
-            referrals.append(
-                {
-                    "telegram_id": ref.get("telegram_id"),
-                    "username": ref.get("username"),
-                    "first_name": ref.get("first_name"),
-                    "joined_at": ref.get("created_at"),
-                    "orders_count": len(orders),
-                    "total_spent": total_spent,
-                    "is_paying": len(orders) > 0,
-                }
-            )
-    except Exception as e:
-        logger.warning(f"Failed to query referrals: {e}")
-        referrals = []
+    referrals = await _get_referrals_with_purchases(db, db_user.id)
 
     # Get earnings history (last 7 days)
     try:

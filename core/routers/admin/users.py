@@ -370,69 +370,37 @@ async def admin_toggle_vip(user_id: str, request: ToggleVIPRequest, admin=Depend
         if partner_level_override is not None and partner_level_override not in [1, 2, 3]:
             raise HTTPException(status_code=400, detail="partner_level_override must be 1, 2, or 3")
 
-        update_data = {
-            "is_partner": is_partner,
-        }
-
-        # Initialize final_level_override
-        final_level_override = None
+        update_data = {"is_partner": is_partner}
 
         from datetime import UTC, datetime
 
         now = datetime.now(UTC)
 
         if is_partner:
-            # VIP always gets level 3 (full access) - override if not provided
-            final_level_override = partner_level_override if partner_level_override else 3
-            update_data["partner_level_override"] = final_level_override
-            # Also unlock referral program if not already
-            update_data["referral_program_unlocked"] = True
-            update_data["referral_unlocked_at"] = now.isoformat()
-            # Set referral_level to match partner_level_override
-            update_data["referral_level"] = final_level_override
-            # Set all level unlock timestamps based on the granted level
-            update_data["level1_unlocked_at"] = now.isoformat()
-            if final_level_override >= 2:
-                update_data["level2_unlocked_at"] = now.isoformat()
-            if final_level_override >= 3:
-                update_data["level3_unlocked_at"] = now.isoformat()
+            final_level_override = _prepare_partner_grant_data(
+                update_data, partner_level_override, now
+            )
         else:
-            # If revoking VIP, clear level override but keep earned levels
-            update_data["partner_level_override"] = None
-            # Note: We don't reset referral_level or unlocked_at timestamps
-            # because the user may have earned these naturally via turnover
+            _prepare_partner_revoke_data(update_data)
+            final_level_override = None
 
         result = await db.client.table("users").update(update_data).eq("id", user_id).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Log the action and send notification
         user = result.data[0]
         username = user.get("username") or user.get("first_name") or "Unknown"
         telegram_id = user.get("telegram_id")
+
         logger.info(
-            f"Admin {'granted' if is_partner else 'revoked'} VIP for user {username} (level_override={final_level_override if is_partner else None})"
+            "Admin %s VIP for user %s (level_override=%s)",
+            "granted" if is_partner else "revoked",
+            username,
+            final_level_override if is_partner else None,
         )
 
-        # Send notification
-        if telegram_id:
-            try:
-                from core.services.notifications import NotificationService
-
-                notification_service = NotificationService()
-                if is_partner:
-                    # Send notification when granting VIP
-                    await notification_service.send_partner_application_approved_notification(
-                        int(telegram_id)
-                    )
-                else:
-                    # Send notification when revoking VIP
-                    await notification_service.send_partner_status_revoked_notification(
-                        int(telegram_id)
-                    )
-            except Exception as e:
-                logger.warning(f"Failed to send VIP notification to {telegram_id}: {e}")
+        await _send_vip_notification(telegram_id, is_partner)
 
         return {
             "success": True,

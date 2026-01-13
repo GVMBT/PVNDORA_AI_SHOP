@@ -310,11 +310,48 @@ class ShopAgent:
             action="error",
         )
 
+    def _extract_content_from_ai_message(self, last_ai) -> str:
+        """Extract content from AI message (reduces cognitive complexity)."""
+        raw_content = last_ai.content or ""
+        if isinstance(raw_content, list):
+            parts = []
+            for part in raw_content:
+                if isinstance(part, dict):
+                    parts.append(part.get("text", ""))
+                elif isinstance(part, str):
+                    parts.append(part)
+            return " ".join(parts).strip()
+        return str(raw_content).strip()
+
+
+def _detect_action_from_tool_calls(tool_calls: list) -> tuple[str, str | None]:
+    """Detect action and extract product_id from tool calls (reduces cognitive complexity)."""
+    action = "none"
+    product_id = None
+
+    for tc in tool_calls:
+        tool_name = tc.get("name", "")
+        tool_args = tc.get("args", {})
+
+        if tool_name == "add_to_cart":
+            action = "add_to_cart"
+            product_id = tool_args.get("product_id")
+        elif tool_name in ("get_order_credentials", "resend_order_credentials"):
+            action = "show_credentials"
+        elif tool_name == "create_support_ticket":
+            action = "create_ticket"
+        elif tool_name == "request_refund":
+            action = "refund_request"
+        elif tool_name == "pay_from_balance":
+            action = "offer_payment"
+
+    return action, product_id
+
+
     def _parse_result(self, result: dict[str, Any]) -> AgentResponse:
         """Parse agent result into AgentResponse."""
         messages = result.get("messages", [])
 
-        # Find last AI message
         ai_messages = [m for m in messages if isinstance(m, AIMessage)]
         last_ai = ai_messages[-1] if ai_messages else None
 
@@ -326,39 +363,9 @@ class ShopAgent:
         payment_url = None
 
         if last_ai:
-            # Handle multimodal content (can be list)
-            raw_content = last_ai.content or ""
-            if isinstance(raw_content, list):
-                parts = []
-                for part in raw_content:
-                    if isinstance(part, dict):
-                        parts.append(part.get("text", ""))
-                    elif isinstance(part, str):
-                        parts.append(part)
-                content = " ".join(parts).strip()
-            else:
-                content = str(raw_content).strip()
-
-            # Get tool calls
+            content = self._extract_content_from_ai_message(last_ai)
             tool_calls = getattr(last_ai, "tool_calls", []) or []
-
-            # Detect action and extract data from tool calls
-            for tc in tool_calls:
-                tool_name = tc.get("name", "")
-                tool_args = tc.get("args", {})
-
-                if tool_name == "add_to_cart":
-                    action = "add_to_cart"
-                    product_id = tool_args.get("product_id")
-                elif tool_name in ("get_order_credentials", "resend_order_credentials"):
-                    action = "show_credentials"
-                elif tool_name == "create_support_ticket":
-                    action = "create_ticket"
-                elif tool_name == "request_refund":
-                    action = "refund_request"
-                elif tool_name == "pay_from_balance":
-                    action = "offer_payment"
-                    # Extract payment URL from tool result if available
+            action, product_id = _detect_action_from_tool_calls(tool_calls)
 
         # Ensure we have some content
         if not content:

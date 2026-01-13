@@ -509,8 +509,55 @@ async def checkout_cart(payment_method: str = "card") -> dict:
             }
 
     except Exception as e:
-        logger.error(f"checkout_cart error: {e}", exc_info=True)
+        logger.error("checkout_cart error: %s", e, exc_info=True)
         return {"success": False, "error": str(e)}
+
+
+# Helper to format insufficient balance message (reduces cognitive complexity)
+def _format_insufficient_balance_message(
+    currency_service, balance: float, cart_total: float, user_currency: str
+) -> str:
+    """Format insufficient balance error message."""
+    if currency_service:
+        try:
+            balance_formatted = currency_service.format_price(balance, user_currency)
+            cart_total_formatted = currency_service.format_price(cart_total, user_currency)
+            return f"Баланс: {balance_formatted}, нужно: {cart_total_formatted}. Пополни баланс или оплати картой."
+        except Exception:
+            return f"Баланс: {balance:.0f}, нужно: {cart_total:.0f}. Пополни баланс или оплати картой."
+    return f"Баланс: {balance:.0f}, нужно: {cart_total:.0f}. Пополни баланс или оплати картой."
+
+
+# Helper to calculate balance in display currency (reduces cognitive complexity)
+async def _calculate_balance_in_display_currency(
+    balance_in_balance_currency: float,
+    balance_currency: str,
+    user_currency: str,
+    currency_service,
+) -> tuple[float, float]:
+    """Calculate balance and cart total in display currency."""
+    if user_currency == balance_currency:
+        return balance_in_balance_currency, balance_in_balance_currency
+
+    balance_rate = (
+        await currency_service.get_exchange_rate(balance_currency)
+        if balance_currency != "USD"
+        else 1.0
+    )
+    display_rate = (
+        await currency_service.get_exchange_rate(user_currency)
+        if user_currency != "USD"
+        else 1.0
+    )
+
+    balance_usd = (
+        balance_in_balance_currency / balance_rate
+        if balance_rate > 0
+        else balance_in_balance_currency
+    )
+    balance = balance_usd * display_rate if display_rate > 0 else balance_usd
+
+    return balance, balance
 
 
 @tool
@@ -552,8 +599,6 @@ async def pay_cart_from_balance() -> dict:
         balance_currency = user_result.data.get("balance_currency") or "USD"
         user_currency = ctx.currency  # Display currency for AI agent
 
-        # If display currency matches balance currency, use balance directly
-        # Otherwise convert balance to display currency for comparison
         try:
             from core.db import get_redis
             from core.services.currency import get_currency_service
@@ -561,47 +606,20 @@ async def pay_cart_from_balance() -> dict:
             redis = get_redis()
             currency_service = get_currency_service(redis)
 
-            if user_currency == balance_currency:
-                # Display currency matches balance currency - use directly
-                balance = balance_in_balance_currency
-                cart_total = float(cart.total)  # Cart total is already in user_currency
-            else:
-                # Convert balance from balance_currency to display currency for comparison
-                balance_rate = (
-                    await currency_service.get_exchange_rate(balance_currency)
-                    if balance_currency != "USD"
-                    else 1.0
-                )
-                display_rate = (
-                    await currency_service.get_exchange_rate(user_currency)
-                    if user_currency != "USD"
-                    else 1.0
-                )
-                # Convert: balance_currency → USD → display_currency
-                balance_usd = (
-                    balance_in_balance_currency / balance_rate
-                    if balance_rate > 0
-                    else balance_in_balance_currency
-                )
-                balance = balance_usd * display_rate if display_rate > 0 else balance_usd
-                cart_total = float(cart.total)  # Already in display currency
+            balance, _ = await _calculate_balance_in_display_currency(
+                balance_in_balance_currency, balance_currency, user_currency, currency_service
+            )
+            cart_total = float(cart.total)
         except Exception as e:
-            logger.warning(f"Currency conversion failed in pay_cart_from_balance: {e}")
-            # Fallback: assume balance is in display currency (may be incorrect, but better than crash)
+            logger.warning("Currency conversion failed in pay_cart_from_balance: %s", e)
             balance = balance_in_balance_currency
             cart_total = float(cart.total)
             currency_service = None
 
         if balance < cart_total:
-            if currency_service:
-                try:
-                    balance_formatted = currency_service.format_price(balance, user_currency)
-                    cart_total_formatted = currency_service.format_price(cart_total, user_currency)
-                    message = f"Баланс: {balance_formatted}, нужно: {cart_total_formatted}. Пополни баланс или оплати картой."
-                except Exception:
-                    message = f"Баланс: {balance:.0f}, нужно: {cart_total:.0f}. Пополни баланс или оплати картой."
-            else:
-                message = f"Баланс: {balance:.0f}, нужно: {cart_total:.0f}. Пополни баланс или оплати картой."
+            message = _format_insufficient_balance_message(
+                currency_service, balance, cart_total, user_currency
+            )
 
             return {
                 "success": False,
