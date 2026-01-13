@@ -224,7 +224,6 @@ async def _create_order_with_currency_snapshot(
     from core.routers.webapp.orders.helpers import persist_order, persist_order_items
 
     # Currency Handling
-    payable_amount = total_fiat_amount
     fiat_amount = total_fiat_amount
     fiat_currency = target_currency
 
@@ -492,7 +491,6 @@ async def checkout_cart(payment_method: str = "card") -> dict:
     try:
         from core.cart import get_cart_manager
         from core.db import get_redis
-        from core.routers.webapp.orders.helpers import persist_order, persist_order_items
         from core.services.currency import get_currency_service
 
         ctx = get_user_context()
@@ -642,7 +640,7 @@ async def checkout_cart(payment_method: str = "card") -> dict:
             cart_manager,
             ctx,
             currency_service,
-            total_fiat_amount,
+            total_fiat_amount,  # payable_amount = total_fiat_amount
             gateway_currency,
             payment_gateway,
             payment_method,
