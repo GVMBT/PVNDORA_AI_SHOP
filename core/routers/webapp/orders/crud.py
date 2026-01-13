@@ -52,6 +52,108 @@ async def _check_balance_sufficiency(
         return user_balance >= amount
 
 
+def _get_user_currency(db_user, user, currency_service) -> str:
+    """Get user's preferred currency (reduces cognitive complexity)."""
+    user_lang = getattr(db_user, "interface_language", None) or (
+        db_user.language_code if db_user and db_user.language_code else user.language_code
+    )
+    preferred_currency = getattr(db_user, "preferred_currency", None)
+    return currency_service.get_user_currency(user_lang, preferred_currency)
+
+
+async def _load_reviews_for_orders(db, order_ids: list[str]) -> dict[str, set]:
+    """Load reviews for multiple orders in one query (reduces N+1)."""
+    reviews_by_order: dict[str, set] = {}
+    if not order_ids:
+        return reviews_by_order
+
+    try:
+        all_reviews = (
+            await db.client.table("reviews")
+            .select("order_id, product_id")
+            .in_("order_id", order_ids)
+            .execute()
+        )
+
+        for review in all_reviews.data or []:
+            order_id = review.get("order_id")
+            product_id = review.get("product_id")
+            if order_id not in reviews_by_order:
+                reviews_by_order[order_id] = set()
+            if product_id:
+                reviews_by_order[order_id].add(product_id)
+    except Exception as e:
+        logger.warning(f"Failed to load reviews for orders: {e}")
+
+    return reviews_by_order
+
+
+def _build_order_item(item: dict, order_status: str, reviewed_product_ids: set) -> dict:
+    """Build APIOrderItem from order_item data (reduces cognitive complexity)."""
+    prod = item.get("product")
+    product_id = item.get("product_id")
+    fulfillment_type = item.get("fulfillment_type", "instant")
+    has_review = product_id in reviewed_product_ids
+
+    return {
+        "id": item.get("id"),
+        "product_id": product_id,
+        "product_name": prod.get("name") if prod else "Unknown",
+        "quantity": item.get("quantity", 1),
+        "price": float(item.get("price", 0)),
+        "status": item.get("status", order_status),
+        "fulfillment_type": fulfillment_type,
+        "delivery_content": item.get("delivery_content"),
+        "delivery_instructions": item.get("delivery_instructions"),
+        "credentials": item.get("delivery_content"),
+        "expires_at": item.get("expires_at"),
+        "fulfillment_deadline": item.get("fulfillment_deadline"),
+        "delivered_at": item.get("delivered_at"),
+        "created_at": item.get("created_at"),
+        "has_review": has_review,
+    }
+
+
+async def _build_order_dict(
+    row: dict,
+    items: list[dict],
+    product_data: dict | None,
+    user_currency: str,
+    currency_service,
+) -> dict:
+    """Build APIOrder dict from order data (reduces cognitive complexity)."""
+    usd_amount = float(row.get("amount", 0))
+    fiat_amount = row.get("fiat_amount")
+    fiat_currency_from_order = row.get("fiat_currency")
+
+    if fiat_amount is not None and fiat_currency_from_order == user_currency:
+        display_amount = float(fiat_amount)
+    else:
+        display_amount = await currency_service.convert_price(usd_amount, user_currency)
+
+    return {
+        "id": row["id"],
+        "product_id": product_data.get("id") if product_data else None,
+        "product_name": product_data.get("name") if product_data else "Multiple items",
+        "amount": usd_amount,
+        "amount_display": display_amount,
+        "original_price": float(row.get("original_price", 0)) if row.get("original_price") else None,
+        "discount_percent": int(row.get("discount_percent", 0)),
+        "status": row["status"],
+        "order_type": row.get("order_type", "instant"),
+        "created_at": row.get("created_at"),
+        "expires_at": row.get("expires_at"),
+        "fulfillment_deadline": row.get("fulfillment_deadline"),
+        "delivered_at": row.get("delivered_at"),
+        "warranty_until": row.get("warranty_until"),
+        "payment_url": row.get("payment_url"),
+        "payment_id": row.get("payment_id"),
+        "payment_gateway": row.get("payment_gateway"),
+        "items": items,
+        "currency": user_currency,
+    }
+
+
 @crud_router.get("/orders/{order_id}/status")
 async def get_webapp_order_status(
     order_id: str, user=Depends(verify_telegram_auth)
@@ -257,49 +359,17 @@ async def get_webapp_orders(
         logger.error(f"Failed to fetch orders for user {db_user.id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch orders")
 
+    user_currency = _get_user_currency(db_user, user, currency_service)
+
     if not result.data:
         logger.info(f"No orders found for user {db_user.id} (telegram_id={user.id})")
-        # Get user's preferred currency for empty response
-        user_lang = getattr(db_user, "interface_language", None) or (
-            db_user.language_code if db_user and db_user.language_code else user.language_code
-        )
-        preferred_currency = getattr(db_user, "preferred_currency", None)
-        user_currency = currency_service.get_user_currency(user_lang, preferred_currency)
         return OrdersListResponse(orders=[], count=0, currency=user_currency)
 
-    # Get user's preferred currency
-    user_lang = getattr(db_user, "interface_language", None) or (
-        db_user.language_code if db_user and db_user.language_code else user.language_code
-    )
-    preferred_currency = getattr(db_user, "preferred_currency", None)
-    user_currency = currency_service.get_user_currency(user_lang, preferred_currency)
-
     orders = []
-    processed_count = 0
-    error_count = 0
 
     # OPTIMIZATION: Fix N+1 query problem - load all reviews for all orders in one query
     order_ids = [row.get("id") for row in result.data if row.get("id")]
-    reviews_by_order = {}
-    if order_ids:
-        try:
-            all_reviews = (
-                await db.client.table("reviews")
-                .select("order_id, product_id")
-                .in_("order_id", order_ids)
-                .execute()
-            )
-
-            # Group reviews by order_id
-            for review in all_reviews.data or []:
-                order_id = review.get("order_id")
-                product_id = review.get("product_id")
-                if order_id not in reviews_by_order:
-                    reviews_by_order[order_id] = set()
-                if product_id:
-                    reviews_by_order[order_id].add(product_id)
-        except Exception as e:
-            logger.warning(f"Failed to load reviews for orders: {e}")
+    reviews_by_order = await _load_reviews_for_orders(db, order_ids)
 
     for row in result.data:
         try:
@@ -313,88 +383,28 @@ async def get_webapp_orders(
             first_item = items_data[0] if items_data else None
             product_data = first_item.get("product") if first_item else None
 
-            # Build items list in APIOrderItem format
-            items = []
-
             # Get reviewed product IDs for this order (from pre-loaded data)
             order_id = row.get("id")
             reviewed_product_ids = reviews_by_order.get(order_id, set())
 
-            for item in items_data:
-                prod = item.get("product")
-                product_id = item.get("product_id")
-                # fulfillment_type is stored in order_items table, not calculated from instant_quantity
-                fulfillment_type = item.get("fulfillment_type", "instant")
+            # Build items using helper
+            items = [
+                _build_order_item(item, row["status"], reviewed_product_ids)
+                for item in items_data
+            ]
+            # Fix: Add fallback fulfillment_deadline from order
+            for i, item in enumerate(items_data):
+                if not items[i]["fulfillment_deadline"]:
+                    items[i]["fulfillment_deadline"] = row.get("fulfillment_deadline")
 
-                # Check if this product in this order has a review
-                has_review = product_id in reviewed_product_ids
-
-                items.append(
-                    {
-                        "id": item.get("id"),
-                        "product_id": product_id,
-                        "product_name": prod.get("name") if prod else "Unknown",
-                        "quantity": item.get("quantity", 1),
-                        "price": float(
-                            item.get("price", 0)
-                        ),  # Use 'price' column from DB, not 'amount'
-                        "status": item.get("status", row["status"]),
-                        "fulfillment_type": fulfillment_type,
-                        "delivery_content": item.get("delivery_content"),
-                        "delivery_instructions": item.get("delivery_instructions"),
-                        "credentials": item.get("delivery_content"),  # Alias
-                        "expires_at": item.get("expires_at"),
-                        "fulfillment_deadline": item.get("fulfillment_deadline")
-                        or row.get("fulfillment_deadline"),  # Fallback to order-level deadline
-                        "delivered_at": item.get("delivered_at"),
-                        "created_at": item.get("created_at"),
-                        "has_review": has_review,
-                    }
-                )
-
-            # Use fiat_amount if available (what user actually paid), otherwise convert from USD
-            usd_amount = float(row.get("amount", 0))
-            fiat_amount = row.get("fiat_amount")
-            fiat_currency_from_order = row.get("fiat_currency")
-
-            if fiat_amount is not None and fiat_currency_from_order == user_currency:
-                # Use the exact amount user paid (in their currency)
-                display_amount = float(fiat_amount)
-            else:
-                # Fallback: convert from USD
-                display_amount = await currency_service.convert_price(usd_amount, user_currency)
-
-            # Build order in APIOrder format
-            order_dict = {
-                "id": row["id"],
-                "product_id": product_data.get("id") if product_data else None,
-                "product_name": product_data.get("name") if product_data else "Multiple items",
-                "amount": usd_amount,  # USD amount
-                "amount_display": display_amount,  # Converted amount (number)
-                "original_price": (
-                    float(row.get("original_price", 0)) if row.get("original_price") else None
-                ),
-                "discount_percent": int(row.get("discount_percent", 0)),
-                "status": row["status"],
-                "order_type": row.get("order_type", "instant"),
-                "created_at": row.get("created_at"),
-                "expires_at": row.get("expires_at"),
-                "fulfillment_deadline": row.get("fulfillment_deadline"),
-                "delivered_at": row.get("delivered_at"),
-                "warranty_until": row.get("warranty_until"),
-                "payment_url": row.get("payment_url"),
-                "payment_id": row.get("payment_id"),
-                "payment_gateway": row.get("payment_gateway"),
-                "items": items,
-                "currency": user_currency,
-            }
+            # Build order dict using helper
+            order_dict = await _build_order_dict(
+                row, items, product_data, user_currency, currency_service
+            )
 
             orders.append(order_dict)
-            processed_count += 1
         except Exception as e:
-            error_count += 1
             logger.error(f"Failed to process order {row.get('id')}: {e}", exc_info=True)
-            # Continue processing other orders instead of failing entirely
             continue
 
     logger.info(f"Returning {len(orders)} orders for user {db_user.id}")
