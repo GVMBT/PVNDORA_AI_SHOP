@@ -76,18 +76,11 @@ const PartnerModal: React.FC<PartnerModalProps> = ({ partner, onClose, onSave })
 
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-black p-3 border border-white/10">
-                <label className="text-[9px] text-gray-500 block mb-2">PARTNER LEVEL</label>
-                <div
-                  role="button"
-                  tabIndex={0}
+                <span className="text-[9px] text-gray-500 block mb-2">PARTNER LEVEL</span>
+                <button
+                  type="button"
                   className="flex items-center gap-2 cursor-pointer"
                   onClick={togglePartnerVip}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      togglePartnerVip();
-                    }
-                  }}
                 >
                   <div
                     className={`w-4 h-4 border border-white/30 flex items-center justify-center ${
@@ -107,21 +100,14 @@ const PartnerModal: React.FC<PartnerModalProps> = ({ partner, onClose, onSave })
                   >
                     ARCHITECT STATUS
                   </span>
-                </div>
+                </button>
               </div>
               <div className="bg-black p-3 border border-white/10">
-                <label className="text-[9px] text-gray-500 block mb-2">REWARD TYPE</label>
-                <div
-                  role="button"
-                  tabIndex={0}
+                <span className="text-[9px] text-gray-500 block mb-2">REWARD TYPE</span>
+                <button
+                  type="button"
                   className="flex items-center gap-2 cursor-pointer"
                   onClick={toggleRewardType}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      toggleRewardType();
-                    }
-                  }}
                 >
                   <div
                     className={`w-8 h-4 rounded-full relative transition-colors ${
@@ -137,7 +123,7 @@ const PartnerModal: React.FC<PartnerModalProps> = ({ partner, onClose, onSave })
                   <span className="text-xs font-bold text-white">
                     {editingPartner.rewardType === "commission" ? "CASH" : "DISCOUNT"}
                   </span>
-                </div>
+                </button>
               </div>
             </div>
 

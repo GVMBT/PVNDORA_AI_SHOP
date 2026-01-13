@@ -89,18 +89,11 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
           </div>
         </div>
         {tickets.map((t) => (
-          <div
+          <button
             key={t.id}
-            role="button"
-            tabIndex={0}
+            type="button"
             onClick={() => setSelectedTicketId(t.id)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setSelectedTicketId(t.id);
-              }
-            }}
-            className={`bg-[#0e0e0e] border p-4 transition-colors cursor-pointer group relative ${
+            className={`bg-[#0e0e0e] border p-4 transition-colors cursor-pointer group relative text-left w-full ${
               selectedTicketId === t.id
                 ? "border-pandora-cyan bg-pandora-cyan/5"
                 : "border-white/10 hover:border-white/30"
@@ -123,7 +116,7 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
               </div>
             )}
             <div className="text-[10px] font-mono text-gray-600 mt-1">{t.date || t.createdAt}</div>
-          </div>
+          </button>
         ))}
       </div>
 

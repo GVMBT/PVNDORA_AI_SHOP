@@ -213,18 +213,11 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
           </div>
         ) : (
           withdrawals.map((w) => (
-            <div
+            <button
               key={w.id}
-              role="button"
-              tabIndex={0}
+              type="button"
               onClick={() => setSelectedWithdrawalId(w.id)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setSelectedWithdrawalId(w.id);
-                }
-              }}
-              className={`bg-[#0e0e0e] border p-4 transition-colors cursor-pointer group relative ${
+              className={`bg-[#0e0e0e] border p-4 transition-colors cursor-pointer group relative text-left w-full ${
                 selectedWithdrawalId === w.id
                   ? "border-pandora-cyan bg-pandora-cyan/5"
                   : "border-white/10 hover:border-white/30"
@@ -243,7 +236,7 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
               <div className="text-[10px] font-mono text-gray-600 mt-1">
                 {formatDate(w.created_at)}
               </div>
-            </div>
+            </button>
           ))
         )}
       </div>
