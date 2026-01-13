@@ -211,7 +211,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
   }, [product.stock, product.fulfillment, product.warranty, product.duration]);
 
   const {
-    hasStock,
+    // hasStock is computed internally, not used directly in JSX
     isPreorder,
     isDisabled,
     accessProtocol,
@@ -225,15 +225,15 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
   } = availabilityData;
 
   // --- MICRO-INTERACTION: ADD TO CART ---
-  const handleMountModule = async () => {
+  const handleMountModule = () => {
     if (isAllocating || isSuccess) return;
     if (onHaptic) onHaptic("medium");
 
     setIsAllocating(true);
 
     try {
-      // Actually add to cart (await the async operation)
-      await onAddToCart(product, quantity);
+      // Add to cart (synchronous operation)
+      onAddToCart(product, quantity);
       setIsSuccess(true);
       if (onHaptic) onHaptic("success");
     } catch (err) {
@@ -569,7 +569,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {(product.relatedProducts || []).map((rel) => (
+            {relatedProducts.map((rel) => (
               <div
                 key={rel.id}
                 onClick={() => onProductSelect && onProductSelect(rel)}
