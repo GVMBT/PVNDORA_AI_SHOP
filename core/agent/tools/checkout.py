@@ -21,6 +21,163 @@ from .base import get_db, get_user_context
 logger = get_logger(__name__)
 
 
+# Helper: Convert order total to balance currency (reduces cognitive complexity)
+async def _convert_order_total_to_balance_currency(
+    order_total_usd: Decimal,
+    balance_currency: str,
+    currency_service: Any,
+) -> Decimal:
+    """Convert USD order total to user's balance currency."""
+    if balance_currency == "USD":
+        return order_total_usd
+
+    rate = await currency_service.get_exchange_rate(balance_currency)
+    order_total = to_decimal(to_float(order_total_usd) * rate)
+
+    # Round for integer currencies
+    if balance_currency in ["RUB", "UAH", "TRY", "INR"]:
+        order_total = to_decimal(round(to_float(order_total)))
+
+    return order_total
+
+
+# Helper: Check balance sufficiency and format error (reduces cognitive complexity)
+def _check_balance_sufficiency(
+    user_balance: Decimal,
+    order_total: Decimal,
+    balance_currency: str,
+    currency_service: Any,
+) -> dict[str, Any] | None:
+    """Check if user has sufficient balance, return error dict if not."""
+    if user_balance >= order_total:
+        return None
+
+    balance_formatted = currency_service.format_price(to_float(user_balance), balance_currency)
+    amount_formatted = currency_service.format_price(to_float(order_total), balance_currency)
+    error_msg = (
+        f"Недостаточно средств на балансе. Доступно: {balance_formatted}, требуется: {amount_formatted}"
+    )
+
+    return {"success": False, "error": error_msg, "action": "suggest_card_payment"}
+
+
+# Helper: Process balance payment (reduces cognitive complexity)
+async def _process_balance_payment(
+    db: Any,
+    order_id: str,
+    user_id: str,
+    order_total_in_balance_currency: Decimal,
+    balance_currency: str,
+) -> dict[str, Any] | None:
+    """Process balance payment, return error dict on failure."""
+    try:
+        await db.client.rpc(
+            "add_to_user_balance",
+            {
+                "p_user_id": user_id,
+                "p_amount": -to_float(order_total_in_balance_currency),
+                "p_reason": f"Payment for order {order_id}",
+            },
+        ).execute()
+        logger.info(
+            f"Balance deducted {to_float(order_total_in_balance_currency):.2f} {balance_currency} for order {order_id}"
+        )
+        return None
+    except Exception:
+        # Rollback order on balance deduction error
+        await db.client.table("orders").delete().eq("id", order_id).execute()
+        logger.exception(f"Failed to deduct balance for order {order_id}")
+        return {"success": False, "error": "Ошибка списания с баланса. Попробуйте позже."}
+
+
+# Helper: Mark payment confirmed and queue delivery (reduces cognitive complexity)
+async def _finalize_balance_payment(
+    db: Any,
+    order_id: str,
+    user_id: str,
+    cart: Any,
+    cart_manager: Any,
+    ctx: Any,
+    currency_service: Any,
+    order_total_in_balance_currency: Decimal,
+    balance_currency: str,
+) -> dict[str, Any]:
+    """Finalize balance payment: mark paid, queue delivery, format response."""
+    # Update order status to paid
+    try:
+        from core.orders.status_service import OrderStatusService
+
+        status_service = OrderStatusService(db)
+        final_status = await status_service.mark_payment_confirmed(
+            order_id=order_id, payment_id=f"balance-{order_id}", check_stock=True
+        )
+        logger.info(f"Balance payment confirmed for order {order_id}, final_status={final_status}")
+    except Exception as e:
+        logger.error(f"Failed to mark payment confirmed for balance order {order_id}: {e}", exc_info=True)
+        # Don't fail - order is created and balance is deducted
+
+    # Queue delivery via QStash (async, don't block response)
+    try:
+        from core.queue import WorkerEndpoints, publish_to_worker
+
+        await publish_to_worker(
+            endpoint=WorkerEndpoints.DELIVER_GOODS,
+            body={"order_id": order_id},
+            retries=2,
+            deduplication_id=f"deliver-{order_id}",
+        )
+        logger.info(f"Delivery queued for balance payment order {order_id}")
+    except Exception as e:
+        logger.warning(f"QStash failed for balance order {order_id}: {e}")
+        # Don't fail - delivery can be retried later
+
+    # Apply promo code and clear cart
+    if cart.promo_code:
+        await db.use_promo_code(cart.promo_code)
+    await cart_manager.clear_cart(ctx.telegram_id)
+
+    # Format response
+    if ctx.currency != balance_currency:
+        amount_display = await currency_service.convert_price(
+            to_float(order_total_in_balance_currency), ctx.currency
+        )
+    else:
+        amount_display = to_float(order_total_in_balance_currency)
+
+    # Get updated balance for display
+    updated_user_result = (
+        await db.client.table("users")
+        .select("balance")
+        .eq("id", ctx.user_id)
+        .single()
+        .execute()
+    )
+    new_balance = (
+        to_float(updated_user_result.data.get("balance", 0) or 0) if updated_user_result.data else 0
+    )
+
+    if ctx.currency != balance_currency:
+        new_balance_display = await currency_service.convert_price(new_balance, ctx.currency)
+    else:
+        new_balance_display = new_balance
+
+    items_text = ", ".join([f"{item.product_name}" for item in cart.items])
+
+    return {
+        "success": True,
+        "order_id": order_id[:8],
+        "status": "paid",
+        "payment_method": "balance",
+        "amount": amount_display,
+        "amount_formatted": currency_service.format_price(amount_display, ctx.currency),
+        "new_balance": new_balance_display,
+        "new_balance_formatted": currency_service.format_price(new_balance_display, ctx.currency),
+        "items": items_text,
+        "message": f"Заказ #{order_id[:8]} оплачен! Товар будет доставлен в течение нескольких минут.",
+        "action": "order_paid",
+    }
+
+
 @tool
 async def checkout_cart(payment_method: str = "card") -> dict:
     """
@@ -295,139 +452,38 @@ async def checkout_cart(payment_method: str = "card") -> dict:
 
         # 4. Handle payment based on method
         if payment_method == "balance":
-            # Get order total in user's balance currency
-            order_total_usd = total_amount  # total_amount is in USD
-
-            if balance_currency == "USD":
-                order_total_in_balance_currency = order_total_usd
-            else:
-                # Convert USD order total to user's balance currency
-                rate = await currency_service.get_exchange_rate(balance_currency)
-                order_total_in_balance_currency = to_decimal(to_float(order_total_usd) * rate)
-                # Round for integer currencies
-                if balance_currency in ["RUB", "UAH", "TRY", "INR"]:
-                    order_total_in_balance_currency = to_decimal(
-                        round(to_float(order_total_in_balance_currency))
-                    )
-
-            # Compare in user's balance currency
-            if user_balance < order_total_in_balance_currency:
-                # Delete order if balance insufficient
-                await db.client.table("orders").delete().eq("id", order.id).execute()
-
-                balance_formatted = currency_service.format_price(
-                    to_float(user_balance), balance_currency
-                )
-                amount_formatted = currency_service.format_price(
-                    to_float(order_total_in_balance_currency), balance_currency
-                )
-                error_msg = f"Недостаточно средств на балансе. Доступно: {balance_formatted}, требуется: {amount_formatted}"
-
-                return {"success": False, "error": error_msg, "action": "suggest_card_payment"}
-
-            # Deduct from balance in user's balance currency using RPC
-            try:
-                await db.client.rpc(
-                    "add_to_user_balance",
-                    {
-                        "p_user_id": user_id,
-                        "p_amount": -to_float(order_total_in_balance_currency),
-                        "p_reason": f"Payment for order {order.id}",
-                    },
-                ).execute()
-                logger.info(
-                    f"Balance deducted {to_float(order_total_in_balance_currency):.2f} {balance_currency} for order {order.id}"
-                )
-            except Exception:
-                # Rollback order on balance deduction error
-                await db.client.table("orders").delete().eq("id", order.id).execute()
-                logger.exception(f"Failed to deduct balance for order {order.id}")
-                return {"success": False, "error": "Ошибка списания с баланса. Попробуйте позже."}
-
-            # Update order status to paid
-            try:
-                from core.orders.status_service import OrderStatusService
-
-                status_service = OrderStatusService(db)
-                final_status = await status_service.mark_payment_confirmed(
-                    order_id=order.id, payment_id=f"balance-{order.id}", check_stock=True
-                )
-                logger.info(
-                    f"Balance payment confirmed for order {order.id}, final_status={final_status}"
-                )
-            except Exception as e:
-                logger.error(
-                    f"Failed to mark payment confirmed for balance order {order.id}: {e}",
-                    exc_info=True,
-                )
-                # Don't fail - order is created and balance is deducted
-
-            # Queue delivery via QStash (async, don't block response)
-            try:
-                from core.queue import WorkerEndpoints, publish_to_worker
-
-                await publish_to_worker(
-                    endpoint=WorkerEndpoints.DELIVER_GOODS,
-                    body={"order_id": order.id},
-                    retries=2,
-                    deduplication_id=f"deliver-{order.id}",
-                )
-                logger.info(f"Delivery queued for balance payment order {order.id}")
-            except Exception as e:
-                logger.warning(f"QStash failed for balance order {order.id}: {e}")
-                # Don't fail - delivery can be retried later
-
-            # Apply promo code and clear cart
-            if cart.promo_code:
-                await db.use_promo_code(cart.promo_code)
-            await cart_manager.clear_cart(ctx.telegram_id)
-
-            # Format response
-            if ctx.currency != balance_currency:
-                amount_display = await currency_service.convert_price(
-                    to_float(order_total_in_balance_currency), ctx.currency
-                )
-            else:
-                amount_display = to_float(order_total_in_balance_currency)
-
-            # Get updated balance for display
-            updated_user_result = (
-                await db.client.table("users")
-                .select("balance")
-                .eq("id", user_id)
-                .single()
-                .execute()
-            )
-            new_balance = (
-                to_float(updated_user_result.data.get("balance", 0) or 0)
-                if updated_user_result.data
-                else 0
+            # Convert order total to balance currency
+            order_total_in_balance_currency = await _convert_order_total_to_balance_currency(
+                total_amount, balance_currency, currency_service
             )
 
-            if ctx.currency != balance_currency:
-                new_balance_display = await currency_service.convert_price(
-                    new_balance, ctx.currency
-                )
-            else:
-                new_balance_display = new_balance
+            # Check balance sufficiency
+            error = _check_balance_sufficiency(
+                user_balance, order_total_in_balance_currency, balance_currency, currency_service
+            )
+            if error:
+                await db.client.table("orders").delete().eq("id", order.id).execute()
+                return error
 
-            items_text = ", ".join([f"{item.product_name}" for item in cart.items])
+            # Process balance payment
+            error = await _process_balance_payment(
+                db, order.id, user_id, order_total_in_balance_currency, balance_currency
+            )
+            if error:
+                return error
 
-            return {
-                "success": True,
-                "order_id": order_id[:8],
-                "status": "paid",
-                "payment_method": "balance",
-                "amount": amount_display,
-                "amount_formatted": currency_service.format_price(amount_display, ctx.currency),
-                "new_balance": new_balance_display,
-                "new_balance_formatted": currency_service.format_price(
-                    new_balance_display, ctx.currency
-                ),
-                "items": items_text,
-                "message": f"Заказ #{order_id[:8]} оплачен! Товар будет доставлен в течение нескольких минут.",
-                "action": "order_paid",
-            }
+            # Finalize payment and return response
+            return await _finalize_balance_payment(
+                db,
+                order.id,
+                user_id,
+                cart,
+                cart_manager,
+                ctx,
+                currency_service,
+                order_total_in_balance_currency,
+                balance_currency,
+            )
 
         # 5. Handle external payment (CrystalPay)
         from core.routers.deps import get_payment_service
