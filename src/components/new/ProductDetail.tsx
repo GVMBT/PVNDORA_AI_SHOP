@@ -543,7 +543,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
                   <div className="flex gap-1">
                     {[...Array(5)].map((_, starIndex) => (
                       <div
-                        key={starIndex}
+                        key={`star-${review.id}-${starIndex}`}
                         className={`w-1.5 h-1.5 rounded-full ${starIndex < review.rating ? "bg-pandora-cyan" : "bg-gray-800"}`}
                       />
                     ))}

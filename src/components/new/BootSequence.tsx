@@ -16,6 +16,65 @@ import { randomBoolWithProbability, randomFloat } from "../../utils/random";
 // Helper: Simple delay function
 const delay = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
+// Helper: Run initial boot messages (reduces cognitive complexity)
+const runInitialMessages = async (
+  addLog: (id: string, text: string, type: LogEntry["type"]) => void
+): Promise<void> => {
+  addLog("sys", "PVNDORA PROTOCOL v2.7.4", "system");
+  await delay(150);
+  addLog("sys", "Initializing secure uplink...", "info");
+  await delay(100);
+};
+
+// Helper: Run final boot messages (reduces cognitive complexity)
+const runFinalMessages = async (
+  addLog: (id: string, text: string, type: LogEntry["type"]) => void,
+  startTime: number,
+  minDuration: number,
+  setPhase: (phase: "boot" | "ready" | "error" | "fadeout") => void,
+  isCancelled: () => boolean
+): Promise<void> => {
+  await delay(200);
+  addLog("sys", "All systems operational", "success");
+  addLog("sys", "SYSTEM READY", "system");
+
+  const elapsed = Date.now() - startTime;
+  const remainingTime = Math.max(0, minDuration - elapsed);
+  await delay(remainingTime);
+
+  if (!isCancelled()) {
+    setPhase("ready");
+  }
+};
+
+// Helper: Execute all boot tasks sequentially (reduces cognitive complexity)
+const runAllTasks = async (
+  tasks: BootTask[],
+  addLog: (id: string, text: string, type: LogEntry["type"]) => void,
+  resultsRef: React.MutableRefObject<Record<string, any>>,
+  setErrorMessage: (msg: string | null) => void,
+  setPhase: (phase: "boot" | "ready" | "error" | "fadeout") => void,
+  setProgress: (progress: number) => void,
+  isCancelled: () => boolean
+): Promise<boolean> => {
+  for (let i = 0; i < tasks.length; i++) {
+    if (isCancelled()) return false;
+
+    const shouldContinue = await executeTask(
+      tasks[i],
+      addLog,
+      resultsRef,
+      setErrorMessage,
+      setPhase
+    );
+
+    if (!shouldContinue) return false;
+    setProgress(((i + 1) / tasks.length) * 100);
+    await delay(80);
+  }
+  return true;
+};
+
 // Helper: Execute a single boot task with error handling
 const executeTask = async (
   task: BootTask,
@@ -122,59 +181,29 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
   // Execute all boot tasks sequentially
   useEffect(() => {
     let cancelled = false;
+    const isCancelled = () => cancelled;
 
     const runBootSequence = async () => {
-      // Initial system messages
-      addLog("sys", "PVNDORA PROTOCOL v2.7.4", "system");
-      await delay(150);
-      addLog("sys", "Initializing secure uplink...", "info");
-      await delay(100);
+      await runInitialMessages(addLog);
 
-      // Execute each task
-      for (let i = 0; i < tasks.length; i++) {
-        if (cancelled) return;
+      const success = await runAllTasks(
+        tasks,
+        addLog,
+        resultsRef,
+        setErrorMessage,
+        setPhase,
+        setProgress,
+        isCancelled
+      );
 
-        const task = tasks[i];
-        const shouldContinue = await executeTask(
-          task,
-          addLog,
-          resultsRef,
-          setErrorMessage,
-          setPhase
-        );
-
-        if (!shouldContinue) return; // Critical error occurred
-
-        // Update progress
-        setProgress(((i + 1) / tasks.length) * 100);
-
-        // Small delay between tasks for visual effect
-        await delay(80);
+      if (success && !cancelled) {
+        await runFinalMessages(addLog, startTimeRef.current, minDuration, setPhase, isCancelled);
       }
-
-      if (cancelled) return;
-
-      // Final messages
-      await delay(200);
-      addLog("sys", "All systems operational", "success");
-      addLog("sys", "SYSTEM READY", "system");
-
-      // Calculate remaining time to meet minimum duration
-      const elapsed = Date.now() - startTimeRef.current;
-      const remainingTime = Math.max(0, minDuration - elapsed);
-
-      await delay(remainingTime);
-
-      if (cancelled) return;
-      setPhase("ready");
     };
 
     runBootSequence();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tasks, addLog, minDuration]); // Removed onComplete from deps since we call it manually now
+    return () => { cancelled = true; };
+  }, [tasks, addLog, minDuration]);
 
   const handleEnterSystem = async () => {
     setPhase("fadeout");

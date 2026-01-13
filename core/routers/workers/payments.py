@@ -54,7 +54,7 @@ async def _calculate_cashback_base(
     return float(order_amount) * rate
 
 
-async def _get_currency_service():
+def _get_currency_service():
     """Get currency service instance."""
     from core.db import get_redis
     from core.services.currency import get_currency_service
@@ -305,7 +305,7 @@ async def worker_process_review_cashback(request: Request):
         if balance_currency == "USD":
             cashback_usd = cashback_amount
         else:
-            currency_service = await _get_currency_service()
+            currency_service = _get_currency_service()
             rate = await currency_service.get_exchange_rate(balance_currency)
             cashback_usd = cashback_amount / rate if rate > 0 else cashback_amount
 

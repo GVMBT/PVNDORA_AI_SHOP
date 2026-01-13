@@ -729,10 +729,14 @@ export const CyberModalProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
+  // Memoize context value to prevent unnecessary rerenders (S6481)
+  const contextValue = React.useMemo(
+    () => ({ showModal, hideModal, showTopUp, showWithdraw, showConfirm, showAlert }),
+    [showModal, hideModal, showTopUp, showWithdraw, showConfirm, showAlert]
+  );
+
   return (
-    <CyberModalContext.Provider
-      value={{ showModal, hideModal, showTopUp, showWithdraw, showConfirm, showAlert }}
-    >
+    <CyberModalContext.Provider value={contextValue}>
       {children}
       <Modal state={modalState} onClose={hideModal} onSubmit={handleSubmit} />
     </CyberModalContext.Provider>

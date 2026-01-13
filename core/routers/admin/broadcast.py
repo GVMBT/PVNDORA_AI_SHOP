@@ -85,7 +85,7 @@ async def _get_target_users(db, request: BroadcastRequest) -> list[dict]:
     if request.filter_has_orders is True:
         # Get users with delivered orders
         orders_result = await db.client.table("orders").select("user_id").eq("status", "delivered").execute()
-        user_ids_with_orders = list(set(o["user_id"] for o in (orders_result.data or [])))
+        user_ids_with_orders = list({o["user_id"] for o in (orders_result.data or [])})
         if user_ids_with_orders:
             query = query.in_("id", user_ids_with_orders)
         else:
@@ -93,7 +93,7 @@ async def _get_target_users(db, request: BroadcastRequest) -> list[dict]:
     elif request.filter_has_orders is False:
         # Get users without delivered orders
         orders_result = await db.client.table("orders").select("user_id").eq("status", "delivered").execute()
-        user_ids_with_orders = list(set(o["user_id"] for o in (orders_result.data or [])))
+        user_ids_with_orders = list({o["user_id"] for o in (orders_result.data or [])})
         if user_ids_with_orders:
             query = query.not_.in_("id", user_ids_with_orders)
 
