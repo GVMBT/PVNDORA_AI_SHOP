@@ -61,7 +61,7 @@ class AuthMiddleware(BaseMiddleware):
                 if last_update.tzinfo is None:
                     last_update = last_update.replace(tzinfo=UTC)
             age = datetime.now(UTC) - last_update
-            return age > timedelta(hours=6)
+            return bool(age > timedelta(hours=6))
         except Exception:
             return False
 
@@ -154,14 +154,17 @@ class ChannelSubscriptionMiddleware(BaseMiddleware):
 
     def _is_exempt(self, event: TelegramObject) -> bool:
         """Check if event is exempt from subscription check (reduces cognitive complexity)."""
-        return (
-            isinstance(event, Message)
-            and event.text
-            and any(event.text.startswith(cmd) for cmd in self.EXEMPT_COMMANDS)
-        ) or (
-            isinstance(event, CallbackQuery)
-            and event.data
-            and any(cb in event.data for cb in self.EXEMPT_CALLBACKS)
+        return bool(
+            (
+                isinstance(event, Message)
+                and event.text
+                and any(event.text.startswith(cmd) for cmd in self.EXEMPT_COMMANDS)
+            )
+            or (
+                isinstance(event, CallbackQuery)
+                and event.data
+                and any(cb in event.data for cb in self.EXEMPT_CALLBACKS)
+            )
         )
 
     def _get_subscription_text(self, lang: str) -> str:

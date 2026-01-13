@@ -58,7 +58,7 @@ const PartnerModal: React.FC<PartnerModalProps> = ({ partner, onClose, onSave })
         >
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-display font-bold text-white">MANAGE PARTNER</h3>
-            <button onClick={onClose}>
+            <button type="button" onClick={onClose}>
               <X size={20} className="text-gray-500" />
             </button>
           </div>
@@ -129,6 +129,7 @@ const PartnerModal: React.FC<PartnerModalProps> = ({ partner, onClose, onSave })
             </div>
 
             <button
+              type="button"
               onClick={handleSave}
               className="w-full bg-pandora-cyan text-black font-bold py-3 uppercase tracking-widest text-xs"
             >

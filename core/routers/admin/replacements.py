@@ -85,21 +85,24 @@ class AbuseStatsResponse(BaseModel):
 def extract_telegram_id(row: dict) -> int | None:
     """Extract telegram_id from row data (reduces cognitive complexity)."""
     if row.get("order_items") and row["order_items"].get("orders"):
-        return row["order_items"]["orders"].get("user_telegram_id")
+        tid = row["order_items"]["orders"].get("user_telegram_id")
+        return int(tid) if tid is not None else None
     return None
 
 
 def extract_product_name(row: dict) -> str | None:
     """Extract product_name from row data (reduces cognitive complexity)."""
     if row.get("order_items") and row["order_items"].get("products"):
-        return row["order_items"]["products"].get("name")
+        name = row["order_items"]["products"].get("name")
+        return str(name) if name is not None else None
     return None
 
 
 def extract_order_id(row: dict) -> str | None:
     """Extract order_id from row data (reduces cognitive complexity)."""
     if row.get("order_items"):
-        return row["order_items"].get("order_id")
+        oid = row["order_items"].get("order_id")
+        return str(oid) if oid is not None else None
     return None
 
 

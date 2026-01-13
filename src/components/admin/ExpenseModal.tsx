@@ -156,6 +156,7 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
               ДОБАВИТЬ РАСХОД
             </h3>
             <button
+              type="button"
               onClick={onClose}
               className="text-gray-500 hover:text-white transition-colors"
               disabled={isSaving}
@@ -168,11 +169,12 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
           <div className="space-y-4">
             {/* Description */}
             <div>
-              <label className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
+              <label htmlFor="expense-description" className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
                 <FileText size={12} />
                 Описание
               </label>
               <textarea
+                id="expense-description"
                 value={editingExpense.description}
                 onChange={(e) =>
                   setEditingExpense({ ...editingExpense, description: e.target.value })
@@ -191,11 +193,12 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
             {/* Amount & Currency */}
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
-                <label className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
+                <label htmlFor="expense-amount" className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
                   <DollarSign size={12} />
                   Сумма
                 </label>
                 <input
+                  id="expense-amount"
                   type="number"
                   step="0.01"
                   min="0"
@@ -241,13 +244,14 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
 
             {/* Category */}
             <div>
-              <label className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
+              <span className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
                 <Tag size={12} />
                 Категория
-              </label>
-              <div className="grid grid-cols-2 gap-2">
+              </span>
+              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Категория расхода">
                 {EXPENSE_CATEGORIES.map((cat) => (
                   <button
+                    type="button"
                     key={cat.value}
                     onClick={() => handleCategoryChange(cat.value)}
                     className={`p-3 border text-left transition-colors ${
@@ -271,11 +275,12 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
 
             {/* Date */}
             <div>
-              <label className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
+              <label htmlFor="expense-date" className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
                 <Calendar size={12} />
                 Дата
               </label>
               <input
+                id="expense-date"
                 type="date"
                 value={editingExpense.date || ""}
                 onChange={(e) => setEditingExpense({ ...editingExpense, date: e.target.value })}
@@ -305,6 +310,7 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
             {/* Actions */}
             <div className="flex gap-3 pt-2">
               <button
+                type="button"
                 onClick={onClose}
                 disabled={isSaving}
                 className="flex-1 py-3 bg-white/5 border border-white/20 text-white font-bold text-sm hover:bg-white/10 transition-colors disabled:opacity-50"
@@ -312,6 +318,7 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
                 Отмена
               </button>
               <button
+                type="button"
                 onClick={handleSave}
                 disabled={isSaving}
                 className="flex-1 py-3 bg-pandora-cyan text-black font-bold text-sm hover:bg-pandora-cyan/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"

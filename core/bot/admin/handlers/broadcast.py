@@ -81,7 +81,7 @@ async def create_broadcast_record(
     }
 
     result = await db.client.table("broadcast_messages").insert(broadcast_data).execute()
-    broadcast_id = result.data[0]["id"]
+    broadcast_id = str(result.data[0]["id"])
     logger.info("Broadcast %s: Created in DB", broadcast_id)
     return broadcast_id
 

@@ -133,6 +133,7 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <button
+                    type="button"
                     onClick={() => setSelectedTicketId(null)}
                     className="lg:hidden text-gray-500 hover:text-white"
                   >
@@ -243,6 +244,7 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
                 />
                 <div className="flex gap-2">
                   <button
+                    type="button"
                     onClick={() => handleResolve(true)}
                     disabled={processing}
                     className="flex-1 flex items-center justify-center gap-2 bg-green-500/20 border border-green-500/50 text-green-400 px-4 py-2 text-[10px] font-bold font-mono hover:bg-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -251,6 +253,7 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
                     APPROVE
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleResolve(false)}
                     disabled={processing}
                     className="flex-1 flex items-center justify-center gap-2 bg-red-500/20 border border-red-500/50 text-red-400 px-4 py-2 text-[10px] font-bold font-mono hover:bg-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"

@@ -62,7 +62,8 @@ async def _validate_order(db: Any, order_id: str) -> str | None:
     )
     if not order_result.data or not isinstance(order_result.data, dict):
         return None
-    return cast(dict[str, Any], order_result.data).get("status")
+    status = cast(dict[str, Any], order_result.data).get("status")
+    return str(status) if status is not None else None
 
 
 async def _get_stock_item(db: Any, stock_item_id: str) -> tuple[str, str] | None:

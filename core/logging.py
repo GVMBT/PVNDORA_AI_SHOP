@@ -107,4 +107,10 @@ def sanitize_string_for_logging(value: str | None, max_length: int = 50) -> str:
 
 
 # Convenience exports
-__all__ = ["LOG_FORMAT", "LOG_FORMAT_SIMPLE", "get_logger", "sanitize_id_for_logging", "sanitize_string_for_logging"]
+__all__ = [
+    "LOG_FORMAT",
+    "LOG_FORMAT_SIMPLE",
+    "get_logger",
+    "sanitize_id_for_logging",
+    "sanitize_string_for_logging",
+]

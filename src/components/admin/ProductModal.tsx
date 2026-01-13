@@ -268,7 +268,11 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                 <p className="text-[10px] text-gray-500 font-mono mt-1">ID: {editingProduct.id}</p>
               )}
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded transition-colors">
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 hover:bg-white/10 rounded transition-colors"
+            >
               <X size={20} className="text-gray-500" />
             </button>
           </div>

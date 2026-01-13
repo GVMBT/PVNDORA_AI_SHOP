@@ -17,8 +17,6 @@ logger = get_logger(__name__)
 # =============================================================================
 
 
-
-
 def _format_amount(amount: float, currency: str) -> str:
     """Format amount with currency symbol (reduces cognitive complexity)."""
     from core.services.currency import CURRENCY_SYMBOLS

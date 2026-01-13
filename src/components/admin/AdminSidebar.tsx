@@ -50,7 +50,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
         <div className="font-display font-bold text-white tracking-widest flex items-center gap-2">
           <Terminal className="text-red-500" size={18} /> ADMIN
         </div>
-        <button onClick={onClose} className="text-white">
+        <button type="button" onClick={onClose} className="text-white">
           <Menu size={24} />
         </button>
       </div>
@@ -65,8 +65,16 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
       `}
       >
         <div
+          role="button"
+          tabIndex={0}
           className="hidden md:flex h-20 items-center px-6 border-b border-white/10 cursor-pointer hover:bg-white/5 transition-colors"
           onClick={onToggleCollapse}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onToggleCollapse();
+            }
+          }}
           title="Toggle Sidebar"
         >
           <Terminal className="text-red-500 mr-3 shrink-0" />
@@ -183,6 +191,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
         <div className="p-4 border-t border-white/10">
           <button
+            type="button"
             onClick={onExit}
             className={`flex items-center gap-3 w-full text-gray-500 hover:text-white transition-colors p-2 rounded-sm hover:bg-white/5 ${
               isCollapsed ? "justify-center" : ""

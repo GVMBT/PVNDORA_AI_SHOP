@@ -177,7 +177,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
     if (activeTab === "requests") {
       fetchApplications();
     }
-  }, [activeTab, filter, fetchApplications]);
+  }, [activeTab, fetchApplications]);
 
   // Review application (approve/reject)
   const handleReview = async (approve: boolean) => {
@@ -215,6 +215,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
       {/* Tabs */}
       <div className="flex gap-4 border-b border-white/10 pb-1 overflow-x-auto">
         <button
+          type="button"
           onClick={() => setActiveTab("list")}
           className={`text-xs font-bold uppercase pb-2 px-2 transition-colors flex items-center gap-2 ${
             activeTab === "list"
@@ -226,6 +227,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
           VIP Партнёры
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab("requests")}
           className={`text-xs font-bold uppercase pb-2 px-2 transition-colors flex items-center gap-2 ${
             activeTab === "requests"
@@ -289,6 +291,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
                       </td>
                       <td className="p-4 flex gap-2">
                         <button
+                          type="button"
                           onClick={() => onEditPartner(p)}
                           className="hover:text-pandora-cyan transition-colors"
                           title="Редактировать"
@@ -297,6 +300,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
                         </button>
                         {onRevokeVIP && (
                           <button
+                            type="button"
                             onClick={async () => {
                               if (confirm(`Отозвать VIP статус у ${p.username}?`)) {
                                 await onRevokeVIP(p);
@@ -331,6 +335,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
                     {p.level || "USER"} • Заработок: {p.earned || 0} USD
                   </div>
                   <button
+                    type="button"
                     onClick={() => onEditPartner(p)}
                     className="w-full text-[10px] bg-white/5 py-2 hover:bg-pandora-cyan hover:text-black transition-colors uppercase font-bold"
                   >
@@ -347,6 +352,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
           <div className="flex justify-between items-center">
             <div className="flex gap-2">
               <button
+                type="button"
                 onClick={() => setFilter("pending")}
                 className={`px-3 py-1.5 text-[10px] font-bold uppercase transition-colors ${
                   filter === "pending"
@@ -357,6 +363,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
                 Ожидающие
               </button>
               <button
+                type="button"
                 onClick={() => setFilter("all")}
                 className={`px-3 py-1.5 text-[10px] font-bold uppercase transition-colors ${
                   filter === "all"
@@ -368,6 +375,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
               </button>
             </div>
             <button
+              type="button"
               onClick={fetchApplications}
               disabled={loadingApplications}
               className="p-2 text-gray-400 hover:text-pandora-cyan transition-colors disabled:opacity-50"
@@ -386,8 +394,13 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
         {selectedApp && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
             <div
+              role="button"
+              tabIndex={0}
               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
               onClick={() => !processing && setSelectedApp(null)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape" && !processing) setSelectedApp(null);
+              }}
             />
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -405,6 +418,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
                   <p className="text-xs text-gray-500 mt-1">ID: {selectedApp.id.slice(0, 8)}</p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => !processing && setSelectedApp(null)}
                   className="text-gray-500 hover:text-white"
                 >
@@ -483,10 +497,14 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
 
                   {/* Comment */}
                   <div>
-                    <label className="text-[10px] text-gray-500 uppercase mb-1 block">
+                    <label
+                      htmlFor="review-comment"
+                      className="text-[10px] text-gray-500 uppercase mb-1 block"
+                    >
                       Комментарий (опционально)
                     </label>
                     <textarea
+                      id="review-comment"
                       value={reviewComment}
                       onChange={(e) => setReviewComment(e.target.value)}
                       placeholder="Комментарий для пользователя..."
@@ -497,6 +515,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
                   {/* Actions */}
                   <div className="flex gap-3 pt-2">
                     <button
+                      type="button"
                       onClick={() => handleReview(true)}
                       disabled={processing}
                       className="flex-1 py-2.5 bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
@@ -505,6 +524,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
                       Одобрить
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleReview(false)}
                       disabled={processing}
                       className="flex-1 py-2.5 bg-red-500 text-white font-bold text-sm hover:bg-red-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"

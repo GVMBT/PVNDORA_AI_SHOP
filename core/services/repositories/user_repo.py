@@ -150,8 +150,6 @@ class UserRepository(BaseRepository):
                 # Don't log telegram_id (user-controlled data) - just log success
                 logger.info("Successfully updated user preferences")
             except Exception as e:
-                from core.logging import sanitize_string_for_logging
-
                 # Don't log full telegram_id (user-controlled), just log error type
                 logger.error(
                     "Failed to update preferences for user: %s",

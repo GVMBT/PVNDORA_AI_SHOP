@@ -283,7 +283,6 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
   // grossProfit and operatingExpenses are available via d.* properties
   const netMargin =
     d.netMarginPct ?? (d.totalRevenue > 0 ? (d.netProfit / d.totalRevenue) * 100 : 0);
-  const avgOrderValue = d.totalOrders > 0 ? d.totalRevenue / d.totalOrders : 0;
 
   // Reserve calculation
   const reservesAccumulated = d.reservesAccumulated ?? d.totalReserves;
@@ -314,8 +313,10 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
   };
 
   // Helper to extract specific currency data safely with type assertion
+  // rawRevenue can be CurrencyRevenue or legacy format with revenue_fiat
+  type RawRevenueEntry = Partial<CurrencyRevenue> & { revenue_fiat?: number };
   const getCurrencyData = (code: string): CurrencyRevenue => {
-    const data = rawRevenue[code] as any;
+    const data = rawRevenue[code] as RawRevenueEntry | undefined;
     if (!data) {
       return { revenue: 0, revenue_gross: 0, discounts_given: 0, orders_count: 0 };
     }
@@ -392,6 +393,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
           )}
           {onAddExpense && (
             <button
+              type="button"
               onClick={onAddExpense}
               className="p-2 bg-[#0e0e0e] border border-white/10 rounded-sm hover:border-green-500 transition-colors flex items-center gap-1"
             >

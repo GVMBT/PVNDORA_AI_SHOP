@@ -55,7 +55,8 @@ async def _convert_to_currency(currency_service, amount: float, target_currency:
     if target_currency == "USD" or amount <= 0:
         return amount
     try:
-        return await currency_service.convert_price(amount, target_currency)
+        result = await currency_service.convert_price(amount, target_currency)
+        return float(result) if result is not None else amount
     except Exception:
         return amount
 

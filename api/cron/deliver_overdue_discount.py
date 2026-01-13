@@ -85,7 +85,7 @@ async def _find_or_assign_stock(db: Any, product_id: str, stock_item_id: str | N
 
     if not stock_result.data:
         return None
-    return stock_result.data[0]["id"]
+    return str(stock_result.data[0]["id"])
 
 
 async def _get_stock_content(db: Any, stock_item_id: str) -> tuple[str, str]:

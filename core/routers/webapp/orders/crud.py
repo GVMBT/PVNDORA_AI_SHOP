@@ -243,7 +243,9 @@ async def _process_confirmed_payment(order_id: str, payment_id: str, db) -> dict
         from core.logging import sanitize_id_for_logging
 
         logger.warning(
-            "Failed to queue delivery for %s: %s", sanitize_id_for_logging(order_id), type(e).__name__
+            "Failed to queue delivery for %s: %s",
+            sanitize_id_for_logging(order_id),
+            type(e).__name__,
         )
 
     return {"status": final_status, "verified": True}

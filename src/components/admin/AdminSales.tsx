@@ -262,6 +262,7 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
               {isPending && (
                 <div className="flex gap-2 pt-2 border-t border-white/10">
                   <button
+                    type="button"
                     onClick={() => handleCheckPayment(o.id)}
                     disabled={isChecking || isProcessing}
                     className="flex-1 px-3 py-1.5 bg-blue-500/20 border border-blue-500/50 rounded text-xs text-blue-400 hover:bg-blue-500/30 transition-colors disabled:opacity-50"
@@ -269,6 +270,7 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
                     {isChecking ? "Проверка..." : "Проверить оплату"}
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleForceStatus(o.id, "paid")}
                     disabled={isChecking || isProcessing}
                     className="flex-1 px-3 py-1.5 bg-green-500/20 border border-green-500/50 rounded text-xs text-green-400 hover:bg-green-500/30 transition-colors disabled:opacity-50"
@@ -276,6 +278,7 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
                     Оплачен
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleForceStatus(o.id, "cancelled")}
                     disabled={isChecking || isProcessing}
                     className="flex-1 px-3 py-1.5 bg-red-500/20 border border-red-500/50 rounded text-xs text-red-400 hover:bg-red-500/30 transition-colors disabled:opacity-50"

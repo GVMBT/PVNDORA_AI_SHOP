@@ -137,7 +137,7 @@ class CurrencyFormatter:
             return 1.0
         exchange_rate = await currency_service.get_exchange_rate(currency)
         logger.info("CurrencyFormatter: got exchange_rate=%s for %s", exchange_rate, currency)
-        return exchange_rate
+        return float(exchange_rate) if exchange_rate is not None else 1.0
 
     @classmethod
     async def create(

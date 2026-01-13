@@ -75,7 +75,7 @@ async def _fetch_social_proof_single(db: Database, product_id: str) -> dict[str,
             .single()
             .execute()
         )
-        return result.data if result.data else {}
+        return cast(dict[str, Any], result.data) if result.data else {}
     except Exception as e:
         logger.warning(f"Failed to get social proof: {e}")
         return {}
@@ -121,12 +121,13 @@ async def _batch_fetch_ratings(db: Database, product_ids: list[str]) -> dict[str
             .in_("product_id", product_ids)
             .execute()
         )
-        for r in result.data or []:
-            pid = r["product_id"]
+        for r in cast(list[dict[str, Any]], result.data or []):
+            pid = str(r["product_id"])
             if pid not in ratings_map:
                 ratings_map[pid] = []
-            if r.get("rating"):
-                ratings_map[pid].append(r["rating"])
+            rating = r.get("rating")
+            if rating is not None:
+                ratings_map[pid].append(float(rating))
     except Exception as e:
         logger.warning(f"Failed to batch fetch ratings: {e}")
 

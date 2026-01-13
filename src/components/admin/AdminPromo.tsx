@@ -105,6 +105,7 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
           ПРОМОКОДЫ
         </h2>
         <button
+          type="button"
           onClick={() => setIsCreating(true)}
           className="flex items-center gap-2 px-4 py-2 bg-pandora-cyan text-black font-bold text-sm hover:bg-white transition-colors"
         >
@@ -117,8 +118,13 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
         {isCreating && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
             <div
+              role="button"
+              tabIndex={0}
               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
               onClick={() => !creating && setIsCreating(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape" && !creating) setIsCreating(false);
+              }}
             />
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -129,6 +135,7 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-bold text-white">Новый промокод</h3>
                 <button
+                  type="button"
                   onClick={() => !creating && setIsCreating(false)}
                   className="text-gray-500 hover:text-white"
                 >
@@ -139,10 +146,14 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
               <div className="space-y-4">
                 {/* Code */}
                 <div>
-                  <label className="text-[10px] text-gray-500 font-mono uppercase block mb-1">
+                  <label
+                    htmlFor="promo-code"
+                    className="text-[10px] text-gray-500 font-mono uppercase block mb-1"
+                  >
                     Код *
                   </label>
                   <input
+                    id="promo-code"
                     type="text"
                     value={newCode}
                     onChange={(e) => setNewCode(e.target.value.toUpperCase())}
@@ -153,13 +164,17 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
 
                 {/* Discount */}
                 <div>
-                  <label className="text-[10px] text-gray-500 font-mono uppercase block mb-1">
+                  <label
+                    htmlFor="promo-discount"
+                    className="text-[10px] text-gray-500 font-mono uppercase block mb-1"
+                  >
                     Скидка (%)
                   </label>
                   <input
+                    id="promo-discount"
                     type="number"
                     value={newDiscount}
-                    onChange={(e) => setNewDiscount(Number.parseInt(e.target.value) || 0)}
+                    onChange={(e) => setNewDiscount(Number.parseInt(e.target.value, 10) || 0)}
                     min={1}
                     max={100}
                     className="w-full bg-black border border-white/20 px-3 py-2.5 text-white font-mono focus:border-pandora-cyan focus:outline-none"
@@ -168,11 +183,15 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
 
                 {/* Product */}
                 <div>
-                  <label className="text-[10px] text-gray-500 font-mono uppercase block mb-1 flex items-center gap-1">
+                  <label
+                    htmlFor="promo-product"
+                    className="text-[10px] text-gray-500 font-mono uppercase block mb-1 flex items-center gap-1"
+                  >
                     <Package size={12} />
                     Товар (опционально)
                   </label>
                   <select
+                    id="promo-product"
                     value={newProductId || ""}
                     onChange={(e) => setNewProductId(e.target.value || null)}
                     className="w-full bg-black border border-white/20 px-3 py-2.5 text-white font-mono focus:border-pandora-cyan focus:outline-none"
@@ -191,14 +210,18 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
 
                 {/* Usage Limit */}
                 <div>
-                  <label className="text-[10px] text-gray-500 font-mono uppercase block mb-1">
+                  <label
+                    htmlFor="promo-limit"
+                    className="text-[10px] text-gray-500 font-mono uppercase block mb-1"
+                  >
                     Лимит использований
                   </label>
                   <input
+                    id="promo-limit"
                     type="number"
                     value={newLimit || ""}
                     onChange={(e) =>
-                      setNewLimit(e.target.value ? Number.parseInt(e.target.value) : undefined)
+                      setNewLimit(e.target.value ? Number.parseInt(e.target.value, 10) : undefined)
                     }
                     placeholder="Без ограничений"
                     min={1}
@@ -208,10 +231,14 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
 
                 {/* Expiry */}
                 <div>
-                  <label className="text-[10px] text-gray-500 font-mono uppercase block mb-1">
+                  <label
+                    htmlFor="promo-expiry"
+                    className="text-[10px] text-gray-500 font-mono uppercase block mb-1"
+                  >
                     Срок действия
                   </label>
                   <input
+                    id="promo-expiry"
                     type="date"
                     value={newExpiry}
                     onChange={(e) => setNewExpiry(e.target.value)}
@@ -222,6 +249,7 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                 {/* Actions */}
                 <div className="flex gap-3 pt-4">
                   <button
+                    type="button"
                     onClick={handleCreate}
                     disabled={!newCode.trim() || creating}
                     className="flex-1 py-2.5 bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
@@ -229,6 +257,7 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                     <Check size={16} /> Создать
                   </button>
                   <button
+                    type="button"
                     onClick={() => setIsCreating(false)}
                     disabled={creating}
                     className="flex-1 py-2.5 bg-white/10 text-white font-bold text-sm hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
@@ -305,6 +334,7 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                   </div>
                   <div className="col-span-1">
                     <button
+                      type="button"
                       onClick={() => onToggleActive?.(promo.id, !promo.is_active)}
                       className={`flex items-center gap-1 text-sm ${
                         promo.is_active ? "text-green-400" : "text-red-400"
@@ -315,6 +345,7 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                   </div>
                   <div className="col-span-1 flex justify-end gap-2">
                     <button
+                      type="button"
                       onClick={() => handleDelete(promo.id)}
                       className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
                     >
@@ -330,6 +361,7 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                       {promo.code}
                     </span>
                     <button
+                      type="button"
                       onClick={() => onToggleActive?.(promo.id, !promo.is_active)}
                       className={promo.is_active ? "text-green-400" : "text-red-400"}
                     >
@@ -370,6 +402,7 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => handleDelete(promo.id)}
                     className="w-full py-2 text-xs font-bold uppercase text-red-400 border border-red-400/30 hover:bg-red-400/10 transition-colors"
                   >

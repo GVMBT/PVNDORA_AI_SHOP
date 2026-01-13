@@ -304,6 +304,7 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                       </button>
                       {onDeleteProduct && (
                         <button
+                          type="button"
                           onClick={() => {
                             if (globalThis.confirm(`Delete "${p.name}"?`)) {
                               onDeleteProduct(String(p.id));
