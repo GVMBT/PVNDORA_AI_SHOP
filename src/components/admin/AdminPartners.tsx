@@ -48,6 +48,34 @@ interface AdminPartnersProps {
 
 type PartnerTab = "list" | "requests";
 
+// Helper: Format date for Russian locale
+const formatDateRu = (dateStr: string): string => {
+  return new Date(dateStr).toLocaleDateString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+// Helper: Status badge configuration
+const STATUS_BADGE_CONFIG: Record<string, { text: string; colorClass: string } | undefined> = {
+  pending: { text: "Ожидает", colorClass: "text-yellow-500 bg-yellow-500/10 border-yellow-500/30" },
+  approved: { text: "Одобрено", colorClass: "text-green-500 bg-green-500/10 border-green-500/30" },
+  rejected: { text: "Отклонено", colorClass: "text-red-500 bg-red-500/10 border-red-500/30" },
+};
+
+const getStatusBadge = (status: string): React.ReactNode => {
+  const config = STATUS_BADGE_CONFIG[status];
+  if (!config) return null;
+  return (
+    <span className={`${config.colorClass} border px-2 py-0.5 text-[10px] uppercase`}>
+      {config.text}
+    </span>
+  );
+};
+
 const AdminPartners: React.FC<AdminPartnersProps> = ({
   partners,
   onEditPartner,
@@ -106,48 +134,13 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
       if (onRefresh) onRefresh();
     } catch (err) {
       logger.error("Failed to review application", err);
-      alert("Ошибка при обработке заявки");
+      globalThis.alert("Ошибка при обработке заявки");
     } finally {
       setProcessing(false);
     }
   };
 
   const pendingCount = applications.filter((a) => a.status === "pending").length;
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("ru-RU", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "pending":
-        return (
-          <span className="text-yellow-500 bg-yellow-500/10 border border-yellow-500/30 px-2 py-0.5 text-[10px] uppercase">
-            Ожидает
-          </span>
-        );
-      case "approved":
-        return (
-          <span className="text-green-500 bg-green-500/10 border border-green-500/30 px-2 py-0.5 text-[10px] uppercase">
-            Одобрено
-          </span>
-        );
-      case "rejected":
-        return (
-          <span className="text-red-500 bg-red-500/10 border border-red-500/30 px-2 py-0.5 text-[10px] uppercase">
-            Отклонено
-          </span>
-        );
-      default:
-        return null;
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -350,7 +343,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
 
                   <div className="text-xs text-gray-500 mb-2 flex items-center gap-2">
                     <Calendar size={12} />
-                    {formatDate(app.created_at)}
+                    {formatDateRu(app.created_at)}
                   </div>
 
                   {app.motivation && (
@@ -427,7 +420,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
 
                 <div className="bg-black/50 p-3 border border-white/10">
                   <div className="text-[10px] text-gray-500 uppercase mb-1">Дата подачи</div>
-                  <div className="text-white">{formatDate(selectedApp.created_at)}</div>
+                  <div className="text-white">{formatDateRu(selectedApp.created_at)}</div>
                 </div>
 
                 {selectedApp.motivation && (
@@ -508,7 +501,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
                     {getStatusBadge(selectedApp.status)}
                     {selectedApp.reviewed_at && (
                       <span className="text-xs text-gray-500">
-                        {formatDate(selectedApp.reviewed_at)}
+                        {formatDateRu(selectedApp.reviewed_at)}
                       </span>
                     )}
                   </div>

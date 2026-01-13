@@ -143,10 +143,54 @@ interface MetricRowProps {
   icon?: React.ReactNode;
   indent?: boolean;
   bold?: boolean;
-  displayCurrency: "USD" | "RUB"; // Add displayCurrency as prop
-  dualCurrency?: { usd: number; rub: number }; // Optional dual currency display
-  tooltip?: string; // Optional tooltip
+  displayCurrency: "USD" | "RUB";
+  dualCurrency?: { usd: number; rub: number };
+  tooltip?: string;
 }
+
+// Helper: determine value color based on expense/profit state
+const getValueColor = (isProfit: boolean, isExpense: boolean, value: number): string => {
+  if (isProfit) {
+    return value >= 0 ? "text-green-400" : "text-red-400";
+  }
+  if (isExpense) {
+    return "text-red-400";
+  }
+  return "text-white";
+};
+
+// Helper: render dual currency values
+const renderDualCurrencyValue = (
+  dualCurrency: { usd: number; rub: number },
+  isExpense: boolean,
+  valueColor: string,
+  bold: boolean
+) => (
+  <>
+    <span className={`font-mono ${valueColor} ${bold ? "font-bold text-lg" : ""}`}>
+      {isExpense && dualCurrency.usd > 0 ? "-" : ""}
+      {formatMoney(Math.abs(dualCurrency.usd), "USD")}
+    </span>
+    <span className={`font-mono text-xs ${valueColor} opacity-75`}>
+      {isExpense && dualCurrency.rub > 0 ? "-" : ""}
+      {formatMoney(Math.abs(dualCurrency.rub), "RUB")}
+    </span>
+  </>
+);
+
+// Helper: render single currency value
+const renderSingleCurrencyValue = (
+  value: number,
+  isExpense: boolean,
+  valueColor: string,
+  bold: boolean,
+  displayCurrency: "USD" | "RUB"
+) => (
+  <span className={`font-mono ${valueColor} ${bold ? "font-bold text-lg" : ""}`}>
+    {isExpense && value > 0 ? "-" : ""}
+    {formatMoney(Math.abs(value), displayCurrency)}
+  </span>
+);
 
 const MetricRow: React.FC<MetricRowProps> = ({
   label,
@@ -160,23 +204,18 @@ const MetricRow: React.FC<MetricRowProps> = ({
   dualCurrency,
   tooltip,
 }) => {
-  const valueColor = (() => {
-    if (isProfit) return value >= 0 ? "text-green-400" : "text-red-400";
-    if (isExpense) return "text-red-400";
-    return "text-white";
-  })();
-
-  // Show dual currency if provided
+  const valueColor = getValueColor(isProfit, isExpense, value);
   const showDual = dualCurrency && (dualCurrency.usd > 0 || dualCurrency.rub > 0);
 
+  const containerClasses = `py-2 ${indent ? "pl-6" : ""} ${bold ? "border-t border-white/20 pt-3 mt-2" : ""}`;
+  const labelClasses = bold ? "font-bold text-white" : "";
+
   return (
-    <div
-      className={`py-2 ${indent ? "pl-6" : ""} ${bold ? "border-t border-white/20 pt-3 mt-2" : ""}`}
-    >
+    <div className={containerClasses}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-gray-400">
           {icon && <span className="text-gray-500">{icon}</span>}
-          <span className={bold ? "font-bold text-white" : ""}>{label}</span>
+          <span className={labelClasses}>{label}</span>
           {tooltip && (
             <span className="text-xs text-gray-500 cursor-help" title={tooltip}>
               ℹ️
@@ -184,23 +223,9 @@ const MetricRow: React.FC<MetricRowProps> = ({
           )}
         </div>
         <div className="flex flex-col items-end gap-1">
-          {showDual ? (
-            <>
-              <span className={`font-mono ${valueColor} ${bold ? "font-bold text-lg" : ""}`}>
-                {isExpense && dualCurrency.usd > 0 ? "-" : ""}
-                {formatMoney(Math.abs(dualCurrency.usd), "USD")}
-              </span>
-              <span className={`font-mono text-xs ${valueColor} opacity-75`}>
-                {isExpense && dualCurrency.rub > 0 ? "-" : ""}
-                {formatMoney(Math.abs(dualCurrency.rub), "RUB")}
-              </span>
-            </>
-          ) : (
-            <span className={`font-mono ${valueColor} ${bold ? "font-bold text-lg" : ""}`}>
-              {isExpense && value > 0 ? "-" : ""}
-              {formatMoney(Math.abs(value), displayCurrency)}
-            </span>
-          )}
+          {showDual && dualCurrency
+            ? renderDualCurrencyValue(dualCurrency, isExpense, valueColor, bold)
+            : renderSingleCurrencyValue(value, isExpense, valueColor, bold, displayCurrency)}
         </div>
       </div>
     </div>
