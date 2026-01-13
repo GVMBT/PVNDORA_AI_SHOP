@@ -31,6 +31,57 @@ import type {
   CatalogProduct,
 } from "../../types/component";
 
+// Helper functions for availability state (extracted to avoid nested ternaries)
+type AvailabilityState = "available" | "preorder" | "disabled";
+
+const getAvailabilityState = (hasStock: boolean, isPreorder: boolean): AvailabilityState => {
+  if (hasStock) return "available";
+  if (isPreorder) return "preorder";
+  return "disabled";
+};
+
+const getAccessProtocol = (state: AvailabilityState): string => {
+  if (state === "available") return "DIRECT_ACCESS";
+  if (state === "preorder") return "ON_DEMAND";
+  return "DISCONTINUED";
+};
+
+const getNodeStatus = (state: AvailabilityState): string => {
+  if (state === "available") return "OPERATIONAL";
+  if (state === "preorder") return "STANDBY";
+  return "DISABLED";
+};
+
+const getNodeStatusColor = (state: AvailabilityState): string => {
+  if (state === "available") return "text-green-500";
+  if (state === "preorder") return "text-yellow-500";
+  return "text-red-500";
+};
+
+const getStatusDotColor = (state: AvailabilityState): string => {
+  if (state === "available") return "bg-green-500";
+  if (state === "preorder") return "bg-yellow-500";
+  return "bg-red-500";
+};
+
+const getStatusText = (state: AvailabilityState): string => {
+  if (state === "available") return "GRID_ONLINE";
+  if (state === "preorder") return "RESOURCE_QUEUE";
+  return "OFFLINE";
+};
+
+const getTabLabel = (tab: string, t: (key: string) => string): string => {
+  if (tab === "specs") return t("product.techSpecs");
+  if (tab === "files") return t("product.packageContent");
+  return t("product.systemManifest");
+};
+
+const getButtonClassName = (isDisabled: boolean, isSuccess: boolean): string => {
+  if (isDisabled) return "bg-gray-800 text-gray-400 cursor-not-allowed";
+  if (isSuccess) return "bg-green-500 text-black";
+  return "bg-pandora-cyan hover:bg-white text-black";
+};
+
 interface ProductDetailProps {
   product: ProductDetailData;
   onBack: () => void;
@@ -117,29 +168,27 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
     const hasStock = product.stock > 0;
     const isPreorder = !hasStock && product.fulfillment > 0;
     const isDisabled = !hasStock && !isPreorder;
+    const state = getAvailabilityState(hasStock, isPreorder);
 
-    const accessProtocol = hasStock ? "DIRECT_ACCESS" : isPreorder ? "ON_DEMAND" : "DISCONTINUED";
+    const accessProtocol = getAccessProtocol(state);
     const deliveryLabel = hasStock
       ? "INSTANT_DEPLOY"
       : isPreorder
         ? `ALLOCATION_QUEUE ~${product.fulfillment}H`
         : "UNAVAILABLE";
 
-    const nodeStatus = hasStock ? "OPERATIONAL" : isPreorder ? "STANDBY" : "DISABLED";
-    const nodeStatusColor = hasStock
-      ? "text-green-500"
-      : isPreorder
-        ? "text-yellow-500"
-        : "text-red-500";
-    const statusDotColor = hasStock ? "bg-green-500" : isPreorder ? "bg-yellow-500" : "bg-red-500";
-    const statusText = hasStock ? "GRID_ONLINE" : isPreorder ? "RESOURCE_QUEUE" : "OFFLINE";
+    const nodeStatus = getNodeStatus(state);
+    const nodeStatusColor = getNodeStatusColor(state);
+    const statusDotColor = getStatusDotColor(state);
+    const statusText = getStatusText(state);
 
-    const warrantyLabel =
-      product.warranty > 0
-        ? product.warranty % 24 === 0
-          ? `${product.warranty / 24} DAYS`
-          : `${product.warranty} HOURS`
-        : "UNSPECIFIED";
+    // Warranty label helper
+    const getWarrantyLabel = (): string => {
+      if (product.warranty <= 0) return "UNSPECIFIED";
+      if (product.warranty % 24 === 0) return `${product.warranty / 24} DAYS`;
+      return `${product.warranty} HOURS`;
+    };
+    const warrantyLabel = getWarrantyLabel();
 
     const durationLabel =
       product.duration && product.duration > 0 ? `${product.duration} DAYS` : "UNBOUNDED";
@@ -208,6 +257,45 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
       "linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.1) 40%, rgba(0,255,255,0.2) 60%, transparent 100%)",
     ]
   );
+
+  // Helper to render button content based on state (avoids nested ternaries)
+  const renderButtonContent = () => {
+    const motionProps = {
+      initial: { opacity: 0, y: 10 },
+      animate: { opacity: 1, y: 0 },
+      exit: { opacity: 0, y: -10 },
+    };
+
+    if (isAllocating) {
+      return (
+        <motion.div key="loading" {...motionProps} className="flex items-center gap-3 w-full justify-center">
+          <Loader2 size={20} className="animate-spin" />
+          <span>{isPreorder ? t("product.allocatingQueue") : t("product.allocatingResources")}</span>
+        </motion.div>
+      );
+    }
+
+    if (isSuccess) {
+      return (
+        <motion.div key="success" {...motionProps} className="flex items-center gap-3 w-full justify-center">
+          <CheckCircle size={20} />
+          <span>{t("product.accessGranted")}</span>
+        </motion.div>
+      );
+    }
+
+    return (
+      <motion.div key="idle" {...motionProps} className="w-full flex items-center justify-between">
+        <span className="flex items-center gap-3 text-sm md:text-base group-hover:translate-x-1 transition-transform">
+          <Plus size={20} className="hidden sm:block" />
+          {isPreorder ? t("product.queueAllocation") : t("product.mountModule")}
+        </span>
+        <span className="font-mono text-lg md:text-xl font-bold border-l border-black/20 pl-4 ml-4">
+          {formatPrice(product.price * quantity, product.currency)}
+        </span>
+      </motion.div>
+    );
+  };
 
   return (
     <motion.div
@@ -367,11 +455,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
                         : "border-transparent text-gray-600 hover:text-white"
                     }`}
                   >
-                    {tab === "specs"
-                      ? t("product.techSpecs")
-                      : tab === "files"
-                        ? t("product.packageContent")
-                        : t("product.systemManifest")}
+                    {getTabLabel(tab, t)}
                   </button>
                 ))}
               </div>
@@ -543,13 +627,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
             disabled={isDisabled || isAllocating || isSuccess}
             className={`
                         flex-1 font-display font-bold uppercase tracking-widest transition-all flex items-center justify-between px-6 rounded-sm group relative overflow-hidden
-                        ${
-                          isDisabled
-                            ? "bg-gray-800 text-gray-400 cursor-not-allowed"
-                            : isSuccess
-                              ? "bg-green-500 text-black"
-                              : "bg-pandora-cyan hover:bg-white text-black"
-                        }
+                        ${getButtonClassName(isDisabled, isSuccess)}
                     `}
           >
             {/* Animated Background for Loading */}
@@ -568,47 +646,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
               </>
             ) : (
               <AnimatePresence mode="wait">
-                {isAllocating ? (
-                  <motion.div
-                    key="loading"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="flex items-center gap-3 w-full justify-center"
-                  >
-                    <Loader2 size={20} className="animate-spin" />
-                    <span>
-                      {isPreorder ? t("product.allocatingQueue") : t("product.allocatingResources")}
-                    </span>
-                  </motion.div>
-                ) : isSuccess ? (
-                  <motion.div
-                    key="success"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="flex items-center gap-3 w-full justify-center"
-                  >
-                    <CheckCircle size={20} />
-                    <span>{t("product.accessGranted")}</span>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="idle"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="w-full flex items-center justify-between"
-                  >
-                    <span className="flex items-center gap-3 text-sm md:text-base group-hover:translate-x-1 transition-transform">
-                      <Plus size={20} className="hidden sm:block" />
-                      {isPreorder ? t("product.queueAllocation") : t("product.mountModule")}
-                    </span>
-                    <span className="font-mono text-lg md:text-xl font-bold border-l border-black/20 pl-4 ml-4">
-                      {formatPrice(product.price * quantity, product.currency)}
-                    </span>
-                  </motion.div>
-                )}
+                {renderButtonContent()}
               </AnimatePresence>
             )}
           </button>
