@@ -436,12 +436,58 @@ class OrderStatusService:
             logger.exception(f"[mark_payment_confirmed] Traceback: {traceback.format_exc()}")
             raise
 
+    async def _calculate_display_amount(
+        self, fiat_amount: float | None, amount: float, currency: str
+    ) -> float:
+        """Calculate display amount for alert (reduces cognitive complexity)."""
+        if fiat_amount is not None:
+            return float(fiat_amount)
+
+        display_amount = float(amount)
+        if currency == "RUB" and amount < 10:
+            # Likely USD amount, convert roughly (best-effort)
+            from core.db import get_redis
+            from core.services.currency import get_currency_service
+
+            try:
+                redis = get_redis()
+                currency_service = get_currency_service(redis)
+                display_amount = await currency_service.convert_price(amount, currency)
+            except Exception:
+                pass  # Keep USD amount if conversion fails
+
+        return display_amount
+
+    async def _get_product_display(self, order_id: str) -> tuple[str, int]:
+        """Get product display string and total quantity (reduces cognitive complexity)."""
+        items_result = (
+            await self.db.client.table("order_items")
+            .select("quantity, products(name)")
+            .eq("order_id", order_id)
+            .limit(3)
+            .execute()
+        )
+
+        product_names = []
+        total_qty = 0
+        for item in items_result.data or []:
+            prod = item.get("products", {}) or {}
+            name = prod.get("name", "Unknown")
+            qty = item.get("quantity", 1)
+            product_names.append(name)
+            total_qty += qty
+
+        product_display = ", ".join(product_names[:2])
+        if len(product_names) > 2:
+            product_display += f" +{len(product_names) - 2}"
+
+        return product_display or "Unknown", total_qty
+
     async def _send_order_alert(self, order_id: str, amount: float, user_id: str) -> None:
         """Send admin alert for new paid order (best-effort)."""
         try:
             from core.services.admin_alerts import get_admin_alert_service
 
-            # Get order details for alert - include fiat_amount to show what user actually paid
             order_details = (
                 await self.db.client.table("orders")
                 .select("fiat_amount, fiat_currency, users(telegram_id, username)")
@@ -454,52 +500,13 @@ class OrderStatusService:
             telegram_id = user_data.get("telegram_id", 0)
             username = user_data.get("username")
 
-            # Use fiat_amount if available (what user actually paid), otherwise fallback to USD amount
             fiat_amount = order_details.data.get("fiat_amount") if order_details.data else None
             currency = (
                 order_details.data.get("fiat_currency", "RUB") if order_details.data else "RUB"
             )
 
-            # Use fiat_amount if available, otherwise convert USD amount
-            if fiat_amount is not None:
-                display_amount = float(fiat_amount)
-            else:
-                # Fallback: convert USD to user's currency (best-effort)
-                display_amount = float(amount)
-                # If no fiat_currency, assume RUB
-                if currency == "RUB" and amount < 10:
-                    # Likely USD amount, convert roughly (best-effort)
-                    from core.db import get_redis
-                    from core.services.currency import get_currency_service
-
-                    try:
-                        redis = get_redis()
-                        currency_service = get_currency_service(redis)
-                        display_amount = await currency_service.convert_price(amount, currency)
-                    except Exception:
-                        pass  # Keep USD amount if conversion fails
-
-            # Get product name from order items
-            items_result = (
-                await self.db.client.table("order_items")
-                .select("quantity, products(name)")
-                .eq("order_id", order_id)
-                .limit(3)
-                .execute()
-            )
-
-            product_names = []
-            total_qty = 0
-            for item in items_result.data or []:
-                prod = item.get("products", {}) or {}
-                name = prod.get("name", "Unknown")
-                qty = item.get("quantity", 1)
-                product_names.append(name)
-                total_qty += qty
-
-            product_display = ", ".join(product_names[:2])
-            if len(product_names) > 2:
-                product_display += f" +{len(product_names) - 2}"
+            display_amount = await self._calculate_display_amount(fiat_amount, amount, currency)
+            product_display, total_qty = await self._get_product_display(order_id)
 
             alert_service = get_admin_alert_service()
             await alert_service.alert_new_order(
@@ -508,7 +515,7 @@ class OrderStatusService:
                 currency=currency,
                 user_telegram_id=telegram_id,
                 username=username,
-                product_name=product_display or "Unknown",
+                product_name=product_display,
                 quantity=total_qty,
             )
         except Exception as e:

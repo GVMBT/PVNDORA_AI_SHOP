@@ -215,6 +215,52 @@ async def admin_get_business_metrics(days: int = 30, admin=Depends(verify_admin)
     }
 
 
+# Helper to aggregate promo stats (reduces cognitive complexity)
+def _aggregate_promo_stats(promo_stats_data: list) -> dict:
+    """Aggregate promo code stats by trigger."""
+    promo_by_trigger = {}
+    for p in promo_stats_data:
+        trigger = p.get("source_trigger", "unknown")
+        if trigger not in promo_by_trigger:
+            promo_by_trigger[trigger] = {"count": 0, "used": 0}
+        promo_by_trigger[trigger]["count"] += 1
+        promo_by_trigger[trigger]["used"] += p.get("current_uses", 0)
+    return promo_by_trigger
+
+
+# Helper to get top abusers (reduces cognitive complexity)
+async def _get_top_abusers(db, limit: int = 20, threshold: int = 30) -> list[dict]:
+    """Get top abusers with abuse scores above threshold."""
+    discount_users = (
+        await db.client.table("users")
+        .select("telegram_id")
+        .eq("discount_tier_source", True)
+        .limit(100)
+        .execute()
+    )
+
+    top_abusers = []
+    for user in (discount_users.data or [])[:limit]:
+        tid = user["telegram_id"]
+        score_result = await db.client.rpc("get_user_abuse_score", {"p_telegram_id": tid}).execute()
+        score = score_result.data if score_result.data else 0
+        if score > threshold:
+            top_abusers.append({"telegram_id": tid, "abuse_score": score})
+
+    top_abusers.sort(key=lambda x: x["abuse_score"], reverse=True)
+    return top_abusers
+
+
+# Helper to calculate discount totals (reduces cognitive complexity)
+def _calculate_discount_totals(discount_orders_data: list) -> tuple[float, int]:
+    """Calculate total discount revenue and order count."""
+    total_discount_revenue = sum(
+        o.get("amount", 0) for o in discount_orders_data if o.get("status") == "delivered"
+    )
+    total_discount_orders = len([o for o in discount_orders_data if o.get("status") == "delivered"])
+    return total_discount_revenue, total_discount_orders
+
+
 @router.get("/analytics/discount")
 async def admin_get_discount_analytics(days: int = 30, admin=Depends(verify_admin)):
     """Get discount channel analytics and migration funnel metrics."""
@@ -275,41 +321,14 @@ async def admin_get_discount_analytics(days: int = 30, admin=Depends(verify_admi
         .execute()
     )
 
-    # Aggregate promo stats by trigger
-    promo_by_trigger = {}
-    for p in promo_stats.data or []:
-        trigger = p.get("source_trigger", "unknown")
-        if trigger not in promo_by_trigger:
-            promo_by_trigger[trigger] = {"count": 0, "used": 0}
-        promo_by_trigger[trigger]["count"] += 1
-        promo_by_trigger[trigger]["used"] += p.get("current_uses", 0)
+    promo_by_trigger = _aggregate_promo_stats(promo_stats.data or [])
 
     # 6. Top abusers
-    # Get users with high abuse scores
-    discount_users = (
-        await db.client.table("users")
-        .select("telegram_id")
-        .eq("discount_tier_source", True)
-        .limit(100)
-        .execute()
-    )
-
-    top_abusers = []
-    for user in (discount_users.data or [])[:20]:  # Check first 20
-        tid = user["telegram_id"]
-        score_result = await db.client.rpc("get_user_abuse_score", {"p_telegram_id": tid}).execute()
-        score = score_result.data if score_result.data else 0
-        if score > 30:  # Only include if above threshold
-            top_abusers.append({"telegram_id": tid, "abuse_score": score})
-
-    top_abusers.sort(key=lambda x: x["abuse_score"], reverse=True)
+    top_abusers = await _get_top_abusers(db)
 
     # Calculate totals
     discount_orders_data = discount_orders.data or []
-    total_discount_revenue = sum(
-        o.get("amount", 0) for o in discount_orders_data if o.get("status") == "delivered"
-    )
-    total_discount_orders = len([o for o in discount_orders_data if o.get("status") == "delivered"])
+    total_discount_revenue, total_discount_orders = _calculate_discount_totals(discount_orders_data)
 
     return {
         "period_days": days,

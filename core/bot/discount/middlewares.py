@@ -177,28 +177,63 @@ class TermsAcceptanceMiddleware(BaseMiddleware):
     EXEMPT_COMMANDS = {"/start", "/terms"}
     EXEMPT_CALLBACKS = {"discount:terms:read", "discount:terms:accept", "discount:check_sub"}
 
+    def _is_exempt(self, event: TelegramObject) -> bool:
+        """Check if event is exempt from terms check (reduces cognitive complexity)."""
+        if isinstance(event, Message):
+            if event.text and any(event.text.startswith(cmd) for cmd in self.EXEMPT_COMMANDS):
+                return True
+        elif isinstance(event, CallbackQuery):
+            if event.data and any(cb in event.data for cb in self.EXEMPT_CALLBACKS):
+                return True
+        return False
+
+    def _get_terms_text(self, lang: str) -> str:
+        """Get terms acceptance text (reduces cognitive complexity)."""
+        if lang == "ru":
+            return (
+                "📜 <b>Условия использования</b>\n\n"
+                "Перед использованием бота необходимо принять условия:\n\n"
+                "• Мы предоставляем доступ к ознакомительным версиям сервисов\n"
+                "• Замены доступны только при наличии страховки\n"
+                "• Мы не несем ответственности за использование аккаунтов\n"
+                "• Доставка в течение 1-4 часов после оплаты\n\n"
+                "Нажмите кнопку ниже, чтобы принять условия."
+            )
+        return (
+            "📜 <b>Terms of Service</b>\n\n"
+            "Before using the bot, please accept the terms:\n\n"
+            "• We provide access to trial versions of services\n"
+            "• Replacements available only with insurance\n"
+            "• We are not responsible for account usage\n"
+            "• Delivery within 1-4 hours after payment\n\n"
+            "Click the button below to accept."
+        )
+
+    async def _show_terms_prompt(self, event: TelegramObject, lang: str):
+        """Show terms acceptance prompt (reduces cognitive complexity)."""
+        from .keyboards import get_terms_keyboard
+
+        text = self._get_terms_text(lang)
+
+        if isinstance(event, Message):
+            await event.answer(text, reply_markup=get_terms_keyboard(lang), parse_mode="HTML")
+        elif isinstance(event, CallbackQuery):
+            alert_text = "Примите условия использования!" if lang == "ru" else "Accept terms first!"
+            await event.answer(alert_text, show_alert=True)
+
     async def __call__(
         self,
         handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
-        # Check exemptions
-        if isinstance(event, Message):
-            if event.text and any(event.text.startswith(cmd) for cmd in self.EXEMPT_COMMANDS):
-                return await handler(event, data)
-        elif (
-            isinstance(event, CallbackQuery)
-            and event.data
-            and any(cb in event.data for cb in self.EXEMPT_CALLBACKS)
-        ):
+        if self._is_exempt(event):
             return await handler(event, data)
 
         db_user = data.get("db_user")
         if not db_user:
             return await handler(event, data)
 
-        # Check if terms accepted
         db = get_database()
 
         try:
@@ -213,47 +248,10 @@ class TermsAcceptanceMiddleware(BaseMiddleware):
             terms_accepted = result.data.get("terms_accepted", False) if result.data else False
 
             if not terms_accepted:
-                # Show terms acceptance prompt
-                lang = db_user.language_code
-
-                text = (
-                    (
-                        "📜 <b>Условия использования</b>\n\n"
-                        "Перед использованием бота необходимо принять условия:\n\n"
-                        "• Мы предоставляем доступ к ознакомительным версиям сервисов\n"
-                        "• Замены доступны только при наличии страховки\n"
-                        "• Мы не несем ответственности за использование аккаунтов\n"
-                        "• Доставка в течение 1-4 часов после оплаты\n\n"
-                        "Нажмите кнопку ниже, чтобы принять условия."
-                    )
-                    if lang == "ru"
-                    else (
-                        "📜 <b>Terms of Service</b>\n\n"
-                        "Before using the bot, please accept the terms:\n\n"
-                        "• We provide access to trial versions of services\n"
-                        "• Replacements available only with insurance\n"
-                        "• We are not responsible for account usage\n"
-                        "• Delivery within 1-4 hours after payment\n\n"
-                        "Click the button below to accept."
-                    )
-                )
-
-                from .keyboards import get_terms_keyboard
-
-                if isinstance(event, Message):
-                    await event.answer(
-                        text, reply_markup=get_terms_keyboard(lang), parse_mode="HTML"
-                    )
-                elif isinstance(event, CallbackQuery):
-                    await event.answer(
-                        "Примите условия использования!" if lang == "ru" else "Accept terms first!",
-                        show_alert=True,
-                    )
-
-                return None  # Stop processing
+                await self._show_terms_prompt(event, db_user.language_code)
+                return None
 
         except Exception:
             logger.exception("Failed to check terms acceptance")
-            # Continue on error
 
         return await handler(event, data)
