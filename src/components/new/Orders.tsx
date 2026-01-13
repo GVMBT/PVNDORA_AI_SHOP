@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
 import { ArrowLeft, Box, Package, Terminal } from "lucide-react";
-import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useClipboard } from "../../hooks/useClipboard";
 import { useLocale } from "../../hooks/useLocale";
@@ -26,7 +25,7 @@ interface OrdersProps {
   ) => Promise<void>;
 }
 
-const Orders: React.FC<OrdersProps> = ({
+const Orders = ({
   orders: propOrders,
   onBack,
   onOpenSupport,

@@ -7,7 +7,6 @@
 
 import { motion } from "framer-motion";
 import { ExternalLink, Loader2, Send, Shield, Zap } from "lucide-react";
-import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { BOT } from "../../config";
 import { apiPost } from "../../utils/apiClient";
@@ -36,7 +35,7 @@ interface LoginPageProps {
   onNavigateLegal?: (doc: string) => void;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({
+const LoginPage = ({
   onLoginSuccess,
   botUsername = BOT.USERNAME,
   redirectPath = "/",

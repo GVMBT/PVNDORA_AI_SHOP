@@ -284,7 +284,7 @@ def _process_single_order_for_overview(
 
 
 # Helper: Process orders for financial overview (reduces cognitive complexity)
-async def _process_orders_for_overview(
+def _process_orders_for_overview(
     orders: list[dict[str, Any]],
 ) -> tuple[dict[str, dict[str, float]], dict[str, float]]:
     """Process orders and calculate revenue by currency and expense totals."""
@@ -394,7 +394,7 @@ def _calculate_monthly_profits(
 
 
 # Helper: Process orders by month (reduces cognitive complexity)
-async def _process_orders_by_month(
+def _process_orders_by_month(
     orders: list[dict[str, Any]],
     other_expenses_by_month: dict[str, float],
     insurance_by_month: dict[str, float],
@@ -494,7 +494,7 @@ def _process_single_order_for_report(
 
 
 # Helper: Process orders for accounting report (reduces cognitive complexity)
-async def _process_orders_for_report(
+def _process_orders_for_report(
     orders: list[dict[str, Any]],
 ) -> tuple[dict[str, dict[str, Any]], dict[str, float]]:
     """Process orders grouped by currency and calculate expense totals."""
@@ -643,7 +643,7 @@ async def get_financial_overview(
     orders = orders_result.data or []
 
     # Process orders and calculate revenue/expenses
-    revenue_by_currency, expense_totals = await _process_orders_for_overview(orders)
+    revenue_by_currency, expense_totals = _process_orders_for_overview(orders)
     total_revenue_usd = expense_totals["revenue_usd"]
     total_revenue_gross_usd = expense_totals["revenue_gross_usd"]
     total_cogs = expense_totals["cogs"]
@@ -1077,9 +1077,7 @@ async def get_monthly_pl(months: int = Query(12, ge=1, le=36), admin=Depends(ver
         )
 
     # Group by month and calculate profits
-    monthly_data = await _process_orders_by_month(
-        orders, other_expenses_by_month, insurance_by_month
-    )
+    monthly_data = _process_orders_by_month(orders, other_expenses_by_month, insurance_by_month)
 
     # Sort by month descending and limit
     monthly_list = sorted(monthly_data.values(), key=lambda x: x["month"], reverse=True)[:months]
@@ -1542,7 +1540,7 @@ async def get_accounting_report(
     orders = orders_result.data or []
 
     # Process orders by currency and calculate expenses
-    orders_by_currency, expense_totals = await _process_orders_for_report(orders)
+    orders_by_currency, expense_totals = _process_orders_for_report(orders)
     revenue = expense_totals["revenue"]
     revenue_gross = expense_totals["revenue_gross"]
     total_discounts = revenue_gross - revenue
