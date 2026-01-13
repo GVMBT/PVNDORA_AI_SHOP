@@ -167,7 +167,7 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
           <div className="space-y-4">
             {/* Description */}
             <div>
-              <label className="text-[10px] text-gray-500 uppercase mb-1.5 block flex items-center gap-1">
+              <label className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
                 <FileText size={12} />
                 Описание
               </label>
@@ -190,7 +190,7 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
             {/* Amount & Currency */}
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
-                <label className="text-[10px] text-gray-500 uppercase mb-1.5 block flex items-center gap-1">
+                <label className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
                   <DollarSign size={12} />
                   Сумма
                 </label>
@@ -202,7 +202,7 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
                   onChange={(e) =>
                     setEditingExpense({
                       ...editingExpense,
-                      amount: parseFloat(e.target.value) || 0,
+                      amount: Number.parseFloat(e.target.value) || 0,
                     })
                   }
                   placeholder="0.00"
@@ -214,8 +214,14 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
                 {errors.amount && <p className="text-xs text-red-500 mt-1">{errors.amount}</p>}
               </div>
               <div>
-                <label className="text-[10px] text-gray-500 uppercase mb-1.5 block">Валюта</label>
+                <label
+                  htmlFor="currency-select"
+                  className="text-[10px] text-gray-500 uppercase mb-1.5 block"
+                >
+                  Валюта
+                </label>
                 <select
+                  id="currency-select"
                   value={editingExpense.currency}
                   onChange={(e) =>
                     setEditingExpense({
@@ -234,7 +240,7 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
 
             {/* Category */}
             <div>
-              <label className="text-[10px] text-gray-500 uppercase mb-1.5 block flex items-center gap-1">
+              <label className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
                 <Tag size={12} />
                 Категория
               </label>
@@ -242,7 +248,7 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
                 {EXPENSE_CATEGORIES.map((cat) => (
                   <button
                     key={cat.value}
-                    onClick={() => handleCategoryChange(cat.value as ExpenseData["category"])}
+                    onClick={() => handleCategoryChange(cat.value)}
                     className={`p-3 border text-left transition-colors ${
                       editingExpense.category === cat.value
                         ? "border-pandora-cyan bg-pandora-cyan/10 text-pandora-cyan"
@@ -264,7 +270,7 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
 
             {/* Date */}
             <div>
-              <label className="text-[10px] text-gray-500 uppercase mb-1.5 block flex items-center gap-1">
+              <label className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
                 <Calendar size={12} />
                 Дата
               </label>

@@ -6,6 +6,8 @@ All prices include both USD and display values for unified currency handling.
 Supports anchor pricing (fixed prices per currency).
 """
 
+from typing import Any, cast
+
 from fastapi import APIRouter, HTTPException, Query
 
 from core.db import get_redis
@@ -46,7 +48,10 @@ async def get_webapp_product(
     if not product_result.data:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    product = product_result.data[0]
+    product_raw = product_result.data[0]
+    if not isinstance(product_raw, dict):
+        raise HTTPException(status_code=500, detail="Invalid product data format")
+    product = cast(dict[str, Any], product_raw)
 
     # Discount from VIEW (already aggregated)
     discount_percent = product.get("max_discount_percent", 0) or 0
@@ -67,9 +72,11 @@ async def get_webapp_product(
     currency_service = get_currency_service(redis)
 
     # USD values (base)
-    price_usd = float(product.get("price", 0))
+    price_raw = product.get("price", 0)
+    price_usd = float(price_raw) if isinstance(price_raw, (int, float, str)) else 0.0
     final_price_usd = price_usd * (1 - discount_percent / 100)
-    msrp_usd = float(product["msrp"]) if product.get("msrp") else None
+    msrp_raw = product.get("msrp")
+    msrp_usd = float(msrp_raw) if msrp_raw and isinstance(msrp_raw, (int, float, str)) else None
 
     # Get anchor price (fixed or converted)
     product_dict = {"price": product.get("price", 0), "prices": product.get("prices") or {}}
@@ -190,7 +197,11 @@ async def get_webapp_products(
         .execute()
     )
 
-    products = products_result.data or []
+    products_raw = products_result.data or []
+    products: list[dict[str, Any]] = []
+    for p_raw in products_raw:
+        if isinstance(p_raw, dict):
+            products.append(cast(dict[str, Any], p_raw))
 
     # Unified currency formatter
     redis = get_redis()
@@ -216,12 +227,17 @@ async def get_webapp_products(
                 .in_("product_id", product_ids)
                 .execute()
             )
-            social_proof_map = {sp["product_id"]: sp for sp in (social_proof_result.data or [])}
+            for sp_raw in social_proof_result.data or []:
+                if isinstance(sp_raw, dict):
+                    sp = cast(dict[str, Any], sp_raw)
+                    product_id = sp.get("product_id")
+                    if product_id:
+                        social_proof_map[product_id] = sp
     except Exception as e:
         logger.warning(f"Failed to batch fetch social proof: {e}")
 
     # Batch fetch ratings (single query for all products)
-    ratings_map = {}
+    ratings_map: dict[str, list[float]] = {}
     try:
         if product_ids:
             ratings_result = (
@@ -261,7 +277,8 @@ async def get_webapp_products(
         # USD values (base)
         price_usd = float(p.get("price", 0))
         final_price_usd = price_usd * (1 - discount_percent / 100)
-        msrp_usd = float(p["msrp"]) if p.get("msrp") else None
+        msrp_raw = p.get("msrp")
+        msrp_usd = float(msrp_raw) if msrp_raw and isinstance(msrp_raw, (int, float, str)) else None
 
         # Get anchor price (fixed or converted)
         product_dict = {"price": p.get("price", 0), "prices": p.get("prices") or {}}

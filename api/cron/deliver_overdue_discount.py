@@ -38,7 +38,10 @@ async def get_referral_percentages() -> dict:
         db = await get_database_async()
         result = await db.client.table("referral_settings").select("*").limit(1).execute()
         if result.data:
-            s = result.data[0]
+            s_raw = result.data[0]
+            if not isinstance(s_raw, dict):
+                return {"l1": 10, "l2": 7, "l3": 3}
+            s = cast(dict[str, Any], s_raw)
             _referral_settings_cache = {
                 "l1": int(s.get("level1_commission_percent", 10) or 10),
                 "l2": int(s.get("level2_commission_percent", 7) or 7),
@@ -416,8 +419,13 @@ async def deliver_overdue_discount(request: Request):
 
         delivered_count = 0
 
-        for order in overdue_orders:
-            order_id = order["id"]
+        for order_raw in overdue_orders:
+            if not isinstance(order_raw, dict):
+                continue
+            order = cast(dict[str, Any], order_raw)
+            order_id = order.get("id")
+            if not order_id:
+                continue
             success = await deliver_discount_order(db, order_id, order)
             if success:
                 delivered_count += 1

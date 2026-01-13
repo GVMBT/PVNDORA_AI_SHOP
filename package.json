@@ -14,7 +14,9 @@
         "typecheck": "tsc --noEmit",
         "typecheck:strict": "tsc --noEmit --project tsconfig.strict.json",
         "preview": "vite preview",
-        "check:all": "npm run lint && npm run format:check && npm run typecheck"
+        "check:all": "npm run lint && npm run format:check && npm run typecheck",
+        "sonar": "sonar-scanner",
+        "sonar:check": "python scripts/run_sonarqube.py"
     },
     "dependencies": {
         "@radix-ui/react-slot": "^1.2.4",
