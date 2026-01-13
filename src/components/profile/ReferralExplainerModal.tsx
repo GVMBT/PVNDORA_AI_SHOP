@@ -18,6 +18,29 @@ import {
 import { useLocale } from "../../hooks/useLocale";
 import type { CurrencyCode } from "../../utils/currency";
 
+// Helper for level card styling (avoid nested ternaries)
+const getLevelCardClasses = (
+  isCurrentLevel: boolean,
+  isUnlocked: boolean,
+  bgColor: string,
+  borderColor: string
+): string => {
+  if (isCurrentLevel) return `${bgColor} ${borderColor}`;
+  if (isUnlocked) return "bg-white/5 border-white/10";
+  return "bg-black/30 border-white/5 opacity-60";
+};
+
+// Helper for threshold value
+const getLevelThreshold = (
+  level: number,
+  thresholdLevel2: number,
+  thresholdLevel3: number
+): number | null => {
+  if (level === 2) return thresholdLevel2;
+  if (level === 3) return thresholdLevel3;
+  return null;
+};
+
 interface ReferralExplainerModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -239,19 +262,12 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                   {LEVELS.map((lvl, i) => {
                     const isCurrentLevel = lvl.level === currentLevel;
                     const isUnlocked = lvl.level <= currentLevel;
-                    const threshold =
-                      lvl.level === 2 ? thresholdLevel2 : lvl.level === 3 ? thresholdLevel3 : null;
+                    const threshold = getLevelThreshold(lvl.level, thresholdLevel2, thresholdLevel3);
 
                     return (
                       <div
                         key={lvl.level}
-                        className={`p-3 border rounded-sm transition-all ${
-                          isCurrentLevel
-                            ? `${lvl.bgColor} ${lvl.borderColor}`
-                            : isUnlocked
-                              ? "bg-white/5 border-white/10"
-                              : "bg-black/30 border-white/5 opacity-60"
-                        }`}
+                        className={`p-3 border rounded-sm transition-all ${getLevelCardClasses(isCurrentLevel, isUnlocked, lvl.bgColor, lvl.borderColor)}`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">

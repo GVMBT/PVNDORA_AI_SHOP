@@ -10,6 +10,13 @@ import { X, ShieldCheck, User, Activity } from "lucide-react";
 import DecryptedText from "./DecryptedText";
 import type { NetworkNodeData } from "./types";
 
+// Helper for status color (avoid nested ternary)
+const getStatusColor = (status: string): string => {
+  if (status === "VIP") return "text-yellow-500";
+  if (status === "SLEEP") return "text-red-500";
+  return "text-green-500";
+};
+
 interface ReferralDossierProps {
   referral: NetworkNodeData | null;
   onClose: () => void;
@@ -83,13 +90,7 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
                 <div className="text-xs text-gray-500 font-mono">
                   STATUS:
                   <span
-                    className={`ml-2 font-bold ${
-                      referral.status === "VIP"
-                        ? "text-yellow-500"
-                        : referral.status === "SLEEP"
-                          ? "text-red-500"
-                          : "text-green-500"
-                    }`}
+                    className={`ml-2 font-bold ${getStatusColor(referral.status)}`}
                   >
                     <DecryptedText text={referral.status} reveal={true} />
                   </span>
