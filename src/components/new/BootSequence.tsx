@@ -381,7 +381,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
           <div className="absolute bottom-4 left-4 w-8 h-8 border-l-2 border-b-2 border-pandora-cyan/30" />
           <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-pandora-cyan/30" />
         </motion.div>
-      ) : null}
+      )}
     </AnimatePresence>
   );
 };

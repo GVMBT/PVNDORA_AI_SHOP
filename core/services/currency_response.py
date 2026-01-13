@@ -97,6 +97,49 @@ class CurrencyFormatter:
     exchange_rate: float
 
     @classmethod
+    async def _get_user_preferences(
+        cls,
+        db_user,
+        user_telegram_id: int | None,
+        db,
+        preferred_currency: str | None,
+        language_code: str | None,
+    ) -> tuple[str | None, str]:
+        """Get user preferences from db_user or DB (reduces cognitive complexity)."""
+        user_preferred = preferred_currency
+        user_lang = language_code or "en"
+
+        if db_user:
+            if not preferred_currency:
+                user_preferred = getattr(db_user, "preferred_currency", None)
+            if not language_code:
+                user_lang = (
+                    getattr(db_user, "interface_language", None)
+                    or getattr(db_user, "language_code", "en")
+                    or "en"
+                )
+        elif user_telegram_id and db and not preferred_currency:
+            db_user_fetch = await db.get_user_by_telegram_id(user_telegram_id)
+            if db_user_fetch:
+                user_preferred = getattr(db_user_fetch, "preferred_currency", None)
+                user_lang = (
+                    getattr(db_user_fetch, "interface_language", None)
+                    or getattr(db_user_fetch, "language_code", "en")
+                    or "en"
+                )
+
+        return user_preferred, user_lang
+
+    @classmethod
+    async def _get_exchange_rate(cls, currency_service, currency: str) -> float:
+        """Get exchange rate for currency (reduces cognitive complexity)."""
+        if currency == "USD":
+            return 1.0
+        exchange_rate = await currency_service.get_exchange_rate(currency)
+        logger.info("CurrencyFormatter: got exchange_rate=%s for %s", exchange_rate, currency)
+        return exchange_rate
+
+    @classmethod
     async def create(
         cls,
         user_telegram_id: int | None = None,
@@ -123,50 +166,27 @@ class CurrencyFormatter:
         exchange_rate = 1.0
 
         try:
-            # Get user preferences from db_user if provided, otherwise from DB
-            user_preferred = preferred_currency
-            user_lang = language_code or "en"
+            user_preferred, user_lang = await cls._get_user_preferences(
+                db_user, user_telegram_id, db, preferred_currency, language_code
+            )
 
-            if db_user:
-                # OPTIMIZATION: Use provided db_user (no DB query needed)
-                if not preferred_currency:
-                    user_preferred = getattr(db_user, "preferred_currency", None)
-                if not language_code:
-                    user_lang = (
-                        getattr(db_user, "interface_language", None)
-                        or getattr(db_user, "language_code", "en")
-                        or "en"
-                    )
-            elif user_telegram_id and db and not preferred_currency:
-                # Fallback: Query DB if db_user not provided (backward compatibility)
-                db_user_fetch = await db.get_user_by_telegram_id(user_telegram_id)
-                if db_user_fetch:
-                    user_preferred = getattr(db_user_fetch, "preferred_currency", None)
-                    user_lang = (
-                        getattr(db_user_fetch, "interface_language", None)
-                        or getattr(db_user_fetch, "language_code", "en")
-                        or "en"
-                    )
-
-            # Use CurrencyService for currency determination (single source of truth)
             currency_service = get_currency_service(redis)
             currency = currency_service.get_user_currency(user_lang, user_preferred)
 
-            # Log user identifier (telegram_id or db_user id)
             user_id_for_log = user_telegram_id or (
                 getattr(db_user, "telegram_id", None) if db_user else None
             )
             logger.info(
-                f"CurrencyFormatter: user={user_id_for_log}, preferred={user_preferred}, currency={currency}"
+                "CurrencyFormatter: user=%s, preferred=%s, currency=%s",
+                user_id_for_log,
+                user_preferred,
+                currency,
             )
 
-            # Get exchange rate
-            if currency != "USD":
-                exchange_rate = await currency_service.get_exchange_rate(currency)
-                logger.info(f"CurrencyFormatter: got exchange_rate={exchange_rate} for {currency}")
+            exchange_rate = await cls._get_exchange_rate(currency_service, currency)
 
         except Exception as e:
-            logger.error(f"Currency setup failed: {e}, using USD", exc_info=True)
+            logger.error("Currency setup failed: %s, using USD", e, exc_info=True)
             currency = "USD"
             exchange_rate = 1.0
 

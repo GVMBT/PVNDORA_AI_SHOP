@@ -81,6 +81,53 @@ TOOL_LABELS = {
 }
 
 
+# Helper to detect payment intent (reduces cognitive complexity)
+def _detect_payment_intent(reply_text: str) -> bool:
+    """Detect if message contains payment intent."""
+    if not reply_text:
+        return False
+    reply_text_lower = reply_text.lower()
+    payment_keywords = ["оплатить", "к оплате", "итого", "общая сумма", "предзаказ"]
+    has_payment_intent = any(kw in reply_text_lower for kw in payment_keywords)
+    has_price = "₽" in reply_text or "руб" in reply_text_lower
+    return has_payment_intent and has_price
+
+
+# Helper to create mock response (reduces cognitive complexity)
+def _create_mock_response(reply_text: str, action_str: str, product_id: str | None):
+    """Create mock response object for keyboard detection."""
+    from core.models import ActionType
+
+    class MockResponse:
+        def __init__(self, text, action_str, product_id):
+            self.reply_text = text
+            self.product_id = product_id
+            self.quantity = 1
+            self.cart_items = []
+            action_map = {
+                "add_to_cart": ActionType.ADD_TO_CART,
+                "offer_payment": ActionType.OFFER_PAYMENT,
+                "create_ticket": ActionType.CREATE_TICKET,
+                "show_catalog": ActionType.SHOW_CATALOG,
+            }
+            self.action = action_map.get(action_str, ActionType.NONE)
+
+    return MockResponse(reply_text, action_str, product_id)
+
+
+# Helper to send final response (reduces cognitive complexity)
+async def _send_final_response(progress_msg, message, reply_text, keyboard):
+    """Send final response, handling edit/delete fallback."""
+    try:
+        await progress_msg.edit_text(reply_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+    except Exception:
+        try:
+            await progress_msg.delete()
+        except Exception:
+            pass
+        await safe_answer(message, reply_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+
+
 @router.message(F.text)
 async def handle_text_message(message: Message, db_user: User, bot: Bot):
     """Handle regular text messages - route to AI agent."""
@@ -88,20 +135,16 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
     from core.models import ActionType
 
     db = get_database()
-    # message.text can be None (e.g., for photos without caption)
     message_text = message.text or ""
     await db.save_chat_message(db_user.id, "user", message_text)
 
     lang = db_user.language_code if db_user.language_code in ("ru", "en") else "en"
     initial_text = "Думаю" if lang == "ru" else "Thinking"
 
-    # Send initial progress message
     progress_msg = await message.answer(f"{initial_text}...")
 
     try:
-        # Get AI response via LangGraph agent
         agent = get_shop_agent(db)
-        # message.from_user.id should always be present for user messages
         telegram_id = message.from_user.id if message.from_user else db_user.telegram_id
         response = await agent.chat(
             message=message_text,
@@ -113,52 +156,19 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
         reply_text = response.content
         await db.save_chat_message(db_user.id, "assistant", reply_text)
 
-        # Build mock response object for keyboard detection
-        class MockResponse:
-            def __init__(self, text, action_str, product_id):
-                self.reply_text = text
-                self.product_id = product_id
-                self.quantity = 1
-                self.cart_items = []
-                # Map action string to ActionType
-                action_map = {
-                    "add_to_cart": ActionType.ADD_TO_CART,
-                    "offer_payment": ActionType.OFFER_PAYMENT,
-                    "create_ticket": ActionType.CREATE_TICKET,
-                    "show_catalog": ActionType.SHOW_CATALOG,
-                }
-                self.action = action_map.get(action_str, ActionType.NONE)
+        mock_response = _create_mock_response(reply_text, response.action, response.product_id)
 
-        mock_response = MockResponse(reply_text, response.action, response.product_id)
-
-        # Auto-detect payment intent
-        if mock_response.action == ActionType.NONE and reply_text:
-            reply_text_lower = reply_text.lower()
-            payment_keywords = ["оплатить", "к оплате", "итого", "общая сумма", "предзаказ"]
-            has_payment_intent = any(kw in reply_text_lower for kw in payment_keywords)
-            has_price = "₽" in reply_text or "руб" in reply_text_lower
-            if has_payment_intent and has_price:
-                logger.debug("Auto-detected payment intent")
-                mock_response.action = ActionType.OFFER_PAYMENT
+        if mock_response.action == ActionType.NONE and _detect_payment_intent(reply_text):
+            logger.debug("Auto-detected payment intent")
+            mock_response.action = ActionType.OFFER_PAYMENT
 
         keyboard = await _get_keyboard_for_response(mock_response, db_user, db)
+        logger.debug("Action: %s, Product: %s", mock_response.action, response.product_id)
 
-        logger.debug(f"Action: {mock_response.action}, Product: {response.product_id}")
-
-        # Edit progress message with final response
-        try:
-            await progress_msg.edit_text(
-                reply_text, reply_markup=keyboard, parse_mode=ParseMode.HTML
-            )
-        except Exception:
-            try:
-                await progress_msg.delete()
-            except Exception:
-                pass
-            await safe_answer(message, reply_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+        await _send_final_response(progress_msg, message, reply_text, keyboard)
 
     except Exception as e:
-        logger.error(f"AI error: {e}", exc_info=True)
+        logger.error("AI error: %s", e, exc_info=True)
 
         error_text = get_text("error_generic", db_user.language_code)
         try:
