@@ -18,6 +18,9 @@ from .constants import DEFAULT_LEADERBOARD_LIMIT, LEADERBOARD_PERIOD_DAYS, MAX_L
 
 leaderboard_router = APIRouter(tags=["webapp-misc-leaderboard"])
 
+# Constants (avoid string duplication)
+SELECT_USER_FIELDS = "telegram_id,username,first_name,total_saved,photo_url"
+
 
 @leaderboard_router.get("/leaderboard")
 async def get_webapp_leaderboard(
@@ -94,7 +97,7 @@ async def get_webapp_leaderboard(
             # Still within users who have savings
             result = (
                 await db.client.table("users")
-                .select("telegram_id,username,first_name,total_saved,photo_url")
+                .select(SELECT_USER_FIELDS)
                 .gt("total_saved", 0)
                 .order("total_saved", desc=True)
                 .range(offset, offset + LEADERBOARD_SIZE - 1)
@@ -107,7 +110,7 @@ async def get_webapp_leaderboard(
                 remaining = LEADERBOARD_SIZE - len(result_data)
                 fill_result = (
                     await db.client.table("users")
-                    .select("telegram_id,username,first_name,total_saved,photo_url")
+                    .select(SELECT_USER_FIELDS)
                     .eq("total_saved", 0)
                     .order("created_at", desc=True)
                     .range(0, remaining - 1)
@@ -119,7 +122,7 @@ async def get_webapp_leaderboard(
             zero_offset = offset - savings_count
             fill_result = (
                 await db.client.table("users")
-                .select("telegram_id,username,first_name,total_saved,photo_url")
+                .select(SELECT_USER_FIELDS)
                 .eq("total_saved", 0)
                 .order("created_at", desc=True)
                 .range(zero_offset, zero_offset + LEADERBOARD_SIZE - 1)

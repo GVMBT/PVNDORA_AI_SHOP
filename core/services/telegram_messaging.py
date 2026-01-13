@@ -14,6 +14,9 @@ from core.logging import get_logger
 
 logger = get_logger(__name__)
 
+# Constants (avoid string duplication)
+NO_RESPONSE_BODY = "No response body"
+
 # Environment variables
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 DISCOUNT_BOT_TOKEN = os.environ.get("DISCOUNT_BOT_TOKEN", "")
@@ -80,7 +83,7 @@ async def send_telegram_message(
                     return True
 
                 # Log API error
-                error_text = response.text[:200] if response.text else "No response body"
+                error_text = response.text[:200] if response.text else NO_RESPONSE_BODY
                 logger.warning(
                     f"Telegram API error for {chat_id}: "
                     f"status={response.status_code}, response={error_text}"
@@ -208,14 +211,14 @@ async def send_telegram_message_with_keyboard(
                     error_description = (
                         error_data.get("description", "") or response.text[:500]
                         if response.text
-                        else "No response body"
+                        else NO_RESPONSE_BODY
                     )
                     logger.error(
                         f"Telegram API error for {chat_id} (keyboard): "
                         f"status={response.status_code}, description={error_description}"
                     )
                 except Exception:
-                    error_text = response.text[:500] if response.text else "No response body"
+                    error_text = response.text[:500] if response.text else NO_RESPONSE_BODY
                     logger.exception(
                         f"Telegram API error for {chat_id} (keyboard): "
                         f"status={response.status_code}, response={error_text}"

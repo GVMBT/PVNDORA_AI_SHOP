@@ -15,6 +15,8 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/replacements", tags=["admin-replacements"])
 
+# Constants (avoid string duplication)
+ADMIN_USER_UUID_DESC = "Admin user UUID"
 
 # ============================================
 # Models
@@ -151,7 +153,7 @@ async def get_pending_replacements(limit: int = Query(50, ge=1, le=100)):
 async def approve_replacement(
     replacement_id: str,
     request: ApproveRequest,
-    admin_user_id: str = Query(..., description="Admin user UUID"),
+    admin_user_id: str = Query(..., description=ADMIN_USER_UUID_DESC),
 ):
     """Approve a pending replacement."""
     db = get_database()
@@ -173,7 +175,7 @@ async def approve_replacement(
 async def reject_replacement(
     replacement_id: str,
     request: RejectRequest,
-    admin_user_id: str = Query(..., description="Admin user UUID"),
+    admin_user_id: str = Query(..., description=ADMIN_USER_UUID_DESC),
 ):
     """Reject a pending replacement."""
     db = get_database()
