@@ -1,6 +1,6 @@
 /**
  * Window Global Type Extensions
- * 
+ *
  * Type definitions for global window properties used by third-party scripts.
  */
 
@@ -33,4 +33,3 @@ declare global {
 }
 
 export {};
-

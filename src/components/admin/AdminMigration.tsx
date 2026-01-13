@@ -1,25 +1,27 @@
 /**
  * AdminMigration Component
- * 
+ *
  * Shows discount bot migration statistics and analytics.
  */
 
-import React, { useEffect, useState } from 'react';
-import { useAdminMigrationApi, MigrationStats, MigrationTrend, TopMigratingProduct } from '../../hooks/api/useAdminMigrationApi';
-import { ArrowUpRight, Users, ShoppingBag, DollarSign, TrendingUp, Tag } from 'lucide-react';
-import StatCard from './StatCard';
+import React, { useEffect, useState } from "react";
+import {
+  useAdminMigrationApi,
+  MigrationStats,
+  MigrationTrend,
+  TopMigratingProduct,
+} from "../../hooks/api/useAdminMigrationApi";
+import { ArrowUpRight, Users, ShoppingBag, DollarSign, TrendingUp, Tag } from "lucide-react";
+import StatCard from "./StatCard";
 
 const AdminMigration: React.FC = () => {
-  const { stats, trend, topProducts, getStats, getTrend, getTopProducts, loading } = useAdminMigrationApi();
+  const { stats, trend, topProducts, getStats, getTrend, getTopProducts, loading } =
+    useAdminMigrationApi();
   const [period, setPeriod] = useState(30);
 
   useEffect(() => {
     const fetchData = async () => {
-      await Promise.all([
-        getStats(period),
-        getTrend(14),
-        getTopProducts(10)
-      ]);
+      await Promise.all([getStats(period), getTrend(14), getTopProducts(10)]);
     };
     fetchData();
   }, [period, getStats, getTrend, getTopProducts]);
@@ -47,11 +49,7 @@ const AdminMigration: React.FC = () => {
   }
 
   if (!stats) {
-    return (
-      <div className="text-center py-12 text-gray-500">
-        No migration data available
-      </div>
-    );
+    return <div className="text-center py-12 text-gray-500">No migration data available</div>;
   }
 
   return (
@@ -66,8 +64,8 @@ const AdminMigration: React.FC = () => {
               onClick={() => setPeriod(days)}
               className={`px-3 py-1 text-sm rounded-sm transition-colors ${
                 period === days
-                  ? 'bg-pandora-cyan text-black font-bold'
-                  : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                  ? "bg-pandora-cyan text-black font-bold"
+                  : "bg-white/5 text-gray-400 hover:bg-white/10"
               }`}
             >
               {days}d
@@ -129,14 +127,15 @@ const AdminMigration: React.FC = () => {
           <div className="h-64 flex items-end justify-between gap-2">
             {trend.map((day, i) => {
               const maxOrders = Math.max(
-                ...trend.map(d => Math.max(d.discount_orders, d.pvndora_orders || 0))
+                ...trend.map((d) => Math.max(d.discount_orders, d.pvndora_orders || 0))
               );
               const discountHeight = maxOrders > 0 ? (day.discount_orders / maxOrders) * 100 : 0;
-              const pvndoraHeight = maxOrders > 0 ? ((day.pvndora_orders || 0) / maxOrders) * 100 : 0;
-              
+              const pvndoraHeight =
+                maxOrders > 0 ? ((day.pvndora_orders || 0) / maxOrders) * 100 : 0;
+
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full flex flex-col gap-1" style={{ height: '200px' }}>
+                  <div className="w-full flex flex-col gap-1" style={{ height: "200px" }}>
                     <div
                       className="w-full bg-orange-500/50 hover:bg-orange-500 transition-colors rounded-t-sm"
                       style={{ height: `${Math.max(discountHeight, 5)}%` }}
@@ -149,7 +148,10 @@ const AdminMigration: React.FC = () => {
                     />
                   </div>
                   <div className="text-[10px] text-gray-500 font-mono mt-1">
-                    {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {new Date(day.date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
                   </div>
                 </div>
               );

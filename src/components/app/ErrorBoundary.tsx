@@ -1,13 +1,13 @@
 /**
  * Error Boundary Component
- * 
+ *
  * Catches JavaScript errors in child component tree and displays a fallback UI.
  * Automatically handles chunk load errors by refreshing the page.
  */
 
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { logger } from '../../utils/logger';
+import React, { Component, ErrorInfo, ReactNode } from "react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { logger } from "../../utils/logger";
 
 interface Props {
   children: ReactNode;
@@ -26,10 +26,10 @@ function isChunkLoadError(error: Error | null): boolean {
   if (!error) return false;
   const message = error.message.toLowerCase();
   return (
-    message.includes('failed to fetch dynamically imported module') ||
-    message.includes('loading chunk') ||
-    message.includes('loading css chunk') ||
-    message.includes('dynamically imported module')
+    message.includes("failed to fetch dynamically imported module") ||
+    message.includes("loading chunk") ||
+    message.includes("loading css chunk") ||
+    message.includes("dynamically imported module")
   );
 }
 
@@ -45,14 +45,14 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    logger.componentError('ErrorBoundary', error, errorInfo);
+    logger.componentError("ErrorBoundary", error, errorInfo);
     this.setState({ errorInfo });
-    
+
     // Auto-reload on chunk errors (stale cache)
     if (isChunkLoadError(error)) {
-      const reloadCount = parseInt(sessionStorage.getItem('pvndora_chunk_reload') || '0', 10);
+      const reloadCount = parseInt(sessionStorage.getItem("pvndora_chunk_reload") || "0", 10);
       if (reloadCount < 2) {
-        sessionStorage.setItem('pvndora_chunk_reload', String(reloadCount + 1));
+        sessionStorage.setItem("pvndora_chunk_reload", String(reloadCount + 1));
         window.location.reload();
       }
     }
@@ -84,18 +84,14 @@ export class ErrorBoundary extends Component<Props, State> {
 
             {/* Error Title */}
             <div className="space-y-2">
-              <h1 className="text-2xl font-display font-bold text-white">
-                SYSTEM_ERROR
-              </h1>
-              <p className="text-sm font-mono text-red-400">
-                CRITICAL_FAULT_DETECTED
-              </p>
+              <h1 className="text-2xl font-display font-bold text-white">SYSTEM_ERROR</h1>
+              <p className="text-sm font-mono text-red-400">CRITICAL_FAULT_DETECTED</p>
             </div>
 
             {/* Error Message */}
             <div className="bg-white/5 border border-white/10 rounded-lg p-4">
               <p className="text-sm text-gray-400 font-mono">
-                {this.state.error?.message || 'An unexpected error occurred'}
+                {this.state.error?.message || "An unexpected error occurred"}
               </p>
             </div>
 
@@ -117,7 +113,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
 
             {/* Debug Info (Development Only) */}
-            {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
+            {process.env.NODE_ENV === "development" && this.state.errorInfo && (
               <details className="text-left bg-black/50 border border-white/10 rounded-lg p-4 mt-6">
                 <summary className="text-xs font-mono text-gray-500 cursor-pointer">
                   Stack Trace
@@ -131,7 +127,7 @@ export class ErrorBoundary extends Component<Props, State> {
             {/* Footer */}
             <div className="pt-6 border-t border-white/5">
               <p className="text-[10px] font-mono text-gray-600">
-                ERROR_CODE: {this.state.error?.name || 'UNKNOWN'} | PVNDORA_V2.0
+                ERROR_CODE: {this.state.error?.name || "UNKNOWN"} | PVNDORA_V2.0
               </p>
             </div>
           </div>

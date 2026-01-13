@@ -1,30 +1,36 @@
 /**
  * Orders Adapter
- * 
+ *
  * Transforms API orders data into component-friendly format.
  */
 
-import type { APIOrder, APIOrderItem, APIOrdersResponse } from '../types/api';
-import type { Order, OrderItem, OrderStatus, OrderItemStatus, RawOrderStatus } from '../types/component';
+import type { APIOrder, APIOrderItem, APIOrdersResponse } from "../types/api";
+import type {
+  Order,
+  OrderItem,
+  OrderStatus,
+  OrderItemStatus,
+  RawOrderStatus,
+} from "../types/component";
 
 /**
  * Map API order status to component status (simplified for UI tabs)
  */
 function mapOrderStatus(apiStatus: string): OrderStatus {
   switch (apiStatus) {
-    case 'delivered':
-      return 'paid'; // Completed orders
-    case 'paid':
-    case 'partial':
-      return 'paid'; // Paid orders
-    case 'prepaid':
-    case 'pending':
-      return 'processing';
-    case 'cancelled':
-    case 'refunded':
-      return 'refunded';
+    case "delivered":
+      return "paid"; // Completed orders
+    case "paid":
+    case "partial":
+      return "paid"; // Paid orders
+    case "prepaid":
+    case "pending":
+      return "processing";
+    case "cancelled":
+    case "refunded":
+      return "refunded";
     default:
-      return 'processing';
+      return "processing";
   }
 }
 
@@ -34,18 +40,24 @@ function mapOrderStatus(apiStatus: string): OrderStatus {
 function normalizeRawStatus(apiStatus: string): RawOrderStatus {
   const normalized = apiStatus.toLowerCase();
   const validStatuses: RawOrderStatus[] = [
-    'pending', 'paid', 'prepaid', 'partial', 'delivered', 'cancelled', 'refunded'
+    "pending",
+    "paid",
+    "prepaid",
+    "partial",
+    "delivered",
+    "cancelled",
+    "refunded",
   ];
-  return validStatuses.includes(normalized as RawOrderStatus) 
-    ? normalized as RawOrderStatus 
-    : 'pending';
+  return validStatuses.includes(normalized as RawOrderStatus)
+    ? (normalized as RawOrderStatus)
+    : "pending";
 }
 
 /**
  * Check if payment is confirmed based on status
  */
 function isPaymentConfirmed(rawStatus: RawOrderStatus): boolean {
-  return ['prepaid', 'paid', 'partial', 'delivered'].includes(rawStatus);
+  return ["prepaid", "paid", "partial", "delivered"].includes(rawStatus);
 }
 
 /**
@@ -53,22 +65,22 @@ function isPaymentConfirmed(rawStatus: RawOrderStatus): boolean {
  */
 function getStatusMessage(rawStatus: RawOrderStatus): string {
   switch (rawStatus) {
-    case 'pending':
-      return 'AWAITING_PAYMENT — Ожидается оплата';
-    case 'prepaid':
-      return 'PAYMENT_CONFIRMED — Оплачено ✓ Товар временно отсутствует на складе. Доставим при поступлении.';
-    case 'paid':
-      return 'PROCESSING — Оплачено ✓ Идёт подготовка к выдаче';
-    case 'partial':
-      return 'PARTIAL_DELIVERY — Часть товаров доставлена';
-    case 'delivered':
-      return 'COMPLETED — Все товары доставлены';
-    case 'cancelled':
-      return 'CANCELLED — Заказ отменён';
-    case 'refunded':
-      return 'REFUNDED — Средства возвращены';
+    case "pending":
+      return "AWAITING_PAYMENT — Ожидается оплата";
+    case "prepaid":
+      return "PAYMENT_CONFIRMED — Оплачено ✓ Товар временно отсутствует на складе. Доставим при поступлении.";
+    case "paid":
+      return "PROCESSING — Оплачено ✓ Идёт подготовка к выдаче";
+    case "partial":
+      return "PARTIAL_DELIVERY — Часть товаров доставлена";
+    case "delivered":
+      return "COMPLETED — Все товары доставлены";
+    case "cancelled":
+      return "CANCELLED — Заказ отменён";
+    case "refunded":
+      return "REFUNDED — Средства возвращены";
     default:
-      return 'UNKNOWN — Статус неизвестен';
+      return "UNKNOWN — Статус неизвестен";
   }
 }
 
@@ -76,7 +88,7 @@ function getStatusMessage(rawStatus: RawOrderStatus): string {
  * Check if order can be cancelled
  */
 function canCancelOrder(rawStatus: RawOrderStatus): boolean {
-  return ['pending'].includes(rawStatus);
+  return ["pending"].includes(rawStatus);
 }
 
 /**
@@ -86,14 +98,14 @@ function canCancelOrder(rawStatus: RawOrderStatus): boolean {
  */
 function canRequestRefund(rawStatus: RawOrderStatus, warrantyUntil?: string | null): boolean {
   // Only delivered orders can request refund (for warranty issues)
-  if (rawStatus !== 'delivered') return false;
-  
+  if (rawStatus !== "delivered") return false;
+
   // Check if still within warranty period
   if (warrantyUntil) {
     const warrantyEnd = new Date(warrantyUntil);
     return new Date() < warrantyEnd;
   }
-  
+
   // If no warranty info, assume 7 days from delivery
   return true;
 }
@@ -107,23 +119,23 @@ function mapOrderItemStatus(apiStatus: string, orderStatus?: string): OrderItemS
   // CRITICAL: If order is cancelled/refunded, all items should show as cancelled
   // regardless of their individual status in the database
   const orderStatusLower = orderStatus?.toLowerCase();
-  if (orderStatusLower === 'cancelled' || orderStatusLower === 'refunded') {
-    return 'cancelled';
+  if (orderStatusLower === "cancelled" || orderStatusLower === "refunded") {
+    return "cancelled";
   }
-  
+
   switch (apiStatus) {
-    case 'delivered':
-      return 'delivered';
-    case 'pending':
-    case 'prepaid':
-    case 'paid':
-    case 'partial':
-      return 'waiting';
-    case 'cancelled':
-    case 'refunded':
-      return 'cancelled';
+    case "delivered":
+      return "delivered";
+    case "pending":
+    case "prepaid":
+    case "paid":
+    case "partial":
+      return "waiting";
+    case "cancelled":
+    case "refunded":
+      return "cancelled";
     default:
-      return 'waiting';
+      return "waiting";
   }
 }
 
@@ -132,14 +144,16 @@ function mapOrderItemStatus(apiStatus: string, orderStatus?: string): OrderItemS
  */
 function formatOrderDate(dateString: string): string {
   const date = new Date(dateString);
-  return date.toLocaleString('ru-RU', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).replace(',', ' //');
+  return date
+    .toLocaleString("ru-RU", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })
+    .replace(",", " //");
 }
 
 /**
@@ -148,22 +162,26 @@ function formatOrderDate(dateString: string): string {
 function formatDateWithTimezone(dateString: string): string {
   const date = new Date(dateString);
   const tzOffset = -date.getTimezoneOffset() / 60;
-  const tzSign = tzOffset >= 0 ? '+' : '';
+  const tzSign = tzOffset >= 0 ? "+" : "";
   const tzString = `UTC${tzSign}${tzOffset}`;
-  
-  return date.toLocaleString('ru-RU', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).replace(',', ' //') + ` (${tzString})`;
+
+  return (
+    date
+      .toLocaleString("ru-RU", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+      .replace(",", " //") + ` (${tzString})`
+  );
 }
 
 /**
  * Adapt a single API order item
- * 
+ *
  * @param item - Order item from API
  * @param orderStatus - Parent order status (pending/prepaid/delivered etc)
  * @param paymentDeadline - expires_at (only relevant for pending orders)
@@ -173,9 +191,12 @@ function formatDateWithTimezone(dateString: string): string {
  * Calculate warranty end date for an item
  * Warranty starts from delivered_at and lasts for warranty_days (default: 7 days)
  */
-function calculateItemWarrantyUntil(deliveredAt: string | null | undefined, warrantyDays: number = 7): string | null {
+function calculateItemWarrantyUntil(
+  deliveredAt: string | null | undefined,
+  warrantyDays: number = 7
+): string | null {
   if (!deliveredAt) return null;
-  
+
   try {
     const delivered = new Date(deliveredAt);
     const warrantyEnd = new Date(delivered);
@@ -189,10 +210,14 @@ function calculateItemWarrantyUntil(deliveredAt: string | null | undefined, warr
 /**
  * Check if item can request refund (within warranty period)
  */
-function canItemRequestRefund(itemStatus: string, deliveredAt: string | null | undefined, warrantyUntil: string | null | undefined): boolean {
-  if (itemStatus !== 'delivered') return false;
+function canItemRequestRefund(
+  itemStatus: string,
+  deliveredAt: string | null | undefined,
+  warrantyUntil: string | null | undefined
+): boolean {
+  if (itemStatus !== "delivered") return false;
   if (!warrantyUntil) return false;
-  
+
   try {
     const warrantyEnd = new Date(warrantyUntil);
     return new Date() < warrantyEnd;
@@ -202,7 +227,7 @@ function canItemRequestRefund(itemStatus: string, deliveredAt: string | null | u
 }
 
 function adaptOrderItem(
-  item: APIOrderItem, 
+  item: APIOrderItem,
   orderStatus: string,
   paymentDeadline?: string | null,
   deliveryDeadline?: string | null,
@@ -211,19 +236,19 @@ function adaptOrderItem(
 ): OrderItem {
   // Get credentials from delivery_content (backend) or credentials (alias)
   const credentials = item.delivery_content || item.credentials || null;
-  
+
   // Determine deadline based on item and order status
   let deadline: string | null = null;
   let deadlineRaw: string | null = null; // Raw ISO string for countdown
-  
-  if (orderStatus === 'pending' && paymentDeadline) {
+
+  if (orderStatus === "pending" && paymentDeadline) {
     // For pending (unpaid) orders, show payment deadline
     deadline = formatDateWithTimezone(paymentDeadline);
     deadlineRaw = paymentDeadline;
   } else if (
-    ['prepaid', 'paid', 'partial'].includes(orderStatus) && 
-    item.fulfillment_type === 'preorder' && 
-    !['delivered', 'refunded', 'cancelled'].includes(item.status)
+    ["prepaid", "paid", "partial"].includes(orderStatus) &&
+    item.fulfillment_type === "preorder" &&
+    !["delivered", "refunded", "cancelled"].includes(item.status)
   ) {
     // For preorder items that are not yet delivered, show delivery deadline
     // Check fulfillment_type (not item.status) because item.status may be 'pending' even for prepaid orders
@@ -237,11 +262,11 @@ function adaptOrderItem(
     }
   }
   // For delivered/cancelled/refunded - no deadline needed
-  
+
   // Calculate warranty for this specific item
   // Use item.delivered_at if available, otherwise fallback to order delivered_at
   const itemDeliveredAt = item.delivered_at || orderDeliveredAt || null;
-  
+
   // Calculate warranty_until for this item
   // Default warranty: 7 days (can be improved by getting warranty_days from product)
   // For now, use order warranty_until if available, otherwise calculate from delivered_at
@@ -252,27 +277,29 @@ function adaptOrderItem(
     if (orderDeliveredAt && orderWarrantyUntil) {
       const orderDelivered = new Date(orderDeliveredAt);
       const orderWarrantyEnd = new Date(orderWarrantyUntil);
-      const warrantyDays = Math.ceil((orderWarrantyEnd.getTime() - orderDelivered.getTime()) / (1000 * 60 * 60 * 24));
+      const warrantyDays = Math.ceil(
+        (orderWarrantyEnd.getTime() - orderDelivered.getTime()) / (1000 * 60 * 60 * 24)
+      );
       warrantyUntil = calculateItemWarrantyUntil(itemDeliveredAt, warrantyDays);
     } else {
       // Default: 7 days warranty
       warrantyUntil = calculateItemWarrantyUntil(itemDeliveredAt, 7);
     }
   }
-  
+
   const itemStatus = mapOrderItemStatus(item.status, orderStatus);
   const canRefund = canItemRequestRefund(item.status, itemDeliveredAt, warrantyUntil);
-  
+
   return {
     id: item.id,
     name: item.product_name,
-    type: item.fulfillment_type === 'instant' ? 'instant' : 'preorder',
+    type: item.fulfillment_type === "instant" ? "instant" : "preorder",
     status: itemStatus,
     credentials: credentials,
     instructions: item.delivery_instructions || null,
-    expiry: item.expires_at ? new Date(item.expires_at).toLocaleDateString('ru-RU') : null,
+    expiry: item.expires_at ? new Date(item.expires_at).toLocaleDateString("ru-RU") : null,
     hasReview: item.has_review ?? false,
-    estimatedDelivery: item.fulfillment_type === 'preorder' ? '24H' : null,
+    estimatedDelivery: item.fulfillment_type === "preorder" ? "24H" : null,
     progress: null, // Progress bar removed - simplified status model
     deadline: deadline,
     deadlineRaw: deadlineRaw, // For countdown timer
@@ -287,58 +314,60 @@ function adaptOrderItem(
 /**
  * Adapt a single API order
  */
-export function adaptOrder(apiOrder: APIOrder, currency: string = 'USD'): Order {
+export function adaptOrder(apiOrder: APIOrder, currency: string = "USD"): Order {
   const rawStatus = normalizeRawStatus(apiOrder.status);
   const paymentConfirmed = isPaymentConfirmed(rawStatus);
   const statusMessage = getStatusMessage(rawStatus);
   const canCancel = canCancelOrder(rawStatus);
   const canRefund = canRequestRefund(rawStatus, apiOrder.warranty_until);
-  
+
   // Handle orders with items array (multi-item orders)
   if (apiOrder.items && apiOrder.items.length > 0) {
     // Determine deadline for pending orders
     // Pass ISO string directly for PaymentCountdown to parse correctly
     let orderDeadline: string | null = null;
-    if (rawStatus === 'pending' && apiOrder.expires_at) {
+    if (rawStatus === "pending" && apiOrder.expires_at) {
       orderDeadline = apiOrder.expires_at; // ISO string for reliable parsing
     }
-    
-  return {
-    id: apiOrder.id, // Full UUID for API operations
-    displayId: apiOrder.id.substring(0, 8).toUpperCase(), // Short ID for UI
-    date: formatOrderDate(apiOrder.created_at),
-    total: apiOrder.amount_display || apiOrder.amount,
-    currency: apiOrder.currency || currency,
-    status: mapOrderStatus(apiOrder.status),
-    items: apiOrder.items.map(item => adaptOrderItem(
-      item, 
-      apiOrder.status,
-      apiOrder.expires_at,
-      apiOrder.fulfillment_deadline,
-      apiOrder.delivered_at,
-      apiOrder.warranty_until
-    )),
-    payment_url: apiOrder.payment_url || null,
-    payment_id: apiOrder.payment_id || null,
-    payment_gateway: apiOrder.payment_gateway || null,
-    deadline: orderDeadline,
-    rawStatus,
-    paymentConfirmed,
-    statusMessage,
-    canCancel,
-    canRequestRefund: canRefund,
-  };
+
+    return {
+      id: apiOrder.id, // Full UUID for API operations
+      displayId: apiOrder.id.substring(0, 8).toUpperCase(), // Short ID for UI
+      date: formatOrderDate(apiOrder.created_at),
+      total: apiOrder.amount_display || apiOrder.amount,
+      currency: apiOrder.currency || currency,
+      status: mapOrderStatus(apiOrder.status),
+      items: apiOrder.items.map((item) =>
+        adaptOrderItem(
+          item,
+          apiOrder.status,
+          apiOrder.expires_at,
+          apiOrder.fulfillment_deadline,
+          apiOrder.delivered_at,
+          apiOrder.warranty_until
+        )
+      ),
+      payment_url: apiOrder.payment_url || null,
+      payment_id: apiOrder.payment_id || null,
+      payment_gateway: apiOrder.payment_gateway || null,
+      deadline: orderDeadline,
+      rawStatus,
+      paymentConfirmed,
+      statusMessage,
+      canCancel,
+      canRequestRefund: canRefund,
+    };
   }
-  
+
   // Handle legacy single-item orders
   // Determine deadline based on status
   // Pass ISO string directly for PaymentCountdown to parse correctly
   let deadline: string | null = null;
-  
-  if (rawStatus === 'pending' && apiOrder.expires_at) {
+
+  if (rawStatus === "pending" && apiOrder.expires_at) {
     // For pending orders, show payment deadline (ISO string)
     deadline = apiOrder.expires_at;
-  } else if (['prepaid', 'fulfilling', 'paid'].includes(rawStatus)) {
+  } else if (["prepaid", "fulfilling", "paid"].includes(rawStatus)) {
     // For prepaid/processing orders, show delivery deadline if available
     if (apiOrder.fulfillment_deadline) {
       deadline = apiOrder.fulfillment_deadline; // ISO string
@@ -346,7 +375,7 @@ export function adaptOrder(apiOrder: APIOrder, currency: string = 'USD'): Order 
     // If no fulfillment_deadline, deadline stays null (UI will show "Ожидание")
   }
   // For delivered/cancelled/refunded - no deadline
-  
+
   return {
     id: apiOrder.id, // Full UUID for API operations
     displayId: apiOrder.id.substring(0, 8).toUpperCase(), // Short ID for UI
@@ -354,23 +383,27 @@ export function adaptOrder(apiOrder: APIOrder, currency: string = 'USD'): Order 
     total: apiOrder.amount_display || apiOrder.amount,
     currency: apiOrder.currency || currency,
     status: mapOrderStatus(apiOrder.status),
-    items: [{
-      id: apiOrder.id,
-      name: apiOrder.product_name,
-      type: 'instant',
-      status: mapOrderItemStatus(apiOrder.status, apiOrder.status), // Pass order status to inherit cancelled/refunded
-      credentials: null,
-      expiry: apiOrder.warranty_until ? new Date(apiOrder.warranty_until).toLocaleDateString('ru-RU') : null,
-      hasReview: false,
-      estimatedDelivery: null,
-      progress: null,
-      deadline: deadline,
-      reason: null,
-      orderRawStatus: rawStatus, // Pass parent order status
-      deliveredAt: apiOrder.delivered_at || null,
-      canRequestRefund: canRequestRefund(rawStatus, apiOrder.warranty_until),
-      warrantyUntil: apiOrder.warranty_until || null,
-    }],
+    items: [
+      {
+        id: apiOrder.id,
+        name: apiOrder.product_name,
+        type: "instant",
+        status: mapOrderItemStatus(apiOrder.status, apiOrder.status), // Pass order status to inherit cancelled/refunded
+        credentials: null,
+        expiry: apiOrder.warranty_until
+          ? new Date(apiOrder.warranty_until).toLocaleDateString("ru-RU")
+          : null,
+        hasReview: false,
+        estimatedDelivery: null,
+        progress: null,
+        deadline: deadline,
+        reason: null,
+        orderRawStatus: rawStatus, // Pass parent order status
+        deliveredAt: apiOrder.delivered_at || null,
+        canRequestRefund: canRequestRefund(rawStatus, apiOrder.warranty_until),
+        warrantyUntil: apiOrder.warranty_until || null,
+      },
+    ],
     payment_url: apiOrder.payment_url || null,
     payment_id: apiOrder.payment_id || null,
     payment_gateway: apiOrder.payment_gateway || null,
@@ -387,6 +420,6 @@ export function adaptOrder(apiOrder: APIOrder, currency: string = 'USD'): Order 
  * Adapt list of API orders
  */
 export function adaptOrders(response: APIOrdersResponse): Order[] {
-  const currency = response.currency || 'USD';
-  return response.orders.map(order => adaptOrder(order, currency));
+  const currency = response.currency || "USD";
+  return response.orders.map((order) => adaptOrder(order, currency));
 }

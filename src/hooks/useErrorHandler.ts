@@ -1,12 +1,12 @@
 /**
  * Error Handler Hook
- * 
+ *
  * Centralized error handling with consistent logging and user feedback.
  */
 
-import { useCallback } from 'react';
-import { logger } from '../utils/logger';
-import { useTelegram } from './useTelegram';
+import { useCallback } from "react";
+import { logger } from "../utils/logger";
+import { useTelegram } from "./useTelegram";
 
 export interface ErrorContext {
   component?: string;
@@ -58,7 +58,7 @@ export function useErrorHandler() {
           stack: err.stack,
           ...context,
         };
-        logger.error('Error occurred', err, logContext);
+        logger.error("Error occurred", err, logContext);
       }
 
       // Show user-friendly message
@@ -84,18 +84,14 @@ export function useErrorHandler() {
    * Handle API errors specifically
    */
   const handleApiError = useCallback(
-    (
-      error: unknown,
-      endpoint: string,
-      options: Omit<ErrorHandlerOptions, 'context'> = {}
-    ) => {
+    (error: unknown, endpoint: string, options: Omit<ErrorHandlerOptions, "context"> = {}) => {
       return handleError(error, {
         ...options,
         context: {
           endpoint,
-          action: 'api_request',
+          action: "api_request",
         },
-        userMessage: options.userMessage || 'Произошла ошибка при запросе к серверу',
+        userMessage: options.userMessage || "Произошла ошибка при запросе к серверу",
       });
     },
     [handleError]
@@ -105,14 +101,14 @@ export function useErrorHandler() {
    * Handle validation errors
    */
   const handleValidationError = useCallback(
-    (error: unknown, field?: string, options: Omit<ErrorHandlerOptions, 'context'> = {}) => {
+    (error: unknown, field?: string, options: Omit<ErrorHandlerOptions, "context"> = {}) => {
       return handleError(error, {
         ...options,
         context: {
           field,
-          action: 'validation',
+          action: "validation",
         },
-        userMessage: options.userMessage || `Ошибка валидации${field ? `: ${field}` : ''}`,
+        userMessage: options.userMessage || `Ошибка валидации${field ? `: ${field}` : ""}`,
       });
     },
     [handleError]
@@ -122,13 +118,13 @@ export function useErrorHandler() {
    * Handle network errors
    */
   const handleNetworkError = useCallback(
-    (error: unknown, options: Omit<ErrorHandlerOptions, 'context'> = {}) => {
+    (error: unknown, options: Omit<ErrorHandlerOptions, "context"> = {}) => {
       return handleError(error, {
         ...options,
         context: {
-          action: 'network_request',
+          action: "network_request",
         },
-        userMessage: options.userMessage || 'Ошибка сети. Проверьте подключение к интернету.',
+        userMessage: options.userMessage || "Ошибка сети. Проверьте подключение к интернету.",
       });
     },
     [handleError]
@@ -147,32 +143,32 @@ export function useErrorHandler() {
  */
 function getErrorMessage(error: Error, context: ErrorContext): string {
   // Check for common error patterns
-  if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-    return 'Ошибка сети. Проверьте подключение к интернету.';
+  if (error.message.includes("NetworkError") || error.message.includes("Failed to fetch")) {
+    return "Ошибка сети. Проверьте подключение к интернету.";
   }
 
-  if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-    return 'Требуется авторизация. Пожалуйста, войдите в систему.';
+  if (error.message.includes("401") || error.message.includes("Unauthorized")) {
+    return "Требуется авторизация. Пожалуйста, войдите в систему.";
   }
 
-  if (error.message.includes('403') || error.message.includes('Forbidden')) {
-    return 'Доступ запрещен.';
+  if (error.message.includes("403") || error.message.includes("Forbidden")) {
+    return "Доступ запрещен.";
   }
 
-  if (error.message.includes('404') || error.message.includes('Not Found')) {
-    return 'Ресурс не найден.';
+  if (error.message.includes("404") || error.message.includes("Not Found")) {
+    return "Ресурс не найден.";
   }
 
-  if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
-    return 'Слишком много запросов. Подождите минуту и попробуйте снова.';
+  if (error.message.includes("429") || error.message.includes("Too Many Requests")) {
+    return "Слишком много запросов. Подождите минуту и попробуйте снова.";
   }
 
-  if (error.message.includes('500') || error.message.includes('Internal Server Error')) {
-    return 'Ошибка сервера. Попробуйте позже.';
+  if (error.message.includes("500") || error.message.includes("Internal Server Error")) {
+    return "Ошибка сервера. Попробуйте позже.";
   }
 
-  if (error.message.includes('503') || error.message.includes('Service Unavailable')) {
-    return 'Сервис временно недоступен. Попробуйте позже.';
+  if (error.message.includes("503") || error.message.includes("Service Unavailable")) {
+    return "Сервис временно недоступен. Попробуйте позже.";
   }
 
   // Component-specific messages
@@ -181,44 +177,7 @@ function getErrorMessage(error: Error, context: ErrorContext): string {
   }
 
   // Generic message
-  return error.message || 'Произошла неизвестная ошибка';
+  return error.message || "Произошла неизвестная ошибка";
 }
 
 export default useErrorHandler;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

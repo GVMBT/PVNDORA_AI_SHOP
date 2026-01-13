@@ -1,11 +1,11 @@
 /**
  * DecryptedText Component
- * 
+ *
  * Animated text reveal effect with decryption animation.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { randomChar } from '../../utils/random';
+import React, { useState, useEffect, useRef } from "react";
+import { randomChar } from "../../utils/random";
 
 const CHARS = "ABCDEF0123456789!@#$%^&*()_+-=[]{}|;':\",./<>?";
 
@@ -16,24 +16,24 @@ interface DecryptedTextProps {
   reveal?: boolean;
 }
 
-const DecryptedText: React.FC<DecryptedTextProps> = ({ 
-  text, 
-  speed = 30, 
-  className = "", 
-  reveal = true 
+const DecryptedText: React.FC<DecryptedTextProps> = ({
+  text,
+  speed = 30,
+  className = "",
+  reveal = true,
 }) => {
-  const [displayText, setDisplayText] = useState('');
+  const [displayText, setDisplayText] = useState("");
   const [isFinished, setIsFinished] = useState(false);
   const textStr = String(text);
   const elementRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     if (!reveal) return;
-    
+
     // Use IntersectionObserver to pause animation when not visible (save CPU)
     let isVisible = true;
     let observer: IntersectionObserver | null = null;
-    
+
     if (elementRef.current) {
       observer = new IntersectionObserver(
         (entries) => {
@@ -43,18 +43,18 @@ const DecryptedText: React.FC<DecryptedTextProps> = ({
       );
       observer.observe(elementRef.current);
     }
-    
+
     let iteration = 0;
     let rafId: number | null = null;
     let lastTime = performance.now();
     const targetInterval = Math.max(speed, 16); // min 16ms (60fps)
-    
+
     const animate = (currentTime: number) => {
       if (!isVisible || isFinished) {
         rafId = requestAnimationFrame(animate);
         return;
       }
-      
+
       const delta = currentTime - lastTime;
       if (delta >= targetInterval) {
         setDisplayText(
@@ -77,12 +77,12 @@ const DecryptedText: React.FC<DecryptedTextProps> = ({
         iteration += 1 / 2; // Speed of decryption
         lastTime = currentTime;
       }
-      
+
       rafId = requestAnimationFrame(animate);
     };
-    
+
     rafId = requestAnimationFrame(animate);
-    
+
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
       if (observer) observer.disconnect();
@@ -91,46 +91,9 @@ const DecryptedText: React.FC<DecryptedTextProps> = ({
 
   return (
     <span ref={elementRef} className={className}>
-      {displayText || (reveal ? '' : textStr)}
+      {displayText || (reveal ? "" : textStr)}
     </span>
   );
 };
 
 export default DecryptedText;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

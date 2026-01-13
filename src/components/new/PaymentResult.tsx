@@ -1,28 +1,36 @@
 /**
  * PaymentResult Component
- * 
+ *
  * Terminal-style UI shown after payment redirect.
  * Polls order status and displays progress logs.
  * Works for both Mini App (startapp) and Browser (/payment/result) flows.
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Cpu, CheckCircle, XCircle, Clock, AlertTriangle, ArrowRight, RefreshCw } from 'lucide-react';
-import { API } from '../../config';
-import { localStorage } from '../../utils/storage';
-import { getApiHeaders } from '../../utils/apiHeaders';
-import { logger } from '../../utils/logger';
-import { apiRequest } from '../../utils/apiClient';
-import { randomFloat } from '../../utils/random';
-import { PAYMENT_STATUS_MESSAGES, type PaymentStatus } from '../../constants';
-import { useLocale } from '../../hooks/useLocale';
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Cpu,
+  CheckCircle,
+  XCircle,
+  Clock,
+  AlertTriangle,
+  ArrowRight,
+  RefreshCw,
+} from "lucide-react";
+import { API } from "../../config";
+import { localStorage } from "../../utils/storage";
+import { getApiHeaders } from "../../utils/apiHeaders";
+import { logger } from "../../utils/logger";
+import { apiRequest } from "../../utils/apiClient";
+import { randomFloat } from "../../utils/random";
+import { PAYMENT_STATUS_MESSAGES, type PaymentStatus } from "../../constants";
+import { useLocale } from "../../hooks/useLocale";
 
 interface PaymentResultProps {
   orderId: string;
-  isTopUp?: boolean;  // True if this is a balance top-up, not an order
+  isTopUp?: boolean; // True if this is a balance top-up, not an order
   onComplete: () => void;
-  onViewOrders: () => void;  // For topup, this navigates to profile
+  onViewOrders: () => void; // For topup, this navigates to profile
 }
 
 interface OrderStatusResponse {
@@ -36,7 +44,7 @@ interface OrderStatusResponse {
 interface LogEntry {
   timestamp: string;
   message: string;
-  type: 'info' | 'success' | 'error' | 'warning';
+  type: "info" | "success" | "error" | "warning";
 }
 
 // Constants for polling strategy
@@ -45,70 +53,73 @@ const INITIAL_POLL_DELAY = 1000; // Start with 1 second delay
 const MAX_POLL_DELAY = 16000; // Maximum delay of 16 seconds between polls
 const BACKOFF_MULTIPLIER = 2; // Exponential backoff multiplier
 
-export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrders }: PaymentResultProps) {
+export function PaymentResult({
+  orderId,
+  isTopUp = false,
+  onComplete,
+  onViewOrders,
+}: PaymentResultProps) {
   const { t } = useLocale();
-  const [status, setStatus] = useState<PaymentStatus>('checking');
+  const [status, setStatus] = useState<PaymentStatus>("checking");
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [progress, setProgress] = useState(0);
   const [pollCount, setPollCount] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const consecutive404sRef = useRef(0); // Use ref to avoid triggering effect re-runs
-  
+
   // Check if we're in Telegram Mini App or external browser
-  const isTelegramMiniApp = typeof window !== 'undefined' && !!(window as any).Telegram?.WebApp;
+  const isTelegramMiniApp = typeof window !== "undefined" && !!(window as any).Telegram?.WebApp;
 
   // Add log entry
-  const addLog = useCallback((message: string, type: LogEntry['type'] = 'info') => {
-    const timestamp = new Date().toLocaleTimeString('en-US', { 
-      hour12: false, 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      second: '2-digit' 
+  const addLog = useCallback((message: string, type: LogEntry["type"] = "info") => {
+    const timestamp = new Date().toLocaleTimeString("en-US", {
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
     });
-    setLogs(prev => [...prev.slice(-9), { timestamp, message, type }]);
+    setLogs((prev) => [...prev.slice(-9), { timestamp, message, type }]);
   }, []);
 
   // Check order/topup status
   const checkStatus = useCallback(async () => {
     try {
       // Use different endpoint for topup vs order
-      const endpoint = isTopUp 
-        ? `/profile/topup/${orderId}/status`
-        : `/orders/${orderId}/status`;
-      
+      const endpoint = isTopUp ? `/profile/topup/${orderId}/status` : `/orders/${orderId}/status`;
+
       // Use apiClient for consistent error handling
       // Note: We need to handle 404 specially, so we'll catch and check
       try {
         const data = await apiRequest<OrderStatusResponse>(endpoint);
-        
+
         // Map backend status to our status type
-        const backendStatus = data.status?.toLowerCase() || 'unknown';
-        let newStatus: PaymentStatus = 'unknown';
-        
-        if (['delivered', 'completed', 'ready'].includes(backendStatus)) {
-          newStatus = 'delivered';
-        } else if (['paid', 'processing'].includes(backendStatus)) {
-          newStatus = 'paid';
-        } else if (backendStatus === 'partial') {
-          newStatus = 'partial';
-        } else if (['pending', 'awaiting_payment'].includes(backendStatus)) {
-          newStatus = 'pending';
-        } else if (['expired', 'cancelled'].includes(backendStatus)) {
-          newStatus = 'expired';
-        } else if (['failed', 'refunded'].includes(backendStatus)) {
-          newStatus = 'failed';
-        } else if (backendStatus === 'prepaid') {
-          newStatus = 'paid'; // Prepaid means payment confirmed, waiting for stock
+        const backendStatus = data.status?.toLowerCase() || "unknown";
+        let newStatus: PaymentStatus = "unknown";
+
+        if (["delivered", "completed", "ready"].includes(backendStatus)) {
+          newStatus = "delivered";
+        } else if (["paid", "processing"].includes(backendStatus)) {
+          newStatus = "paid";
+        } else if (backendStatus === "partial") {
+          newStatus = "partial";
+        } else if (["pending", "awaiting_payment"].includes(backendStatus)) {
+          newStatus = "pending";
+        } else if (["expired", "cancelled"].includes(backendStatus)) {
+          newStatus = "expired";
+        } else if (["failed", "refunded"].includes(backendStatus)) {
+          newStatus = "failed";
+        } else if (backendStatus === "prepaid") {
+          newStatus = "paid"; // Prepaid means payment confirmed, waiting for stock
         }
-        
+
         return { status: newStatus, data };
       } catch (error: unknown) {
         // Handle 404 specifically - order might not exist yet or invalid ID
         const errorMessage = error instanceof Error ? error.message : String(error);
-        if (errorMessage.includes('404') || errorMessage.includes('ORDER_NOT_FOUND')) {
+        if (errorMessage.includes("404") || errorMessage.includes("ORDER_NOT_FOUND")) {
           return {
-            status: 'unknown' as PaymentStatus,
-            error: new Error('ORDER_NOT_FOUND'),
+            status: "unknown" as PaymentStatus,
+            error: new Error("ORDER_NOT_FOUND"),
             httpStatus: 404,
           };
         }
@@ -116,9 +127,9 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
       }
     } catch (error: unknown) {
       const errorInstance = error instanceof Error ? error : new Error(String(error));
-      logger.error('Status check failed', errorInstance);
-      return { 
-        status: 'unknown' as PaymentStatus, 
+      logger.error("Status check failed", errorInstance);
+      return {
+        status: "unknown" as PaymentStatus,
         error: errorInstance,
       };
     }
@@ -130,8 +141,16 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
     if (isComplete) return;
     if (!isTelegramMiniApp) return; // No polling in browser
 
-    addLog(isTopUp ? t('paymentResult.logs.initTopup') : t('paymentResult.logs.initPayment'), 'info');
-    addLog(t(isTopUp ? 'paymentResult.logs.targetTopup' : 'paymentResult.logs.targetOrder', { id: orderId.slice(0, 8).toUpperCase() }), 'info');
+    addLog(
+      isTopUp ? t("paymentResult.logs.initTopup") : t("paymentResult.logs.initPayment"),
+      "info"
+    );
+    addLog(
+      t(isTopUp ? "paymentResult.logs.targetTopup" : "paymentResult.logs.targetOrder", {
+        id: orderId.slice(0, 8).toUpperCase(),
+      }),
+      "info"
+    );
 
     let pollTimeout: NodeJS.Timeout | null = null;
     let progressInterval: NodeJS.Timeout;
@@ -155,27 +174,30 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
 
       // Check if we've exceeded max attempts
       if (currentAttempt > MAX_POLL_ATTEMPTS) {
-        addLog(t('paymentResult.logs.timeout', { max: String(MAX_POLL_ATTEMPTS) }), 'warning');
-        addLog(t('paymentResult.logs.infoProcessing'), 'info');
+        addLog(t("paymentResult.logs.timeout", { max: String(MAX_POLL_ATTEMPTS) }), "warning");
+        addLog(t("paymentResult.logs.infoProcessing"), "info");
         setIsComplete(true);
         shouldStop = true;
         return;
       }
 
-      addLog(t('paymentResult.logs.scan'), 'info');
-      
+      addLog(t("paymentResult.logs.scan"), "info");
+
       const result = await checkStatus();
-      
+
       // Handle 404 specifically
-      if (result.httpStatus === 404 || (result.error && result.error.message === 'ORDER_NOT_FOUND')) {
+      if (
+        result.httpStatus === 404 ||
+        (result.error && result.error.message === "ORDER_NOT_FOUND")
+      ) {
         consecutive404sRef.current += 1;
         const new404Count = consecutive404sRef.current;
 
         // If we get multiple consecutive 404s, order likely doesn't exist
         if (new404Count >= 3) {
-          addLog(t('paymentResult.logs.errorNotFound'), 'error');
-          addLog(t('paymentResult.logs.infoVerifyOrder'), 'info');
-          setStatus('failed');
+          addLog(t("paymentResult.logs.errorNotFound"), "error");
+          addLog(t("paymentResult.logs.infoVerifyOrder"), "info");
+          setStatus("failed");
           setIsComplete(true);
           shouldStop = true;
           return;
@@ -183,9 +205,9 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
 
         // First few 404s might be temporary (order not yet in DB after redirect)
         if (currentAttempt <= 3) {
-          addLog(t('paymentResult.logs.waitOrder'), 'warning');
+          addLog(t("paymentResult.logs.waitOrder"), "warning");
         } else {
-          addLog(t('paymentResult.logs.warnNotFound'), 'warning');
+          addLog(t("paymentResult.logs.warnNotFound"), "warning");
         }
       } else {
         // Reset 404 counter on successful response
@@ -194,70 +216,70 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
         }
 
         // Handle successful response
-        if (result.status !== 'unknown' || !result.error) {
+        if (result.status !== "unknown" || !result.error) {
           setStatus(result.status);
-          
+
           switch (result.status) {
-            case 'delivered':
-              addLog(t('paymentResult.logs.recvConfirmedGateway'), 'success');
+            case "delivered":
+              addLog(t("paymentResult.logs.recvConfirmedGateway"), "success");
               if (isTopUp) {
-                addLog(t('paymentResult.logs.execBalance'), 'success');
-                addLog(t('paymentResult.logs.doneTopup'), 'success');
+                addLog(t("paymentResult.logs.execBalance"), "success");
+                addLog(t("paymentResult.logs.doneTopup"), "success");
               } else {
-                addLog(t('paymentResult.logs.execDelivery'), 'success');
-                addLog(t('paymentResult.logs.doneAllTransferred'), 'success');
+                addLog(t("paymentResult.logs.execDelivery"), "success");
+                addLog(t("paymentResult.logs.doneAllTransferred"), "success");
               }
               setProgress(100);
               setIsComplete(true);
               shouldStop = true;
               break;
-            case 'paid':
-              addLog(t('paymentResult.logs.recvConfirmed'), 'success');
+            case "paid":
+              addLog(t("paymentResult.logs.recvConfirmed"), "success");
               if (isTopUp) {
-                addLog(t('paymentResult.logs.execBalance'), 'success');
-                addLog(t('paymentResult.logs.doneTopup'), 'success');
+                addLog(t("paymentResult.logs.execBalance"), "success");
+                addLog(t("paymentResult.logs.doneTopup"), "success");
               } else {
-                addLog(t('paymentResult.logs.execOrderConfirmed'), 'success');
-                addLog(t('paymentResult.logs.doneCheckOrders'), 'success');
+                addLog(t("paymentResult.logs.execOrderConfirmed"), "success");
+                addLog(t("paymentResult.logs.doneCheckOrders"), "success");
               }
               setProgress(100);
               setIsComplete(true);
               shouldStop = true;
               break;
-            case 'partial':
-              addLog(t('paymentResult.logs.recvConfirmed'), 'success');
-              addLog(t('paymentResult.logs.execSomeDelivered'), 'success');
-              addLog(t('paymentResult.logs.infoPreorder'), 'info');
-              addLog(t('paymentResult.logs.doneFullStatus'), 'success');
+            case "partial":
+              addLog(t("paymentResult.logs.recvConfirmed"), "success");
+              addLog(t("paymentResult.logs.execSomeDelivered"), "success");
+              addLog(t("paymentResult.logs.infoPreorder"), "info");
+              addLog(t("paymentResult.logs.doneFullStatus"), "success");
               setProgress(100);
               setIsComplete(true);
               shouldStop = true;
               break;
-            case 'prepaid':
-              addLog(t('paymentResult.logs.recvConfirmed'), 'success');
-              addLog(t('paymentResult.logs.infoPreorderQueue'), 'info');
-              addLog(t('paymentResult.logs.doneCheckOrders'), 'success');
+            case "prepaid":
+              addLog(t("paymentResult.logs.recvConfirmed"), "success");
+              addLog(t("paymentResult.logs.infoPreorderQueue"), "info");
+              addLog(t("paymentResult.logs.doneCheckOrders"), "success");
               setProgress(100);
               setIsComplete(true);
               shouldStop = true;
               break;
-            case 'pending':
-              addLog(t('paymentResult.logs.waitPayment'), 'warning');
+            case "pending":
+              addLog(t("paymentResult.logs.waitPayment"), "warning");
               break;
-            case 'expired':
-            case 'failed':
-              addLog(t('paymentResult.logs.failPayment', { status: result.status }), 'error');
+            case "expired":
+            case "failed":
+              addLog(t("paymentResult.logs.failPayment", { status: result.status }), "error");
               setIsComplete(true);
               shouldStop = true;
               break;
             default:
               if (result.error) {
-                addLog(t('paymentResult.logs.warnDelayed'), 'warning');
+                addLog(t("paymentResult.logs.warnDelayed"), "warning");
               }
           }
         } else if (result.error) {
           // Generic error handling
-          addLog(t('paymentResult.logs.warnDelayed'), 'warning');
+          addLog(t("paymentResult.logs.warnDelayed"), "warning");
         }
       }
 
@@ -265,9 +287,16 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
       if (!shouldStop && !isComplete && currentAttempt < MAX_POLL_ATTEMPTS) {
         const delay = calculateDelay(currentAttempt - 1);
         const delaySeconds = (delay / 1000).toFixed(1);
-        
+
         if (currentAttempt > 1) {
-          addLog(t('paymentResult.logs.next', { delay: delaySeconds, current: String(currentAttempt), max: String(MAX_POLL_ATTEMPTS) }), 'info');
+          addLog(
+            t("paymentResult.logs.next", {
+              delay: delaySeconds,
+              current: String(currentAttempt),
+              max: String(MAX_POLL_ATTEMPTS),
+            }),
+            "info"
+          );
         }
 
         pollTimeout = setTimeout(() => {
@@ -282,7 +311,7 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
     // Progress animation (cosmetic)
     progressInterval = setInterval(() => {
       if (!shouldStop && !isComplete) {
-        setProgress(prev => {
+        setProgress((prev) => {
           if (prev >= 90) return prev; // Cap at 90% until complete
           return prev + randomFloat(0.5, 5);
         });
@@ -300,15 +329,19 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
   }, [orderId, addLog, checkStatus, isComplete, isTelegramMiniApp, t, isTopUp]);
 
   const statusInfo = PAYMENT_STATUS_MESSAGES[status];
-  const isSuccess = status === 'delivered' || status === 'paid' || status === 'partial' || status === 'prepaid';
-  const isFailed = status === 'expired' || status === 'failed' || (status === 'unknown' && isComplete && consecutive404sRef.current >= 3);
+  const isSuccess =
+    status === "delivered" || status === "paid" || status === "partial" || status === "prepaid";
+  const isFailed =
+    status === "expired" ||
+    status === "failed" ||
+    (status === "unknown" && isComplete && consecutive404sRef.current >= 3);
 
   // For external browser: show simple "Return to Telegram" message
   // Polling happens in Mini App, no need to duplicate here
   if (!isTelegramMiniApp) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-sm text-center"
@@ -321,11 +354,10 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
           </div>
 
           {/* Message */}
-          <h1 className="text-2xl font-bold text-white mb-2">
-            Payment Received!
-          </h1>
+          <h1 className="text-2xl font-bold text-white mb-2">Payment Received!</h1>
           <p className="text-gray-400 mb-8">
-            Your order is being processed.<br />
+            Your order is being processed.
+            <br />
             Return to Telegram to check status.
           </p>
 
@@ -340,11 +372,12 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
           <a
             href={(() => {
               const urlParams = new URLSearchParams(window.location.search);
-              const source = urlParams.get('source');
+              const source = urlParams.get("source");
               // If source=discount, return to discount bot, otherwise main bot
-              const botUsername = source === 'discount' 
-                ? (import.meta.env.VITE_DISCOUNT_BOT_USERNAME || 'ai_discount_hub_bot')
-                : (import.meta.env.VITE_BOT_USERNAME || 'pvndora_ai_bot');
+              const botUsername =
+                source === "discount"
+                  ? import.meta.env.VITE_DISCOUNT_BOT_USERNAME || "ai_discount_hub_bot"
+                  : import.meta.env.VITE_BOT_USERNAME || "pvndora_ai_bot";
               return `https://t.me/${botUsername}`;
             })()}
             className="block w-full py-4 bg-[#2AABEE] hover:bg-[#229ED9] text-white font-bold rounded-xl transition-colors mb-4"
@@ -352,9 +385,7 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
             Open Telegram
           </a>
 
-          <p className="text-xs text-gray-600">
-            You can close this tab now
-          </p>
+          <p className="text-xs text-gray-600">You can close this tab now</p>
         </motion.div>
       </div>
     );
@@ -362,16 +393,16 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-md"
       >
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="font-mono text-xs text-gray-500 mb-2">{t('paymentResult.subtitle')}</div>
+          <div className="font-mono text-xs text-gray-500 mb-2">{t("paymentResult.subtitle")}</div>
           <div className="font-display text-2xl font-bold text-white tracking-wider">
-            {t('paymentResult.title')}
+            {t("paymentResult.title")}
           </div>
         </div>
 
@@ -381,7 +412,7 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
           <div className={`p-4 border-b border-white/10 bg-${statusInfo.color}-500/10`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                {status === 'checking' && (
+                {status === "checking" && (
                   <div className="relative">
                     <div className="w-10 h-10 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
                     <Cpu size={16} className="absolute inset-0 m-auto text-purple-500" />
@@ -389,9 +420,11 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
                 )}
                 {isSuccess && <CheckCircle size={24} className="text-green-500" />}
                 {isFailed && <XCircle size={24} className="text-red-500" />}
-                {status === 'pending' && <Clock size={24} className="text-orange-500 animate-pulse" />}
-                {status === 'unknown' && <AlertTriangle size={24} className="text-gray-500" />}
-                
+                {status === "pending" && (
+                  <Clock size={24} className="text-orange-500 animate-pulse" />
+                )}
+                {status === "unknown" && <AlertTriangle size={24} className="text-gray-500" />}
+
                 <div>
                   <div className={`font-mono text-sm font-bold text-${statusInfo.color}-500`}>
                     [ {statusInfo.label} ]
@@ -399,7 +432,7 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
                   <div className="text-xs text-gray-400">{statusInfo.description}</div>
                 </div>
               </div>
-              
+
               <div className="font-mono text-xs text-gray-500">
                 ID: {orderId.slice(0, 8).toUpperCase()}
               </div>
@@ -409,15 +442,17 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
           {/* Progress Bar */}
           <div className="px-4 py-3 border-b border-white/5">
             <div className="flex justify-between text-[10px] font-mono text-gray-500 mb-1">
-              <span>{t('paymentResult.verificationProgress')}</span>
+              <span>{t("paymentResult.verificationProgress")}</span>
               <span>{Math.round(progress)}%</span>
             </div>
             <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-              <motion.div 
+              <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
-                className={`h-full ${isSuccess ? 'bg-green-500' : isFailed ? 'bg-red-500' : 'bg-purple-500'}`}
-                style={{ boxShadow: `0 0 10px ${isSuccess ? '#22c55e' : isFailed ? '#ef4444' : '#a855f7'}` }}
+                className={`h-full ${isSuccess ? "bg-green-500" : isFailed ? "bg-red-500" : "bg-purple-500"}`}
+                style={{
+                  boxShadow: `0 0 10px ${isSuccess ? "#22c55e" : isFailed ? "#ef4444" : "#a855f7"}`,
+                }}
               />
             </div>
           </div>
@@ -434,12 +469,17 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
                   className="mb-1 flex gap-2"
                 >
                   <span className="text-gray-600">{log.timestamp}</span>
-                  <span className={
-                    log.type === 'success' ? 'text-green-500' :
-                    log.type === 'error' ? 'text-red-500' :
-                    log.type === 'warning' ? 'text-orange-500' :
-                    'text-gray-400'
-                  }>
+                  <span
+                    className={
+                      log.type === "success"
+                        ? "text-green-500"
+                        : log.type === "error"
+                          ? "text-red-500"
+                          : log.type === "warning"
+                            ? "text-orange-500"
+                            : "text-gray-400"
+                    }
+                  >
                     {log.message}
                   </span>
                 </motion.div>
@@ -456,12 +496,13 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
                   onClick={onViewOrders}
                   className="w-full py-3 bg-pandora-cyan text-black font-bold text-sm flex items-center justify-center gap-2 hover:bg-pandora-cyan/90 transition-colors"
                 >
-                  {t('paymentResult.viewOrders')}
+                  {t("paymentResult.viewOrders")}
                   <ArrowRight size={16} />
                 </button>
               )}
-              
-              {(isFailed || (status === 'unknown' && isComplete && consecutive404sRef.current >= 3)) && (
+
+              {(isFailed ||
+                (status === "unknown" && isComplete && consecutive404sRef.current >= 3)) && (
                 <>
                   <button
                     onClick={() => window.location.reload()}
@@ -478,12 +519,12 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
                   </button>
                 </>
               )}
-              
+
               <button
                 onClick={onComplete}
                 className="w-full py-2 bg-transparent border border-white/20 text-gray-400 text-xs font-mono hover:border-white/40 transition-colors"
               >
-                {t('paymentResult.returnToCatalog')}
+                {t("paymentResult.returnToCatalog")}
               </button>
             </div>
           )}
@@ -492,13 +533,9 @@ export function PaymentResult({ orderId, isTopUp = false, onComplete, onViewOrde
         {/* Footer */}
         <div className="text-center mt-4 font-mono text-[10px] text-gray-600">
           {!isComplete && (
-            <span className="animate-pulse">
-              LIVE CONNECTION • Poll #{pollCount}
-            </span>
+            <span className="animate-pulse">LIVE CONNECTION • Poll #{pollCount}</span>
           )}
-          {isComplete && (
-            <span>{t('paymentResult.connectionClosed')}</span>
-          )}
+          {isComplete && <span>{t("paymentResult.connectionClosed")}</span>}
         </div>
       </motion.div>
     </div>

@@ -1,18 +1,21 @@
 /**
  * Admin Migration API Hook
- * 
+ *
  * Hook for fetching migration statistics in admin panel.
  */
 
-import { useState, useCallback } from 'react';
-import { apiRequest } from '../../utils/apiClient';
-import { API } from '../../config';
-import { logger } from '../../utils/logger';
+import { useState, useCallback } from "react";
+import { apiRequest } from "../../utils/apiClient";
+import { API } from "../../config";
+import { logger } from "../../utils/logger";
 
 /**
  * Admin API request helper - uses /api/admin prefix
  */
-async function adminRequest<T>(endpoint: string, options: { method?: string; body?: string } = {}): Promise<T> {
+async function adminRequest<T>(
+  endpoint: string,
+  options: { method?: string; body?: string } = {}
+): Promise<T> {
   const url = `${API.ADMIN_URL}${endpoint}`;
   return apiRequest<T>(url, options);
 }
@@ -60,8 +63,8 @@ export function useAdminMigrationApi() {
       setStats(data);
       return data;
     } catch (err) {
-      logger.error('Failed to fetch migration stats', err);
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      logger.error("Failed to fetch migration stats", err);
+      setError(err instanceof Error ? err.message : "Unknown error");
       return null;
     } finally {
       setLoading(false);
@@ -75,8 +78,8 @@ export function useAdminMigrationApi() {
       setTrend(data || []);
       return data || [];
     } catch (err) {
-      logger.error('Failed to fetch migration trend', err);
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      logger.error("Failed to fetch migration trend", err);
+      setError(err instanceof Error ? err.message : "Unknown error");
       return [];
     } finally {
       setLoading(false);
@@ -86,12 +89,14 @@ export function useAdminMigrationApi() {
   const getTopProducts = useCallback(async (limit: number = 10): Promise<TopMigratingProduct[]> => {
     setLoading(true);
     try {
-      const data = await adminRequest<TopMigratingProduct[]>(`/migration/top-products?limit=${limit}`);
+      const data = await adminRequest<TopMigratingProduct[]>(
+        `/migration/top-products?limit=${limit}`
+      );
       setTopProducts(data || []);
       return data || [];
     } catch (err) {
-      logger.error('Failed to fetch top migrating products', err);
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      logger.error("Failed to fetch top migrating products", err);
+      setError(err instanceof Error ? err.message : "Unknown error");
       return [];
     } finally {
       setLoading(false);

@@ -10,6 +10,7 @@ Tasks:
 
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -39,11 +40,11 @@ async def expire_orders_entrypoint(request: Request):
 
     db = await get_database_async()
     now = datetime.now(UTC)
-    results = {"timestamp": now.isoformat(), "tasks": {}}
+    results: dict[str, Any] = {"timestamp": now.isoformat(), "tasks": {}}
 
     try:
         # 1. Get expired pending orders (expires_at < now)
-        expired_orders = await db._orders.get_pending_expired()
+        expired_orders = await db.orders_domain.get_pending_expired()
         cancelled_count = 0
         released_stock_count = 0
 
@@ -68,8 +69,9 @@ async def expire_orders_entrypoint(request: Request):
         results["tasks"]["expired_orders"] = cancelled_count
         results["tasks"]["released_stock"] = released_stock_count
 
-        # 2. Get stale pending orders without expires_at (fallback: older than 15 min - matches payment timeout)
-        stale_orders = await db._orders.get_pending_stale(minutes=15)
+        # 2. Get stale pending orders without expires_at
+        # (fallback: older than 15 min - matches payment timeout)
+        stale_orders = await db.orders_domain.get_pending_stale(minutes=15)
         stale_cancelled = 0
 
         for order in stale_orders:

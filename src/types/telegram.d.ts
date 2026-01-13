@@ -1,6 +1,6 @@
 /**
  * Telegram WebApp SDK Type Definitions
- * 
+ *
  * Complete type definitions for Telegram Mini Apps WebApp API
  * Based on: https://core.telegram.org/bots/webapps
  */
@@ -21,19 +21,19 @@ export interface WebApp {
   initDataUnsafe: WebAppInitData;
   version: string;
   platform: string;
-  
+
   // Appearance
-  colorScheme: 'light' | 'dark';
+  colorScheme: "light" | "dark";
   themeParams: ThemeParams;
   isExpanded: boolean;
   viewportHeight: number;
   viewportStableHeight: number;
-  
+
   // State
   headerColor: string;
   backgroundColor: string;
   isClosingConfirmationEnabled: boolean;
-  
+
   // Methods
   ready(): void;
   expand(): void;
@@ -52,29 +52,29 @@ export interface WebApp {
   readTextFromClipboard(callback?: (text: string) => void): void;
   requestWriteAccess(callback?: (granted: boolean) => void): void;
   requestContact(callback?: (granted: boolean) => void): void;
-  
+
   // Events
   onEvent(eventType: string, eventHandler: () => void): void;
   offEvent(eventType: string, eventHandler: () => void): void;
-  
+
   // Main Button
   MainButton: MainButton;
-  
+
   // Back Button
   BackButton: BackButton;
-  
+
   // Settings Button
   SettingsButton: SettingsButton;
-  
+
   // Haptic Feedback
   HapticFeedback: HapticFeedback;
-  
+
   // Cloud Storage
   CloudStorage: CloudStorage;
-  
+
   // Biometric Manager
   BiometricManager: BiometricManager;
-  
+
   // Utils
   isVersionAtLeast(version: string): boolean;
   setHeaderColor(color: string): void;
@@ -113,7 +113,7 @@ export interface WebAppUser {
 
 export interface WebAppChat {
   id: number;
-  type: 'group' | 'supergroup' | 'channel';
+  type: "group" | "supergroup" | "channel";
   title: string;
   username?: string;
   photo_url?: string;
@@ -143,7 +143,7 @@ export interface PopupParams {
 
 export interface PopupButton {
   id?: string;
-  type?: 'default' | 'ok' | 'close' | 'cancel' | 'destructive';
+  type?: "default" | "ok" | "close" | "cancel" | "destructive";
   text?: string;
 }
 
@@ -158,7 +158,7 @@ export interface MainButton {
   isVisible: boolean;
   isActive: boolean;
   isProgressVisible: boolean;
-  
+
   setText(text: string): void;
   onClick(callback: () => void): void;
   offClick(callback: () => void): void;
@@ -181,7 +181,7 @@ export interface MainButtonParams {
 
 export interface BackButton {
   isVisible: boolean;
-  
+
   onClick(callback: () => void): void;
   offClick(callback: () => void): void;
   show(): void;
@@ -190,7 +190,7 @@ export interface BackButton {
 
 export interface SettingsButton {
   isVisible: boolean;
-  
+
   onClick(callback: () => void): void;
   offClick(callback: () => void): void;
   show(): void;
@@ -203,13 +203,20 @@ export interface HapticFeedback {
   selectionChanged(): void;
 }
 
-export type HapticStyle = 'light' | 'medium' | 'heavy' | 'rigid' | 'soft';
-export type HapticNotificationType = 'error' | 'success' | 'warning';
+export type HapticStyle = "light" | "medium" | "heavy" | "rigid" | "soft";
+export type HapticNotificationType = "error" | "success" | "warning";
 
 export interface CloudStorage {
-  setItem(key: string, value: string, callback?: (error: Error | null, success: boolean) => void): void;
+  setItem(
+    key: string,
+    value: string,
+    callback?: (error: Error | null, success: boolean) => void
+  ): void;
   getItem(key: string, callback: (error: Error | null, value: string | null) => void): void;
-  getItems(keys: string[], callback: (error: Error | null, values: Record<string, string>) => void): void;
+  getItems(
+    keys: string[],
+    callback: (error: Error | null, values: Record<string, string>) => void
+  ): void;
   removeItem(key: string, callback?: (error: Error | null, success: boolean) => void): void;
   removeItems(keys: string[], callback?: (error: Error | null, success: boolean) => void): void;
   getKeys(callback: (error: Error | null, keys: string[]) => void): void;
@@ -218,14 +225,20 @@ export interface CloudStorage {
 export interface BiometricManager {
   isInited: boolean;
   isBiometricAvailable: boolean;
-  biometricType: 'finger' | 'face' | 'unknown';
+  biometricType: "finger" | "face" | "unknown";
   isAccessRequested: boolean;
   isAccessGranted: boolean;
   token: string | null;
-  
+
   init(callback?: (success: boolean) => void): void;
-  requestAccess(params: BiometricRequestAccessParams, callback?: (success: boolean, token?: string) => void): void;
-  authenticate(params: BiometricAuthenticateParams, callback?: (success: boolean, token?: string) => void): void;
+  requestAccess(
+    params: BiometricRequestAccessParams,
+    callback?: (success: boolean, token?: string) => void
+  ): void;
+  authenticate(
+    params: BiometricAuthenticateParams,
+    callback?: (success: boolean, token?: string) => void
+  ): void;
   updateBiometricToken(token: string, callback?: (success: boolean) => void): void;
   openSettings(): void;
 }
@@ -239,40 +252,3 @@ export interface BiometricAuthenticateParams {
 }
 
 export {};
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,14 +1,14 @@
 /**
  * AdminDashboard Component
- * 
+ *
  * Операционная панель — быстрые действия и статусы.
  * Финансы вынесены в Accounting.
  */
 
-import React, { memo } from 'react';
-import { ShoppingBag, Users, LifeBuoy, Clock, TrendingUp, Package } from 'lucide-react';
-import StatCard from './StatCard';
-import type { AdminStats } from './types';
+import React, { memo } from "react";
+import { ShoppingBag, Users, LifeBuoy, Clock, TrendingUp, Package } from "lucide-react";
+import StatCard from "./StatCard";
+import type { AdminStats } from "./types";
 
 interface AdminDashboardProps {
   stats?: AdminStats;
@@ -25,20 +25,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
     openTickets: 0,
     revenueByDay: [],
     totalUserBalances: 0,
-    pendingWithdrawals: 0
+    pendingWithdrawals: 0,
   };
 
   // Prepare chart data from revenue_by_day
   const chartData = displayStats.revenueByDay || [];
-  const maxRevenue = chartData.length > 0 
-    ? Math.max(...chartData.map(d => d.amount))
-    : 1;
+  const maxRevenue = chartData.length > 0 ? Math.max(...chartData.map((d) => d.amount)) : 1;
 
   const chartBars = Array.from({ length: 12 }, (_, i) => {
     const date = new Date();
     date.setDate(date.getDate() - (11 - i));
-    const dateStr = date.toISOString().split('T')[0];
-    const dayData = chartData.find(d => d.date === dateStr);
+    const dateStr = date.toISOString().split("T")[0];
+    const dayData = chartData.find((d) => d.date === dateStr);
     const amount = dayData?.amount || 0;
     const heightPercent = maxRevenue > 0 ? (amount / maxRevenue) * 100 : 0;
     return { date: dateStr, amount, height: Math.max(heightPercent, 5) };
@@ -48,34 +46,34 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
     <div className="space-y-6">
       {/* Операционные метрики */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard 
-          label="Заказов сегодня" 
-          value={String(displayStats.ordersToday || 0)} 
+        <StatCard
+          label="Заказов сегодня"
+          value={String(displayStats.ordersToday || 0)}
           trend={`${displayStats.ordersWeek || 0} за неделю`}
-          icon={<ShoppingBag size={20} />} 
+          icon={<ShoppingBag size={20} />}
         />
-        <StatCard 
-          label="Ожидают выдачи" 
-          value={String(displayStats.pendingOrders || 0)} 
-          trend="Требуют внимания" 
+        <StatCard
+          label="Ожидают выдачи"
+          value={String(displayStats.pendingOrders || 0)}
+          trend="Требуют внимания"
           isNegative={displayStats.pendingOrders > 0}
-          icon={<Package size={20} />} 
+          icon={<Package size={20} />}
         />
-        <StatCard 
-          label="Пользователей" 
-          value={displayStats.totalUsers.toLocaleString()} 
-          trend="Всего зарегистрировано" 
-          icon={<Users size={20} />} 
+        <StatCard
+          label="Пользователей"
+          value={displayStats.totalUsers.toLocaleString()}
+          trend="Всего зарегистрировано"
+          icon={<Users size={20} />}
         />
-        <StatCard 
-          label="Открытые тикеты" 
-          value={String(displayStats.openTickets || 0)} 
-          trend="Требуют ответа" 
+        <StatCard
+          label="Открытые тикеты"
+          value={String(displayStats.openTickets || 0)}
+          trend="Требуют ответа"
           isNegative={displayStats.openTickets > 0}
-          icon={<LifeBuoy size={20} />} 
+          icon={<LifeBuoy size={20} />}
         />
       </div>
-      
+
       {/* График активности */}
       <div className="bg-[#0e0e0e] border border-white/10 rounded-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
@@ -87,9 +85,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
         </div>
         <div className="p-6 h-48 flex items-end justify-between gap-2">
           {chartBars.map((bar, i) => (
-            <div 
-              key={i} 
-              className="flex-1 bg-white/5 hover:bg-pandora-cyan transition-colors rounded-t-sm relative group cursor-pointer" 
+            <div
+              key={i}
+              className="flex-1 bg-white/5 hover:bg-pandora-cyan transition-colors rounded-t-sm relative group cursor-pointer"
               style={{ height: `${bar.height}%` }}
             >
               <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-black/90 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
@@ -99,7 +97,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
           ))}
         </div>
       </div>
-      
+
       {/* Быстрые действия */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="bg-[#0e0e0e] border border-white/10 p-4 rounded-sm hover:border-pandora-cyan/50 transition-colors cursor-pointer">
@@ -141,11 +139,3 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
 };
 
 export default memo(AdminDashboard);
-
-
-
-
-
-
-
-

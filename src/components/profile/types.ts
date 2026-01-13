@@ -1,10 +1,10 @@
 /**
  * Profile Component Types
- * 
+ *
  * Shared type definitions for profile components.
  */
 
-import type { CurrencyCode } from '../../utils/currency';
+import type { CurrencyCode } from "../../utils/currency";
 
 export interface CareerLevelData {
   id: number;
@@ -18,7 +18,7 @@ export interface NetworkNodeData {
   id: string | number;
   name?: string;
   handle: string;
-  status: 'active' | 'inactive' | string;
+  status: "active" | "inactive" | string;
   earned: number;
   ordersCount: number;
   photoUrl?: string;
@@ -35,12 +35,12 @@ export interface NetworkNodeData {
 
 export interface BillingLogData {
   id: string;
-  type: 'INCOME' | 'OUTCOME' | 'SYSTEM';
+  type: "INCOME" | "OUTCOME" | "SYSTEM";
   source: string;
   amount: string;
   date: string;
-  transactionType?: string;  // For localization: topup, purchase, refund, etc.
-  currency?: string;  // Currency of the transaction (e.g., 'RUB', 'USD') - if same as user's currency, no conversion needed
+  transactionType?: string; // For localization: topup, purchase, refund, etc.
+  currency?: string; // Currency of the transaction (e.g., 'RUB', 'USD') - if same as user's currency, no conversion needed
 }
 
 export interface ProfileStatsData {
@@ -54,8 +54,8 @@ export interface CareerProgressData {
   currentTurnover: number;
   currentLevel: CareerLevelData;
   nextLevel?: CareerLevelData;
-  thresholds?: { level2: number; level3: number };  // USD thresholds
-  commissions?: { level1: number; level2: number; level3: number };  // Commission percentages
+  thresholds?: { level2: number; level3: number }; // USD thresholds
+  commissions?: { level1: number; level2: number; level3: number }; // Commission percentages
   progressPercent: number;
 }
 
@@ -66,7 +66,7 @@ export interface ProfileDataProp {
   balance: number;
   earnedRef: number;
   saved: number;
-  role: 'USER' | 'VIP' | 'ADMIN';
+  role: "USER" | "VIP" | "ADMIN";
   isVip: boolean;
   referralLink: string;
   stats: ProfileStatsData;
@@ -74,23 +74,8 @@ export interface ProfileDataProp {
   networkTree: NetworkNodeData[];
   billingLogs: BillingLogData[];
   currency: CurrencyCode;
-  language?: string;  // User's interface language (ru, en)
+  language?: string; // User's interface language (ru, en)
   photoUrl?: string;
-  partnerMode?: 'commission' | 'discount';  // Partner reward mode
-  exchangeRate?: number;  // Currency exchange rate from USD
+  partnerMode?: "commission" | "discount"; // Partner reward mode
+  exchangeRate?: number; // Currency exchange rate from USD
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

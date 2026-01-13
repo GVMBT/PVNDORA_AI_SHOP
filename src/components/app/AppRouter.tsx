@@ -1,13 +1,13 @@
 /**
  * AppRouter Component
- * 
+ *
  * Handles navigation between different views/pages in the app.
  * Uses AnimatePresence for smooth transitions.
  * Heavy components are lazy-loaded for better initial bundle size.
  */
 
-import React, { memo, Suspense } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import React, { memo, Suspense } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Hero,
   Guarantees,
@@ -16,19 +16,26 @@ import {
   ProductDetailConnected,
   PaymentResult,
   type RefundContext,
-} from '../new';
-import type { CatalogProduct } from '../../types/component';
-import type { FeedbackType } from './useFeedback';
-import { lazyWithRetry } from '../../utils/lazyWithRetry';
+} from "../new";
+import type { CatalogProduct } from "../../types/component";
+import type { FeedbackType } from "./useFeedback";
+import { lazyWithRetry } from "../../utils/lazyWithRetry";
 
 // Lazy load heavy components with auto-retry on chunk errors
-const AdminPanelConnected = lazyWithRetry(() => import('../new/AdminPanelConnected'));
-const LeaderboardConnected = lazyWithRetry(() => import('../new/LeaderboardConnected'));
-const OrdersConnected = lazyWithRetry(() => import('../new/OrdersConnected'));
-const ProfileConnected = lazyWithRetry(() => import('../new/ProfileConnected'));
-const Legal = lazyWithRetry(() => import('../new/Legal'));
+const AdminPanelConnected = lazyWithRetry(() => import("../new/AdminPanelConnected"));
+const LeaderboardConnected = lazyWithRetry(() => import("../new/LeaderboardConnected"));
+const OrdersConnected = lazyWithRetry(() => import("../new/OrdersConnected"));
+const ProfileConnected = lazyWithRetry(() => import("../new/ProfileConnected"));
+const Legal = lazyWithRetry(() => import("../new/Legal"));
 
-export type ViewType = 'home' | 'orders' | 'profile' | 'leaderboard' | 'legal' | 'admin' | 'payment-result';
+export type ViewType =
+  | "home"
+  | "orders"
+  | "profile"
+  | "leaderboard"
+  | "legal"
+  | "admin"
+  | "payment-result";
 
 interface AppRouterProps {
   currentView: ViewType;
@@ -74,79 +81,66 @@ function AppRouterComponent({
   return (
     <main className="w-full relative z-10">
       <AnimatePresence mode="wait">
-        {currentView === 'payment-result' && paymentResultOrderId ? (
-          <PaymentResult 
+        {currentView === "payment-result" && paymentResultOrderId ? (
+          <PaymentResult
             key="payment-result"
             orderId={paymentResultOrderId}
-            onComplete={() => onNavigate('home')}
-            onViewOrders={() => onNavigate('orders')}
+            onComplete={() => onNavigate("home")}
+            onViewOrders={() => onNavigate("orders")}
           />
-        ) : currentView === 'admin' ? (
+        ) : currentView === "admin" ? (
           <Suspense fallback={<ViewLoader />}>
-            <AdminPanelConnected 
-              key="admin" 
-              onExit={() => onNavigate('profile')} 
+            <AdminPanelConnected key="admin" onExit={() => onNavigate("profile")} />
+          </Suspense>
+        ) : currentView === "profile" ? (
+          <Suspense fallback={<ViewLoader />}>
+            <ProfileConnected
+              key="profile"
+              onBack={() => onNavigate("home")}
+              onHaptic={onHaptic}
+              onAdminEnter={() => onNavigate("admin")}
             />
           </Suspense>
-        ) : currentView === 'profile' ? (
+        ) : currentView === "orders" ? (
           <Suspense fallback={<ViewLoader />}>
-            <ProfileConnected 
-              key="profile" 
-              onBack={() => onNavigate('home')} 
-              onHaptic={onHaptic} 
-              onAdminEnter={() => onNavigate('admin')} 
-            />
-          </Suspense>
-        ) : currentView === 'orders' ? (
-          <Suspense fallback={<ViewLoader />}>
-            <OrdersConnected 
-              key="orders" 
-              onBack={() => onNavigate('home')} 
+            <OrdersConnected
+              key="orders"
+              onBack={() => onNavigate("home")}
               onOpenSupport={onOpenSupport}
             />
           </Suspense>
-        ) : currentView === 'leaderboard' ? (
+        ) : currentView === "leaderboard" ? (
           <Suspense fallback={<ViewLoader />}>
-            <LeaderboardConnected 
-              key="leaderboard" 
-              onBack={() => onNavigate('home')} 
-            />
+            <LeaderboardConnected key="leaderboard" onBack={() => onNavigate("home")} />
           </Suspense>
-        ) : currentView === 'legal' ? (
+        ) : currentView === "legal" ? (
           <Suspense fallback={<ViewLoader />}>
-            <Legal 
-              key="legal" 
-              doc={legalDoc} 
-              onBack={() => onNavigate('home')} 
-            />
+            <Legal key="legal" doc={legalDoc} onBack={() => onNavigate("home")} />
           </Suspense>
         ) : selectedProduct ? (
-          <ProductDetailConnected 
-            key="detail" 
+          <ProductDetailConnected
+            key="detail"
             productId={String(selectedProduct.id)}
-            onBack={onBackToCatalog} 
+            onBack={onBackToCatalog}
             onAddToCart={onAddToCart}
             onProductSelect={onProductSelect}
             onHaptic={onHaptic}
           />
         ) : (
-          <motion.div 
+          <motion.div
             key="home"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
             <Hero />
-            <CatalogConnected 
-              onSelectProduct={onProductSelect} 
+            <CatalogConnected
+              onSelectProduct={onProductSelect}
               onAddToCart={onAddToCart}
-              onHaptic={onHaptic} 
+              onHaptic={onHaptic}
             />
             <Guarantees />
-            <Footer 
-              onNavigate={onNavigateLegal} 
-              onOpenSupport={() => onOpenSupport()} 
-            />
+            <Footer onNavigate={onNavigateLegal} onOpenSupport={() => onOpenSupport()} />
           </motion.div>
         )}
       </AnimatePresence>

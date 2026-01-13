@@ -8,6 +8,7 @@ Runs every 1 minute to check pending orders.
 import asyncio
 import os
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 import httpx
 from fastapi import FastAPI, Request
@@ -143,7 +144,8 @@ async def process_paid_order(db, order_id: str, order_data: dict):
 
                     if delivery_task is not None:
                         logger.info(
-                            f"Discount order {order_id} scheduled for delayed delivery in {delivery_task.delay_minutes} minutes"
+                            f"Discount order {order_id} scheduled for delayed delivery "
+                            f"in {delivery_task.delay_minutes} minutes"
                         )
                     else:
                         logger.warning(f"Failed to schedule discount delivery for order {order_id}")
@@ -213,26 +215,37 @@ async def check_pending_payments(request: Request):
         paid_count = 0
 
         for order in pending_orders:
-            order_id = order["id"]
-            invoice_id = order["payment_id"]
+            if not isinstance(order, dict):
+                continue
+            order_dict = cast(dict[str, Any], order)
+            order_id = order_dict.get("id")
+            invoice_id = order_dict.get("payment_id")
+
+            if not order_id or not invoice_id:
+                continue
+
+            order_id_str = str(order_id)
+            invoice_id_str = str(invoice_id)
 
             # Check invoice status
-            status_result = await check_invoice_status(invoice_id)
+            status_result = await check_invoice_status(invoice_id_str)
 
             if status_result.get("success"):
                 state = status_result.get("state", "").lower()
 
                 if state == "payed":
                     # Invoice is paid! Process the order
-                    logger.info(f"Invoice {invoice_id} is PAID - processing order {order_id}")
-                    await process_paid_order(db, order_id, order)
+                    logger.info(
+                        f"Invoice {invoice_id_str} is PAID - processing order {order_id_str}"
+                    )
+                    await process_paid_order(db, order_id_str, order_dict)
                     paid_count += 1
                 elif state in ["cancelled", "failed"]:
                     # Invoice cancelled/failed - update order
                     await db.client.table("orders").update(
                         {"status": "cancelled", "notes": f"Payment {state}"}
-                    ).eq("id", order_id).execute()
-                    logger.info(f"Order {order_id} marked as cancelled (invoice {state})")
+                    ).eq("id", order_id_str).execute()
+                    logger.info(f"Order {order_id_str} marked as cancelled (invoice {state})")
 
             # Small delay between API calls
             await asyncio.sleep(0.2)

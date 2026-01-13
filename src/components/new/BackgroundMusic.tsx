@@ -1,13 +1,13 @@
 /**
  * BackgroundMusic Component
- * 
+ *
  * Manages ambient background music for the PVNDORA app.
  * Preloads sound.ogg completely before playing to avoid stuttering.
  */
 
-import React, { useEffect, useRef, useState, memo } from 'react';
-import { Volume2, VolumeX } from 'lucide-react';
-import { logger } from '../../utils/logger';
+import React, { useEffect, useRef, useState, memo } from "react";
+import { Volume2, VolumeX } from "lucide-react";
+import { logger } from "../../utils/logger";
 
 interface BackgroundMusicProps {
   src?: string;
@@ -21,8 +21,8 @@ interface BackgroundMusicProps {
 }
 
 const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
-  src = '/sound.ogg',
-  volume = 0.20,
+  src = "/sound.ogg",
+  volume = 0.2,
   autoPlay = true,
   loop = true,
   preloadedBlobUrl,
@@ -39,11 +39,11 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
   const [loadStartTime] = useState(Date.now());
   const retryCountRef = useRef(0);
   const maxRetries = 3;
-  
+
   // Store callbacks in refs to prevent effect re-runs
   const onLoadCompleteRef = useRef(onLoadComplete);
   const onLoadErrorRef = useRef(onLoadError);
-  
+
   useEffect(() => {
     onLoadCompleteRef.current = onLoadComplete;
     onLoadErrorRef.current = onLoadError;
@@ -56,7 +56,8 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
 
     const loadAudio = async () => {
       try {
-        const isTelegramWebApp = typeof window !== 'undefined' && !!(window as any).Telegram?.WebApp;
+        const isTelegramWebApp =
+          typeof window !== "undefined" && !!(window as any).Telegram?.WebApp;
 
         let audioSrc: string;
 
@@ -70,7 +71,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
           // Don't mark as owned - boot sequence manages this URL's lifecycle
         } else {
           // Prefetch for smoother playback in regular browsers
-          const response = await fetch(src, { cache: 'force-cache' });
+          const response = await fetch(src, { cache: "force-cache" });
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
@@ -90,11 +91,11 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
         const audio = new Audio(audioSrc);
         audio.loop = loop;
         audio.volume = volume;
-        audio.preload = 'auto';
-        
+        audio.preload = "auto";
+
         // CRITICAL: Set crossOrigin to avoid CORS issues
-        audio.crossOrigin = 'anonymous';
-        
+        audio.crossOrigin = "anonymous";
+
         audioRef.current = audio;
 
         // Try to start automatically "like before":
@@ -105,40 +106,40 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
             try {
               // Set volume BEFORE starting (muted doesn't affect volume property)
               audio.volume = volume;
-              
+
               // Silent start to satisfy autoplay restrictions
               audio.muted = true;
-              
+
               // Wait for enough data to play
               if (audio.readyState < 3) {
                 await new Promise<void>((resolve) => {
                   const onReady = () => {
-                    audio.removeEventListener('canplay', onReady);
+                    audio.removeEventListener("canplay", onReady);
                     resolve();
                   };
-                  audio.addEventListener('canplay', onReady);
+                  audio.addEventListener("canplay", onReady);
                   // Timeout after 3 seconds
                   setTimeout(() => {
-                    audio.removeEventListener('canplay', onReady);
+                    audio.removeEventListener("canplay", onReady);
                     resolve();
                   }, 3000);
                 });
               }
-              
+
               if (cancelled) return;
-              
+
               await audio.play();
-              
+
               // Only unmute if playback actually started
               if (!audio.paused) {
                 audio.muted = false;
                 isPlayingRef.current = true;
                 setIsPlaying(true);
-                logger.debug('[BackgroundMusic] Autoplay succeeded');
+                logger.debug("[BackgroundMusic] Autoplay succeeded");
               }
             } catch (err) {
               // If autoplay is blocked, we keep going (UI can still trigger later).
-              logger.warn('[BackgroundMusic] Autoplay blocked', err);
+              logger.warn("[BackgroundMusic] Autoplay blocked", err);
             }
           };
           // Fire immediately (don't wait for canplaythrough).
@@ -148,19 +149,19 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
         // Wait for FULL buffering before playing
         const handleCanPlayThrough = () => {
           if (cancelled) return;
-          
+
           setIsLoading(false);
           onLoadCompleteRef.current?.();
         };
 
         // Handle buffering issues
         const handleWaiting = () => {
-          logger.warn('[BackgroundMusic] Buffering...');
+          logger.warn("[BackgroundMusic] Buffering...");
           // Audio is waiting for data - this shouldn't happen if fully preloaded
         };
 
         const handleStalled = () => {
-          logger.warn('[BackgroundMusic] Stalled - retrying...');
+          logger.warn("[BackgroundMusic] Stalled - retrying...");
           if (audioRef.current && !cancelled && isPlayingRef.current) {
             // Try to resume playback
             setTimeout(() => {
@@ -173,29 +174,31 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
 
         const handleError = (e: Event) => {
           if (cancelled) return;
-          
+
           const audioError = (e.target as HTMLAudioElement).error;
-          const errorMsg = audioError 
+          const errorMsg = audioError
             ? `Code ${audioError.code}: ${audioError.message}`
-            : 'Unknown error';
-          
+            : "Unknown error";
+
           // CRITICAL: Stop retrying if format is not supported (Code 4) to prevent CPU heating
           if (audioError?.code === 4) {
-             logger.error('[BackgroundMusic] Audio format not supported (likely OGG on iOS). Stopping retries.');
-             setLoadError(new Error('Audio format not supported'));
-             setIsLoading(false);
-             return;
+            logger.error(
+              "[BackgroundMusic] Audio format not supported (likely OGG on iOS). Stopping retries."
+            );
+            setLoadError(new Error("Audio format not supported"));
+            setIsLoading(false);
+            return;
           }
 
           const error = new Error(`Failed to load audio: ${errorMsg}`);
-          
-          logger.error('[BackgroundMusic] Load error', error);
-          
+
+          logger.error("[BackgroundMusic] Load error", error);
+
           // Retry logic - exponential backoff with cap
           if (retryCountRef.current < maxRetries) {
             retryCountRef.current++;
             const delay = Math.min(2000 * Math.pow(2, retryCountRef.current), 10000); // Max 10s delay
-            
+
             setTimeout(() => {
               if (!cancelled) {
                 loadAudio();
@@ -203,7 +206,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
             }, delay);
             return;
           }
-          
+
           setLoadError(error);
           setIsLoading(false);
           onLoadErrorRef.current?.(error);
@@ -245,29 +248,29 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
           // Buffering tracked internally
         };
 
-        audio.addEventListener('canplaythrough', handleCanPlayThrough, { once: true });
-        audio.addEventListener('waiting', handleWaiting);
-        audio.addEventListener('stalled', handleStalled);
-        audio.addEventListener('error', handleError);
-        audio.addEventListener('play', handlePlay);
-        audio.addEventListener('pause', handlePause);
-        audio.addEventListener('ended', handleEnded);
-        audio.addEventListener('progress', handleProgress);
+        audio.addEventListener("canplaythrough", handleCanPlayThrough, { once: true });
+        audio.addEventListener("waiting", handleWaiting);
+        audio.addEventListener("stalled", handleStalled);
+        audio.addEventListener("error", handleError);
+        audio.addEventListener("play", handlePlay);
+        audio.addEventListener("pause", handlePause);
+        audio.addEventListener("ended", handleEnded);
+        audio.addEventListener("progress", handleProgress);
 
         // Start loading
         audio.load();
 
         return () => {
-          audio.removeEventListener('canplaythrough', handleCanPlayThrough);
-          audio.removeEventListener('waiting', handleWaiting);
-          audio.removeEventListener('stalled', handleStalled);
-          audio.removeEventListener('error', handleError);
-          audio.removeEventListener('play', handlePlay);
-          audio.removeEventListener('pause', handlePause);
-          audio.removeEventListener('ended', handleEnded);
-          audio.removeEventListener('progress', handleProgress);
+          audio.removeEventListener("canplaythrough", handleCanPlayThrough);
+          audio.removeEventListener("waiting", handleWaiting);
+          audio.removeEventListener("stalled", handleStalled);
+          audio.removeEventListener("error", handleError);
+          audio.removeEventListener("play", handlePlay);
+          audio.removeEventListener("pause", handlePause);
+          audio.removeEventListener("ended", handleEnded);
+          audio.removeEventListener("progress", handleProgress);
           audio.pause();
-          audio.src = '';
+          audio.src = "";
           // Only revoke if we created the blob URL ourselves
           if (ownedBlobUrl) {
             URL.revokeObjectURL(ownedBlobUrl);
@@ -276,9 +279,9 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
         };
       } catch (error) {
         if (cancelled) return;
-        
-        logger.error('[BackgroundMusic] Prefetch error', error);
-        
+
+        logger.error("[BackgroundMusic] Prefetch error", error);
+
         // Retry on fetch error
         if (retryCountRef.current < maxRetries) {
           retryCountRef.current++;
@@ -289,8 +292,8 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
           }, 1000 * retryCountRef.current);
           return;
         }
-        
-        const err = error instanceof Error ? error : new Error('Unknown prefetch error');
+
+        const err = error instanceof Error ? error : new Error("Unknown prefetch error");
         setLoadError(err);
         setIsLoading(false);
         onLoadErrorRef.current?.(err);
@@ -303,7 +306,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
       cancelled = true;
       if (audioRef.current) {
         audioRef.current.pause();
-        audioRef.current.src = '';
+        audioRef.current.src = "";
         audioRef.current = null;
       }
     };
@@ -321,7 +324,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!audioRef.current) return;
-      
+
       if (document.hidden) {
         // Page is hidden - save state and pause music
         wasPlayingBeforeHiddenRef.current = isPlayingRef.current;
@@ -335,14 +338,15 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
           // Small delay to ensure audio context is ready
           setTimeout(() => {
             if (audioRef.current && !document.hidden) {
-              audioRef.current.play()
+              audioRef.current
+                .play()
                 .then(() => {
                   // Successfully resumed - update state
                   isPlayingRef.current = true;
                   setIsPlaying(true);
                 })
                 .catch((err) => {
-                  logger.warn('[BackgroundMusic] Resume after visibility change failed', err);
+                  logger.warn("[BackgroundMusic] Resume after visibility change failed", err);
                   // If resume fails, update state
                   isPlayingRef.current = false;
                   setIsPlaying(false);
@@ -354,20 +358,20 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [autoPlay, isMuted]);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
-    
+
     if (isPlaying) {
       audioRef.current.pause();
     } else {
       audioRef.current.play().catch((err) => {
-        logger.warn('[BackgroundMusic] Play failed', err);
+        logger.warn("[BackgroundMusic] Play failed", err);
       });
     }
   };
@@ -391,7 +395,8 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
       if (isLoading) return; // Don't try if still loading
       if (isPlayingRef.current) return;
 
-      audio.play()
+      audio
+        .play()
         .then(() => {
           // Successful user-gesture play: mark playing and keep state consistent.
           isPlayingRef.current = true;
@@ -403,16 +408,16 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
     };
 
     // Telegram WebView frequently emits pointer/touch before click.
-    window.addEventListener('pointerdown', tryPlay, { passive: true });
-    window.addEventListener('touchstart', tryPlay, { passive: true });
-    window.addEventListener('click', tryPlay);
-    window.addEventListener('keydown', tryPlay);
+    window.addEventListener("pointerdown", tryPlay, { passive: true });
+    window.addEventListener("touchstart", tryPlay, { passive: true });
+    window.addEventListener("click", tryPlay);
+    window.addEventListener("keydown", tryPlay);
 
     return () => {
-      window.removeEventListener('pointerdown', tryPlay);
-      window.removeEventListener('touchstart', tryPlay);
-      window.removeEventListener('click', tryPlay);
-      window.removeEventListener('keydown', tryPlay);
+      window.removeEventListener("pointerdown", tryPlay);
+      window.removeEventListener("touchstart", tryPlay);
+      window.removeEventListener("click", tryPlay);
+      window.removeEventListener("keydown", tryPlay);
     };
   }, [autoPlay, isLoading, loadError, isMuted]);
 
@@ -428,7 +433,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
       <button
         onClick={toggleMute}
         className="pointer-events-auto w-10 h-10 bg-black/50 border border-white/10 rounded-full flex items-center justify-center hover:bg-black/70 hover:border-pandora-cyan/30 transition-all"
-        title={isMuted ? 'Unmute ambient music' : 'Mute ambient music'}
+        title={isMuted ? "Unmute ambient music" : "Mute ambient music"}
       >
         {isMuted ? (
           <VolumeX size={16} className="text-gray-400" />

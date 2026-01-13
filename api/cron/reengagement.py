@@ -10,6 +10,7 @@ Tasks:
 
 import os
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -42,7 +43,7 @@ async def reengagement_entrypoint(request: Request):
 
     db = await get_database_async()
     now = datetime.now(UTC)
-    results = {"timestamp": now.isoformat(), "tasks": {}}
+    results: dict[str, Any] = {"timestamp": now.isoformat(), "tasks": {}}
 
     try:
         # 1. Find inactive users (7-14 days, not contacted recently)
@@ -62,7 +63,10 @@ async def reengagement_entrypoint(request: Request):
         )
 
         sent_count = 0
-        for user in inactive_users.data or []:
+        for user_raw in inactive_users.data or []:
+            if not isinstance(user_raw, dict):
+                continue
+            user = cast(dict[str, Any], user_raw)
             # Skip if recently contacted
             last_reengagement = user.get("last_reengagement_at")
             if last_reengagement:
@@ -115,10 +119,14 @@ async def reengagement_entrypoint(request: Request):
         )
 
         wishlist_sent = 0
-        for item in wishlist_items.data or []:
-            user_data = item.get("users", {})
-            if not user_data:
+        for item_raw in wishlist_items.data or []:
+            if not isinstance(item_raw, dict):
                 continue
+            item = cast(dict[str, Any], item_raw)
+            user_data_raw = item.get("users", {})
+            if not isinstance(user_data_raw, dict):
+                continue
+            user_data = cast(dict[str, Any], user_data_raw)
 
             lang = user_data.get("language_code", "en")
             message = get_text("wishlist_reminder", lang, product=item.get("product_name", ""))
@@ -147,14 +155,16 @@ async def reengagement_entrypoint(request: Request):
         results["tasks"]["wishlist_reminders_sent"] = wishlist_sent
 
         # 3. Expiring subscription notifications (2-4 days before expiry)
-        # FIX: Query order_items.expires_at (subscription expiry), not orders.expires_at (payment deadline)
+        # FIX: Query order_items.expires_at (subscription expiry),
+        # not orders.expires_at (payment deadline)
         expiry_window_start = now + timedelta(days=2)
         expiry_window_end = now + timedelta(days=4)
 
         expiring_items = (
             await db.client.table("order_items")
             .select(
-                "id,order_id,expires_at,products(name),orders(user_telegram_id,users(language_code))"
+                "id,order_id,expires_at,products(name),"
+                "orders(user_telegram_id,users(language_code))"
             )
             .eq("status", "delivered")
             .gte("expires_at", expiry_window_start.isoformat())
@@ -166,9 +176,18 @@ async def reengagement_entrypoint(request: Request):
         expiry_sent = 0
         notified_users = set()  # Avoid duplicate notifications
 
-        for item in expiring_items.data or []:
-            order_data = item.get("orders", {})
-            product_data = item.get("products", {})
+        for item_raw in expiring_items.data or []:
+            if not isinstance(item_raw, dict):
+                continue
+            item = cast(dict[str, Any], item_raw)
+            order_data_raw = item.get("orders", {})
+            order_data = (
+                cast(dict[str, Any], order_data_raw) if isinstance(order_data_raw, dict) else {}
+            )
+            product_data_raw = item.get("products", {})
+            product_data = (
+                cast(dict[str, Any], product_data_raw) if isinstance(product_data_raw, dict) else {}
+            )
             if not order_data or not product_data:
                 continue
 

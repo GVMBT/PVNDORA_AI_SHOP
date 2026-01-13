@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 env:
-  PYTHON_VERSION: '3.12'
-  NODE_VERSION: '20'
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
 
 jobs:
   # ============================================================
@@ -19,24 +19,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install ruff mypy
           pip install -r requirements.txt
-      
+
       - name: Lint with ruff
         run: ruff check . --output-format=github
-      
+
       - name: Type check with mypy
         run: mypy core/ api/ --ignore-missing-imports --no-error-summary
-        continue-on-error: true  # Don't fail on type errors initially
+        continue-on-error: true # Don't fail on type errors initially
 
   # ============================================================
   # Lint Frontend (JavaScript/TypeScript)
@@ -46,19 +46,60 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
+          cache: "npm"
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Lint
         run: npm run lint
         continue-on-error: true
+
+  # ============================================================
+  # SonarCloud Analysis
+  # ============================================================
+  sonarcloud:
+    name: SonarCloud Analysis
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Shallow clones should be disabled for better analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests with coverage (if available)
+        continue-on-error: true
+        run: |
+          npm test -- --coverage || true
+          pytest tests/ --cov=core --cov-report=xml || true
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   # ============================================================
   # Unit Tests
@@ -69,23 +110,23 @@ jobs:
     needs: [lint-python]
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-asyncio pytest-cov
           pip install -r requirements.txt
-      
+
       - name: Run tests
         run: |
           pytest tests/ -v --cov=core --cov-report=xml
-        continue-on-error: true  # Allow tests to fail until tests are written
-      
+        continue-on-error: true # Allow tests to fail until tests are written
+
       - name: Upload coverage
         uses: codecov/codecov-action@v3
         with:
@@ -101,19 +142,19 @@ jobs:
     needs: [lint-frontend]
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      
+          cache: "npm"
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Build
         run: npm run build
-      
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -133,13 +174,13 @@ jobs:
       url: ${{ steps.deploy.outputs.url }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Download frontend build
         uses: actions/download-artifact@v4
         with:
           name: frontend-build
           path: dist/
-      
+
       - name: Deploy to Vercel
         id: deploy
         uses: amondnet/vercel-action@v25
@@ -147,7 +188,7 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
+          vercel-args: "--prod"
           github-comment: false
           github-deployment: false
 
@@ -161,16 +202,16 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      
+
       - name: Install dependencies
         run: |
           pip install httpx python-dotenv
-      
+
       - name: Run bot setup script
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
@@ -188,12 +229,12 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
           version: latest
-      
+
       - name: Run migrations
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -202,7 +243,4 @@ jobs:
         run: |
           supabase link --project-ref $SUPABASE_PROJECT_ID
           supabase db push
-        continue-on-error: true  # Don't fail if no new migrations
-
-
-
+        continue-on-error: true # Don't fail if no new migrations

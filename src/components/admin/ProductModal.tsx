@@ -1,8 +1,8 @@
 /**
  * ProductModal Component
- * 
+ *
  * Модальное окно создания/редактирования товара.
- * 
+ *
  * Маппинг полей (Frontend → База данных):
  * - category → type (ai, dev, design, music)
  * - fulfillmentType → fulfillment_type (auto, manual)
@@ -13,18 +13,33 @@
  * - warranty → warranty_hours (хранится в часах, UI показывает дни)
  * - duration → duration_days
  * - fulfillment → fulfillment_time_hours
- * 
+ *
  * Тип доставки определяется автоматически:
  * - Сток > 0 → INSTANT (мгновенная выдача)
  * - Сток = 0 && fulfillment > 0 → ON_DEMAND (предзаказ)
  * - Сток = 0 && fulfillment = 0 → NO_STOCK (недоступен)
  */
 
-import React, { useState, useRef, memo, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Plus, Terminal, Image as ImageIcon, Upload, Video, DollarSign, Info, Zap, Clock, Package, Trash2, RefreshCw } from 'lucide-react';
-import type { ProductData } from './types';
-import { useAdminProductsTyped } from '../../hooks/api/useAdminApi';
+import React, { useState, useRef, memo, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  X,
+  Save,
+  Plus,
+  Terminal,
+  Image as ImageIcon,
+  Upload,
+  Video,
+  DollarSign,
+  Info,
+  Zap,
+  Clock,
+  Package,
+  Trash2,
+  RefreshCw,
+} from "lucide-react";
+import type { ProductData } from "./types";
+import { useAdminProductsTyped } from "../../hooks/api/useAdminApi";
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -33,28 +48,23 @@ interface ProductModalProps {
   onSave: (product: Partial<ProductData>) => void;
 }
 
-type ProductTab = 'general' | 'pricing' | 'inventory';
+type ProductTab = "general" | "pricing" | "inventory";
 
-const ProductModal: React.FC<ProductModalProps> = ({
-  isOpen,
-  product,
-  onClose,
-  onSave,
-}) => {
-  const [activeTab, setActiveTab] = useState<ProductTab>('general');
-  const [inventoryText, setInventoryText] = useState('');
+const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, onSave }) => {
+  const [activeTab, setActiveTab] = useState<ProductTab>("general");
+  const [inventoryText, setInventoryText] = useState("");
   const [stockItems, setStockItems] = useState<any[]>([]);
   const [loadingStock, setLoadingStock] = useState(false);
   const [addingStock, setAddingStock] = useState(false);
   const { addStockBulk, deleteStockItem, getStock } = useAdminProductsTyped();
   const [editingProduct, setEditingProduct] = useState<Partial<ProductData>>(
     product || {
-      name: '',
+      name: "",
       price: 0,
-      category: 'ai',
-      status: 'active',
-      fulfillmentType: 'auto',
-      image: '',
+      category: "ai",
+      status: "active",
+      fulfillmentType: "auto",
+      image: "",
     }
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -65,47 +75,47 @@ const ProductModal: React.FC<ProductModalProps> = ({
       setEditingProduct(product);
     } else {
       setEditingProduct({
-        name: '',
+        name: "",
         price: 0,
-        category: 'ai',
-        status: 'active',
-        fulfillmentType: 'auto',
-        image: '',
+        category: "ai",
+        status: "active",
+        fulfillmentType: "auto",
+        image: "",
       });
     }
-    setInventoryText('');
+    setInventoryText("");
     setStockItems([]);
   }, [product, isOpen]);
 
   // Load stock when inventory tab is active and product has ID
   useEffect(() => {
-    if (activeTab === 'inventory' && editingProduct.id && typeof editingProduct.id === 'string') {
+    if (activeTab === "inventory" && editingProduct.id && typeof editingProduct.id === "string") {
       loadStock();
     }
   }, [activeTab, editingProduct.id]);
 
   const loadStock = async () => {
-    if (!editingProduct.id || typeof editingProduct.id !== 'string') return;
+    if (!editingProduct.id || typeof editingProduct.id !== "string") return;
     setLoadingStock(true);
     try {
       const stock = await getStock(editingProduct.id, false); // Get all stock (not just available)
       setStockItems(stock);
     } catch (err) {
-      console.error('Failed to load stock:', err);
+      console.error("Failed to load stock:", err);
     } finally {
       setLoadingStock(false);
     }
   };
 
   const handleAddStock = async () => {
-    if (!editingProduct.id || typeof editingProduct.id !== 'string') {
-      alert('Сначала сохраните товар, чтобы добавить сток');
+    if (!editingProduct.id || typeof editingProduct.id !== "string") {
+      alert("Сначала сохраните товар, чтобы добавить сток");
       return;
     }
 
-    const lines = inventoryText.split('\n').filter(l => l.trim());
+    const lines = inventoryText.split("\n").filter((l) => l.trim());
     if (lines.length === 0) {
-      alert('Введите данные для добавления');
+      alert("Введите данные для добавления");
       return;
     }
 
@@ -113,34 +123,34 @@ const ProductModal: React.FC<ProductModalProps> = ({
     try {
       const success = await addStockBulk(editingProduct.id, lines);
       if (success) {
-        setInventoryText('');
+        setInventoryText("");
         await loadStock();
         alert(`Успешно добавлено ${lines.length} единиц стока`);
       } else {
-        alert('Ошибка при добавлении стока');
+        alert("Ошибка при добавлении стока");
       }
     } catch (err) {
-      console.error('Failed to add stock:', err);
-      alert('Ошибка при добавлении стока');
+      console.error("Failed to add stock:", err);
+      alert("Ошибка при добавлении стока");
     } finally {
       setAddingStock(false);
     }
   };
 
   const handleDeleteStock = async (stockItemId: string) => {
-    if (!confirm('Удалить эту позицию из стока?')) return;
+    if (!confirm("Удалить эту позицию из стока?")) return;
 
     try {
       const success = await deleteStockItem(stockItemId);
       if (success) {
         await loadStock();
-        alert('Позиция удалена');
+        alert("Позиция удалена");
       } else {
-        alert('Ошибка при удалении');
+        alert("Ошибка при удалении");
       }
     } catch (err) {
-      console.error('Failed to delete stock:', err);
-      alert('Ошибка при удалении');
+      console.error("Failed to delete stock:", err);
+      alert("Ошибка при удалении");
     }
   };
 
@@ -169,13 +179,28 @@ const ProductModal: React.FC<ProductModalProps> = ({
   const getDeliveryType = () => {
     const stock = editingProduct?.stock || 0;
     const fulfillment = editingProduct?.fulfillment || 0;
-    
+
     if (stock > 0) {
-      return { label: 'INSTANT', color: 'text-green-500', bg: 'bg-green-500/10 border-green-500/30', desc: `${stock} ед. на складе → мгновенная выдача` };
+      return {
+        label: "INSTANT",
+        color: "text-green-500",
+        bg: "bg-green-500/10 border-green-500/30",
+        desc: `${stock} ед. на складе → мгновенная выдача`,
+      };
     } else if (fulfillment > 0) {
-      return { label: 'ON_DEMAND', color: 'text-yellow-500', bg: 'bg-yellow-500/10 border-yellow-500/30', desc: `Нет на складе → предзаказ (~${fulfillment}ч)` };
+      return {
+        label: "ON_DEMAND",
+        color: "text-yellow-500",
+        bg: "bg-yellow-500/10 border-yellow-500/30",
+        desc: `Нет на складе → предзаказ (~${fulfillment}ч)`,
+      };
     } else {
-      return { label: 'NO_STOCK', color: 'text-red-500', bg: 'bg-red-500/10 border-red-500/30', desc: 'Сток не настроен' };
+      return {
+        label: "NO_STOCK",
+        color: "text-red-500",
+        bg: "bg-red-500/10 border-red-500/30",
+        desc: "Сток не настроен",
+      };
     }
   };
 
@@ -186,13 +211,10 @@ const ProductModal: React.FC<ProductModalProps> = ({
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-        <div 
-          className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
-          onClick={onClose} 
-        />
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }} 
-          animate={{ scale: 1, opacity: 1 }} 
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
           className="relative w-full max-w-3xl bg-[#080808] border border-white/20 p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
         >
@@ -200,7 +222,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
           <div className="flex justify-between items-center mb-6">
             <div>
               <h3 className="text-xl font-display font-bold text-white">
-                {editingProduct?.id ? `РЕДАКТИРОВАНИЕ: ${editingProduct.name}` : 'НОВЫЙ ТОВАР'}
+                {editingProduct?.id ? `РЕДАКТИРОВАНИЕ: ${editingProduct.name}` : "НОВЫЙ ТОВАР"}
               </h3>
               {editingProduct?.id && (
                 <p className="text-[10px] text-gray-500 font-mono mt-1">ID: {editingProduct.id}</p>
@@ -212,7 +234,9 @@ const ProductModal: React.FC<ProductModalProps> = ({
           </div>
 
           {/* Индикатор типа доставки (автоматический) */}
-          <div className={`mb-6 p-3 border ${deliveryType.bg} rounded-sm flex items-center justify-between`}>
+          <div
+            className={`mb-6 p-3 border ${deliveryType.bg} rounded-sm flex items-center justify-between`}
+          >
             <div className="flex items-center gap-3">
               <Zap size={16} className={deliveryType.color} />
               <div>
@@ -231,17 +255,17 @@ const ProductModal: React.FC<ProductModalProps> = ({
           {/* Вкладки */}
           <div className="flex gap-1 border-b border-white/10 mb-6">
             {[
-              { id: 'general' as const, label: 'Основное', icon: Package },
-              { id: 'pricing' as const, label: 'Цены', icon: DollarSign },
-              { id: 'inventory' as const, label: 'Склад', icon: Terminal },
-            ].map(tab => (
-              <button 
+              { id: "general" as const, label: "Основное", icon: Package },
+              { id: "pricing" as const, label: "Цены", icon: DollarSign },
+              { id: "inventory" as const, label: "Склад", icon: Terminal },
+            ].map((tab) => (
+              <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)} 
+                onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2 text-xs font-bold uppercase flex items-center gap-2 transition-colors ${
-                  activeTab === tab.id 
-                    ? 'text-pandora-cyan border-b-2 border-pandora-cyan bg-pandora-cyan/5' 
-                    : 'text-gray-500 hover:text-white'
+                  activeTab === tab.id
+                    ? "text-pandora-cyan border-b-2 border-pandora-cyan bg-pandora-cyan/5"
+                    : "text-gray-500 hover:text-white"
                 }`}
               >
                 <tab.icon size={14} />
@@ -251,7 +275,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
           </div>
 
           {/* Содержимое вкладок */}
-          {activeTab === 'general' && (
+          {activeTab === "general" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Медиа */}
               <div className="col-span-1 md:col-span-2 bg-[#050505] p-4 border border-white/10 rounded-sm">
@@ -260,15 +284,15 @@ const ProductModal: React.FC<ProductModalProps> = ({
                 </h4>
                 <div className="flex gap-4 items-start">
                   {/* Загрузка изображения */}
-                  <div 
-                    className="relative group w-32 h-32 bg-black border border-white/20 flex items-center justify-center cursor-pointer hover:border-pandora-cyan transition-colors rounded-sm" 
+                  <div
+                    className="relative group w-32 h-32 bg-black border border-white/20 flex items-center justify-center cursor-pointer hover:border-pandora-cyan transition-colors rounded-sm"
                     onClick={triggerFileInput}
                   >
                     {editingProduct?.image ? (
-                      <img 
-                        src={editingProduct.image} 
-                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity rounded-sm" 
-                        alt="Товар" 
+                      <img
+                        src={editingProduct.image}
+                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity rounded-sm"
+                        alt="Товар"
                       />
                     ) : (
                       <div className="text-center text-gray-500 group-hover:text-pandora-cyan">
@@ -276,10 +300,10 @@ const ProductModal: React.FC<ProductModalProps> = ({
                         <span className="text-[9px] uppercase">Загрузить</span>
                       </div>
                     )}
-                    <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      className="hidden" 
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
                       accept="image/*"
                       onChange={handleImageUpload}
                     />
@@ -291,11 +315,13 @@ const ProductModal: React.FC<ProductModalProps> = ({
                       <label className="text-[10px] text-gray-500 block mb-1 uppercase">
                         URL изображения
                       </label>
-                      <input 
-                        type="text" 
-                        value={editingProduct?.image || ''} 
-                        onChange={(e) => setEditingProduct({...editingProduct, image: e.target.value})}
-                        className="w-full bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm" 
+                      <input
+                        type="text"
+                        value={editingProduct?.image || ""}
+                        onChange={(e) =>
+                          setEditingProduct({ ...editingProduct, image: e.target.value })
+                        }
+                        className="w-full bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
                         placeholder="https://..."
                       />
                     </div>
@@ -303,11 +329,13 @@ const ProductModal: React.FC<ProductModalProps> = ({
                       <label className="text-[10px] text-gray-500 mb-1 uppercase flex items-center gap-1">
                         <Video size={10} /> URL видео (опционально)
                       </label>
-                      <input 
-                        type="text" 
-                        value={editingProduct?.video || ''}
-                        onChange={(e) => setEditingProduct({...editingProduct, video: e.target.value})}
-                        className="w-full bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm" 
+                      <input
+                        type="text"
+                        value={editingProduct?.video || ""}
+                        onChange={(e) =>
+                          setEditingProduct({ ...editingProduct, video: e.target.value })
+                        }
+                        className="w-full bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
                         placeholder="https://youtube.com/... или .webm/.mp4"
                       />
                     </div>
@@ -317,12 +345,14 @@ const ProductModal: React.FC<ProductModalProps> = ({
 
               {/* Название */}
               <div className="col-span-1 md:col-span-2">
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Название товара *</label>
-                <input 
-                  type="text" 
-                  value={editingProduct?.name || ''}
-                  onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})}
-                  className="w-full bg-black border border-white/20 p-2.5 text-sm text-white focus:border-pandora-cyan outline-none rounded-sm" 
+                <label className="text-[10px] text-gray-500 block mb-1 uppercase">
+                  Название товара *
+                </label>
+                <input
+                  type="text"
+                  value={editingProduct?.name || ""}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                  className="w-full bg-black border border-white/20 p-2.5 text-sm text-white focus:border-pandora-cyan outline-none rounded-sm"
                   placeholder="например: Cursor IDE (7 дней)"
                 />
               </div>
@@ -330,20 +360,26 @@ const ProductModal: React.FC<ProductModalProps> = ({
               {/* Описание */}
               <div className="col-span-1 md:col-span-2">
                 <label className="text-[10px] text-gray-500 block mb-1 uppercase">Описание</label>
-                <textarea 
-                  value={editingProduct?.description || ''}
-                  onChange={(e) => setEditingProduct({...editingProduct, description: e.target.value})}
-                  className="w-full h-20 bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none resize-none rounded-sm" 
-                  placeholder="Описание товара..." 
+                <textarea
+                  value={editingProduct?.description || ""}
+                  onChange={(e) =>
+                    setEditingProduct({ ...editingProduct, description: e.target.value })
+                  }
+                  className="w-full h-20 bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none resize-none rounded-sm"
+                  placeholder="Описание товара..."
                 />
               </div>
 
               {/* Категория */}
               <div>
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Категория *</label>
-                <select 
-                  value={editingProduct?.category || 'ai'}
-                  onChange={(e) => setEditingProduct({...editingProduct, category: e.target.value})}
+                <label className="text-[10px] text-gray-500 block mb-1 uppercase">
+                  Категория *
+                </label>
+                <select
+                  value={editingProduct?.category || "ai"}
+                  onChange={(e) =>
+                    setEditingProduct({ ...editingProduct, category: e.target.value })
+                  }
                   className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
                 >
                   <option value="ai">AI & Текст</option>
@@ -356,9 +392,9 @@ const ProductModal: React.FC<ProductModalProps> = ({
               {/* Статус */}
               <div>
                 <label className="text-[10px] text-gray-500 block mb-1 uppercase">Статус</label>
-                <select 
-                  value={editingProduct?.status || 'active'}
-                  onChange={(e) => setEditingProduct({...editingProduct, status: e.target.value})}
+                <select
+                  value={editingProduct?.status || "active"}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, status: e.target.value })}
                   className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
                 >
                   <option value="active">Активен (виден)</option>
@@ -370,9 +406,11 @@ const ProductModal: React.FC<ProductModalProps> = ({
               {/* Тип выдачи */}
               <div>
                 <label className="text-[10px] text-gray-500 block mb-1 uppercase">Тип выдачи</label>
-                <select 
-                  value={editingProduct?.fulfillmentType || 'auto'}
-                  onChange={(e) => setEditingProduct({...editingProduct, fulfillmentType: e.target.value})}
+                <select
+                  value={editingProduct?.fulfillmentType || "auto"}
+                  onChange={(e) =>
+                    setEditingProduct({ ...editingProduct, fulfillmentType: e.target.value })
+                  }
                   className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
                 >
                   <option value="auto">Автоматически (из склада)</option>
@@ -388,11 +426,13 @@ const ProductModal: React.FC<ProductModalProps> = ({
                 <label className="text-[10px] text-gray-500 block mb-1 uppercase flex items-center gap-1">
                   <Clock size={10} /> Время выполнения (часов)
                 </label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   value={editingProduct?.fulfillment || 0}
-                  onChange={(e) => setEditingProduct({...editingProduct, fulfillment: Number(e.target.value)})}
-                  className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm" 
+                  onChange={(e) =>
+                    setEditingProduct({ ...editingProduct, fulfillment: Number(e.target.value) })
+                  }
+                  className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
                   min={0}
                 />
                 <p className="text-[9px] text-gray-600 mt-1">
@@ -402,48 +442,54 @@ const ProductModal: React.FC<ProductModalProps> = ({
 
               {/* Срок действия */}
               <div>
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Срок действия (дней)</label>
-                <input 
-                  type="number" 
+                <label className="text-[10px] text-gray-500 block mb-1 uppercase">
+                  Срок действия (дней)
+                </label>
+                <input
+                  type="number"
                   value={editingProduct?.duration || 30}
-                  onChange={(e) => setEditingProduct({...editingProduct, duration: Number(e.target.value)})}
-                  className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm" 
+                  onChange={(e) =>
+                    setEditingProduct({ ...editingProduct, duration: Number(e.target.value) })
+                  }
+                  className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
                   min={1}
                 />
-                <p className="text-[9px] text-gray-600 mt-1">
-                  Длительность подписки/лицензии
-                </p>
+                <p className="text-[9px] text-gray-600 mt-1">Длительность подписки/лицензии</p>
               </div>
 
               {/* Гарантия */}
               <div>
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Гарантия (дней)</label>
-                <input 
-                  type="number" 
+                <label className="text-[10px] text-gray-500 block mb-1 uppercase">
+                  Гарантия (дней)
+                </label>
+                <input
+                  type="number"
                   value={warrantyDays}
                   onChange={(e) => setWarrantyDays(Number(e.target.value))}
-                  className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm" 
+                  className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
                   min={0}
                 />
-                <p className="text-[9px] text-gray-600 mt-1">
-                  Период гарантийной замены
-                </p>
+                <p className="text-[9px] text-gray-600 mt-1">Период гарантийной замены</p>
               </div>
 
               {/* Инструкции */}
               <div className="col-span-1 md:col-span-2">
-                <label className="text-[10px] text-gray-500 block mb-1 uppercase">Инструкция по активации</label>
-                <textarea 
-                  value={editingProduct?.instructions || ''}
-                  onChange={(e) => setEditingProduct({...editingProduct, instructions: e.target.value})}
-                  className="w-full h-24 bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none resize-none rounded-sm font-mono" 
-                  placeholder="1. Перейдите на https://...&#10;2. Введите данные&#10;3. ..." 
+                <label className="text-[10px] text-gray-500 block mb-1 uppercase">
+                  Инструкция по активации
+                </label>
+                <textarea
+                  value={editingProduct?.instructions || ""}
+                  onChange={(e) =>
+                    setEditingProduct({ ...editingProduct, instructions: e.target.value })
+                  }
+                  className="w-full h-24 bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none resize-none rounded-sm font-mono"
+                  placeholder="1. Перейдите на https://...&#10;2. Введите данные&#10;3. ..."
                 />
               </div>
             </div>
           )}
 
-          {activeTab === 'pricing' && (
+          {activeTab === "pricing" && (
             <div className="space-y-6">
               {/* Основные цены */}
               <div className="bg-[#050505] p-4 border border-white/10 rounded-sm">
@@ -452,14 +498,20 @@ const ProductModal: React.FC<ProductModalProps> = ({
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">Цена (USD) *</label>
+                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">
+                      Цена (USD) *
+                    </label>
                     <div className="relative">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">$</span>
-                      <input 
-                        type="number" 
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                        $
+                      </span>
+                      <input
+                        type="number"
                         value={editingProduct?.price || 0}
-                        onChange={(e) => setEditingProduct({...editingProduct, price: Number(e.target.value)})}
-                        className="w-full bg-black border border-white/20 p-2.5 pl-6 text-sm text-pandora-cyan font-mono focus:border-pandora-cyan outline-none rounded-sm" 
+                        onChange={(e) =>
+                          setEditingProduct({ ...editingProduct, price: Number(e.target.value) })
+                        }
+                        className="w-full bg-black border border-white/20 p-2.5 pl-6 text-sm text-pandora-cyan font-mono focus:border-pandora-cyan outline-none rounded-sm"
                         step="0.01"
                         min={0}
                       />
@@ -468,16 +520,22 @@ const ProductModal: React.FC<ProductModalProps> = ({
                       Основная цена (база для конвертации)
                     </p>
                   </div>
-                  
+
                   <div>
-                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">MSRP (зачёркнутая)</label>
+                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">
+                      MSRP (зачёркнутая)
+                    </label>
                     <div className="relative">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">$</span>
-                      <input 
-                        type="number" 
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                        $
+                      </span>
+                      <input
+                        type="number"
                         value={editingProduct?.msrp || 0}
-                        onChange={(e) => setEditingProduct({...editingProduct, msrp: Number(e.target.value)})}
-                        className="w-full bg-black border border-white/20 p-2.5 pl-6 text-sm text-gray-400 line-through font-mono focus:border-pandora-cyan outline-none rounded-sm" 
+                        onChange={(e) =>
+                          setEditingProduct({ ...editingProduct, msrp: Number(e.target.value) })
+                        }
+                        className="w-full bg-black border border-white/20 p-2.5 pl-6 text-sm text-gray-400 line-through font-mono focus:border-pandora-cyan outline-none rounded-sm"
                         step="0.01"
                         min={0}
                       />
@@ -486,23 +544,30 @@ const ProductModal: React.FC<ProductModalProps> = ({
                       Показывается зачёркнутой если &gt; цены
                     </p>
                   </div>
-                  
+
                   <div>
-                    <label className="text-[10px] text-yellow-500 block mb-1 uppercase">Цена скидочного канала</label>
+                    <label className="text-[10px] text-yellow-500 block mb-1 uppercase">
+                      Цена скидочного канала
+                    </label>
                     <div className="relative">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">$</span>
-                      <input 
-                        type="number" 
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                        $
+                      </span>
+                      <input
+                        type="number"
                         value={editingProduct?.discountPrice || 0}
-                        onChange={(e) => setEditingProduct({...editingProduct, discountPrice: Number(e.target.value)})}
-                        className="w-full bg-black border border-yellow-500/30 p-2.5 pl-6 text-sm text-yellow-500 font-mono focus:border-yellow-500 outline-none rounded-sm" 
+                        onChange={(e) =>
+                          setEditingProduct({
+                            ...editingProduct,
+                            discountPrice: Number(e.target.value),
+                          })
+                        }
+                        className="w-full bg-black border border-yellow-500/30 p-2.5 pl-6 text-sm text-yellow-500 font-mono focus:border-yellow-500 outline-none rounded-sm"
                         step="0.01"
                         min={0}
                       />
                     </div>
-                    <p className="text-[9px] text-gray-600 mt-1">
-                      Цена для скидочного бота
-                    </p>
+                    <p className="text-[9px] text-gray-600 mt-1">Цена для скидочного бота</p>
                   </div>
                 </div>
               </div>
@@ -513,16 +578,21 @@ const ProductModal: React.FC<ProductModalProps> = ({
                   <DollarSign size={14} /> Фиксированные цены по валютам (Anchor Prices)
                 </h4>
                 <p className="text-[10px] text-gray-500 mb-4">
-                  Если задана — используется фиксированная цена. Если пусто — автоматическая конвертация из USD.
+                  Если задана — используется фиксированная цена. Если пусто — автоматическая
+                  конвертация из USD.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[10px] text-blue-400 block mb-1 uppercase">Цена в рублях (RUB)</label>
+                    <label className="text-[10px] text-blue-400 block mb-1 uppercase">
+                      Цена в рублях (RUB)
+                    </label>
                     <div className="relative">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">₽</span>
-                      <input 
-                        type="number" 
-                        value={editingProduct?.prices?.RUB || ''}
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                        ₽
+                      </span>
+                      <input
+                        type="number"
+                        value={editingProduct?.prices?.RUB || ""}
                         onChange={(e) => {
                           const value = e.target.value ? Number(e.target.value) : undefined;
                           const newPrices = { ...(editingProduct?.prices || {}) };
@@ -531,9 +601,12 @@ const ProductModal: React.FC<ProductModalProps> = ({
                           } else {
                             delete newPrices.RUB;
                           }
-                          setEditingProduct({...editingProduct, prices: Object.keys(newPrices).length > 0 ? newPrices : undefined});
+                          setEditingProduct({
+                            ...editingProduct,
+                            prices: Object.keys(newPrices).length > 0 ? newPrices : undefined,
+                          });
                         }}
-                        className="w-full bg-black border border-blue-500/30 p-2.5 pl-6 text-sm text-blue-400 font-mono focus:border-blue-500 outline-none rounded-sm" 
+                        className="w-full bg-black border border-blue-500/30 p-2.5 pl-6 text-sm text-blue-400 font-mono focus:border-blue-500 outline-none rounded-sm"
                         step="1"
                         min={0}
                         placeholder="Авто из USD"
@@ -545,12 +618,16 @@ const ProductModal: React.FC<ProductModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-blue-400 block mb-1 uppercase">Цена в долларах (USD) — перезапись</label>
+                    <label className="text-[10px] text-blue-400 block mb-1 uppercase">
+                      Цена в долларах (USD) — перезапись
+                    </label>
                     <div className="relative">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">$</span>
-                      <input 
-                        type="number" 
-                        value={editingProduct?.prices?.USD || ''}
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                        $
+                      </span>
+                      <input
+                        type="number"
+                        value={editingProduct?.prices?.USD || ""}
                         onChange={(e) => {
                           const value = e.target.value ? Number(e.target.value) : undefined;
                           const newPrices = { ...(editingProduct?.prices || {}) };
@@ -559,9 +636,12 @@ const ProductModal: React.FC<ProductModalProps> = ({
                           } else {
                             delete newPrices.USD;
                           }
-                          setEditingProduct({...editingProduct, prices: Object.keys(newPrices).length > 0 ? newPrices : undefined});
+                          setEditingProduct({
+                            ...editingProduct,
+                            prices: Object.keys(newPrices).length > 0 ? newPrices : undefined,
+                          });
                         }}
-                        className="w-full bg-black border border-blue-500/30 p-2.5 pl-6 text-sm text-blue-400 font-mono focus:border-blue-500 outline-none rounded-sm" 
+                        className="w-full bg-black border border-blue-500/30 p-2.5 pl-6 text-sm text-blue-400 font-mono focus:border-blue-500 outline-none rounded-sm"
                         step="0.01"
                         min={0}
                         placeholder="Использовать базовую"
@@ -572,7 +652,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
                     </p>
                   </div>
                 </div>
-                
+
                 {/* MSRP Anchor Prices */}
                 <div className="mt-6 pt-6 border-t border-blue-500/10">
                   <h5 className="text-[10px] text-blue-300 uppercase mb-3 flex items-center gap-2">
@@ -580,12 +660,16 @@ const ProductModal: React.FC<ProductModalProps> = ({
                   </h5>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-[10px] text-blue-300 block mb-1 uppercase">MSRP в рублях (RUB)</label>
+                      <label className="text-[10px] text-blue-300 block mb-1 uppercase">
+                        MSRP в рублях (RUB)
+                      </label>
                       <div className="relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">₽</span>
-                        <input 
-                          type="number" 
-                          value={editingProduct?.msrp_prices?.RUB || ''}
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                          ₽
+                        </span>
+                        <input
+                          type="number"
+                          value={editingProduct?.msrp_prices?.RUB || ""}
                           onChange={(e) => {
                             const value = e.target.value ? Number(e.target.value) : undefined;
                             const newMsrpPrices = { ...(editingProduct?.msrp_prices || {}) };
@@ -594,9 +678,13 @@ const ProductModal: React.FC<ProductModalProps> = ({
                             } else {
                               delete newMsrpPrices.RUB;
                             }
-                            setEditingProduct({...editingProduct, msrp_prices: Object.keys(newMsrpPrices).length > 0 ? newMsrpPrices : undefined});
+                            setEditingProduct({
+                              ...editingProduct,
+                              msrp_prices:
+                                Object.keys(newMsrpPrices).length > 0 ? newMsrpPrices : undefined,
+                            });
                           }}
-                          className="w-full bg-black border border-blue-400/30 p-2.5 pl-6 text-sm text-blue-300 font-mono focus:border-blue-400 outline-none rounded-sm line-through" 
+                          className="w-full bg-black border border-blue-400/30 p-2.5 pl-6 text-sm text-blue-300 font-mono focus:border-blue-400 outline-none rounded-sm line-through"
                           step="1"
                           min={0}
                           placeholder="Авто из USD MSRP"
@@ -608,12 +696,16 @@ const ProductModal: React.FC<ProductModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="text-[10px] text-blue-300 block mb-1 uppercase">MSRP в долларах (USD) — перезапись</label>
+                      <label className="text-[10px] text-blue-300 block mb-1 uppercase">
+                        MSRP в долларах (USD) — перезапись
+                      </label>
                       <div className="relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">$</span>
-                        <input 
-                          type="number" 
-                          value={editingProduct?.msrp_prices?.USD || ''}
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                          $
+                        </span>
+                        <input
+                          type="number"
+                          value={editingProduct?.msrp_prices?.USD || ""}
                           onChange={(e) => {
                             const value = e.target.value ? Number(e.target.value) : undefined;
                             const newMsrpPrices = { ...(editingProduct?.msrp_prices || {}) };
@@ -622,9 +714,13 @@ const ProductModal: React.FC<ProductModalProps> = ({
                             } else {
                               delete newMsrpPrices.USD;
                             }
-                            setEditingProduct({...editingProduct, msrp_prices: Object.keys(newMsrpPrices).length > 0 ? newMsrpPrices : undefined});
+                            setEditingProduct({
+                              ...editingProduct,
+                              msrp_prices:
+                                Object.keys(newMsrpPrices).length > 0 ? newMsrpPrices : undefined,
+                            });
                           }}
-                          className="w-full bg-black border border-blue-400/30 p-2.5 pl-6 text-sm text-blue-300 font-mono focus:border-blue-400 outline-none rounded-sm line-through" 
+                          className="w-full bg-black border border-blue-400/30 p-2.5 pl-6 text-sm text-blue-300 font-mono focus:border-blue-400 outline-none rounded-sm line-through"
                           step="0.01"
                           min={0}
                           placeholder="Использовать базовый MSRP"
@@ -636,11 +732,11 @@ const ProductModal: React.FC<ProductModalProps> = ({
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="mt-3 p-2 bg-blue-500/5 border border-blue-500/10 rounded-sm">
                   <p className="text-[10px] text-blue-300 font-mono">
-                    ℹ️ Якорные цены позволяют задать "красивую" фиксированную цену (990 ₽ вместо 987.34 ₽).
-                    Цена не будет меняться при колебаниях курса.
+                    ℹ️ Якорные цены позволяют задать "красивую" фиксированную цену (990 ₽ вместо
+                    987.34 ₽). Цена не будет меняться при колебаниях курса.
                   </p>
                 </div>
               </div>
@@ -652,23 +748,30 @@ const ProductModal: React.FC<ProductModalProps> = ({
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">Себестоимость (USD)</label>
+                    <label className="text-[10px] text-gray-500 block mb-1 uppercase">
+                      Себестоимость (USD)
+                    </label>
                     <div className="relative">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">$</span>
-                      <input 
-                        type="number" 
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                        $
+                      </span>
+                      <input
+                        type="number"
                         value={editingProduct?.costPrice || 0}
-                        onChange={(e) => setEditingProduct({...editingProduct, costPrice: Number(e.target.value)})}
-                        className="w-full bg-black border border-white/20 p-2.5 pl-6 text-sm text-red-400 font-mono focus:border-pandora-cyan outline-none rounded-sm" 
+                        onChange={(e) =>
+                          setEditingProduct({
+                            ...editingProduct,
+                            costPrice: Number(e.target.value),
+                          })
+                        }
+                        className="w-full bg-black border border-white/20 p-2.5 pl-6 text-sm text-red-400 font-mono focus:border-pandora-cyan outline-none rounded-sm"
                         step="0.01"
                         min={0}
                       />
                     </div>
-                    <p className="text-[9px] text-gray-600 mt-1">
-                      Ваши затраты на единицу
-                    </p>
+                    <p className="text-[9px] text-gray-600 mt-1">Ваши затраты на единицу</p>
                   </div>
-                  
+
                   <div>
                     <label className="text-[10px] text-gray-500 block mb-1 uppercase">Маржа</label>
                     <div className="p-2.5 bg-black/50 border border-white/10 rounded-sm">
@@ -678,7 +781,13 @@ const ProductModal: React.FC<ProductModalProps> = ({
                             ${(editingProduct.price - editingProduct.costPrice).toFixed(2)}
                           </span>
                           <span className="text-xs text-gray-500 ml-2">
-                            ({(((editingProduct.price - editingProduct.costPrice) / editingProduct.price) * 100).toFixed(0)}%)
+                            (
+                            {(
+                              ((editingProduct.price - editingProduct.costPrice) /
+                                editingProduct.price) *
+                              100
+                            ).toFixed(0)}
+                            %)
                           </span>
                         </>
                       ) : (
@@ -694,16 +803,18 @@ const ProductModal: React.FC<ProductModalProps> = ({
             </div>
           )}
 
-          {activeTab === 'inventory' && (
+          {activeTab === "inventory" && (
             <div className="space-y-4">
               {/* Текущий сток */}
               <div className="bg-[#050505] p-4 border border-white/10 rounded-sm">
                 <div className="flex justify-between items-center">
                   <div>
                     <h4 className="text-xs font-mono text-gray-500 uppercase mb-1">Текущий сток</h4>
-                    <span className={`text-2xl font-mono font-bold ${
-                      (editingProduct?.stock || 0) > 0 ? 'text-green-500' : 'text-red-500'
-                    }`}>
+                    <span
+                      className={`text-2xl font-mono font-bold ${
+                        (editingProduct?.stock || 0) > 0 ? "text-green-500" : "text-red-500"
+                      }`}
+                    >
                       {editingProduct?.stock || 0}
                     </span>
                     <span className="text-xs text-gray-500 ml-2">единиц доступно</span>
@@ -734,7 +845,8 @@ const ProductModal: React.FC<ProductModalProps> = ({
                       disabled={loadingStock}
                       className="text-[10px] text-gray-400 hover:text-blue-400 font-mono flex items-center gap-1 disabled:opacity-50"
                     >
-                      <RefreshCw size={10} className={loadingStock ? 'animate-spin' : ''} /> Обновить
+                      <RefreshCw size={10} className={loadingStock ? "animate-spin" : ""} />{" "}
+                      Обновить
                     </button>
                   </div>
                   {loadingStock ? (
@@ -755,7 +867,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
                             <span className="text-[9px] text-gray-500 font-mono px-1.5 py-0.5 bg-gray-900 rounded">
                               {item.status}
                             </span>
-                            {item.status === 'available' && (
+                            {item.status === "available" && (
                               <button
                                 onClick={() => handleDeleteStock(item.id)}
                                 className="text-red-400 hover:text-red-300 p-1"
@@ -779,10 +891,10 @@ const ProductModal: React.FC<ProductModalProps> = ({
                     <Terminal size={12} /> МАССОВАЯ ЗАГРУЗКА ДАННЫХ
                   </span>
                   <span className="text-[10px] text-gray-500 font-mono">
-                    {inventoryText.split('\n').filter(l => l.trim()).length} ЗАПИСЕЙ
+                    {inventoryText.split("\n").filter((l) => l.trim()).length} ЗАПИСЕЙ
                   </span>
                 </div>
-                <textarea 
+                <textarea
                   value={inventoryText}
                   onChange={(e) => setInventoryText(e.target.value)}
                   placeholder={`Вставьте данные, по одному на строку:
@@ -795,9 +907,9 @@ license_key_xyz789`}
                   Каждая строка = 1 единица стока. Добавляется через API /api/admin/stock/bulk
                 </p>
               </div>
-              
+
               <div className="flex justify-end mt-4">
-                <button 
+                <button
                   onClick={handleAddStock}
                   disabled={!inventoryText.trim() || !editingProduct.id || addingStock}
                   className="bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-black disabled:text-gray-500 font-bold py-2 px-6 text-xs uppercase flex items-center gap-2 rounded-sm transition-colors"
@@ -818,18 +930,16 @@ license_key_xyz789`}
 
           {/* Подвал */}
           <div className="mt-8 pt-4 border-t border-white/10 flex justify-between items-center">
-            <p className="text-[10px] text-gray-600">
-              * Обязательные поля
-            </p>
+            <p className="text-[10px] text-gray-600">* Обязательные поля</p>
             <div className="flex gap-3">
-              <button 
-                onClick={onClose} 
+              <button
+                onClick={onClose}
                 className="px-4 py-2 border border-white/10 text-xs font-bold text-gray-400 hover:text-white hover:border-white/30 rounded-sm transition-colors"
               >
                 ОТМЕНА
               </button>
-              <button 
-                onClick={() => onSave(editingProduct)} 
+              <button
+                onClick={() => onSave(editingProduct)}
                 className="px-6 py-2 bg-pandora-cyan text-black text-xs font-bold hover:bg-white flex items-center gap-2 rounded-sm transition-colors"
               >
                 <Save size={14} /> СОХРАНИТЬ

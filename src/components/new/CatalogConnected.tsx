@@ -1,21 +1,21 @@
 /**
  * CatalogConnected
- * 
+ *
  * Connected version of Catalog component with real API data.
  * Replaces mock data with live backend integration.
  */
 
-import React, { useEffect, useState, useCallback, memo, useRef } from 'react';
-import Catalog from './Catalog';
-import { useProductsTyped } from '../../hooks/useApiTyped';
-import { useLocaleContext } from '../../contexts/LocaleContext';
-import { useLocale } from '../../hooks/useLocale';
-import type { CatalogProduct } from '../../types/component';
+import React, { useEffect, useState, useCallback, memo, useRef } from "react";
+import Catalog from "./Catalog";
+import { useProductsTyped } from "../../hooks/useApiTyped";
+import { useLocaleContext } from "../../contexts/LocaleContext";
+import { useLocale } from "../../hooks/useLocale";
+import type { CatalogProduct } from "../../types/component";
 
 interface CatalogConnectedProps {
   onSelectProduct?: (product: CatalogProduct) => void;
   onAddToCart?: (product: CatalogProduct, quantity: number) => void;
-  onHaptic?: (type?: 'light' | 'medium') => void;
+  onHaptic?: (type?: "light" | "medium") => void;
 }
 
 const CatalogConnected: React.FC<CatalogConnectedProps> = ({
@@ -27,7 +27,7 @@ const CatalogConnected: React.FC<CatalogConnectedProps> = ({
   const { locale, currency } = useLocaleContext();
   const { t } = useLocale();
   const [isInitialized, setIsInitialized] = useState(false);
-  
+
   // Track previous locale/currency to detect actual changes
   const prevLocaleRef = useRef(locale);
   const prevCurrencyRef = useRef(currency);
@@ -46,25 +46,31 @@ const CatalogConnected: React.FC<CatalogConnectedProps> = ({
   useEffect(() => {
     const localeChanged = prevLocaleRef.current !== locale;
     const currencyChanged = prevCurrencyRef.current !== currency;
-    
+
     if (isInitialized && (localeChanged || currencyChanged)) {
       getProducts();
     }
-    
+
     // Update refs after check
     prevLocaleRef.current = locale;
     prevCurrencyRef.current = currency;
   }, [locale, currency, isInitialized, getProducts]);
 
-  const handleSelectProduct = useCallback((product: CatalogProduct) => {
-    if (onHaptic) onHaptic('light');
-    if (onSelectProduct) onSelectProduct(product);
-  }, [onSelectProduct, onHaptic]);
+  const handleSelectProduct = useCallback(
+    (product: CatalogProduct) => {
+      if (onHaptic) onHaptic("light");
+      if (onSelectProduct) onSelectProduct(product);
+    },
+    [onSelectProduct, onHaptic]
+  );
 
-  const handleAddToCart = useCallback((product: CatalogProduct, quantity: number) => {
-    if (onHaptic) onHaptic('medium');
-    if (onAddToCart) onAddToCart(product, quantity);
-  }, [onAddToCart, onHaptic]);
+  const handleAddToCart = useCallback(
+    (product: CatalogProduct, quantity: number) => {
+      if (onHaptic) onHaptic("medium");
+      if (onAddToCart) onAddToCart(product, quantity);
+    },
+    [onAddToCart, onHaptic]
+  );
 
   // Loading state
   if (!isInitialized || loading) {
@@ -73,7 +79,7 @@ const CatalogConnected: React.FC<CatalogConnectedProps> = ({
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <div className="font-mono text-xs text-gray-500 uppercase tracking-widest">
-            {t('common.loadingModules')}
+            {t("common.loadingModules")}
           </div>
         </div>
       </div>

@@ -10,6 +10,7 @@ Tasks:
 
 import os
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -36,11 +37,11 @@ async def unified_cron_entrypoint(request: Request):
 
     db = await get_database_async()
     now = datetime.now(UTC)
-    results = {"timestamp": now.isoformat(), "tasks": {}}
+    results: dict[str, Any] = {"timestamp": now.isoformat(), "tasks": {}}
 
     # ========== TASK 1: Expire Orders ==========
     try:
-        expired_orders = await db._orders.get_pending_expired()
+        expired_orders = await db.orders_domain.get_pending_expired()
         cancelled_count = 0
 
         for order in expired_orders:
@@ -62,7 +63,7 @@ async def unified_cron_entrypoint(request: Request):
                 logger.exception(f"Failed to expire order {order.id}")
 
         # Also handle stale orders (no expires_at, older than 15 min - matches payment timeout)
-        stale_orders = await db._orders.get_pending_stale(minutes=15)
+        stale_orders = await db.orders_domain.get_pending_stale(minutes=15)
         for order in stale_orders:
             try:
                 if order.stock_item_id:
@@ -100,12 +101,16 @@ async def unified_cron_entrypoint(request: Request):
         )
 
         allocated_count = 0
-        for order_data in paid_orders.data or []:
+        for order_data_raw in paid_orders.data or []:
+            if not isinstance(order_data_raw, dict):
+                continue
+            order_data = cast(dict[str, Any], order_data_raw)
             order_id = order_data.get("id")
             try:
                 # Check if order is confirmed (payment confirmed)
-                if order_data.get("status") != "paid":
-                    logger.info(f"Order {order_id} is still {order_data.get('status')} - skipping")
+                order_status = order_data.get("status")
+                if order_status != "paid":
+                    logger.info(f"Order {order_id} is still {order_status} - skipping")
                     continue
 
                 # Deliver goods

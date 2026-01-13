@@ -1,6 +1,6 @@
 /**
  * PVNDORA Application Configuration
- * 
+ *
  * Centralized configuration for all app settings.
  * Environment variables are read from Vite's import.meta.env
  */
@@ -16,10 +16,10 @@ interface ImportMetaEnv {
 
 // Helper to safely access import.meta.env
 const getEnv = (): ImportMetaEnv => {
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
+  if (typeof import.meta !== "undefined" && import.meta.env) {
     return import.meta.env as ImportMetaEnv;
   }
-  return { MODE: 'production', DEV: false, PROD: true };
+  return { MODE: "production", DEV: false, PROD: true };
 };
 
 const env = getEnv();
@@ -29,9 +29,9 @@ const env = getEnv();
  */
 export const API = {
   /** Base URL for WebApp API endpoints */
-  BASE_URL: env.VITE_API_URL || '/api/webapp',
+  BASE_URL: env.VITE_API_URL || "/api/webapp",
   /** Base URL for Admin API endpoints */
-  ADMIN_URL: '/api/admin',
+  ADMIN_URL: "/api/admin",
   /** Request timeout in milliseconds */
   TIMEOUT: 30000,
   /** Retry attempts for failed requests */
@@ -45,9 +45,9 @@ export const API = {
  */
 export const BOT = {
   /** Telegram bot username (without @) */
-  USERNAME: env.VITE_BOT_USERNAME || window.__BOT_USERNAME || 'pvndora_ai_bot',
+  USERNAME: env.VITE_BOT_USERNAME || window.__BOT_USERNAME || "pvndora_ai_bot",
   /** Deep link base URL */
-  DEEP_LINK: 'https://t.me/pvndora_ai_bot',
+  DEEP_LINK: "https://t.me/pvndora_ai_bot",
 } as const;
 
 /**
@@ -61,7 +61,7 @@ export const UI = {
   /** Max HUD notifications visible at once */
   HUD_MAX_NOTIFICATIONS: 5,
   /** Background music volume (0-1) */
-  MUSIC_VOLUME: 0.20,
+  MUSIC_VOLUME: 0.2,
   /** Animation transition duration in ms */
   TRANSITION_DURATION: 300,
   /** Debounce delay for search inputs in ms */
@@ -93,9 +93,9 @@ export const PAGINATION = {
  */
 export const CACHE = {
   /** Session storage key for boot state */
-  BOOT_STATE_KEY: 'pvndora_booted',
+  BOOT_STATE_KEY: "pvndora_booted",
   /** Local storage key for session token */
-  SESSION_TOKEN_KEY: 'pvndora_session',
+  SESSION_TOKEN_KEY: "pvndora_session",
   /** Cache duration for products in ms */
   PRODUCTS_TTL: 5 * 60 * 1000, // 5 minutes
 } as const;
@@ -119,7 +119,7 @@ export const PAYMENT = {
   /** Minimum withdrawal amount (in USD) */
   MIN_WITHDRAWAL: 10, // 10 USD
   /** Default payment gateway */
-  DEFAULT_GATEWAY: 'crystalpay',
+  DEFAULT_GATEWAY: "crystalpay",
   /** Payment timeout in seconds */
   PAYMENT_TIMEOUT: 600, // 10 minutes
 } as const;
@@ -129,11 +129,11 @@ export const PAYMENT = {
  */
 export const LOCALE = {
   /** Default language */
-  DEFAULT_LANGUAGE: 'en',
+  DEFAULT_LANGUAGE: "en",
   /** Supported languages */
-  SUPPORTED_LANGUAGES: ['en', 'ru', 'de', 'es', 'fr', 'it', 'pt', 'uk', 'be'] as const,
+  SUPPORTED_LANGUAGES: ["en", "ru", "de", "es", "fr", "it", "pt", "uk", "be"] as const,
   /** CIS languages (use RUB currency) */
-  CIS_LANGUAGES: ['ru', 'be', 'kk', 'uk'] as const,
+  CIS_LANGUAGES: ["ru", "be", "kk", "uk"] as const,
 } as const;
 
 /**
@@ -141,16 +141,16 @@ export const LOCALE = {
  */
 export function getLanguageCode(): string {
   const tgLang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
-  const browserLang = navigator.language?.split('-')[0];
+  const browserLang = navigator.language?.split("-")[0];
   return tgLang || browserLang || LOCALE.DEFAULT_LANGUAGE;
 }
 
 /**
  * Get currency based on language
  */
-export function getCurrencyForLanguage(lang?: string): 'RUB' | 'USD' {
+export function getCurrencyForLanguage(lang?: string): "RUB" | "USD" {
   const langCode = lang || getLanguageCode();
-  return LOCALE.CIS_LANGUAGES.includes(langCode as any) ? 'RUB' : 'USD';
+  return LOCALE.CIS_LANGUAGES.includes(langCode as any) ? "RUB" : "USD";
 }
 
 /**

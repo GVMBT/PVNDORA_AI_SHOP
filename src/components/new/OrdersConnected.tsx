@@ -1,15 +1,15 @@
 /**
  * OrdersConnected
- * 
+ *
  * Connected version of Orders component with real API data.
  */
 
-import React, { useEffect, useState, useCallback, memo } from 'react';
-import Orders, { RefundContext } from './Orders';
-import { useOrdersTyped, useReviewsTyped } from '../../hooks/useApiTyped';
-import { useLocale } from '../../hooks/useLocale';
-import type { Order } from '../../types/component';
-import { logger } from '../../utils/logger';
+import React, { useEffect, useState, useCallback, memo } from "react";
+import Orders, { RefundContext } from "./Orders";
+import { useOrdersTyped, useReviewsTyped } from "../../hooks/useApiTyped";
+import { useLocale } from "../../hooks/useLocale";
+import type { Order } from "../../types/component";
+import { logger } from "../../utils/logger";
 
 interface OrdersConnectedProps {
   onBack: () => void;
@@ -30,16 +30,22 @@ const OrdersConnected: React.FC<OrdersConnectedProps> = ({ onBack, onOpenSupport
     init();
   }, [getOrders]);
 
-  const handleSubmitReview = useCallback(async (orderId: string, rating: number, text?: string, orderItemId?: string) => {
-    try {
-      // Pass orderItemId so backend knows which specific product to review
-      await submitReview(orderId, rating, text, undefined, orderItemId);
-      // Refresh orders to update hasReview status
-      await getOrders();
-    } catch (err) {
-      logger.error('Failed to submit review', err instanceof Error ? err : new Error(String(err)));
-    }
-  }, [submitReview, getOrders]);
+  const handleSubmitReview = useCallback(
+    async (orderId: string, rating: number, text?: string, orderItemId?: string) => {
+      try {
+        // Pass orderItemId so backend knows which specific product to review
+        await submitReview(orderId, rating, text, undefined, orderItemId);
+        // Refresh orders to update hasReview status
+        await getOrders();
+      } catch (err) {
+        logger.error(
+          "Failed to submit review",
+          err instanceof Error ? err : new Error(String(err))
+        );
+      }
+    },
+    [submitReview, getOrders]
+  );
 
   // Loading state
   if (!isInitialized || loading) {
@@ -48,7 +54,7 @@ const OrdersConnected: React.FC<OrdersConnectedProps> = ({ onBack, onOpenSupport
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <div className="font-mono text-xs text-gray-500 uppercase tracking-widest">
-            {t('common.loadingOrders')}
+            {t("common.loadingOrders")}
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 /**
  * Random Utilities
- * 
+ *
  * Utility functions for random number generation.
  * For cryptographic/security purposes, use crypto APIs instead.
  * These are optimized for visual effects and UI animations.
@@ -60,40 +60,3 @@ export function shuffleArray<T>(array: T[]): T[] {
   }
   return shuffled;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

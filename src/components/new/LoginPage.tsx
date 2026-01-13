@@ -1,17 +1,22 @@
 /**
  * LoginPage - Web authentication via Telegram Login Widget
- * 
+ *
  * For desktop/browser users who don't have access to Telegram Mini App context.
  * Clean, modern design with Telegram OAuth.
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { Shield, Zap, ExternalLink, Loader2, Send } from 'lucide-react';
-import { verifySessionToken, saveSessionToken, removeSessionToken, getSessionToken } from '../../utils/auth';
-import { BOT } from '../../config';
-import { logger } from '../../utils/logger';
-import { apiPost } from '../../utils/apiClient';
+import React, { useEffect, useState, useCallback } from "react";
+import { motion } from "framer-motion";
+import { Shield, Zap, ExternalLink, Loader2, Send } from "lucide-react";
+import {
+  verifySessionToken,
+  saveSessionToken,
+  removeSessionToken,
+  getSessionToken,
+} from "../../utils/auth";
+import { BOT } from "../../config";
+import { logger } from "../../utils/logger";
+import { apiPost } from "../../utils/apiClient";
 
 interface TelegramLoginData {
   id: number;
@@ -30,10 +35,10 @@ interface LoginPageProps {
   onNavigateLegal?: (doc: string) => void;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ 
+const LoginPage: React.FC<LoginPageProps> = ({
   onLoginSuccess,
   botUsername = BOT.USERNAME,
-  redirectPath = '/',
+  redirectPath = "/",
   onNavigateLegal,
 }) => {
   const [error, setError] = useState<string | null>(null);
@@ -41,25 +46,28 @@ const LoginPage: React.FC<LoginPageProps> = ({
   const [widgetLoaded, setWidgetLoaded] = useState(false);
 
   // Handle Telegram Login callback
-  const handleTelegramAuth = useCallback(async (user: TelegramLoginData) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const data = await apiPost<{ session_token: string }>('/auth/telegram-login', user);
-      saveSessionToken(data.session_token);
-      onLoginSuccess();
-      if (redirectPath) {
-        window.location.replace(redirectPath);
+  const handleTelegramAuth = useCallback(
+    async (user: TelegramLoginData) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const data = await apiPost<{ session_token: string }>("/auth/telegram-login", user);
+        saveSessionToken(data.session_token);
+        onLoginSuccess();
+        if (redirectPath) {
+          window.location.replace(redirectPath);
+        }
+      } catch (err: unknown) {
+        logger.error("Login error", err instanceof Error ? err : new Error(String(err)));
+        const errorMessage = err instanceof Error ? err.message : "Failed to authenticate";
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
       }
-    } catch (err: unknown) {
-      logger.error('Login error', err instanceof Error ? err : new Error(String(err)));
-      const errorMessage = err instanceof Error ? err.message : 'Failed to authenticate';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, [onLoginSuccess, redirectPath]);
+    },
+    [onLoginSuccess, redirectPath]
+  );
 
   // Check existing session and inject Telegram Widget
   useEffect(() => {
@@ -77,24 +85,24 @@ const LoginPage: React.FC<LoginPageProps> = ({
         }
       }
     };
-    
+
     checkExistingSession();
 
     // Setup global callback for Telegram Widget
     window.onTelegramAuth = handleTelegramAuth;
 
     // Load Telegram widget script
-    const script = document.createElement('script');
-    script.src = 'https://telegram.org/js/telegram-widget.js?22';
-    script.setAttribute('data-telegram-login', botUsername);
-    script.setAttribute('data-size', 'large');
-    script.setAttribute('data-radius', '8');
-    script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-    script.setAttribute('data-request-access', 'write');
+    const script = document.createElement("script");
+    script.src = "https://telegram.org/js/telegram-widget.js?22";
+    script.setAttribute("data-telegram-login", botUsername);
+    script.setAttribute("data-size", "large");
+    script.setAttribute("data-radius", "8");
+    script.setAttribute("data-onauth", "onTelegramAuth(user)");
+    script.setAttribute("data-request-access", "write");
     script.async = true;
     script.onload = () => setWidgetLoaded(true);
 
-    const container = document.getElementById('telegram-login-container');
+    const container = document.getElementById("telegram-login-container");
     if (container) {
       container.appendChild(script);
     }
@@ -123,32 +131,26 @@ const LoginPage: React.FC<LoginPageProps> = ({
       >
         {/* Logo */}
         <div className="text-center mb-8">
-          <motion.div 
+          <motion.div
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
             className="inline-flex items-center justify-center w-16 h-16 bg-pandora-cyan/10 border border-pandora-cyan/30 rounded-xl mb-4"
           >
             <Shield size={32} className="text-pandora-cyan" />
           </motion.div>
-          
+
           <h1 className="text-2xl font-display font-black text-white tracking-tight mb-1">
             PVNDORA
           </h1>
-          <p className="text-xs text-gray-500 font-mono">
-            AI Subscription Marketplace
-          </p>
+          <p className="text-xs text-gray-500 font-mono">AI Subscription Marketplace</p>
         </div>
 
         {/* Login Card */}
         <div className="bg-gray-900/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 space-y-6">
           {/* Header */}
           <div className="text-center">
-            <h2 className="text-lg font-semibold text-white mb-1">
-              Sign in with Telegram
-            </h2>
-            <p className="text-sm text-gray-400">
-              Secure authentication via Telegram
-            </p>
+            <h2 className="text-lg font-semibold text-white mb-1">Sign in with Telegram</h2>
+            <p className="text-sm text-gray-400">Secure authentication via Telegram</p>
           </div>
 
           {/* Telegram Widget */}
@@ -161,8 +163,8 @@ const LoginPage: React.FC<LoginPageProps> = ({
             ) : (
               <>
                 {/* Telegram Login Widget Container */}
-                <div 
-                  id="telegram-login-container" 
+                <div
+                  id="telegram-login-container"
                   className="flex justify-center min-h-[44px] py-2"
                 >
                   {!widgetLoaded && (
@@ -210,9 +212,9 @@ const LoginPage: React.FC<LoginPageProps> = ({
           </a>
 
           <p className="text-center text-xs text-gray-500">
-            For the best experience, use our{' '}
-            <a 
-              href={`https://t.me/${botUsername}`} 
+            For the best experience, use our{" "}
+            <a
+              href={`https://t.me/${botUsername}`}
               className="text-pandora-cyan hover:underline"
               target="_blank"
               rel="noopener noreferrer"
@@ -237,16 +239,16 @@ const LoginPage: React.FC<LoginPageProps> = ({
         {/* Footer - Legal Links */}
         <div className="mt-8 text-center space-y-2">
           <p className="text-[10px] text-gray-600">
-            By signing in, you agree to our{' '}
-            <button 
-              onClick={() => onNavigateLegal?.('terms')}
+            By signing in, you agree to our{" "}
+            <button
+              onClick={() => onNavigateLegal?.("terms")}
               className="text-pandora-cyan hover:underline"
             >
               Terms of Service
-            </button>
-            {' '}and{' '}
-            <button 
-              onClick={() => onNavigateLegal?.('privacy')}
+            </button>{" "}
+            and{" "}
+            <button
+              onClick={() => onNavigateLegal?.("privacy")}
               className="text-pandora-cyan hover:underline"
             >
               Privacy Policy

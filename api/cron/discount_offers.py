@@ -9,6 +9,7 @@ Tasks:
 
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -36,7 +37,7 @@ async def discount_offers_entrypoint(request: Request):
     offers_service = OffersService(db.client)
 
     now = datetime.now(UTC)
-    results = {"timestamp": now.isoformat(), "offers": {}}
+    results: dict[str, Any] = {"timestamp": now.isoformat(), "offers": {}}
 
     try:
         offer_results = await offers_service.process_all_offers()

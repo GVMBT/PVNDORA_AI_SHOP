@@ -1,18 +1,18 @@
 /**
  * PaymentCountdown Component
- * 
+ *
  * Displays countdown timer for pending order payment deadline.
  */
 
-import React, { useState, useEffect } from 'react';
-import { Clock, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Clock, AlertTriangle } from "lucide-react";
 
 interface PaymentCountdownProps {
   deadline: string;
 }
 
 export function PaymentCountdown({ deadline }: PaymentCountdownProps) {
-  const [timeLeft, setTimeLeft] = useState<string>('');
+  const [timeLeft, setTimeLeft] = useState<string>("");
   const [isExpired, setIsExpired] = useState(false);
 
   useEffect(() => {
@@ -24,8 +24,8 @@ export function PaymentCountdown({ deadline }: PaymentCountdownProps) {
 
         // Validate date
         if (isNaN(deadlineDate.getTime())) {
-          console.error('PaymentCountdown: Invalid date', deadline);
-          setTimeLeft('--:--');
+          console.error("PaymentCountdown: Invalid date", deadline);
+          setTimeLeft("--:--");
           return;
         }
 
@@ -34,22 +34,22 @@ export function PaymentCountdown({ deadline }: PaymentCountdownProps) {
 
         if (diff <= 0) {
           setIsExpired(true);
-          setTimeLeft('EXPIRED');
+          setTimeLeft("EXPIRED");
           return;
         }
 
         const totalSeconds = Math.floor(diff / 1000);
         const minutes = Math.floor(totalSeconds / 60);
         const seconds = totalSeconds % 60;
-        
+
         if (minutes > 0) {
           setTimeLeft(`${minutes}m ${seconds}s`);
         } else {
           setTimeLeft(`${seconds}s`);
         }
       } catch (e) {
-        console.error('PaymentCountdown error:', e, 'deadline:', deadline);
-        setTimeLeft('--:--');
+        console.error("PaymentCountdown error:", e, "deadline:", deadline);
+        setTimeLeft("--:--");
       }
     };
 
@@ -75,4 +75,3 @@ export function PaymentCountdown({ deadline }: PaymentCountdownProps) {
     </div>
   );
 }
-

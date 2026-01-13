@@ -1,6 +1,6 @@
 /**
  * Telegram WebApp Utilities
- * 
+ *
  * Low-level utilities for Telegram WebApp SDK operations.
  * For React components, use useTelegram() hook instead.
  */
@@ -8,26 +8,26 @@
 /**
  * Get Telegram WebApp instance (if available)
  */
-import type { WebApp } from '../types/telegram';
+import type { WebApp } from "../types/telegram";
 
 export function getTelegramWebApp(): WebApp | undefined {
-  if (typeof window === 'undefined') return undefined;
+  if (typeof window === "undefined") return undefined;
   return window.Telegram?.WebApp;
 }
 
 /**
  * Get Telegram initData (for API requests)
- * 
+ *
  * @returns Telegram initData string or empty string if not available
  */
 export function getTelegramInitData(): string {
   const tg = getTelegramWebApp();
-  return tg?.initData || '';
+  return tg?.initData || "";
 }
 
 /**
  * Get Telegram user data (unsafe, for development only)
- * 
+ *
  * @returns Telegram user object or null if not available
  * @warning This uses initDataUnsafe which is not cryptographically verified
  */
@@ -40,7 +40,7 @@ export function getTelegramUser(): { id: number; language_code?: string } | null
 
 /**
  * Check if running in Telegram WebApp
- * 
+ *
  * @returns true if Telegram WebApp is available, false otherwise
  */
 export function isTelegramWebApp(): boolean {
@@ -49,7 +49,7 @@ export function isTelegramWebApp(): boolean {
 
 /**
  * Get start parameter from Telegram WebApp
- * 
+ *
  * @returns Start parameter string or null if not available
  */
 export function getStartParam(): string | null {
@@ -59,15 +59,15 @@ export function getStartParam(): string | null {
 
 /**
  * Request fullscreen (for better UX in Telegram)
- * 
+ *
  * Uses modern @telegram-apps/sdk for fullscreen support.
  * Automatically checks availability and handles errors gracefully.
  */
 export async function requestFullscreen(): Promise<void> {
   try {
     // Use modern SDK if available
-    const { requestFullscreen: sdkRequestFullscreen } = await import('@telegram-apps/sdk');
-    
+    const { requestFullscreen: sdkRequestFullscreen } = await import("@telegram-apps/sdk");
+
     if (sdkRequestFullscreen.isAvailable()) {
       await sdkRequestFullscreen();
       return;
@@ -75,14 +75,14 @@ export async function requestFullscreen(): Promise<void> {
   } catch {
     // SDK not available or not in Telegram context, fallback to legacy
   }
-  
+
   // Fallback to legacy WebApp API
   const tg = getTelegramWebApp();
   if (!tg) return;
-  
+
   // Check if method exists
-  if (!('requestFullscreen' in tg)) return;
-  
+  if (!("requestFullscreen" in tg)) return;
+
   // Try to call requestFullscreen (may throw if not configured in BotFather)
   try {
     (tg as unknown as { requestFullscreen: () => void }).requestFullscreen();
@@ -93,15 +93,15 @@ export async function requestFullscreen(): Promise<void> {
 
 /**
  * Expand WebApp to full height
- * 
+ *
  * Uses modern @telegram-apps/sdk expandViewport if available,
  * falls back to legacy expand() method.
  */
 export async function expandWebApp(): Promise<void> {
   try {
     // Use modern SDK if available
-    const { expandViewport } = await import('@telegram-apps/sdk');
-    
+    const { expandViewport } = await import("@telegram-apps/sdk");
+
     if (expandViewport.isAvailable()) {
       expandViewport();
       return;
@@ -109,7 +109,7 @@ export async function expandWebApp(): Promise<void> {
   } catch {
     // SDK not available, fallback to legacy
   }
-  
+
   // Fallback to legacy WebApp API
   const tg = getTelegramWebApp();
   if (tg?.expand) {
@@ -119,7 +119,7 @@ export async function expandWebApp(): Promise<void> {
 
 /**
  * Ready WebApp (call on initialization)
- * 
+ *
  * Notifies Telegram that the app is ready. Should be called once on app load.
  */
 export function readyWebApp(): void {
@@ -128,40 +128,3 @@ export function readyWebApp(): void {
     tg.ready();
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

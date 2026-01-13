@@ -1,16 +1,16 @@
 /**
  * AdminUsers Component
- * 
+ *
  * Управление пользователями - отображение и действия.
  */
 
-import React, { useState, memo, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Ban, DollarSign, Crown, X, Check, ExternalLink } from 'lucide-react';
-import type { UserData } from './types';
-import { apiRequest } from '../../utils/apiClient';
-import { API } from '../../config';
-import { logger } from '../../utils/logger';
+import React, { useState, memo, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Search, Ban, DollarSign, Crown, X, Check, ExternalLink } from "lucide-react";
+import type { UserData } from "./types";
+import { apiRequest } from "../../utils/apiClient";
+import { API } from "../../config";
+import { logger } from "../../utils/logger";
 
 interface AdminUsersProps {
   users: UserData[];
@@ -19,17 +19,13 @@ interface AdminUsersProps {
   onRefresh?: () => void;
 }
 
-const AdminUsers: React.FC<AdminUsersProps> = ({
-  users,
-  onBanUser,
-  onRefresh,
-}) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'ALL' | 'USER' | 'VIP' | 'ADMIN'>('ALL');
+const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"ALL" | "USER" | "VIP" | "ADMIN">("ALL");
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [processing, setProcessing] = useState(false);
   const [balanceModal, setBalanceModal] = useState<UserData | null>(null);
-  const [balanceAmount, setBalanceAmount] = useState('');
+  const [balanceAmount, setBalanceAmount] = useState("");
 
   // Filter users
   const filteredUsers = useMemo(() => {
@@ -37,37 +33,48 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      result = result.filter(u => 
-        u.username.toLowerCase().includes(query) ||
-        u.id.toString().includes(query)
+      result = result.filter(
+        (u) => u.username.toLowerCase().includes(query) || u.id.toString().includes(query)
       );
     }
 
-    if (roleFilter !== 'ALL') {
-      result = result.filter(u => u.role === roleFilter);
+    if (roleFilter !== "ALL") {
+      result = result.filter((u) => u.role === roleFilter);
     }
 
     return result;
   }, [users, searchQuery, roleFilter]);
 
   // Format currency with user's balance currency
-  const formatCurrency = (amount: number, currency: string = 'USD') => {
-    return new Intl.NumberFormat('ru-RU', { 
-      style: 'currency', 
+  const formatCurrency = (amount: number, currency: string = "USD") => {
+    return new Intl.NumberFormat("ru-RU", {
+      style: "currency",
       currency: currency,
       minimumFractionDigits: 0,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 2,
     }).format(amount);
   };
 
   const getRoleBadge = (role: string) => {
     switch (role) {
-      case 'ADMIN':
-        return <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30">ADMIN</span>;
-      case 'VIP':
-        return <span className="text-[10px] px-2 py-0.5 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">VIP</span>;
+      case "ADMIN":
+        return (
+          <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30">
+            ADMIN
+          </span>
+        );
+      case "VIP":
+        return (
+          <span className="text-[10px] px-2 py-0.5 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+            VIP
+          </span>
+        );
       default:
-        return <span className="text-[10px] px-2 py-0.5 bg-white/5 text-gray-400 border border-white/10">USER</span>;
+        return (
+          <span className="text-[10px] px-2 py-0.5 bg-white/5 text-gray-400 border border-white/10">
+            USER
+          </span>
+        );
     }
   };
 
@@ -75,24 +82,24 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
   const handleToggleVIP = async () => {
     if (!selectedUser) return;
     setProcessing(true);
-    
-    const isCurrentlyVIP = selectedUser.role === 'VIP';
-    
+
+    const isCurrentlyVIP = selectedUser.role === "VIP";
+
     try {
       await apiRequest(`${API.ADMIN_URL}/users/${selectedUser.dbId}/vip`, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({
           is_partner: !isCurrentlyVIP,
           // VIP always gets full access (level 3) - no partial levels
-          partner_level_override: !isCurrentlyVIP ? 3 : null
-        })
+          partner_level_override: !isCurrentlyVIP ? 3 : null,
+        }),
       });
-      
+
       setSelectedUser(null);
       if (onRefresh) onRefresh();
     } catch (err) {
-      logger.error('Failed to toggle VIP status', err);
-      alert('Ошибка при изменении VIP статуса');
+      logger.error("Failed to toggle VIP status", err);
+      alert("Ошибка при изменении VIP статуса");
     } finally {
       setProcessing(false);
     }
@@ -103,20 +110,20 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
     if (!balanceModal || !balanceAmount) return;
     const amount = parseFloat(balanceAmount);
     if (isNaN(amount)) return;
-    
+
     setProcessing(true);
     try {
       await apiRequest(`${API.ADMIN_URL}/users/${balanceModal.dbId}/balance`, {
-        method: 'POST',
-        body: JSON.stringify({ amount })
+        method: "POST",
+        body: JSON.stringify({ amount }),
       });
-      
+
       setBalanceModal(null);
-      setBalanceAmount('');
+      setBalanceAmount("");
       if (onRefresh) onRefresh();
     } catch (err) {
-      logger.error('Failed to update balance', err);
-      alert('Ошибка при обновлении баланса');
+      logger.error("Failed to update balance", err);
+      alert("Ошибка при обновлении баланса");
     } finally {
       setProcessing(false);
     }
@@ -128,26 +135,26 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
       <div className="flex flex-col md:flex-row gap-4 bg-[#0e0e0e] border border-white/10 p-4 rounded-sm">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
-          <input 
-            type="text" 
+          <input
+            type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Поиск по имени или ID..." 
-            className="w-full bg-black border border-white/20 pl-9 pr-4 py-2 text-xs font-mono text-white focus:border-pandora-cyan outline-none" 
+            placeholder="Поиск по имени или ID..."
+            className="w-full bg-black border border-white/20 pl-9 pr-4 py-2 text-xs font-mono text-white focus:border-pandora-cyan outline-none"
           />
         </div>
         <div className="flex gap-2">
-          {(['ALL', 'USER', 'VIP', 'ADMIN'] as const).map(role => (
+          {(["ALL", "USER", "VIP", "ADMIN"] as const).map((role) => (
             <button
               key={role}
               onClick={() => setRoleFilter(role)}
               className={`px-3 py-2 text-[10px] font-bold uppercase border transition-colors ${
                 roleFilter === role
-                  ? 'bg-pandora-cyan text-black border-pandora-cyan'
-                  : 'bg-transparent text-gray-400 border-white/20 hover:border-white/40'
+                  ? "bg-pandora-cyan text-black border-pandora-cyan"
+                  : "bg-transparent text-gray-400 border-white/20 hover:border-white/40"
               }`}
             >
-              {role === 'ALL' ? 'Все' : role}
+              {role === "ALL" ? "Все" : role}
             </button>
           ))}
         </div>
@@ -161,11 +168,15 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
         </div>
         <div className="bg-[#0e0e0e] border border-white/10 p-4">
           <div className="text-[10px] text-gray-500 uppercase mb-1">VIP</div>
-          <div className="text-2xl font-bold text-yellow-400">{users.filter(u => u.role === 'VIP').length}</div>
+          <div className="text-2xl font-bold text-yellow-400">
+            {users.filter((u) => u.role === "VIP").length}
+          </div>
         </div>
         <div className="bg-[#0e0e0e] border border-white/10 p-4">
           <div className="text-[10px] text-gray-500 uppercase mb-1">Заблокировано</div>
-          <div className="text-2xl font-bold text-red-400">{users.filter(u => u.isBanned).length}</div>
+          <div className="text-2xl font-bold text-red-400">
+            {users.filter((u) => u.isBanned).length}
+          </div>
         </div>
         <div className="bg-[#0e0e0e] border border-white/10 p-4">
           <div className="text-[10px] text-gray-500 uppercase mb-1">Активных сегодня</div>
@@ -195,10 +206,13 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                 </td>
               </tr>
             ) : (
-              filteredUsers.map(u => (
-                <tr key={u.id} className={`hover:bg-white/5 transition-colors ${u.isBanned ? 'opacity-50' : ''}`}>
+              filteredUsers.map((u) => (
+                <tr
+                  key={u.id}
+                  className={`hover:bg-white/5 transition-colors ${u.isBanned ? "opacity-50" : ""}`}
+                >
                   <td className="p-4">
-                    <a 
+                    <a
                       href={`https://t.me/${u.username}`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -209,18 +223,12 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                     </a>
                     <div className="text-[10px] text-gray-600">ID: {u.id}</div>
                   </td>
-                  <td className="p-4">
-                    {getRoleBadge(u.role)}
-                  </td>
+                  <td className="p-4">{getRoleBadge(u.role)}</td>
                   <td className="p-4 text-pandora-cyan">
                     {formatCurrency(u.balance, u.balanceCurrency)}
                   </td>
-                  <td className="p-4">
-                    {u.purchases}
-                  </td>
-                  <td className="p-4">
-                    {formatCurrency(u.spent, 'USD')}
-                  </td>
+                  <td className="p-4">{u.purchases}</td>
+                  <td className="p-4">{formatCurrency(u.spent, "USD")}</td>
                   <td className="p-4">
                     {u.isBanned ? (
                       <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30">
@@ -234,32 +242,32 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button 
+                      <button
                         onClick={() => setBalanceModal(u)}
                         className="p-1.5 border border-white/10 hover:border-pandora-cyan hover:text-pandora-cyan transition-colors"
                         title="Изменить баланс"
                       >
                         <DollarSign size={14} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => setSelectedUser(u)}
                         className={`p-1.5 border transition-colors ${
-                          u.role === 'VIP'
-                            ? 'border-yellow-500/30 text-yellow-400 hover:border-yellow-500'
-                            : 'border-white/10 text-gray-400 hover:border-yellow-500 hover:text-yellow-400'
+                          u.role === "VIP"
+                            ? "border-yellow-500/30 text-yellow-400 hover:border-yellow-500"
+                            : "border-white/10 text-gray-400 hover:border-yellow-500 hover:text-yellow-400"
                         }`}
-                        title={u.role === 'VIP' ? 'Отозвать VIP' : 'Назначить VIP'}
+                        title={u.role === "VIP" ? "Отозвать VIP" : "Назначить VIP"}
                       >
                         <Crown size={14} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => onBanUser?.(u.id, !u.isBanned)}
                         className={`p-1.5 border transition-colors ${
-                          u.isBanned 
-                            ? 'border-green-500/30 text-green-400 hover:border-green-500' 
-                            : 'border-red-500/30 text-red-400 hover:border-red-500'
+                          u.isBanned
+                            ? "border-green-500/30 text-green-400 hover:border-green-500"
+                            : "border-red-500/30 text-red-400 hover:border-red-500"
                         }`}
-                        title={u.isBanned ? 'Разблокировать' : 'Заблокировать'}
+                        title={u.isBanned ? "Разблокировать" : "Заблокировать"}
                       >
                         <Ban size={14} />
                       </button>
@@ -279,14 +287,14 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
             Пользователи не найдены
           </div>
         ) : (
-          filteredUsers.map(u => (
-            <div 
-              key={u.id} 
-              className={`bg-[#0e0e0e] border border-white/10 p-4 ${u.isBanned ? 'opacity-50' : ''}`}
+          filteredUsers.map((u) => (
+            <div
+              key={u.id}
+              className={`bg-[#0e0e0e] border border-white/10 p-4 ${u.isBanned ? "opacity-50" : ""}`}
             >
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <a 
+                  <a
                     href={`https://t.me/${u.username}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -305,11 +313,13 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                   )}
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-3 gap-2 text-center mb-3">
                 <div>
                   <div className="text-[10px] text-gray-500">Баланс</div>
-                  <div className="text-sm font-bold text-pandora-cyan">{formatCurrency(u.balance, u.balanceCurrency)}</div>
+                  <div className="text-sm font-bold text-pandora-cyan">
+                    {formatCurrency(u.balance, u.balanceCurrency)}
+                  </div>
                 </div>
                 <div>
                   <div className="text-[10px] text-gray-500">Заказы</div>
@@ -317,36 +327,38 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                 </div>
                 <div>
                   <div className="text-[10px] text-gray-500">Потрачено</div>
-                  <div className="text-sm font-bold text-white">{formatCurrency(u.spent, 'USD')}</div>
+                  <div className="text-sm font-bold text-white">
+                    {formatCurrency(u.spent, "USD")}
+                  </div>
                 </div>
               </div>
-              
+
               <div className="flex gap-2">
-                <button 
+                <button
                   onClick={() => setBalanceModal(u)}
                   className="flex-1 flex items-center justify-center gap-2 py-2 text-[10px] bg-white/5 hover:bg-pandora-cyan hover:text-black transition-colors uppercase font-bold"
                 >
                   <DollarSign size={12} /> Баланс
                 </button>
-                <button 
+                <button
                   onClick={() => setSelectedUser(u)}
                   className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] uppercase font-bold ${
-                    u.role === 'VIP'
-                      ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500 hover:text-black'
-                      : 'bg-white/5 hover:bg-yellow-500 hover:text-black'
+                    u.role === "VIP"
+                      ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500 hover:text-black"
+                      : "bg-white/5 hover:bg-yellow-500 hover:text-black"
                   } transition-colors`}
                 >
                   <Crown size={12} /> VIP
                 </button>
-                <button 
+                <button
                   onClick={() => onBanUser?.(u.id, !u.isBanned)}
                   className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] uppercase font-bold transition-colors ${
-                    u.isBanned 
-                      ? 'bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-black' 
-                      : 'bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-black'
+                    u.isBanned
+                      ? "bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-black"
+                      : "bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-black"
                   }`}
                 >
-                  <Ban size={12} /> {u.isBanned ? 'Разбан' : 'Бан'}
+                  <Ban size={12} /> {u.isBanned ? "Разбан" : "Бан"}
                 </button>
               </div>
             </div>
@@ -358,11 +370,11 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
       <AnimatePresence>
         {selectedUser && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-            <div 
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
-              onClick={() => !processing && setSelectedUser(null)} 
+            <div
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => !processing && setSelectedUser(null)}
             />
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -374,11 +386,9 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                     <Crown size={18} className="text-yellow-500" />
                     VIP Статус
                   </h3>
-                  <p className="text-xs text-gray-500 mt-1">
-                    @{selectedUser.username}
-                  </p>
+                  <p className="text-xs text-gray-500 mt-1">@{selectedUser.username}</p>
                 </div>
-                <button 
+                <button
                   onClick={() => !processing && setSelectedUser(null)}
                   className="text-gray-500 hover:text-white"
                 >
@@ -391,7 +401,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                 <div className="text-[10px] text-gray-500 uppercase mb-2">Текущий статус</div>
                 <div className="flex items-center gap-3">
                   {getRoleBadge(selectedUser.role)}
-                  {selectedUser.role === 'VIP' && (
+                  {selectedUser.role === "VIP" && (
                     <span className="text-xs text-yellow-400">ARCHITECT • Полный доступ</span>
                   )}
                 </div>
@@ -399,7 +409,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
 
               {/* Info about VIP */}
               <div className="text-xs text-gray-500 mb-6 p-3 bg-black/50 border border-white/10">
-                {selectedUser.role === 'VIP' ? (
+                {selectedUser.role === "VIP" ? (
                   <>
                     <p className="mb-2">VIP пользователь имеет:</p>
                     <ul className="list-disc list-inside space-y-1 text-gray-400">
@@ -409,7 +419,10 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                     </ul>
                   </>
                 ) : (
-                  <p>VIP статус даёт пользователю ARCHITECT ранг, открытые реферальные уровни и максимальные комиссии.</p>
+                  <p>
+                    VIP статус даёт пользователю ARCHITECT ранг, открытые реферальные уровни и
+                    максимальные комиссии.
+                  </p>
                 )}
               </div>
 
@@ -418,12 +431,12 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                 onClick={handleToggleVIP}
                 disabled={processing}
                 className={`w-full py-3 font-bold text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
-                  selectedUser.role === 'VIP'
-                    ? 'bg-red-500 text-white hover:bg-red-400'
-                    : 'bg-yellow-500 text-black hover:bg-yellow-400'
+                  selectedUser.role === "VIP"
+                    ? "bg-red-500 text-white hover:bg-red-400"
+                    : "bg-yellow-500 text-black hover:bg-yellow-400"
                 }`}
               >
-                {selectedUser.role === 'VIP' ? (
+                {selectedUser.role === "VIP" ? (
                   <>
                     <X size={16} />
                     Отозвать VIP статус
@@ -444,11 +457,11 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
       <AnimatePresence>
         {balanceModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-            <div 
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
-              onClick={() => !processing && setBalanceModal(null)} 
+            <div
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => !processing && setBalanceModal(null)}
             />
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -460,11 +473,9 @@ const AdminUsers: React.FC<AdminUsersProps> = ({
                     <DollarSign size={18} className="text-pandora-cyan" />
                     Изменить баланс
                   </h3>
-                  <p className="text-xs text-gray-500 mt-1">
-                    @{balanceModal.username}
-                  </p>
+                  <p className="text-xs text-gray-500 mt-1">@{balanceModal.username}</p>
                 </div>
-                <button 
+                <button
                   onClick={() => !processing && setBalanceModal(null)}
                   className="text-gray-500 hover:text-white"
                 >

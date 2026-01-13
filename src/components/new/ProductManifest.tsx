@@ -1,11 +1,11 @@
 /**
  * ProductManifest Component
- * 
+ *
  * Displays product description and deployment instructions.
  */
 
-import React, { memo } from 'react';
-import { motion } from 'framer-motion';
+import React, { memo } from "react";
+import { motion } from "framer-motion";
 
 interface ProductManifestProps {
   description: string;
@@ -14,10 +14,10 @@ interface ProductManifestProps {
 
 const ProductManifest: React.FC<ProductManifestProps> = ({ description, instructions }) => {
   return (
-    <motion.div 
+    <motion.div
       key="manifest"
-      initial={{ opacity: 0, y: 5 }} 
-      animate={{ opacity: 1, y: 0 }} 
+      initial={{ opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -5 }}
       className="space-y-4 font-mono text-xs leading-relaxed text-gray-400"
     >
@@ -40,40 +40,3 @@ const ProductManifest: React.FC<ProductManifestProps> = ({ description, instruct
 };
 
 export default memo(ProductManifest);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

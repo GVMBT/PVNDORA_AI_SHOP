@@ -10,6 +10,7 @@ Runs every 5 minutes.
 import asyncio
 import os
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -350,7 +351,8 @@ async def _send_loyal_promo_if_eligible(
             else (
                 f"🎉 <b>Thank you for your loyalty!</b>\n\n"
                 f"You've made {purchase_count} purchases — awesome!\n\n"
-                f"As a thank you, we're giving you <b>-50% off your first purchase</b> in PVNDORA:\n\n"
+                f"As a thank you, we're giving you "
+                f"<b>-50% off your first purchase</b> in PVNDORA:\n\n"
                 f"🎁 <b>Promo code: {promo_code}</b>\n\n"
                 f"In PVNDORA you get:\n"
                 f"• 🚀 Instant delivery\n"

@@ -1,11 +1,11 @@
 /**
  * Cart Data Converter
- * 
+ *
  * Utility functions for converting between different cart data formats.
  * Used to bridge legacy Cart interface with modern CartData type.
  */
 
-import type { CartData, CartItem as ComponentCartItem } from '../types/component';
+import type { CartData, CartItem as ComponentCartItem } from "../types/component";
 
 /**
  * Legacy Cart interface (used in useCheckoutFlow)
@@ -35,10 +35,10 @@ export interface LegacyCart {
 /**
  * Convert CartData (from CartContext) to legacy Cart format
  * Used for backward compatibility with useCheckoutFlow
- * 
+ *
  * @param cartData - Modern CartData from CartContext
  * @returns Legacy Cart format or null if cart is empty
- * 
+ *
  * @example
  * ```ts
  * const legacyCart = convertCartDataToLegacyCart(cartData);
@@ -72,7 +72,7 @@ export function convertCartDataToLegacyCart(cartData: CartData | null): LegacyCa
 
 /**
  * Get subtotal from CartData (original total before discounts)
- * 
+ *
  * @param cartData - CartData from CartContext
  * @returns Subtotal amount or 0 if cart is empty
  */
@@ -83,7 +83,7 @@ export function getCartSubtotal(cartData: CartData | null): number {
 
 /**
  * Get total from CartData (with promo discount applied)
- * 
+ *
  * @param cartData - CartData from CartContext
  * @returns Total amount after discounts or 0 if cart is empty
  */
@@ -91,40 +91,3 @@ export function getCartTotal(cartData: CartData | null): number {
   if (!cartData) return 0;
   return cartData.total || 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

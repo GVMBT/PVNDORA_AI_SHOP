@@ -1,27 +1,27 @@
 /**
  * AdminSidebar Component
- * 
+ *
  * Sidebar navigation for admin panel.
  */
 
-import React, { memo } from 'react';
-import { 
-  LayoutDashboard, 
-  Package, 
-  BarChart3, 
-  Users, 
+import React, { memo } from "react";
+import {
+  LayoutDashboard,
+  Package,
+  BarChart3,
+  Users,
   Crown,
-  LifeBuoy, 
-  LogOut, 
-  Terminal, 
+  LifeBuoy,
+  LogOut,
+  Terminal,
   Menu,
   Tag,
   ArrowRightLeft,
   Calculator,
-  Wallet
-} from 'lucide-react';
-import AdminNavItem from './AdminNavItem';
-import type { AdminView } from './types';
+  Wallet,
+} from "lucide-react";
+import AdminNavItem from "./AdminNavItem";
+import type { AdminView } from "./types";
 
 interface AdminSidebarProps {
   currentView: AdminView;
@@ -49,22 +49,21 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
         <div className="font-display font-bold text-white tracking-widest flex items-center gap-2">
           <Terminal className="text-red-500" size={18} /> ADMIN
         </div>
-        <button 
-          onClick={onClose} 
-          className="text-white"
-        >
+        <button onClick={onClose} className="text-white">
           <Menu size={24} />
         </button>
       </div>
 
       {/* Sidebar */}
-      <div className={`
+      <div
+        className={`
         fixed md:static inset-0 z-40 bg-[#050505] border-r border-white/10 transition-transform duration-300 flex flex-col
-        ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        ${isCollapsed ? 'md:w-20' : 'md:w-64'}
+        ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+        ${isCollapsed ? "md:w-20" : "md:w-64"}
         w-64
-      `}>
-        <div 
+      `}
+      >
+        <div
           className="hidden md:flex h-20 items-center px-6 border-b border-white/10 cursor-pointer hover:bg-white/5 transition-colors"
           onClick={onToggleCollapse}
           title="Toggle Sidebar"
@@ -77,115 +76,115 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
             </div>
           )}
         </div>
-        
+
         <div className="flex-1 py-6 space-y-1 px-3 mt-16 md:mt-0">
-          <AdminNavItem 
-            icon={<LayoutDashboard size={18} />} 
-            label="Главная" 
-            active={currentView === 'dashboard'} 
+          <AdminNavItem
+            icon={<LayoutDashboard size={18} />}
+            label="Главная"
+            active={currentView === "dashboard"}
             onClick={() => {
-              onViewChange('dashboard');
+              onViewChange("dashboard");
               onClose();
-            }} 
-            collapsed={isCollapsed} 
+            }}
+            collapsed={isCollapsed}
           />
-          <AdminNavItem 
-            icon={<Package size={18} />} 
-            label="Каталог" 
-            active={currentView === 'catalog'} 
+          <AdminNavItem
+            icon={<Package size={18} />}
+            label="Каталог"
+            active={currentView === "catalog"}
             onClick={() => {
-              onViewChange('catalog');
+              onViewChange("catalog");
               onClose();
-            }} 
-            collapsed={isCollapsed} 
+            }}
+            collapsed={isCollapsed}
           />
-          <AdminNavItem 
-            icon={<BarChart3 size={18} />} 
-            label="Заказы" 
-            active={currentView === 'sales'} 
+          <AdminNavItem
+            icon={<BarChart3 size={18} />}
+            label="Заказы"
+            active={currentView === "sales"}
             onClick={() => {
-              onViewChange('sales');
+              onViewChange("sales");
               onClose();
-            }} 
-            collapsed={isCollapsed} 
+            }}
+            collapsed={isCollapsed}
           />
-          <AdminNavItem 
-            icon={<Users size={18} />} 
-            label="Пользователи" 
-            active={currentView === 'users'} 
+          <AdminNavItem
+            icon={<Users size={18} />}
+            label="Пользователи"
+            active={currentView === "users"}
             onClick={() => {
-              onViewChange('users');
+              onViewChange("users");
               onClose();
-            }} 
-            collapsed={isCollapsed} 
+            }}
+            collapsed={isCollapsed}
           />
-          <AdminNavItem 
-            icon={<Crown size={18} />} 
-            label="VIP Партнёры" 
-            active={currentView === 'partners'} 
+          <AdminNavItem
+            icon={<Crown size={18} />}
+            label="VIP Партнёры"
+            active={currentView === "partners"}
             onClick={() => {
-              onViewChange('partners');
+              onViewChange("partners");
               onClose();
-            }} 
-            collapsed={isCollapsed} 
+            }}
+            collapsed={isCollapsed}
           />
-          <AdminNavItem 
-            icon={<LifeBuoy size={18} />} 
-            label="Поддержка" 
-            active={currentView === 'support'} 
+          <AdminNavItem
+            icon={<LifeBuoy size={18} />}
+            label="Поддержка"
+            active={currentView === "support"}
             onClick={() => {
-              onViewChange('support');
+              onViewChange("support");
               onClose();
-            }} 
-            collapsed={isCollapsed} 
+            }}
+            collapsed={isCollapsed}
           />
-          <AdminNavItem 
-            icon={<Tag size={18} />} 
-            label="Промокоды" 
-            active={currentView === 'promo'} 
+          <AdminNavItem
+            icon={<Tag size={18} />}
+            label="Промокоды"
+            active={currentView === "promo"}
             onClick={() => {
-              onViewChange('promo');
+              onViewChange("promo");
               onClose();
-            }} 
-            collapsed={isCollapsed} 
+            }}
+            collapsed={isCollapsed}
           />
-          <AdminNavItem 
-            icon={<Calculator size={18} />} 
-            label="Бухгалтерия" 
-            active={currentView === 'accounting'} 
+          <AdminNavItem
+            icon={<Calculator size={18} />}
+            label="Бухгалтерия"
+            active={currentView === "accounting"}
             onClick={() => {
-              onViewChange('accounting');
+              onViewChange("accounting");
               onClose();
-            }} 
-            collapsed={isCollapsed} 
+            }}
+            collapsed={isCollapsed}
           />
-          <AdminNavItem 
-            icon={<Wallet size={18} />} 
-            label="Выводы" 
-            active={currentView === 'withdrawals'} 
+          <AdminNavItem
+            icon={<Wallet size={18} />}
+            label="Выводы"
+            active={currentView === "withdrawals"}
             onClick={() => {
-              onViewChange('withdrawals');
+              onViewChange("withdrawals");
               onClose();
-            }} 
-            collapsed={isCollapsed} 
+            }}
+            collapsed={isCollapsed}
           />
-          <AdminNavItem 
-            icon={<ArrowRightLeft size={18} />} 
-            label="Миграция" 
-            active={currentView === 'migration'} 
+          <AdminNavItem
+            icon={<ArrowRightLeft size={18} />}
+            label="Миграция"
+            active={currentView === "migration"}
             onClick={() => {
-              onViewChange('migration');
+              onViewChange("migration");
               onClose();
-            }} 
-            collapsed={isCollapsed} 
+            }}
+            collapsed={isCollapsed}
           />
         </div>
 
         <div className="p-4 border-t border-white/10">
-          <button 
-            onClick={onExit} 
+          <button
+            onClick={onExit}
             className={`flex items-center gap-3 w-full text-gray-500 hover:text-white transition-colors p-2 rounded-sm hover:bg-white/5 ${
-              isCollapsed ? 'justify-center' : ''
+              isCollapsed ? "justify-center" : ""
             }`}
           >
             <LogOut size={18} />
@@ -198,10 +197,3 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
 };
 
 export default memo(AdminSidebar);
-
-
-
-
-
-
-

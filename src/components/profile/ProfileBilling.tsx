@@ -1,14 +1,14 @@
 /**
  * ProfileBilling Component
- * 
+ *
  * Displays billing logs and transaction history with localization and currency conversion.
  */
 
-import React, { memo, useMemo } from 'react';
-import { useLocale } from '../../hooks/useLocale';
-import { formatPrice } from '../../utils/currency';
-import { ArrowUpRight, ArrowDownLeft, Clock, History } from 'lucide-react';
-import type { BillingLogData } from './types';
+import React, { memo, useMemo } from "react";
+import { useLocale } from "../../hooks/useLocale";
+import { formatPrice } from "../../utils/currency";
+import { ArrowUpRight, ArrowDownLeft, Clock, History } from "lucide-react";
+import type { BillingLogData } from "./types";
 
 interface ProfileBillingProps {
   logs: BillingLogData[];
@@ -16,31 +16,31 @@ interface ProfileBillingProps {
   exchangeRate?: number;
 }
 
-const ProfileBilling: React.FC<ProfileBillingProps> = ({ 
+const ProfileBilling: React.FC<ProfileBillingProps> = ({
   logs,
-  currency = 'USD',
-  exchangeRate = 1
+  currency = "USD",
+  exchangeRate = 1,
 }) => {
   const { t, language } = useLocale();
 
   // Format and localize logs
   const localizedLogs = useMemo(() => {
-    return logs.map(log => {
+    return logs.map((log) => {
       // Parse transaction type from source for localization
-      const sourceKey = log.transactionType?.toLowerCase() || 'system';
+      const sourceKey = log.transactionType?.toLowerCase() || "system";
       const localizedSource = t(`profile.billing.transaction.${sourceKey}`) || log.source;
-      
+
       // Parse amount (remove sign, convert)
-      const amountNum = parseFloat(log.amount.replace(/[+\-,]/g, '')) || 0;
-      const isIncome = log.type === 'INCOME';
-      
+      const amountNum = parseFloat(log.amount.replace(/[+\-,]/g, "")) || 0;
+      const isIncome = log.type === "INCOME";
+
       // Only convert if transaction currency differs from display currency
       // balance_transactions already come in user's balance_currency
       const txCurrency = log.currency;
       const needsConversion = txCurrency && txCurrency !== currency;
       const convertedAmount = needsConversion ? amountNum * exchangeRate : amountNum;
-      const formattedAmount = `${isIncome ? '+' : '-'}${formatPrice(convertedAmount, currency)}`;
-      
+      const formattedAmount = `${isIncome ? "+" : "-"}${formatPrice(convertedAmount, currency)}`;
+
       return {
         ...log,
         localizedSource,
@@ -52,9 +52,9 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
 
   // Localized type labels
   const typeLabels: Record<string, string> = {
-    INCOME: t('profile.billing.transaction.income'),
-    OUTCOME: t('profile.billing.transaction.outcome'),
-    SYSTEM: t('profile.billing.transaction.system'),
+    INCOME: t("profile.billing.transaction.income"),
+    OUTCOME: t("profile.billing.transaction.outcome"),
+    SYSTEM: t("profile.billing.transaction.system"),
   };
 
   return (
@@ -64,7 +64,7 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
         <div className="flex items-center gap-2">
           <History size={14} className="text-pandora-cyan" />
           <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/90">
-            {t('profile.billing.title')}
+            {t("profile.billing.title")}
           </div>
         </div>
         <div className="text-[9px] font-mono text-gray-500 uppercase">
@@ -79,7 +79,7 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
               <History size={20} className="opacity-20" />
             </div>
             <span className="uppercase tracking-[0.2em] text-[9px] font-bold">
-              {t('profile.billing.noTransactions')}
+              {t("profile.billing.noTransactions")}
             </span>
           </div>
         ) : (
@@ -93,29 +93,39 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
             </div>
 
             {localizedLogs.map((log, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 className="group px-4 sm:px-6 py-4 sm:py-3 hover:bg-white/[0.03] transition-all duration-200 relative overflow-hidden"
               >
                 {/* Visual indicator bar */}
-                <div className={`absolute left-0 top-0 bottom-0 w-[2px] transition-all duration-300 ${
-                  log.isIncome ? 'bg-green-500/0 group-hover:bg-green-500/50' : 'bg-pandora-cyan/0 group-hover:bg-pandora-cyan/50'
-                }`} />
+                <div
+                  className={`absolute left-0 top-0 bottom-0 w-[2px] transition-all duration-300 ${
+                    log.isIncome
+                      ? "bg-green-500/0 group-hover:bg-green-500/50"
+                      : "bg-pandora-cyan/0 group-hover:bg-pandora-cyan/50"
+                  }`}
+                />
 
                 {/* Desktop View */}
                 <div className="hidden sm:grid grid-cols-12 gap-4 items-center">
                   {/* ID & Type */}
                   <div className="col-span-2 flex items-center gap-3">
-                    <div className={`p-2 rounded-sm ${
-                      log.isIncome ? 'bg-green-500/10 text-green-500' : 'bg-white/5 text-gray-400'
-                    }`}>
+                    <div
+                      className={`p-2 rounded-sm ${
+                        log.isIncome ? "bg-green-500/10 text-green-500" : "bg-white/5 text-gray-400"
+                      }`}
+                    >
                       {log.isIncome ? <ArrowUpRight size={14} /> : <ArrowDownLeft size={14} />}
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-gray-600 text-[9px] leading-none uppercase tracking-tighter">#{log.id}</span>
-                      <span className={`text-[10px] font-bold ${
-                        log.isIncome ? 'text-green-500/80' : 'text-pandora-cyan/80'
-                      }`}>
+                      <span className="text-gray-600 text-[9px] leading-none uppercase tracking-tighter">
+                        #{log.id}
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold ${
+                          log.isIncome ? "text-green-500/80" : "text-pandora-cyan/80"
+                        }`}
+                      >
                         {typeLabels[log.type] || log.type}
                       </span>
                     </div>
@@ -133,9 +143,11 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
 
                   {/* Amount */}
                   <div className="col-span-3 text-right flex flex-col items-end">
-                    <span className={`text-base font-bold ${
-                      log.isIncome ? 'text-green-400' : 'text-white'
-                    }`}>
+                    <span
+                      className={`text-base font-bold ${
+                        log.isIncome ? "text-green-400" : "text-white"
+                      }`}
+                    >
                       {log.formattedAmount}
                     </span>
                   </div>
@@ -153,9 +165,13 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
                 <div className="sm:hidden flex flex-col gap-3">
                   <div className="flex items-start justify-between">
                     <div className="flex gap-3">
-                      <div className={`p-2.5 rounded-sm shrink-0 ${
-                        log.isIncome ? 'bg-green-500/10 text-green-500' : 'bg-white/5 text-gray-400'
-                      }`}>
+                      <div
+                        className={`p-2.5 rounded-sm shrink-0 ${
+                          log.isIncome
+                            ? "bg-green-500/10 text-green-500"
+                            : "bg-white/5 text-gray-400"
+                        }`}
+                      >
                         {log.isIncome ? <ArrowUpRight size={16} /> : <ArrowDownLeft size={16} />}
                       </div>
                       <div className="flex flex-col min-w-0">
@@ -164,19 +180,25 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
                         </span>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-gray-600 text-[9px] font-mono">#{log.id}</span>
-                          <span className={`px-1.5 py-0.5 text-[8px] font-bold border rounded-sm tracking-wider ${
-                            log.isIncome ? 'text-green-500 border-green-500/20 bg-green-500/5' :
-                            log.type === 'OUTCOME' ? 'text-pandora-cyan border-pandora-cyan/20 bg-pandora-cyan/5' :
-                            'text-gray-500 border-white/10 bg-white/5'
-                          }`}>
+                          <span
+                            className={`px-1.5 py-0.5 text-[8px] font-bold border rounded-sm tracking-wider ${
+                              log.isIncome
+                                ? "text-green-500 border-green-500/20 bg-green-500/5"
+                                : log.type === "OUTCOME"
+                                  ? "text-pandora-cyan border-pandora-cyan/20 bg-pandora-cyan/5"
+                                  : "text-gray-500 border-white/10 bg-white/5"
+                            }`}
+                          >
                             {typeLabels[log.type] || log.type}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div className={`font-bold text-base shrink-0 ${
-                      log.isIncome ? 'text-green-400' : 'text-white'
-                    }`}>
+                    <div
+                      className={`font-bold text-base shrink-0 ${
+                        log.isIncome ? "text-green-400" : "text-white"
+                      }`}
+                    >
                       {log.formattedAmount}
                     </div>
                   </div>
@@ -200,40 +222,3 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
 };
 
 export default memo(ProfileBilling);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

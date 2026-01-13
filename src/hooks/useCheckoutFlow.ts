@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useProductsTyped, useOrdersTyped, usePromoTyped } from './useApiTyped';
-import { useCart } from '../contexts/CartContext';
-import { useLocale } from './useLocale';
-import { useTelegram } from './useTelegram';
-import { convertCartDataToLegacyCart, type LegacyCart } from '../utils/cartConverter';
-import type { CartData } from '../types/component';
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useProductsTyped, useOrdersTyped, usePromoTyped } from "./useApiTyped";
+import { useCart } from "../contexts/CartContext";
+import { useLocale } from "./useLocale";
+import { useTelegram } from "./useTelegram";
+import { convertCartDataToLegacyCart, type LegacyCart } from "../utils/cartConverter";
+import type { CartData } from "../types/component";
 
 interface Product {
   id: string;
@@ -40,21 +40,35 @@ interface UseCheckoutFlowProps {
  * промокоды, пересчёт тоталов, оформление заказа и взаимодействие
  * с Telegram UI (back button, haptics, alerts).
  */
-export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSuccess }: UseCheckoutFlowProps) {
+export function useCheckoutFlow({
+  productId,
+  initialQuantity = 1,
+  onBack,
+  onSuccess,
+}: UseCheckoutFlowProps) {
   const { getProduct, loading: productLoading } = useProductsTyped();
   const { createOrderFromCart, getPaymentMethods } = useOrdersTyped();
   const { checkPromo, loading: promoLoading } = usePromoTyped();
-  const { cart: cartData, getCart, addToCart, updateCartItem, removeCartItem, applyPromo, removePromo, loading: cartLoading } = useCart();
+  const {
+    cart: cartData,
+    getCart,
+    addToCart,
+    updateCartItem,
+    removeCartItem,
+    applyPromo,
+    removePromo,
+    loading: cartLoading,
+  } = useCart();
   const { t, formatPrice } = useLocale();
   const { setBackButton, hapticFeedback, showAlert, openLink, close } = useTelegram();
 
   const [product, setProduct] = useState<Product | null>(null);
-  const [promoCode, setPromoCode] = useState('');
+  const [promoCode, setPromoCode] = useState("");
   const [promoResult, setPromoResult] = useState<PromoResult | null>(null);
   const [quantity, setQuantity] = useState(initialQuantity);
   const [error, setError] = useState<string | null>(null);
   const [availableMethods, setAvailableMethods] = useState<PaymentMethod[]>([]);
-  const [selectedGateway, setSelectedGateway] = useState('crystalpay');
+  const [selectedGateway, setSelectedGateway] = useState("crystalpay");
   const isCartMode = !productId;
 
   // Convert CartData to legacy Cart format for backward compatibility
@@ -76,7 +90,7 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
         } as Product);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? err.message : "Unknown error");
     }
   }, [getProduct, productId]);
 
@@ -89,10 +103,10 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
           setPromoCode(data.promoCode);
         }
       } else {
-        setError(t('checkout.cartEmpty') || 'Cart is empty');
+        setError(t("checkout.cartEmpty") || "Cart is empty");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? err.message : "Unknown error");
     }
   }, [getCart, t]);
 
@@ -137,21 +151,21 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
           // Cart is automatically updated via CartContext
           setPromoResult({ is_valid: true, discount_percent: updated.promoDiscountPercent || 0 });
         }
-        hapticFeedback('notification', 'success');
+        hapticFeedback("notification", "success");
       } else {
         const result = await checkPromo(promoCode);
         setPromoResult(result);
 
         if (result.is_valid) {
-          hapticFeedback('notification', 'success');
+          hapticFeedback("notification", "success");
         } else {
-          hapticFeedback('notification', 'error');
+          hapticFeedback("notification", "error");
         }
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
       setPromoResult({ is_valid: false, error: errorMessage });
-      hapticFeedback('notification', 'error');
+      hapticFeedback("notification", "error");
       await showAlert(errorMessage);
     }
   }, [applyPromo, checkPromo, hapticFeedback, isCartMode, promoCode, showAlert]);
@@ -159,96 +173,104 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
   const handleRemovePromo = useCallback(async () => {
     if (!isCartMode) {
       setPromoResult(null);
-      setPromoCode('');
+      setPromoCode("");
       return;
     }
     try {
       await removePromo();
       // Cart is automatically updated via CartContext
       setPromoResult(null);
-      setPromoCode('');
-      hapticFeedback('notification', 'success');
+      setPromoCode("");
+      hapticFeedback("notification", "success");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
       await showAlert(errorMessage);
     }
   }, [hapticFeedback, isCartMode, removePromo, showAlert]);
 
-  const handleCartQuantity = useCallback(async (pid: string, newQuantity: number) => {
-    try {
-      hapticFeedback('selection');
-      await updateCartItem(pid, newQuantity);
-      // Cart is automatically updated via CartContext
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      await showAlert(errorMessage);
-    }
-  }, [hapticFeedback, showAlert, updateCartItem]);
-
-  const handleCartRemove = useCallback(async (pid: string) => {
-    try {
-      hapticFeedback('selection');
-      await removeCartItem(pid);
-      // Cart is automatically updated via CartContext
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      await showAlert(errorMessage);
-    }
-  }, [hapticFeedback, removeCartItem, showAlert]);
-
-  const handleCheckout = useCallback(async (selectedPaymentMethod = 'card'): Promise<void> => {
-    try {
-      hapticFeedback('impact', 'medium');
-
-      if (!isCartMode && productId) {
-        await addToCart(productId, quantity);
+  const handleCartQuantity = useCallback(
+    async (pid: string, newQuantity: number) => {
+      try {
+        hapticFeedback("selection");
+        await updateCartItem(pid, newQuantity);
+        // Cart is automatically updated via CartContext
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Unknown error";
+        await showAlert(errorMessage);
       }
+    },
+    [hapticFeedback, showAlert, updateCartItem]
+  );
 
-      if (promoResult?.is_valid && promoCode) {
-        await applyPromo(promoCode);
+  const handleCartRemove = useCallback(
+    async (pid: string) => {
+      try {
+        hapticFeedback("selection");
+        await removeCartItem(pid);
+        // Cart is automatically updated via CartContext
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Unknown error";
+        await showAlert(errorMessage);
       }
+    },
+    [hapticFeedback, removeCartItem, showAlert]
+  );
 
-      const result = await createOrderFromCart(
-        promoResult?.is_valid ? promoCode : null,
-        selectedPaymentMethod || 'card',
-        selectedGateway
-      );
+  const handleCheckout = useCallback(
+    async (selectedPaymentMethod = "card"): Promise<void> => {
+      try {
+        hapticFeedback("impact", "medium");
 
-      hapticFeedback('notification', 'success');
+        if (!isCartMode && productId) {
+          await addToCart(productId, quantity);
+        }
 
-      if (result.payment_url) {
-        // Replace current window with payment URL
-        // After payment, CrystalPay will redirect to /payment/result for polling
-        window.location.href = result.payment_url;
-        return;
-      } else {
-        await showAlert(t('checkout.orderCreated'));
-        onSuccess();
+        if (promoResult?.is_valid && promoCode) {
+          await applyPromo(promoCode);
+        }
+
+        const result = await createOrderFromCart(
+          promoResult?.is_valid ? promoCode : null,
+          selectedPaymentMethod || "card",
+          selectedGateway
+        );
+
+        hapticFeedback("notification", "success");
+
+        if (result.payment_url) {
+          // Replace current window with payment URL
+          // After payment, CrystalPay will redirect to /payment/result for polling
+          window.location.href = result.payment_url;
+          return;
+        } else {
+          await showAlert(t("checkout.orderCreated"));
+          onSuccess();
+        }
+      } catch (err) {
+        hapticFeedback("notification", "error");
+        const errorMessage = err instanceof Error ? err.message : "Unknown error";
+        await showAlert(errorMessage);
+        throw err;
       }
-
-    } catch (err) {
-      hapticFeedback('notification', 'error');
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      await showAlert(errorMessage);
-      throw err;
-    }
-  }, [
-    addToCart,
-    applyPromo,
-    createOrderFromCart,
-    hapticFeedback,
-    isCartMode,
-    onSuccess,
-    openLink,
-    close,
-    productId,
-    promoCode,
-    promoResult,
-    quantity,
-    showAlert,
-    selectedGateway,
-    t
-  ]);
+    },
+    [
+      addToCart,
+      applyPromo,
+      createOrderFromCart,
+      hapticFeedback,
+      isCartMode,
+      onSuccess,
+      openLink,
+      close,
+      productId,
+      promoCode,
+      promoResult,
+      quantity,
+      showAlert,
+      selectedGateway,
+      t,
+    ]
+  );
 
   useEffect(() => {
     if (productId) {
@@ -256,27 +278,29 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
     } else {
       loadCart();
     }
-    
+
     getPaymentMethods(selectedGateway)
       .then((data) => {
         if (data && Array.isArray(data.systems)) {
           setAvailableMethods(data.systems);
         } else {
           setAvailableMethods([
-            { system_group: 'card', name: 'Банковская карта', icon: '💳' },
-            { system_group: 'sbp', name: 'СБП', icon: '🏦' },
-            { system_group: 'crypto', name: 'Криптовалюта', icon: '₿' },
+            { system_group: "card", name: "Банковская карта", icon: "💳" },
+            { system_group: "sbp", name: "СБП", icon: "🏦" },
+            { system_group: "crypto", name: "Криптовалюта", icon: "₿" },
           ]);
         }
       })
-      .catch(() => setAvailableMethods([
-        { system_group: 'card', name: 'Банковская карта', icon: '💳' },
-        { system_group: 'sbp', name: 'СБП', icon: '🏦' },
-      ]));
+      .catch(() =>
+        setAvailableMethods([
+          { system_group: "card", name: "Банковская карта", icon: "💳" },
+          { system_group: "sbp", name: "СБП", icon: "🏦" },
+        ])
+      );
 
     setBackButton({
       isVisible: true,
-      onClick: onBack
+      onClick: onBack,
     });
 
     return () => {
@@ -285,7 +309,7 @@ export function useCheckoutFlow({ productId, initialQuantity = 1, onBack, onSucc
   }, [productId, loadProduct, loadCart, onBack, setBackButton, getPaymentMethods, selectedGateway]);
 
   const total = calculateTotal();
-  const currency = product?.currency || cartData?.currency || 'USD';
+  const currency = product?.currency || cartData?.currency || "USD";
 
   const priceMeta = useMemo(() => {
     let subtotal = 0;

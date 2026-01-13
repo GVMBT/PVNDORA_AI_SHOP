@@ -11,6 +11,7 @@ This worker:
 import asyncio
 import os
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -102,10 +103,13 @@ async def deliver_discount_order(request: Request):
     if not order_result.data:
         return JSONResponse({"error": "Order not found"}, status_code=404)
 
-    if order_result.data["status"] != "paid":
-        return JSONResponse(
-            {"error": f"Order status is {order_result.data['status']}, not paid", "skipped": True}
-        )
+    order_data_raw = order_result.data
+    if not isinstance(order_data_raw, dict):
+        return JSONResponse({"error": "Invalid order data"}, status_code=500)
+    order_data = cast(dict[str, Any], order_data_raw)
+    order_status = order_data.get("status")
+    if order_status != "paid":
+        return JSONResponse({"error": f"Order status is {order_status}, not paid", "skipped": True})
 
     # 2. Get stock item data
     stock_result = (
@@ -119,7 +123,10 @@ async def deliver_discount_order(request: Request):
     if not stock_result.data:
         return JSONResponse({"error": "Stock item not found"}, status_code=404)
 
-    stock_item = stock_result.data
+    stock_item_raw = stock_result.data
+    if not isinstance(stock_item_raw, dict):
+        return JSONResponse({"error": "Invalid stock data"}, status_code=500)
+    stock_item = cast(dict[str, Any], stock_item_raw)
     product_name = (
         stock_item.get("products", {}).get("name", "Product")
         if isinstance(stock_item.get("products"), dict)
@@ -148,8 +155,14 @@ async def deliver_discount_order(request: Request):
         .single()
         .execute()
     )
-    lang = user_result.data.get("language_code", "en") if user_result.data else "en"
-    user_id = user_result.data.get("id") if user_result.data else None
+    user_data_raw = user_result.data
+    if isinstance(user_data_raw, dict):
+        user_data = cast(dict[str, Any], user_data_raw)
+        lang = user_data.get("language_code", "en")
+        user_id = user_data.get("id")
+    else:
+        lang = "en"
+        user_id = None
 
     # 5. Send delivery message (structured format)
     if lang == "ru":
@@ -190,7 +203,7 @@ async def deliver_discount_order(request: Request):
     # 6. Get user purchase count for personalization
     user_orders_result = (
         await db.client.table("orders")
-        .select("id", count="exact")
+        .select("id", count="exact")  # type: ignore[arg-type]
         .eq("user_telegram_id", telegram_id)
         .eq("source_channel", "discount")
         .eq("status", "delivered")
@@ -334,7 +347,8 @@ async def _send_loyal_promo_if_eligible(
             else (
                 f"🎉 <b>Thank you for your loyalty!</b>\n\n"
                 f"You've made {purchase_count} purchases — awesome!\n\n"
-                f"As a thank you, we're giving you <b>-50% off your first purchase</b> in PVNDORA:\n\n"
+                f"As a thank you, we're giving you "
+                f"<b>-50% off your first purchase</b> in PVNDORA:\n\n"
                 f"🎁 <b>Promo code: {promo_code}</b>\n\n"
                 f"In PVNDORA you get:\n"
                 f"• 🚀 Instant delivery\n"

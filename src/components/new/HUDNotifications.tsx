@@ -1,33 +1,33 @@
 /**
  * PVNDORA HUD Notifications
- * 
+ *
  * Cyberpunk-style system logs that appear as side panel notifications.
  * Replaces boring alert() with immersive "system logs" experience.
  */
 
-import React, { createContext, useContext, useCallback, useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { generateId } from '../../utils/id';
-import { 
-  Terminal, 
-  CheckCircle, 
-  AlertTriangle, 
-  XCircle, 
+import React, { createContext, useContext, useCallback, useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { generateId } from "../../utils/id";
+import {
+  Terminal,
+  CheckCircle,
+  AlertTriangle,
+  XCircle,
   Info,
   Cpu,
   Zap,
   Shield,
   Database,
-  Wifi
-} from 'lucide-react';
-import { AudioEngine } from '../../lib/AudioEngine';
+  Wifi,
+} from "lucide-react";
+import { AudioEngine } from "../../lib/AudioEngine";
 
 // ============================================
 // TYPES
 // ============================================
 
-type NotificationType = 'success' | 'error' | 'warning' | 'info' | 'system';
-type NotificationPosition = 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+type NotificationType = "success" | "error" | "warning" | "info" | "system";
+type NotificationPosition = "top-right" | "top-left" | "bottom-right" | "bottom-left";
 
 interface HUDNotification {
   id: string;
@@ -42,11 +42,11 @@ interface HUDNotification {
 
 interface HUDContextType {
   notifications: HUDNotification[];
-  addNotification: (notification: Omit<HUDNotification, 'id' | 'timestamp'>) => string;
+  addNotification: (notification: Omit<HUDNotification, "id" | "timestamp">) => string;
   removeNotification: (id: string) => void;
   clearAll: () => void;
   updateProgress: (id: string, progress: number) => void;
-  
+
   // Convenience methods
   success: (title: string, message?: string) => void;
   error: (title: string, message?: string) => void;
@@ -64,7 +64,7 @@ const HUDContext = createContext<HUDContextType | null>(null);
 export const useHUD = (): HUDContextType => {
   const context = useContext(HUDContext);
   if (!context) {
-    throw new Error('useHUD must be used within HUDProvider');
+    throw new Error("useHUD must be used within HUDProvider");
   }
   return context;
 };
@@ -79,10 +79,10 @@ interface NotificationItemProps {
   position: NotificationPosition;
 }
 
-const NotificationItem: React.FC<NotificationItemProps> = ({ 
-  notification, 
+const NotificationItem: React.FC<NotificationItemProps> = ({
+  notification,
   onRemove,
-  position 
+  position,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -106,76 +106,76 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
     }
   }, [isHovered]);
 
-  const isRight = position.includes('right');
-  
+  const isRight = position.includes("right");
+
   const typeConfig = {
     success: {
-      borderColor: 'border-l-pandora-cyan',
-      bgColor: 'bg-pandora-cyan/5',
-      textColor: 'text-pandora-cyan',
+      borderColor: "border-l-pandora-cyan",
+      bgColor: "bg-pandora-cyan/5",
+      textColor: "text-pandora-cyan",
       icon: notification.icon || <CheckCircle size={14} />,
-      prefix: '[OK]',
+      prefix: "[OK]",
     },
     error: {
-      borderColor: 'border-l-red-500',
-      bgColor: 'bg-red-500/5',
-      textColor: 'text-red-500',
+      borderColor: "border-l-red-500",
+      bgColor: "bg-red-500/5",
+      textColor: "text-red-500",
       icon: notification.icon || <XCircle size={14} />,
-      prefix: '[ERR]',
+      prefix: "[ERR]",
     },
     warning: {
-      borderColor: 'border-l-yellow-500',
-      bgColor: 'bg-yellow-500/5',
-      textColor: 'text-yellow-500',
+      borderColor: "border-l-yellow-500",
+      bgColor: "bg-yellow-500/5",
+      textColor: "text-yellow-500",
       icon: notification.icon || <AlertTriangle size={14} />,
-      prefix: '[WARN]',
+      prefix: "[WARN]",
     },
     info: {
-      borderColor: 'border-l-blue-400',
-      bgColor: 'bg-blue-400/5',
-      textColor: 'text-blue-400',
+      borderColor: "border-l-blue-400",
+      bgColor: "bg-blue-400/5",
+      textColor: "text-blue-400",
       icon: notification.icon || <Info size={14} />,
-      prefix: '[INFO]',
+      prefix: "[INFO]",
     },
     system: {
-      borderColor: 'border-l-white',
-      bgColor: 'bg-white/5',
-      textColor: 'text-white',
+      borderColor: "border-l-white",
+      bgColor: "bg-white/5",
+      textColor: "text-white",
       icon: notification.icon || <Terminal size={14} />,
-      prefix: '[SYS]',
+      prefix: "[SYS]",
     },
   };
 
   const config = typeConfig[notification.type];
-  const timestamp = notification.timestamp.toLocaleTimeString('en-US', { 
+  const timestamp = notification.timestamp.toLocaleTimeString("en-US", {
     hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
   });
 
   return (
     <motion.div
       layout
-      initial={{ 
-        opacity: 0, 
+      initial={{
+        opacity: 0,
         x: isRight ? 100 : -100,
-        scale: 0.9 
+        scale: 0.9,
       }}
-      animate={{ 
-        opacity: 1, 
+      animate={{
+        opacity: 1,
         x: 0,
-        scale: 1 
+        scale: 1,
       }}
-      exit={{ 
-        opacity: 0, 
+      exit={{
+        opacity: 0,
         x: isRight ? 100 : -100,
-        scale: 0.9
+        scale: 0.9,
       }}
-      transition={{ 
-        type: 'spring', 
-        stiffness: 500, 
-        damping: 30 
+      transition={{
+        type: "spring",
+        stiffness: 500,
+        damping: 30,
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -190,24 +190,19 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
       `}
     >
       {/* Scanline effect */}
-      <div 
+      <div
         className="absolute inset-0 pointer-events-none opacity-[0.02]"
         style={{
-          backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.1) 2px, rgba(255,255,255,0.1) 4px)',
+          backgroundImage:
+            "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.1) 2px, rgba(255,255,255,0.1) 4px)",
         }}
       />
 
       {/* Header row */}
       <div className="flex items-center gap-2 mb-1">
-        <span className={`${config.textColor}`}>
-          {config.icon}
-        </span>
-        <span className="font-mono text-[10px] text-gray-500">
-          {config.prefix}
-        </span>
-        <span className="font-mono text-[10px] text-gray-600 ml-auto">
-          {timestamp}
-        </span>
+        <span className={`${config.textColor}`}>{config.icon}</span>
+        <span className="font-mono text-[10px] text-gray-500">{config.prefix}</span>
+        <span className="font-mono text-[10px] text-gray-600 ml-auto">{timestamp}</span>
       </div>
 
       {/* Title */}
@@ -227,7 +222,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
         <div className="mt-2">
           <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
             <motion.div
-              className={`h-full ${notification.type === 'success' ? 'bg-pandora-cyan' : 'bg-white/50'}`}
+              className={`h-full ${notification.type === "success" ? "bg-pandora-cyan" : "bg-white/50"}`}
               initial={{ width: 0 }}
               animate={{ width: `${notification.progress}%` }}
               transition={{ duration: 0.3 }}
@@ -243,9 +238,9 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
       {notification.duration && notification.duration > 0 && !isHovered && (
         <motion.div
           className="absolute bottom-0 left-0 h-[2px] bg-white/20"
-          initial={{ width: '100%' }}
-          animate={{ width: '0%' }}
-          transition={{ duration: notification.duration / 1000, ease: 'linear' }}
+          initial={{ width: "100%" }}
+          animate={{ width: "0%" }}
+          transition={{ duration: notification.duration / 1000, ease: "linear" }}
         />
       )}
 
@@ -270,53 +265,54 @@ interface HUDProviderProps {
 
 export const HUDProvider: React.FC<HUDProviderProps> = ({
   children,
-  position = 'top-right',
+  position = "top-right",
   maxNotifications = 5,
   defaultDuration = 4000,
 }) => {
   const [notifications, setNotifications] = useState<HUDNotification[]>([]);
 
-  const addNotification = useCallback((
-    notification: Omit<HUDNotification, 'id' | 'timestamp'>
-  ): string => {
-    const id = generateId('hud');
-    const newNotification: HUDNotification = {
-      ...notification,
-      id,
-      timestamp: new Date(),
-      duration: notification.duration ?? defaultDuration,
-    };
+  const addNotification = useCallback(
+    (notification: Omit<HUDNotification, "id" | "timestamp">): string => {
+      const id = generateId("hud");
+      const newNotification: HUDNotification = {
+        ...notification,
+        id,
+        timestamp: new Date(),
+        duration: notification.duration ?? defaultDuration,
+      };
 
-    // Play sound
-    AudioEngine.resume();
-    switch (notification.type) {
-      case 'success':
-        AudioEngine.success();
-        break;
-      case 'error':
-        AudioEngine.error();
-        break;
-      case 'warning':
-        AudioEngine.warning();
-        break;
-      case 'system':
-        AudioEngine.notification();
-        break;
-      default:
-        AudioEngine.notification();
-    }
+      // Play sound
+      AudioEngine.resume();
+      switch (notification.type) {
+        case "success":
+          AudioEngine.success();
+          break;
+        case "error":
+          AudioEngine.error();
+          break;
+        case "warning":
+          AudioEngine.warning();
+          break;
+        case "system":
+          AudioEngine.notification();
+          break;
+        default:
+          AudioEngine.notification();
+      }
 
-    setNotifications(prev => {
-      const updated = [newNotification, ...prev];
-      // Limit max notifications
-      return updated.slice(0, maxNotifications);
-    });
+      setNotifications((prev) => {
+        const updated = [newNotification, ...prev];
+        // Limit max notifications
+        return updated.slice(0, maxNotifications);
+      });
 
-    return id;
-  }, [defaultDuration, maxNotifications]);
+      return id;
+    },
+    [defaultDuration, maxNotifications]
+  );
 
   const removeNotification = useCallback((id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
   }, []);
 
   const clearAll = useCallback(() => {
@@ -324,38 +320,51 @@ export const HUDProvider: React.FC<HUDProviderProps> = ({
   }, []);
 
   const updateProgress = useCallback((id: string, progress: number) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === id ? { ...n, progress } : n)
-    );
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, progress } : n)));
   }, []);
 
   // Convenience methods
-  const success = useCallback((title: string, message?: string) => {
-    addNotification({ type: 'success', title, message });
-  }, [addNotification]);
+  const success = useCallback(
+    (title: string, message?: string) => {
+      addNotification({ type: "success", title, message });
+    },
+    [addNotification]
+  );
 
-  const error = useCallback((title: string, message?: string) => {
-    addNotification({ type: 'error', title, message });
-  }, [addNotification]);
+  const error = useCallback(
+    (title: string, message?: string) => {
+      addNotification({ type: "error", title, message });
+    },
+    [addNotification]
+  );
 
-  const warning = useCallback((title: string, message?: string) => {
-    addNotification({ type: 'warning', title, message });
-  }, [addNotification]);
+  const warning = useCallback(
+    (title: string, message?: string) => {
+      addNotification({ type: "warning", title, message });
+    },
+    [addNotification]
+  );
 
-  const info = useCallback((title: string, message?: string) => {
-    addNotification({ type: 'info', title, message });
-  }, [addNotification]);
+  const info = useCallback(
+    (title: string, message?: string) => {
+      addNotification({ type: "info", title, message });
+    },
+    [addNotification]
+  );
 
-  const system = useCallback((title: string, message?: string) => {
-    addNotification({ type: 'system', title, message });
-  }, [addNotification]);
+  const system = useCallback(
+    (title: string, message?: string) => {
+      addNotification({ type: "system", title, message });
+    },
+    [addNotification]
+  );
 
   // Position classes
   const positionClasses = {
-    'top-right': 'top-4 right-4',
-    'top-left': 'top-4 left-4',
-    'bottom-right': 'bottom-4 right-4',
-    'bottom-left': 'bottom-4 left-4',
+    "top-right": "top-4 right-4",
+    "top-left": "top-4 left-4",
+    "bottom-right": "bottom-4 right-4",
+    "bottom-left": "bottom-4 left-4",
   };
 
   const contextValue: HUDContextType = {
@@ -374,9 +383,9 @@ export const HUDProvider: React.FC<HUDProviderProps> = ({
   return (
     <HUDContext.Provider value={contextValue}>
       {children}
-      
+
       {/* Notifications Container */}
-      <div 
+      <div
         className={`
           fixed ${positionClasses[position]} z-[9998]
           flex flex-col gap-2
@@ -384,7 +393,7 @@ export const HUDProvider: React.FC<HUDProviderProps> = ({
         `}
       >
         <AnimatePresence mode="popLayout">
-          {notifications.map(notification => (
+          {notifications.map((notification) => (
             <div key={notification.id} className="pointer-events-auto">
               <NotificationItem
                 notification={notification}

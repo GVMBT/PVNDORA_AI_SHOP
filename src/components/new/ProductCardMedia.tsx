@@ -1,12 +1,12 @@
 /**
  * ProductCardMedia - Optimized media component for product cards
- * 
+ *
  * Supports:
  * - Static images (fallback)
  * - Video backgrounds (WebM/MP4 with low bitrate)
  * - Canvas particle effects (lightweight, no three.js)
  * - Parallax integration with framer-motion
- * 
+ *
  * Performance optimizations:
  * - Lazy loading for videos
  * - Intersection Observer for canvas rendering
@@ -14,8 +14,8 @@
  * - Automatic quality reduction on mobile
  */
 
-import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { useMotionValue, useTransform, MotionValue } from 'framer-motion';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import { useMotionValue, useTransform, MotionValue } from "framer-motion";
 
 interface ProductCardMediaProps {
   image: string;
@@ -39,8 +39,8 @@ class ParticleSystem {
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
-    if (!ctx) throw new Error('Canvas context not available');
+    const ctx = canvas.getContext("2d", { alpha: true, desynchronized: true });
+    if (!ctx) throw new Error("Canvas context not available");
     this.ctx = ctx;
     this.resize();
   }
@@ -60,7 +60,7 @@ class ParticleSystem {
   init(particleCount: number = 30) {
     const width = this.canvas.offsetWidth;
     const height = this.canvas.offsetHeight;
-    
+
     this.particles = Array.from({ length: particleCount }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
@@ -75,36 +75,36 @@ class ParticleSystem {
   private draw() {
     const width = this.canvas.offsetWidth;
     const height = this.canvas.offsetHeight;
-    
+
     // Clear with fade effect
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    this.ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
     this.ctx.fillRect(0, 0, width, height);
-    
+
     // Update and draw particles
-    this.particles.forEach(particle => {
+    this.particles.forEach((particle) => {
       // Apply parallax
       particle.x += particle.vx + this.parallaxX * 0.01;
       particle.y += particle.vy + this.parallaxY * 0.01;
-      
+
       // Wrap around edges
       if (particle.x < 0) particle.x = width;
       if (particle.x > width) particle.x = 0;
       if (particle.y < 0) particle.y = height;
       if (particle.y > height) particle.y = 0;
-      
+
       // Draw particle
       this.ctx.beginPath();
       this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
       this.ctx.fillStyle = particle.color;
       this.ctx.globalAlpha = particle.opacity;
       this.ctx.fill();
-      
+
       // Draw connections to nearby particles
-      this.particles.forEach(other => {
+      this.particles.forEach((other) => {
         const dx = particle.x - other.x;
         const dy = particle.y - other.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        
+
         if (distance < 80) {
           this.ctx.beginPath();
           this.ctx.moveTo(particle.x, particle.y);
@@ -116,20 +116,20 @@ class ParticleSystem {
         }
       });
     });
-    
+
     this.ctx.globalAlpha = 1;
   }
 
   start() {
     if (this.isActive) return;
     this.isActive = true;
-    
+
     const animate = () => {
       if (!this.isActive) return;
       this.draw();
       this.animationFrame = requestAnimationFrame(animate);
     };
-    
+
     animate();
   }
 
@@ -163,8 +163,8 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
   useParticles = false,
   parallaxX,
   parallaxY,
-  className = '',
-  alt = 'Product',
+  className = "",
+  alt = "Product",
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -194,7 +194,7 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
           setIsInView(entry.isIntersecting);
         });
       },
-      { threshold: 0.1, rootMargin: '50px' }
+      { threshold: 0.1, rootMargin: "50px" }
     );
 
     observer.observe(containerRef.current);
@@ -217,8 +217,8 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
       particleSystemRef.current = system;
 
       // Subscribe to parallax changes
-      const unsubscribeX = canvasX.on('change', (v) => {
-        const unsubscribeY = canvasY.on('change', (y) => {
+      const unsubscribeX = canvasX.on("change", (v) => {
+        const unsubscribeY = canvasY.on("change", (y) => {
           system.setParallax(v, y);
         });
         return unsubscribeY;
@@ -231,7 +231,7 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
         particleSystemRef.current = null;
       };
     } catch (err) {
-      console.warn('Particle system initialization failed:', err);
+      console.warn("Particle system initialization failed:", err);
     }
   }, [useParticles, isInView, canvasX, canvasY]);
 
@@ -240,7 +240,7 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
     if (!video || !videoRef.current || !isInView || videoError) return;
 
     const videoEl = videoRef.current;
-    
+
     // Try to load video
     const handleCanPlay = () => {
       setUseVideo(true);
@@ -255,15 +255,15 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
       setUseVideo(false);
     };
 
-    videoEl.addEventListener('canplay', handleCanPlay);
-    videoEl.addEventListener('error', handleError);
+    videoEl.addEventListener("canplay", handleCanPlay);
+    videoEl.addEventListener("error", handleError);
 
     // Load video
     videoEl.load();
 
     return () => {
-      videoEl.removeEventListener('canplay', handleCanPlay);
-      videoEl.removeEventListener('error', handleError);
+      videoEl.removeEventListener("canplay", handleCanPlay);
+      videoEl.removeEventListener("error", handleError);
     };
   }, [video, isInView, videoError]);
 
@@ -272,16 +272,15 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
   const shouldShowParticles = useParticles && isInView;
 
   return (
-    <div
-      ref={containerRef}
-      className={`relative w-full h-full overflow-hidden ${className}`}
-    >
+    <div ref={containerRef} className={`relative w-full h-full overflow-hidden ${className}`}>
       {/* Base Image (always present as fallback) */}
       <img
         src={image}
         alt={alt}
         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
-          shouldShowVideo ? 'opacity-0' : 'opacity-60 grayscale group-hover:opacity-100 group-hover:grayscale-0'
+          shouldShowVideo
+            ? "opacity-0"
+            : "opacity-60 grayscale group-hover:opacity-100 group-hover:grayscale-0"
         }`}
         loading="lazy"
         decoding="async"
@@ -292,16 +291,18 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
         <video
           ref={videoRef}
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
-            shouldShowVideo ? 'opacity-60 grayscale group-hover:opacity-100 group-hover:grayscale-0' : 'opacity-0'
+            shouldShowVideo
+              ? "opacity-60 grayscale group-hover:opacity-100 group-hover:grayscale-0"
+              : "opacity-0"
           }`}
           muted
           loop
           playsInline
           preload="metadata"
-          style={{ transform: 'scale(1.05)' }} // Slight zoom to prevent edges
+          style={{ transform: "scale(1.05)" }} // Slight zoom to prevent edges
         >
           <source src={video} type="video/webm" />
-          <source src={video.replace('.webm', '.mp4')} type="video/mp4" />
+          <source src={video.replace(".webm", ".mp4")} type="video/mp4" />
         </video>
       )}
 
@@ -310,7 +311,7 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
         <canvas
           ref={canvasRef}
           className="absolute inset-0 w-full h-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-          style={{ mixBlendMode: 'screen' }}
+          style={{ mixBlendMode: "screen" }}
         />
       )}
     </div>

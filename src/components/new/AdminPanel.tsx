@@ -1,11 +1,11 @@
 /**
  * AdminPanel Component
- * 
+ *
  * Main admin panel container that orchestrates all admin views.
  */
 
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   AdminDashboard,
   AdminCatalog,
@@ -31,8 +31,9 @@ import {
   type AdminStats,
   type PromoCodeData,
   type AccountingData,
-} from '../admin';
-import { logger } from '../../utils/logger';
+  type ExpenseData,
+} from "../admin";
+import { logger } from "../../utils/logger";
 
 interface AdminPanelProps {
   onExit: () => void;
@@ -45,16 +46,21 @@ interface AdminPanelProps {
   stats?: AdminStats;
   promoCodes?: PromoCodeData[];
   accountingData?: AccountingData;
-  onCreatePromo?: (data: Omit<PromoCodeData, 'id' | 'usage_count' | 'created_at'>) => Promise<void>;
+  onCreatePromo?: (data: Omit<PromoCodeData, "id" | "usage_count" | "created_at">) => Promise<void>;
   onUpdatePromo?: (id: string, data: Partial<PromoCodeData>) => Promise<void>;
   onDeletePromo?: (id: string) => Promise<void>;
   onTogglePromoActive?: (id: string, isActive: boolean) => Promise<void>;
   onRefreshTickets?: () => void;
   onRefreshWithdrawals?: () => void;
-  onRefreshAccounting?: (period?: 'today' | 'month' | 'all' | 'custom', customFrom?: string, customTo?: string, displayCurrency?: 'USD' | 'RUB') => void;
+  onRefreshAccounting?: (
+    period?: "today" | "month" | "all" | "custom",
+    customFrom?: string,
+    customTo?: string,
+    displayCurrency?: "USD" | "RUB"
+  ) => void;
   onRefreshOrders?: () => void;
   isAccountingLoading?: boolean;
-  onAddExpense?: () => void;
+  onAddExpense?: (expense: ExpenseData) => Promise<void>;
   // User actions
   onBanUser?: (userId: number, ban: boolean) => void;
   onUpdateBalance?: (userId: number, amount: number) => void;
@@ -64,7 +70,7 @@ interface AdminPanelProps {
   onDeleteProduct?: (productId: string) => void;
 }
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ 
+const AdminPanel: React.FC<AdminPanelProps> = ({
   onExit,
   products: propsProducts = [],
   orders: propsOrders = [],
@@ -90,10 +96,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onDeleteProduct,
   onAddExpense,
 }) => {
-  const [currentView, setCurrentView] = useState<AdminView>('dashboard');
+  const [currentView, setCurrentView] = useState<AdminView>("dashboard");
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
-  
+
   // Modal states
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Partial<ProductData> | null>(null);
@@ -107,12 +113,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleNewProduct = () => {
-    setEditingProduct({ 
-      name: '', 
-      price: 0, 
-      stock: 0, 
-      category: 'Text', 
-      image: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=800&auto=format&fit=crop',
+    setEditingProduct({
+      name: "",
+      price: 0,
+      stock: 0,
+      category: "Text",
+      image:
+        "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=800&auto=format&fit=crop",
     });
     setIsProductModalOpen(true);
   };
@@ -128,19 +135,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleSavePartner = async (partner: UserData) => {
     // TODO: Implement partner update API call
     // For now, just close modal and refresh
-    logger.info('Partner update requested', partner);
+    logger.info("Partner update requested", partner);
     setSelectedPartner(null);
     if (onRefreshOrders) onRefreshOrders();
   };
 
-  const handleSaveExpense = async (expense: {
-    description: string;
-    amount: number;
-    currency: 'USD' | 'RUB';
-    category: string;
-    date?: string;
-    supplier_id?: string;
-  }) => {
+  const handleSaveExpense = async (expense: ExpenseData) => {
     if (onAddExpense) {
       await onAddExpense(expense);
     }
@@ -149,9 +149,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const renderCurrentView = () => {
     switch (currentView) {
-      case 'dashboard':
+      case "dashboard":
         return <AdminDashboard stats={propsStats} />;
-      case 'catalog':
+      case "catalog":
         return (
           <AdminCatalog
             products={propsProducts}
@@ -160,9 +160,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             onDeleteProduct={onDeleteProduct}
           />
         );
-      case 'sales':
+      case "sales":
         return <AdminSales orders={propsOrders} onRefresh={onRefreshOrders} />;
-      case 'users':
+      case "users":
         return (
           <AdminUsers
             users={propsUsers}
@@ -171,10 +171,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             onRefresh={onRefreshOrders}
           />
         );
-      case 'partners':
+      case "partners":
         return (
           <AdminPartners
-            partners={propsUsers.filter(u => u.role === 'VIP')}
+            partners={propsUsers.filter((u) => u.role === "VIP")}
             onEditPartner={(partner) => {
               // Open partner management modal
               setSelectedPartner(partner);
@@ -188,26 +188,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             onRefresh={onRefreshOrders}
           />
         );
-      case 'support':
+      case "support":
         return <AdminSupport tickets={propsTickets} onRefresh={onRefreshTickets} />;
-      case 'withdrawals':
+      case "withdrawals":
         return <AdminWithdrawals withdrawals={propsWithdrawals} onRefresh={onRefreshWithdrawals} />;
-      case 'promo':
+      case "promo":
         return (
           <AdminPromo
             promoCodes={propsPromoCodes}
-            products={propsProducts.map(p => ({ id: p.id, name: p.name }))}  // Pass products for selection
+            products={propsProducts.map((p) => ({ id: String(p.id), name: p.name }))} // Pass products for selection
             onCreatePromo={onCreatePromo}
             onUpdatePromo={onUpdatePromo}
             onDeletePromo={onDeletePromo}
             onToggleActive={onTogglePromoActive}
           />
         );
-      case 'migration':
+      case "migration":
         return <AdminMigration />;
-      case 'accounting':
+      case "accounting":
         return (
-          <AdminAccounting 
+          <AdminAccounting
             data={accountingData}
             onRefresh={onRefreshAccounting}
             isLoading={isAccountingLoading}
@@ -220,7 +220,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -238,9 +238,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {/* Overlay for mobile sidebar */}
       {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/80 z-30 md:hidden" 
-          onClick={() => setSidebarOpen(false)} 
+        <div
+          className="fixed inset-0 bg-black/80 z-30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
         />
       )}
 
@@ -251,7 +251,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         {/* View Content */}
         <div className="p-4 md:p-8 pb-24 md:pb-8">
           <AnimatePresence mode="wait">
-            <motion.div 
+            <motion.div
               key={currentView}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -289,7 +289,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           onSave={handleSaveExpense}
         />
       )}
-
     </motion.div>
   );
 };

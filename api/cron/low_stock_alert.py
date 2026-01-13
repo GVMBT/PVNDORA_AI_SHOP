@@ -15,6 +15,7 @@ Uses Redis to track alerted products. Alert cooldown:
 
 import os
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import httpx
 from fastapi import FastAPI, Request
@@ -53,7 +54,8 @@ async def redis_get(key: str) -> str | None:
             )
             if resp.status_code == 200:
                 data = resp.json()
-                return data.get("result")
+                result = data.get("result") if isinstance(data, dict) else None
+                return str(result) if result is not None else None
     except Exception:
         pass
     return None
@@ -180,7 +182,7 @@ async def low_stock_alert_entrypoint(request: Request):
 
     db = await get_database_async()
     now = datetime.now(UTC)
-    results = {
+    results: dict[str, Any] = {
         "timestamp": now.isoformat(),
         "low_stock_count": 0,
         "new_alerts": 0,
@@ -197,7 +199,10 @@ async def low_stock_alert_entrypoint(request: Request):
 
         # Filter products that haven't been alerted recently
         new_alerts = []
-        for product in low_stock_products:
+        for product_raw in low_stock_products:
+            if not isinstance(product_raw, dict):
+                continue
+            product = cast(dict[str, Any], product_raw)
             product_id = product.get("product_id", product.get("id", ""))
             stock_status = product.get("stock_status", "low")
 

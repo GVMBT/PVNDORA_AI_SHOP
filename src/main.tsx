@@ -1,12 +1,12 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import NewApp from './NewApp';
-import { CartProvider } from './contexts/CartContext';
-import { ErrorBoundary } from './components/app';
-import { AudioEngine } from './lib/AudioEngine';
-import { setupChunkErrorHandler } from './utils/lazyWithRetry';
-import './index.css';
-import type { WebApp } from './types/telegram';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import NewApp from "./NewApp";
+import { CartProvider } from "./contexts/CartContext";
+import { ErrorBoundary } from "./components/app";
+import { AudioEngine } from "./lib/AudioEngine";
+import { setupChunkErrorHandler } from "./utils/lazyWithRetry";
+import "./index.css";
+import type { WebApp } from "./types/telegram";
 
 // Setup global error handler for chunk load failures (stale cache after deploy)
 setupChunkErrorHandler();
@@ -16,11 +16,11 @@ const tgWebApp: WebApp | undefined = window.Telegram?.WebApp;
 if (tgWebApp) {
   tgWebApp.ready();
   tgWebApp.expand();
-  
+
   // Set theme
   document.documentElement.style.setProperty(
-    '--tg-theme-bg-color',
-    tgWebApp.themeParams.bg_color || '#0a0a0f'
+    "--tg-theme-bg-color",
+    tgWebApp.themeParams.bg_color || "#0a0a0f"
   );
 }
 
@@ -44,14 +44,14 @@ const unlockAudio = () => {
 };
 
 // Add listeners for all possible interaction events
-window.addEventListener('pointerdown', unlockAudio, { once: true, passive: true });
-window.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
-window.addEventListener('click', unlockAudio, { once: true });
-window.addEventListener('keydown', unlockAudio, { once: true });
+window.addEventListener("pointerdown", unlockAudio, { once: true, passive: true });
+window.addEventListener("touchstart", unlockAudio, { once: true, passive: true });
+window.addEventListener("click", unlockAudio, { once: true });
+window.addEventListener("keydown", unlockAudio, { once: true });
 
-const rootElement = document.getElementById('root');
+const rootElement = document.getElementById("root");
 if (!rootElement) {
-  throw new Error('Root element not found');
+  throw new Error("Root element not found");
 }
 
 ReactDOM.createRoot(rootElement).render(
@@ -61,5 +61,5 @@ ReactDOM.createRoot(rootElement).render(
         <NewApp />
       </CartProvider>
     </ErrorBoundary>
-  </React.StrictMode>,
+  </React.StrictMode>
 );

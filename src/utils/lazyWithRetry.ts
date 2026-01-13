@@ -1,18 +1,18 @@
 /**
  * Lazy loading with automatic retry and cache busting
- * 
+ *
  * Handles the case when a new deploy changes chunk hashes,
  * but browser has cached old index.html with stale chunk URLs.
- * 
+ *
  * On chunk load failure:
  * 1. First failure: Retry once with cache bust
  * 2. Second failure: Force page reload to get new index.html
  */
 
-import { lazy, ComponentType } from 'react';
+import { lazy, ComponentType } from "react";
 
 // Track if we've already tried reloading
-const RELOAD_KEY = 'pvndora_chunk_reload';
+const RELOAD_KEY = "pvndora_chunk_reload";
 
 /**
  * Check if error is a chunk loading error
@@ -21,11 +21,11 @@ function isChunkLoadError(error: unknown): boolean {
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
     return (
-      message.includes('failed to fetch dynamically imported module') ||
-      message.includes('loading chunk') ||
-      message.includes('loading css chunk') ||
-      message.includes('dynamically imported module') ||
-      message.includes('unexpected token') // Sometimes happens with stale JS
+      message.includes("failed to fetch dynamically imported module") ||
+      message.includes("loading chunk") ||
+      message.includes("loading css chunk") ||
+      message.includes("dynamically imported module") ||
+      message.includes("unexpected token") // Sometimes happens with stale JS
     );
   }
   return false;
@@ -36,8 +36,8 @@ function isChunkLoadError(error: unknown): boolean {
  */
 function forceReload(): void {
   // Mark that we're reloading to prevent infinite loops
-  const reloadCount = parseInt(sessionStorage.getItem(RELOAD_KEY) || '0', 10);
-  
+  const reloadCount = parseInt(sessionStorage.getItem(RELOAD_KEY) || "0", 10);
+
   if (reloadCount < 2) {
     sessionStorage.setItem(RELOAD_KEY, String(reloadCount + 1));
     // Force reload bypassing cache
@@ -45,7 +45,9 @@ function forceReload(): void {
   } else {
     // Clear reload counter and let error boundary show error
     sessionStorage.removeItem(RELOAD_KEY);
-    throw new Error('Failed to load application after multiple retries. Please clear browser cache and try again.');
+    throw new Error(
+      "Failed to load application after multiple retries. Please clear browser cache and try again."
+    );
   }
 }
 
@@ -71,13 +73,13 @@ export function lazyWithRetry<T extends ComponentType<unknown>>(
       if (isChunkLoadError(error)) {
         // Chunk load failed - force reload to get new index.html
         forceReload();
-        
+
         // This won't actually execute because forceReload() refreshes the page
         // But we need to return something for TypeScript
         const placeholder: T = ((): null => null) as unknown as T;
         return { default: placeholder };
       }
-      
+
       // Re-throw non-chunk errors
       throw error;
     }
@@ -89,14 +91,14 @@ export function lazyWithRetry<T extends ComponentType<unknown>>(
  * Add this to your main.tsx or index.tsx
  */
 export function setupChunkErrorHandler(): void {
-  window.addEventListener('error', (event) => {
+  window.addEventListener("error", (event) => {
     if (isChunkLoadError(event.error)) {
       event.preventDefault();
       forceReload();
     }
   });
 
-  window.addEventListener('unhandledrejection', (event) => {
+  window.addEventListener("unhandledrejection", (event) => {
     if (isChunkLoadError(event.reason)) {
       event.preventDefault();
       forceReload();

@@ -1,6 +1,6 @@
 /**
  * AppLayout Component
- * 
+ *
  * Provides the main visual layout including:
  * - Background gradient
  * - Grid overlay
@@ -8,8 +8,8 @@
  * - Grain/scanline overlay
  */
 
-import React, { useEffect, memo } from 'react';
-import { motion, useMotionValue, useMotionTemplate } from 'framer-motion';
+import React, { useEffect, memo } from "react";
+import { motion, useMotionValue, useMotionTemplate } from "framer-motion";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -33,23 +33,24 @@ function AppLayoutComponent({ children }: AppLayoutProps) {
       mouseX.set(clientX);
       mouseY.set(clientY);
     };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [mouseX, mouseY]);
 
   return (
     <div className="min-h-screen text-white overflow-x-hidden relative selection:bg-pandora-cyan selection:text-black">
       {/* === UNIFIED FIXED BACKGROUND LAYER === */}
       <div className="fixed inset-0 z-[-2] bg-[radial-gradient(circle_at_50%_0%,_#0e3a3a_0%,_#050505_90%)]" />
-      
+
       {/* === GLOBAL BACKGROUND GRID (Fixed Layer) === */}
-      <div 
-        className="fixed inset-0 pointer-events-none opacity-[0.03] z-[-1]" 
-        style={{ 
-          backgroundImage: 'linear-gradient(#00FFFF 1px, transparent 1px), linear-gradient(90deg, #00FFFF 1px, transparent 1px)', 
-          backgroundSize: '40px 40px',
-          backgroundPosition: 'center top'
-        }} 
+      <div
+        className="fixed inset-0 pointer-events-none opacity-[0.03] z-[-1]"
+        style={{
+          backgroundImage:
+            "linear-gradient(#00FFFF 1px, transparent 1px), linear-gradient(90deg, #00FFFF 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
+          backgroundPosition: "center top",
+        }}
       />
 
       {/* GLOBAL SPOTLIGHT EFFECT */}

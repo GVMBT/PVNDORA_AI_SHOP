@@ -1,13 +1,13 @@
 /**
  * API Client Utility
- * 
+ *
  * Standalone fetch wrapper for use outside React components.
  * For React components, use useApi() hook instead.
  */
 
-import { API } from '../config';
-import { getApiHeaders } from './apiHeaders';
-import { logger } from './logger';
+import { API } from "../config";
+import { getApiHeaders } from "./apiHeaders";
+import { logger } from "./logger";
 
 interface ApiClientOptions extends RequestInit {
   headers?: Record<string, string>;
@@ -15,12 +15,12 @@ interface ApiClientOptions extends RequestInit {
 
 /**
  * Make API request (for use outside React components)
- * 
+ *
  * @param endpoint - API endpoint path (relative to BASE_URL) or full URL
  * @param options - Fetch options (method, body, headers, etc.)
  * @returns Promise resolving to response data
  * @throws Error with user-friendly message on failure
- * 
+ *
  * @example
  * ```ts
  * const data = await apiRequest<User>('/profile');
@@ -33,9 +33,10 @@ export async function apiRequest<T = unknown>(
 ): Promise<T> {
   // If endpoint is full URL or already has /api/ prefix, use as-is
   // Otherwise prepend BASE_URL for relative paths
-  const url = endpoint.startsWith('http') || endpoint.startsWith('/api/') 
-    ? endpoint 
-    : `${API.BASE_URL}${endpoint}`;
+  const url =
+    endpoint.startsWith("http") || endpoint.startsWith("/api/")
+      ? endpoint
+      : `${API.BASE_URL}${endpoint}`;
 
   try {
     const response = await fetch(url, {
@@ -65,15 +66,15 @@ export async function apiRequest<T = unknown>(
 
       // Handle specific status codes
       if (response.status === 429) {
-        errorMessage = errorMessage.replace(/^CrystalPay API error:\s*/i, '');
+        errorMessage = errorMessage.replace(/^CrystalPay API error:\s*/i, "");
         if (!errorMessage || errorMessage === `HTTP ${response.status}`) {
-          errorMessage = 'Слишком много запросов. Подождите минуту и попробуйте снова.';
+          errorMessage = "Слишком много запросов. Подождите минуту и попробуйте снова.";
         }
       } else if (response.status === 502 || response.status === 503) {
-        errorMessage = 'Платёжная система временно недоступна. Попробуйте позже.';
+        errorMessage = "Платёжная система временно недоступна. Попробуйте позже.";
       }
 
-      logger.error('API request failed', { endpoint, status: response.status, errorMessage });
+      logger.error("API request failed", { endpoint, status: response.status, errorMessage });
       throw new Error(errorMessage);
     }
 
@@ -81,26 +82,26 @@ export async function apiRequest<T = unknown>(
     try {
       data = await response.json();
     } catch {
-      logger.warn('API returned non-JSON response', { endpoint });
+      logger.warn("API returned non-JSON response", { endpoint });
       data = {} as T;
     }
 
     return data;
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    logger.error('API request error', { endpoint, error: err });
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    logger.error("API request error", { endpoint, error: err });
     throw err;
   }
 }
 
 /**
  * GET request
- * 
+ *
  * @param endpoint - API endpoint path
  * @returns Promise resolving to response data
  */
 export async function apiGet<T = unknown>(endpoint: string): Promise<T> {
-  return apiRequest<T>(endpoint, { method: 'GET' });
+  return apiRequest<T>(endpoint, { method: "GET" });
 }
 
 /**
@@ -108,64 +109,45 @@ export async function apiGet<T = unknown>(endpoint: string): Promise<T> {
  */
 export async function apiPost<T = unknown>(endpoint: string, body: unknown): Promise<T> {
   return apiRequest<T>(endpoint, {
-    method: 'POST',
+    method: "POST",
     body: JSON.stringify(body),
   });
 }
 
 /**
  * PUT request
- * 
+ *
  * @param endpoint - API endpoint path
  * @param body - Request body (will be JSON stringified)
  * @returns Promise resolving to response data
  */
 export async function apiPut<T = unknown>(endpoint: string, body: unknown): Promise<T> {
   return apiRequest<T>(endpoint, {
-    method: 'PUT',
+    method: "PUT",
     body: JSON.stringify(body),
   });
 }
 
 /**
  * PATCH request
- * 
+ *
  * @param endpoint - API endpoint path
  * @param body - Request body (will be JSON stringified)
  * @returns Promise resolving to response data
  */
 export async function apiPatch<T = unknown>(endpoint: string, body: unknown): Promise<T> {
   return apiRequest<T>(endpoint, {
-    method: 'PATCH',
+    method: "PATCH",
     body: JSON.stringify(body),
   });
 }
 
 /**
  * DELETE request
- * 
+ *
  * @param endpoint - API endpoint path
  * @returns Promise resolving to response data
  */
 export async function apiDelete<T = unknown>(endpoint: string): Promise<T> {
-  return apiRequest<T>(endpoint, { method: 'DELETE' });
+  return apiRequest<T>(endpoint, { method: "DELETE" });
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

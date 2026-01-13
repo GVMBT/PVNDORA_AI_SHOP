@@ -1,12 +1,12 @@
 /**
  * useTimeoutState Hook
- * 
+ *
  * Manages temporary state that automatically resets after a timeout.
  * Useful for feedback states like "copied", "success", etc.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { UI } from '../config';
+import { useState, useEffect, useRef, useCallback } from "react";
+import { UI } from "../config";
 
 interface UseTimeoutStateOptions {
   /** Timeout duration in ms (default: UI.COPY_FEEDBACK_DURATION) */
@@ -17,7 +17,7 @@ interface UseTimeoutStateOptions {
 
 /**
  * Hook for managing temporary state with auto-reset
- * 
+ *
  * @example
  * const [copiedId, setCopiedId] = useTimeoutState<string | null>(null);
  * // Set value and it will auto-reset after timeout
@@ -42,7 +42,7 @@ export function useTimeoutState<T>(
       setState(value);
 
       // Only set timeout if value is truthy (not null/undefined/empty)
-      if (value !== null && value !== undefined && value !== '' && value !== false) {
+      if (value !== null && value !== undefined && value !== "" && value !== false) {
         timeoutRef.current = setTimeout(() => {
           setState(initialValue);
           onTimeout?.();
@@ -63,40 +63,3 @@ export function useTimeoutState<T>(
 
   return [state, setValue];
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

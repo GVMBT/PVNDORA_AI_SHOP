@@ -2,7 +2,7 @@
 
 /**
  * Vite Environment Type Definitions
- * 
+ *
  * Extends ImportMeta to include env property for Vite environment variables.
  */
 
@@ -19,39 +19,3 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

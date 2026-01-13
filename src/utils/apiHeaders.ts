@@ -1,26 +1,26 @@
 /**
  * API Headers Utility
- * 
+ *
  * Centralized logic for generating API request headers.
  * Supports both Telegram Mini App (initData) and web session (Bearer token).
  */
 
-import { localStorage } from './storage';
-import { CACHE } from '../config';
-import type { WebApp } from '../types/telegram';
+import { localStorage } from "./storage";
+import { CACHE } from "../config";
+import type { WebApp } from "../types/telegram";
 
 export interface ApiHeaders {
-  'Content-Type': string;
-  'X-Init-Data'?: string;
+  "Content-Type": string;
+  "X-Init-Data"?: string;
   Authorization?: string;
 }
 
 /**
  * Get API headers with authentication.
  * Tries Telegram initData first, falls back to session token.
- * 
+ *
  * @returns Headers object with Content-Type and authentication (X-Init-Data or Authorization)
- * 
+ *
  * @example
  * ```ts
  * const headers = getApiHeaders();
@@ -31,62 +31,24 @@ export interface ApiHeaders {
  */
 export function getApiHeaders(): ApiHeaders {
   const headers: ApiHeaders = {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   };
 
   // Try Telegram initData first (Mini App)
-  const tgWebApp: WebApp | undefined = typeof window !== 'undefined' 
-    ? window.Telegram?.WebApp 
-    : undefined;
-  
-  const initData = tgWebApp?.initData || '';
-  
+  const tgWebApp: WebApp | undefined =
+    typeof window !== "undefined" ? window.Telegram?.WebApp : undefined;
+
+  const initData = tgWebApp?.initData || "";
+
   if (initData) {
-    headers['X-Init-Data'] = initData;
+    headers["X-Init-Data"] = initData;
   } else {
     // Fallback to Bearer token (web session)
     const sessionToken = localStorage.get(CACHE.SESSION_TOKEN_KEY);
     if (sessionToken) {
-      headers['Authorization'] = `Bearer ${sessionToken}`;
+      headers["Authorization"] = `Bearer ${sessionToken}`;
     }
   }
 
   return headers;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

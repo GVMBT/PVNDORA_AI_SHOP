@@ -1,25 +1,25 @@
 /**
  * PVNDORA Component Types
- * 
+ *
  * TypeScript definitions for the new frontend components.
  * These types define the data shape expected by UI components.
  */
 
-import type { CurrencyCode } from '../utils/currency';
+import type { CurrencyCode } from "../utils/currency";
 
 // ==================== CATALOG / PRODUCTS ====================
 
-export type ProductAvailability = 'available' | 'on_demand' | 'discontinued' | 'coming_soon';
+export type ProductAvailability = "available" | "on_demand" | "discontinued" | "coming_soon";
 
 export interface CatalogProduct {
   id: string;
   name: string;
   categories?: string[]; // text/video/image/code/audio...
-  category: string;      // legacy single category (kept for compatibility)
+  category: string; // legacy single category (kept for compatibility)
   price: number;
-  final_price?: number;  // Price after discount (from API)
+  final_price?: number; // Price after discount (from API)
   msrp?: number;
-  currency: string;      // Currency code (USD, RUB, etc.)
+  currency: string; // Currency code (USD, RUB, etc.)
   description: string;
   warranty: number; // in hours
   duration?: number; // in days
@@ -45,7 +45,7 @@ export interface ProductDetailData extends CatalogProduct {
 export interface ProductFile {
   name: string;
   size: string;
-  type: 'key' | 'doc' | 'config' | 'net';
+  type: "key" | "doc" | "config" | "net";
 }
 
 export interface ProductReview {
@@ -59,25 +59,25 @@ export interface ProductReview {
 
 // ==================== ORDERS ====================
 
-export type OrderStatus = 'paid' | 'processing' | 'refunded';
-export type OrderItemStatus = 'delivered' | 'waiting' | 'cancelled';
+export type OrderStatus = "paid" | "processing" | "refunded";
+export type OrderItemStatus = "delivered" | "waiting" | "cancelled";
 
 // Raw backend status for detailed UI rendering
-export type RawOrderStatus = 
-  | 'pending'     // Not paid yet
-  | 'paid'        // Paid, stock available
-  | 'prepaid'     // Paid, waiting for stock
-  | 'partial'     // Some items delivered
-  | 'delivered'   // All items delivered
-  | 'cancelled'   // Cancelled
-  | 'refunded';   // Refunded
+export type RawOrderStatus =
+  | "pending" // Not paid yet
+  | "paid" // Paid, stock available
+  | "prepaid" // Paid, waiting for stock
+  | "partial" // Some items delivered
+  | "delivered" // All items delivered
+  | "cancelled" // Cancelled
+  | "refunded"; // Refunded
 
 export interface OrderItem {
   id: string;
   name: string;
-  type: 'instant' | 'preorder';
+  type: "instant" | "preorder";
   status: OrderItemStatus;
-  credentials?: string | null;  // The delivered account/key data
+  credentials?: string | null; // The delivered account/key data
   instructions?: string | null; // Instructions for using the product
   expiry?: string | null;
   hasReview: boolean;
@@ -93,24 +93,24 @@ export interface OrderItem {
 }
 
 export interface Order {
-  id: string;          // Full UUID for API operations
-  displayId: string;   // Short ID for UI display (8 chars)
+  id: string; // Full UUID for API operations
+  displayId: string; // Short ID for UI display (8 chars)
   date: string;
   total: number;
-  currency: string;    // Currency code (USD, RUB, etc.)
+  currency: string; // Currency code (USD, RUB, etc.)
   status: OrderStatus;
   items: OrderItem[];
   payment_url?: string | null; // Payment URL for pending orders
   payment_id?: string | null; // Invoice ID for checking payment status
   payment_gateway?: string | null; // Gateway name (crystalpay)
-  deadline?: string | null;    // Payment deadline for pending orders (ISO string or formatted)
+  deadline?: string | null; // Payment deadline for pending orders (ISO string or formatted)
 
   // Extended status info for better UX
-  rawStatus: RawOrderStatus;       // Backend status as-is
-  paymentConfirmed: boolean;       // Is payment received?
-  statusMessage: string;           // Human-readable status explanation
-  canCancel: boolean;              // Can user cancel this order?
-  canRequestRefund: boolean;       // Can user request refund?
+  rawStatus: RawOrderStatus; // Backend status as-is
+  paymentConfirmed: boolean; // Is payment received?
+  statusMessage: string; // Human-readable status explanation
+  canCancel: boolean; // Can user cancel this order?
+  canRequestRefund: boolean; // Can user request refund?
 }
 
 // ==================== PROFILE ====================
@@ -127,7 +127,7 @@ export interface NetworkNode {
   id: string | number;
   name?: string;
   handle: string;
-  status: 'active' | 'inactive' | 'VIP' | 'SLEEP' | 'ACTIVE';
+  status: "active" | "inactive" | "VIP" | "SLEEP" | "ACTIVE";
   earned: number;
   ordersCount: number;
   line?: 1 | 2 | 3;
@@ -144,12 +144,12 @@ export interface NetworkNode {
 
 export interface BillingLog {
   id: string;
-  type: 'INCOME' | 'OUTCOME' | 'SYSTEM';
+  type: "INCOME" | "OUTCOME" | "SYSTEM";
   source: string;
   amount: string;
   date: string;
-  transactionType?: string;  // For localization: topup, purchase, refund, etc.
-  currency?: string;  // Currency of the transaction - if same as display currency, no conversion needed
+  transactionType?: string; // For localization: topup, purchase, refund, etc.
+  currency?: string; // Currency of the transaction - if same as display currency, no conversion needed
 }
 
 export interface ProfileStats {
@@ -164,25 +164,25 @@ export interface CareerProgress {
   currentLevel: CareerLevel;
   nextLevel?: CareerLevel;
   progressPercent: number;
-  thresholds?: { level2: number; level3: number };  // USD thresholds for level progression
-  commissions?: { level1: number; level2: number; level3: number };  // Commission percentages per level
+  thresholds?: { level2: number; level3: number }; // USD thresholds for level progression
+  commissions?: { level1: number; level2: number; level3: number }; // Commission percentages per level
 }
 
 export interface ProfileData {
   name: string;
   handle: string;
   id: string;
-  balance: number;  // Converted to user currency (for display)
-  balanceUsd: number;  // Base USD amount (for frontend conversion)
-  balanceCurrency?: string;  // Currency of user's actual balance (RUB, USD, etc.) - CRITICAL for withdrawals
-  earnedRef: number;  // Converted
-  earnedRefUsd: number;  // USD amount
-  saved: number;  // Converted
-  savedUsd: number;  // USD amount
-  role: 'USER' | 'VIP' | 'ADMIN';
+  balance: number; // Converted to user currency (for display)
+  balanceUsd: number; // Base USD amount (for frontend conversion)
+  balanceCurrency?: string; // Currency of user's actual balance (RUB, USD, etc.) - CRITICAL for withdrawals
+  earnedRef: number; // Converted
+  earnedRefUsd: number; // USD amount
+  saved: number; // Converted
+  savedUsd: number; // USD amount
+  role: "USER" | "VIP" | "ADMIN";
   isVip: boolean;
-  partnerMode: 'commission' | 'discount';  // Partner reward mode
-  partnerDiscountPercent: number;  // Discount given to referrals (in discount mode)
+  partnerMode: "commission" | "discount"; // Partner reward mode
+  partnerDiscountPercent: number; // Discount given to referrals (in discount mode)
   referralLink: string;
   stats: ProfileStats;
   career: CareerProgress;
@@ -192,7 +192,7 @@ export interface ProfileData {
   language: string;
   interfaceLanguage?: string; // User's preferred interface language (ru, en, etc.)
   photoUrl?: string;
-  exchangeRate?: number;  // Exchange rate for frontend conversion (1 USD = X currency)
+  exchangeRate?: number; // Exchange rate for frontend conversion (1 USD = X currency)
 }
 
 // ==================== LEADERBOARD ====================
@@ -205,8 +205,8 @@ export interface LeaderboardUser {
   actualSpend: number;
   saved: number;
   modules: number;
-  trend: 'up' | 'down' | 'same';
-  status: 'ONLINE' | 'AWAY' | 'BUSY';
+  trend: "up" | "down" | "same";
+  status: "ONLINE" | "AWAY" | "BUSY";
   isMe: boolean;
   avatarUrl?: string;
   currency?: string; // Currency code (USD, RUB, etc.)
@@ -218,8 +218,8 @@ export interface CartItem {
   id: string;
   name: string;
   category: string;
-  price: number;        // Display price (in user's currency)
-  priceUsd?: number;    // USD price (for calculations)
+  price: number; // Display price (in user's currency)
+  priceUsd?: number; // USD price (for calculations)
   currency: string;
   quantity: number;
   image: string;
@@ -240,31 +240,27 @@ export interface CartData {
   promoDiscountPercent?: number;
 }
 
-export type PaymentMethod = 'internal' | 'crystalpay';
+export type PaymentMethod = "internal" | "crystalpay";
 
 // ==================== SUPPORT ====================
 
 export interface ChatMessage {
   id: string;
-  sender: 'user' | 'agent';
+  sender: "user" | "agent";
   text: string;
   timestamp: string;
 }
 
 // ==================== NAVIGATION ====================
 
-export type ViewType = 
-  | 'home'
-  | 'catalog'
-  | 'product'
-  | 'orders'
-  | 'profile'
-  | 'leaderboard'
-  | 'admin'
-  | 'legal';
+export type ViewType =
+  | "home"
+  | "catalog"
+  | "product"
+  | "orders"
+  | "profile"
+  | "leaderboard"
+  | "admin"
+  | "legal";
 
-export type NavigationTarget = 
-  | ViewType 
-  | { type: 'product'; product: CatalogProduct };
-
-
+export type NavigationTarget = ViewType | { type: "product"; product: CatalogProduct };

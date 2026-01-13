@@ -1,15 +1,15 @@
 /**
  * AdminCatalog Component
- * 
+ *
  * Catalog management view for products.
  */
 
-import React, { memo, useState, useMemo, useEffect, useRef } from 'react';
-import { Search, Plus, Edit, Trash2, Filter, X, ChevronDown, Check } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { PRODUCT_CATEGORIES, PRODUCT_CATEGORY_LABELS } from '../../constants';
-import StockIndicator from './StockIndicator';
-import type { ProductData } from './types';
+import React, { memo, useState, useMemo, useEffect, useRef } from "react";
+import { Search, Plus, Edit, Trash2, Filter, X, ChevronDown, Check } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { PRODUCT_CATEGORIES, PRODUCT_CATEGORY_LABELS } from "../../constants";
+import StockIndicator from "./StockIndicator";
+import type { ProductData } from "./types";
 
 interface AdminCatalogProps {
   products: ProductData[];
@@ -24,8 +24,8 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
   onNewProduct,
   onDeleteProduct,
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState<string>("All");
   const [isCategoryDrawerOpen, setIsCategoryDrawerOpen] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -42,11 +42,11 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
     };
 
     if (isCategoryDrawerOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isCategoryDrawerOpen]);
 
@@ -57,18 +57,17 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
     // Search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      result = result.filter(p => 
-        p.name.toLowerCase().includes(query) ||
-        p.category.toLowerCase().includes(query) ||
-        p.id.toString().includes(query)
+      result = result.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query) ||
+          p.category.toLowerCase().includes(query) ||
+          p.id.toString().includes(query)
       );
     }
 
     // Category filter
-    if (activeCategory !== 'All') {
-      result = result.filter(p => 
-        p.category.toLowerCase() === activeCategory.toLowerCase()
-      );
+    if (activeCategory !== "All") {
+      result = result.filter((p) => p.category.toLowerCase() === activeCategory.toLowerCase());
     }
 
     return result;
@@ -80,15 +79,15 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
         <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
           <div className="relative w-full md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search SKU..." 
-              className="w-full bg-black border border-white/20 pl-9 pr-4 py-2 text-xs font-mono text-white focus:border-pandora-cyan outline-none" 
+              placeholder="Search SKU..."
+              className="w-full bg-black border border-white/20 pl-9 pr-4 py-2 text-xs font-mono text-white focus:border-pandora-cyan outline-none"
             />
           </div>
-          
+
           {/* Category Filter Button (Mobile Drawer Trigger) */}
           <div className="relative md:hidden w-full">
             <button
@@ -113,9 +112,12 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                 <Filter size={14} />
                 <span>{PRODUCT_CATEGORY_LABELS[activeCategory] || activeCategory}</span>
               </div>
-              <ChevronDown size={14} className={`transition-transform ${isCategoryDrawerOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown
+                size={14}
+                className={`transition-transform ${isCategoryDrawerOpen ? "rotate-180" : ""}`}
+              />
             </button>
-            
+
             <AnimatePresence>
               {isCategoryDrawerOpen && (
                 <motion.div
@@ -143,9 +145,9 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
             </AnimatePresence>
           </div>
         </div>
-        
-        <button 
-          onClick={onNewProduct} 
+
+        <button
+          onClick={onNewProduct}
           className="w-full md:w-auto flex items-center justify-center gap-2 bg-pandora-cyan text-black px-4 py-2 text-xs font-bold uppercase hover:bg-white transition-colors"
         >
           <Plus size={14} /> Add Product
@@ -164,14 +166,16 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
               onClick={() => setIsCategoryDrawerOpen(false)}
             />
             <motion.div
-              initial={{ x: '100%' }}
+              initial={{ x: "100%" }}
               animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="fixed right-0 top-0 bottom-0 w-80 bg-[#0a0a0a] border-l border-white/20 z-50 md:hidden shadow-2xl"
             >
               <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Filter by Category</h3>
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                  Filter by Category
+                </h3>
                 <button
                   onClick={() => setIsCategoryDrawerOpen(false)}
                   className="text-gray-400 hover:text-white"
@@ -189,8 +193,8 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                     }}
                     className={`w-full text-left px-4 py-3 text-sm font-mono rounded-sm transition-colors flex items-center justify-between ${
                       activeCategory === cat
-                        ? 'bg-pandora-cyan/20 text-pandora-cyan border border-pandora-cyan/50'
-                        : 'text-gray-300 hover:bg-white/10 hover:text-white'
+                        ? "bg-pandora-cyan/20 text-pandora-cyan border border-pandora-cyan/50"
+                        : "text-gray-300 hover:bg-white/10 hover:text-white"
                     }`}
                   >
                     <span>{PRODUCT_CATEGORY_LABELS[cat] || cat}</span>
@@ -223,80 +227,89 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                 </td>
               </tr>
             ) : (
-              filteredProducts.map(p => (
-              <tr key={p.id} className="hover:bg-white/5 transition-colors">
-                <td className="p-4 font-bold text-white flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-sm overflow-hidden bg-black border border-white/10">
-                    <img src={p.image} alt="" className="w-full h-full object-cover" />
-                  </div>
-                  {p.name}
-                </td>
-                <td className="p-4">
-                  <span className="text-[10px] bg-white/5 px-2 py-1 rounded">{PRODUCT_CATEGORY_LABELS[p.category] || p.category}</span>
-                </td>
-                <td className="p-4">
-                  {/* Display price: use anchor price for RUB if available, otherwise show USD base price */}
-                  {(() => {
-                    // Check if anchor price for RUB exists
-                    const hasAnchorPrice = p.prices && typeof p.prices === 'object' && 'RUB' in p.prices;
-                    const displayPrice = hasAnchorPrice ? p.prices.RUB : p.price;
-                    const displayCurrency = hasAnchorPrice ? '₽' : '$';
-                    const isAnchor = hasAnchorPrice;
-                    
-                    return (
-                      <div className={isAnchor ? 'text-blue-400' : 'text-white'}>
-                        {displayPrice} {displayCurrency}
-                        {!isAnchor && <span className="text-[9px] text-gray-600 ml-1">(USD)</span>}
-                      </div>
-                    );
-                  })()}
-                  {/* Display MSRP: use anchor MSRP for RUB if available, otherwise show USD base MSRP */}
-                  {(() => {
-                    const hasAnchorMsrp = p.msrp_prices && typeof p.msrp_prices === 'object' && 'RUB' in p.msrp_prices;
-                    const displayMsrp = hasAnchorMsrp ? p.msrp_prices.RUB : p.msrp;
-                    const currentPrice = (p.prices && typeof p.prices === 'object' && 'RUB' in p.prices) 
-                      ? p.prices.RUB 
-                      : p.price;
-                    
-                    // Only show MSRP if it's greater than current price
-                    if (!displayMsrp || displayMsrp <= currentPrice) return null;
-                    
-                    const displayCurrency = hasAnchorMsrp ? '₽' : '$';
-                    return (
-                      <div className="text-[10px] text-gray-500 line-through">
-                        {displayMsrp} {displayCurrency}
-                      </div>
-                    );
-                  })()}
-                </td>
-                <td className="p-4">
-                  <StockIndicator stock={p.stock} />
-                </td>
-                <td className="p-4 text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <button 
-                      onClick={() => onEditProduct(p)} 
-                      className="hover:text-pandora-cyan p-1"
-                      title="Edit"
-                    >
-                      <Edit size={14} />
-                    </button>
-                    {onDeleteProduct && (
-                      <button 
-                        onClick={() => {
-                          if (window.confirm(`Delete "${p.name}"?`)) {
-                            onDeleteProduct(String(p.id));
-                          }
-                        }} 
-                        className="hover:text-red-400 p-1 text-gray-500"
-                        title="Delete"
+              filteredProducts.map((p) => (
+                <tr key={p.id} className="hover:bg-white/5 transition-colors">
+                  <td className="p-4 font-bold text-white flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-sm overflow-hidden bg-black border border-white/10">
+                      <img src={p.image} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    {p.name}
+                  </td>
+                  <td className="p-4">
+                    <span className="text-[10px] bg-white/5 px-2 py-1 rounded">
+                      {PRODUCT_CATEGORY_LABELS[p.category] || p.category}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    {/* Display price: use anchor price for RUB if available, otherwise show USD base price */}
+                    {(() => {
+                      // Check if anchor price for RUB exists
+                      const hasAnchorPrice =
+                        p.prices && typeof p.prices === "object" && "RUB" in p.prices;
+                      const displayPrice = hasAnchorPrice ? p.prices.RUB : p.price;
+                      const displayCurrency = hasAnchorPrice ? "₽" : "$";
+                      const isAnchor = hasAnchorPrice;
+
+                      return (
+                        <div className={isAnchor ? "text-blue-400" : "text-white"}>
+                          {displayPrice} {displayCurrency}
+                          {!isAnchor && (
+                            <span className="text-[9px] text-gray-600 ml-1">(USD)</span>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    {/* Display MSRP: use anchor MSRP for RUB if available, otherwise show USD base MSRP */}
+                    {(() => {
+                      const hasAnchorMsrp =
+                        p.msrp_prices &&
+                        typeof p.msrp_prices === "object" &&
+                        "RUB" in p.msrp_prices;
+                      const displayMsrp = hasAnchorMsrp ? p.msrp_prices.RUB : p.msrp;
+                      const currentPrice =
+                        p.prices && typeof p.prices === "object" && "RUB" in p.prices
+                          ? p.prices.RUB
+                          : p.price;
+
+                      // Only show MSRP if it's greater than current price
+                      if (!displayMsrp || displayMsrp <= currentPrice) return null;
+
+                      const displayCurrency = hasAnchorMsrp ? "₽" : "$";
+                      return (
+                        <div className="text-[10px] text-gray-500 line-through">
+                          {displayMsrp} {displayCurrency}
+                        </div>
+                      );
+                    })()}
+                  </td>
+                  <td className="p-4">
+                    <StockIndicator stock={p.stock} />
+                  </td>
+                  <td className="p-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => onEditProduct(p)}
+                        className="hover:text-pandora-cyan p-1"
+                        title="Edit"
                       >
-                        <Trash2 size={14} />
+                        <Edit size={14} />
                       </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
+                      {onDeleteProduct && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete "${p.name}"?`)) {
+                              onDeleteProduct(String(p.id));
+                            }
+                          }}
+                          className="hover:text-red-400 p-1 text-gray-500"
+                          title="Delete"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
               ))
             )}
           </tbody>
@@ -310,51 +323,53 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
             No products found
           </div>
         ) : (
-          filteredProducts.map(p => (
-          <div 
-            key={p.id} 
-            className="bg-[#0e0e0e] border border-white/10 p-4 flex justify-between items-center"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-sm overflow-hidden bg-black border border-white/10 shrink-0">
-                <img src={p.image} alt="" className="w-full h-full object-cover" />
-              </div>
-              <div>
-                <div className="font-bold text-white mb-1">{p.name}</div>
-                <div className="text-xs text-gray-500 mb-2">
-                  {PRODUCT_CATEGORY_LABELS[p.category] || p.category} • {(() => {
-                    const hasAnchorPrice = p.prices && typeof p.prices === 'object' && 'RUB' in p.prices;
-                    const displayPrice = hasAnchorPrice ? p.prices.RUB : p.price;
-                    const displayCurrency = hasAnchorPrice ? '₽' : '$';
-                    return `${displayPrice} ${displayCurrency}`;
-                  })()}
+          filteredProducts.map((p) => (
+            <div
+              key={p.id}
+              className="bg-[#0e0e0e] border border-white/10 p-4 flex justify-between items-center"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-sm overflow-hidden bg-black border border-white/10 shrink-0">
+                  <img src={p.image} alt="" className="w-full h-full object-cover" />
                 </div>
-                <StockIndicator stock={p.stock} />
+                <div>
+                  <div className="font-bold text-white mb-1">{p.name}</div>
+                  <div className="text-xs text-gray-500 mb-2">
+                    {PRODUCT_CATEGORY_LABELS[p.category] || p.category} •{" "}
+                    {(() => {
+                      const hasAnchorPrice =
+                        p.prices && typeof p.prices === "object" && "RUB" in p.prices;
+                      const displayPrice = hasAnchorPrice ? p.prices.RUB : p.price;
+                      const displayCurrency = hasAnchorPrice ? "₽" : "$";
+                      return `${displayPrice} ${displayCurrency}`;
+                    })()}
+                  </div>
+                  <StockIndicator stock={p.stock} />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onEditProduct(p)}
+                  className="p-2 border border-white/10 rounded-full text-gray-400 hover:text-white hover:border-pandora-cyan"
+                  title="Edit"
+                >
+                  <Edit size={16} />
+                </button>
+                {onDeleteProduct && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Delete "${p.name}"?`)) {
+                        onDeleteProduct(String(p.id));
+                      }
+                    }}
+                    className="p-2 border border-white/10 rounded-full text-gray-400 hover:text-red-400 hover:border-red-400"
+                    title="Delete"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => onEditProduct(p)} 
-                className="p-2 border border-white/10 rounded-full text-gray-400 hover:text-white hover:border-pandora-cyan"
-                title="Edit"
-              >
-                <Edit size={16} />
-              </button>
-              {onDeleteProduct && (
-                <button 
-                  onClick={() => {
-                    if (window.confirm(`Delete "${p.name}"?`)) {
-                      onDeleteProduct(String(p.id));
-                    }
-                  }} 
-                  className="p-2 border border-white/10 rounded-full text-gray-400 hover:text-red-400 hover:border-red-400"
-                  title="Delete"
-                >
-                  <Trash2 size={16} />
-                </button>
-              )}
-            </div>
-          </div>
           ))
         )}
       </div>
@@ -363,11 +378,3 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
 };
 
 export default memo(AdminCatalog);
-
-
-
-
-
-
-
-

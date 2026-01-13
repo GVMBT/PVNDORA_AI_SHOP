@@ -12,9 +12,12 @@ This worker:
 
 import json
 import os
+from typing import Any, cast
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+
+from core.services.models import User
 
 # ASGI app
 app = FastAPI()
@@ -101,7 +104,10 @@ async def process_review_cashback(request: Request):
     if not review_result.data:
         return JSONResponse({"error": "Review not found for order"}, status_code=404)
 
-    review = review_result.data[0]
+    review_raw = review_result.data[0]
+    if not isinstance(review_raw, dict):
+        return JSONResponse({"error": "Invalid review data"}, status_code=500)
+    review = cast(dict[str, Any], review_raw)
 
     if review.get("cashback_given"):
         return JSONResponse({"skipped": True, "reason": "Cashback already processed"})
@@ -120,21 +126,23 @@ async def process_review_cashback(request: Request):
         )
         if not order_result.data:
             return JSONResponse({"error": "Order not found"}, status_code=404)
+        order_data_raw = order_result.data
+        if not isinstance(order_data_raw, dict):
+            return JSONResponse({"error": "Invalid order data"}, status_code=500)
+        order_data = cast(dict[str, Any], order_data_raw)
+        user_id = order_data.get("user_id")
+        if not user_id:
+            return JSONResponse({"error": "Order missing user_id"}, status_code=500)
         user_result = (
-            await db.client.table("users")
-            .select("*")
-            .eq("id", order_result.data["user_id"])
-            .single()
-            .execute()
+            await db.client.table("users").select("*").eq("id", user_id).single().execute()
         )
         if not user_result.data:
             return JSONResponse({"error": "User not found"}, status_code=404)
-        from types import SimpleNamespace
-
-        db_user = SimpleNamespace(**user_result.data)
-        db_user.id = user_result.data["id"]
-        db_user.telegram_id = user_result.data.get("telegram_id")
-        db_user.balance = user_result.data.get("balance", 0)
+        user_data_raw = user_result.data
+        if not isinstance(user_data_raw, dict):
+            return JSONResponse({"error": "Invalid user data"}, status_code=500)
+        user_data = cast(dict[str, Any], user_data_raw)
+        db_user = User(**user_data)
 
     # CRITICAL: Calculate cashback in user's balance_currency, NOT in USD
     balance_currency = getattr(db_user, "balance_currency", "USD") or "USD"
@@ -149,7 +157,10 @@ async def process_review_cashback(request: Request):
     )
     if not order_result.data:
         return JSONResponse({"error": "Order not found"}, status_code=404)
-    order_data = order_result.data
+    order_data_raw = order_result.data
+    if not isinstance(order_data_raw, dict):
+        return JSONResponse({"error": "Invalid order data"}, status_code=500)
+    order_data = cast(dict[str, Any], order_data_raw)
 
     # Determine cashback base amount - use fiat_amount if available
     from core.db import get_redis
@@ -228,7 +239,8 @@ async def process_review_cashback(request: Request):
 
     logger = logging.getLogger(__name__)
     logger.info(
-        f"Cashback processed: user={db_user.telegram_id}, amount={cashback_amount} {balance_currency}, order={order_id}"
+        f"Cashback processed: user={db_user.telegram_id}, "
+        f"amount={cashback_amount} {balance_currency}, order={order_id}"
     )
 
     return JSONResponse({"success": True, "cashback": cashback_amount, "new_balance": new_balance})

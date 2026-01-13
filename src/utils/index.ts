@@ -1,19 +1,12 @@
 /**
  * Utilities Barrel Export
- * 
+ *
  * Centralized exports for all utility functions.
  * Improves tree-shaking and provides consistent imports.
  */
 
 // API Client
-export {
-  apiRequest,
-  apiGet,
-  apiPost,
-  apiPut,
-  apiPatch,
-  apiDelete,
-} from './apiClient';
+export { apiRequest, apiGet, apiPost, apiPut, apiPatch, apiDelete } from "./apiClient";
 
 // API Error Handling
 export {
@@ -22,13 +15,10 @@ export {
   getRetryDelay,
   formatErrorForUser,
   type ApiError,
-} from './apiErrorHandler';
+} from "./apiErrorHandler";
 
 // API Headers
-export {
-  getApiHeaders,
-  type ApiHeaders,
-} from './apiHeaders';
+export { getApiHeaders, type ApiHeaders } from "./apiHeaders";
 
 // Authentication
 export {
@@ -38,7 +28,7 @@ export {
   saveSessionToken,
   removeSessionToken,
   type SessionVerificationResult,
-} from './auth';
+} from "./auth";
 
 // Cart Converter
 export {
@@ -47,36 +37,19 @@ export {
   getCartTotal,
   type LegacyCartItem,
   type LegacyCart,
-} from './cartConverter';
+} from "./cartConverter";
 
 // Currency
-export {
-  getCurrencySymbol,
-  formatPrice,
-  type CurrencyCode,
-} from './currency';
+export { getCurrencySymbol, formatPrice, type CurrencyCode } from "./currency";
 
 // Date Formatting
-export {
-  formatRelativeTime,
-  formatDate,
-  formatDateISO,
-  formatDateTime,
-} from './date';
+export { formatRelativeTime, formatDate, formatDateISO, formatDateTime } from "./date";
 
 // ID Generation
-export {
-  generateId,
-  generateShortId,
-  generateHashId,
-} from './id';
+export { generateId, generateShortId, generateHashId } from "./id";
 
 // Logging
-export {
-  logger,
-  type LogLevel,
-  type LoggerConfig,
-} from './logger';
+export { logger, type LogLevel, type LoggerConfig } from "./logger";
 
 // Number Formatting
 export {
@@ -88,13 +61,10 @@ export {
   clamp,
   roundTo,
   isInRange,
-} from './number';
+} from "./number";
 
 // Storage
-export {
-  sessionStorage,
-  localStorage,
-} from './storage';
+export { sessionStorage, localStorage } from "./storage";
 
 // Telegram WebApp
 export {
@@ -106,41 +76,4 @@ export {
   requestFullscreen,
   expandWebApp,
   readyWebApp,
-} from './telegram';
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+} from "./telegram";

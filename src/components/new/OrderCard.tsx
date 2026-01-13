@@ -1,19 +1,28 @@
 /**
  * OrderCard Component
- * 
+ *
  * Displays a complete order card with header, status banners, and items.
  */
 
-import React, { memo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Clock, AlertTriangle, Package, Shield, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
-import { formatPrice } from '../../utils/currency';
-import { useLocale } from '../../hooks/useLocale';
-import { useTelegram } from '../../hooks/useTelegram';
-import OrderStatusBadge from './OrderStatusBadge';
-import OrderItem, { type OrderItemData } from './OrderItem';
-import { PaymentCountdown } from './PaymentCountdown';
-import { useOrdersTyped } from '../../hooks/api/useOrdersApi';
+import React, { memo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Check,
+  Clock,
+  AlertTriangle,
+  Package,
+  Shield,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
+import { formatPrice } from "../../utils/currency";
+import { useLocale } from "../../hooks/useLocale";
+import { useTelegram } from "../../hooks/useTelegram";
+import OrderStatusBadge from "./OrderStatusBadge";
+import OrderItem, { type OrderItemData } from "./OrderItem";
+import { PaymentCountdown } from "./PaymentCountdown";
+import { useOrdersTyped } from "../../hooks/api/useOrdersApi";
 
 export interface RefundContext {
   orderId: string;
@@ -23,7 +32,16 @@ export interface RefundContext {
   reason?: string;
 }
 
-type RawOrderStatus = 'pending' | 'prepaid' | 'paid' | 'partial' | 'delivered' | 'cancelled' | 'refunded' | 'expired' | 'failed';
+type RawOrderStatus =
+  | "pending"
+  | "prepaid"
+  | "paid"
+  | "partial"
+  | "delivered"
+  | "cancelled"
+  | "refunded"
+  | "expired"
+  | "failed";
 
 export interface OrderData {
   id: string;
@@ -31,12 +49,12 @@ export interface OrderData {
   date: string;
   total: number;
   currency?: string;
-  status: 'paid' | 'processing' | 'refunded';
+  status: "paid" | "processing" | "refunded";
   items: OrderItemData[];
   payment_url?: string | null;
   payment_id?: string | null; // Invoice ID for checking payment status
   payment_gateway?: string | null; // Gateway name
-  deadline?: string | null;  // Payment deadline for pending orders
+  deadline?: string | null; // Payment deadline for pending orders
   rawStatus?: RawOrderStatus;
   paymentConfirmed?: boolean;
   statusMessage?: string;
@@ -73,14 +91,14 @@ const OrderCard: React.FC<OrderCardProps> = ({
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
   const [paymentCheckResult, setPaymentCheckResult] = useState<string | null>(null);
   const [internalExpanded, setInternalExpanded] = useState(true);
-  
+
   // Use prop if provided, otherwise use internal state
   const isExpanded = propIsExpanded !== undefined ? propIsExpanded : internalExpanded;
-  const handleToggleExpand = onToggleExpand || (() => setInternalExpanded(prev => !prev));
+  const handleToggleExpand = onToggleExpand || (() => setInternalExpanded((prev) => !prev));
 
   const handleCheckPayment = async () => {
     if (!order.payment_id || !order.payment_gateway) {
-      setPaymentCheckResult(t('orders.paymentNotChecked'));
+      setPaymentCheckResult(t("orders.paymentNotChecked"));
       return;
     }
 
@@ -90,20 +108,22 @@ const OrderCard: React.FC<OrderCardProps> = ({
     try {
       const result = await verifyPayment(order.id);
       if (result) {
-        if (result.status === 'processed' || result.invoice_state === 'payed') {
-          setPaymentCheckResult('✅ Оплата подтверждена! Обновление статуса...');
+        if (result.status === "processed" || result.invoice_state === "payed") {
+          setPaymentCheckResult("✅ Оплата подтверждена! Обновление статуса...");
           // Reload page after 2 seconds to show updated status
           setTimeout(() => {
             window.location.reload();
           }, 2000);
         } else {
-          setPaymentCheckResult(`Статус: ${result.invoice_state || result.status}. ${result.message || ''}`);
+          setPaymentCheckResult(
+            `Статус: ${result.invoice_state || result.status}. ${result.message || ""}`
+          );
         }
       } else {
-        setPaymentCheckResult('Ошибка проверки оплаты');
+        setPaymentCheckResult("Ошибка проверки оплаты");
       }
     } catch (error) {
-      setPaymentCheckResult('Ошибка при проверке оплаты');
+      setPaymentCheckResult("Ошибка при проверке оплаты");
     } finally {
       setIsCheckingPayment(false);
     }
@@ -120,18 +140,18 @@ const OrderCard: React.FC<OrderCardProps> = ({
       {/* Order Card */}
       <div className="bg-[#080808] border border-white/10 hover:border-white/20 transition-all relative overflow-hidden">
         {/* Card Header */}
-        <div 
+        <div
           className="bg-white/5 p-3 flex justify-between items-center border-b border-white/5 cursor-pointer hover:bg-white/10 transition-colors"
           onClick={handleToggleExpand}
         >
           <div className="flex items-center gap-4 flex-1">
-            <button 
+            <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleToggleExpand();
               }}
               className="p-1 hover:bg-white/10 rounded transition-colors"
-              title={isExpanded ? t('orders.collapseItems') : t('orders.expandItems')}
+              title={isExpanded ? t("orders.collapseItems") : t("orders.expandItems")}
             >
               {isExpanded ? (
                 <ChevronUp size={16} className="text-gray-400 hover:text-pandora-cyan" />
@@ -148,7 +168,8 @@ const OrderCard: React.FC<OrderCardProps> = ({
               </span>
               {!isExpanded && (
                 <span className="text-[10px] font-mono text-gray-500">
-                  ({order.items.length} {order.items.length === 1 ? t('orders.itemSingular') : t('orders.itemPlural')})
+                  ({order.items.length}{" "}
+                  {order.items.length === 1 ? t("orders.itemSingular") : t("orders.itemPlural")})
                 </span>
               )}
             </div>
@@ -156,34 +177,38 @@ const OrderCard: React.FC<OrderCardProps> = ({
           <div className="flex items-center gap-3">
             <OrderStatusBadge rawStatus={order.rawStatus} status={order.status} />
             <span className="font-display font-bold text-white">
-              {formatPrice(order.total, order.currency || 'USD')}
+              {formatPrice(order.total, order.currency || "USD")}
             </span>
           </div>
         </div>
 
         {/* Status Explanation Banner */}
-        {order.statusMessage && order.rawStatus !== 'prepaid' && (
-          <div className={`px-4 py-2 text-[10px] font-mono border-b ${
-            order.paymentConfirmed 
-              ? 'bg-green-500/5 border-green-500/20 text-green-400' 
-              : 'bg-orange-500/5 border-orange-500/20 text-orange-400'
-          }`}>
+        {order.statusMessage && order.rawStatus !== "prepaid" && (
+          <div
+            className={`px-4 py-2 text-[10px] font-mono border-b ${
+              order.paymentConfirmed
+                ? "bg-green-500/5 border-green-500/20 text-green-400"
+                : "bg-orange-500/5 border-orange-500/20 text-orange-400"
+            }`}
+          >
             <div className="flex items-center gap-2">
               {order.paymentConfirmed ? <Check size={12} /> : <Clock size={12} />}
-              {order.rawStatus ? t(`orders.statusMessages.${order.rawStatus}`) : order.statusMessage}
+              {order.rawStatus
+                ? t(`orders.statusMessages.${order.rawStatus}`)
+                : order.statusMessage}
             </div>
           </div>
         )}
 
         {/* Payment Button - ONLY for unpaid orders */}
-        {order.rawStatus === 'pending' && order.payment_url && (
+        {order.rawStatus === "pending" && order.payment_url && (
           <div className="p-4 bg-orange-500/10 border-b border-orange-500/20">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <div className="text-[10px] font-mono text-orange-400">
                   <span className="flex items-center gap-2">
                     <AlertTriangle size={12} />
-                    {t('orders.paymentRequired')}
+                    {t("orders.paymentRequired")}
                   </span>
                 </div>
                 <button
@@ -193,41 +218,43 @@ const OrderCard: React.FC<OrderCardProps> = ({
                     window.location.href = order.payment_url!;
                   }}
                   className={`px-4 py-2 font-mono text-xs font-bold uppercase transition-colors ${
-                    isPaymentExpired 
-                      ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed border border-white/10' 
-                      : 'bg-pandora-cyan text-black hover:bg-pandora-cyan/80'
+                    isPaymentExpired
+                      ? "bg-gray-700/50 text-gray-400 cursor-not-allowed border border-white/10"
+                      : "bg-pandora-cyan text-black hover:bg-pandora-cyan/80"
                   }`}
                 >
-                  {isPaymentExpired ? t('orders.paymentExpired') : t('orders.payNow')}
+                  {isPaymentExpired ? t("orders.paymentExpired") : t("orders.payNow")}
                 </button>
               </div>
-              
+
               {/* Payment Status Info */}
               {(order.payment_id || order.payment_gateway) && (
                 <div className="text-[10px] font-mono text-gray-400 space-y-1 border-t border-white/5 pt-2">
                   {order.payment_id && (
                     <div className="flex items-center justify-between">
-                      <span>{t('orders.invoiceId')}:</span>
-                      <span className="text-pandora-cyan font-mono">{order.payment_id.substring(0, 12)}...</span>
+                      <span>{t("orders.invoiceId")}:</span>
+                      <span className="text-pandora-cyan font-mono">
+                        {order.payment_id.substring(0, 12)}...
+                      </span>
                     </div>
                   )}
                   {order.payment_gateway && (
                     <div className="flex items-center justify-between">
-                      <span>{t('orders.gateway')}:</span>
+                      <span>{t("orders.gateway")}:</span>
                       <span className="text-gray-300 uppercase">{order.payment_gateway}</span>
                     </div>
                   )}
                   {isPaymentExpired && (
                     <div className="flex items-center gap-2 text-red-400">
                       <AlertTriangle size={10} />
-                      <span>{t('orders.paymentExpired')}</span>
+                      <span>{t("orders.paymentExpired")}</span>
                     </div>
                   )}
                 </div>
               )}
 
               {/* Check Payment Button */}
-              {order.payment_id && order.payment_gateway === 'crystalpay' && (
+              {order.payment_id && order.payment_gateway === "crystalpay" && (
                 <div className="flex flex-col gap-2">
                   <button
                     onClick={handleCheckPayment}
@@ -237,12 +264,12 @@ const OrderCard: React.FC<OrderCardProps> = ({
                     {isCheckingPayment ? (
                       <>
                         <RefreshCw size={10} className="animate-spin" />
-                        {t('orders.checkingPayment')}
+                        {t("orders.checkingPayment")}
                       </>
                     ) : (
                       <>
                         <RefreshCw size={10} />
-                        {t('orders.checkPayment')}
+                        {t("orders.checkPayment")}
                       </>
                     )}
                   </button>
@@ -254,44 +281,40 @@ const OrderCard: React.FC<OrderCardProps> = ({
                 </div>
               )}
 
-              {order.deadline && (
-                <PaymentCountdown deadline={order.deadline} />
-              )}
+              {order.deadline && <PaymentCountdown deadline={order.deadline} />}
             </div>
           </div>
         )}
-        
+
         {/* Waiting for Stock Banner - for prepaid orders */}
-        {order.rawStatus === 'prepaid' && (
+        {order.rawStatus === "prepaid" && (
           <div className="p-4 bg-purple-500/10 border-b border-purple-500/20">
             <div className="text-[11px] font-mono text-purple-400">
               <div className="flex items-center gap-2 mb-2">
                 <Check size={12} className="text-green-400" />
-                <span className="text-green-400">{t('orders.paymentConfirmed')}</span>
+                <span className="text-green-400">{t("orders.paymentConfirmed")}</span>
               </div>
               <div className="flex items-center gap-2 text-purple-300 mb-2">
                 <Package size={12} />
-                {t('orders.waitingStockDesc')}
+                {t("orders.waitingStockDesc")}
               </div>
               <div className="flex items-center gap-2 text-gray-500 text-[10px]">
                 <Shield size={10} />
-                {t('orders.autoRefund')}
+                {t("orders.autoRefund")}
               </div>
             </div>
           </div>
         )}
-        
+
         {/* Warranty Info Banner - shows if any item has active warranty */}
-        {order.rawStatus === 'delivered' && order.items.some(item => item.canRequestRefund) && (
+        {order.rawStatus === "delivered" && order.items.some((item) => item.canRequestRefund) && (
           <div className="p-4 bg-green-500/5 border-b border-green-500/20">
             <div className="text-[11px] font-mono text-green-400">
               <div className="flex items-center gap-2">
                 <Shield size={12} />
-                {t('orders.warrantyActive')}
+                {t("orders.warrantyActive")}
               </div>
-              <div className="text-[10px] text-gray-500 mt-1">
-                {t('orders.reportIssueHint')}
-              </div>
+              <div className="text-[10px] text-gray-500 mt-1">{t("orders.reportIssueHint")}</div>
             </div>
           </div>
         )}
@@ -301,9 +324,9 @@ const OrderCard: React.FC<OrderCardProps> = ({
           {isExpanded && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
+              animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3, ease: 'easeInOut' }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
               className="overflow-hidden"
             >
               <div className="p-5 space-y-6">
@@ -317,22 +340,26 @@ const OrderCard: React.FC<OrderCardProps> = ({
                     onToggleReveal={onToggleReveal}
                     onCopy={onCopy}
                     onOpenReview={onOpenReview}
-                    onOpenSupport={onOpenSupport ? (context) => {
-                      // Fill in orderTotal from order if not provided
-                      if (!onOpenSupport) return; // Double check
-                      const finalContext = {
-                        ...context,
-                        orderTotal: context.orderTotal || order.total
-                      };
-                      onOpenSupport(finalContext);
-                    } : undefined}
+                    onOpenSupport={
+                      onOpenSupport
+                        ? (context) => {
+                            // Fill in orderTotal from order if not provided
+                            if (!onOpenSupport) return; // Double check
+                            const finalContext = {
+                              ...context,
+                              orderTotal: context.orderTotal || order.total,
+                            };
+                            onOpenSupport(finalContext);
+                          }
+                        : undefined
+                    }
                   />
                 ))}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
-        
+
         {/* Decorative Corner Overlays */}
         <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-pandora-cyan opacity-50" />
         <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-pandora-cyan opacity-50" />

@@ -40,7 +40,7 @@ async def auto_alloc_entrypoint(request: Request):
     notification_service = get_notification_service()
     now = datetime.now(UTC)
 
-    results = {
+    results: dict[str, Any] = {
         "timestamp": now.isoformat(),
         "order_items": {"processed": 0, "delivered": 0},
         "replacements": {"processed": 0, "delivered": 0},

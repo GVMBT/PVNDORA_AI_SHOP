@@ -1,29 +1,29 @@
 /**
  * ProfileCareer Component
- * 
+ *
  * Displays career progress and level information.
  */
 
-import React, { memo, useState } from 'react';
-import { ShieldCheck, Wifi, Radio, Crown, HelpCircle, Star } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { useLocale } from '../../hooks/useLocale';
-import type { CareerLevelData } from './types';
-import type { CurrencyCode } from '../../utils/currency';
-import ReferralExplainerModal from './ReferralExplainerModal';
+import React, { memo, useState } from "react";
+import { ShieldCheck, Wifi, Radio, Crown, HelpCircle, Star } from "lucide-react";
+import { motion } from "framer-motion";
+import { useLocale } from "../../hooks/useLocale";
+import type { CareerLevelData } from "./types";
+import type { CurrencyCode } from "../../utils/currency";
+import ReferralExplainerModal from "./ReferralExplainerModal";
 
 interface ProfileCareerProps {
   currentLevel: CareerLevelData;
   nextLevel?: CareerLevelData;
-  currentTurnover: number;  // Already converted to user currency
-  maxTurnover: number;  // Already converted to user currency
+  currentTurnover: number; // Already converted to user currency
+  maxTurnover: number; // Already converted to user currency
   progressPercent: number;
-  thresholds?: { level2: number; level3: number };  // USD thresholds
+  thresholds?: { level2: number; level3: number }; // USD thresholds
   commissions?: { level1: number; level2: number; level3: number };
-  currency?: CurrencyCode;  // User's currency
-  exchangeRate?: number;  // Exchange rate for threshold conversion
-  isVip?: boolean;  // Whether user is already a VIP partner
-  onApplyPartner?: () => void;  // Handler for opening partner application
+  currency?: CurrencyCode; // User's currency
+  exchangeRate?: number; // Exchange rate for threshold conversion
+  isVip?: boolean; // Whether user is already a VIP partner
+  onApplyPartner?: () => void; // Handler for opening partner application
 }
 
 const ProfileCareer: React.FC<ProfileCareerProps> = ({
@@ -42,19 +42,19 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
   const { currency: localeCurrency, formatPrice, t } = useLocale();
   const currency = propCurrency || localeCurrency;
   const [showExplainer, setShowExplainer] = useState(false);
-  
+
   return (
     <div className="mb-12">
       <h3 className="text-xs font-mono text-gray-500 uppercase mb-4 flex items-center gap-2">
-        <ShieldCheck size={14} /> {t('profile.career.title')}
-        <button 
+        <ShieldCheck size={14} /> {t("profile.career.title")}
+        <button
           onClick={() => setShowExplainer(true)}
           className="ml-auto text-pandora-cyan hover:text-white transition-colors flex items-center gap-1 text-[9px]"
         >
-          <HelpCircle size={12} /> {t('profile.career.howItWorks')}
+          <HelpCircle size={12} /> {t("profile.career.howItWorks")}
         </button>
       </h3>
-      
+
       {/* Explainer Modal */}
       <ReferralExplainerModal
         isOpen={showExplainer}
@@ -67,18 +67,28 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
         currency={currency}
         exchangeRate={exchangeRate}
       />
-      
+
       <div className="bg-[#080808] border border-white/10 p-6 md:p-8 relative overflow-hidden group hover:border-white/20 transition-all">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
           {/* Current Status Info */}
           <div className="w-full md:w-48 shrink-0">
             <div className="text-[10px] text-gray-500 font-mono uppercase mb-1">Current Rank</div>
-            <div className={`text-2xl font-display font-bold ${currentLevel.color} flex items-center gap-2`}>
+            <div
+              className={`text-2xl font-display font-bold ${currentLevel.color} flex items-center gap-2`}
+            >
               {currentLevel.label}
-              {currentLevel.id === 1 ? <Wifi size={18} /> : currentLevel.id === 2 ? <Radio size={18} /> : <Crown size={18} />}
+              {currentLevel.id === 1 ? (
+                <Wifi size={18} />
+              ) : currentLevel.id === 2 ? (
+                <Radio size={18} />
+              ) : (
+                <Crown size={18} />
+              )}
             </div>
             <div className="text-[10px] text-gray-600 mt-1 font-mono">
-              Turnover: <span className="text-white font-bold">{formatPrice(currentTurnover, currency)}</span> {maxTurnover !== Infinity ? `/ ${formatPrice(maxTurnover, currency)}` : ''}
+              Turnover:{" "}
+              <span className="text-white font-bold">{formatPrice(currentTurnover, currency)}</span>{" "}
+              {maxTurnover !== Infinity ? `/ ${formatPrice(maxTurnover, currency)}` : ""}
             </div>
           </div>
 
@@ -87,7 +97,7 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
             {/* Background Track */}
             <div className="h-3 w-full bg-black border border-white/10 rounded-sm overflow-hidden relative">
               {/* Fill */}
-              <motion.div 
+              <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${progressPercent}%` }}
                 transition={{ duration: 1.5, ease: "circOut" }}
@@ -100,7 +110,13 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
             {/* Markers */}
             <div className="flex justify-between text-[9px] font-mono text-gray-600 mt-2 absolute w-full bottom-0 md:static">
               <span>{formatPrice(currentLevel.min, currency)}</span>
-              {nextLevel ? <span>NEXT: {nextLevel.label} ({formatPrice(nextLevel.min, currency)})</span> : <span>MAX LEVEL</span>}
+              {nextLevel ? (
+                <span>
+                  NEXT: {nextLevel.label} ({formatPrice(nextLevel.min, currency)})
+                </span>
+              ) : (
+                <span>MAX LEVEL</span>
+              )}
             </div>
           </div>
 
@@ -116,13 +132,13 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
             )}
           </div>
         </div>
-        
+
         {/* VIP Partner Application Button */}
         {!isVip && onApplyPartner && (
           <div className="mt-6 pt-4 border-t border-white/10 relative">
             {/* Glow effect */}
             <div className="absolute inset-0 bg-pandora-cyan/5 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-            
+
             <button
               onClick={onApplyPartner}
               className="relative w-full py-3.5 bg-black/50 hover:bg-black/70 border border-pandora-cyan/30 hover:border-pandora-cyan/50 text-pandora-cyan font-mono text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all group overflow-hidden"
@@ -132,23 +148,28 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
               <div className="absolute top-0 right-0 w-3 h-3 border-r-2 border-t-2 border-pandora-cyan/50 opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="absolute bottom-0 left-0 w-3 h-3 border-l-2 border-b-2 border-pandora-cyan/50 opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="absolute bottom-0 right-0 w-3 h-3 border-r-2 border-b-2 border-pandora-cyan/50 opacity-0 group-hover:opacity-100 transition-opacity" />
-              
+
               {/* Scanline effect */}
               <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,rgba(0,255,255,0.03)_0px,rgba(0,255,255,0.03)_1px,transparent_1px,transparent_2px)] pointer-events-none" />
-              
+
               {/* Content */}
               <span className="relative z-10 flex items-center gap-2">
                 <ShieldCheck size={14} className="group-hover:scale-110 transition-transform" />
-                <span className="group-hover:text-white transition-colors">ELITE_OPERATOR // РЕГИСТРАЦИЯ</span>
-                <Star size={12} className="text-pandora-cyan group-hover:rotate-180 transition-transform duration-500" />
+                <span className="group-hover:text-white transition-colors">
+                  ELITE_OPERATOR // РЕГИСТРАЦИЯ
+                </span>
+                <Star
+                  size={12}
+                  className="text-pandora-cyan group-hover:rotate-180 transition-transform duration-500"
+                />
               </span>
-              
+
               {/* Hover glow */}
               <div className="absolute inset-0 bg-pandora-cyan/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
             </button>
           </div>
         )}
-        
+
         {isVip && (
           <div className="mt-6 pt-4 border-t border-white/10 text-center">
             <div className="inline-flex items-center gap-2 text-pandora-cyan font-mono text-xs uppercase bg-pandora-cyan/10 border border-pandora-cyan/30 px-4 py-2">
@@ -164,11 +185,3 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
 };
 
 export default memo(ProfileCareer);
-
-
-
-
-
-
-
-

@@ -1,16 +1,16 @@
 /**
  * Profile Component
- * 
+ *
  * Main profile page container that orchestrates all profile views.
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { User, ArrowLeft } from 'lucide-react';
-import { AudioEngine } from '../../lib/AudioEngine';
-import { useClipboard } from '../../hooks/useClipboard';
-import { useLocale } from '../../hooks/useLocale';
-import { logger } from '../../utils/logger';
+import React, { useState, useCallback, useEffect } from "react";
+import { motion } from "framer-motion";
+import { User, ArrowLeft } from "lucide-react";
+import { AudioEngine } from "../../lib/AudioEngine";
+import { useClipboard } from "../../hooks/useClipboard";
+import { useLocale } from "../../hooks/useLocale";
+import { logger } from "../../utils/logger";
 // Career levels come from API via profile.career - no hardcoded constants
 import {
   ProfileHeader,
@@ -20,69 +20,88 @@ import {
   ProfileBilling,
   ReferralDossier,
   type ProfileDataProp,
-} from '../profile';
+} from "../profile";
 
 interface ProfileProps {
   profile?: ProfileDataProp;
   onBack: () => void;
-  onHaptic?: (type?: 'light' | 'medium') => void;
+  onHaptic?: (type?: "light" | "medium") => void;
   onAdminEnter?: () => void;
   onCopyLink?: () => void;
   onShare?: () => void;
   shareLoading?: boolean;
   onWithdraw?: () => void;
   onTopUp?: () => void;
-  onUpdatePreferences?: (preferred_currency?: string, interface_language?: string) => Promise<{ success: boolean; message: string }>;
-  onSetPartnerMode?: (mode: 'commission' | 'discount') => Promise<{ success: boolean }>;
+  onUpdatePreferences?: (
+    preferred_currency?: string,
+    interface_language?: string
+  ) => Promise<{ success: boolean; message: string }>;
+  onSetPartnerMode?: (mode: "commission" | "discount") => Promise<{ success: boolean }>;
   onApplyPartner?: () => void;
 }
 
 // --- MAIN COMPONENT ---
 
-const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHaptic, onAdminEnter, onCopyLink, onShare: onShareProp, shareLoading, onWithdraw, onTopUp, onUpdatePreferences, onSetPartnerMode, onApplyPartner }) => {
+const Profile: React.FC<ProfileProps> = ({
+  profile: propProfile,
+  onBack,
+  onHaptic,
+  onAdminEnter,
+  onCopyLink,
+  onShare: onShareProp,
+  shareLoading,
+  onWithdraw,
+  onTopUp,
+  onUpdatePreferences,
+  onSetPartnerMode,
+  onApplyPartner,
+}) => {
   const { t } = useLocale();
   const { copy: copyToClipboard, copied } = useClipboard();
-  const [activeTab, setActiveTab] = useState<'network' | 'logs'>('network');
+  const [activeTab, setActiveTab] = useState<"network" | "logs">("network");
   const [networkLine, setNetworkLine] = useState<1 | 2 | 3>(1);
   // Initialize reward mode from profile data (map commission/discount to cash/discount)
   // Always initialize with 'cash' to maintain hook order consistency
-  const [rewardMode, setRewardMode] = useState<'cash' | 'discount'>('cash');
-  
+  const [rewardMode, setRewardMode] = useState<"cash" | "discount">("cash");
+
   // DOSSIER STATE
   const [selectedReferralId, setSelectedReferralId] = useState<number | string | null>(null);
-  
+
   // Sync reward mode with profile when it changes (useEffect to avoid conditional hook)
   useEffect(() => {
     if (propProfile?.partnerMode) {
-      setRewardMode(propProfile.partnerMode === 'discount' ? 'discount' : 'cash');
+      setRewardMode(propProfile.partnerMode === "discount" ? "discount" : "cash");
     }
   }, [propProfile?.partnerMode]);
-  
+
   // Use provided profile data only - NO MOCK FALLBACK (production)
   if (!propProfile) {
     // Return empty state if no profile data provided
     return (
       <div className="min-h-screen text-white pt-20 md:pt-24 pb-32 px-4 md:px-8 md:pl-28 relative">
         <div className="max-w-7xl mx-auto">
-          <button onClick={onBack} className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors">
-            <ArrowLeft size={12} /> {t('empty.returnToBase').toUpperCase()}
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors"
+          >
+            <ArrowLeft size={12} /> {t("empty.returnToBase").toUpperCase()}
           </button>
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <User size={64} className="text-gray-700 mb-6" />
-            <h2 className="text-2xl font-bold text-white mb-2">{t('empty.profile').toUpperCase()}</h2>
-            <p className="text-gray-500 font-mono text-sm max-w-md">
-              {t('empty.profileHint')}
-            </p>
+            <h2 className="text-2xl font-bold text-white mb-2">
+              {t("empty.profile").toUpperCase()}
+            </h2>
+            <p className="text-gray-500 font-mono text-sm max-w-md">{t("empty.profileHint")}</p>
           </div>
         </div>
       </div>
     );
   }
-  
+
   const user = propProfile;
   const networkTree = propProfile?.networkTree || [];
   const billingLogs = propProfile?.billingLogs || [];
-  
+
   // Use networkTree (which may be from API or mock) instead of hardcoded NETWORK_TREE
   const selectedReferral = networkTree.find((n) => n.id === selectedReferralId);
 
@@ -93,9 +112,8 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
   const maxTurnover = nextLevel ? nextLevel.min : currentLevel.max;
   const progressPercent = propProfile.career.progressPercent;
 
-
   const handleCopy = useCallback(async () => {
-    if(onHaptic) onHaptic('light');
+    if (onHaptic) onHaptic("light");
     if (onCopyLink) {
       onCopyLink();
     } else if (user.referralLink) {
@@ -104,58 +122,58 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
   }, [onHaptic, onCopyLink, user.referralLink, copyToClipboard]);
 
   const handleShare = useCallback(async () => {
-    if (onHaptic) onHaptic('medium');
-    
+    if (onHaptic) onHaptic("medium");
+
     // Use prop handler if provided
     if (onShareProp) {
       onShareProp();
       return;
     }
-    
+
     if (navigator.share) {
-        try {
-            await navigator.share({
-                title: 'PVNDORA // INVITE',
-                text: 'Access Restricted Neural Markets. Join via my secured node.',
-                url: user.referralLink,
-            });
-        } catch (error) {
-          logger.error('Share failed', error);
-            // Share cancelled or failed - silent handling
-        }
+      try {
+        await navigator.share({
+          title: "PVNDORA // INVITE",
+          text: "Access Restricted Neural Markets. Join via my secured node.",
+          url: user.referralLink,
+        });
+      } catch (error) {
+        logger.error("Share failed", error);
+        // Share cancelled or failed - silent handling
+      }
     } else {
-        // Fallback if native share is not supported
-        handleCopy();
+      // Fallback if native share is not supported
+      handleCopy();
     }
   }, [onHaptic, onShareProp, user.referralLink, handleCopy]);
 
   const changeLine = (line: 1 | 2 | 3) => {
-      if(onHaptic) onHaptic('light');
-      setNetworkLine(line);
-  }
+    if (onHaptic) onHaptic("light");
+    setNetworkLine(line);
+  };
 
   const handleOpenDossier = (id: number | string) => {
-    if(onHaptic) onHaptic('medium');
+    if (onHaptic) onHaptic("medium");
     AudioEngine.decrypt(); // Play decrypt sound for dossier reveal
     setSelectedReferralId(id);
   };
 
   const handleCloseDossier = () => {
-      if(onHaptic) onHaptic('light');
-      AudioEngine.panelClose();
-      setSelectedReferralId(null);
-  }
+    if (onHaptic) onHaptic("light");
+    AudioEngine.panelClose();
+    setSelectedReferralId(null);
+  };
 
   const toggleRewardMode = async () => {
-    if (!user.isVip && !user.role.includes('ADMIN')) return;
-    if (onHaptic) onHaptic('medium');
-    
-    const newMode = rewardMode === 'cash' ? 'discount' : 'cash';
-    const apiMode = newMode === 'cash' ? 'commission' : 'discount';
-    
+    if (!user.isVip && !user.role.includes("ADMIN")) return;
+    if (onHaptic) onHaptic("medium");
+
+    const newMode = rewardMode === "cash" ? "discount" : "cash";
+    const apiMode = newMode === "cash" ? "commission" : "discount";
+
     // Optimistic update
     setRewardMode(newMode);
-    
+
     // Call API if handler provided
     if (onSetPartnerMode) {
       try {
@@ -168,18 +186,14 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="min-h-screen text-white pt-20 md:pt-24 pb-32 px-4 md:px-8 md:pl-28 relative"
     >
       <div className="max-w-7xl mx-auto relative z-10">
-        <ProfileHeader 
-          user={user} 
-          onBack={onBack} 
-          onAdminEnter={onAdminEnter}
-        />
+        <ProfileHeader user={user} onBack={onBack} onAdminEnter={onAdminEnter} />
 
         <ProfileStats
           user={user}
@@ -213,38 +227,44 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
           <div className="bg-[#0a0a0a] border-b border-white/10 p-2 px-4 flex flex-col sm:flex-row items-center gap-6 mb-0">
             {/* Main Tabs */}
             <div className="flex items-center gap-6 overflow-x-auto w-full sm:w-auto">
-              <button 
-                onClick={() => { if(onHaptic) onHaptic('light'); setActiveTab('network'); }} 
+              <button
+                onClick={() => {
+                  if (onHaptic) onHaptic("light");
+                  setActiveTab("network");
+                }}
                 className={`text-[10px] font-mono font-bold uppercase flex items-center gap-2 whitespace-nowrap ${
-                  activeTab === 'network' ? 'text-pandora-cyan' : 'text-gray-600'
+                  activeTab === "network" ? "text-pandora-cyan" : "text-gray-600"
                 }`}
               >
-                {t('profile.tabs.network')}
+                {t("profile.tabs.network")}
               </button>
-              <button 
-                onClick={() => { if(onHaptic) onHaptic('light'); setActiveTab('logs'); }} 
+              <button
+                onClick={() => {
+                  if (onHaptic) onHaptic("light");
+                  setActiveTab("logs");
+                }}
                 className={`text-[10px] font-mono font-bold uppercase whitespace-nowrap ${
-                  activeTab === 'logs' ? 'text-pandora-cyan' : 'text-gray-600'
+                  activeTab === "logs" ? "text-pandora-cyan" : "text-gray-600"
                 }`}
               >
-                {t('profile.tabs.history')}
+                {t("profile.tabs.history")}
               </button>
             </div>
           </div>
 
-          {activeTab === 'network' ? (
+          {activeTab === "network" ? (
             <ProfileNetwork
               nodes={networkTree}
               networkLine={networkLine}
-              currency={user.currency || 'USD'}
+              currency={user.currency || "USD"}
               exchangeRate={user.exchangeRate || 1}
               onLineChange={changeLine}
               onNodeClick={handleOpenDossier}
             />
           ) : (
-            <ProfileBilling 
+            <ProfileBilling
               logs={billingLogs}
-              currency={user.currency || 'USD'}
+              currency={user.currency || "USD"}
               exchangeRate={user.exchangeRate || 1}
             />
           )}
@@ -252,13 +272,9 @@ const Profile: React.FC<ProfileProps> = ({ profile: propProfile, onBack, onHapti
       </div>
 
       {/* Referral Dossier */}
-      <ReferralDossier
-        referral={selectedReferral || null}
-        onClose={handleCloseDossier}
-      />
+      <ReferralDossier referral={selectedReferral || null} onClose={handleCloseDossier} />
     </motion.div>
   );
 };
-
 
 export default Profile;

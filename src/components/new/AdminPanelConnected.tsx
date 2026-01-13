@@ -1,24 +1,24 @@
 /**
  * AdminPanelConnected
- * 
+ *
  * Connected version of AdminPanel with real API data.
  * All data transformations are memoized to prevent infinite re-renders.
  */
 
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import AdminPanel from './AdminPanel';
-import { 
-  useAdminProductsTyped, 
-  useAdminOrdersTyped, 
-  useAdminUsersTyped, 
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import AdminPanel from "./AdminPanel";
+import {
+  useAdminProductsTyped,
+  useAdminOrdersTyped,
+  useAdminUsersTyped,
   useAdminAnalyticsTyped,
-} from '../../hooks/useApiTyped';
-import { useAdminPromoTyped, PromoCodeData } from '../../hooks/api/useAdminPromoApi';
-import { useAdmin } from '../../hooks/useAdmin';
-import { formatRelativeTime, formatDate } from '../../utils/date';
-import { logger } from '../../utils/logger';
-import type { TicketData } from '../admin/types';
-import type { AccountingData } from '../admin';
+} from "../../hooks/useApiTyped";
+import { useAdminPromoTyped, PromoCodeData } from "../../hooks/api/useAdminPromoApi";
+import { useAdmin } from "../../hooks/useAdmin";
+import { formatRelativeTime, formatDate } from "../../utils/date";
+import { logger } from "../../utils/logger";
+import type { TicketData } from "../admin/types";
+import type { AccountingData } from "../admin";
 
 interface AdminPanelConnectedProps {
   onExit: () => void;
@@ -26,32 +26,40 @@ interface AdminPanelConnectedProps {
 
 const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => {
   // API hooks
-  const { products, getProducts, createProduct, updateProduct, deleteProduct } = useAdminProductsTyped();
+  const { products, getProducts, createProduct, updateProduct, deleteProduct } =
+    useAdminProductsTyped();
   const { orders, getOrders } = useAdminOrdersTyped();
   const { users, getUsers, banUser, updateBalance } = useAdminUsersTyped();
   const { analytics, getAnalytics } = useAdminAnalyticsTyped();
-  const { promoCodes, getPromoCodes, createPromoCode, updatePromoCode, deletePromoCode, togglePromoActive } = useAdminPromoTyped();
+  const {
+    promoCodes,
+    getPromoCodes,
+    createPromoCode,
+    updatePromoCode,
+    deletePromoCode,
+    togglePromoActive,
+  } = useAdminPromoTyped();
   const { getTickets, getWithdrawals } = useAdmin();
-  
+
   // Local state
   const [isInitialized, setIsInitialized] = useState(false);
   const [tickets, setTickets] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [accountingData, setAccountingData] = useState<AccountingData | undefined>();
   const [isAccountingLoading, setIsAccountingLoading] = useState(false);
-  
+
   // Ref to store user ID mapping (telegram_id -> UUID)
   const userIdMapRef = useRef<Map<number, string>>(new Map());
 
   // Fetch tickets - stable callback
   const fetchTickets = useCallback(async () => {
     try {
-      const response = await getTickets('all');
+      const response = await getTickets("all");
       if (response?.tickets) {
         setTickets(response.tickets);
       }
     } catch (err) {
-      logger.error('Failed to fetch tickets', err);
+      logger.error("Failed to fetch tickets", err);
       setTickets([]);
     }
   }, [getTickets]);
@@ -59,67 +67,68 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
   // Fetch withdrawals - stable callback
   const fetchWithdrawals = useCallback(async () => {
     try {
-      const response = await getWithdrawals('all');
+      const response = await getWithdrawals("all");
       if (response?.withdrawals) {
         setWithdrawals(response.withdrawals);
       }
     } catch (err) {
-      logger.error('Failed to fetch withdrawals', err);
+      logger.error("Failed to fetch withdrawals", err);
       setWithdrawals([]);
     }
   }, [getWithdrawals]);
 
   // Fetch accounting data with optional period filter and currency
-  const fetchAccounting = useCallback(async (
-    period?: 'today' | 'month' | 'all' | 'custom',
-    customFrom?: string,
-    customTo?: string,
-    displayCurrency: 'USD' | 'RUB' = 'RUB'
-  ) => {
-    setIsAccountingLoading(true);
-    try {
-      const { apiRequest } = await import('../../utils/apiClient');
-      const { API } = await import('../../config');
-      
-      // Build URL with period and currency params
-      let url = `${API.ADMIN_URL}/accounting/overview`;
-      const params = new URLSearchParams();
-      params.append('display_currency', displayCurrency);
-      if (period && period !== 'all') {
-        params.append('period', period);
-      }
-      if (period === 'custom' && customFrom) {
-        params.append('from', customFrom);
-      }
-      if (period === 'custom' && customTo) {
-        params.append('to', customTo);
-      }
-      if (params.toString()) {
-        url += `?${params.toString()}`;
-      }
-      
-      const data = await apiRequest<any>(url);
-      
-      // Log for debugging
-      logger.info('Accounting data loaded', data);
-      
-      setAccountingData({
+  const fetchAccounting = useCallback(
+    async (
+      period?: "today" | "month" | "all" | "custom",
+      customFrom?: string,
+      customTo?: string,
+      displayCurrency: "USD" | "RUB" = "RUB"
+    ) => {
+      setIsAccountingLoading(true);
+      try {
+        const { apiRequest } = await import("../../utils/apiClient");
+        const { API } = await import("../../config");
+
+        // Build URL with period and currency params
+        let url = `${API.ADMIN_URL}/accounting/overview`;
+        const params = new URLSearchParams();
+        params.append("display_currency", displayCurrency);
+        if (period && period !== "all") {
+          params.append("period", period);
+        }
+        if (period === "custom" && customFrom) {
+          params.append("from", customFrom);
+        }
+        if (period === "custom" && customTo) {
+          params.append("to", customTo);
+        }
+        if (params.toString()) {
+          url += `?${params.toString()}`;
+        }
+
+        const data = await apiRequest<any>(url);
+
+        // Log for debugging
+        logger.info("Accounting data loaded", data);
+
+        setAccountingData({
           // Filter info
           period: data.period,
           startDate: data.start_date,
           endDate: data.end_date,
-          
+
           // Orders
           totalOrders: parseInt(data.total_orders) || 0,
-          
+
           // Revenue by currency (NEW - real amounts!)
           revenueByCurrency: data.revenue_by_currency || {},
-          
+
           // Legacy totals in USD
           totalRevenue: parseFloat(data.total_revenue) || 0,
           revenueGross: parseFloat(data.total_revenue_gross) || 0,
           totalDiscountsGiven: parseFloat(data.total_discounts_given) || 0,
-          
+
           // Expenses (always in USD)
           totalCogs: parseFloat(data.total_cogs) || 0,
           totalAcquiringFees: parseFloat(data.total_acquiring_fees) || 0,
@@ -129,40 +138,42 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
           totalReplacementCosts: parseFloat(data.total_replacement_costs) || 0,
           totalOtherExpenses: parseFloat(data.total_other_expenses) || 0,
           totalInsuranceRevenue: parseFloat(data.total_insurance_revenue) || 0,
-          
+
           // Liabilities by currency (NEW - real amounts!)
           liabilitiesByCurrency: data.liabilities_by_currency || {},
-          
+
           // Legacy liabilities
           totalUserBalances: parseFloat(data.total_user_balances) || 0,
           pendingWithdrawals: parseFloat(data.pending_withdrawals) || 0,
-          
+
           // Profit (USD)
           netProfit: parseFloat(data.net_profit) || 0,
           grossProfit: parseFloat(data.profit_usd?.gross_profit) || undefined,
           operatingProfit: parseFloat(data.profit_usd?.operating_profit) || undefined,
           grossMarginPct: parseFloat(data.profit_usd?.gross_margin_pct) || undefined,
           netMarginPct: parseFloat(data.profit_usd?.net_margin_pct) || undefined,
-          
+
           // Reserves
           reservesAccumulated: parseFloat(data.reserves_accumulated) || 0,
           reservesUsed: parseFloat(data.reserves_used) || 0,
           reservesAvailable: parseFloat(data.reserves_available) || 0,
-          
+
           // Deprecated (kept for backward compatibility)
           currencyBreakdown: data.currency_breakdown || data.revenue_by_currency || {},
         });
-    } catch (err) {
-      logger.error('Failed to fetch accounting data', err);
-    } finally {
-      setIsAccountingLoading(false);
-    }
-  }, []);
+      } catch (err) {
+        logger.error("Failed to fetch accounting data", err);
+      } finally {
+        setIsAccountingLoading(false);
+      }
+    },
+    []
+  );
 
   // Initial data fetch - only run once on mount
   useEffect(() => {
     let isMounted = true;
-    
+
     const init = async () => {
       try {
         await Promise.allSettled([
@@ -173,135 +184,147 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
           getPromoCodes(),
           fetchTickets(),
           fetchWithdrawals(),
-          fetchAccounting('all', undefined, undefined, 'RUB')
+          fetchAccounting("all", undefined, undefined, "RUB"),
         ]);
-        
+
         if (isMounted) {
           setIsInitialized(true);
         }
       } catch (err) {
-        logger.error('Failed to initialize admin panel', err);
+        logger.error("Failed to initialize admin panel", err);
         if (isMounted) {
           setIsInitialized(true);
         }
       }
     };
-    
+
     init();
-    
-    return () => { isMounted = false; };
+
+    return () => {
+      isMounted = false;
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ALL useMemo hooks MUST be before any conditional returns (Rules of Hooks)
-  
-  // Memoized transformations
-  const transformedProducts = useMemo(() => 
-    products.map(p => ({
-      id: p.id,
-      name: p.name,
-      category: p.category || 'ai',
-      description: p.description || '',
-      price: p.price,
-      prices: p.prices || {},  // Anchor prices: {RUB: 990}
-      msrp: p.msrp || p.price * 1.5,
-      msrp_prices: p.msrp_prices || {},  // Anchor MSRP prices
-      discountPrice: p.discountPrice || 0,
-      costPrice: p.costPrice || 0,
-      fulfillmentType: p.fulfillmentType || 'auto',
-      type: p.type === 'instant' ? 'Instant' : 'Preorder',
-      stock: p.stock || 0,
-      fulfillment: p.fulfillment || 0,
-      warranty: p.warranty || 168,
-      duration: p.duration || 30,
-      sold: p.sold || 0,
-      vpn: p.vpn || false,
-      image: p.image || 'https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=800&auto=format&fit=crop',
-      video: p.video,
-      instructions: p.instructions || '',
-      status: p.status || 'active'
-    }))
-  , [products]);
 
-  const transformedOrders = useMemo(() => 
-    orders.map(o => ({
-      id: o.id,
-      user: o.user_handle || `@user_${o.user_id?.slice(0, 6)}`,
-      product: o.product_name || 'Unknown Product',
-      amount: o.amount,
-      status: o.status?.toUpperCase() || 'PENDING',
-      date: formatRelativeTime(o.created_at),
-      method: o.payment_method?.toUpperCase() || 'UNKNOWN'
-    }))
-  , [orders]);
+  // Memoized transformations
+  const transformedProducts = useMemo(
+    () =>
+      products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        category: p.category || "ai",
+        description: p.description || "",
+        price: p.price,
+        prices: p.prices || {}, // Anchor prices: {RUB: 990}
+        msrp: p.msrp || p.price * 1.5,
+        msrp_prices: p.msrp_prices || {}, // Anchor MSRP prices
+        discountPrice: p.discountPrice || 0,
+        costPrice: p.costPrice || 0,
+        fulfillmentType: p.fulfillmentType || "auto",
+        stock: p.stock || 0,
+        fulfillment: p.fulfillment || 0,
+        warranty: p.warranty || 168,
+        duration: p.duration || 30,
+        sold: p.sold || 0,
+        image:
+          p.image ||
+          "https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=800&auto=format&fit=crop",
+        video: p.video,
+        instructions: p.instructions || "",
+        status: p.status || "active",
+      })),
+    [products]
+  );
+
+  const transformedOrders = useMemo(
+    () =>
+      orders.map((o) => ({
+        id: o.id,
+        user: o.user_handle || `@user_${o.user_id?.slice(0, 6)}`,
+        product: o.product_name || "Unknown Product",
+        amount: o.amount,
+        status: o.status?.toUpperCase() || "PENDING",
+        date: formatRelativeTime(o.created_at),
+        method: o.payment_method?.toUpperCase() || "UNKNOWN",
+      })),
+    [orders]
+  );
 
   const transformedUsers = useMemo(() => {
     // Update ref with fresh mapping
     const newMap = new Map<number, string>();
-    const result = users.map(u => {
+    const result = users.map((u) => {
       const telegramId = parseInt(u.telegram_id) || 0;
       newMap.set(telegramId, u.id);
       return {
         id: telegramId,
-        dbId: u.id,  // Database UUID for API calls
+        dbId: u.id, // Database UUID for API calls
         username: u.username || `user_${u.id?.slice(0, 6)}`,
-        role: (u.role?.toUpperCase() || 'USER') as 'USER' | 'VIP' | 'ADMIN',
+        role: (u.role?.toUpperCase() || "USER") as "USER" | "VIP" | "ADMIN",
         joinedAt: formatDate(u.created_at),
         purchases: u.orders_count || 0,
         spent: u.total_spent || 0,
         balance: u.balance || 0,
-        balanceCurrency: u.balance_currency || 'USD',
+        balanceCurrency: u.balance_currency || "USD",
         isBanned: u.is_banned || false,
         invites: 0,
-        earned: u.total_referral_earnings || 0,  // Referral earnings
+        earned: u.total_referral_earnings || 0, // Referral earnings
         savings: 0,
         // Partner-specific fields
-        rewardType: (u.partner_mode === 'discount' ? 'discount' : 'commission') as 'commission' | 'discount'
+        rewardType: (u.partner_mode === "discount" ? "discount" : "commission") as
+          | "commission"
+          | "discount",
       };
     });
     userIdMapRef.current = newMap;
     return result;
   }, [users]);
 
-  const transformedTickets = useMemo((): TicketData[] => 
-    tickets.map((t: any) => ({
-      id: t.id,
-      user: t.first_name || t.username || `user_${t.user_id?.slice(0, 6)}`,
-      subject: t.description?.slice(0, 50) || 'No subject',
-      status: (t.status?.toUpperCase() || 'OPEN') as TicketData['status'],
-      createdAt: t.created_at,
-      lastMessage: t.description || '',
-      priority: 'MEDIUM' as const,
-      date: formatRelativeTime(t.created_at),
-      issue_type: t.issue_type,
-      item_id: t.item_id,
-      order_id: t.order_id,
-      telegram_id: t.telegram_id,
-      admin_comment: t.admin_comment,
-      description: t.description,
-      // Credentials for admin verification
-      credentials: t.credentials,
-      product_name: t.product_name
-    }))
-  , [tickets]);
+  const transformedTickets = useMemo(
+    (): TicketData[] =>
+      tickets.map((t: any) => ({
+        id: t.id,
+        user: t.first_name || t.username || `user_${t.user_id?.slice(0, 6)}`,
+        subject: t.description?.slice(0, 50) || "No subject",
+        status: (t.status?.toUpperCase() || "OPEN") as TicketData["status"],
+        createdAt: t.created_at,
+        lastMessage: t.description || "",
+        priority: "MEDIUM" as const,
+        date: formatRelativeTime(t.created_at),
+        issue_type: t.issue_type,
+        item_id: t.item_id,
+        order_id: t.order_id,
+        telegram_id: t.telegram_id,
+        admin_comment: t.admin_comment,
+        description: t.description,
+        // Credentials for admin verification
+        credentials: t.credentials,
+        product_name: t.product_name,
+      })),
+    [tickets]
+  );
 
   // Transform withdrawals for admin panel - MUST be before conditional return
-  const transformedWithdrawals = useMemo(() => 
-    withdrawals.map((w: any) => ({
-      id: w.id,
-      user_id: w.user_id,
-      telegram_id: w.telegram_id,
-      username: w.username,
-      first_name: w.first_name,
-      amount: w.amount || 0,
-      payment_method: w.payment_method,
-      payment_details: w.payment_details,
-      status: w.status || 'pending',
-      admin_comment: w.admin_comment,
-      created_at: w.created_at,
-      processed_at: w.processed_at,
-      user_balance: w.user_balance
-    }))
-  , [withdrawals]);
+  const transformedWithdrawals = useMemo(
+    () =>
+      withdrawals.map((w: any) => ({
+        id: w.id,
+        user_id: w.user_id,
+        telegram_id: w.telegram_id,
+        username: w.username,
+        first_name: w.first_name,
+        amount: w.amount || 0,
+        payment_method: w.payment_method,
+        payment_details: w.payment_details,
+        status: w.status || "pending",
+        admin_comment: w.admin_comment,
+        created_at: w.created_at,
+        processed_at: w.processed_at,
+        user_balance: w.user_balance,
+      })),
+    [withdrawals]
+  );
 
   const transformedStats = useMemo(() => {
     if (!analytics) return undefined;
@@ -315,109 +338,139 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       openTickets: (analytics as any).open_tickets || 0,
       revenueByDay: analytics.revenue_by_day || [],
       totalUserBalances: (analytics as any).total_user_balances || 0,
-      pendingWithdrawals: (analytics as any).pending_withdrawals || 0
+      pendingWithdrawals: (analytics as any).pending_withdrawals || 0,
     };
   }, [analytics]);
 
   // Stable action handlers - use ref for userIdMap to avoid dependency issues
-  const handleBanUser = useCallback((telegramId: number, ban: boolean) => {
-    const userId = userIdMapRef.current.get(telegramId);
-    if (userId) {
-      banUser(userId, ban);
-    }
-  }, [banUser]);
-  
-  const handleUpdateBalance = useCallback((telegramId: number, _amount: number) => {
-    const userId = userIdMapRef.current.get(telegramId);
-    if (userId) {
-      const amount = window.prompt('Enter amount to add (negative to subtract):', '0');
-      if (amount !== null) {
-        const parsed = parseFloat(amount);
-        if (!isNaN(parsed)) {
-          updateBalance(userId, parsed);
+  const handleBanUser = useCallback(
+    (telegramId: number, ban: boolean) => {
+      const userId = userIdMapRef.current.get(telegramId);
+      if (userId) {
+        banUser(userId, ban);
+      }
+    },
+    [banUser]
+  );
+
+  const handleUpdateBalance = useCallback(
+    (telegramId: number, _amount: number) => {
+      const userId = userIdMapRef.current.get(telegramId);
+      if (userId) {
+        const amount = window.prompt("Enter amount to add (negative to subtract):", "0");
+        if (amount !== null) {
+          const parsed = parseFloat(amount);
+          if (!isNaN(parsed)) {
+            updateBalance(userId, parsed);
+          }
         }
       }
-    }
-  }, [updateBalance]);
+    },
+    [updateBalance]
+  );
 
   // Promo handlers
-  const handleCreatePromo = useCallback(async (data: Omit<PromoCodeData, 'id' | 'usage_count' | 'created_at'>) => {
-    await createPromoCode(data);
-  }, [createPromoCode]);
-  
-  const handleUpdatePromo = useCallback(async (id: string, data: Partial<PromoCodeData>) => {
-    await updatePromoCode(id, data);
-  }, [updatePromoCode]);
-  
-  const handleDeletePromo = useCallback(async (id: string) => {
-    await deletePromoCode(id);
-  }, [deletePromoCode]);
-  
-  const handleTogglePromoActive = useCallback(async (id: string, isActive: boolean) => {
-    await togglePromoActive(id, isActive);
-  }, [togglePromoActive]);
+  const handleCreatePromo = useCallback(
+    async (data: Omit<PromoCodeData, "id" | "usage_count" | "created_at">) => {
+      await createPromoCode(data);
+    },
+    [createPromoCode]
+  );
+
+  const handleUpdatePromo = useCallback(
+    async (id: string, data: Partial<PromoCodeData>) => {
+      await updatePromoCode(id, data);
+    },
+    [updatePromoCode]
+  );
+
+  const handleDeletePromo = useCallback(
+    async (id: string) => {
+      await deletePromoCode(id);
+    },
+    [deletePromoCode]
+  );
+
+  const handleTogglePromoActive = useCallback(
+    async (id: string, isActive: boolean) => {
+      await togglePromoActive(id, isActive);
+    },
+    [togglePromoActive]
+  );
 
   // Product handlers
-  const handleSaveProduct = useCallback(async (product: any) => {
-    if (product.id) {
-      // Update existing product
-      await updateProduct(product.id, product);
-    } else {
-      // Create new product
-      await createProduct(product);
-    }
-  }, [createProduct, updateProduct]);
+  const handleSaveProduct = useCallback(
+    async (product: any) => {
+      if (product.id) {
+        // Update existing product
+        await updateProduct(product.id, product);
+      } else {
+        // Create new product
+        await createProduct(product);
+      }
+    },
+    [createProduct, updateProduct]
+  );
 
-  const handleDeleteProduct = useCallback(async (productId: string) => {
-    await deleteProduct(productId);
-  }, [deleteProduct]);
+  const handleDeleteProduct = useCallback(
+    async (productId: string) => {
+      await deleteProduct(productId);
+    },
+    [deleteProduct]
+  );
 
   // Toggle VIP status handler
-  const handleToggleVIP = useCallback(async (userId: string, isVIP: boolean) => {
-    const { apiRequest: makeRequest } = await import('../../utils/apiClient');
-    const { API: apiConfig } = await import('../../config');
-    
-    try {
-      await makeRequest(`${apiConfig.ADMIN_URL}/users/${userId}/vip`, {
-        method: 'POST',
-        body: JSON.stringify({
-          is_partner: isVIP,
-          partner_level_override: isVIP ? 3 : null
-        })
-      });
-      // Refresh users list
-      await getUsers(50);
-    } catch (err) {
-      logger.error('Failed to toggle VIP status', err);
-      throw err;
-    }
-  }, [getUsers]);
+  const handleToggleVIP = useCallback(
+    async (userId: string, isVIP: boolean) => {
+      const { apiRequest: makeRequest } = await import("../../utils/apiClient");
+      const { API: apiConfig } = await import("../../config");
+
+      try {
+        await makeRequest(`${apiConfig.ADMIN_URL}/users/${userId}/vip`, {
+          method: "POST",
+          body: JSON.stringify({
+            is_partner: isVIP,
+            partner_level_override: isVIP ? 3 : null,
+          }),
+        });
+        // Refresh users list
+        await getUsers(50);
+      } catch (err) {
+        logger.error("Failed to toggle VIP status", err);
+        throw err;
+      }
+    },
+    [getUsers]
+  );
 
   // Add expense handler
-  const handleAddExpense = useCallback(async (expense: {
-    description: string;
-    amount: number;
-    currency: 'USD' | 'RUB';
-    category: string;
-    date?: string;
-    supplier_id?: string;
-  }) => {
-    const { apiRequest } = await import('../../utils/apiClient');
-    const { API } = await import('../../config');
-    
-    try {
-      await apiRequest(`${API.ADMIN_URL}/accounting/expenses`, {
-        method: 'POST',
-        body: JSON.stringify(expense)
-      });
-      // Refresh accounting data
-      await fetchAccounting('all');
-      logger.info('Expense created successfully');
-    } catch (err) {
-      logger.error('Failed to create expense', err);
-      throw err;
-    }
-  }, [fetchAccounting]);
+  const handleAddExpense = useCallback(
+    async (expense: {
+      description: string;
+      amount: number;
+      currency: "USD" | "RUB";
+      category: string;
+      date?: string;
+      supplier_id?: string;
+    }) => {
+      const { apiRequest } = await import("../../utils/apiClient");
+      const { API } = await import("../../config");
+
+      try {
+        await apiRequest(`${API.ADMIN_URL}/accounting/expenses`, {
+          method: "POST",
+          body: JSON.stringify(expense),
+        });
+        // Refresh accounting data
+        await fetchAccounting("all");
+        logger.info("Expense created successfully");
+      } catch (err) {
+        logger.error("Failed to create expense", err);
+        throw err;
+      }
+    },
+    [fetchAccounting]
+  );
 
   // Loading state - AFTER all hooks
   if (!isInitialized) {
@@ -434,7 +487,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
   }
 
   return (
-    <AdminPanel 
+    <AdminPanel
       onExit={onExit}
       products={transformedProducts}
       orders={transformedOrders}

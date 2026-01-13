@@ -1,20 +1,20 @@
 /**
  * Authentication Utilities
- * 
+ *
  * Shared authentication logic for web and Telegram Mini App.
  */
 
-import { API, CACHE } from '../config';
-import { localStorage } from './storage';
-import { logger } from './logger';
-import { apiPost } from './apiClient';
+import { API, CACHE } from "../config";
+import { localStorage } from "./storage";
+import { logger } from "./logger";
+import { apiPost } from "./apiClient";
 
 /**
  * Extract session_token from URL query and persist to localStorage.
  * Used for web login flow when Telegram initData is unavailable.
- * 
+ *
  * @returns Extracted token or null if not found
- * 
+ *
  * @example
  * ```ts
  * // URL: https://app.com/?session_token=abc123
@@ -22,15 +22,15 @@ import { apiPost } from './apiClient';
  * ```
  */
 export function persistSessionTokenFromQuery(): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
   try {
     const url = new URL(window.location.href);
-    const token = url.searchParams.get('session_token');
+    const token = url.searchParams.get("session_token");
     if (token) {
       localStorage.set(CACHE.SESSION_TOKEN_KEY, token);
       // Remove token from URL to avoid leaking
-      url.searchParams.delete('session_token');
-      window.history.replaceState({}, '', url.toString());
+      url.searchParams.delete("session_token");
+      window.history.replaceState({}, "", url.toString());
       return token;
     }
   } catch {
@@ -55,26 +55,26 @@ export interface SessionVerificationResult {
 
 /**
  * Verify session token with backend API
- * 
+ *
  * @param token - Session token string to verify
  * @returns Promise resolving to SessionVerificationResult or null on error
  */
 export async function verifySessionToken(token: string): Promise<SessionVerificationResult | null> {
   try {
     // Use apiClient for consistent error handling
-    const data = await apiPost<SessionVerificationResult>('/auth/verify-session', {
+    const data = await apiPost<SessionVerificationResult>("/auth/verify-session", {
       session_token: token,
     });
     return data;
   } catch (err) {
-    logger.error('Session verification error', err);
+    logger.error("Session verification error", err);
     return null;
   }
 }
 
 /**
  * Get session token from localStorage
- * 
+ *
  * @returns Session token string or null if not found
  */
 export function getSessionToken(): string | null {
@@ -83,7 +83,7 @@ export function getSessionToken(): string | null {
 
 /**
  * Save session token to localStorage
- * 
+ *
  * @param token - Session token string to save
  */
 export function saveSessionToken(token: string): void {
@@ -92,7 +92,7 @@ export function saveSessionToken(token: string): void {
 
 /**
  * Remove session token from localStorage
- * 
+ *
  * Clears the stored session token, effectively logging out the user.
  */
 export function removeSessionToken(): void {

@@ -1,22 +1,22 @@
 /**
  * Error Handler Utilities
- * 
+ *
  * Provides utilities for consistent error handling across the application.
  */
 
-import { logger } from './logger';
+import { logger } from "./logger";
 
 /**
  * Extract error message from unknown error type
  */
-export function getErrorMessage(error: unknown, fallback = 'An error occurred'): string {
+export function getErrorMessage(error: unknown, fallback = "An error occurred"): string {
   if (error instanceof Error) {
     return error.message;
   }
-  if (typeof error === 'string') {
+  if (typeof error === "string") {
     return error;
   }
-  if (error && typeof error === 'object' && 'message' in error) {
+  if (error && typeof error === "object" && "message" in error) {
     return String(error.message);
   }
   return fallback;
@@ -39,11 +39,11 @@ export function isHttpError(error: unknown, statusCode: number): boolean {
 export function isNetworkError(error: unknown): boolean {
   const message = getErrorMessage(error).toLowerCase();
   return (
-    message.includes('network') ||
-    message.includes('fetch') ||
-    message.includes('connection') ||
-    message.includes('timeout') ||
-    message.includes('failed to fetch')
+    message.includes("network") ||
+    message.includes("fetch") ||
+    message.includes("connection") ||
+    message.includes("timeout") ||
+    message.includes("failed to fetch")
   );
 }
 
@@ -52,27 +52,27 @@ export function isNetworkError(error: unknown): boolean {
  */
 export function getUserFriendlyError(error: unknown): string {
   const message = getErrorMessage(error);
-  
+
   // Network errors
   if (isNetworkError(error)) {
-    return 'Network error. Please check your connection and try again.';
+    return "Network error. Please check your connection and try again.";
   }
-  
+
   // HTTP 404
   if (isHttpError(error, 404)) {
-    return 'Resource not found.';
+    return "Resource not found.";
   }
-  
+
   // HTTP 429 (Rate limiting)
   if (isHttpError(error, 429)) {
-    return 'Too many requests. Please wait a moment and try again.';
+    return "Too many requests. Please wait a moment and try again.";
   }
-  
+
   // HTTP 500-503 (Server errors)
   if (isHttpError(error, 500) || isHttpError(error, 502) || isHttpError(error, 503)) {
-    return 'Server error. Please try again later.';
+    return "Server error. Please try again later.";
   }
-  
+
   // Filter out technical details from error messages
   const technicalPatterns = [
     /^error:/i,
@@ -81,21 +81,21 @@ export function getUserFriendlyError(error: unknown): string {
     /\[object \w+\]/,
     /undefined|null/,
   ];
-  
+
   let cleanMessage = message;
   for (const pattern of technicalPatterns) {
-    cleanMessage = cleanMessage.replace(pattern, '');
+    cleanMessage = cleanMessage.replace(pattern, "");
   }
-  
+
   cleanMessage = cleanMessage.trim();
-  
+
   // Return original message if cleaned message is meaningful
   if (cleanMessage.length > 10 && cleanMessage.length < 200) {
     return cleanMessage;
   }
-  
+
   // Default fallback
-  return 'An unexpected error occurred. Please try again.';
+  return "An unexpected error occurred. Please try again.";
 }
 
 /**
@@ -104,8 +104,8 @@ export function getUserFriendlyError(error: unknown): string {
 export function logError(error: unknown, context?: Record<string, unknown>): void {
   const errorMessage = getErrorMessage(error);
   const errorInstance = error instanceof Error ? error : new Error(errorMessage);
-  
-  logger.error('Error occurred', errorInstance, context);
+
+  logger.error("Error occurred", errorInstance, context);
 }
 
 /**
@@ -116,40 +116,3 @@ export function handleError(error: unknown, context?: Record<string, unknown>): 
   logError(error, context);
   return getUserFriendlyError(error);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

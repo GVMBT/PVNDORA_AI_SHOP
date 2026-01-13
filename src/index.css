@@ -1,68 +1,70 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
- 
+
 @layer base {
   :root {
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
-    
+
     --card: 240 10% 3.9%;
     --card-foreground: 0 0% 98%;
-    
+
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
-    
+
     --primary: 171 100% 48%; /* #00f5d4 Cyan */
     --primary-foreground: 240 5.9% 10%;
-    
+
     --secondary: 240 3.7% 15.9%;
     --secondary-foreground: 0 0% 98%;
-    
+
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
-    
+
     --accent: 240 3.7% 15.9%;
     --accent-foreground: 0 0% 98%;
-    
+
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    
+
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 171 100% 48%;
-    
+
     --radius: 1rem;
   }
 }
- 
+
 @layer base {
   * {
     @apply border-border;
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
-    font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+    font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     overscroll-behavior-y: none;
   }
-  
+
   /* Hide Scrollbar but allow scroll */
   .no-scrollbar::-webkit-scrollbar {
-      display: none;
+    display: none;
   }
   .no-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
 
 /* Glassmorphism Utilities */
 .glass {
-    @apply bg-background/60 backdrop-blur-lg border border-white/10;
+  @apply bg-background/60 backdrop-blur-lg border border-white/10;
 }
 
 /* ============================================
@@ -71,49 +73,56 @@
 
 /* Custom Scrollbar (Pandora Theme) */
 ::-webkit-scrollbar {
-    width: 6px;
+  width: 6px;
 }
 ::-webkit-scrollbar-track {
-    background: #050505;
+  background: #050505;
 }
 ::-webkit-scrollbar-thumb {
-    background: #1a1a1a;
-    border-radius: 3px;
+  background: #1a1a1a;
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: #00FFFF;
+  background: #00ffff;
 }
 
 /* Scrollbar Hide Class */
 .scrollbar-hide::-webkit-scrollbar {
-    display: none;
+  display: none;
 }
 .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Text Shadow Glow Effect */
 .text-shadow-glow {
-    text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+  text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
 }
 
 /* Clip Path Polygon (for CTA buttons) */
 .clip-path-polygon {
-    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  clip-path: polygon(
+    0 0,
+    calc(100% - 10px) 0,
+    100% 10px,
+    100% 100%,
+    10px 100%,
+    0 calc(100% - 10px)
+  );
 }
 
 /* Perspective for 3D effects */
 .perspective-1000 {
-    perspective: 1000px;
+  perspective: 1000px;
 }
 
 /* Transform Style */
 .transform-style-3d {
-    transform-style: preserve-3d;
+  transform-style: preserve-3d;
 }
 
 /* Safe area padding for mobile */
 .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }

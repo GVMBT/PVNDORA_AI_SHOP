@@ -70,9 +70,7 @@ async def verify_telegram_auth(
 
                 # Update user activity with debounce (fire-and-forget, non-blocking)
                 try:
-                    from core.routers.webapp.middleware import (
-                        update_user_activity_with_debounce,
-                    )
+                    from core.routers.webapp.middleware import update_user_activity_with_debounce
 
                     update_user_activity_with_debounce(user.id)
                 except Exception as e:

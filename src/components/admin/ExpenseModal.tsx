@@ -1,8 +1,8 @@
 /**
  * ExpenseModal Component
- * 
+ *
  * Модальное окно добавления расходов.
- * 
+ *
  * Категории расходов:
  * - supplier - Поставщики
  * - acquiring - Эквайринг
@@ -13,15 +13,22 @@
  * - other - Прочее
  */
 
-import React, { useState, useEffect, memo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, DollarSign, Calendar, Tag, FileText } from 'lucide-react';
+import { AnimatePresence, motion } from "framer-motion";
+import { Calendar, DollarSign, FileText, Save, Tag, X } from "lucide-react";
+import React, { memo, useEffect, useState } from "react";
 
-interface ExpenseData {
+export interface ExpenseData {
   description: string;
   amount: number;
-  currency: 'USD' | 'RUB';
-  category: 'supplier' | 'acquiring' | 'infrastructure' | 'marketing' | 'salary' | 'refund' | 'other';
+  currency: "USD" | "RUB";
+  category:
+    | "supplier"
+    | "acquiring"
+    | "infrastructure"
+    | "marketing"
+    | "salary"
+    | "refund"
+    | "other";
   date?: string; // ISO date
   supplier_id?: string;
 }
@@ -34,27 +41,22 @@ interface ExpenseModalProps {
 }
 
 const EXPENSE_CATEGORIES = [
-  { value: 'supplier', label: 'Поставщики', icon: '📦' },
-  { value: 'acquiring', label: 'Эквайринг', icon: '💳' },
-  { value: 'infrastructure', label: 'Инфраструктура', icon: '⚙️' },
-  { value: 'marketing', label: 'Маркетинг (из резервов)', icon: '📢' },
-  { value: 'salary', label: 'Зарплаты', icon: '💰' },
-  { value: 'refund', label: 'Возвраты', icon: '↩️' },
-  { value: 'other', label: 'Прочее', icon: '📋' },
+  { value: "supplier", label: "Поставщики", icon: "📦" },
+  { value: "acquiring", label: "Эквайринг", icon: "💳" },
+  { value: "infrastructure", label: "Инфраструктура", icon: "⚙️" },
+  { value: "marketing", label: "Маркетинг (из резервов)", icon: "📢" },
+  { value: "salary", label: "Зарплаты", icon: "💰" },
+  { value: "refund", label: "Возвраты", icon: "↩️" },
+  { value: "other", label: "Прочее", icon: "📋" },
 ] as const;
 
-const ExpenseModal: React.FC<ExpenseModalProps> = ({
-  isOpen,
-  expense,
-  onClose,
-  onSave,
-}) => {
+const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, onSave }) => {
   const [editingExpense, setEditingExpense] = useState<ExpenseData>({
-    description: '',
+    description: "",
     amount: 0,
-    currency: 'RUB',
-    category: 'other',
-    date: new Date().toISOString().split('T')[0], // Today in YYYY-MM-DD format
+    currency: "RUB",
+    category: "other",
+    date: new Date().toISOString().split("T")[0], // Today in YYYY-MM-DD format
   });
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof ExpenseData, string>>>({});
@@ -66,11 +68,11 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({
         setEditingExpense(expense);
       } else {
         setEditingExpense({
-          description: '',
+          description: "",
           amount: 0,
-          currency: 'RUB',
-          category: 'other',
-          date: new Date().toISOString().split('T')[0],
+          currency: "RUB",
+          category: "other",
+          date: new Date().toISOString().split("T")[0],
         });
       }
       setErrors({});
@@ -81,15 +83,15 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({
     const newErrors: Partial<Record<keyof ExpenseData, string>> = {};
 
     if (!editingExpense.description.trim()) {
-      newErrors.description = 'Описание обязательно';
+      newErrors.description = "Описание обязательно";
     }
 
     if (editingExpense.amount <= 0) {
-      newErrors.amount = 'Сумма должна быть больше 0';
+      newErrors.amount = "Сумма должна быть больше 0";
     }
 
     if (!editingExpense.date) {
-      newErrors.date = 'Дата обязательна';
+      newErrors.date = "Дата обязательна";
     }
 
     setErrors(newErrors);
@@ -106,20 +108,20 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({
       await onSave(editingExpense);
       onClose();
     } catch (error) {
-      console.error('Failed to save expense:', error);
+      console.error("Failed to save expense:", error);
       // Error handling can be improved with toast notifications
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleCategoryChange = (category: ExpenseData['category']) => {
+  const handleCategoryChange = (category: ExpenseData["category"]) => {
     setEditingExpense({ ...editingExpense, category });
   };
 
-  const formatMoney = (amount: number, currency: 'USD' | 'RUB'): string => {
-    const symbol = currency === 'USD' ? '$' : '₽';
-    if (currency === 'RUB' || currency === 'UAH' || currency === 'TRY' || currency === 'INR') {
+  const formatMoney = (amount: number, currency: "USD" | "RUB"): string => {
+    const symbol = currency === "USD" ? "$" : "₽";
+    if (currency === "RUB") {
       return `${Math.round(amount)} ${symbol}`;
     }
     return `${amount.toFixed(2)} ${symbol}`;
@@ -127,7 +129,7 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({
 
   if (!isOpen) return null;
 
-  const selectedCategoryInfo = EXPENSE_CATEGORIES.find(c => c.value === editingExpense.category);
+  const selectedCategoryInfo = EXPENSE_CATEGORIES.find((c) => c.value === editingExpense.category);
 
   return (
     <AnimatePresence>
@@ -171,10 +173,12 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({
               </label>
               <textarea
                 value={editingExpense.description}
-                onChange={(e) => setEditingExpense({ ...editingExpense, description: e.target.value })}
+                onChange={(e) =>
+                  setEditingExpense({ ...editingExpense, description: e.target.value })
+                }
                 placeholder="Описание расхода..."
                 className={`w-full h-20 bg-black border ${
-                  errors.description ? 'border-red-500' : 'border-white/20'
+                  errors.description ? "border-red-500" : "border-white/20"
                 } p-3 text-white text-sm focus:border-pandora-cyan outline-none resize-none`}
                 disabled={isSaving}
               />
@@ -194,31 +198,31 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({
                   type="number"
                   step="0.01"
                   min="0"
-                  value={editingExpense.amount || ''}
-                  onChange={(e) => setEditingExpense({ 
-                    ...editingExpense, 
-                    amount: parseFloat(e.target.value) || 0 
-                  })}
+                  value={editingExpense.amount || ""}
+                  onChange={(e) =>
+                    setEditingExpense({
+                      ...editingExpense,
+                      amount: parseFloat(e.target.value) || 0,
+                    })
+                  }
                   placeholder="0.00"
                   className={`w-full bg-black border ${
-                    errors.amount ? 'border-red-500' : 'border-white/20'
+                    errors.amount ? "border-red-500" : "border-white/20"
                   } p-3 text-white text-sm focus:border-pandora-cyan outline-none`}
                   disabled={isSaving}
                 />
-                {errors.amount && (
-                  <p className="text-xs text-red-500 mt-1">{errors.amount}</p>
-                )}
+                {errors.amount && <p className="text-xs text-red-500 mt-1">{errors.amount}</p>}
               </div>
               <div>
-                <label className="text-[10px] text-gray-500 uppercase mb-1.5 block">
-                  Валюта
-                </label>
+                <label className="text-[10px] text-gray-500 uppercase mb-1.5 block">Валюта</label>
                 <select
                   value={editingExpense.currency}
-                  onChange={(e) => setEditingExpense({ 
-                    ...editingExpense, 
-                    currency: e.target.value as 'USD' | 'RUB' 
-                  })}
+                  onChange={(e) =>
+                    setEditingExpense({
+                      ...editingExpense,
+                      currency: e.target.value as "USD" | "RUB",
+                    })
+                  }
                   className="w-full bg-black border border-white/20 p-3 text-white text-sm focus:border-pandora-cyan outline-none"
                   disabled={isSaving}
                 >
@@ -238,11 +242,11 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({
                 {EXPENSE_CATEGORIES.map((cat) => (
                   <button
                     key={cat.value}
-                    onClick={() => handleCategoryChange(cat.value as ExpenseData['category'])}
+                    onClick={() => handleCategoryChange(cat.value as ExpenseData["category"])}
                     className={`p-3 border text-left transition-colors ${
                       editingExpense.category === cat.value
-                        ? 'border-pandora-cyan bg-pandora-cyan/10 text-pandora-cyan'
-                        : 'border-white/20 bg-black hover:border-white/40 text-gray-300'
+                        ? "border-pandora-cyan bg-pandora-cyan/10 text-pandora-cyan"
+                        : "border-white/20 bg-black hover:border-white/40 text-gray-300"
                     }`}
                     disabled={isSaving}
                   >
@@ -250,10 +254,8 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({
                       <span>{cat.icon}</span>
                       {cat.label}
                     </div>
-                    {cat.value === 'marketing' && (
-                      <div className="text-[9px] text-yellow-400 mt-1">
-                        Списывается из резервов
-                      </div>
+                    {cat.value === "marketing" && (
+                      <div className="text-[9px] text-yellow-400 mt-1">Списывается из резервов</div>
                     )}
                   </button>
                 ))}
@@ -268,16 +270,14 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({
               </label>
               <input
                 type="date"
-                value={editingExpense.date || ''}
+                value={editingExpense.date || ""}
                 onChange={(e) => setEditingExpense({ ...editingExpense, date: e.target.value })}
                 className={`w-full bg-black border ${
-                  errors.date ? 'border-red-500' : 'border-white/20'
+                  errors.date ? "border-red-500" : "border-white/20"
                 } p-3 text-white text-sm focus:border-pandora-cyan outline-none`}
                 disabled={isSaving}
               />
-              {errors.date && (
-                <p className="text-xs text-red-500 mt-1">{errors.date}</p>
-              )}
+              {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
             </div>
 
             {/* Preview */}
@@ -310,7 +310,7 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({
                 className="flex-1 py-3 bg-pandora-cyan text-black font-bold text-sm hover:bg-pandora-cyan/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 <Save size={16} />
-                {isSaving ? 'Сохранение...' : 'Сохранить'}
+                {isSaving ? "Сохранение..." : "Сохранить"}
               </button>
             </div>
           </div>

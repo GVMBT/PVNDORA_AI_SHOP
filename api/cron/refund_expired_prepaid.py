@@ -10,6 +10,7 @@ Tasks:
 
 import os
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -43,7 +44,12 @@ async def refund_expired_prepaid_entrypoint(request: Request):
 
     db = await get_database_async()
     now = datetime.now(UTC)
-    results = {"timestamp": now.isoformat(), "items_refunded": 0, "orders_updated": 0, "errors": []}
+    results: dict[str, Any] = {
+        "timestamp": now.isoformat(),
+        "items_refunded": 0,
+        "orders_updated": 0,
+        "errors": [],
+    }
 
     try:
         # Find prepaid ORDER ITEMS with expired fulfillment_deadline
@@ -68,11 +74,20 @@ async def refund_expired_prepaid_entrypoint(request: Request):
 
         processed_orders = set()
 
-        for item in expired_items.data or []:
+        for item_raw in expired_items.data or []:
+            if not isinstance(item_raw, dict):
+                continue
+            item = cast(dict[str, Any], item_raw)
             item_id = item.get("id")
             order_id = item.get("order_id")
-            order_data = item.get("orders", {}) or {}
-            product_data = item.get("products", {}) or {}
+            order_data_raw = item.get("orders", {})
+            order_data = (
+                cast(dict[str, Any], order_data_raw) if isinstance(order_data_raw, dict) else {}
+            )
+            product_data_raw = item.get("products", {})
+            product_data = (
+                cast(dict[str, Any], product_data_raw) if isinstance(product_data_raw, dict) else {}
+            )
 
             user_id = order_data.get("user_id")
             telegram_id = order_data.get("user_telegram_id")
@@ -98,7 +113,10 @@ async def refund_expired_prepaid_entrypoint(request: Request):
                         .execute()
                     )
                     if user_result.data:
-                        balance_currency = user_result.data.get("balance_currency", "RUB") or "RUB"
+                        user_data_raw = user_result.data
+                        if isinstance(user_data_raw, dict):
+                            user_data = cast(dict[str, Any], user_data_raw)
+                            balance_currency = user_data.get("balance_currency", "RUB") or "RUB"
             except Exception:
                 pass
 
@@ -107,9 +125,9 @@ async def refund_expired_prepaid_entrypoint(request: Request):
             if order_fiat_amount and order_fiat_currency == balance_currency and order_amount > 0:
                 # Use proportional share of fiat_amount (what user actually paid)
                 # This ensures refund matches what user paid, regardless of current exchange rate
-                refund_amount = round((item_price / order_amount) * order_fiat_amount)
+                refund_amount = int(round((item_price / order_amount) * order_fiat_amount))
             elif balance_currency == "USD":
-                refund_amount = item_price
+                refund_amount = int(item_price)
             else:
                 # Fallback: Get current exchange rate (shouldn't happen if fiat_amount is set)
                 from core.db import get_redis
@@ -118,7 +136,7 @@ async def refund_expired_prepaid_entrypoint(request: Request):
                 redis = get_redis()
                 currency_service = get_currency_service(redis)
                 rate = await currency_service.get_exchange_rate(balance_currency)
-                refund_amount = round(item_price * rate)  # Round for integer currencies
+                refund_amount = int(round(item_price * rate))  # Round for integer currencies
 
             try:
                 # 1. Update order_item status to refunded
@@ -192,7 +210,8 @@ async def refund_expired_prepaid_entrypoint(request: Request):
 
                 results["items_refunded"] += 1
                 logger.info(
-                    f"Auto-refunded item {item_id}: {refund_amount} {balance_currency} for {product_name}"
+                    f"Auto-refunded item {item_id}: {refund_amount} {balance_currency} "
+                    f"for {product_name}"
                 )
 
             except Exception as e:

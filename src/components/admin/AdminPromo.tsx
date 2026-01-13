@@ -1,15 +1,25 @@
 /**
  * AdminPromo Component
- * 
+ *
  * Управление промокодами.
  */
 
-import React, { useState, memo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Tag, Plus, Trash2, Check, X, 
-  Calendar, Users, Percent, ToggleLeft, ToggleRight, Package, ShoppingCart
-} from 'lucide-react';
+import React, { useState, memo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Tag,
+  Plus,
+  Trash2,
+  Check,
+  X,
+  Calendar,
+  Users,
+  Percent,
+  ToggleLeft,
+  ToggleRight,
+  Package,
+  ShoppingCart,
+} from "lucide-react";
 
 export interface PromoCodeData {
   id: string;
@@ -26,7 +36,7 @@ export interface PromoCodeData {
 interface AdminPromoProps {
   promoCodes: PromoCodeData[];
   products?: Array<{ id: string; name: string }>;
-  onCreatePromo?: (data: Omit<PromoCodeData, 'id' | 'usage_count' | 'created_at'>) => Promise<void>;
+  onCreatePromo?: (data: Omit<PromoCodeData, "id" | "usage_count" | "created_at">) => Promise<void>;
   onUpdatePromo?: (id: string, data: Partial<PromoCodeData>) => Promise<void>;
   onDeletePromo?: (id: string) => Promise<void>;
   onToggleActive?: (id: string, isActive: boolean) => Promise<void>;
@@ -40,16 +50,16 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
   onToggleActive,
 }) => {
   const [isCreating, setIsCreating] = useState(false);
-  const [newCode, setNewCode] = useState('');
+  const [newCode, setNewCode] = useState("");
   const [newDiscount, setNewDiscount] = useState(10);
   const [newLimit, setNewLimit] = useState<number | undefined>();
-  const [newExpiry, setNewExpiry] = useState('');
+  const [newExpiry, setNewExpiry] = useState("");
   const [newProductId, setNewProductId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   const handleCreate = async () => {
     if (!newCode.trim() || !onCreatePromo) return;
-    
+
     setCreating(true);
     try {
       await onCreatePromo({
@@ -60,12 +70,12 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
         product_id: newProductId || null,
         is_active: true,
       });
-      
+
       // Reset form
-      setNewCode('');
+      setNewCode("");
       setNewDiscount(10);
       setNewLimit(undefined);
-      setNewExpiry('');
+      setNewExpiry("");
       setNewProductId(null);
       setIsCreating(false);
     } finally {
@@ -75,14 +85,14 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
 
   const handleDelete = async (id: string) => {
     if (!onDeletePromo) return;
-    if (confirm('Удалить этот промокод?')) {
+    if (confirm("Удалить этот промокод?")) {
       await onDeletePromo(id);
     }
   };
 
   const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return 'Бессрочно';
-    return new Date(dateStr).toLocaleDateString('ru-RU');
+    if (!dateStr) return "Бессрочно";
+    return new Date(dateStr).toLocaleDateString("ru-RU");
   };
 
   return (
@@ -105,11 +115,11 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
       <AnimatePresence>
         {isCreating && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-            <div 
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
-              onClick={() => !creating && setIsCreating(false)} 
+            <div
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => !creating && setIsCreating(false)}
             />
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -117,7 +127,7 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
             >
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-bold text-white">Новый промокод</h3>
-                <button 
+                <button
                   onClick={() => !creating && setIsCreating(false)}
                   className="text-gray-500 hover:text-white"
                 >
@@ -162,7 +172,7 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                     Товар (опционально)
                   </label>
                   <select
-                    value={newProductId || ''}
+                    value={newProductId || ""}
                     onChange={(e) => setNewProductId(e.target.value || null)}
                     className="w-full bg-black border border-white/20 px-3 py-2.5 text-white font-mono focus:border-pandora-cyan focus:outline-none"
                   >
@@ -185,8 +195,10 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                   </label>
                   <input
                     type="number"
-                    value={newLimit || ''}
-                    onChange={(e) => setNewLimit(e.target.value ? parseInt(e.target.value) : undefined)}
+                    value={newLimit || ""}
+                    onChange={(e) =>
+                      setNewLimit(e.target.value ? parseInt(e.target.value) : undefined)
+                    }
                     placeholder="Без ограничений"
                     min={1}
                     className="w-full bg-black border border-white/20 px-3 py-2.5 text-white font-mono focus:border-pandora-cyan focus:outline-none placeholder:text-gray-600"
@@ -244,15 +256,13 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
 
         {/* Rows */}
         {promoCodes.length === 0 ? (
-          <div className="text-center py-12 text-gray-600 font-mono text-sm">
-            Нет промокодов
-          </div>
+          <div className="text-center py-12 text-gray-600 font-mono text-sm">Нет промокодов</div>
         ) : (
           promoCodes.map((promo) => {
-            const product = promo.product_id 
-              ? products.find(p => p.id === promo.product_id)
+            const product = promo.product_id
+              ? products.find((p) => p.id === promo.product_id)
               : null;
-            
+
             return (
               <div key={promo.id}>
                 {/* Desktop Row */}
@@ -268,8 +278,11 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                     {promo.product_id ? (
                       <>
                         <Package size={12} className="text-yellow-400" />
-                        <span className="text-yellow-400 text-xs truncate" title={product?.name || promo.product_id}>
-                          {product?.name || 'Товар'}
+                        <span
+                          className="text-yellow-400 text-xs truncate"
+                          title={product?.name || promo.product_id}
+                        >
+                          {product?.name || "Товар"}
                         </span>
                       </>
                     ) : (
@@ -282,7 +295,7 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                   <div className="col-span-2 flex items-center gap-1">
                     <Users size={12} className="text-gray-400" />
                     <span className="text-gray-300">
-                      {promo.usage_count} / {promo.usage_limit || '∞'}
+                      {promo.usage_count} / {promo.usage_limit || "∞"}
                     </span>
                   </div>
                   <div className="col-span-2 flex items-center gap-1 text-sm">
@@ -293,7 +306,7 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                     <button
                       onClick={() => onToggleActive?.(promo.id, !promo.is_active)}
                       className={`flex items-center gap-1 text-sm ${
-                        promo.is_active ? 'text-green-400' : 'text-red-400'
+                        promo.is_active ? "text-green-400" : "text-red-400"
                       }`}
                     >
                       {promo.is_active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
@@ -312,15 +325,17 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                 {/* Mobile Card */}
                 <div className="md:hidden border-b border-white/5 p-4 hover:bg-white/5">
                   <div className="flex justify-between items-start mb-3">
-                    <span className="font-mono font-bold text-pandora-cyan text-lg">{promo.code}</span>
+                    <span className="font-mono font-bold text-pandora-cyan text-lg">
+                      {promo.code}
+                    </span>
                     <button
                       onClick={() => onToggleActive?.(promo.id, !promo.is_active)}
-                      className={promo.is_active ? 'text-green-400' : 'text-red-400'}
+                      className={promo.is_active ? "text-green-400" : "text-red-400"}
                     >
                       {promo.is_active ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
                     </button>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div className="flex items-center gap-2">
                       <Percent size={14} className="text-green-400" />
@@ -328,13 +343,17 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                     </div>
                     <div className="flex items-center gap-2">
                       <Users size={14} className="text-gray-400" />
-                      <span className="text-gray-300">{promo.usage_count} / {promo.usage_limit || '∞'}</span>
+                      <span className="text-gray-300">
+                        {promo.usage_count} / {promo.usage_limit || "∞"}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       {promo.product_id ? (
                         <>
                           <Package size={14} className="text-yellow-400" />
-                          <span className="text-yellow-400 text-xs truncate">{product?.name || 'Товар'}</span>
+                          <span className="text-yellow-400 text-xs truncate">
+                            {product?.name || "Товар"}
+                          </span>
                         </>
                       ) : (
                         <>

@@ -11,6 +11,7 @@ Tasks:
 
 import os
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -35,7 +36,7 @@ async def daily_cleanup_entrypoint(request: Request):
 
     db = await get_database_async()
     now = datetime.now(UTC)
-    results = {"timestamp": now.isoformat(), "tasks": {}}
+    results: dict[str, Any] = {"timestamp": now.isoformat(), "tasks": {}}
 
     try:
         # 1. Release stuck stock reservations (older than 30 min)

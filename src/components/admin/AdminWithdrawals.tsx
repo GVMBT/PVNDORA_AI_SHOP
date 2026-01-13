@@ -1,14 +1,14 @@
 /**
  * AdminWithdrawals Component
- * 
+ *
  * Управление заявками на вывод средств.
  */
 
-import React, { useState, memo, useCallback } from 'react';
-import { Wallet, ArrowUpRight, Check, X, Send, ExternalLink } from 'lucide-react';
-import type { WithdrawalData } from './types';
-import { useAdmin } from '../../hooks/useAdmin';
-import { logger } from '../../utils/logger';
+import React, { useState, memo, useCallback } from "react";
+import { Wallet, ArrowUpRight, Check, X, Send, ExternalLink } from "lucide-react";
+import type { WithdrawalData } from "./types";
+import { useAdmin } from "../../hooks/useAdmin";
+import { logger } from "../../utils/logger";
 
 interface AdminWithdrawalsProps {
   withdrawals: WithdrawalData[];
@@ -17,24 +17,24 @@ interface AdminWithdrawalsProps {
 
 const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefresh }) => {
   const [selectedWithdrawalId, setSelectedWithdrawalId] = useState<string | null>(null);
-  const [comment, setComment] = useState('');
+  const [comment, setComment] = useState("");
   const [processing, setProcessing] = useState(false);
   const { approveWithdrawal, rejectWithdrawal, completeWithdrawal } = useAdmin();
 
-  const selectedWithdrawal = withdrawals.find(w => w.id === selectedWithdrawalId);
+  const selectedWithdrawal = withdrawals.find((w) => w.id === selectedWithdrawalId);
 
   const handleApprove = useCallback(async () => {
     if (!selectedWithdrawalId) return;
-    
+
     setProcessing(true);
     try {
       await approveWithdrawal(selectedWithdrawalId, comment.trim() || undefined);
-      setComment('');
+      setComment("");
       if (onRefresh) {
         onRefresh();
       }
     } catch (err) {
-      logger.error('Failed to approve withdrawal', err);
+      logger.error("Failed to approve withdrawal", err);
     } finally {
       setProcessing(false);
     }
@@ -42,16 +42,16 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
 
   const handleReject = useCallback(async () => {
     if (!selectedWithdrawalId) return;
-    
+
     setProcessing(true);
     try {
       await rejectWithdrawal(selectedWithdrawalId, comment.trim() || undefined);
-      setComment('');
+      setComment("");
       if (onRefresh) {
         onRefresh();
       }
     } catch (err) {
-      logger.error('Failed to reject withdrawal', err);
+      logger.error("Failed to reject withdrawal", err);
     } finally {
       setProcessing(false);
     }
@@ -59,16 +59,16 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
 
   const handleComplete = useCallback(async () => {
     if (!selectedWithdrawalId) return;
-    
+
     setProcessing(true);
     try {
       await completeWithdrawal(selectedWithdrawalId, comment.trim() || undefined);
-      setComment('');
+      setComment("");
       if (onRefresh) {
         onRefresh();
       }
     } catch (err) {
-      logger.error('Failed to complete withdrawal', err);
+      logger.error("Failed to complete withdrawal", err);
     } finally {
       setProcessing(false);
     }
@@ -76,33 +76,43 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
 
   const getStatusColor = (status: string) => {
     switch (status?.toUpperCase()) {
-      case 'PENDING': return 'text-yellow-400';
-      case 'PROCESSING': return 'text-blue-400';
-      case 'COMPLETED': return 'text-green-400';
-      case 'REJECTED': return 'text-red-400';
-      default: return 'text-gray-400';
+      case "PENDING":
+        return "text-yellow-400";
+      case "PROCESSING":
+        return "text-blue-400";
+      case "COMPLETED":
+        return "text-green-400";
+      case "REJECTED":
+        return "text-red-400";
+      default:
+        return "text-gray-400";
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status?.toUpperCase()) {
-      case 'PENDING': return 'ОЖИДАЕТ';
-      case 'PROCESSING': return 'В ОБРАБОТКЕ';
-      case 'COMPLETED': return 'ВЫПОЛНЕНО';
-      case 'REJECTED': return 'ОТКЛОНЕНО';
-      default: return status?.toUpperCase() || 'ОЖИДАЕТ';
+      case "PENDING":
+        return "ОЖИДАЕТ";
+      case "PROCESSING":
+        return "В ОБРАБОТКЕ";
+      case "COMPLETED":
+        return "ВЫПОЛНЕНО";
+      case "REJECTED":
+        return "ОТКЛОНЕНО";
+      default:
+        return status?.toUpperCase() || "ОЖИДАЕТ";
     }
   };
 
   const formatDate = (dateStr?: string | null) => {
-    if (!dateStr) return 'Н/Д';
+    if (!dateStr) return "Н/Д";
     try {
-      return new Date(dateStr).toLocaleString('ru-RU', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+      return new Date(dateStr).toLocaleString("ru-RU", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
     } catch {
       return dateStr;
@@ -117,13 +127,15 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
       {/* Withdrawal List */}
-      <div className={`${
-        selectedWithdrawalId ? 'hidden lg:block' : 'block'
-      } lg:col-span-1 space-y-4 overflow-y-auto pr-2`}>
+      <div
+        className={`${
+          selectedWithdrawalId ? "hidden lg:block" : "block"
+        } lg:col-span-1 space-y-4 overflow-y-auto pr-2`}
+      >
         <div className="flex justify-between items-center mb-2">
           <h3 className="font-display font-bold text-white">ОЧЕРЕДЬ</h3>
           <div className="text-xs font-mono text-gray-500">
-            {withdrawals.filter(w => w.status?.toUpperCase() === 'PENDING').length} ожидает
+            {withdrawals.filter((w) => w.status?.toUpperCase() === "PENDING").length} ожидает
           </div>
         </div>
         {withdrawals.length === 0 ? (
@@ -131,14 +143,14 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
             Нет заявок на вывод
           </div>
         ) : (
-          withdrawals.map(w => (
-            <div 
-              key={w.id} 
+          withdrawals.map((w) => (
+            <div
+              key={w.id}
               onClick={() => setSelectedWithdrawalId(w.id)}
               className={`bg-[#0e0e0e] border p-4 transition-colors cursor-pointer group relative ${
-                selectedWithdrawalId === w.id 
-                  ? 'border-pandora-cyan bg-pandora-cyan/5' 
-                  : 'border-white/10 hover:border-white/30'
+                selectedWithdrawalId === w.id
+                  ? "border-pandora-cyan bg-pandora-cyan/5"
+                  : "border-white/10 hover:border-white/30"
               }`}
             >
               <div className="flex justify-between items-start mb-2">
@@ -147,11 +159,9 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                   {getStatusLabel(w.status)}
                 </span>
               </div>
-              <div className="font-bold text-white text-sm mb-1">
-                {formatAmount(w.amount)}
-              </div>
+              <div className="font-bold text-white text-sm mb-1">{formatAmount(w.amount)}</div>
               <div className="text-xs text-gray-400 mb-1">
-                {w.first_name || w.username || `Пользователь ${w.telegram_id || 'Неизвестно'}`}
+                {w.first_name || w.username || `Пользователь ${w.telegram_id || "Неизвестно"}`}
               </div>
               <div className="text-[10px] font-mono text-gray-600 mt-1">
                 {formatDate(w.created_at)}
@@ -162,19 +172,21 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
       </div>
 
       {/* Detail Area */}
-      <div className={`${
-        !selectedWithdrawalId ? 'hidden lg:flex' : 'flex'
-      } lg:col-span-2 bg-[#0e0e0e] border border-white/10 flex-col h-full relative`}>
+      <div
+        className={`${
+          !selectedWithdrawalId ? "hidden lg:flex" : "flex"
+        } lg:col-span-2 bg-[#0e0e0e] border border-white/10 flex-col h-full relative`}
+      >
         {selectedWithdrawal ? (
           <>
             <div className="p-4 border-b border-white/10 bg-black/50">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => setSelectedWithdrawalId(null)} 
+                  <button
+                    onClick={() => setSelectedWithdrawalId(null)}
                     className="lg:hidden text-gray-500 hover:text-white"
                   >
-                    <ArrowUpRight className="rotate-[-135deg]" size={20}/>
+                    <ArrowUpRight className="rotate-[-135deg]" size={20} />
                   </button>
                   <div>
                     <h3 className="font-bold text-white">
@@ -185,11 +197,13 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                     </div>
                   </div>
                 </div>
-                <div className={`text-[10px] font-mono px-2 py-1 border ${getStatusColor(selectedWithdrawal.status)} border-current/30`}>
+                <div
+                  className={`text-[10px] font-mono px-2 py-1 border ${getStatusColor(selectedWithdrawal.status)} border-current/30`}
+                >
                   {getStatusLabel(selectedWithdrawal.status)}
                 </div>
               </div>
-              
+
               {/* Withdrawal Info */}
               <div className="grid grid-cols-2 gap-4 text-xs">
                 <div>
@@ -201,13 +215,13 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                 <div>
                   <div className="text-gray-500 mb-1">Метод</div>
                   <div className="text-white font-mono uppercase">
-                    {selectedWithdrawal.payment_method || 'КРИПТО'}
+                    {selectedWithdrawal.payment_method || "КРИПТО"}
                   </div>
                 </div>
                 <div>
                   <div className="text-gray-500 mb-1">Пользователь</div>
                   <div className="text-white font-mono">
-                    {selectedWithdrawal.first_name || selectedWithdrawal.username || 'Неизвестно'}
+                    {selectedWithdrawal.first_name || selectedWithdrawal.username || "Неизвестно"}
                   </div>
                   {selectedWithdrawal.telegram_id && (
                     <a
@@ -224,14 +238,14 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                 <div>
                   <div className="text-gray-500 mb-1">Баланс</div>
                   <div className="text-white font-mono">
-                    {selectedWithdrawal.user_balance !== undefined 
-                      ? formatAmount(selectedWithdrawal.user_balance) 
-                      : 'Н/Д'}
+                    {selectedWithdrawal.user_balance !== undefined
+                      ? formatAmount(selectedWithdrawal.user_balance)
+                      : "Н/Д"}
                   </div>
                 </div>
               </div>
             </div>
-            
+
             <div className="flex-1 p-4 overflow-y-auto">
               {/* Payment Details */}
               <div className="mb-6">
@@ -246,7 +260,7 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                   )}
                 </div>
               </div>
-              
+
               {/* Admin Comment (if exists) */}
               {selectedWithdrawal.admin_comment && (
                 <div className="mb-6">
@@ -267,9 +281,9 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                 </div>
               )}
             </div>
-            
+
             {/* Action Buttons */}
-            {selectedWithdrawal.status?.toUpperCase() === 'PENDING' ? (
+            {selectedWithdrawal.status?.toUpperCase() === "PENDING" ? (
               <div className="p-4 border-t border-white/10 space-y-3">
                 <textarea
                   value={comment}
@@ -297,7 +311,7 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                   </button>
                 </div>
               </div>
-            ) : selectedWithdrawal.status?.toUpperCase() === 'PROCESSING' ? (
+            ) : selectedWithdrawal.status?.toUpperCase() === "PROCESSING" ? (
               <div className="p-4 border-t border-white/10 space-y-3">
                 <textarea
                   value={comment}

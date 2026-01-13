@@ -1,12 +1,12 @@
 /**
  * ProfileHeader Component
- * 
+ *
  * User identity card with avatar, name, handle, and admin access button.
  */
 
-import React, { memo } from 'react';
-import { User, ArrowLeft, Crown, LayoutDashboard } from 'lucide-react';
-import type { ProfileDataProp } from './types';
+import React, { memo } from "react";
+import { User, ArrowLeft, Crown, LayoutDashboard } from "lucide-react";
+import type { ProfileDataProp } from "./types";
 
 interface ProfileHeaderProps {
   user: ProfileDataProp;
@@ -14,23 +14,22 @@ interface ProfileHeaderProps {
   onAdminEnter?: () => void;
 }
 
-const ProfileHeader: React.FC<ProfileHeaderProps> = ({
-  user,
-  onBack,
-  onAdminEnter,
-}) => {
+const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onBack, onAdminEnter }) => {
   return (
     <>
       {/* Unified Header */}
       <div className="mb-8 md:mb-16">
-        <button 
-          onClick={onBack} 
+        <button
+          onClick={onBack}
           className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors"
         >
           <ArrowLeft size={12} /> RETURN_TO_BASE
         </button>
         <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-[0.9] mb-4">
-          OPERATIVE <br/> <span className="text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white/50">PROFILE</span>
+          OPERATIVE <br />{" "}
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white/50">
+            PROFILE
+          </span>
         </h1>
         <div className="flex items-center gap-2 text-[10px] font-mono text-pandora-cyan tracking-widest uppercase">
           <User size={12} />
@@ -44,7 +43,11 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           <div className="relative group">
             <div className="w-20 h-20 bg-black border border-white/20 flex items-center justify-center relative overflow-hidden rounded-sm">
               {user.photoUrl ? (
-                <img src={user.photoUrl} alt={user.name} className="w-full h-full object-cover relative z-10" />
+                <img
+                  src={user.photoUrl}
+                  alt={user.name}
+                  className="w-full h-full object-cover relative z-10"
+                />
               ) : (
                 <User size={40} className="text-gray-400 relative z-10" />
               )}
@@ -63,7 +66,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
               <span>{user.handle}</span>
               <span className="text-pandora-cyan">//</span>
               <span>{user.id}</span>
-              {user.role === 'ADMIN' && (
+              {user.role === "ADMIN" && (
                 <span className="text-red-500 font-bold bg-red-900/10 px-1 border border-red-500/30">
                   ROOT_ADMIN
                 </span>
@@ -72,8 +75,8 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           </div>
         </div>
         {/* Admin Entry */}
-        {user.role === 'ADMIN' && (
-          <button 
+        {user.role === "ADMIN" && (
+          <button
             onClick={onAdminEnter}
             className="flex items-center gap-2 bg-red-900/10 border border-red-500/30 text-red-500 px-4 py-2 hover:bg-red-500 hover:text-white transition-all text-xs font-mono font-bold uppercase tracking-widest"
           >
@@ -87,40 +90,3 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 };
 
 export default memo(ProfileHeader);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

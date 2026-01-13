@@ -1,14 +1,14 @@
 /**
  * ReferralDossier Component
- * 
+ *
  * Side drawer modal displaying detailed referral information.
  */
 
-import React, { memo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, ShieldCheck, User, Activity } from 'lucide-react';
-import DecryptedText from './DecryptedText';
-import type { NetworkNodeData } from './types';
+import React, { memo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { X, ShieldCheck, User, Activity } from "lucide-react";
+import DecryptedText from "./DecryptedText";
+import type { NetworkNodeData } from "./types";
 
 interface ReferralDossierProps {
   referral: NetworkNodeData | null;
@@ -24,16 +24,16 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
     <AnimatePresence>
       <div className="fixed inset-0 z-[200] flex justify-end">
         {/* Backdrop */}
-        <motion.div 
-          initial={{ opacity: 0 }} 
-          animate={{ opacity: 1 }} 
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
           className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         />
-        
+
         {/* Drawer */}
-        <motion.div 
+        <motion.div
           initial={{ x: "100%" }}
           animate={{ x: 0 }}
           exit={{ x: "100%" }}
@@ -67,7 +67,11 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
               <div className="w-20 h-20 bg-black border border-white/20 p-1 relative">
                 <div className="w-full h-full bg-gray-900 flex items-center justify-center overflow-hidden">
                   {referral.photoUrl ? (
-                    <img src={referral.photoUrl} alt={referral.handle} className="w-full h-full object-cover" />
+                    <img
+                      src={referral.photoUrl}
+                      alt={referral.handle}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <User size={32} className="text-gray-600" />
                   )}
@@ -77,12 +81,16 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
               </div>
               <div className="space-y-1">
                 <div className="text-xs text-gray-500 font-mono">
-                  STATUS: 
-                  <span className={`ml-2 font-bold ${
-                    referral.status === 'VIP' ? 'text-yellow-500' : 
-                    referral.status === 'SLEEP' ? 'text-red-500' : 
-                    'text-green-500'
-                  }`}>
+                  STATUS:
+                  <span
+                    className={`ml-2 font-bold ${
+                      referral.status === "VIP"
+                        ? "text-yellow-500"
+                        : referral.status === "SLEEP"
+                          ? "text-red-500"
+                          : "text-green-500"
+                    }`}
+                  >
                     <DecryptedText text={referral.status} reveal={true} />
                   </span>
                 </div>
@@ -107,7 +115,7 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
                 </div>
                 <div className="text-pandora-cyan text-xs font-bold">+12.4%</div>
               </div>
-              
+
               <div className="h-32 w-full flex items-end gap-1 relative">
                 {/* Grid lines */}
                 <div className="absolute inset-0 flex flex-col justify-between opacity-10 pointer-events-none">
@@ -115,10 +123,10 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
                   <div className="w-full h-px bg-white" />
                   <div className="w-full h-px bg-white" />
                 </div>
-                
+
                 {activityData.map((val, i) => (
                   <div key={i} className="flex-1 flex flex-col justify-end group/bar h-full">
-                    <motion.div 
+                    <motion.div
                       initial={{ height: 0 }}
                       animate={{ height: `${val}%` }}
                       transition={{ duration: 0.5, delay: 0.1 * i }}
@@ -136,13 +144,17 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
             {/* Financial Metrics */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-[#0e0e0e] p-3 border border-white/10">
-                <div className="text-[9px] text-gray-500 font-mono uppercase mb-1">Total Volume</div>
+                <div className="text-[9px] text-gray-500 font-mono uppercase mb-1">
+                  Total Volume
+                </div>
                 <div className="text-xl font-bold text-white flex items-center gap-1">
                   <DecryptedText text={referral.volume || 0} /> $
                 </div>
               </div>
               <div className="bg-[#0e0e0e] p-3 border border-white/10">
-                <div className="text-[9px] text-gray-500 font-mono uppercase mb-1">Commission Earned</div>
+                <div className="text-[9px] text-gray-500 font-mono uppercase mb-1">
+                  Commission Earned
+                </div>
                 <div className="text-xl font-bold text-pandora-cyan flex items-center gap-1">
                   +<DecryptedText text={referral.profit || referral.earned || 0} /> $
                 </div>
@@ -158,7 +170,10 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
                 <span className="text-gray-400">Signal Strength</span>
                 <div className="flex items-center gap-1">
                   <div className="w-12 h-1 bg-gray-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-green-500" style={{ width: `${referral.signal || 75}%` }} />
+                    <div
+                      className="h-full bg-green-500"
+                      style={{ width: `${referral.signal || 75}%` }}
+                    />
                   </div>
                   <span className="font-mono text-green-500">{referral.signal || 75}%</span>
                 </div>
@@ -174,7 +189,7 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
             </div>
 
             {/* Close Button */}
-            <button 
+            <button
               onClick={onClose}
               className="w-full py-4 border border-white/10 text-gray-500 hover:text-white hover:bg-white/5 text-xs font-mono uppercase tracking-widest transition-colors mt-8"
             >
@@ -188,40 +203,3 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
 };
 
 export default memo(ReferralDossier);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

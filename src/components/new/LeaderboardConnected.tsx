@@ -1,25 +1,26 @@
 /**
  * LeaderboardConnected
- * 
+ *
  * Connected version of Leaderboard component with real API data.
  * Supports infinite scroll pagination and period filtering.
  */
 
-import React, { useEffect, useState, useCallback, useRef, memo } from 'react';
-import Leaderboard from './Leaderboard';
-import { useLeaderboardTyped } from '../../hooks/useApiTyped';
-import { useLocale } from '../../hooks/useLocale';
-import { PAGINATION } from '../../config';
+import React, { useEffect, useState, useCallback, useRef, memo } from "react";
+import Leaderboard from "./Leaderboard";
+import { useLeaderboardTyped } from "../../hooks/useApiTyped";
+import { useLocale } from "../../hooks/useLocale";
+import { PAGINATION } from "../../config";
 
 interface LeaderboardConnectedProps {
   onBack: () => void;
 }
 
 const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) => {
-  const { leaderboard, getLeaderboard, loadMore, hasMore, loading, error, reset } = useLeaderboardTyped();
+  const { leaderboard, getLeaderboard, loadMore, hasMore, loading, error, reset } =
+    useLeaderboardTyped();
   const { t } = useLocale();
   const [isInitialized, setIsInitialized] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<'weekly' | 'all_time'>('all_time');
+  const [activeFilter, setActiveFilter] = useState<"weekly" | "all_time">("all_time");
   const loadingRef = useRef(false);
 
   useEffect(() => {
@@ -31,20 +32,23 @@ const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) =
   }, [getLeaderboard]);
 
   // Handle filter change - reset and reload with new period
-  const handleFilterChange = useCallback(async (newFilter: 'weekly' | 'all_time') => {
-    if (newFilter === activeFilter) return;
-    
-    setActiveFilter(newFilter);
-    reset?.(); // Reset the loaded offsets tracker
-    setIsInitialized(false);
-    
-    // Map filter to API period
-    const period = newFilter === 'weekly' ? 'week' : 'all';
-    // Note: Current API doesn't support period param in getLeaderboard
-    // For now, just reload - backend returns 'all' by default
-    await getLeaderboard(15, 0, false);
-    setIsInitialized(true);
-  }, [activeFilter, getLeaderboard, reset]);
+  const handleFilterChange = useCallback(
+    async (newFilter: "weekly" | "all_time") => {
+      if (newFilter === activeFilter) return;
+
+      setActiveFilter(newFilter);
+      reset?.(); // Reset the loaded offsets tracker
+      setIsInitialized(false);
+
+      // Map filter to API period
+      const period = newFilter === "weekly" ? "week" : "all";
+      // Note: Current API doesn't support period param in getLeaderboard
+      // For now, just reload - backend returns 'all' by default
+      await getLeaderboard(15, 0, false);
+      setIsInitialized(true);
+    },
+    [activeFilter, getLeaderboard, reset]
+  );
 
   // Infinite scroll handler
   const handleLoadMore = useCallback(async () => {
@@ -61,7 +65,7 @@ const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) =
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <div className="font-mono text-xs text-gray-500 uppercase tracking-widest">
-            {t('common.loadingLeaderboard')}
+            {t("common.loadingLeaderboard")}
           </div>
         </div>
       </div>

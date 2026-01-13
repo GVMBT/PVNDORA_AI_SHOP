@@ -1,6 +1,6 @@
 /**
  * Number formatting utilities
- * 
+ *
  * Provides consistent number formatting across the application
  */
 
@@ -18,7 +18,7 @@ export function formatCompactNumber(num: number): string {
  * Format number with thousand separators (e.g., 1,234,567)
  */
 export function formatNumber(num: number, decimals: number = 0): string {
-  return num.toLocaleString('en-US', {
+  return num.toLocaleString("en-US", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
@@ -35,7 +35,7 @@ export function formatPercentage(value: number, decimals: number = 1): string {
  * Format percentage with sign (e.g., +5.2%, -3.1%)
  */
 export function formatPercentageWithSign(value: number, decimals: number = 1): string {
-  const sign = value >= 0 ? '+' : '';
+  const sign = value >= 0 ? "+" : "";
   return `${sign}${formatPercentage(value, decimals)}`;
 }
 
@@ -43,12 +43,12 @@ export function formatPercentageWithSign(value: number, decimals: number = 1): s
  * Format bytes to human-readable size (e.g., 1.5 MB, 2.3 GB)
  */
 export function formatBytes(bytes: number, decimals: number = 2): string {
-  if (bytes === 0) return '0 Bytes';
-  
+  if (bytes === 0) return "0 Bytes";
+
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
+
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(decimals))} ${sizes[i]}`;
 }
 
@@ -73,40 +73,3 @@ export function roundTo(value: number, decimals: number): number {
 export function isInRange(value: number, min: number, max: number): boolean {
   return value >= min && value <= max;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

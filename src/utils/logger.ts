@@ -1,13 +1,13 @@
 /**
  * Centralized Logging Utility
- * 
+ *
  * Provides consistent logging across the application with:
  * - Environment-aware logging (dev/prod)
  * - Log levels (debug, info, warn, error)
  * - Optional error reporting integration
  */
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type LogLevel = "debug" | "info" | "warn" | "error";
 
 interface LoggerConfig {
   level: LogLevel;
@@ -28,9 +28,9 @@ class Logger {
   constructor() {
     const isDev = import.meta.env.DEV;
     const isProd = import.meta.env.PROD;
-    
+
     this.config = {
-      level: isDev ? 'debug' : 'warn',
+      level: isDev ? "debug" : "warn",
       enableConsole: isDev || isProd, // Always enable in both modes
       enableRemoteLogging: isProd, // Only in production
       remoteEndpoint: undefined, // Can be configured later for Sentry/etc
@@ -54,23 +54,23 @@ class Logger {
 
     if (this.config.enableConsole) {
       switch (level) {
-        case 'debug':
+        case "debug":
           console.debug(formattedMessage, ...args);
           break;
-        case 'info':
+        case "info":
           console.info(formattedMessage, ...args);
           break;
-        case 'warn':
+        case "warn":
           console.warn(formattedMessage, ...args);
           break;
-        case 'error':
+        case "error":
           console.error(formattedMessage, ...args);
           break;
       }
     }
 
     // Remote logging (e.g., Sentry) can be added here
-    if (this.config.enableRemoteLogging && level === 'error' && this.config.remoteEndpoint) {
+    if (this.config.enableRemoteLogging && level === "error" && this.config.remoteEndpoint) {
       this.sendToRemote(level, message, args);
     }
   }
@@ -87,22 +87,22 @@ class Logger {
   }
 
   debug(message: string, ...args: unknown[]): void {
-    this.log('debug', message, ...args);
+    this.log("debug", message, ...args);
   }
 
   info(message: string, ...args: unknown[]): void {
-    this.log('info', message, ...args);
+    this.log("info", message, ...args);
   }
 
   warn(message: string, ...args: unknown[]): void {
-    this.log('warn', message, ...args);
+    this.log("warn", message, ...args);
   }
 
   error(message: string, error?: Error | unknown, ...args: unknown[]): void {
     if (error instanceof Error) {
-      this.log('error', message, error, error.stack, ...args);
+      this.log("error", message, error, error.stack, ...args);
     } else {
-      this.log('error', message, error, ...args);
+      this.log("error", message, error, ...args);
     }
   }
 
@@ -138,40 +138,3 @@ export const logger = new Logger();
 
 // Export types
 export type { LogLevel, LoggerConfig };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
