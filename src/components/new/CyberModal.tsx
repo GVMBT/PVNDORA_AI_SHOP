@@ -21,6 +21,23 @@ import { getCurrencySymbol } from "../../utils/currency";
 import { useLocaleContext } from "../../contexts/LocaleContext";
 import { useLocale } from "../../hooks/useLocale";
 
+// Helper functions for button styling (avoid nested ternaries)
+const getButtonClassName = (type: string, icon?: string): string => {
+  if (type === "withdraw") return "bg-purple-500 hover:bg-purple-400 text-white";
+  if (type === "alert" && icon === "warning") return "bg-orange-500 hover:bg-orange-400 text-white";
+  return "bg-pandora-cyan hover:bg-white text-black";
+};
+
+const getButtonText = (
+  type: string,
+  t: (key: string) => string
+): string => {
+  if (type === "topup") return t("modal.topUp.button");
+  if (type === "withdraw") return t("modal.withdraw.button");
+  if (type === "alert") return t("modal.ok");
+  return t("modal.confirm");
+};
+
 // ==================== TYPES ====================
 
 type ModalType = "prompt" | "confirm" | "alert" | "topup" | "withdraw";
@@ -536,13 +553,7 @@ const Modal: React.FC<{
               <button
                 onClick={handleSubmit}
                 disabled={state.isLoading}
-                className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${
-                  state.type === "withdraw"
-                    ? "bg-purple-500 hover:bg-purple-400 text-white"
-                    : state.type === "alert" && state.icon === "warning"
-                      ? "bg-orange-500 hover:bg-orange-400 text-white"
-                      : "bg-pandora-cyan hover:bg-white text-black"
-                }`}
+                className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${getButtonClassName(state.type, state.icon)}`}
               >
                 {state.isLoading ? (
                   <Loader2 size={16} className="animate-spin" />
@@ -550,13 +561,7 @@ const Modal: React.FC<{
                   <>
                     {state.type === "topup" && <Plus size={14} />}
                     {state.type === "withdraw" && <ArrowUpRight size={14} />}
-                    {state.type === "topup"
-                      ? t("modal.topUp.button")
-                      : state.type === "withdraw"
-                        ? t("modal.withdraw.button")
-                        : state.type === "alert"
-                          ? t("modal.ok")
-                          : t("modal.confirm")}
+                    {getButtonText(state.type, t)}
                   </>
                 )}
               </button>

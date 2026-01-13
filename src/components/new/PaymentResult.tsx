@@ -23,6 +23,34 @@ import { randomFloat } from "../../utils/random";
 import { PAYMENT_STATUS_MESSAGES, type PaymentStatus } from "../../constants";
 import { useLocale } from "../../hooks/useLocale";
 
+// Helper functions for status-based styling (avoid nested ternaries)
+type StatusState = "success" | "failed" | "pending";
+
+const getStatusState = (isSuccess: boolean, isFailed: boolean): StatusState => {
+  if (isSuccess) return "success";
+  if (isFailed) return "failed";
+  return "pending";
+};
+
+const getProgressBarColor = (state: StatusState): string => {
+  if (state === "success") return "bg-green-500";
+  if (state === "failed") return "bg-red-500";
+  return "bg-purple-500";
+};
+
+const getProgressGlowColor = (state: StatusState): string => {
+  if (state === "success") return "#22c55e";
+  if (state === "failed") return "#ef4444";
+  return "#a855f7";
+};
+
+const getLogTypeColor = (type: string): string => {
+  if (type === "success") return "text-green-500";
+  if (type === "error") return "text-red-500";
+  if (type === "warning") return "text-orange-500";
+  return "text-gray-400";
+};
+
 interface PaymentResultProps {
   orderId: string;
   isTopUp?: boolean; // True if this is a balance top-up, not an order
@@ -446,9 +474,9 @@ export function PaymentResult({
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
-                className={`h-full ${isSuccess ? "bg-green-500" : isFailed ? "bg-red-500" : "bg-purple-500"}`}
+                className={`h-full ${getProgressBarColor(getStatusState(isSuccess, isFailed))}`}
                 style={{
-                  boxShadow: `0 0 10px ${isSuccess ? "#22c55e" : isFailed ? "#ef4444" : "#a855f7"}`,
+                  boxShadow: `0 0 10px ${getProgressGlowColor(getStatusState(isSuccess, isFailed))}`,
                 }}
               />
             </div>
@@ -466,17 +494,7 @@ export function PaymentResult({
                   className="mb-1 flex gap-2"
                 >
                   <span className="text-gray-600">{log.timestamp}</span>
-                  <span
-                    className={
-                      log.type === "success"
-                        ? "text-green-500"
-                        : log.type === "error"
-                          ? "text-red-500"
-                          : log.type === "warning"
-                            ? "text-orange-500"
-                            : "text-gray-400"
-                    }
-                  >
+                  <span className={getLogTypeColor(log.type)}>
                     {log.message}
                   </span>
                 </motion.div>
