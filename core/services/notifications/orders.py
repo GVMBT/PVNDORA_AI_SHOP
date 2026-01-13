@@ -72,8 +72,8 @@ class OrderNotificationsMixin(NotificationServiceBase):
         amount: float,
         currency: str,
         status: str,
-        has_instant_items: bool = True,
-        preorder_count: int = 0,
+        _has_instant_items: bool = True,
+        _preorder_count: int = 0,
     ) -> None:
         """
         Send payment confirmation notification to user.

@@ -571,7 +571,7 @@ async def _process_balance_payment(
     payment_method,
     cart,
     cart_manager,
-    order_items,
+    _order_items,
 ) -> OrderResponse:
     """Process balance payment for an order."""
     # #region agent log

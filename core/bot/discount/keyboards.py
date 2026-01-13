@@ -263,7 +263,7 @@ def get_order_queued_keyboard(lang: str, order_id: str) -> InlineKeyboardMarkup:
 
 
 def get_orders_keyboard(
-    orders: list[dict], lang: str, exchange_rate: float = 1.0, currency: str = "USD"
+    orders: list[dict], _lang: str, exchange_rate: float = 1.0, currency: str = "USD"
 ) -> InlineKeyboardMarkup:
     """User orders list."""
     buttons = []

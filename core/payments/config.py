@@ -21,7 +21,7 @@ GATEWAY_NAMES: dict[str, str] = {
 }
 
 
-def get_gateway_config(gateway: str) -> dict[str, str | None]:
+def get_gateway_config(_gateway: str) -> dict[str, str | None]:
     """
     Get all environment variables for a gateway.
 

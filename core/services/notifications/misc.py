@@ -21,7 +21,7 @@ class MiscNotificationsMixin(NotificationServiceBase):
         telegram_id: int,
         product_name: str,
         language: str,
-        product_id: str | None = None,
+        _product_id: str | None = None,
         in_stock: bool = False,
     ) -> None:
         """
