@@ -370,7 +370,14 @@ async def get_webapp_orders(
     try:
         result = await query.execute()
     except Exception as e:
-        logger.error(f"Failed to fetch orders for user {db_user.id}: {e}", exc_info=True)
+        from core.logging import sanitize_id_for_logging
+
+        logger.error(
+            "Failed to fetch orders for user %s: %s",
+            sanitize_id_for_logging(str(db_user.id)),
+            type(e).__name__,
+            exc_info=True,
+        )
         raise HTTPException(status_code=500, detail="Failed to fetch orders")
 
     user_currency = _get_user_currency(db_user, user, currency_service)

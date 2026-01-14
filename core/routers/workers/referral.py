@@ -484,11 +484,18 @@ async def worker_process_replacement(request: Request):
             update_data["expires_at"] = expires_at_str
 
         await db.client.table("order_items").update(update_data).eq("id", item_id).execute()
-        logger.info(f"process-replacement: Replaced key for order_item {item_id} (1 key replaced)")
+        from core.logging import sanitize_id_for_logging
+
+        logger.info("process-replacement: Replaced key for order_item %s (1 key replaced)", sanitize_id_for_logging(item_id))
     except Exception as e:
-        logger.error(
-            f"process-replacement: Failed to update order item {item_id}: {e}", exc_info=True
-        )
+            from core.logging import sanitize_id_for_logging
+
+            logger.error(
+                "process-replacement: Failed to update order item %s: %s",
+                sanitize_id_for_logging(item_id),
+                type(e).__name__,
+                exc_info=True,
+            )
         # Rollback stock reservation
         try:
             await (
@@ -523,11 +530,11 @@ async def worker_process_replacement(request: Request):
                 item_id=item_id[:8],  # Short ID for display
             )
         except Exception as e:
-            logger.error(f"process-replacement: Failed to send notification: {e}", exc_info=True)
+            logger.error("process-replacement: Failed to send notification: %s", type(e).__name__, exc_info=True)
 
-    logger.info(
-        f"process-replacement: Successfully replaced key for item {item_id} (1 key replaced)"
-    )
+    from core.logging import sanitize_id_for_logging
+
+    logger.info("process-replacement: Successfully replaced key for item %s (1 key replaced)", sanitize_id_for_logging(item_id))
 
     return {
         "success": True,

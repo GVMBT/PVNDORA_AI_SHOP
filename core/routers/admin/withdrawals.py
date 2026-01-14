@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from core.auth import verify_admin
-from core.logging import get_logger
+from core.logging import get_logger, sanitize_id_for_logging, sanitize_string_for_logging
 from core.routers.deps import get_notification_service
 from core.services.database import get_database
 
@@ -146,8 +146,6 @@ async def get_withdrawal(withdrawal_id: str, admin=Depends(verify_admin)):
     except HTTPException:
         raise
     except Exception as e:
-        from core.logging import sanitize_id_for_logging
-
         logger.exception("Error fetching withdrawal %s", sanitize_id_for_logging(withdrawal_id))
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -263,8 +261,6 @@ async def approve_withdrawal(
                 .execute()
             )
         except Exception:
-            from core.logging import sanitize_id_for_logging
-
             logger.exception(
                 "Failed to deduct balance for withdrawal %s", sanitize_id_for_logging(withdrawal_id)
             )
@@ -286,8 +282,6 @@ async def approve_withdrawal(
                 status_code=500,
                 detail="Failed to deduct balance. Withdrawal request remains pending.",
             )
-
-        from core.logging import sanitize_id_for_logging, sanitize_string_for_logging
 
         logger.info(
             "Admin %s approved withdrawal %s: %.2f %s → %.2f USDT to %s",
@@ -326,8 +320,6 @@ async def approve_withdrawal(
     except HTTPException:
         raise
     except Exception as e:
-        from core.logging import sanitize_id_for_logging
-
         logger.error(
             "Error approving withdrawal %s: %s",
             sanitize_id_for_logging(withdrawal_id),
@@ -406,8 +398,6 @@ async def reject_withdrawal(
             .execute()
         )
 
-        from core.logging import sanitize_id_for_logging
-
         logger.info(
             "Admin %s rejected withdrawal %s",
             sanitize_id_for_logging(admin_id),
@@ -439,8 +429,6 @@ async def reject_withdrawal(
     except HTTPException:
         raise
     except Exception as e:
-        from core.logging import sanitize_id_for_logging
-
         logger.error(
             "Error rejecting withdrawal %s: %s",
             sanitize_id_for_logging(withdrawal_id),
@@ -503,8 +491,6 @@ async def complete_withdrawal(
             .execute()
         )
 
-        from core.logging import sanitize_id_for_logging
-
         logger.info(
             "Admin %s marked withdrawal %s as completed",
             sanitize_id_for_logging(admin_id),
@@ -536,8 +522,6 @@ async def complete_withdrawal(
     except HTTPException:
         raise
     except Exception as e:
-        from core.logging import sanitize_id_for_logging
-
         logger.error(
             "Error completing withdrawal %s: %s",
             sanitize_id_for_logging(withdrawal_id),

@@ -227,7 +227,13 @@ class SupportService:
                         order_id=order_id,
                     )
                 except Exception as e:
-                    logger.warning(f"Failed to send admin alert for ticket {ticket_id}: {e}")
+                    from core.logging import sanitize_id_for_logging
+
+                    logger.warning(
+                        "Failed to send admin alert for ticket %s: %s",
+                        sanitize_id_for_logging(ticket_id),
+                        type(e).__name__,
+                    )
 
                 return {
                     "success": True,
@@ -236,7 +242,7 @@ class SupportService:
                 }
             return {"success": False, "reason": "Failed to create ticket"}
         except Exception as e:
-            logger.error(f"Failed to create ticket: {e}", exc_info=True)
+            logger.error("Failed to create ticket: %s", type(e).__name__, exc_info=True)
             return {"success": False, "reason": "Database error"}
 
     async def get_faq(self, language: str = "en") -> list[FAQEntry]:
@@ -261,7 +267,7 @@ class SupportService:
                 for e in entries
             ]
         except Exception as e:
-            logger.error(f"Failed to get FAQ: {e}", exc_info=True)
+            logger.error("Failed to get FAQ: %s", type(e).__name__, exc_info=True)
             return []
 
     async def search_faq(self, question: str, language: str = "en") -> FAQEntry | None:
@@ -368,7 +374,7 @@ class SupportService:
                 "ticket_id": ticket_result.data[0].get("id"),
             }
         except Exception as e:
-            logger.error(f"Failed to process refund request: {e}", exc_info=True)
+            logger.error("Failed to process refund request: %s", type(e).__name__, exc_info=True)
             return {"success": False, "reason": "Failed to process refund request"}
 
     async def get_user_tickets(
@@ -405,5 +411,5 @@ class SupportService:
                 for t in result.data or []
             ]
         except Exception as e:
-            logger.error(f"Failed to get user tickets: {e}", exc_info=True)
+            logger.error("Failed to get user tickets: %s", type(e).__name__, exc_info=True)
             return []

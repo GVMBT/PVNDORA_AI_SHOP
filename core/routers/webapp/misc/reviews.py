@@ -179,7 +179,14 @@ async def _update_order_expenses_cashback(
                 f"Created and updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD"
             )
     except Exception as e:
-        logger.error(f"Failed to update order_expenses for {order_id}: {e}", exc_info=True)
+        from core.logging import sanitize_id_for_logging
+
+        logger.error(
+            "Failed to update order_expenses for %s: %s",
+            sanitize_id_for_logging(order_id),
+            type(e).__name__,
+            exc_info=True,
+        )
 
 
 # Helper to validate order for review (reduces cognitive complexity)
