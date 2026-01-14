@@ -59,11 +59,22 @@ const LoginPage = ({
           globalThis.location.replace(redirectPath);
         }
       } catch (err: unknown) {
-        const errorInstance =
-          err instanceof Error ? err : new Error(err ? String(err) : "Unknown error");
+        let errorInstance: Error;
+        let errorMessage: string;
+        
+        if (err instanceof Error) {
+          errorInstance = err;
+          errorMessage = err.message;
+        } else if (err) {
+          const errStr = String(err);
+          errorInstance = new Error(errStr);
+          errorMessage = errStr;
+        } else {
+          errorInstance = new Error("Unknown error");
+          errorMessage = "Failed to authenticate";
+        }
+        
         logger.error("Login error", errorInstance);
-        const errorMessage =
-          err instanceof Error ? err.message : err ? String(err) : "Failed to authenticate";
         setError(errorMessage);
       } finally {
         setLoading(false);

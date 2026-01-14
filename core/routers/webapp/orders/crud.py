@@ -340,12 +340,9 @@ async def _process_confirmed_payment(order_id: str, payment_id: str, db) -> dict
             deduplication_id=f"deliver-{order_id}",
         )
     except Exception as e:
-        from core.logging import sanitize_id_for_logging
-
         error_type = type(e).__name__
         logger.warning(
-            "Failed to queue delivery for %s: %s",
-            sanitize_id_for_logging(order_id),
+            "Failed to queue delivery: %s",
             error_type,
         )
 
@@ -358,7 +355,6 @@ async def _verify_crystalpay_payment(
 ) -> dict:
     """Verify payment via CrystalPay gateway (reduces cognitive complexity)."""
     from core.routers.deps import get_payment_service
-    from core.logging import sanitize_id_for_logging
 
     payment_service = get_payment_service()
     try:
@@ -369,8 +365,7 @@ async def _verify_crystalpay_payment(
     except Exception as e:
         error_type = type(e).__name__
         logger.warning(
-            "Failed to verify payment for order %s: %s",
-            sanitize_id_for_logging(order_id),
+            "Failed to verify payment: %s",
             error_type,
         )
     return {"status": order_status, "verified": False, "message": "Verification failed"}

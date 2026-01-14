@@ -105,32 +105,30 @@ async def _send_with_retry(
     url: str, payload: dict, retries: int, timeout: float, chat_id: int
 ) -> bool:
     """Send request with retry logic."""
-    import anyio
-
     last_error = None
+    timeout_obj = httpx.Timeout(timeout, connect=timeout)
 
     for attempt in range(retries + 1):
         try:
-            async with httpx.AsyncClient() as client:
-                with anyio.move_on_after(timeout):
-                    success, status_code, error_text = await _make_telegram_request(
-                        client, url, payload
-                    )
+            async with httpx.AsyncClient(timeout=timeout_obj) as client:
+                success, status_code, error_text = await _make_telegram_request(
+                    client, url, payload
+                )
 
-                    if success:
-                        logger.debug(f"Message sent successfully to {chat_id}")
-                        return True
+                if success:
+                    logger.debug(f"Message sent successfully to {chat_id}")
+                    return True
 
-                    logger.warning(
-                        f"Telegram API error for {chat_id}: status={status_code}, response={error_text}"
-                    )
+                logger.warning(
+                    f"Telegram API error for {chat_id}: status={status_code}, response={error_text}"
+                )
 
-                    if _is_permanent_error(status_code):
-                        return False
+                if _is_permanent_error(status_code):
+                    return False
 
-                    last_error = f"HTTP {status_code}"
+                last_error = f"HTTP {status_code}"
 
-        except anyio.MoveOnAfterTimeout:
+        except httpx.TimeoutException:
             last_error = "Timeout"
             logger.warning(
                 f"Timeout sending message to {chat_id} (attempt {attempt + 1}/{retries + 1})"
@@ -247,26 +245,26 @@ async def send_telegram_message_with_keyboard(
 
     last_error = None
 
+    timeout_obj = httpx.Timeout(timeout, connect=timeout)
     for attempt in range(retries + 1):
         try:
-            async with httpx.AsyncClient() as client:
-                with anyio.move_on_after(timeout):
-                    response = await client.post(url, json=payload)
+            async with httpx.AsyncClient(timeout=timeout_obj) as client:
+                response = await client.post(url, json=payload)
 
-                    if response.status_code == 200:
-                        return True
+                if response.status_code == 200:
+                    return True
 
-                    error_description = _parse_error_response(response)
-                    logger.error(
-                        f"Telegram API error for {chat_id} (keyboard): status={response.status_code}, description={error_description}"
-                    )
+                error_description = _parse_error_response(response)
+                logger.error(
+                    f"Telegram API error for {chat_id} (keyboard): status={response.status_code}, description={error_description}"
+                )
 
-                    if _is_permanent_error(response.status_code):
-                        return False
+                if _is_permanent_error(response.status_code):
+                    return False
 
-                    last_error = f"HTTP {response.status_code}"
+                last_error = f"HTTP {response.status_code}"
 
-        except anyio.MoveOnAfterTimeout:
+        except httpx.TimeoutException:
             last_error = "Timeout"
             logger.warning(
                 f"Timeout sending keyboard message to {chat_id} (attempt {attempt + 1}/{retries + 1})"

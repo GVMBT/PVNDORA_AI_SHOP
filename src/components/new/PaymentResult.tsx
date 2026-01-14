@@ -153,8 +153,20 @@ export function PaymentResult({
         throw error;
       }
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : (error ? String(error) : "Unknown error");
-      const errorInstance = error instanceof Error ? error : new Error(errorMessage);
+      let errorMessage: string;
+      let errorInstance: Error;
+      
+      if (error instanceof Error) {
+        errorInstance = error;
+        errorMessage = error.message;
+      } else if (error) {
+        errorMessage = String(error);
+        errorInstance = new Error(errorMessage);
+      } else {
+        errorMessage = "Unknown error";
+        errorInstance = new Error(errorMessage);
+      }
+      
       logger.error("Status check failed", errorInstance);
       return {
         status: "unknown" as PaymentStatus,

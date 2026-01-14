@@ -241,7 +241,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isPlayingRef = useRef(false);
   const wasPlayingBeforeHiddenRef = useRef(false);
-  const [_isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<Error | null>(null);
@@ -409,10 +409,11 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
 
       const shouldResume = wasPlayingBeforeHiddenRef.current && autoPlay && !isMuted;
       if (shouldResume) {
+        const handleResumeError = () => {
+          // Ignore: autoplay policies vary
+        };
         setTimeout(() => {
-          resumePlayback().catch(() => {
-            // Ignore: autoplay policies vary
-          });
+          resumePlayback().catch(handleResumeError);
         }, 100);
       }
     };

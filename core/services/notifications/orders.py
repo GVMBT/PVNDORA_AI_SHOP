@@ -166,13 +166,9 @@ class OrderNotificationsMixin(NotificationServiceBase):
             if items_result.data:
                 instant_items, prepaid_items = _categorize_order_items(items_result.data)
         except Exception as e:
-            from core.logging import sanitize_id_for_logging
-
-            sanitized_order_id = sanitize_id_for_logging(order_id)
             error_type = type(e).__name__
             logger.warning(
-                "Failed to fetch order items for notification %s: %s",
-                sanitized_order_id,
+                "Failed to fetch order items for notification: %s",
                 error_type,
             )
 

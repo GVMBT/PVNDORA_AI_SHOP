@@ -392,18 +392,18 @@ async def _parse_topup_webhook(request: Request) -> tuple[dict[str, Any] | None,
     return data, None
 
 
-async def _validate_topup_transaction(data: dict[str, Any]) -> tuple[str | None, JSONResponse | None]:
+def _validate_topup_transaction(data: dict[str, Any]) -> tuple[str | None, JSONResponse | None]:
     """Validate topup transaction. Returns (topup_id, error_response)."""
     extra = data.get("extra") or ""
     if not extra.startswith("topup_"):
-        logger.warning(f"CrystalPay TOPUP webhook: Not a topup transaction (extra={extra})")
+        logger.warning("CrystalPay TOPUP webhook: Not a topup transaction")
         return None, JSONResponse({"error": "Not a topup transaction"}, status_code=400)
 
     topup_id = extra.replace("topup_", "")
     return topup_id, None
 
 
-async def _verify_topup_signature(data: dict[str, Any], invoice_id: str) -> JSONResponse | None:
+def _verify_topup_signature(data: dict[str, Any], invoice_id: str) -> JSONResponse | None:
     """Verify topup webhook signature. Returns error response on failure, None on success."""
     received_signature = str(data.get("signature", "")).strip().lower()
     if not _verify_crystalpay_signature(received_signature, invoice_id):
@@ -412,11 +412,11 @@ async def _verify_topup_signature(data: dict[str, Any], invoice_id: str) -> JSON
     return None
 
 
-async def _check_topup_payment_state(state: str) -> JSONResponse | None:
+def _check_topup_payment_state(state: str) -> JSONResponse | None:
     """Check topup payment state. Returns early response if not paid, None if paid."""
     if state.lower() != "payed":
-        logger.info(f"CrystalPay TOPUP webhook: Payment not successful (state={state})")
-        return JSONResponse({"ok": True, "message": f"State {state} acknowledged"}, status_code=200)
+        logger.info("CrystalPay TOPUP webhook: Payment not successful")
+        return JSONResponse({"ok": True, "message": "State acknowledged"}, status_code=200)
     return None
 
 
