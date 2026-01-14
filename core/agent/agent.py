@@ -150,63 +150,44 @@ class ShopAgent:
     async def _get_user_context(self, user_id: str, telegram_id: int, language: str) -> UserContext:
         """Build user context with currency info from DB."""
         from core.db import get_redis
-        from core.services.currency import LANGUAGE_TO_CURRENCY, get_currency_service
+        from core.services.currency import get_currency_service
 
-        currency = "USD"
+        # After RUB-only migration: all currencies are RUB
+        currency = "RUB"
         exchange_rate = 1.0
-        preferred_currency = None
+        preferred_currency = None  # Deprecated after RUB-only migration, kept for backward compatibility
 
         try:
-            # Get user's balance_currency (actual currency of their balance) and preferred_currency from DB
+            # Get user's language from DB for context
             result = (
                 await self.db.client.table("users")
-                .select("balance_currency, preferred_currency, language_code")
+                .select("language_code")
                 .eq("id", user_id)
                 .single()
                 .execute()
             )
 
+            db_language = language
             if result.data:
-                # Use balance_currency as primary source (actual currency of user's balance)
-                # This ensures AI uses the currency that matches user's actual balance
-                # TODO(tech-debt): Default "RUB" after RUB-only migration
-                balance_currency_db = result.data.get("balance_currency") or "RUB"
-                preferred_currency = result.data.get("preferred_currency")
                 db_language = result.data.get("language_code") or language
 
-                # If user has balance_currency set, use it (this is their actual account currency)
-                # Otherwise fallback to preferred_currency or language-based currency
-                if balance_currency_db and balance_currency_db != "USD":
-                    currency = balance_currency_db
-                elif preferred_currency:
-                    currency = preferred_currency
-                else:
-                    # Determine currency using CurrencyService based on language
-                    redis = get_redis()
-                    currency_service = get_currency_service(redis)
-                    currency = currency_service.get_user_currency(db_language, None)
-            else:
-                db_language = language
-                # Fallback to language-based currency
-                redis = get_redis()
-                currency_service = get_currency_service(redis)
-                currency = currency_service.get_user_currency(db_language, None)
-
-            # Get exchange rate for display currency
+            # Use CurrencyService which always returns RUB after migration
             redis = get_redis()
             currency_service = get_currency_service(redis)
-            if currency != "USD":
-                exchange_rate = await currency_service.get_exchange_rate(currency)
+            currency = currency_service.get_user_currency(db_language, None)
+
+            # After RUB-only migration: exchange_rate is always 1.0
+            exchange_rate = await currency_service.get_exchange_rate(currency)
 
             logger.info(
-                f"User context: user_id={user_id}, currency={currency} (from balance_currency), rate={exchange_rate}"
+                f"User context: user_id={user_id}, currency={currency} (RUB-only), rate={exchange_rate}"
             )
 
         except Exception as e:
             logger.warning(f"Failed to get user context: {e}")
-            # Fallback to language-based currency
-            lang = language.split("-")[0].lower() if language else "en"
-            currency = LANGUAGE_TO_CURRENCY.get(lang, "USD")
+            # Fallback: After RUB-only migration, always RUB
+            currency = "RUB"
+            exchange_rate = 1.0
 
         return UserContext(
             user_id=user_id,
