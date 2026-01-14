@@ -8,19 +8,22 @@ Optimized for Vercel Hobby plan (max 12 serverless functions).
 # Aikido Zen Runtime Protection - MUST be imported before any other code
 # This provides runtime security and firewall protection
 # Documentation: https://docs.aikido.dev/zen
+import logging
+
+_logger = logging.getLogger(__name__)
+AIKIDO_ZEN_AVAILABLE = False
+_aikido_zen_module = None
+
 try:
     import aikido_zen  # type: ignore[import-untyped]
-
-    aikido_zen.protect()
-    AIKIDO_ZEN_AVAILABLE = True
+    _aikido_zen_module = aikido_zen
+    _logger.info("Aikido Zen module imported successfully")
 except ImportError:
     # Aikido Zen is optional - don't fail if not installed
     # Install with: pip install aikido-zen
-    AIKIDO_ZEN_AVAILABLE = False
-except Exception:
-    # Don't fail startup if Aikido has issues (e.g., missing token in dev)
-    # Zen will be inactive but app will continue to work
-    AIKIDO_ZEN_AVAILABLE = False
+    _logger.warning("Aikido Zen not installed (ImportError)")
+except Exception as e:
+    _logger.error(f"Aikido Zen import failed: {type(e).__name__}: {e}", exc_info=True)
 
 import logging
 import os
@@ -166,16 +169,27 @@ async def lifespan(fastapi_app: FastAPI):
         logger.error("Failed to initialize database: %s", err, exc_info=True)
         # Continue anyway - some endpoints may work without DB
 
-    # Check Aikido Zen status
-    import importlib.util
-
-    if importlib.util.find_spec("aikido_zen") is not None:
-        if os.environ.get("AIKIDO_TOKEN"):
-            logger.info("Aikido Zen Runtime Protection: ACTIVE")
+    # Initialize Aikido Zen (call protect() here when env vars are available)
+    global AIKIDO_ZEN_AVAILABLE
+    if _aikido_zen_module is not None:
+        token = os.environ.get("AIKIDO_TOKEN")
+        if token:
+            try:
+                _aikido_zen_module.protect()
+                AIKIDO_ZEN_AVAILABLE = True
+                logger.info("Aikido Zen Runtime Protection: ACTIVE")
+            except Exception as e:
+                logger.error(f"Aikido Zen protect() failed: {type(e).__name__}: {e}", exc_info=True)
+                AIKIDO_ZEN_AVAILABLE = False
         else:
             logger.warning("Aikido Zen installed but AIKIDO_TOKEN not set - protection disabled")
+            AIKIDO_ZEN_AVAILABLE = False
     else:
-        logger.info("Aikido Zen not installed - runtime protection disabled")
+        import importlib.util
+        if importlib.util.find_spec("aikido_zen") is not None:
+            logger.warning("Aikido Zen module found but import failed (check logs above)")
+        else:
+            logger.info("Aikido Zen not installed - runtime protection disabled")
 
     yield
 
@@ -228,14 +242,30 @@ except (ImportError, ValueError, Exception) as e:
 
 # Aikido Zen Middleware - MUST be added after authentication middleware
 # This enables request blocking for security threats
+# NOTE: Admin endpoints are protected by verify_admin() - Zen should not block them
 try:
     if AIKIDO_ZEN_AVAILABLE:
         from aikido_zen.middleware import AikidoStarletteMiddleware  # type: ignore
 
         app.add_middleware(AikidoStarletteMiddleware)
-except (ImportError, NameError):
+        logger.info("Aikido Zen middleware added successfully")
+        
+        # Check if whitelist is configured
+        whitelist = os.environ.get("AIKIDO_WHITELIST")
+        if whitelist:
+            logger.info(f"Aikido Zen whitelist configured: {whitelist}")
+        else:
+            logger.warning(
+                "Aikido Zen whitelist not set. If admin endpoints are blocked, "
+                "set AIKIDO_WHITELIST=/api/admin/* in Vercel Environment Variables"
+            )
+    else:
+        logger.warning("Aikido Zen middleware not added (AIKIDO_ZEN_AVAILABLE=False)")
+except (ImportError, NameError) as e:
     # Aikido middleware not available - continue without it
-    pass
+    logger.warning(f"Aikido Zen middleware import failed: {e}")
+except Exception as e:
+    logger.error(f"Aikido Zen middleware setup failed: {e}", exc_info=True)
 
 # CORS for Mini App
 # ⚠️ SECURITY NOTE: allow_origins=["*"] is required for Telegram Mini Apps
