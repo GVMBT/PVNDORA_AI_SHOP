@@ -35,7 +35,7 @@ def _is_permanent_error(status_code: int) -> bool:
 
 def _calculate_backoff_delay(attempt: int) -> float:
     """Calculate exponential backoff delay."""
-    return float(0.5 * (2 ** attempt))
+    return float(0.5 * (2**attempt))
 
 
 async def _make_telegram_request(
@@ -98,7 +98,7 @@ def _truncate_message(text: str, max_length: int = 4096) -> str:
         return text
 
     logger.warning(f"Truncating message from {len(text)} to {max_length - 3} characters")
-    return text[:max_length - 3] + "..."
+    return text[: max_length - 3] + "..."
 
 
 async def _send_with_retry(
@@ -118,7 +118,9 @@ async def _send_with_retry(
                     logger.debug(f"Message sent successfully to {chat_id}")
                     return True
 
-                logger.warning(f"Telegram API error for {chat_id}: status={status_code}, response={error_text}")
+                logger.warning(
+                    f"Telegram API error for {chat_id}: status={status_code}, response={error_text}"
+                )
 
                 if _is_permanent_error(status_code):
                     return False
@@ -127,7 +129,9 @@ async def _send_with_retry(
 
         except httpx.TimeoutException:
             last_error = "Timeout"
-            logger.warning(f"Timeout sending message to {chat_id} (attempt {attempt + 1}/{retries + 1})")
+            logger.warning(
+                f"Timeout sending message to {chat_id} (attempt {attempt + 1}/{retries + 1})"
+            )
         except httpx.ConnectError as e:
             last_error = f"Connection error: {e}"
             logger.warning(f"Connection error sending to {chat_id}: {e}")
@@ -147,7 +151,11 @@ def _parse_error_response(response: httpx.Response) -> str:
     """Parse error response from Telegram API."""
     try:
         error_data = response.json() if response.text else {}
-        return error_data.get("description", "") or response.text[:500] if response.text else NO_RESPONSE_BODY
+        return (
+            error_data.get("description", "") or response.text[:500]
+            if response.text
+            else NO_RESPONSE_BODY
+        )
     except Exception:
         return response.text[:500] if response.text else NO_RESPONSE_BODY
 
@@ -243,7 +251,9 @@ async def send_telegram_message_with_keyboard(
                     return True
 
                 error_description = _parse_error_response(response)
-                logger.error(f"Telegram API error for {chat_id} (keyboard): status={response.status_code}, description={error_description}")
+                logger.error(
+                    f"Telegram API error for {chat_id} (keyboard): status={response.status_code}, description={error_description}"
+                )
 
                 if _is_permanent_error(response.status_code):
                     return False
