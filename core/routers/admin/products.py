@@ -112,7 +112,7 @@ async def admin_get_products(admin=Depends(verify_admin)):
                 "sold": sold_count,
                 # Media
                 "image": p.get("image_url"),
-                "video": None,  # TODO: Add video_url to DB if needed
+                "video": p.get("video_url"),  # Video URL from DB if available
                 # Content
                 "instructions": p.get("instructions", ""),
                 # Timestamps

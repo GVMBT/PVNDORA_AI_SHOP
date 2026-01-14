@@ -66,7 +66,14 @@ const LoginPage = ({
           errorInstance = err;
           errorMessage = err.message;
         } else if (err) {
-          const errStr = String(err);
+          let errStr: string;
+          if (typeof err === "string") {
+            errStr = err;
+          } else if (err && typeof err === "object") {
+            errStr = String(err);
+          } else {
+            errStr = String(err);
+          }
           errorInstance = new Error(errStr);
           errorMessage = errStr;
         } else {

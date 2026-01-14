@@ -17,6 +17,7 @@ logger = get_logger(__name__)
 # Constants
 NO_RESPONSE_BODY = "No response body"
 PERMANENT_ERROR_CODES = {400, 403, 404}
+DEFAULT_TIMEOUT = 10.0  # Default timeout in seconds
 
 # Environment variables
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
@@ -172,7 +173,7 @@ async def send_telegram_message(
     parse_mode: str | None = "HTML",
     bot_token: str | None = None,
     retries: int = 2,
-    timeout: float = 10.0,
+    timeout: float = DEFAULT_TIMEOUT,
 ) -> bool:
     """
     Send a Telegram message with retry logic and error handling.
@@ -208,7 +209,7 @@ async def send_telegram_message_with_keyboard(
     parse_mode: str | None = "HTML",
     bot_token: str | None = None,
     retries: int = 2,
-    timeout: float = 10.0,
+    timeout: float = DEFAULT_TIMEOUT,
 ) -> bool:
     """
     Send a Telegram message with inline keyboard.
@@ -225,7 +226,6 @@ async def send_telegram_message_with_keyboard(
     Returns:
         True if sent successfully, False otherwise
     """
-    import anyio
 
     token = bot_token or TELEGRAM_TOKEN
     if not token:

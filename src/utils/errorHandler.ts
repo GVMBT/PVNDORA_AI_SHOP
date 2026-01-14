@@ -24,6 +24,9 @@ export function getErrorMessage(error: unknown, fallback = "An error occurred"):
     if (message && typeof message === "object") {
       return String(message);
     }
+    if (message !== null && message !== undefined) {
+      return String(message);
+    }
     return String(message);
   }
   return fallback;

@@ -295,15 +295,17 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
           void tryAutoplay(audio, volume, isPlayingRef, setIsPlaying, isCancelled);
         }
 
+        const retryLoadAudio = () => {
+          void loadAudio();
+        };
+
         const handleError = (e: Event) => {
           if (cancelled) return;
           const audioError = (e.target as HTMLAudioElement).error;
           handleAudioLoadError(audioError, {
             retryCountRef,
             maxRetries,
-            loadAudio: () => {
-              void loadAudio();
-            },
+            loadAudio: retryLoadAudio,
             cancelled: isCancelled,
             setLoadError,
             setIsLoading,

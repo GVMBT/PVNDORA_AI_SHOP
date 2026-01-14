@@ -101,12 +101,10 @@ class Logger {
   error(message: string, error?: Error, ...args: unknown[]): void {
     if (error instanceof Error) {
       this.log("error", message, error, error.stack, ...args);
+    } else if (error !== undefined) {
+      this.log("error", message, error, ...args);
     } else {
-      if (error !== undefined) {
-        this.log("error", message, error, ...args);
-      } else {
-        this.log("error", message, ...args);
-      }
+      this.log("error", message, ...args);
     }
   }
 

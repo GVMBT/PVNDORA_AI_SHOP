@@ -56,10 +56,23 @@ export function useErrorHandler() {
         err = new Error(error);
       } else if (error && typeof error === "object" && "message" in error) {
         const message = error.message;
-        const messageStr = typeof message === "string" ? message : String(message);
+        let messageStr: string;
+        if (typeof message === "string") {
+          messageStr = message;
+        } else if (message && typeof message === "object") {
+          messageStr = String(message);
+        } else {
+          messageStr = String(message);
+        }
         err = new Error(messageStr);
       } else {
-        err = new Error(String(error));
+        let errorStr: string;
+        if (error && typeof error === "object") {
+          errorStr = String(error);
+        } else {
+          errorStr = String(error);
+        }
+        err = new Error(errorStr);
       }
 
       // Log error
