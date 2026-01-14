@@ -9,6 +9,7 @@ Optimized for Vercel Hobby plan (max 12 serverless functions).
 # This provides runtime security and firewall protection
 # Documentation: https://docs.aikido.dev/zen
 import logging
+import os
 
 _logger = logging.getLogger(__name__)
 AIKIDO_ZEN_AVAILABLE = False
@@ -17,7 +18,18 @@ _aikido_zen_module = None
 try:
     import aikido_zen  # type: ignore[import-untyped]
     _aikido_zen_module = aikido_zen
-    _logger.info("Aikido Zen module imported successfully")
+    # Try to call protect() immediately if token is available
+    # This ensures Zen is active before middleware is added
+    token = os.environ.get("AIKIDO_TOKEN")
+    if token:
+        try:
+            aikido_zen.protect()
+            AIKIDO_ZEN_AVAILABLE = True
+            _logger.info("Aikido Zen module imported and protect() called successfully")
+        except Exception as e:
+            _logger.error(f"Aikido Zen protect() failed: {type(e).__name__}: {e}", exc_info=True)
+    else:
+        _logger.warning("Aikido Zen module imported but AIKIDO_TOKEN not set")
 except ImportError:
     # Aikido Zen is optional - don't fail if not installed
     # Install with: pip install aikido-zen
@@ -169,21 +181,15 @@ async def lifespan(fastapi_app: FastAPI):
         logger.error("Failed to initialize database: %s", err, exc_info=True)
         # Continue anyway - some endpoints may work without DB
 
-    # Initialize Aikido Zen (call protect() here when env vars are available)
-    global AIKIDO_ZEN_AVAILABLE
-    if _aikido_zen_module is not None:
+    # Check Aikido Zen status (already initialized at module level)
+    if AIKIDO_ZEN_AVAILABLE:
+        logger.info("Aikido Zen Runtime Protection: ACTIVE")
+    elif _aikido_zen_module is not None:
         token = os.environ.get("AIKIDO_TOKEN")
         if token:
-            try:
-                _aikido_zen_module.protect()
-                AIKIDO_ZEN_AVAILABLE = True
-                logger.info("Aikido Zen Runtime Protection: ACTIVE")
-            except Exception as e:
-                logger.error(f"Aikido Zen protect() failed: {type(e).__name__}: {e}", exc_info=True)
-                AIKIDO_ZEN_AVAILABLE = False
+            logger.warning("Aikido Zen module available but protect() failed (check logs above)")
         else:
             logger.warning("Aikido Zen installed but AIKIDO_TOKEN not set - protection disabled")
-            AIKIDO_ZEN_AVAILABLE = False
     else:
         import importlib.util
         if importlib.util.find_spec("aikido_zen") is not None:
@@ -249,7 +255,7 @@ try:
 
         app.add_middleware(AikidoStarletteMiddleware)
         logger.info("Aikido Zen middleware added successfully")
-        
+
         # Check if whitelist is configured
         whitelist = os.environ.get("AIKIDO_WHITELIST")
         if whitelist:
