@@ -266,7 +266,6 @@ async def worker_process_refund(request: Request):
         .single()
         .execute()
     )
-    # TODO(tech-debt): Default "RUB" after RUB-only migration
     balance_currency = (
         user_result.data.get("balance_currency", "RUB") if user_result.data else "RUB"
     )
@@ -365,7 +364,6 @@ async def worker_process_review_cashback(request: Request):
         return {"error": ERROR_ORDER_NOT_FOUND}
 
     # Calculate cashback in user's balance_currency
-    # TODO(tech-debt): Default "RUB" after RUB-only migration
     balance_currency = getattr(db_user, "balance_currency", "RUB") or "RUB"
     cashback_base = await _calculate_cashback_base(order_data, order_amount, balance_currency)
     cashback_amount = _round_for_currency(cashback_base * 0.05, balance_currency)

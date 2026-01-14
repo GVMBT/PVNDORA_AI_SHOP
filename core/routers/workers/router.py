@@ -200,81 +200,105 @@ async def _update_order_item_as_delivered(
         return False
 
 
-async def _process_single_item_delivery(
-    db, item: dict, products_map: dict, now: datetime, only_instant: bool
+async def _check_item_eligible_for_delivery(
+    item: dict, only_instant: bool
+) -> tuple[bool, bool]:
+    """
+    Check if item is eligible for delivery processing.
+
+    Returns:
+        (can_process, is_waiting) - can_process=False means skip, is_waiting indicates if waiting
+    """
+    status = str(item.get("status") or "").lower()
+    if status in {"delivered", "cancelled", "refunded"}:
+        return False, False  # Already processed
+
+    fulfillment_type = str(item.get("fulfillment_type") or "instant")
+    if only_instant and fulfillment_type == "preorder":
+        logger.debug(f"deliver-goods: skipping preorder item {item.get('id')} (only_instant=True)")
+        return False, True  # Waiting
+
+    return True, False
+
+
+async def _check_prepaid_deadline_expired(item: dict, now: datetime) -> bool:
+    """
+    Check if prepaid item has expired fulfillment_deadline.
+
+    Returns:
+        True if expired (should skip), False if can continue
+    """
+    if str(item.get("status") or "").lower() != "prepaid":
+        return False  # Not prepaid, continue
+
+    fulfillment_deadline_raw = item.get("fulfillment_deadline")
+    if not fulfillment_deadline_raw:
+        return False  # No deadline, continue
+
+    try:
+        if isinstance(fulfillment_deadline_raw, str):
+            fulfillment_deadline = datetime.fromisoformat(
+                fulfillment_deadline_raw.replace("Z", "+00:00")
+            )
+        elif isinstance(fulfillment_deadline_raw, datetime):
+            fulfillment_deadline = fulfillment_deadline_raw
+        else:
+            return False  # Invalid type, continue
+
+        if fulfillment_deadline < now:
+            logger.warning(
+                f"deliver-goods: skipping expired prepaid item {item.get('id')} "
+                f"(fulfillment_deadline={fulfillment_deadline.isoformat()} < now={now.isoformat()})"
+            )
+            return True  # Expired, skip
+    except (ValueError, TypeError, AttributeError) as e:
+        logger.warning(
+            f"deliver-goods: failed to parse fulfillment_deadline for item {item.get('id')}: {e}"
+        )
+        # Continue with delivery if we can't parse deadline
+
+    return False
+
+
+async def _try_deliver_with_stock(
+    db, item: dict, products_map: dict, now: datetime
 ) -> tuple[str | None, bool]:
     """
-    Process delivery for a single order item.
+    Try to deliver item if stock is available.
 
     Returns:
         (delivery_line, is_waiting) - delivery_line is None if not delivered
     """
-    status = str(item.get("status") or "").lower()
-    if status in {"delivered", "cancelled", "refunded"}:
-        return None, False  # Already processed
-
-    fulfillment_type = str(item.get("fulfillment_type") or "instant")
-
-    # Skip preorder items in only_instant mode
-    if only_instant and fulfillment_type == "preorder":
-        logger.debug(f"deliver-goods: skipping preorder item {item.get('id')} (only_instant=True)")
-        return None, True  # Waiting
-
-    # CRITICAL: Check if prepaid item has expired fulfillment_deadline
-    # If deadline passed, refund_expired_prepaid cron should have processed it
-    # But to prevent race condition, we skip delivery here as well
-    if status == "prepaid":
-        fulfillment_deadline_raw = item.get("fulfillment_deadline")
-        if fulfillment_deadline_raw:
-            try:
-                # Parse ISO format datetime string from database
-                if isinstance(fulfillment_deadline_raw, str):
-                    fulfillment_deadline = datetime.fromisoformat(
-                        fulfillment_deadline_raw.replace("Z", "+00:00")
-                    )
-                elif isinstance(fulfillment_deadline_raw, datetime):
-                    fulfillment_deadline = fulfillment_deadline_raw
-                else:
-                    fulfillment_deadline = None
-
-                if fulfillment_deadline and fulfillment_deadline < now:
-                    logger.warning(
-                        f"deliver-goods: skipping expired prepaid item {item.get('id')} "
-                        f"(fulfillment_deadline={fulfillment_deadline.isoformat()} < now={now.isoformat()})"
-                    )
-                    return None, False  # Expired, should be refunded
-            except (ValueError, TypeError, AttributeError) as e:
-                logger.warning(
-                    f"deliver-goods: failed to parse fulfillment_deadline for item {item.get('id')}: {e}"
-                )
-                # Continue with delivery if we can't parse deadline
-
     product_id = item.get("product_id")
     prod = products_map.get(product_id, {})
     prod_name = prod.get("name", "Product")
     item_id = item.get("id")
 
-    # Try to allocate stock
     stock_id, stock_content = await _allocate_stock_item(db, product_id, now)
 
-    if stock_id and stock_content is not None:
-        instructions = item.get("delivery_instructions") or prod.get("instructions") or ""
-        duration_days = prod.get("duration_days")
+    if not stock_id or stock_content is None:
+        return None, True  # No stock, waiting
 
-        success = await _update_order_item_as_delivered(
-            db, item_id, stock_id, stock_content, instructions, duration_days, now
+    # Stock available - try to deliver
+    instructions = item.get("delivery_instructions") or prod.get("instructions") or ""
+    duration_days = prod.get("duration_days")
+
+    success = await _update_order_item_as_delivered(
+        db, item_id, stock_id, stock_content, instructions, duration_days, now
+    )
+
+    if success:
+        logger.info(
+            f"deliver-goods: allocated stock item {stock_id} for product {product_id}, order_item {item_id}"
         )
+        return f"{prod_name}:\n{stock_content}", False
 
-        if success:
-            logger.info(
-                f"deliver-goods: allocated stock item {stock_id} for product {product_id}, order_item {item_id}"
-            )
-            return f"{prod_name}:\n{stock_content}", False
+    return None, True  # Failed, waiting
 
-        return None, True  # Failed, waiting
 
-    # No stock available - update timestamp only
-    logger.debug(f"deliver-goods: NO stock available for product {product_id}")
+async def _update_item_timestamp(db, item_id: str, now: datetime) -> None:
+    """Update order_item timestamp when stock is not available."""
+    logger.debug(f"deliver-goods: NO stock available, updating timestamp for item {item_id}")
     try:
         await (
             db.client.table("order_items")
@@ -284,7 +308,34 @@ async def _process_single_item_delivery(
         )
     except Exception:
         logger.exception(f"deliver-goods: failed to update timestamp for item {item_id}")
-    return None, True  # Waiting
+
+
+async def _process_single_item_delivery(
+    db, item: dict, products_map: dict, now: datetime, only_instant: bool
+) -> tuple[str | None, bool]:
+    """
+    Process delivery for a single order item.
+
+    Returns:
+        (delivery_line, is_waiting) - delivery_line is None if not delivered
+    """
+    # Check if item is eligible for delivery
+    can_process, is_waiting = await _check_item_eligible_for_delivery(item, only_instant)
+    if not can_process:
+        return None, is_waiting
+
+    # Check prepaid deadline
+    if await _check_prepaid_deadline_expired(item, now):
+        return None, False  # Expired, skip
+
+    # Try to deliver with stock
+    delivery_line, is_waiting = await _try_deliver_with_stock(db, item, products_map, now)
+
+    # Update timestamp if no stock available
+    if delivery_line is None and is_waiting:
+        await _update_item_timestamp(db, item.get("id"), now)
+
+    return delivery_line, is_waiting
 
 
 async def _update_user_total_saved(db, order_data: dict, order_id: str) -> None:

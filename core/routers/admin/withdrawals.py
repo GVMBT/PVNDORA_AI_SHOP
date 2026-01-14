@@ -32,7 +32,6 @@ ERROR_WITHDRAWAL_NOT_FOUND = "Withdrawal request not found"
 def extract_withdrawal_amounts(withdrawal: dict) -> tuple[float, str, float]:
     """Extract withdrawal amounts and currency (reduces cognitive complexity)."""
     amount_debited = float(withdrawal.get("amount_debited") or withdrawal["amount"])
-    # TODO(tech-debt): Default "RUB" after RUB-only migration
     balance_currency = withdrawal.get("balance_currency") or "RUB"
     amount_to_pay = float(withdrawal.get("amount_to_pay") or withdrawal["amount"])
     return amount_debited, balance_currency, amount_to_pay
@@ -202,7 +201,6 @@ async def approve_withdrawal(
             raise HTTPException(status_code=404, detail="User not found")
 
         current_balance = float(user_result.data.get("balance", 0))
-        # TODO(tech-debt): Default "RUB" after RUB-only migration
         user_balance_currency = user_result.data.get("balance_currency") or "RUB"
         user_telegram_id = user_result.data.get("telegram_id")
 

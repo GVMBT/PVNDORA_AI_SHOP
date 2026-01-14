@@ -68,7 +68,6 @@ def extract_order_data(
 ) -> tuple[str, float | None, float, dict[str, Any] | None]:
     """Extract currency, amounts, and expenses from order (reduces cognitive complexity)."""
     currency_raw = order.get("fiat_currency")
-    # TODO(tech-debt): Default "RUB" after RUB-only migration
     currency = str(currency_raw) if currency_raw else "RUB"
     fiat_amount_raw = order.get("fiat_amount")
     fiat_amount = float(fiat_amount_raw) if isinstance(fiat_amount_raw, (int, float)) else None
@@ -333,7 +332,6 @@ def _process_single_order_for_month(
     month["orders_count"] += 1
 
     # Revenue by currency
-    # TODO(tech-debt): Default "RUB" after RUB-only migration
     currency = order.get("fiat_currency") or "RUB"
     fiat_amount = order.get("fiat_amount")
     amount_usd = float(order.get("amount", 0))
@@ -506,7 +504,6 @@ def _process_single_order_for_report(
     expense_totals: dict[str, float],
 ) -> None:
     """Process a single order and update orders_by_currency and expense_totals."""
-    # TODO(tech-debt): Default "RUB" after RUB-only migration
     currency = order.get("fiat_currency") or "RUB"
     if currency not in orders_by_currency:
         orders_by_currency[currency] = _init_currency_entry_for_report()
@@ -1323,7 +1320,6 @@ async def _process_user_balances(db, liabilities_by_currency: dict):
         )
 
         for user in balances_result.data or []:
-            # TODO(tech-debt): Default "RUB" after RUB-only migration
             currency = user.get("balance_currency") or "RUB"
             balance = float(user.get("balance", 0))
 
@@ -1348,7 +1344,6 @@ async def _process_pending_withdrawals(db, liabilities_by_currency: dict):
         )
 
         for w in withdrawals_result.data or []:
-            # TODO(tech-debt): Default "RUB" after RUB-only migration
             currency = w.get("balance_currency") or "RUB"
             amount = float(w.get("amount_debited", 0))
 

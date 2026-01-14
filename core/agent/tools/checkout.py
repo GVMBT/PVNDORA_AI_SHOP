@@ -744,9 +744,8 @@ async def pay_cart_from_balance() -> dict:
         if not user_result.data:
             return {"success": False, "error": "Пользователь не найден"}
 
-        # Balance is stored in balance_currency, NOT always USD!
+        # Balance is stored in balance_currency (RUB after migration)
         balance_in_balance_currency = float(user_result.data.get("balance", 0) or 0)
-        # TODO(tech-debt): Default "RUB" after RUB-only migration
         balance_currency = user_result.data.get("balance_currency") or "RUB"
         user_currency = ctx.currency  # Display currency for AI agent
 
