@@ -170,10 +170,10 @@ const setupAudioEventListeners = (
 
   const handleStalled = () => {
     logger.warn("[BackgroundMusic] Stalled - retrying...");
-    const isCurrentlyPlaying = isPlayingRef.current ?? false;
+    const isCurrentlyPlaying = isPlayingRef.current;
     if (audio && !cancelled() && isCurrentlyPlaying) {
       setTimeout(() => {
-        const stillPlaying = isPlayingRef.current ?? false;
+        const stillPlaying = isPlayingRef.current;
         if (audio && !cancelled() && stillPlaying) {
           audio.play().catch(() => {});
         }
@@ -241,7 +241,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isPlayingRef = useRef(false);
   const wasPlayingBeforeHiddenRef = useRef(false);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<Error | null>(null);
@@ -407,7 +407,11 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
 
       const shouldResume = wasPlayingBeforeHiddenRef.current && autoPlay && !isMuted;
       if (shouldResume) {
-        setTimeout(() => void resumePlayback(), 100);
+        setTimeout(() => {
+          resumePlayback().catch(() => {
+            // Ignore: autoplay policies vary
+          });
+        }, 100);
       }
     };
 
@@ -430,7 +434,8 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
         return;
       }
 
-      audio.play()
+      audio
+        .play()
         .then(() => {
           isPlayingRef.current = true;
           setIsPlaying(true);

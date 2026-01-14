@@ -145,6 +145,7 @@ const SupportChat: React.FC<SupportChatProps> = ({
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => onToggle(false)}
                   className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all rounded-sm"
                 >
@@ -212,7 +213,7 @@ const SupportChat: React.FC<SupportChatProps> = ({
               {/* Input Area */}
               <div className="p-3 bg-black/90 border-t border-white/10 shrink-0 relative z-30">
                 <div className="relative flex items-end gap-2 bg-[#0a0a0a] border border-white/10 p-1.5 rounded-sm focus-within:border-pandora-cyan/50 transition-colors">
-                  <button className="p-1.5 text-gray-500 hover:text-white transition-colors h-8 flex items-center justify-center">
+                  <button type="button" className="p-1.5 text-gray-500 hover:text-white transition-colors h-8 flex items-center justify-center">
                     <Paperclip size={14} />
                   </button>
                   <textarea
@@ -223,6 +224,7 @@ const SupportChat: React.FC<SupportChatProps> = ({
                     className="flex-1 bg-transparent border-none outline-none text-white font-mono text-[11px] placeholder:text-gray-700 h-8 py-2 resize-none leading-relaxed"
                   />
                   <button
+                    type="button"
                     onClick={handleSend}
                     className={`h-8 w-8 flex items-center justify-center rounded-sm transition-all ${inputValue.trim() ? "bg-pandora-cyan text-black hover:bg-white" : "bg-white/5 text-gray-600"}`}
                   >

@@ -121,7 +121,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
       } else {
         setPaymentCheckResult("Ошибка проверки оплаты");
       }
-    } catch (error) {
+    } catch (_error) {
       setPaymentCheckResult("Ошибка при проверке оплаты");
     } finally {
       setIsCheckingPayment(false);
@@ -209,10 +209,11 @@ const OrderCard: React.FC<OrderCardProps> = ({
                   </span>
                 </div>
                 <button
+                  type="button"
                   disabled={isPaymentExpired}
                   onClick={() => {
-                    if (isPaymentExpired) return;
-                    globalThis.location.href = order.payment_url!;
+                    if (isPaymentExpired || !order.payment_url) return;
+                    globalThis.location.href = order.payment_url;
                   }}
                   className={`px-4 py-2 font-mono text-xs font-bold uppercase transition-colors ${
                     isPaymentExpired
@@ -254,6 +255,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
               {order.payment_id && order.payment_gateway === "crystalpay" && (
                 <div className="flex flex-col gap-2">
                   <button
+                    type="button"
                     onClick={handleCheckPayment}
                     disabled={isCheckingPayment}
                     className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-mono text-gray-300 uppercase flex items-center justify-center gap-2 transition-colors disabled:opacity-50"

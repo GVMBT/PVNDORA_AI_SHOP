@@ -88,11 +88,13 @@ interface ProductDetailProps {
   onHaptic?: (type?: "light" | "medium" | "success") => void;
 }
 
+type TabType = "specs" | "files" | "manifest";
+
 const ProductDetail: React.FC<ProductDetailProps> = ({
   product,
   onBack,
   onAddToCart,
-  isInCart,
+  isInCart: _isInCart,
   onHaptic,
   onProductSelect,
 }) => {
@@ -317,6 +319,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
         {/* === UNIFIED HEADER (Leaderboard Style) === */}
         <div className="mb-8 md:mb-16">
           <button
+            type="button"
             onClick={onBack}
             className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors"
           >
@@ -455,10 +458,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
             {/* 2. TABS & CONTENT */}
             <div className="flex-1">
               <div className="flex border-b border-white/10 mb-6 gap-6 md:gap-8 overflow-x-auto scrollbar-hide">
-                {["specs", "files", "manifest"].map((tab) => (
+                {(["specs", "files", "manifest"] as const).map((tab) => (
                   <button
+                    type="button"
                     key={tab}
-                    onClick={() => handleTabChange(tab as any)}
+                    onClick={() => handleTabChange(tab as TabType)}
                     className={`pb-3 text-[10px] font-mono font-bold uppercase tracking-widest border-b-2 transition-all relative group whitespace-nowrap ${
                       activeTab === tab
                         ? "border-pandora-cyan text-pandora-cyan"
@@ -617,6 +621,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
           {/* QUANTITY CONTROL (Left) */}
           <div className="flex items-center bg-black/50 border border-white/20 w-36 shrink-0 rounded-sm overflow-hidden">
             <button
+              type="button"
               onClick={() => adjustQuantity(-1)}
               className="h-full w-12 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 active:bg-white/10 transition-colors border-r border-white/10"
             >
@@ -626,6 +631,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
               {quantity.toString().padStart(2, "0")}
             </div>
             <button
+              type="button"
               onClick={() => adjustQuantity(1)}
               className="h-full w-12 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 active:bg-white/10 transition-colors border-l border-white/10"
             >

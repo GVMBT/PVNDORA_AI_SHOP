@@ -347,12 +347,11 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
             <div className="p-6">
               {/* Benefits Grid */}
               <div className="grid grid-cols-2 gap-3 mb-6">
-                {BENEFITS.map((benefit, i) => (
+                {BENEFITS.map((benefit) => (
                   <motion.div
-                    key={i}
+                    key={benefit.text}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.1 }}
                     className="bg-white/5 border border-white/10 p-3 flex items-center gap-2"
                   >
                     <benefit.icon size={14} className="text-pandora-cyan flex-shrink-0" />

@@ -124,12 +124,12 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
                   <div className="w-full h-px bg-white" />
                 </div>
 
-                {activityData.map((val, i) => (
-                  <div key={i} className="flex-1 flex flex-col justify-end group/bar h-full">
+                {activityData.map((val, idx) => (
+                  <div key={`activity-${idx}-${val}`} className="flex-1 flex flex-col justify-end group/bar h-full">
                     <motion.div
                       initial={{ height: 0 }}
                       animate={{ height: `${val}%` }}
-                      transition={{ duration: 0.5, delay: 0.1 * i }}
+                      transition={{ duration: 0.5, delay: 0.1 * idx }}
                       className="w-full bg-pandora-cyan/20 border-t border-pandora-cyan relative hover:bg-pandora-cyan/40 transition-colors"
                     >
                       <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black text-white text-[9px] px-1 opacity-0 group-hover/bar:opacity-100 transition-opacity">

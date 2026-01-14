@@ -98,7 +98,7 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
   currency = "USD",
   exchangeRate = 1.0,
 }) => {
-  const { t, locale, formatPrice } = useLocale();
+  const { locale, formatPrice } = useLocale();
   const isRu = locale === "ru";
 
   // Thresholds are anchor thresholds in display currency (from backend):

@@ -25,7 +25,9 @@ interface OrdersProps {
   ) => Promise<void>;
 }
 
-const Orders = ({ orders: propOrders, onBack, onOpenSupport, onSubmitReview }) => {
+type TabId = "all" | "active" | "log";
+
+const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSupport, onSubmitReview }) => {
   const { t } = useLocale();
   // Use provided orders - NO MOCK fallback
   const ordersData = propOrders || [];
@@ -171,6 +173,7 @@ const Orders = ({ orders: propOrders, onBack, onOpenSupport, onSubmitReview }) =
       >
         <div className="max-w-6xl mx-auto">
           <button
+            type="button"
             onClick={onBack}
             className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-8 transition-colors"
           >
@@ -183,6 +186,7 @@ const Orders = ({ orders: propOrders, onBack, onOpenSupport, onSubmitReview }) =
             </h2>
             <p className="text-gray-500 font-mono text-sm max-w-md">{t("empty.ordersHint")}</p>
             <button
+              type="button"
               onClick={onBack}
               className="mt-8 px-6 py-3 bg-pandora-cyan/10 border border-pandora-cyan text-pandora-cyan font-mono text-sm uppercase hover:bg-pandora-cyan/20 transition-colors"
             >
@@ -205,6 +209,7 @@ const Orders = ({ orders: propOrders, onBack, onOpenSupport, onSubmitReview }) =
         {/* === UNIFIED HEADER (Leaderboard Style) === */}
         <div className="mb-8 md:mb-16">
           <button
+            type="button"
             onClick={onBack}
             className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors"
           >
@@ -227,8 +232,9 @@ const Orders = ({ orders: propOrders, onBack, onOpenSupport, onSubmitReview }) =
             { id: "log", label: t("orders.tabs.completed").toUpperCase() },
           ].map((tab) => (
             <button
+              type="button"
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as TabId)}
               className="relative pb-2 text-sm font-mono font-bold tracking-wider uppercase transition-colors whitespace-nowrap"
             >
               <span

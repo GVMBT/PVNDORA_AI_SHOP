@@ -230,7 +230,7 @@ async def _schedule_discount_delivery(db, order_data: dict[str, Any], real_order
 
 async def _process_instant_delivery(real_order_id: str) -> None:
     """Process instant delivery via QStash or direct fallback."""
-    publish_to_worker, WorkerEndpoints = get_queue_publisher()
+    publish_to_worker, worker_endpoints = get_queue_publisher()
 
     delivery_result = await publish_to_worker(
         endpoint=worker_endpoints.DELIVER_GOODS,
@@ -370,8 +370,8 @@ async def crystalpay_webhook(request: Request):
             except Exception as discount_err:
                 logger.error(f"CrystalPay webhook: Discount delivery scheduling failed: {discount_err}", exc_info=True)
         else:
-        try:
-            await _process_instant_delivery(real_order_id)
+            try:
+                await _process_instant_delivery(real_order_id)
             except Exception as e:
                 return JSONResponse({"error": f"Delivery failed: {str(e)[:100]}"}, status_code=500)
 
@@ -419,8 +419,8 @@ async def crystalpay_topup_webhook(request: Request):
 
         topup_id = extra.replace("topup_", "")
 
-    # Verify signature
-    if not _verify_crystalpay_signature(received_signature, invoice_id):
+        # Verify signature
+        if not _verify_crystalpay_signature(received_signature, invoice_id):
             logger.warning("CrystalPay TOPUP webhook: Signature mismatch")
             return JSONResponse({"error": "Invalid signature"}, status_code=400)
 

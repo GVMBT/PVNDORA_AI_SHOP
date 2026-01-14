@@ -61,9 +61,9 @@ const PaymentProcessing: React.FC<PaymentProcessingProps> = ({ logs, selectedPay
 
       {/* Terminal Logs */}
       <div className="w-full max-w-sm bg-black/50 border border-white/10 p-4 font-mono text-[10px] h-32 overflow-hidden flex flex-col justify-end">
-        {logs.map((log, i) => (
+        {logs.map((log) => (
           <motion.div
-            key={i}
+            key={log}
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             className={`mb-1 ${log.includes("ERROR") ? "text-red-500" : "text-gray-400"}`}

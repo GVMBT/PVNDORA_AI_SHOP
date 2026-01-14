@@ -28,7 +28,8 @@ export function useOrdersTyped() {
       const qs = searchParams.toString();
 
       try {
-        const response: APIOrdersResponse = await get(`/orders${qs ? `?${qs}` : ""}`);
+        const endpoint = qs ? `/orders?${qs}` : "/orders";
+        const response: APIOrdersResponse = await get(endpoint);
         const adapted = adaptOrders(response);
         setOrders(adapted);
         return adapted;

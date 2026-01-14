@@ -192,9 +192,9 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
     }
   };
 
-  const formatAmount = (amount: number, showCurrency = true) => {
+  const formatAmountWithCurrency = (amount: number) => {
     // All amounts in admin panel are in USD (base currency)
-    return showCurrency ? `$${amount.toFixed(2)} USD` : `$${amount.toFixed(2)}`;
+    return `$${amount.toFixed(2)} USD`;
   };
 
   return (
@@ -233,7 +233,7 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                   {getStatusLabel(w.status)}
                 </span>
               </div>
-              <div className="font-bold text-white text-sm mb-1">{formatAmount(w.amount)}</div>
+              <div className="font-bold text-white text-sm mb-1">{formatAmountWithCurrency(w.amount)}</div>
               <div className="text-xs text-gray-400 mb-1">
                 {w.first_name || w.username || `Пользователь ${w.telegram_id || "Неизвестно"}`}
               </div>
@@ -284,7 +284,7 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                 <div>
                   <div className="text-gray-500 mb-1">Сумма</div>
                   <div className="text-white font-mono text-lg font-bold">
-                    {formatAmount(selectedWithdrawal.amount)}
+                    {formatAmountWithCurrency(selectedWithdrawal.amount)}
                   </div>
                 </div>
                 <div>
@@ -314,7 +314,7 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                   <div className="text-gray-500 mb-1">Баланс</div>
                   <div className="text-white font-mono">
                     {selectedWithdrawal.user_balance !== undefined
-                      ? formatAmount(selectedWithdrawal.user_balance)
+                      ? formatAmountWithCurrency(selectedWithdrawal.user_balance)
                       : "Н/Д"}
                   </div>
                 </div>

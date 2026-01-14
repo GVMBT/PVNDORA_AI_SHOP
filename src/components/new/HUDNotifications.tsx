@@ -19,7 +19,7 @@ import {
   Zap,
 } from "lucide-react";
 import type React from "react";
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AudioEngine } from "../../lib/AudioEngine";
 import { generateId } from "../../utils/id";
 
@@ -368,18 +368,32 @@ export const HUDProvider: React.FC<HUDProviderProps> = ({
     "bottom-left": "bottom-4 left-4",
   };
 
-  const contextValue: HUDContextType = {
-    notifications,
-    addNotification,
-    removeNotification,
-    clearAll,
-    updateProgress,
-    success,
-    error,
-    warning,
-    info,
-    system,
-  };
+  const contextValue = useMemo<HUDContextType>(
+    () => ({
+      notifications,
+      addNotification,
+      removeNotification,
+      clearAll,
+      updateProgress,
+      success,
+      error,
+      warning,
+      info,
+      system,
+    }),
+    [
+      notifications,
+      addNotification,
+      removeNotification,
+      clearAll,
+      updateProgress,
+      success,
+      error,
+      warning,
+      info,
+      system,
+    ]
+  );
 
   return (
     <HUDContext.Provider value={contextValue}>

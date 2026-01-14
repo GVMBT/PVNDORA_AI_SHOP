@@ -46,7 +46,7 @@ export interface LegacyCart {
  * ```
  */
 export function convertCartDataToLegacyCart(cartData: CartData | null): LegacyCart | null {
-  if (!cartData || !cartData.items || cartData.items.length === 0) {
+  if (!cartData?.items || cartData.items.length === 0) {
     return null;
   }
 

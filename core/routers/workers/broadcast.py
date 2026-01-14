@@ -325,7 +325,7 @@ async def worker_send_broadcast(request: Request):
     logger.info(f"Broadcast worker: broadcast_id={broadcast_id}, user_ids_count={len(user_ids)}, target_bot={target_bot}")
 
     if not broadcast_id or not user_ids:
-        logger.error(f"Broadcast worker: missing required fields")
+        logger.error("Broadcast worker: missing required fields")
         return {"error": "broadcast_id and user_ids required"}
 
     db = get_database()

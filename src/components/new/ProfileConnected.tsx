@@ -39,7 +39,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
     loading,
     error,
   } = useProfileTyped();
-  const { hapticFeedback, showConfirm, openLink, showAlert: showTelegramAlert } = useTelegram();
+  const { hapticFeedback, showAlert: showTelegramAlert } = useTelegram();
   const { showTopUp, showWithdraw, showAlert: showModalAlert } = useCyberModal();
   const {
     updateFromProfile,
@@ -472,6 +472,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
           <div className="font-mono text-sm text-red-400 mb-2">{t("profile.error")}</div>
           <p className="text-gray-500 text-sm">{error || t("profile.loadFailed")}</p>
           <button
+            type="button"
             onClick={() => getProfile()}
             className="mt-6 px-6 py-2 bg-white/10 border border-white/20 text-white text-xs font-mono uppercase hover:bg-white/20 transition-colors"
           >

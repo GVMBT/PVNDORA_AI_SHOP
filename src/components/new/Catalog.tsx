@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown, Cpu, Grid, List, Search } from "lucide-react";
 import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type AvailabilityFilter, PRODUCT_CATEGORIES } from "../../constants";
 import { useLocale } from "../../hooks/useLocale";
 import { formatPrice } from "../../utils/currency";
@@ -115,14 +115,14 @@ const Catalog: React.FC<CatalogProps> = ({
   // Use provided products or empty array (no mock data fallback)
   const productsData = propProducts || [];
 
-  // Helper to derive availability from product data
-  const getProductAvailability = (product: ProductData): ProductAvailability => {
+  // Helper to derive availability from product data - wrapped in useCallback for stable reference
+  const getProductAvailability = useCallback((product: ProductData): ProductAvailability => {
     if (product.status) return product.status;
     // Fallback logic for products without status
     if (product.stock > 0) return "available";
     if (product.can_fulfill_on_demand || product.fulfillment > 0) return "on_demand";
     return "discontinued";
-  };
+  }, []);
 
   const filteredProducts = useMemo(() => {
     let result = productsData.filter((product) => {

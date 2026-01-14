@@ -9,35 +9,41 @@ import { useLocale } from "../../hooks/useLocale";
 import { formatPrice } from "../../utils/currency";
 import ProductCardMedia from "./ProductCardMedia";
 
+type ProductAvailability = "available" | "on_demand" | "discontinued" | "coming_soon";
+
+interface ProductData {
+  id: string | number;
+  name: string;
+  category: string;
+  price: number;
+  currency: string;
+  description: string;
+  warranty: number;
+  sold: number;
+  image: string;
+  video?: string;
+  popular: boolean;
+  sku: string;
+  status?: ProductAvailability;
+}
+
 interface ProductCardProps {
-  product: {
-    id: string | number;
-    name: string;
-    category: string;
-    price: number;
-    currency: string;
-    description: string;
-    warranty: number;
-    sold: number;
-    image: string;
-    video?: string;
-    popular: boolean;
-    sku: string;
-    status?: "available" | "on_demand" | "discontinued" | "coming_soon";
-  };
-  getProductAvailability: (
-    product: any
-  ) => "available" | "on_demand" | "discontinued" | "coming_soon";
-  onSelect: (product: any) => void;
-  onAddToCart: (product: any, quantity: number) => void;
+  product: ProductData;
+  getProductAvailability: (product: ProductData) => ProductAvailability;
+  onSelect: (product: ProductData) => void;
+  onAddToCart: (product: ProductData, quantity: number) => void;
 }
 
 // Utility for fake hex stream
 const HexStream = () => {
+  // Pre-generate hex values for consistent keys
+  const hexValues = Array.from({ length: 8 }, () => 
+    Math.random().toString(16).substring(2, 6).toUpperCase()
+  );
   return (
     <div className="flex flex-col text-[8px] font-mono text-pandora-cyan/60 leading-tight opacity-50">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <span key={i}>0x{Math.random().toString(16).substr(2, 4).toUpperCase()}</span>
+      {hexValues.map((hex) => (
+        <span key={hex}>0x{hex}</span>
       ))}
     </div>
   );

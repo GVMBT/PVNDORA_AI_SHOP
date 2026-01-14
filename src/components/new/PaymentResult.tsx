@@ -94,7 +94,8 @@ export function PaymentResult({
 
   // Check if we're in Telegram Mini App or external browser
   const isTelegramMiniApp =
-    globalThis.window !== undefined && !!(globalThis.window as any).Telegram?.WebApp;
+    globalThis.window !== undefined &&
+    !!(globalThis.window as unknown as { Telegram?: { WebApp?: unknown } }).Telegram?.WebApp;
 
   // Add log entry
   const addLog = useCallback((message: string, type: LogEntry["type"] = "info") => {
@@ -108,7 +109,7 @@ export function PaymentResult({
   }, []);
 
   // Helper to map backend status to PaymentStatus (reduces cognitive complexity)
-  const mapBackendStatus = (backendStatus: string): PaymentStatus => {
+  const mapBackendStatus = useCallback((backendStatus: string): PaymentStatus => {
     const status = backendStatus.toLowerCase();
     if (["delivered", "completed", "ready"].includes(status)) return "delivered";
     if (["paid", "processing"].includes(status)) return "paid";
@@ -118,22 +119,23 @@ export function PaymentResult({
     if (["expired", "cancelled"].includes(status)) return "expired";
     if (["failed", "refunded"].includes(status)) return "failed";
     return "unknown";
-  };
+  }, []);
 
   // Helper to handle 404 errors (reduces cognitive complexity)
-  const handle404Error = (
-    error: unknown
-  ): { status: PaymentStatus; error: Error; httpStatus: number } | null => {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage.includes("404") || errorMessage.includes("ORDER_NOT_FOUND")) {
-      return {
-        status: "unknown" as PaymentStatus,
-        error: new Error("ORDER_NOT_FOUND"),
-        httpStatus: 404,
-      };
-    }
-    return null;
-  };
+  const handle404Error = useCallback(
+    (error: unknown): { status: PaymentStatus; error: Error; httpStatus: number } | null => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes("404") || errorMessage.includes("ORDER_NOT_FOUND")) {
+        return {
+          status: "unknown" as PaymentStatus,
+          error: new Error("ORDER_NOT_FOUND"),
+          httpStatus: 404,
+        };
+      }
+      return null;
+    },
+    []
+  );
 
   // Check order/topup status
   const checkStatus = useCallback(async () => {
@@ -512,6 +514,7 @@ export function PaymentResult({
             <div className="p-4 border-t border-white/10 space-y-3">
               {isSuccess && (
                 <button
+                  type="button"
                   onClick={onViewOrders}
                   className="w-full py-3 bg-pandora-cyan text-black font-bold text-sm flex items-center justify-center gap-2 hover:bg-pandora-cyan/90 transition-colors"
                 >
@@ -524,6 +527,7 @@ export function PaymentResult({
                 (status === "unknown" && isComplete && consecutive404sRef.current >= 3)) && (
                 <>
                   <button
+                    type="button"
                     onClick={() => globalThis.location.reload()}
                     className="w-full py-3 bg-white/10 text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-white/20 transition-colors"
                   >
@@ -531,6 +535,7 @@ export function PaymentResult({
                     RETRY
                   </button>
                   <button
+                    type="button"
                     onClick={onViewOrders}
                     className="w-full py-2 bg-transparent border border-white/20 text-gray-400 text-xs font-mono hover:border-white/40 transition-colors"
                   >
@@ -540,6 +545,7 @@ export function PaymentResult({
               )}
 
               <button
+                type="button"
                 onClick={onComplete}
                 className="w-full py-2 bg-transparent border border-white/20 text-gray-400 text-xs font-mono hover:border-white/40 transition-colors"
               >

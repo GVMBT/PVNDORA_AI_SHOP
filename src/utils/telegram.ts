@@ -5,10 +5,7 @@
  * For React components, use useTelegram() hook instead.
  */
 
-import {
-  expandViewport,
-  requestFullscreen as sdkRequestFullscreen,
-} from "@telegram-apps/sdk";
+import { expandViewport, requestFullscreen as sdkRequestFullscreen } from "@telegram-apps/sdk";
 import type { WebApp } from "../types/telegram";
 
 export function getTelegramWebApp(): WebApp | undefined {

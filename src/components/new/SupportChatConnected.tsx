@@ -89,7 +89,7 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
   // Handle initial context (e.g., refund request from orders page)
   // This should run AFTER history is loaded to avoid overwriting
   useEffect(() => {
-    if (isOpen && initialContext && initialContext.orderId && !contextAppliedRef.current) {
+    if (isOpen && initialContext?.orderId && !contextAppliedRef.current) {
       // Only process each unique context once
       const contextKey = `${initialContext.orderId}-${initialContext.reason}`;
       if (processedContextRef.current !== contextKey) {

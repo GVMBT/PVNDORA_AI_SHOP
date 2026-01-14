@@ -111,7 +111,7 @@ export function useCheckoutFlow({
 
   const calculateTotal = useCallback(() => {
     if (isCartMode) {
-      if (!cartData || !cartData.items || cartData.items.length === 0) return 0;
+      if (!cartData?.items || cartData.items.length === 0) return 0;
 
       let total = cartData.total || 0;
 

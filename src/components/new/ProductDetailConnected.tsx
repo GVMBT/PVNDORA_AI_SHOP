@@ -40,7 +40,7 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
   isInCart = false,
   onHaptic,
 }) => {
-  const { getProduct, getProducts, loading, error } = useProductsTyped();
+  const { getProduct, getProducts, loading: _loading, error } = useProductsTyped();
   const { addToCart } = useCart();
   const { locale, currency } = useLocaleContext();
   const { t } = useLocale();
@@ -160,6 +160,7 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
           <div className="font-mono text-sm text-red-400 mb-2">{t("common.moduleNotFound")}</div>
           <p className="text-gray-500 text-sm">{t("common.failedToLoad")}</p>
           <button
+            type="button"
             onClick={onBack}
             className="mt-6 px-6 py-2 bg-white/10 border border-white/20 text-white text-xs font-mono uppercase hover:bg-white/20 transition-colors"
           >

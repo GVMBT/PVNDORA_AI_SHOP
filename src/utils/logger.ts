@@ -18,7 +18,7 @@ interface LoggerConfig {
 
 class Logger {
   private config: LoggerConfig;
-  private logLevels: Record<LogLevel, number> = {
+  private readonly logLevels: Record<LogLevel, number> = {
     debug: 0,
     info: 1,
     warn: 2,

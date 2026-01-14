@@ -8,7 +8,11 @@ import { useLocaleContext } from "../contexts/LocaleContext";
 type LocaleCode = "en" | "ru";
 type CurrencyCode = "USD" | "RUB" | "EUR" | "UAH" | "TRY" | "INR" | "AED" | "GBP";
 
-const locales: Record<LocaleCode, Record<string, any>> = { en, ru };
+type LocaleValue = string | LocaleObject;
+interface LocaleObject {
+  [key: string]: LocaleValue;
+}
+const locales: Record<LocaleCode, LocaleObject> = { en, ru };
 
 interface UseLocaleReturn {
   locale: LocaleCode;
@@ -37,7 +41,7 @@ export function useLocale(): UseLocaleReturn {
   const t = useCallback(
     (key: string, params: Record<string, string | number> = {}): string => {
       const keys = key.split(".");
-      let value: any = locales[locale];
+      let value: LocaleValue | undefined = locales[locale];
 
       for (const k of keys) {
         value = value?.[k];

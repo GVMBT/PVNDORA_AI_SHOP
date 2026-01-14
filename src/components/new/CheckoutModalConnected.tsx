@@ -83,7 +83,7 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({ onClose
         // Ensure productId is string for API call
         const updatedCart = await removeCartItem(String(productId));
         setFreshCart(updatedCart);
-        if (!updatedCart || !updatedCart.items || updatedCart.items.length === 0) {
+        if (!updatedCart?.items || updatedCart.items.length === 0) {
           onClose();
         }
       } catch {
@@ -150,7 +150,7 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({ onClose
 
       const response = await createOrder(request);
 
-      if (!response || !response.order_id) {
+      if (!response?.order_id) {
         throw new Error("Не удалось создать заказ. Попробуйте позже.");
       }
 

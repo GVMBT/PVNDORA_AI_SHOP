@@ -29,7 +29,7 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
   currency = "USD",
   exchangeRate = 1,
 }) => {
-  const { t, language } = useLocale();
+  const { t } = useLocale();
 
   // Format and localize logs
   const localizedLogs = useMemo(() => {
@@ -100,9 +100,9 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
               <div className="col-span-2 text-right">Timestamp</div>
             </div>
 
-            {localizedLogs.map((log, i) => (
+            {localizedLogs.map((log) => (
               <div
-                key={i}
+                key={log.id}
                 className="group px-4 sm:px-6 py-4 sm:py-3 hover:bg-white/[0.03] transition-all duration-200 relative overflow-hidden"
               >
                 {/* Visual indicator bar */}

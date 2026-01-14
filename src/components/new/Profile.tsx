@@ -50,7 +50,7 @@ const Profile: React.FC<ProfileProps> = ({
   onAdminEnter,
   onCopyLink,
   onShare: onShareProp,
-  shareLoading,
+  shareLoading: _shareLoading,
   onWithdraw,
   onTopUp,
   onUpdatePreferences,
@@ -118,6 +118,7 @@ const Profile: React.FC<ProfileProps> = ({
       <div className="min-h-screen text-white pt-20 md:pt-24 pb-32 px-4 md:px-8 md:pl-28 relative">
         <div className="max-w-7xl mx-auto">
           <button
+            type="button"
             onClick={onBack}
             className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors"
           >
@@ -180,7 +181,7 @@ const Profile: React.FC<ProfileProps> = ({
     if (onSetPartnerMode) {
       try {
         await onSetPartnerMode(apiMode);
-      } catch (error_) {
+      } catch {
         // Revert on error - use the previous mode (opposite of new)
         setRewardMode(newMode === "cash" ? "discount" : "cash");
       }
@@ -230,6 +231,7 @@ const Profile: React.FC<ProfileProps> = ({
             {/* Main Tabs */}
             <div className="flex items-center gap-6 overflow-x-auto w-full sm:w-auto">
               <button
+                type="button"
                 onClick={() => {
                   if (onHaptic) onHaptic("light");
                   setActiveTab("network");
@@ -241,6 +243,7 @@ const Profile: React.FC<ProfileProps> = ({
                 {t("profile.tabs.network")}
               </button>
               <button
+                type="button"
                 onClick={() => {
                   if (onHaptic) onHaptic("light");
                   setActiveTab("logs");

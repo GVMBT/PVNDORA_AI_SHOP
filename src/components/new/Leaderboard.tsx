@@ -357,6 +357,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
       >
         <div className="max-w-7xl mx-auto">
           <button
+            type="button"
             onClick={onBack}
             className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors"
           >
@@ -390,6 +391,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
         <div className="flex flex-col md:flex-row justify-between items-end gap-8 mb-8 md:mb-16">
           <div className="w-full md:w-auto">
             <button
+              type="button"
               onClick={onBack}
               className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors"
             >
@@ -464,12 +466,14 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
             </h3>
             <div className="flex bg-[#0a0a0a] border border-white/10 p-0.5 rounded-sm">
               <button
+                type="button"
                 onClick={() => handleFilterChange("weekly")}
                 className={`px-3 py-1.5 text-[9px] font-mono font-bold uppercase transition-colors ${filter === "weekly" ? "bg-white/10 text-white" : "text-gray-600 hover:text-gray-400"}`}
               >
                 {t("leaderboard.weekly")}
               </button>
               <button
+                type="button"
                 onClick={() => handleFilterChange("all_time")}
                 className={`px-3 py-1.5 text-[9px] font-mono font-bold uppercase transition-colors ${filter === "all_time" ? "bg-white/10 text-white" : "text-gray-600 hover:text-gray-400"}`}
               >

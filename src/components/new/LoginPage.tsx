@@ -110,7 +110,7 @@ const LoginPage = ({
     return () => {
       delete globalThis.onTelegramAuth;
       if (container && script.parentNode === container) {
-        container.removeChild(script);
+        script.remove();
       }
     };
   }, [botUsername, handleTelegramAuth, onLoginSuccess, redirectPath]);

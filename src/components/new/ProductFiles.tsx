@@ -29,9 +29,9 @@ const ProductFiles: React.FC<ProductFilesProps> = ({ files }) => {
       {files.length === 0 && (
         <div className="text-[10px] text-gray-600 font-mono uppercase">No attached payload</div>
       )}
-      {files.map((file, i) => (
+      {files.map((file) => (
         <div
-          key={i}
+          key={file.name}
           className="flex items-center justify-between bg-[#0e0e0e] border border-white/10 p-3 hover:border-pandora-cyan/30 transition-colors"
         >
           <div className="flex items-center gap-3">
@@ -45,7 +45,7 @@ const ProductFiles: React.FC<ProductFilesProps> = ({ files }) => {
             <div>
               <div className="text-xs font-bold text-white">{file.name}</div>
               <div className="text-[9px] text-gray-600 font-mono uppercase">
-                {file.type || "doc"} FILE // {file.size}
+                {file.type || "doc"} FILE | {file.size}
               </div>
             </div>
           </div>

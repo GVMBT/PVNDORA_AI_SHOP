@@ -102,13 +102,14 @@ export function useErrorHandler() {
    */
   const handleValidationError = useCallback(
     (error: unknown, field?: string, options: Omit<ErrorHandlerOptions, "context"> = {}) => {
+      const fieldMessage = field ? `: ${field}` : "";
       return handleError(error, {
         ...options,
         context: {
           field,
           action: "validation",
         },
-        userMessage: options.userMessage || `Ошибка валидации${field ? `: ${field}` : ""}`,
+        userMessage: options.userMessage || `Ошибка валидации${fieldMessage}`,
       });
     },
     [handleError]

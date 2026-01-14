@@ -39,10 +39,10 @@ def _calculate_backoff_delay(attempt: int) -> float:
 
 
 async def _make_telegram_request(
-    client: httpx.AsyncClient, url: str, payload: dict, timeout: float
+    client: httpx.AsyncClient, url: str, payload: dict
 ) -> tuple[bool, int, str]:
     """Make HTTP request to Telegram API. Returns (success, status_code, error_text)."""
-    response = await client.post(url, json=payload, timeout=timeout)
+    response = await client.post(url, json=payload)
 
     if response.status_code == 200:
         return True, 200, ""
@@ -105,14 +105,17 @@ async def _send_with_retry(
     url: str, payload: dict, retries: int, timeout: float, chat_id: int
 ) -> bool:
     """Send request with retry logic."""
+    import anyio
+
     last_error = None
 
     for attempt in range(retries + 1):
         try:
-            async with httpx.AsyncClient() as client:
-                success, status_code, error_text = await _make_telegram_request(
-                    client, url, payload, timeout
-                )
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                with anyio.move_on_after(timeout):
+                    success, status_code, error_text = await _make_telegram_request(
+                        client, url, payload
+                    )
 
                 if success:
                     logger.debug(f"Message sent successfully to {chat_id}")
@@ -244,8 +247,8 @@ async def send_telegram_message_with_keyboard(
 
     for attempt in range(retries + 1):
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(url, json=payload, timeout=timeout)
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(url, json=payload)
 
                 if response.status_code == 200:
                     return True

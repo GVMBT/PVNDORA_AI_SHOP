@@ -96,14 +96,12 @@ interface DecryptTextProps {
 // Decrypt animation component
 // Preserves newlines (\n) during animation for multi-line credentials
 const DecryptText: React.FC<DecryptTextProps> = ({ text, revealed }) => {
-  // Mask all chars EXCEPT newlines
-  const maskChar = (char: string) => (char === "\n" ? "\n" : "•");
-  const [display, setDisplay] = React.useState(() => text.split("").map(maskChar).join(""));
+  const [display, setDisplay] = React.useState(() => text.split("").map(maskTextChar).join(""));
 
   React.useEffect(() => {
     if (!revealed) {
       // Hide: replace all chars with • except newlines
-      setDisplay(text.split("").map(maskChar).join(""));
+      setDisplay(text.split("").map(maskTextChar).join(""));
       return;
     }
 
@@ -142,7 +140,7 @@ const DecryptText: React.FC<DecryptTextProps> = ({ text, revealed }) => {
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [revealed, text, maskChar]);
+  }, [revealed, text]);
 
   return <span className="font-mono whitespace-pre-wrap">{display}</span>;
 };
@@ -224,6 +222,7 @@ const OrderItem: React.FC<OrderItemProps> = ({
                 <span>{t("orders.item.accessKeyEncrypted")}</span>
                 <div className="flex items-center gap-2">
                   <button
+                    type="button"
                     onClick={() => onToggleReveal(item.id)}
                     className="text-gray-500 hover:text-white transition-colors"
                   >
@@ -245,7 +244,8 @@ const OrderItem: React.FC<OrderItemProps> = ({
                   </div>
                 </div>
                 <button
-                  onClick={() => onCopy(item.credentials!, item.id)}
+                  type="button"
+                  onClick={() => onCopy(item.credentials ?? "", item.id)}
                   className="p-1.5 bg-white/5 hover:bg-pandora-cyan hover:text-black transition-colors rounded-sm flex-shrink-0"
                   title="Copy to Clipboard"
                 >
@@ -260,6 +260,7 @@ const OrderItem: React.FC<OrderItemProps> = ({
             {/* Report Issue Button (if within warranty) */}
             {item.status === "delivered" && item.canRequestRefund && onOpenSupport && (
               <button
+                type="button"
                 onClick={() =>
                   onOpenSupport({
                     orderId: orderId,
@@ -284,6 +285,7 @@ const OrderItem: React.FC<OrderItemProps> = ({
               </div>
             ) : (
               <button
+                type="button"
                 onClick={() => onOpenReview(item.id, item.name, orderId)}
                 className="flex items-center gap-2 text-[10px] font-bold font-mono text-pandora-cyan border border-pandora-cyan/30 px-3 py-1.5 hover:bg-pandora-cyan hover:text-black transition-all"
               >

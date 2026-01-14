@@ -5,7 +5,7 @@
  * Solves the issue of multiple useCartTyped() instances having separate state.
  */
 
-import { createContext, type ReactNode, useCallback, useContext, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
 import { adaptCart } from "../adapters/cartAdapter";
 import { useApi } from "../hooks/useApi";
 import type { APICartResponse } from "../types/api";
@@ -127,21 +127,35 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCart(null);
   }, []);
 
+  const contextValue = useMemo(
+    () => ({
+      cart,
+      loading,
+      error,
+      getCart,
+      addToCart,
+      updateCartItem,
+      removeCartItem,
+      applyPromo,
+      removePromo,
+      clearCartState,
+    }),
+    [
+      cart,
+      loading,
+      error,
+      getCart,
+      addToCart,
+      updateCartItem,
+      removeCartItem,
+      applyPromo,
+      removePromo,
+      clearCartState,
+    ]
+  );
+
   return (
-    <CartContext.Provider
-      value={{
-        cart,
-        loading,
-        error,
-        getCart,
-        addToCart,
-        updateCartItem,
-        removeCartItem,
-        applyPromo,
-        removePromo,
-        clearCartState,
-      }}
-    >
+    <CartContext.Provider value={contextValue}>
       {children}
     </CartContext.Provider>
   );

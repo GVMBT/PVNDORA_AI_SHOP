@@ -19,9 +19,9 @@ interface ReviewModalProps {
 
 const OrderReviewModal: React.FC<ReviewModalProps> = ({
   isOpen,
-  itemId,
+  itemId: _itemId,
   itemName,
-  orderId,
+  orderId: _orderId,
   rating,
   reviewText,
   isSubmitting,
@@ -58,6 +58,7 @@ const OrderReviewModal: React.FC<ReviewModalProps> = ({
                 </p>
               </div>
               <button
+                type="button"
                 onClick={onClose}
                 className="text-gray-500 hover:text-white transition-colors p-1 -mt-1 -mr-1"
                 aria-label="Close"
@@ -74,6 +75,7 @@ const OrderReviewModal: React.FC<ReviewModalProps> = ({
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
+                    type="button"
                     key={star}
                     onClick={() => onRatingChange(star)}
                     className="hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-pandora-cyan/50 rounded"
@@ -108,6 +110,7 @@ const OrderReviewModal: React.FC<ReviewModalProps> = ({
             </div>
 
             <button
+              type="button"
               onClick={onSubmit}
               disabled={isSubmitting || rating === 0}
               className="w-full bg-white/5 hover:bg-pandora-cyan border border-white/20 hover:border-pandora-cyan text-white hover:text-black font-bold py-3 uppercase tracking-widest transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/5 disabled:hover:text-white disabled:hover:border-white/20"

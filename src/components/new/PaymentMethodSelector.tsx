@@ -56,6 +56,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Option 1: Internal Balance */}
           <button
+            type="button"
             onClick={() => onSelectPayment("internal")}
             className={`relative p-4 border flex flex-col items-center text-center gap-3 transition-all overflow-hidden group ${
               selectedPayment === "internal"
@@ -89,6 +90,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
 
           {/* Option 2: CrystalPay (Redirect) */}
           <button
+            type="button"
             onClick={() => onSelectPayment("crystalpay")}
             className={`relative p-4 border flex flex-col items-center text-center gap-3 transition-all overflow-hidden group ${
               selectedPayment === "crystalpay"
@@ -159,6 +161,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
       </div>
 
       <button
+        type="button"
         onClick={onPay}
         disabled={selectedPayment === "internal" && !canUseInternal}
         className={`

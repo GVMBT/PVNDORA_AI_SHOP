@@ -70,7 +70,10 @@ const mapHapticStyleToNotificationType = (style: HapticStyle): HapticNotificatio
   return notificationMap[style] || "error";
 };
 
-const applyMainButtonConfig = (btn: NonNullable<WebApp["MainButton"]>, config: MainButtonConfig): void => {
+const applyMainButtonConfig = (
+  btn: NonNullable<WebApp["MainButton"]>,
+  config: MainButtonConfig
+): void => {
   if (config.text) btn.setText(config.text);
   if (config.color) btn.setParams({ color: config.color });
   if (config.textColor) btn.setParams({ text_color: config.textColor });
@@ -84,7 +87,10 @@ const applyMainButtonConfig = (btn: NonNullable<WebApp["MainButton"]>, config: M
   }
 };
 
-const applyBackButtonConfig = (btn: NonNullable<WebApp["BackButton"]>, config: BackButtonConfig): void => {
+const applyBackButtonConfig = (
+  btn: NonNullable<WebApp["BackButton"]>,
+  config: BackButtonConfig
+): void => {
   if (config.onClick) btn.onClick(config.onClick);
   if (config.isVisible !== undefined) {
     config.isVisible ? btn.show() : btn.hide();

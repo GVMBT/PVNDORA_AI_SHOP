@@ -40,11 +40,11 @@ class AudioEngineClass {
   private enabled: boolean = true;
 
   // AudioBuffer cache for instant playback
-  private soundCache: Map<string, AudioBuffer> = new Map();
-  private loadingPromises: Map<string, Promise<AudioBuffer | null>> = new Map();
+  private readonly soundCache: Map<string, AudioBuffer> = new Map();
+  private readonly loadingPromises: Map<string, Promise<AudioBuffer | null>> = new Map();
 
   // Throttle for frequent sounds (hover, click) to prevent CPU overload
-  private lastSoundTime: Map<string, number> = new Map();
+  private readonly lastSoundTime: Map<string, number> = new Map();
   private readonly THROTTLE_MS = 50; // Minimum 50ms between same sound type
 
   /**
@@ -64,7 +64,6 @@ class AudioEngineClass {
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.value = 0.5;
       this.masterGain.connect(this.ctx.destination);
-      this.initialized = true;
 
       logger.debug("[AudioEngine] Initialized");
 
@@ -79,7 +78,7 @@ class AudioEngineClass {
    * Resume AudioContext if suspended (required by browsers)
    */
   async resume(): Promise<void> {
-    if (this.ctx && this.ctx.state === "suspended") {
+    if (this.ctx?.state === "suspended") {
       await this.ctx.resume();
     }
   }

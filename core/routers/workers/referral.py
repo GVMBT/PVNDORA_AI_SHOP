@@ -60,6 +60,172 @@ async def _notify_replacement_queued(
         logger.warning("Failed to send replacement queued notification: %s", type(e).__name__)
 
 
+async def _validate_replacement_ticket(db, ticket_id: str) -> dict | None:
+    """Validate ticket exists and is approved for replacement (reduces complexity)."""
+    ticket_res = (
+        await db.client.table("tickets")
+        .select("id, status, issue_type, user_id, order_id, item_id")
+        .eq("id", ticket_id)
+        .single()
+        .execute()
+    )
+
+    if not ticket_res.data:
+        return {"error": "Ticket not found"}
+
+    if ticket_res.data["status"] != "approved":
+        return {
+            "skipped": True,
+            "reason": f"Ticket status is {ticket_res.data['status']}, not approved",
+        }
+
+    if ticket_res.data["issue_type"] != "replacement":
+        return {
+            "skipped": True,
+            "reason": f"Ticket issue_type is {ticket_res.data['issue_type']}, not replacement",
+        }
+
+    return None  # Valid ticket
+
+
+async def _get_order_item_for_replacement(db, item_id: str) -> tuple[dict | None, dict | None]:
+    """Get order item data for replacement (reduces complexity)."""
+    item_res = (
+        await db.client.table("order_items")
+        .select("id, order_id, product_id, status, delivery_content, quantity")
+        .eq("id", item_id)
+        .single()
+        .execute()
+    )
+
+    if not item_res.data:
+        logger.error("process-replacement: Order item %s not found", sanitize_id_for_logging(item_id))
+        return None, {"error": "Order item not found"}
+
+    item_data = item_res.data  # .single() returns a dict, not a list
+    if item_data.get("status") != "delivered":
+        return None, {
+            "skipped": True,
+            "reason": f"Item status is {item_data.get('status')}, must be delivered",
+        }
+
+    return item_data, None
+
+
+async def _reserve_stock_for_replacement(db, product_id: str, now) -> tuple[dict | None, dict | None]:
+    """Find and reserve stock for replacement (reduces complexity)."""
+    stock_res = (
+        await db.client.table("stock_items")
+        .select("id, content")
+        .eq("product_id", product_id)
+        .eq("status", "available")
+        .limit(1)
+        .execute()
+    )
+
+    if not stock_res.data:
+        return None, None  # No stock available
+
+    stock_item = stock_res.data[0]
+    stock_id = stock_item["id"]
+
+    try:
+        update_result = (
+            await db.client.table("stock_items")
+            .update({"status": "sold", "reserved_at": now.isoformat(), "sold_at": now.isoformat()})
+            .eq("id", stock_id)
+            .eq("status", "available")
+            .execute()
+        )
+
+        if not update_result.data:
+            logger.warning("process-replacement: stock %s was already reserved", sanitize_id_for_logging(stock_id))
+            return None, {
+                "queued": True,
+                "reason": "Stock item was already reserved - will retry",
+                "ticket_status": "approved",
+            }
+    except Exception as e:
+        error_type = type(e).__name__
+        logger.warning("process-replacement: Failed to mark stock sold %s: %s", sanitize_id_for_logging(stock_id), error_type)
+        return None, {"error": "Failed to reserve stock"}
+
+    return stock_item, None
+
+
+async def _rollback_stock_reservation(db, stock_id: str) -> None:
+    """Rollback stock reservation on failure (reduces complexity)."""
+    try:
+        await (
+            db.client.table("stock_items")
+            .update({"status": "available", "reserved_at": None, "sold_at": None})
+            .eq("id", stock_id)
+            .execute()
+        )
+    except Exception:
+        logger.exception("process-replacement: Failed to rollback stock item")
+
+
+async def _update_order_item_with_replacement(
+    db, item_id: str, stock_id: str, stock_content: str, expires_at_str: str | None, now
+) -> dict | None:
+    """Update order item with replacement content (reduces complexity)."""
+    update_data = {
+        "stock_item_id": stock_id,
+        "delivery_content": stock_content,
+        "updated_at": now.isoformat(),
+        "status": "delivered",
+    }
+    if expires_at_str:
+        update_data["expires_at"] = expires_at_str
+
+    try:
+        await db.client.table("order_items").update(update_data).eq("id", item_id).execute()
+        logger.info("process-replacement: Replaced key for order_item %s (1 key replaced)", sanitize_id_for_logging(item_id))
+        return None
+    except Exception as e:
+        error_type = type(e).__name__
+        logger.warning(
+            "process-replacement: Failed to update order item %s: %s",
+            sanitize_id_for_logging(item_id),
+            error_type,
+        )
+        return {"error": "Failed to update order item"}
+
+
+async def _close_replacement_ticket(db, ticket_id: str) -> None:
+    """Close ticket after successful replacement (reduces complexity)."""
+    await (
+        db.client.table("tickets")
+        .update(
+            {
+                "status": "closed",
+                "admin_comment": "Replacement completed automatically. New account delivered.",
+            }
+        )
+        .eq("id", ticket_id)
+        .execute()
+    )
+
+
+async def _notify_replacement_success(
+    notification_service, user_telegram_id: int | None, product_name: str, item_id: str
+) -> None:
+    """Send notification about successful replacement (reduces complexity)."""
+    if not user_telegram_id:
+        return
+
+    try:
+        await notification_service.send_replacement_notification(
+            telegram_id=user_telegram_id,
+            product_name=product_name,
+            item_id=item_id[:8],
+        )
+    except Exception as e:
+        error_type = type(e).__name__
+        logger.warning("process-replacement: Failed to send notification: %s", error_type)
+
+
 async def _get_buyer_name(db, buyer_id: str) -> str:
     """Get buyer name for notification (reduces cognitive complexity)."""
     buyer_result = (
@@ -287,11 +453,11 @@ async def worker_calculate_referral(request: Request):
         }
     except Exception as e:
         # If referral program not unlocked or percent is null, skip bonus and continue
+        error_type = type(e).__name__
         logger.warning(
             "Referral bonus failed for order %s: %s",
             sanitize_id_for_logging(order_id),
-            type(e).__name__,
-            exc_info=True,
+            error_type,
         )
         return {
             "success": True,
@@ -313,7 +479,6 @@ async def worker_process_replacement(request: Request):
     data = await verify_qstash(request)
     ticket_id = data.get("ticket_id")
     item_id = data.get("item_id")
-    # order_id available in data but not used in this worker
 
     if not ticket_id or not item_id:
         return {"error": "ticket_id and item_id required"}
@@ -321,50 +486,20 @@ async def worker_process_replacement(request: Request):
     db = get_database()
     notification_service = get_notification_service()
 
-    # Get ticket to verify it's approved
-    ticket_res = (
-        await db.client.table("tickets")
-        .select("id, status, issue_type, user_id, order_id, item_id")
-        .eq("id", ticket_id)
-        .single()
-        .execute()
-    )
+    # Validate ticket
+    ticket_error = await _validate_replacement_ticket(db, ticket_id)
+    if ticket_error:
+        return ticket_error
 
-    if not ticket_res.data:
-        return {"error": "Ticket not found"}
+    # Get order item
+    item_data, item_error = await _get_order_item_for_replacement(db, item_id)
+    if item_error:
+        return item_error
 
-    if ticket_res.data["status"] != "approved":
-        return {
-            "skipped": True,
-            "reason": f"Ticket status is {ticket_res.data['status']}, not approved",
-        }
-
-    if ticket_res.data["issue_type"] != "replacement":
-        return {
-            "skipped": True,
-            "reason": f"Ticket issue_type is {ticket_res.data['issue_type']}, not replacement",
-        }
-
-    # Get order item to replace (include quantity for bulk replacements)
-    item_res = (
-        await db.client.table("order_items")
-        .select("id, order_id, product_id, status, delivery_content, quantity")
-        .eq("id", item_id)
-        .single()
-        .execute()
-    )
-
-    if not item_res.data or len(item_res.data) == 0:
-        logger.error("process-replacement: Order item %s not found", sanitize_id_for_logging(item_id))
-        return {"error": "Order item not found"}
-
-    item_data = item_res.data[0]
     product_id = item_data.get("product_id")
     order_id_from_item = item_data.get("order_id")
-    # NOTE: Each order_item now has quantity=1 (split in persist_order_items)
-    # This allows independent processing - replace 1 order_item = replace 1 key
 
-    # Get order to get user_telegram_id
+    # Get user telegram_id for notifications
     order_res = (
         await db.client.table("orders")
         .select("user_telegram_id")
@@ -372,30 +507,14 @@ async def worker_process_replacement(request: Request):
         .single()
         .execute()
     )
+    user_telegram_id = order_res.data.get("user_telegram_id") if order_res.data else None
 
-    user_telegram_id = None
-    if order_res.data:
-        user_telegram_id = order_res.data.get("user_telegram_id")
-
-    if item_data.get("status") != "delivered":
-        return {
-            "skipped": True,
-            "reason": f"Item status is {item_data.get('status')}, must be delivered",
-        }
-
-    # Find available stock for the same product (need 1 stock item for replacement)
-    # Since each order_item = 1 key, we replace 1 order_item = 1 key
+    # Reserve stock
     now = datetime.now(UTC)
-    stock_res = (
-        await db.client.table("stock_items")
-        .select("id, content")
-        .eq("product_id", product_id)
-        .eq("status", "available")
-        .limit(1)
-        .execute()
-    )
+    stock_item, reserve_error = await _reserve_stock_for_replacement(db, product_id, now)
 
-    if not stock_res.data:
+    if not stock_item and not reserve_error:
+        # No stock available - queue for later
         await _queue_replacement_for_stock(db, ticket_id)
         await _notify_replacement_queued(notification_service, user_telegram_id, product_id)
         return {
@@ -404,35 +523,13 @@ async def worker_process_replacement(request: Request):
             "ticket_status": "approved",
         }
 
-    # Reserve 1 stock item for replacement (each order_item = 1 key, simple replacement)
-    stock_item = stock_res.data[0]
+    if reserve_error:
+        return reserve_error
+
     stock_id = stock_item["id"]
     stock_content = stock_item.get("content", "")
 
-    # Atomically reserve stock (only update if status is still available)
-    try:
-        update_result = (
-            await db.client.table("stock_items")
-            .update({"status": "sold", "reserved_at": now.isoformat(), "sold_at": now.isoformat()})
-            .eq("id", stock_id)
-            .eq("status", "available")
-            .execute()
-        )
-
-        if not update_result.data:
-            logger.warning("process-replacement: stock %s was already reserved", sanitize_id_for_logging(stock_id))
-            return {
-                "queued": True,
-                "reason": "Stock item was already reserved - will retry",
-                "ticket_status": "approved",
-            }
-    except Exception as e:
-        logger.error(
-            f"process-replacement: Failed to mark stock sold {stock_id}: {e}", exc_info=True
-        )
-        return {"error": "Failed to reserve stock"}
-
-    # Get product info for expiration calculation
+    # Get product info for expiration
     product_res = (
         await db.client.table("products")
         .select("duration_days, name")
@@ -441,88 +538,33 @@ async def worker_process_replacement(request: Request):
         .execute()
     )
 
-    if not product_res.data or len(product_res.data) == 0:
-        logger.error(f"process-replacement: Product {product_id} not found")
-        # Rollback stock reservation
-        await (
-            db.client.table("stock_items")
-            .update({"status": "available", "reserved_at": None, "sold_at": None})
-            .eq("id", stock_id)
-            .execute()
-        )
-        return {"error": f"Product {product_id} not found"}
+    if not product_res.data:
+        logger.error("process-replacement: Product %s not found", sanitize_id_for_logging(product_id))
+        await _rollback_stock_reservation(db, stock_id)
+        return {"error": "Product not found"}
 
-    product = product_res.data[0]
+    product = product_res.data
     duration_days = product.get("duration_days")
     product_name = product.get("name", "Product")
 
     # Calculate expires_at
     expires_at_str = None
     if duration_days and duration_days > 0:
-        expires_at = now + timedelta(days=duration_days)
-        expires_at_str = expires_at.isoformat()
+        expires_at_str = (now + timedelta(days=duration_days)).isoformat()
 
-    # Update order item: Replace delivery_content with new key (simple replacement)
-    # Since each order_item = 1 key, we just replace the key
-    # NOTE: delivered_at is NOT updated - warranty period counts from original delivery, not replacement
-    # Otherwise users could abuse the system (buy 1-month account, replace it every week for free)
-    try:
-        update_data = {
-            "stock_item_id": stock_id,  # Update stock_item_id reference
-            "delivery_content": stock_content,  # Replace with new key (simple replacement)
-            "updated_at": now.isoformat(),
-            "status": "delivered",  # Ensure status is delivered
-        }
-        if expires_at_str:
-            update_data["expires_at"] = expires_at_str
-
-        await db.client.table("order_items").update(update_data).eq("id", item_id).execute()
-
-        logger.info("process-replacement: Replaced key for order_item %s (1 key replaced)", sanitize_id_for_logging(item_id))
-    except Exception as e:
-        logger.error(
-            "process-replacement: Failed to update order item %s: %s",
-            sanitize_id_for_logging(item_id),
-            type(e).__name__,
-            exc_info=True,
-        )
-        # Rollback stock reservation
-        try:
-            await (
-                db.client.table("stock_items")
-                .update({"status": "available", "reserved_at": None, "sold_at": None})
-                .eq("id", stock_id)
-                .execute()
-            )
-        except Exception:
-            logger.exception("process-replacement: Failed to rollback stock item")
-        return {"error": "Failed to update order item"}
-
-    # Close ticket
-    await (
-        db.client.table("tickets")
-        .update(
-            {
-                "status": "closed",
-                "admin_comment": "Replacement completed automatically. New account delivered.",
-            }
-        )
-        .eq("id", ticket_id)
-        .execute()
+    # Update order item with replacement
+    update_error = await _update_order_item_with_replacement(
+        db, item_id, stock_id, stock_content, expires_at_str, now
     )
+    if update_error:
+        await _rollback_stock_reservation(db, stock_id)
+        return update_error
 
-    # Notify user
-    if user_telegram_id:
-        try:
-            await notification_service.send_replacement_notification(
-                telegram_id=user_telegram_id,
-                product_name=product_name,
-                item_id=item_id[:8],  # Short ID for display
-            )
-        except Exception as e:
-            logger.error("process-replacement: Failed to send notification: %s", type(e).__name__, exc_info=True)
+    # Close ticket and notify
+    await _close_replacement_ticket(db, ticket_id)
+    await _notify_replacement_success(notification_service, user_telegram_id, product_name, item_id)
 
-    logger.info("process-replacement: Successfully replaced key for item %s (1 key replaced)", sanitize_id_for_logging(item_id))
+    logger.info("process-replacement: Successfully replaced key for item %s", sanitize_id_for_logging(item_id))
 
     return {
         "success": True,

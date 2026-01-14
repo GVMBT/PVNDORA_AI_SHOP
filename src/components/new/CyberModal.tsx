@@ -224,7 +224,7 @@ const Modal: React.FC<{
 
   // Helper to validate withdrawal (reduces cognitive complexity)
   const validateWithdrawal = (amount: number): string | null => {
-    if (state.balance && amount > state.balance) {
+    if ((state.balance ?? 0) > 0 && amount > (state.balance ?? 0)) {
       return t("modal.errors.insufficientFunds");
     }
     if (withdrawPreview && !withdrawPreview.can_withdraw) {

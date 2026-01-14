@@ -153,7 +153,9 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
                 className="relative z-10 drop-shadow-[0_0_10px_rgba(0,255,255,0.3)] group-hover:drop-shadow-[0_0_15px_rgba(0,255,255,0.5)]"
+                aria-labelledby="pvndora-logo-title"
               >
+                <title id="pvndora-logo-title">PVNDORA Logo</title>
                 <g filter={`url(#${logoId}-filter0_f)`}>
                   <path
                     d="M173.2 63.7952C173.2 108.53 113.7 168.295 90.7 193.795C65.2 164.295 8.19995 108.53 8.19995 63.7952C8.19995 19.0601 45.4126 92.2952 90.7 92.2952C135.987 92.2952 173.2 19.0601 173.2 63.7952Z"
@@ -522,6 +524,7 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => {
                     if (onHaptic) onHaptic();
                     if (onLogout) {
@@ -711,6 +714,7 @@ const NavItem: React.FC<NavItemProps> = ({
 
 const MobileNavItem: React.FC<NavItemProps> = ({ icon, label, active, onClick }) => (
   <button
+    type="button"
     onClick={onClick}
     className="flex flex-col items-center justify-center gap-1 h-full w-full active:scale-95 transition-transform"
   >

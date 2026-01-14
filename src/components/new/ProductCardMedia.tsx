@@ -30,8 +30,8 @@ interface ProductCardMediaProps {
 
 // Lightweight particle system (no three.js)
 class ParticleSystem {
-  private canvas: HTMLCanvasElement;
-  private ctx: CanvasRenderingContext2D;
+  private readonly canvas: HTMLCanvasElement;
+  private readonly ctx: CanvasRenderingContext2D;
   private particles: Particle[] = [];
   private animationFrame: number | null = null;
   private isActive = false;

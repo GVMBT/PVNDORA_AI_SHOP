@@ -105,7 +105,9 @@ const PandoraBox: React.FC = () => {
         xmlns="http://www.w3.org/2000/svg"
         className="w-full h-full scale-150 md:scale-125 lg:scale-135 object-cover transform transition-transform duration-1000 origin-center overflow-visible"
         preserveAspectRatio="xMidYMid slice"
+        aria-labelledby="pandora-box-title"
       >
+        <title id="pandora-box-title">Pandora Box Animation</title>
         <defs>
           <filter id="glow-intense" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="4" result="blur" />

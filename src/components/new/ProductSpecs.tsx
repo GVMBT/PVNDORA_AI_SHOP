@@ -49,6 +49,7 @@ const SpecRow: React.FC<SpecRowProps> = ({
         <span className="sm:hidden">{humanLabel}:</span>
         {tooltip && (
           <button
+            type="button"
             onClick={() => setShowTooltip(!showTooltip)}
             onMouseEnter={() => setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
