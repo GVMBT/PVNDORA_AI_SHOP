@@ -365,11 +365,15 @@ const Modal: React.FC<{
 
                   {/* Amount Input */}
                   <div>
-                    <label className="text-[10px] text-gray-500 font-mono uppercase mb-2 block">
+                    <label
+                      htmlFor="topup-amount"
+                      className="text-[10px] text-gray-500 font-mono uppercase mb-2 block"
+                    >
                       {t("modal.topUp.amount")}
                     </label>
                     <div className="relative">
                       <input
+                        id="topup-amount"
                         type="number"
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
@@ -419,7 +423,10 @@ const Modal: React.FC<{
                   {/* Amount Input */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <label className="text-[10px] text-gray-500 font-mono uppercase">
+                      <label
+                        htmlFor="withdraw-amount"
+                        className="text-[10px] text-gray-500 font-mono uppercase"
+                      >
                         {t("modal.withdraw.amount")}
                       </label>
                       {state.maxAmount && state.maxAmount > 0 && (
@@ -436,6 +443,7 @@ const Modal: React.FC<{
                     </div>
                     <div className="relative">
                       <input
+                        id="withdraw-amount"
                         type="number"
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
@@ -493,9 +501,9 @@ const Modal: React.FC<{
 
                   {/* Method Selection - Only Crypto (TRC20 USDT) */}
                   <div>
-                    <label className="text-[10px] text-gray-500 font-mono uppercase mb-2 block">
+                    <div className="text-[10px] text-gray-500 font-mono uppercase mb-2 block">
                       {t("modal.withdraw.method")}
-                    </label>
+                    </div>
                     <div className="bg-purple-500/20 border border-purple-500 p-4 rounded">
                       <div className="flex items-center gap-3">
                         <span className="text-2xl">₿</span>
@@ -513,10 +521,14 @@ const Modal: React.FC<{
 
                   {/* Details Input */}
                   <div>
-                    <label className="text-[10px] text-gray-500 font-mono uppercase mb-2 block">
+                    <label
+                      htmlFor="withdraw-wallet"
+                      className="text-[10px] text-gray-500 font-mono uppercase mb-2 block"
+                    >
                       {t("modal.withdraw.walletAddress")}
                     </label>
                     <input
+                      id="withdraw-wallet"
                       type="text"
                       value={withdrawDetails}
                       onChange={(e) => setWithdrawDetails(e.target.value)}

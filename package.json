@@ -45,5 +45,8 @@
         "tailwindcss": "^3.4.1",
         "typescript": "~5.8.2",
         "vite": "^5.1.6"
+    },
+    "overrides": {
+        "valibot@<=1.2.0": "1.2.0"
     }
 }

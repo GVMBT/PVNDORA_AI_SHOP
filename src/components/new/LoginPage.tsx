@@ -40,7 +40,7 @@ const LoginPage = ({
   botUsername = BOT.USERNAME,
   redirectPath = "/",
   onNavigateLegal,
-}) => {
+}: LoginPageProps) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [widgetLoaded, setWidgetLoaded] = useState(false);
@@ -241,6 +241,7 @@ const LoginPage = ({
           <p className="text-[10px] text-gray-600">
             By signing in, you agree to our{" "}
             <button
+              type="button"
               onClick={() => onNavigateLegal?.("terms")}
               className="text-pandora-cyan hover:underline"
             >
@@ -248,6 +249,7 @@ const LoginPage = ({
             </button>{" "}
             and{" "}
             <button
+              type="button"
               onClick={() => onNavigateLegal?.("privacy")}
               className="text-pandora-cyan hover:underline"
             >

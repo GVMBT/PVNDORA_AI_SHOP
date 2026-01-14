@@ -820,6 +820,7 @@ const Legal: React.FC<LegalProps> = ({ doc, onBack }) => {
         {/* === UNIFIED HEADER (Leaderboard Style) === */}
         <div className="mb-8 md:mb-16">
           <button
+            type="button"
             onClick={onBack}
             className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors"
           >

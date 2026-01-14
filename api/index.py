@@ -5,6 +5,22 @@ Single entry point for all webhooks and API routes.
 Optimized for Vercel Hobby plan (max 12 serverless functions).
 """
 
+# Aikido Zen Runtime Protection - MUST be imported before any other code
+# This provides runtime security and firewall protection
+# Documentation: https://docs.aikido.dev/zen
+try:
+    import aikido_zen  # type: ignore[import-untyped]
+    aikido_zen.protect()
+    AIKIDO_ZEN_AVAILABLE = True
+except ImportError:
+    # Aikido Zen is optional - don't fail if not installed
+    # Install with: pip install aikido-zen
+    AIKIDO_ZEN_AVAILABLE = False
+except Exception:
+    # Don't fail startup if Aikido has issues (e.g., missing token in dev)
+    # Zen will be inactive but app will continue to work
+    AIKIDO_ZEN_AVAILABLE = False
+
 import logging
 import os
 import sys
@@ -138,6 +154,16 @@ async def lifespan(fastapi_app: FastAPI):
         logger.error("Failed to initialize database: %s", err, exc_info=True)
         # Continue anyway - some endpoints may work without DB
 
+    # Check Aikido Zen status
+    import importlib.util
+    if importlib.util.find_spec("aikido_zen") is not None:
+        if os.environ.get("AIKIDO_TOKEN"):
+            logger.info("Aikido Zen Runtime Protection: ACTIVE")
+        else:
+            logger.warning("Aikido Zen installed but AIKIDO_TOKEN not set - protection disabled")
+    else:
+        logger.info("Aikido Zen not installed - runtime protection disabled")
+
     yield
 
     # Shutdown
@@ -165,6 +191,16 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Aikido Zen Middleware - MUST be added after authentication middleware
+# This enables request blocking for security threats
+try:
+    if AIKIDO_ZEN_AVAILABLE:
+        from aikido_zen.middleware import AikidoStarletteMiddleware  # type: ignore
+        app.add_middleware(AikidoStarletteMiddleware)
+except (ImportError, NameError):
+    # Aikido middleware not available - continue without it
+    pass
 
 # CORS for Mini App
 app.add_middleware(

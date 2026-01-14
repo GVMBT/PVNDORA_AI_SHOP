@@ -218,7 +218,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
 
             {/* Footer */}
             <div className="p-2 border-t border-white/10 bg-[#050505] text-[9px] font-mono text-gray-600 flex justify-between px-4">
-              <span>PANDORA_OS // V.2.4.0</span>
+              <span>PANDORA_OS {/* V.2.4.0 */}</span>
               <div className="flex gap-4">
                 <span>
                   <span className="text-pandora-cyan">↑↓</span> NAVIGATE

@@ -1,6 +1,6 @@
 # Core framework
 fastapi>=0.115.0
-pydantic>=2.0
+pydantic>=2.4.0
 
 # Telegram Bot
 aiogram>=3.20.0
@@ -12,7 +12,7 @@ tenacity>=8.2.0
 # AI - LangChain/LangGraph Agent (via OpenAI-compatible)
 langchain-openai>=0.2.0
 langgraph>=0.2.0
-langchain-core>=0.3.0
+langchain-core>=0.3.81
 
 # Database & Cache
 supabase>=2.10.0
@@ -29,6 +29,9 @@ httpx>=0.27.0
 
 # Testing
 pytest>=7.4.0
+
+# Security - Aikido Zen (Runtime Firewall)
+aikido_zen>=1.0.0
 
 # REMOVED (unused):
 # uvicorn - Vercel doesn't need it
