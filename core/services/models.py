@@ -15,11 +15,11 @@ class User(BaseModel):
     telegram_id: int
     username: str | None = None
     first_name: str | None = None
-    language_code: str = "en"
-    preferred_currency: str | None = None  # User preferred currency (RUB, USD, EUR, etc.)
+    language_code: str = "ru"
+    preferred_currency: str | None = "RUB"  # DEPRECATED: Always RUB now
     interface_language: str | None = None  # User preferred interface language (ru, en, etc.)
     balance: Decimal = Decimal("0")
-    balance_currency: str = "USD"  # Currency of user's balance (RUB, USD)
+    balance_currency: str = "RUB"  # DEPRECATED: Always RUB now
     referrer_id: str | None = None
     personal_ref_percent: int = 10  # Default L1 commission (actual from referral_settings)
     is_admin: bool = False
@@ -65,9 +65,9 @@ class Product(BaseModel):
     id: str
     name: str
     description: str | None = None
-    price: Decimal  # Base price in USD
-    prices: dict | None = None  # Anchor prices: {"RUB": 990, "USD": 10.50}
-    msrp_prices: dict | None = None  # Anchor MSRP: {"RUB": 20000, "USD": 250}
+    price: Decimal  # Price in RUB
+    prices: dict | None = None  # DEPRECATED: No longer used
+    msrp_prices: dict | None = None  # DEPRECATED: No longer used
     type: str  # student, trial, shared, key
     status: str = "active"
     warranty_hours: int = 24
@@ -79,7 +79,7 @@ class Product(BaseModel):
     requires_prepayment: bool = False
     prepayment_percent: int = 100
     categories: list[str] = []  # text, video, image, code, audio
-    msrp: Decimal | None = None  # Base MSRP in USD
+    msrp: Decimal | None = None  # MSRP in RUB
     duration_days: int | None = None
     instruction_files: list | None = None
     image_url: str | None = None
@@ -127,7 +127,7 @@ class Order(BaseModel):
     delivery_content: str | None = None  # Use order_items instead
     delivery_instructions: str | None = None  # Use order_items instead
     # Active fields
-    amount: Decimal  # Always in USD (base currency for accounting)
+    amount: Decimal  # Always in RUB
     original_price: Decimal | None = None
     discount_percent: int = 0
     status: str = "pending"
@@ -143,10 +143,10 @@ class Order(BaseModel):
     payment_url: str | None = None
     order_type: str | None = "instant"
     fulfillment_deadline: datetime | None = None
-    # Currency snapshot fields (for accurate accounting)
-    fiat_amount: Decimal | None = None  # Amount in user's currency
-    fiat_currency: str | None = None  # User's currency code (RUB, USD, etc.)
-    exchange_rate_snapshot: Decimal | None = None  # Rate at order creation (1 USD = X fiat)
+    # Currency snapshot fields (DEPRECATED - all RUB now)
+    fiat_amount: Decimal | None = None  # DEPRECATED: Same as amount
+    fiat_currency: str | None = "RUB"  # DEPRECATED: Always RUB
+    exchange_rate_snapshot: Decimal | None = Decimal("1")  # DEPRECATED: Always 1
 
     class Config:
         extra = "ignore"  # Ignore unknown fields from DB

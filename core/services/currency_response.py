@@ -1,17 +1,13 @@
 """
-Unified Currency Response System
+Unified Currency Response System - RUB Only
 
 This module provides CurrencyFormatter for API responses.
-All monetary values are stored in USD and converted for display.
+All monetary values are stored and displayed in RUB.
 
 Architecture:
-- Database stores ALL amounts in USD
-- API returns both USD amount and display amount
-- Frontend uses USD for comparisons, display amount for UI
-- Exchange rate is cached in Redis for 1 hour
-
-IMPORTANT: Currency mappings and conversion logic is in core/services/currency.py
-This module uses CurrencyService for all currency operations.
+- Database stores ALL amounts in RUB
+- API returns amounts in RUB
+- No currency conversion needed
 
 Usage:
     from core.services.currency_response import CurrencyFormatter
@@ -19,15 +15,14 @@ Usage:
     formatter = await CurrencyFormatter.create(user_telegram_id, db, redis)
 
     # Format a single amount
-    amount_response = formatter.format_amount(10.0)
-    # Returns: {"usd": 10.0, "display": 794.0, "formatted": "794 ₽"}
+    amount_response = formatter.format_amount(1000)
+    # Returns: {"usd": 1000, "display": 1000, "formatted": "1 000 ₽"}
 
     # Add currency metadata to response
     response = formatter.with_currency({
         "items": [...],
-        "total_usd": 50.0,
+        "total": 5000,
     })
-    # Adds: currency, exchange_rate, total (display)
 """
 
 from dataclasses import dataclass
@@ -35,52 +30,26 @@ from decimal import Decimal
 from typing import Any, TypedDict
 
 from core.logging import get_logger
-
-# Import from single source of truth
-from core.services.currency import INTEGER_CURRENCIES, get_currency_service
+from core.services.currency import get_currency_service
 from core.services.money import round_money, to_decimal, to_float
 
 logger = get_logger(__name__)
 
 
 def round_referral_threshold(
-    usd_threshold: float, target_currency: str, exchange_rate: float
+    threshold: float, target_currency: str = "RUB", exchange_rate: float = 1.0
 ) -> float:
     """
-    Round referral thresholds for display.
-
-    Rules:
-    - USD thresholds stay as-is (250, 1000)
-    - RUB thresholds are rounded to nice values:
-      * 250 USD → 20000 RUB (instead of ~19750-19780)
-      * 1000 USD → 80000 RUB (instead of ~79000-79080)
-
-    Args:
-        usd_threshold: Threshold in USD (250 or 1000)
-        target_currency: Target currency (RUB, USD, etc.)
-        exchange_rate: Exchange rate for conversion
-
-    Returns:
-        Rounded threshold in target currency
+    Return referral threshold in RUB.
+    All thresholds are now stored in RUB directly.
     """
-    if target_currency == "USD":
-        return float(usd_threshold)
-
-    if target_currency == "RUB":
-        # Apply rounding rules for RUB
-        if usd_threshold == 250:
-            return 20000.0
-        if usd_threshold == 1000:
-            return 80000.0
-
-    # For other currencies, use normal conversion
-    return round(usd_threshold * exchange_rate, 2)
+    return float(threshold)
 
 
 class AmountResponse(TypedDict):
     """Typed dict for amount response."""
 
-    usd: float
+    usd: float  # Named 'usd' for backwards compatibility, actually RUB
     display: float
     formatted: str
 
@@ -89,55 +58,12 @@ class AmountResponse(TypedDict):
 class CurrencyFormatter:
     """
     Unified currency formatter for API responses.
-
-    Uses CurrencyService from core/services/currency.py for all operations.
+    
+    Simplified for RUB-only system.
     """
 
-    currency: str
-    exchange_rate: float
-
-    @classmethod
-    async def _get_user_preferences(
-        cls,
-        db_user,
-        user_telegram_id: int | None,
-        db,
-        preferred_currency: str | None,
-        language_code: str | None,
-    ) -> tuple[str | None, str]:
-        """Get user preferences from db_user or DB (reduces cognitive complexity)."""
-        user_preferred = preferred_currency
-        user_lang = language_code or "en"
-
-        if db_user:
-            if not preferred_currency:
-                user_preferred = getattr(db_user, "preferred_currency", None)
-            if not language_code:
-                user_lang = (
-                    getattr(db_user, "interface_language", None)
-                    or getattr(db_user, "language_code", "en")
-                    or "en"
-                )
-        elif user_telegram_id and db and not preferred_currency:
-            db_user_fetch = await db.get_user_by_telegram_id(user_telegram_id)
-            if db_user_fetch:
-                user_preferred = getattr(db_user_fetch, "preferred_currency", None)
-                user_lang = (
-                    getattr(db_user_fetch, "interface_language", None)
-                    or getattr(db_user_fetch, "language_code", "en")
-                    or "en"
-                )
-
-        return user_preferred, user_lang
-
-    @classmethod
-    async def _get_exchange_rate(cls, currency_service, currency: str) -> float:
-        """Get exchange rate for currency (reduces cognitive complexity)."""
-        if currency == "USD":
-            return 1.0
-        exchange_rate = await currency_service.get_exchange_rate(currency)
-        logger.info("CurrencyFormatter: got exchange_rate=%s for %s", exchange_rate, currency)
-        return float(exchange_rate) if exchange_rate is not None else 1.0
+    currency: str = "RUB"
+    exchange_rate: float = 1.0
 
     @classmethod
     async def create(
@@ -147,155 +73,103 @@ class CurrencyFormatter:
         redis=None,
         preferred_currency: str | None = None,
         language_code: str | None = None,
-        db_user=None,  # OPTIMIZATION: Pass db_user directly to avoid duplicate DB query
+        db_user=None,
     ) -> "CurrencyFormatter":
         """
-        Factory method to create CurrencyFormatter for a user.
-
-        Uses CurrencyService.get_user_currency() for currency determination.
-
-        Args:
-            user_telegram_id: Telegram user ID (used if db_user not provided)
-            db: Database instance (used if db_user not provided)
-            redis: Redis client
-            preferred_currency: User's preferred currency (overrides db_user)
-            language_code: User's language code (overrides db_user)
-            db_user: User model object (OPTIMIZATION: pass directly to avoid duplicate query)
+        Factory method to create CurrencyFormatter.
+        
+        Always returns RUB formatter (no conversion needed).
         """
-        currency = "USD"
-        exchange_rate = 1.0
+        return cls(currency="RUB", exchange_rate=1.0)
 
-        try:
-            user_preferred, user_lang = await cls._get_user_preferences(
-                db_user, user_telegram_id, db, preferred_currency, language_code
-            )
-
-            currency_service = get_currency_service(redis)
-            currency = currency_service.get_user_currency(user_lang, user_preferred)
-
-            user_id_for_log = user_telegram_id or (
-                getattr(db_user, "telegram_id", None) if db_user else None
-            )
-            logger.info(
-                "CurrencyFormatter: user=%s, preferred=%s, currency=%s",
-                user_id_for_log,
-                user_preferred,
-                currency,
-            )
-
-            exchange_rate = await cls._get_exchange_rate(currency_service, currency)
-
-        except Exception as e:
-            logger.error("Currency setup failed: %s, using USD", e, exc_info=True)
-            currency = "USD"
-            exchange_rate = 1.0
-
-        return cls(currency=currency, exchange_rate=exchange_rate)
-
-    def convert(self, amount_usd: float | Decimal | str) -> float:
-        """Convert USD amount to display currency."""
-        if amount_usd is None:
+    def convert(self, amount: float | Decimal | str) -> float:
+        """No conversion needed - returns amount as-is (rounded)."""
+        if amount is None:
             return 0.0
-
-        decimal_amount = to_decimal(amount_usd)
-
-        if self.currency == "USD":
-            return to_float(decimal_amount)
-
-        converted = decimal_amount * to_decimal(self.exchange_rate)
-
-        # Round based on currency
-        should_round_int = self.currency in INTEGER_CURRENCIES
-        rounded = round_money(converted, to_int=should_round_int)
-
+        decimal_amount = to_decimal(amount)
+        rounded = round_money(decimal_amount, to_int=True)
         return to_float(rounded)
 
     def format(self, amount: float | Decimal) -> str:
-        """Format amount with currency symbol using CurrencyService."""
+        """Format amount with RUB symbol."""
         if amount is None:
             amount = 0
-
-        # Use CurrencyService.format_price for consistency
         currency_service = get_currency_service()
-        return currency_service.format_price(amount, self.currency)
+        return currency_service.format_price(amount, "RUB")
 
-    def format_balance(self, amount: float | Decimal, currency: str) -> str:
+    def format_balance(self, amount: float | Decimal, currency: str = "RUB") -> str:
         """
-        Format a balance amount with a specific currency symbol.
-
-        Unlike format(), this uses the provided currency, not the formatter's currency.
-        Useful for displaying user balance which is stored in a specific currency.
-
+        Format a balance amount with RUB symbol.
+        
         Args:
-            amount: The amount to format (already in the target currency)
-            currency: The currency code to format with (e.g., "RUB", "USD")
-
+            amount: The amount to format (in RUB)
+            currency: Ignored (always RUB)
+            
         Returns:
-            Formatted string like "$100.00" or "1 000 ₽"
+            Formatted string like "1 000 ₽"
         """
         if amount is None:
             amount = 0
-
         currency_service = get_currency_service()
-        return currency_service.format_price(amount, currency)
+        return currency_service.format_price(amount, "RUB")
 
-    def format_amount(self, amount_usd: float | Decimal | str | None) -> AmountResponse:
+    def format_amount(self, amount: float | Decimal | str | None) -> AmountResponse:
         """
         Format an amount for API response.
-
-        Returns both USD value (for calculations) and display value (for UI).
+        
+        Returns dict with amount in RUB.
+        Note: 'usd' key is kept for backwards compatibility but contains RUB value.
         """
-        if amount_usd is None:
-            amount_usd = 0
+        if amount is None:
+            amount = 0
 
-        usd_value = to_float(to_decimal(amount_usd))
-        display_value = self.convert(amount_usd)
+        rub_value = self.convert(amount)
 
         return {
-            "usd": usd_value,
-            "display": display_value,
-            "formatted": self.format(display_value),
+            "usd": rub_value,  # Backwards compatibility - actually RUB
+            "display": rub_value,
+            "formatted": self.format(rub_value),
         }
 
     def with_currency(self, response: dict[str, Any]) -> dict[str, Any]:
         """
         Add currency metadata to any response dict.
-
-        Also converts any fields ending in '_usd' to display values.
         """
         result = {
             **response,
-            "currency": self.currency,
-            "exchange_rate": self.exchange_rate,
+            "currency": "RUB",
+            "exchange_rate": 1.0,
         }
 
-        # Auto-convert _usd fields
+        # Convert _usd fields to display values (same value for RUB)
         for key, value in response.items():
             if key.endswith("_usd") and isinstance(value, (int, float, Decimal)):
                 display_key = key[:-4]  # Remove '_usd' suffix
-                if display_key not in response:  # Don't overwrite existing
+                if display_key not in response:
                     result[display_key] = self.convert(value)
 
         return result
 
     def format_price_response(
         self,
-        price_usd: float | Decimal,
-        original_price_usd: float | Decimal | None = None,
+        price: float | Decimal,
+        original_price: float | Decimal | None = None,
         discount_percent: int = 0,
     ) -> dict[str, Any]:
         """
         Format a complete price response for products/cart items.
         """
+        price_rub = self.convert(price)
         response = {
-            "price_usd": to_float(to_decimal(price_usd)),
-            "price": self.convert(price_usd),
-            "price_formatted": self.format(self.convert(price_usd)),
+            "price_usd": price_rub,  # Backwards compat - actually RUB
+            "price": price_rub,
+            "price_formatted": self.format(price_rub),
         }
 
-        if original_price_usd is not None:
-            response["original_price_usd"] = to_float(to_decimal(original_price_usd))
-            response["original_price"] = self.convert(original_price_usd)
+        if original_price is not None:
+            original_rub = self.convert(original_price)
+            response["original_price_usd"] = original_rub  # Backwards compat
+            response["original_price"] = original_rub
 
         if discount_percent:
             response["discount_percent"] = discount_percent
@@ -303,19 +177,17 @@ class CurrencyFormatter:
         return response
 
 
-# Convenience function for simple cases
+# Convenience function
 async def get_currency_formatter(
-    user_telegram_id: int | None, db, redis=None, **kwargs
+    user_telegram_id: int | None = None, db=None, redis=None, **kwargs
 ) -> CurrencyFormatter:
-    """Get a CurrencyFormatter for a user."""
+    """Get a CurrencyFormatter (always RUB)."""
     return await CurrencyFormatter.create(user_telegram_id, db, redis, **kwargs)
 
 
-def format_price_simple(amount: float | Decimal, currency: str = "USD") -> str:
+def format_price_simple(amount: float | Decimal, currency: str = "RUB") -> str:
     """
-    Simple price formatting without exchange rate.
-    For use when you already have the converted amount.
-    Delegates to CurrencyService.format_price for consistency.
+    Simple price formatting in RUB.
     """
     currency_service = get_currency_service()
-    return currency_service.format_price(amount, currency)
+    return currency_service.format_price(amount, "RUB")
