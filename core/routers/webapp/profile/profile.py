@@ -583,7 +583,7 @@ async def get_referral_network(
             return {"referrals": [], "total": 0, "level": level, "offset": offset, "limit": limit}
 
         # OPTIMIZATION: Batch fetch orders count for all referrals (eliminate N+1)
-        orders_count_map = {}
+        orders_count_map: dict[str, int] = {}
         try:
             # Use aggregation to count orders per user_id in a single query
             orders_result = (
@@ -603,7 +603,7 @@ async def get_referral_network(
             logger.warning(f"Failed to batch fetch orders count: {e}")
 
         # OPTIMIZATION: Batch fetch earnings for all referrals (eliminate N+1)
-        earnings_map = {}
+        earnings_map: dict[str, float] = {}
         try:
             earnings_result = (
                 await db.client.table("referral_bonuses")

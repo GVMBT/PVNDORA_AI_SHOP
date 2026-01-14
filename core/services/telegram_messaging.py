@@ -25,7 +25,7 @@ DISCOUNT_BOT_TOKEN = os.environ.get("DISCOUNT_BOT_TOKEN", "")
 async def send_telegram_message(
     chat_id: int,
     text: str,
-    parse_mode: str = "HTML",
+    parse_mode: str | None = "HTML",
     bot_token: str | None = None,
     retries: int = 2,
     timeout: float = 10.0,
@@ -124,7 +124,7 @@ async def send_telegram_message_with_keyboard(
     chat_id: int,
     text: str,
     keyboard,
-    parse_mode: str = "HTML",
+    parse_mode: str | None = "HTML",
     bot_token: str | None = None,
     retries: int = 2,
     timeout: float = 10.0,

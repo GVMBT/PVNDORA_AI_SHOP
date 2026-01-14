@@ -214,6 +214,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           </div>
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onAddToCart(product, 1);

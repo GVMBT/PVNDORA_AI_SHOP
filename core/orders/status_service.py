@@ -212,96 +212,33 @@ class OrderStatusService:
             final_status = await self._determine_final_status(order_id, check_stock)
 
             # Update payment_id if provided
-            if payment_id:
-                try:
-                    logger.debug("[mark_payment_confirmed] Updating payment_id")
-                    await (
-                        self.db.client.table("orders")
-                        .update({"payment_id": payment_id})
-                        .eq("id", order_id)
-                        .execute()
-                    )
-                except Exception:
-                    logger.warning("Failed to update payment_id", exc_info=True)
+            await self._update_payment_id_if_provided(order_id, payment_id)
 
-            logger.debug(
-                "[mark_payment_confirmed] About to call update_status with final_status=%s",
-                final_status,
-            )
-            update_result = await self.update_status(
-                order_id, final_status, "Payment confirmed via webhook", check_transition=False
-            )
-            logger.debug("[mark_payment_confirmed] update_status returned: %s", update_result)
+            # Update order status
+            update_result = await self._update_order_status_to_final(order_id, final_status)
 
-            # OPTIMIZATION #6: Parallelize independent queries (order_items and user balance)
-            import asyncio
-
-            # Execute queries in parallel (outside if/else to use results in both branches)
-            items_result, (user_balance, tx_exists) = await asyncio.gather(
-                self._fetch_order_items_for_notification(order_id),
-                self._fetch_user_balance_and_check_tx(payment_method, user_id, order_id, order_amount),
-                return_exceptions=True,
+            # Fetch data needed for post-update actions (parallel queries)
+            items_result, user_balance, tx_exists = await self._fetch_data_for_post_update(
+                order_id, payment_method, user_id, order_amount
             )
 
-            # Handle exceptions
-            if isinstance(items_result, Exception):
-                items_result = []
-            if isinstance(user_balance, Exception) or isinstance(tx_exists, Exception):
-                user_balance = None
-                tx_exists = False
+            # Handle post-status-update actions (notifications, alerts)
+            await self._handle_post_status_update_actions(
+                update_result, order_id, order_amount, user_telegram_id,
+                fiat_amount, fiat_currency, final_status, items_result
+            )
 
-            if not update_result:
-                logger.error("[mark_payment_confirmed] FAILED to update order status")
-            else:
-                # Send admin alert for paid orders (best-effort)
-                try:
-                    await self._send_order_alert(order_id, order_amount)
-                except Exception:
-                    logger.warning("Failed to send admin alert", exc_info=True)
-
-                # Send payment confirmation to user (best-effort)
-                await self._send_payment_notification(
-                    user_telegram_id,
-                    order_id,
-                    order_amount,
-                    fiat_amount,
-                    fiat_currency,
-                    final_status,
-                    items_result,
-                )
-
-            # Create balance_transaction record for purchase (for system_log visibility)
-            # Only for external payments (not balance) - balance payments already create records via add_to_user_balance
-            if payment_method and payment_method.lower() != "balance" and user_id and order_amount:
-                try:
-                    # OPTIMIZATION #6: Use user_balance from parallel query (already fetched above)
-                    if user_balance is not None and not tx_exists:
-                        await self._create_balance_transaction_for_purchase(
-                            user_id, order_id, order_amount, fiat_amount, fiat_currency,
-                            payment_method, payment_id, user_balance
-                        )
-                    elif tx_exists:
-                        logger.debug(
-                            "[mark_payment_confirmed] balance_transaction already exists, skipping"
-                        )
-                except Exception:
-                    logger.warning("Failed to create balance_transaction", exc_info=True)
-                    # Non-critical - don't fail the payment confirmation
+            # Handle external payment transaction creation
+            await self._handle_external_payment_transaction(
+                payment_method, user_id, order_amount, order_id,
+                fiat_amount, fiat_currency, payment_id, user_balance, tx_exists
+            )
 
             # Set fulfillment deadline for orders with preorder items
             await self._set_fulfillment_deadline(order_id, items_result, final_status)
 
-            # CRITICAL: Create order_expenses for accounting (best-effort, non-blocking)
-            if update_result:
-                try:
-                    logger.debug("[mark_payment_confirmed] Creating order_expenses")
-                    await self.db.client.rpc(
-                        "calculate_order_expenses", {"p_order_id": order_id}
-                    ).execute()
-                    logger.debug("[mark_payment_confirmed] Successfully created order_expenses")
-                except Exception:
-                    logger.warning("Failed to create order_expenses", exc_info=True)
-                    # Non-critical - don't fail payment confirmation
+            # Create order_expenses for accounting
+            await self._create_order_expenses_if_needed(update_result, order_id)
 
             return final_status
 
@@ -630,6 +567,135 @@ class OrderStatusService:
             ).execute()
         except Exception:
             logger.warning("Failed to set fulfillment deadline", exc_info=True)
+
+    async def _update_payment_id_if_provided(self, order_id: str, payment_id: str | None) -> None:
+        """Update payment_id if provided (reduces cognitive complexity)."""
+        if not payment_id:
+            return
+
+        try:
+            logger.debug("[mark_payment_confirmed] Updating payment_id")
+            await (
+                self.db.client.table("orders")
+                .update({"payment_id": payment_id})
+                .eq("id", order_id)
+                .execute()
+            )
+        except Exception:
+            logger.warning("Failed to update payment_id", exc_info=True)
+
+    async def _update_order_status_to_final(self, order_id: str, final_status: str) -> bool:
+        """Update order status to final status (reduces cognitive complexity)."""
+        logger.debug(
+            "[mark_payment_confirmed] About to call update_status with final_status=%s",
+            final_status,
+        )
+        update_result = await self.update_status(
+            order_id, final_status, "Payment confirmed via webhook", check_transition=False
+        )
+        logger.debug("[mark_payment_confirmed] update_status returned: %s", update_result)
+        return update_result
+
+    async def _fetch_data_for_post_update(
+        self, order_id: str, payment_method: str, user_id: str | None, order_amount: float
+    ) -> tuple[list, float | None, bool]:
+        """Fetch order items and user balance data in parallel (reduces cognitive complexity)."""
+        import asyncio
+
+        # Execute queries in parallel
+        items_result, (user_balance, tx_exists) = await asyncio.gather(
+            self._fetch_order_items_for_notification(order_id),
+            self._fetch_user_balance_and_check_tx(payment_method, user_id, order_id, order_amount),
+            return_exceptions=True,
+        )
+
+        # Handle exceptions
+        if isinstance(items_result, Exception):
+            items_result = []
+        if isinstance(user_balance, Exception) or isinstance(tx_exists, Exception):
+            user_balance = None
+            tx_exists = False
+
+        return items_result, user_balance, tx_exists
+
+    async def _handle_post_status_update_actions(
+        self,
+        update_result: bool,
+        order_id: str,
+        order_amount: float,
+        user_telegram_id: int | None,
+        fiat_amount: float | None,
+        fiat_currency: str | None,
+        final_status: str,
+        items_result: list,
+    ) -> None:
+        """Handle post-status-update actions like notifications and alerts (reduces cognitive complexity)."""
+        if not update_result:
+            logger.error("[mark_payment_confirmed] FAILED to update order status")
+            return
+
+        # Send admin alert for paid orders (best-effort)
+        try:
+            await self._send_order_alert(order_id, order_amount)
+        except Exception:
+            logger.warning("Failed to send admin alert", exc_info=True)
+
+        # Send payment confirmation to user (best-effort)
+        await self._send_payment_notification(
+            user_telegram_id,
+            order_id,
+            order_amount,
+            fiat_amount,
+            fiat_currency,
+            final_status,
+            items_result,
+        )
+
+    async def _handle_external_payment_transaction(
+        self,
+        payment_method: str,
+        user_id: str | None,
+        order_amount: float,
+        order_id: str,
+        fiat_amount: float | None,
+        fiat_currency: str | None,
+        payment_id: str | None,
+        user_balance: float | None,
+        tx_exists: bool,
+    ) -> None:
+        """Handle balance_transaction creation for external payments (reduces cognitive complexity)."""
+        # Only for external payments (not balance) - balance payments already create records via add_to_user_balance
+        if not payment_method or payment_method.lower() == "balance" or not user_id or not order_amount:
+            return
+
+        try:
+            if user_balance is not None and not tx_exists:
+                await self._create_balance_transaction_for_purchase(
+                    user_id, order_id, order_amount, fiat_amount, fiat_currency,
+                    payment_method, payment_id, user_balance
+                )
+            elif tx_exists:
+                logger.debug(
+                    "[mark_payment_confirmed] balance_transaction already exists, skipping"
+                )
+        except Exception:
+            logger.warning("Failed to create balance_transaction", exc_info=True)
+            # Non-critical - don't fail the payment confirmation
+
+    async def _create_order_expenses_if_needed(self, update_result: bool, order_id: str) -> None:
+        """Create order_expenses for accounting if status update succeeded (reduces cognitive complexity)."""
+        if not update_result:
+            return
+
+        try:
+            logger.debug("[mark_payment_confirmed] Creating order_expenses")
+            await self.db.client.rpc(
+                "calculate_order_expenses", {"p_order_id": order_id}
+            ).execute()
+            logger.debug("[mark_payment_confirmed] Successfully created order_expenses")
+        except Exception:
+            logger.warning("Failed to create order_expenses", exc_info=True)
+            # Non-critical - don't fail payment confirmation
 
     async def _check_stock_availability(self, order_id: str) -> bool:
         """Check if order has available stock for instant delivery.

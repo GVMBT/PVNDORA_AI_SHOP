@@ -11,15 +11,12 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from core.auth import verify_telegram_auth
+from core.errors import ERROR_FAILED_TO_FETCH_ORDERS, ERROR_ORDER_NOT_FOUND, ERROR_USER_NOT_FOUND
 from core.services.database import get_database
 
 from ..models import OrdersListResponse, OrderStatusResponse, PaymentMethod, PaymentMethodsResponse
 
 logger = logging.getLogger(__name__)
-
-# Constants (avoid string duplication)
-ERROR_USER_NOT_FOUND = "User not found"
-ERROR_ORDER_NOT_FOUND = "Order not found"
 
 crud_router = APIRouter()
 
@@ -112,6 +109,109 @@ def _build_order_item(item: dict, order_status: str, reviewed_product_ids: set) 
         "created_at": item.get("created_at"),
         "has_review": has_review,
     }
+
+
+async def _process_order_row(
+    row: dict,
+    reviews_by_order: dict[str, set],
+    user_currency: str,
+    currency_service,
+) -> dict | None:
+    """Process a single order row and build order dict (reduces cognitive complexity)."""
+    from core.logging import sanitize_id_for_logging
+
+    items_data = row.get("order_items", [])
+
+    if not items_data:
+        logger.warning("Order %s has no order_items", sanitize_id_for_logging(str(row.get("id"))))
+        return None
+
+    # Get first product for main display
+    first_item = items_data[0] if items_data else None
+    product_data = first_item.get("product") if first_item else None
+
+    # Get reviewed product IDs for this order (from pre-loaded data)
+    order_id = row.get("id")
+    reviewed_product_ids = reviews_by_order.get(order_id, set())
+
+    # Build items using helper
+    items = [_build_order_item(item, row["status"], reviewed_product_ids) for item in items_data]
+    # Fix: Add fallback fulfillment_deadline from order
+    for i, item in enumerate(items_data):
+        if not items[i]["fulfillment_deadline"]:
+            items[i]["fulfillment_deadline"] = row.get("fulfillment_deadline")
+
+    # Build order dict using helper
+    return await _build_order_dict(row, items, product_data, user_currency, currency_service)
+
+
+def _build_balance_payment_method(
+    user_balance: float,
+    balance_currency: str,
+    balance_display: str,
+    balance_sufficient: bool,
+) -> PaymentMethod:
+    """Build balance payment method (reduces cognitive complexity)."""
+    return PaymentMethod(
+        id="balance",
+        name="Баланс аккаунта",
+        description=f"Доступно: {balance_display}",
+        icon="wallet",
+        available=balance_sufficient,
+        min_amount=None,
+        max_amount=user_balance,
+        fee_percent=0,
+        processing_time="Мгновенно",
+        currency=balance_currency,
+    )
+
+
+def _build_card_payment_method(user_currency: str) -> PaymentMethod:
+    """Build card payment method (reduces cognitive complexity)."""
+    return PaymentMethod(
+        id="card",
+        name="Банковская карта",
+        description="Visa, MasterCard, МИР",
+        icon="credit-card",
+        available=True,
+        min_amount=10 if user_currency == "RUB" else 0.5,
+        max_amount=100000 if user_currency == "RUB" else 5000,
+        fee_percent=0,
+        processing_time="1-5 минут",
+        currency=user_currency,
+    )
+
+
+def _build_sbp_payment_method() -> PaymentMethod:
+    """Build SBP payment method (reduces cognitive complexity)."""
+    return PaymentMethod(
+        id="sbp",
+        name="СБП",
+        description="Система быстрых платежей",
+        icon="zap",
+        available=True,
+        min_amount=10,
+        max_amount=600000,
+        fee_percent=0,
+        processing_time="Мгновенно",
+        currency="RUB",
+    )
+
+
+def _build_crypto_payment_method(user_currency: str) -> PaymentMethod:
+    """Build crypto payment method (reduces cognitive complexity)."""
+    return PaymentMethod(
+        id="crypto",
+        name="Криптовалюта",
+        description="BTC, ETH, USDT, TON",
+        icon="bitcoin",
+        available=True,
+        min_amount=1 if user_currency == "USD" else 100,
+        max_amount=None,
+        fee_percent=0,
+        processing_time="10-30 минут",
+        currency="USD",
+    )
 
 
 async def _build_order_dict(
@@ -251,6 +351,29 @@ async def _process_confirmed_payment(order_id: str, payment_id: str, db) -> dict
     return {"status": final_status, "verified": True}
 
 
+# Helper to verify crystalpay payment (reduces cognitive complexity)
+async def _verify_crystalpay_payment(
+    payment_id: str, order_id: str, order_status: str, db
+) -> dict:
+    """Verify payment via CrystalPay gateway (reduces cognitive complexity)."""
+    from core.routers.deps import get_payment_service
+    from core.logging import sanitize_id_for_logging
+
+    payment_service = get_payment_service()
+    try:
+        invoice_info = await payment_service.get_invoice_info(payment_id)
+        if invoice_info:
+            gateway_status = invoice_info.get("state", "")
+            return await _handle_gateway_status(gateway_status, order_id, order_status, payment_id, db)
+    except Exception as e:
+        logger.warning(
+            "Failed to verify payment for order %s: %s",
+            sanitize_id_for_logging(order_id),
+            type(e).__name__,
+        )
+    return {"status": order_status, "verified": False, "message": "Verification failed"}
+
+
 # Helper to handle gateway status (reduces cognitive complexity)
 async def _handle_gateway_status(
     gateway_status: str, order_id: str, order_status: str, payment_id: str, db
@@ -286,8 +409,6 @@ async def verify_order_payment(order_id: str, user=Depends(verify_telegram_auth)
     Manually verify payment status via payment gateway.
     Useful for checking payment on popup/window close.
     """
-    from core.routers.deps import get_payment_service
-
     db = get_database()
 
     db_user = await db.get_user_by_telegram_id(user.id)
@@ -314,23 +435,7 @@ async def verify_order_payment(order_id: str, user=Depends(verify_telegram_auth)
         return {"status": order["status"], "verified": False, "message": "No payment_id"}
 
     if payment_gateway == "crystalpay":
-        payment_service = get_payment_service()
-        try:
-            invoice_info = await payment_service.get_invoice_info(payment_id)
-            if invoice_info:
-                gateway_status = invoice_info.get("state", "")
-                return await _handle_gateway_status(
-                    gateway_status, order_id, order["status"], payment_id, db
-                )
-        except Exception as e:
-            from core.logging import sanitize_id_for_logging
-
-            logger.warning(
-                "Failed to verify payment for order %s: %s",
-                sanitize_id_for_logging(order_id),
-                type(e).__name__,
-            )
-            return {"status": order["status"], "verified": False, "message": "Verification failed"}
+        return await _verify_crystalpay_payment(payment_id, order_id, order["status"], db)
 
     return {"status": order["status"], "verified": False, "message": "Unknown gateway"}
 
@@ -378,7 +483,7 @@ async def get_webapp_orders(
             type(e).__name__,
             exc_info=True,
         )
-        raise HTTPException(status_code=500, detail="Failed to fetch orders")
+        raise HTTPException(status_code=500, detail=ERROR_FAILED_TO_FETCH_ORDERS)
 
     user_currency = _get_user_currency(db_user, user, currency_service)
 
@@ -396,39 +501,9 @@ async def get_webapp_orders(
 
     for row in result.data:
         try:
-            items_data = row.get("order_items", [])
-
-            if not items_data:
-                from core.logging import sanitize_id_for_logging
-
-                logger.warning(
-                    "Order %s has no order_items", sanitize_id_for_logging(str(row.get("id")))
-                )
-                continue
-
-            # Get first product for main display
-            first_item = items_data[0] if items_data else None
-            product_data = first_item.get("product") if first_item else None
-
-            # Get reviewed product IDs for this order (from pre-loaded data)
-            order_id = row.get("id")
-            reviewed_product_ids = reviews_by_order.get(order_id, set())
-
-            # Build items using helper
-            items = [
-                _build_order_item(item, row["status"], reviewed_product_ids) for item in items_data
-            ]
-            # Fix: Add fallback fulfillment_deadline from order
-            for i, item in enumerate(items_data):
-                if not items[i]["fulfillment_deadline"]:
-                    items[i]["fulfillment_deadline"] = row.get("fulfillment_deadline")
-
-            # Build order dict using helper
-            order_dict = await _build_order_dict(
-                row, items, product_data, user_currency, currency_service
-            )
-
-            orders.append(order_dict)
+            order_dict = await _process_order_row(row, reviews_by_order, user_currency, currency_service)
+            if order_dict:
+                orders.append(order_dict)
         except Exception as e:
             from core.logging import sanitize_id_for_logging
 
@@ -490,70 +565,21 @@ async def get_payment_methods(
         balance_sufficient = await _check_balance_sufficiency(
             amount, user_currency, balance_currency, user_balance, currency_service
         )
-
         methods.append(
-            PaymentMethod(
-                id="balance",
-                name="Баланс аккаунта",
-                description=f"Доступно: {balance_display}",
-                icon="wallet",
-                available=balance_sufficient,
-                min_amount=None,
-                max_amount=user_balance,
-                fee_percent=0,
-                processing_time="Мгновенно",
-                currency=balance_currency,
+            _build_balance_payment_method(
+                user_balance, balance_currency, balance_display, balance_sufficient
             )
         )
 
     # 2. CrystalPay card payment
-    methods.append(
-        PaymentMethod(
-            id="card",
-            name="Банковская карта",
-            description="Visa, MasterCard, МИР",
-            icon="credit-card",
-            available=True,
-            min_amount=10 if user_currency == "RUB" else 0.5,
-            max_amount=100000 if user_currency == "RUB" else 5000,
-            fee_percent=0,
-            processing_time="1-5 минут",
-            currency=user_currency,
-        )
-    )
+    methods.append(_build_card_payment_method(user_currency))
 
     # 3. SBP (for Russian users)
     if user_currency == "RUB" or user_lang in ("ru", "ru-RU"):
-        methods.append(
-            PaymentMethod(
-                id="sbp",
-                name="СБП",
-                description="Система быстрых платежей",
-                icon="zap",
-                available=True,
-                min_amount=10,
-                max_amount=600000,
-                fee_percent=0,
-                processing_time="Мгновенно",
-                currency="RUB",
-            )
-        )
+        methods.append(_build_sbp_payment_method())
 
     # 4. Crypto
-    methods.append(
-        PaymentMethod(
-            id="crypto",
-            name="Криптовалюта",
-            description="BTC, ETH, USDT, TON",
-            icon="bitcoin",
-            available=True,
-            min_amount=1 if user_currency == "USD" else 100,
-            max_amount=None,
-            fee_percent=0,
-            processing_time="10-30 минут",
-            currency="USD",
-        )
-    )
+    methods.append(_build_crypto_payment_method(user_currency))
 
     # Calculate default recommendation
     recommended = "card"

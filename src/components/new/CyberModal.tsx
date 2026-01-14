@@ -339,6 +339,7 @@ const Modal: React.FC<{
                   )}
                 </div>
                 <button
+                  type="button"
                   onClick={onClose}
                   className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/10 transition-colors rounded"
                 >
@@ -385,6 +386,7 @@ const Modal: React.FC<{
                   <div className="flex gap-2">
                     {getPresetAmounts.map((amount) => (
                       <button
+                        type="button"
                         key={amount}
                         onClick={() => setInputValue(String(amount))}
                         className={`flex-1 py-2 text-xs font-mono border transition-colors ${
@@ -553,6 +555,7 @@ const Modal: React.FC<{
             <div className="px-6 pb-6 pt-2 flex gap-3">
               {state.type !== "alert" && (
                 <button
+                  type="button"
                   onClick={onClose}
                   className="flex-1 py-3 bg-white/5 border border-white/10 text-gray-400 text-xs font-bold uppercase tracking-wider hover:bg-white/10 hover:text-white transition-colors"
                 >
@@ -560,6 +563,7 @@ const Modal: React.FC<{
                 </button>
               )}
               <button
+                type="button"
                 onClick={handleSubmit}
                 disabled={state.isLoading}
                 className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${getButtonClassName(state.type, state.icon)}`}

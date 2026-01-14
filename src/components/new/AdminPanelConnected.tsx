@@ -17,12 +17,59 @@ import {
 } from "../../hooks/useApiTyped";
 import { formatDate, formatRelativeTime } from "../../utils/date";
 import { logger } from "../../utils/logger";
-import type { AccountingData } from "../admin";
+import type { AccountingData, ProductData } from "../admin";
 import type { TicketData } from "../admin/types";
 import AdminPanel from "./AdminPanel";
 
 interface AdminPanelConnectedProps {
   onExit: () => void;
+}
+
+// Raw API response types (before transformation)
+interface RawTicketResponse {
+  id: string;
+  user_id?: string;
+  first_name?: string;
+  username?: string;
+  status?: string;
+  created_at?: string;
+  description?: string;
+  issue_type?: string;
+  item_id?: string;
+  order_id?: string;
+  telegram_id?: number;
+  admin_comment?: string;
+  credentials?: string;
+  product_name?: string;
+}
+
+interface RawWithdrawalResponse {
+  id: string;
+  user_id: string;
+  telegram_id?: number;
+  username?: string;
+  first_name?: string;
+  amount?: number;
+  payment_method?: string;
+  payment_details?: Record<string, unknown>;
+  status?: string;
+  admin_comment?: string;
+  created_at?: string;
+  processed_at?: string;
+  user_balance?: number;
+}
+
+interface RawAnalyticsResponse {
+  total_revenue?: number;
+  orders_today?: number;
+  orders_this_week?: number;
+  orders_this_month?: number;
+  total_users?: number;
+  pending_orders?: number;
+  open_tickets?: number;
+  revenue_by_day?: Array<{ date: string; amount: number }>;
+  total_user_balances?: number;
+  pending_withdrawals?: number;
 }
 
 const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => {
@@ -44,8 +91,8 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
 
   // Local state
   const [isInitialized, setIsInitialized] = useState(false);
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<RawTicketResponse[]>([]);
+  const [withdrawals, setWithdrawals] = useState<RawWithdrawalResponse[]>([]);
   const [accountingData, setAccountingData] = useState<AccountingData | undefined>();
   const [isAccountingLoading, setIsAccountingLoading] = useState(false);
 
@@ -108,7 +155,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
           url += `?${params.toString()}`;
         }
 
-        const data = await apiRequest<any>(url);
+        const data = await apiRequest<AccountingData>(url);
 
         // Log for debugging
         logger.info("Accounting data loaded", data);
@@ -291,7 +338,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
 
   const transformedTickets = useMemo(
     (): TicketData[] =>
-      tickets.map((t: any) => ({
+      tickets.map((t) => ({
         id: t.id,
         user: t.first_name || t.username || `user_${t.user_id?.slice(0, 6)}`,
         subject: t.description?.slice(0, 50) || "No subject",
@@ -316,7 +363,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
   // Transform withdrawals for admin panel - MUST be before conditional return
   const transformedWithdrawals = useMemo(
     () =>
-      withdrawals.map((w: any) => ({
+      withdrawals.map((w) => ({
         id: w.id,
         user_id: w.user_id,
         telegram_id: w.telegram_id,
@@ -341,12 +388,12 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       ordersToday: analytics.orders_today || 0,
       ordersWeek: analytics.orders_this_week || 0,
       ordersMonth: analytics.orders_this_month || 0,
-      totalUsers: (analytics as any).total_users || 0,
-      pendingOrders: (analytics as any).pending_orders || 0,
-      openTickets: (analytics as any).open_tickets || 0,
+      totalUsers: (analytics as RawAnalyticsResponse).total_users || 0,
+      pendingOrders: (analytics as RawAnalyticsResponse).pending_orders || 0,
+      openTickets: (analytics as RawAnalyticsResponse).open_tickets || 0,
       revenueByDay: analytics.revenue_by_day || [],
-      totalUserBalances: (analytics as any).total_user_balances || 0,
-      pendingWithdrawals: (analytics as any).pending_withdrawals || 0,
+      totalUserBalances: (analytics as RawAnalyticsResponse).total_user_balances || 0,
+      pendingWithdrawals: (analytics as RawAnalyticsResponse).pending_withdrawals || 0,
     };
   }, [analytics]);
 
@@ -408,7 +455,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
 
   // Product handlers
   const handleSaveProduct = useCallback(
-    async (product: any) => {
+    async (product: Partial<ProductData>) => {
       if (product.id) {
         // Update existing product
         await updateProduct(product.id, product);

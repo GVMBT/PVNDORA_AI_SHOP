@@ -70,7 +70,11 @@ const CartSummary: React.FC<CartSummaryProps> = ({
     return (
       <div className="text-center py-12">
         <div className="text-gray-600 font-mono mb-4">{t("checkout.cartEmpty").toUpperCase()}</div>
-        <button onClick={onProceed} className="text-pandora-cyan font-bold hover:underline">
+        <button
+          type="button"
+          onClick={onProceed}
+          className="text-pandora-cyan font-bold hover:underline"
+        >
           {t("checkout.returnToCatalog").toUpperCase()}
         </button>
       </div>
@@ -204,6 +208,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
                 </div>
                 {onRemovePromo && (
                   <button
+                    type="button"
                     onClick={onRemovePromo}
                     className="text-gray-400 hover:text-red-500 transition-colors"
                   >
@@ -221,6 +226,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
                   className="flex-1 bg-black border border-white/20 px-4 py-2 text-white font-mono text-sm placeholder-gray-600 focus:border-pandora-cyan focus:outline-none"
                 />
                 <button
+                  type="button"
                   onClick={handleApplyPromo}
                   disabled={promoLoading || !promoInput.trim()}
                   className="px-4 py-2 bg-white/10 border border-white/20 text-white font-mono text-sm hover:bg-pandora-cyan/20 hover:border-pandora-cyan/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
@@ -269,6 +275,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
         </div>
 
         <button
+          type="button"
           onClick={onProceed}
           className="w-full bg-white text-black font-bold py-4 hover:bg-pandora-cyan transition-colors uppercase tracking-widest flex items-center justify-center gap-2 group"
         >

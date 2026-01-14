@@ -40,12 +40,14 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
               </p>
               <div className="flex gap-4">
                 <button
+                  type="button"
                   onClick={handleSupportClick}
                   className="w-10 h-10 border border-white/10 rounded-sm flex items-center justify-center text-gray-400 hover:text-pandora-cyan hover:border-pandora-cyan transition-all"
                 >
                   <MessageCircle size={18} />
                 </button>
                 <button
+                  type="button"
                   onClick={() => globalThis.open("mailto:support@pvndora.app")}
                   className="w-10 h-10 border border-white/10 rounded-sm flex items-center justify-center text-gray-400 hover:text-pandora-cyan hover:border-pandora-cyan transition-all"
                 >
@@ -63,6 +65,7 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
               <ul className="space-y-3 text-xs font-mono text-gray-500">
                 <li>
                   <button
+                    type="button"
                     onClick={() => onNavigate("faq")}
                     className="hover:text-pandora-cyan transition-colors text-left"
                   >
@@ -71,6 +74,7 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
                 </li>
                 <li>
                   <button
+                    type="button"
                     onClick={handleSupportClick}
                     className="hover:text-pandora-cyan transition-colors text-left"
                   >
@@ -79,6 +83,7 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
                 </li>
                 <li>
                   <button
+                    type="button"
                     onClick={() => onNavigate("payment")}
                     className="hover:text-pandora-cyan transition-colors text-left"
                   >
@@ -97,6 +102,7 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
               <ul className="space-y-3 text-xs font-mono text-gray-500">
                 <li>
                   <button
+                    type="button"
                     onClick={() => onNavigate("terms")}
                     className="hover:text-pandora-cyan transition-colors text-left"
                   >
@@ -105,6 +111,7 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
                 </li>
                 <li>
                   <button
+                    type="button"
                     onClick={() => onNavigate("privacy")}
                     className="hover:text-pandora-cyan transition-colors text-left"
                   >
@@ -113,6 +120,7 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
                 </li>
                 <li>
                   <button
+                    type="button"
                     onClick={() => onNavigate("refund")}
                     className="hover:text-pandora-cyan transition-colors text-left"
                   >
@@ -130,6 +138,7 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
                   {t("footer.supportAvailable")}
                 </p>
                 <button
+                  type="button"
                   onClick={handleSupportClick}
                   className="w-full bg-white text-black font-bold py-3 text-xs uppercase tracking-wider hover:bg-pandora-cyan transition-colors"
                 >
@@ -179,6 +188,7 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
               <ul className="space-y-2.5 text-xs font-mono text-gray-400">
                 <li>
                   <button
+                    type="button"
                     onClick={() => onNavigate("faq")}
                     className="hover:text-white transition-colors text-left w-full"
                   >
@@ -187,6 +197,7 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
                 </li>
                 <li>
                   <button
+                    type="button"
                     onClick={handleSupportClick}
                     className="hover:text-white transition-colors text-left w-full"
                   >
@@ -195,6 +206,7 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
                 </li>
                 <li>
                   <button
+                    type="button"
                     onClick={() => onNavigate("payment")}
                     className="hover:text-white transition-colors text-left w-full"
                   >
@@ -212,6 +224,7 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
               <ul className="space-y-2.5 text-xs font-mono text-gray-400 text-right">
                 <li>
                   <button
+                    type="button"
                     onClick={() => onNavigate("terms")}
                     className="hover:text-white transition-colors text-right w-full"
                   >
@@ -220,6 +233,7 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
                 </li>
                 <li>
                   <button
+                    type="button"
                     onClick={() => onNavigate("privacy")}
                     className="hover:text-white transition-colors text-right w-full"
                   >
@@ -228,6 +242,7 @@ const FooterComponent: React.FC<FooterProps> = ({ onNavigate, onOpenSupport }) =
                 </li>
                 <li>
                   <button
+                    type="button"
                     onClick={() => onNavigate("refund")}
                     className="hover:text-white transition-colors text-right w-full"
                   >

@@ -283,6 +283,7 @@ const Catalog: React.FC<CatalogProps> = ({
                       },
                     ].map((option) => (
                       <button
+                        type="button"
                         key={option.value}
                         onClick={(e) => {
                           e.preventDefault();
@@ -348,6 +349,7 @@ const Catalog: React.FC<CatalogProps> = ({
                       { label: t("catalog.sort.priceDesc"), value: "price_desc" },
                     ].map((option) => (
                       <button
+                        type="button"
                         key={option.value}
                         onClick={(e) => {
                           e.preventDefault();
@@ -373,6 +375,7 @@ const Catalog: React.FC<CatalogProps> = ({
             {/* View Toggle */}
             <div className="flex bg-[#0a0a0a] border border-white/10 p-1 rounded-sm gap-1 flex-shrink-0">
               <button
+                type="button"
                 onClick={() => {
                   if (onHaptic) onHaptic("light");
                   setViewMode("grid");
@@ -382,6 +385,7 @@ const Catalog: React.FC<CatalogProps> = ({
                 <Grid size={14} className="sm:w-4 sm:h-4" />
               </button>
               <button
+                type="button"
                 onClick={() => {
                   if (onHaptic) onHaptic("light");
                   setViewMode("list");
@@ -412,6 +416,7 @@ const Catalog: React.FC<CatalogProps> = ({
 
             return (
               <button
+                type="button"
                 key={cat}
                 onClick={() => handleCategoryChange(cat)}
                 className={`

@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from core.auth import verify_admin
+from core.errors import ERROR_INTERNAL
 from core.logging import get_logger, sanitize_id_for_logging, sanitize_string_for_logging
 from core.routers.deps import get_notification_service
 from core.services.database import get_database
@@ -326,7 +327,7 @@ async def approve_withdrawal(
             type(e).__name__,
             exc_info=True,
         )
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=ERROR_INTERNAL)
 
 
 @router.post("/{withdrawal_id}/reject")
@@ -438,7 +439,7 @@ async def reject_withdrawal(
             type(e).__name__,
             exc_info=True,
         )
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=ERROR_INTERNAL)
 
 
 @router.post("/{withdrawal_id}/complete")
@@ -531,4 +532,4 @@ async def complete_withdrawal(
             type(e).__name__,
             exc_info=True,
         )
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=ERROR_INTERNAL)

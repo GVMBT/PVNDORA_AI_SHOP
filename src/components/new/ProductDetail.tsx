@@ -635,6 +635,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
 
           {/* BUY BUTTON (Right) - WITH MICRO-INTERACTION */}
           <button
+            type="button"
             onClick={handleMountModule}
             disabled={isDisabled || isAllocating || isSuccess}
             className={`

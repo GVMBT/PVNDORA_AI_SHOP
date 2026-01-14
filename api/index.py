@@ -183,6 +183,7 @@ async def health_check():
 
 
 @app.post("/webhook")
+@app.post("/webhook/telegram")
 async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
     """Handle Main Bot Telegram webhook updates"""
     try:

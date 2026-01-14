@@ -182,6 +182,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                 <div className="space-y-1">
                   {filteredItems.map((item, index) => (
                     <button
+                      type="button"
                       key={item.id}
                       onClick={() => executeCommand(item)}
                       onMouseEnter={() => setSelectedIndex(index)}

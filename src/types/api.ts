@@ -251,7 +251,7 @@ export interface APIBalanceTransaction {
   reference_id?: string;
   description?: string;
   status: "pending" | "completed" | "failed" | "cancelled";
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }

@@ -402,11 +402,6 @@ $function$;
 -- Comments
 -- ============================================================
 
-COMMENT ON FUNCTION process_referral_bonus IS 
-'Calculates and applies referral bonuses with multi-currency conversion. 
-Bonus is calculated from buyer''s fiat_amount (payment currency) and converted 
-to referrer''s balance_currency using exchange_rates table.';
+COMMENT ON FUNCTION process_referral_bonus IS 'Calculates and applies referral bonuses with multi-currency conversion. Bonus is calculated from buyer''s fiat_amount (payment currency) and converted to referrer''s balance_currency using exchange_rates table.';
 
-COMMENT ON FUNCTION rollback_user_turnover IS 
-'Rolls back user turnover and revokes referral bonuses for refunded orders.
-Revoked bonuses are deducted from referrer''s balance in their balance_currency.';
+COMMENT ON FUNCTION rollback_user_turnover IS 'Rolls back user turnover and revokes referral bonuses for refunded orders. Revoked bonuses are deducted from referrer''s balance in their balance_currency.';

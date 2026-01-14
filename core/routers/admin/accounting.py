@@ -438,6 +438,67 @@ def _add_order_expenses_to_month(month: dict[str, Any], expenses: dict[str, Any]
     month["replacement_costs"] += float(expenses.get("insurance_replacement_cost", 0) or 0)
 
 
+# Helper: Normalize expenses dict (reduces cognitive complexity)
+def _normalize_expenses_dict(expenses: Any) -> dict[str, Any]:
+    """Normalize expenses to dict format (reduces cognitive complexity)."""
+    if not expenses:
+        return {}
+    if isinstance(expenses, list):
+        return expenses[0] if expenses else {}
+    return expenses if isinstance(expenses, dict) else {}
+
+
+# Helper: Initialize currency entry (reduces cognitive complexity)
+def _init_currency_entry_for_report() -> dict[str, Any]:
+    """Initialize currency entry for report (reduces cognitive complexity)."""
+    return {
+        "orders": [],
+        "revenue_usd": 0.0,
+        "revenue_gross_usd": 0.0,
+        "revenue_fiat": 0.0,
+        "orders_count": 0,
+    }
+
+
+# Helper: Process order revenue (reduces cognitive complexity)
+def _process_order_revenue(
+    order: dict[str, Any],
+    currency_data: dict[str, Any],
+    expense_totals: dict[str, float],
+    expenses: dict[str, Any],
+) -> None:
+    """Process order revenue calculations (reduces cognitive complexity)."""
+    amount_usd = float(order.get("amount", 0))
+    currency_data["revenue_usd"] += amount_usd
+    expense_totals["revenue"] += amount_usd
+
+    promo_discount_usd = float(expenses.get("promo_discount_amount", 0) or 0)
+    currency_data["revenue_gross_usd"] += amount_usd + promo_discount_usd
+    expense_totals["revenue_gross"] += amount_usd + promo_discount_usd
+
+    fiat_amount = order.get("fiat_amount")
+    currency_data["revenue_fiat"] += float(fiat_amount) if fiat_amount is not None else amount_usd
+    currency_data["orders_count"] += 1
+
+
+# Helper: Process order expenses (reduces cognitive complexity)
+def _process_order_expenses_for_report(
+    expenses: dict[str, Any], expense_totals: dict[str, float]
+) -> None:
+    """Process order expenses and update totals (reduces cognitive complexity)."""
+    if not expenses:
+        return
+
+    expense_totals["cogs"] += float(expenses.get("cogs_amount", 0) or 0)
+    expense_totals["acquiring"] += float(expenses.get("acquiring_fee_amount", 0) or 0)
+    expense_totals["referrals"] += float(expenses.get("referral_payout_amount", 0) or 0)
+    expense_totals["reserves"] += float(expenses.get("reserve_amount", 0) or 0)
+    expense_totals["review_cashbacks"] += float(expenses.get("review_cashback_amount", 0) or 0)
+    expense_totals["replacement_costs"] += float(
+        expenses.get("insurance_replacement_cost", 0) or 0
+    )
+
+
 # Helper: Process single order for report (reduces cognitive complexity)
 def _process_single_order_for_report(
     order: dict[str, Any],
@@ -447,50 +508,19 @@ def _process_single_order_for_report(
     """Process a single order and update orders_by_currency and expense_totals."""
     currency = order.get("fiat_currency") or "USD"
     if currency not in orders_by_currency:
-        orders_by_currency[currency] = {
-            "orders": [],
-            "revenue_usd": 0.0,
-            "revenue_gross_usd": 0.0,
-            "revenue_fiat": 0.0,
-            "orders_count": 0,
-        }
+        orders_by_currency[currency] = _init_currency_entry_for_report()
 
     currency_data = orders_by_currency[currency]
     currency_data["orders"].append(order)
-    amount_usd = float(order.get("amount", 0))
-    currency_data["revenue_usd"] += amount_usd
-    expense_totals["revenue"] += amount_usd
 
-    # Calculate gross using ONLY promo_discount
-    expenses = order.get("order_expenses")
-    promo_discount_usd = 0.0
-    if expenses:
-        if isinstance(expenses, list):
-            expenses = expenses[0] if expenses else {}
-        promo_discount_usd = float(expenses.get("promo_discount_amount", 0) or 0)
+    # Normalize expenses
+    expenses = _normalize_expenses_dict(order.get("order_expenses"))
 
-    currency_data["revenue_gross_usd"] += amount_usd + promo_discount_usd
-    expense_totals["revenue_gross"] += amount_usd + promo_discount_usd
+    # Process revenue
+    _process_order_revenue(order, currency_data, expense_totals, expenses)
 
-    fiat_amount = order.get("fiat_amount")
-    if fiat_amount is not None:
-        currency_data["revenue_fiat"] += float(fiat_amount)
-    else:
-        currency_data["revenue_fiat"] += amount_usd
-    currency_data["orders_count"] += 1
-
-    # Calculate expenses
-    if expenses:
-        if isinstance(expenses, list):
-            expenses = expenses[0] if expenses else {}
-        expense_totals["cogs"] += float(expenses.get("cogs_amount", 0) or 0)
-        expense_totals["acquiring"] += float(expenses.get("acquiring_fee_amount", 0) or 0)
-        expense_totals["referrals"] += float(expenses.get("referral_payout_amount", 0) or 0)
-        expense_totals["reserves"] += float(expenses.get("reserve_amount", 0) or 0)
-        expense_totals["review_cashbacks"] += float(expenses.get("review_cashback_amount", 0) or 0)
-        expense_totals["replacement_costs"] += float(
-            expenses.get("insurance_replacement_cost", 0) or 0
-        )
+    # Process expenses
+    _process_order_expenses_for_report(expenses, expense_totals)
 
 
 # Helper: Process orders for accounting report (reduces cognitive complexity)
@@ -1539,6 +1569,140 @@ def _calculate_profit_values(
     return gross_profit, operating_profit, net_profit
 
 
+# Helper: Build currency breakdown (reduces cognitive complexity)
+def _build_currency_breakdown(orders_by_currency: dict) -> dict[str, dict[str, float]]:
+    """Build currency breakdown from orders_by_currency (reduces cognitive complexity)."""
+    return {
+        currency: {
+            "orders_count": data["orders_count"],
+            "revenue_usd": round(data["revenue_usd"], 2),
+            "revenue_fiat": round(data["revenue_fiat"], 2),
+            "revenue_gross_usd": round(data["revenue_gross_usd"], 2),
+        }
+        for currency, data in orders_by_currency.items()
+    }
+
+
+# Helper: Get insurance revenue and other expenses (reduces cognitive complexity)
+async def _get_insurance_and_expenses(
+    db: Any, start_date: datetime
+) -> tuple[float, float, dict[str, float]]:
+    """Get insurance revenue, other expenses, and expenses by category (reduces cognitive complexity)."""
+    insurance_result = (
+        await db.client.table("insurance_revenue")
+        .select("price")
+        .gte("created_at", start_date.isoformat())
+        .execute()
+    )
+    insurance_revenue = sum(float(i.get("price", 0)) for i in (insurance_result.data or []))
+
+    other_expenses_result = (
+        await db.client.table("expenses")
+        .select("amount_usd, category")
+        .gte("date", start_date.date().isoformat())
+        .execute()
+    )
+
+    other_expenses = sum(float(e.get("amount_usd", 0)) for e in (other_expenses_result.data or []))
+    expenses_by_category = _group_expenses_by_category(other_expenses_result.data or [])
+
+    return insurance_revenue, other_expenses, expenses_by_category
+
+
+# Helper: Build income statement (reduces cognitive complexity)
+def _build_income_statement(
+    revenue: float,
+    revenue_gross: float,
+    total_discounts: float,
+    cogs: float,
+    acquiring: float,
+    referrals: float,
+    reserves: float,
+    review_cashbacks: float,
+    replacement_costs: float,
+    other_expenses: float,
+    insurance_revenue: float,
+    expenses_by_category: dict[str, float],
+) -> dict[str, Any]:
+    """Build income statement section (reduces cognitive complexity)."""
+    gross_profit, operating_profit, net_profit = _calculate_profit_values(
+        revenue, cogs, acquiring, referrals, reserves, review_cashbacks,
+        replacement_costs, other_expenses, insurance_revenue
+    )
+    operating_expenses_total = acquiring + referrals + reserves + review_cashbacks + replacement_costs
+
+    return {
+        "revenue_gross": round(revenue_gross, 2),
+        "discounts_given": round(total_discounts, 2),
+        "revenue_net": round(revenue, 2),
+        "insurance_revenue": round(insurance_revenue, 2),
+        "cogs": round(cogs, 2),
+        "gross_profit": round(gross_profit, 2),
+        "gross_margin_pct": round((gross_profit / revenue * 100) if revenue > 0 else 0, 2),
+        "operating_expenses": {
+            "acquiring_fees": round(acquiring, 2),
+            "referral_payouts": round(referrals, 2),
+            "reserves": round(reserves, 2),
+            "review_cashbacks": round(review_cashbacks, 2),
+            "replacement_costs": round(replacement_costs, 2),
+            "total": round(operating_expenses_total, 2),
+        },
+        "operating_profit": round(operating_profit, 2),
+        "operating_margin_pct": round(
+            (operating_profit / revenue * 100) if revenue > 0 else 0, 2
+        ),
+        "other_expenses": round(other_expenses, 2),
+        "other_expenses_by_category": {k: round(v, 2) for k, v in expenses_by_category.items()},
+        "net_profit": round(net_profit, 2),
+        "net_margin_pct": round((net_profit / revenue * 100) if revenue > 0 else 0, 2),
+    }
+
+
+# Helper: Build liabilities section (reduces cognitive complexity)
+async def _build_liabilities_section(db: Any) -> dict[str, Any]:
+    """Build liabilities section with currency breakdown (reduces cognitive complexity)."""
+    liabilities_by_currency: dict = {}
+    await _process_user_balances(db, liabilities_by_currency)
+    await _process_pending_withdrawals(db, liabilities_by_currency)
+    _round_liability_values(liabilities_by_currency)
+
+    total_user_balances = sum(d["user_balances"] for d in liabilities_by_currency.values())
+    total_pending_withdrawals = sum(
+        d["pending_withdrawals"] for d in liabilities_by_currency.values()
+    )
+
+    return {
+        "by_currency": liabilities_by_currency,
+        "user_balances": total_user_balances,
+        "pending_withdrawals": total_pending_withdrawals,
+        "total": total_user_balances + total_pending_withdrawals,
+    }
+
+
+# Helper: Build metrics section (reduces cognitive complexity)
+def _build_metrics_section(
+    revenue: float,
+    revenue_gross: float,
+    total_discounts: float,
+    cogs: float,
+    acquiring: float,
+    referrals: float,
+    review_cashbacks: float,
+    orders_count: int,
+) -> dict[str, float]:
+    """Build metrics section (reduces cognitive complexity)."""
+    return {
+        "avg_order_value": round(revenue / orders_count, 2) if orders_count > 0 else 0,
+        "cogs_per_order": round(cogs / orders_count, 2) if orders_count > 0 else 0,
+        "acquiring_pct": round((acquiring / revenue * 100) if revenue > 0 else 0, 2),
+        "referral_pct": round((referrals / revenue * 100) if revenue > 0 else 0, 2),
+        "cashback_pct": round((review_cashbacks / revenue * 100) if revenue > 0 else 0, 2),
+        "discount_rate_pct": round(
+            (total_discounts / revenue_gross * 100) if revenue_gross > 0 else 0, 2
+        ),
+    }
+
+
 @router.get("/accounting/report")
 async def get_accounting_report(
     period: str = Query("month", enum=["week", "month", "quarter", "year"]),
@@ -1579,53 +1743,28 @@ async def get_accounting_report(
     review_cashbacks = expense_totals["review_cashbacks"]
     replacement_costs = expense_totals["replacement_costs"]
 
-    # Build currency_breakdown
-    currency_breakdown = {
-        currency: {
-            "orders_count": data["orders_count"],
-            "revenue_usd": round(data["revenue_usd"], 2),
-            "revenue_fiat": round(data["revenue_fiat"], 2),
-            "revenue_gross_usd": round(data["revenue_gross_usd"], 2),
-        }
-        for currency, data in orders_by_currency.items()
-    }
+    # Build currency breakdown
+    currency_breakdown = _build_currency_breakdown(orders_by_currency)
 
     # Get insurance revenue and other expenses
-    insurance_result = (
-        await db.client.table("insurance_revenue")
-        .select("price")
-        .gte("created_at", start_date.isoformat())
-        .execute()
-    )
-    insurance_revenue = sum(float(i.get("price", 0)) for i in (insurance_result.data or []))
-
-    other_expenses_result = (
-        await db.client.table("expenses")
-        .select("amount_usd, category")
-        .gte("date", start_date.date().isoformat())
-        .execute()
+    insurance_revenue, other_expenses, expenses_by_category = await _get_insurance_and_expenses(
+        db, start_date
     )
 
-    other_expenses = sum(float(e.get("amount_usd", 0)) for e in (other_expenses_result.data or []))
-    expenses_by_category = _group_expenses_by_category(other_expenses_result.data or [])
-
-    # Calculate profits
-    gross_profit, operating_profit, net_profit = _calculate_profit_values(
-        revenue, cogs, acquiring, referrals, reserves, review_cashbacks,
-        replacement_costs, other_expenses, insurance_revenue
+    # Build income statement
+    income_statement = _build_income_statement(
+        revenue, revenue_gross, total_discounts, cogs, acquiring, referrals,
+        reserves, review_cashbacks, replacement_costs, other_expenses,
+        insurance_revenue, expenses_by_category
     )
-    operating_expenses_total = acquiring + referrals + reserves + review_cashbacks + replacement_costs
 
-    # Get liabilities by currency
-    liabilities_by_currency: dict = {}
-    await _process_user_balances(db, liabilities_by_currency)
-    await _process_pending_withdrawals(db, liabilities_by_currency)
-    _round_liability_values(liabilities_by_currency)
+    # Build liabilities section
+    liabilities = await _build_liabilities_section(db)
 
-    # Legacy totals
-    total_user_balances = sum(d["user_balances"] for d in liabilities_by_currency.values())
-    total_pending_withdrawals = sum(
-        d["pending_withdrawals"] for d in liabilities_by_currency.values()
+    # Build metrics section
+    metrics = _build_metrics_section(
+        revenue, revenue_gross, total_discounts, cogs, acquiring,
+        referrals, review_cashbacks, len(orders)
     )
 
     return {
@@ -1633,52 +1772,8 @@ async def get_accounting_report(
         "start_date": start_date.isoformat(),
         "end_date": now.isoformat(),
         "orders_count": len(orders),
-        # Currency breakdown (revenue)
         "currency_breakdown": currency_breakdown,
-        # Income Statement (expenses in USD)
-        "income_statement": {
-            "revenue_gross": round(revenue_gross, 2),
-            "discounts_given": round(total_discounts, 2),
-            "revenue_net": round(revenue, 2),
-            "insurance_revenue": round(insurance_revenue, 2),
-            "cogs": round(cogs, 2),
-            "gross_profit": round(gross_profit, 2),
-            "gross_margin_pct": round((gross_profit / revenue * 100) if revenue > 0 else 0, 2),
-            "operating_expenses": {
-                "acquiring_fees": round(acquiring, 2),
-                "referral_payouts": round(referrals, 2),
-                "reserves": round(reserves, 2),
-                "review_cashbacks": round(review_cashbacks, 2),
-                "replacement_costs": round(replacement_costs, 2),
-                "total": round(operating_expenses_total, 2),
-            },
-            "operating_profit": round(operating_profit, 2),
-            "operating_margin_pct": round(
-                (operating_profit / revenue * 100) if revenue > 0 else 0, 2
-            ),
-            "other_expenses": round(other_expenses, 2),
-            "other_expenses_by_category": {k: round(v, 2) for k, v in expenses_by_category.items()},
-            "net_profit": round(net_profit, 2),
-            "net_margin_pct": round((net_profit / revenue * 100) if revenue > 0 else 0, 2),
-        },
-        # Balance Sheet Items - MULTI-CURRENCY!
-        "liabilities": {
-            # NEW: breakdown by currency
-            "by_currency": liabilities_by_currency,
-            # Legacy fields (sum, not converted)
-            "user_balances": total_user_balances,
-            "pending_withdrawals": total_pending_withdrawals,
-            "total": total_user_balances + total_pending_withdrawals,
-        },
-        # Key Metrics
-        "metrics": {
-            "avg_order_value": round(revenue / len(orders), 2) if orders else 0,
-            "cogs_per_order": round(cogs / len(orders), 2) if orders else 0,
-            "acquiring_pct": round((acquiring / revenue * 100) if revenue > 0 else 0, 2),
-            "referral_pct": round((referrals / revenue * 100) if revenue > 0 else 0, 2),
-            "cashback_pct": round((review_cashbacks / revenue * 100) if revenue > 0 else 0, 2),
-            "discount_rate_pct": round(
-                (total_discounts / revenue_gross * 100) if revenue_gross > 0 else 0, 2
-            ),
-        },
+        "income_statement": income_statement,
+        "liabilities": liabilities,
+        "metrics": metrics,
     }

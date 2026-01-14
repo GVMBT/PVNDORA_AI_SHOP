@@ -15,10 +15,4 @@ UPDATE orders SET status = 'refunded' WHERE status IN ('failed', 'expired');
 UPDATE orders SET status = 'prepaid' WHERE status IN ('fulfilling', 'ready');
 
 -- Comment on the simplified statuses
-COMMENT ON TABLE orders IS 'Order statuses:
-  - pending: Created, awaiting payment
-  - paid: Payment confirmed, stock available, preparing delivery
-  - prepaid: Payment confirmed, no stock, waiting for supply
-  - delivered: Items delivered to user
-  - cancelled: Cancelled before payment
-  - refunded: Cancelled after payment, funds returned';
+COMMENT ON TABLE orders IS 'Order statuses: pending (Created, awaiting payment), paid (Payment confirmed, stock available, preparing delivery), prepaid (Payment confirmed, no stock, waiting for supply), delivered (Items delivered to user), cancelled (Cancelled before payment), refunded (Cancelled after payment, funds returned)';

@@ -121,13 +121,15 @@ class AudioEngineClass {
     if (!this.ctx) return null;
 
     // Return cached if available
-    if (this.soundCache.has(key)) {
-      return this.soundCache.get(key)!;
+    const cached = this.soundCache.get(key);
+    if (cached) {
+      return cached;
     }
 
     // Return existing promise if loading
-    if (this.loadingPromises.has(key)) {
-      return this.loadingPromises.get(key)!;
+    const loadingPromise = this.loadingPromises.get(key);
+    if (loadingPromise) {
+      return loadingPromise;
     }
 
     // Start loading

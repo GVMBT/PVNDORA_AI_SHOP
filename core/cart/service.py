@@ -133,6 +133,20 @@ class CartManager:
         await self.save_cart(cart)
         return cart
 
+    def _update_cart_item_quantity(
+        self, cart: Cart, product_id: str, new_quantity: int, available_stock: int
+    ) -> None:
+        """Update item quantity in cart (reduces cognitive complexity)."""
+        if new_quantity <= 0:
+            cart.items = [item for item in cart.items if item.product_id != product_id]
+        else:
+            for item in cart.items:
+                if item.product_id == product_id:
+                    item.quantity = new_quantity
+                    item.instant_quantity = min(new_quantity, available_stock)
+                    item.prepaid_quantity = max(0, new_quantity - available_stock)
+                    break
+
     async def update_item_quantity(
         self, user_telegram_id: int, product_id: str, new_quantity: int, available_stock: int
     ) -> Cart | None:
@@ -147,15 +161,7 @@ class CartManager:
             if cart is None:
                 return None
 
-            if new_quantity <= 0:
-                cart.items = [item for item in cart.items if item.product_id != product_id]
-            else:
-                for item in cart.items:
-                    if item.product_id == product_id:
-                        item.quantity = new_quantity
-                        item.instant_quantity = min(new_quantity, available_stock)
-                        item.prepaid_quantity = max(0, new_quantity - available_stock)
-                        break
+            self._update_cart_item_quantity(cart, product_id, new_quantity, available_stock)
 
             if cart.items:
                 await self.save_cart(cart)

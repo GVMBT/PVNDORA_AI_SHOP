@@ -21,6 +21,44 @@ router = APIRouter(tags=["admin-orders"])
 
 # ==================== ORDERS ====================
 
+# Helper: Format order for admin panel (reduces cognitive complexity)
+def _format_order_for_admin(order: dict) -> dict:
+    """Format a single order for admin panel display."""
+    # Get user handle
+    user_data = order.get("users") or {}
+    username = user_data.get("username") or user_data.get("first_name", "Unknown")
+    user_handle = f"@{username}" if username != "Unknown" else "Unknown"
+
+    # Get product name from order_items -> products
+    items = order.get("order_items", [])
+    product_name = "Unknown Product"
+    if items and len(items) > 0:
+        # Product name is nested: order_items[0].products.name
+        product_data = items[0].get("products") or {}
+        product_name = product_data.get("name", "Unknown Product")
+        if len(items) > 1:
+            product_name += f" +{len(items) - 1}"
+
+    created_at = order.get("created_at")
+
+    # Fiat fields
+    fiat_amount = order.get("fiat_amount")
+    fiat_currency = order.get("fiat_currency")
+
+    return {
+        "id": order.get("id"),  # Full UUID for API compatibility
+        "user_id": user_data.get("telegram_id"),
+        "user_handle": user_handle,
+        "product_name": product_name,
+        "amount": float(order.get("amount", 0)),
+        "fiat_amount": float(fiat_amount) if fiat_amount is not None else None,
+        "fiat_currency": fiat_currency,
+        "status": order.get("status", "pending"),
+        "payment_method": order.get("payment_method", "unknown"),
+        "source_channel": order.get("source_channel", "main"),  # main, discount, webapp
+        "created_at": created_at,
+    }
+
 
 @router.get("/orders")
 async def admin_get_orders(
@@ -47,44 +85,7 @@ async def admin_get_orders(
     orders_data = result.data if result.data else []
 
     # Format orders for admin panel (matching mock data structure)
-    formatted_orders = []
-    for order in orders_data:
-        # Get user handle
-        user_data = order.get("users") or {}
-        username = user_data.get("username") or user_data.get("first_name", "Unknown")
-        user_handle = f"@{username}" if username != "Unknown" else "Unknown"
-
-        # Get product name from order_items -> products
-        items = order.get("order_items", [])
-        product_name = "Unknown Product"
-        if items and len(items) > 0:
-            # Product name is nested: order_items[0].products.name
-            product_data = items[0].get("products") or {}
-            product_name = product_data.get("name", "Unknown Product")
-            if len(items) > 1:
-                product_name += f" +{len(items) - 1}"
-
-        created_at = order.get("created_at")
-
-        # Fiat fields
-        fiat_amount = order.get("fiat_amount")
-        fiat_currency = order.get("fiat_currency")
-
-        formatted_orders.append(
-            {
-                "id": order.get("id"),  # Full UUID for API compatibility
-                "user_id": user_data.get("telegram_id"),
-                "user_handle": user_handle,
-                "product_name": product_name,
-                "amount": float(order.get("amount", 0)),
-                "fiat_amount": float(fiat_amount) if fiat_amount is not None else None,
-                "fiat_currency": fiat_currency,
-                "status": order.get("status", "pending"),
-                "payment_method": order.get("payment_method", "unknown"),
-                "source_channel": order.get("source_channel", "main"),  # main, discount, webapp
-                "created_at": created_at,
-            }
-        )
+    formatted_orders = [_format_order_for_admin(order) for order in orders_data]
 
     return {"orders": formatted_orders}
 
