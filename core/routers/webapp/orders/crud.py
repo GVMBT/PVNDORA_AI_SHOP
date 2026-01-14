@@ -32,30 +32,22 @@ async def _check_balance_sufficiency(
     user_balance: float,
     currency_service,
 ) -> bool:
-    """Check if balance is sufficient for order amount (reduces cognitive complexity)."""
+    """Check if balance is sufficient for order amount.
+    
+    After RUB-only migration, all amounts are in RUB.
+    """
     if not amount:
         return True
-
-    if user_currency == balance_currency:
-        return user_balance >= amount
-
-    try:
-        user_rate = await currency_service.get_exchange_rate(user_currency)
-        balance_rate = await currency_service.get_exchange_rate(balance_currency)
-        usd_amount = amount / user_rate if user_rate > 0 else amount
-        amount_in_balance_currency = usd_amount * balance_rate
-        return user_balance >= amount_in_balance_currency
-    except Exception:
-        return user_balance >= amount
+    # All RUB now - simple comparison
+    return user_balance >= amount
 
 
 def _get_user_currency(db_user, user, currency_service) -> str:
-    """Get user's preferred currency (reduces cognitive complexity)."""
-    user_lang = getattr(db_user, "interface_language", None) or (
-        db_user.language_code if db_user and db_user.language_code else user.language_code
-    )
-    preferred_currency = getattr(db_user, "preferred_currency", None)
-    return currency_service.get_user_currency(user_lang, preferred_currency)
+    """Get user's currency.
+    
+    After RUB-only migration, always returns RUB.
+    """
+    return "RUB"
 
 
 async def _load_reviews_for_orders(db, order_ids: list[str]) -> dict[str, set]:
@@ -221,22 +213,18 @@ async def _build_order_dict(
     user_currency: str,
     currency_service,
 ) -> dict:
-    """Build APIOrder dict from order data (reduces cognitive complexity)."""
-    usd_amount = float(row.get("amount", 0))
-    fiat_amount = row.get("fiat_amount")
-    fiat_currency_from_order = row.get("fiat_currency")
-
-    if fiat_amount is not None and fiat_currency_from_order == user_currency:
-        display_amount = float(fiat_amount)
-    else:
-        display_amount = await currency_service.convert_price(usd_amount, user_currency)
+    """Build APIOrder dict from order data.
+    
+    After RUB-only migration, all amounts are in RUB.
+    """
+    amount = float(row.get("amount", 0))
 
     return {
         "id": row["id"],
         "product_id": product_data.get("id") if product_data else None,
         "product_name": product_data.get("name") if product_data else "Multiple items",
-        "amount": usd_amount,
-        "amount_display": display_amount,
+        "amount": amount,
+        "amount_display": amount,  # Same as amount (all RUB)
         "original_price": float(row.get("original_price", 0))
         if row.get("original_price")
         else None,
@@ -252,7 +240,7 @@ async def _build_order_dict(
         "payment_id": row.get("payment_id"),
         "payment_gateway": row.get("payment_gateway"),
         "items": items,
-        "currency": user_currency,
+        "currency": "RUB",
     }
 
 
@@ -546,16 +534,12 @@ async def get_payment_methods(
     if not db_user:
         raise HTTPException(status_code=404, detail=ERROR_USER_NOT_FOUND)
 
-    # Determine user's currency
-    user_lang = getattr(db_user, "interface_language", None) or (
-        db_user.language_code if db_user and db_user.language_code else user.language_code
-    )
-    preferred_currency = getattr(db_user, "preferred_currency", None)
-    user_currency = currency or currency_service.get_user_currency(user_lang, preferred_currency)
+    # After RUB-only migration, all amounts are in RUB
+    user_currency = "RUB"
 
-    # Get user balance
+    # Get user balance (all RUB now)
     user_balance = float(db_user.balance or 0)
-    balance_currency = getattr(db_user, "balance_currency", "USD") or "USD"
+    balance_currency = "RUB"
 
     methods = []
 
@@ -573,9 +557,8 @@ async def get_payment_methods(
     # 2. CrystalPay card payment
     methods.append(_build_card_payment_method(user_currency))
 
-    # 3. SBP (for Russian users)
-    if user_currency == "RUB" or user_lang in ("ru", "ru-RU"):
-        methods.append(_build_sbp_payment_method())
+    # 3. SBP (always available after RUB-only migration)
+    methods.append(_build_sbp_payment_method())
 
     # 4. Crypto
     methods.append(_build_crypto_payment_method(user_currency))

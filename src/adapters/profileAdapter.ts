@@ -6,30 +6,8 @@
 
 import type { APIProfileResponse, APIReferralNode, TelegramUser } from "../types/api";
 import type { BillingLog, CareerLevel, NetworkNode, ProfileData } from "../types/component";
-import type { CurrencyCode } from "../utils/currency";
 
-// Valid currency codes for type validation
-const VALID_CURRENCIES = new Set<CurrencyCode>([
-  "USD",
-  "RUB",
-  "EUR",
-  "UAH",
-  "TRY",
-  "INR",
-  "AED",
-  "GBP",
-]);
-
-/**
- * Validate and normalize currency code from API
- */
-function normalizeCurrency(currency: string | undefined): CurrencyCode {
-  const upperCurrency = (currency || "USD").toUpperCase();
-  if (VALID_CURRENCIES.has(upperCurrency as CurrencyCode)) {
-    return upperCurrency as CurrencyCode;
-  }
-  return "USD"; // Default fallback
-}
+// After RUB-only migration, currency is always RUB (no conversion needed)
 
 // Career levels are built dynamically from API thresholds (referral_settings table)
 // No hardcoded values - thresholds come from referral_program.thresholds_usd
@@ -215,8 +193,7 @@ export function adaptProfile(
     bonus_history,
     withdrawals,
     balance_transactions = [],
-    currency: responseCurrency,
-    exchange_rate: responseExchangeRate,
+    // After RUB-only migration, currency fields are ignored
   } = response;
 
   // Use display thresholds (rounded for RUB: 20000/80000, USD: 250/1000) for UI
@@ -274,13 +251,14 @@ export function adaptProfile(
     id: telegramId
       ? `UID-${telegramId.toString().slice(-6)}`
       : `UID-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-    balance: profile.balance, // Balance in user's balance_currency (RUB for ru users, USD for others)
-    balanceUsd: profile.balance_usd, // ALWAYS use balance_usd (USD base amount)
-    balanceCurrency: profile.balance_currency || profile.currency || "USD", // CRITICAL: Currency of actual balance
-    earnedRef: profile.total_referral_earnings, // Converted to user currency
-    earnedRefUsd: profile.total_referral_earnings_usd, // ALWAYS use _usd suffix (USD base amount)
-    saved: profile.total_saved, // Converted to user currency
-    savedUsd: profile.total_saved_usd, // ALWAYS use _usd suffix (USD base amount)
+    // After RUB-only migration, all amounts are in RUB
+    balance: profile.balance,
+    balanceUsd: profile.balance_usd, // NOTE: Now contains RUB, name kept for compatibility
+    balanceCurrency: "RUB", // Always RUB now
+    earnedRef: profile.total_referral_earnings,
+    earnedRefUsd: profile.total_referral_earnings_usd, // NOTE: Now contains RUB
+    saved: profile.total_saved,
+    savedUsd: profile.total_saved_usd, // NOTE: Now contains RUB
     role: (() => {
       if (profile.is_admin) return "ADMIN";
       if (referral_program.is_partner) return "VIP";
@@ -316,15 +294,8 @@ export function adaptProfile(
           return 100;
         }
 
-        // Get display currency and exchange rate
-        const displayCurrency = normalizeCurrency(responseCurrency || profile.currency || "USD");
-        const exchangeRate = responseExchangeRate || response.exchange_rate || 1;
-
-        // Convert turnover to display currency for progress calculation
-        const turnoverDisplay =
-          displayCurrency === "USD"
-            ? referral_program.turnover_usd
-            : referral_program.turnover_usd * exchangeRate;
+        // All values are now in RUB - no conversion needed
+        const turnoverDisplay = referral_program.turnover_usd; // Actually RUB after migration
 
         // Use anchor threshold in display currency for next level
         // next_threshold_display comes from backend (anchor threshold in display currency)
@@ -367,11 +338,11 @@ export function adaptProfile(
     },
     networkTree: [], // Populated via adaptReferralNetwork call
     billingLogs,
-    currency: normalizeCurrency(responseCurrency || profile.currency), // Currency from root level, fallback to profile
+    currency: "RUB", // Always RUB after migration
     language: profile.interface_language || "en",
     interfaceLanguage: profile.interface_language || undefined,
     photoUrl,
-    exchangeRate: responseExchangeRate || response.exchange_rate || 1, // Exchange rate for frontend conversion
+    exchangeRate: 1, // No conversion needed after RUB-only migration
   };
 }
 

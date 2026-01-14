@@ -34,12 +34,13 @@ profile_router = APIRouter()
 
 
 def calculate_exchange_rate(rate: float, from_currency: str, to_currency: str) -> float:
-    """Format exchange rate for display (e.g., 1 USD = X RUB)."""
-    if from_currency == "USD" and to_currency != "USD":
-        return rate
-    if from_currency != "USD" and to_currency == "USD":
-        return 1 / rate if rate > 0 else 0
-    return rate
+    """Format exchange rate for display.
+    
+    DEPRECATED: After RUB-only migration, always returns 1.0.
+    Kept for backward compatibility.
+    """
+    # All RUB now
+    return 1.0
 
 
 async def _calculate_conversion_rate(
@@ -49,35 +50,22 @@ async def _calculate_conversion_rate(
     new_balance_decimal: float,
     currency_service,
 ) -> float:
-    """Calculate exchange rate for conversion metadata."""
-    if current_currency == "USD" and target_currency == "RUB":
-        if current_balance > 0:
-            return float(new_balance_decimal) / current_balance
-        return await currency_service.get_exchange_rate("RUB")
-
-    if current_currency == "RUB" and target_currency == "USD":
-        if new_balance_decimal > 0:
-            return current_balance / float(new_balance_decimal)
-        return await currency_service.get_exchange_rate("RUB")
-
-    return await currency_service.get_exchange_rate("RUB")
+    """Calculate exchange rate for conversion metadata.
+    
+    DEPRECATED: After RUB-only migration, always returns 1.0.
+    Kept for backward compatibility.
+    """
+    return 1.0
 
 
 async def _convert_balance_to_usd(balance_in_local: float, balance_currency: str, redis) -> float:
-    """Convert balance to USD for calculations."""
-    from core.services.currency import get_currency_service
-
-    currency_service = get_currency_service(redis)
-
-    if balance_currency == "USD":
-        return balance_in_local
-
-    if balance_currency == "RUB":
-        balance_usd_decimal = await currency_service.convert_balance("RUB", "USD", balance_in_local)
-        return float(balance_usd_decimal)
-
-    rate = await currency_service.get_exchange_rate(balance_currency)
-    return balance_in_local / rate if rate > 0 else balance_in_local
+    """Get balance value.
+    
+    DEPRECATED: After RUB-only migration, returns balance as-is (in RUB).
+    The function name mentions USD for backward compatibility.
+    """
+    # All balances are now in RUB
+    return balance_in_local
 
 
 # Cache for referral_settings (TTL 10 minutes)
@@ -482,10 +470,10 @@ async def get_webapp_profile(db_user: User = Depends(get_db_user)):
         getattr(db_user, "partner_discount_percent", 0) or 0
     )
 
-    # Get balance info
+    # Get balance info (all RUB now)
     balance_in_local = float(db_user.balance) if db_user.balance else 0
-    balance_currency = getattr(db_user, "balance_currency", "USD") or "USD"
-    balance_usd = await _convert_balance_to_usd(balance_in_local, balance_currency, redis)
+    balance_currency = "RUB"  # Always RUB after migration
+    balance_usd = balance_in_local  # Same value (RUB)
 
     return _build_profile_response(
         db_user,
@@ -503,18 +491,14 @@ async def get_webapp_profile(db_user: User = Depends(get_db_user)):
 
 @profile_router.put("/profile/preferences")
 async def update_preferences(request: UpdatePreferencesRequest, user=Depends(verify_telegram_auth)):
-    """Update user preferences (currency and interface language)."""
+    """Update user preferences (interface language only).
+    
+    NOTE: Currency preference is ignored after RUB-only migration.
+    """
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
-
-    valid_currencies = ["USD", "RUB", "EUR", "UAH", "TRY", "AED", "INR"]
-    if request.preferred_currency and request.preferred_currency.upper() not in valid_currencies:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid currency. Valid options: {', '.join(valid_currencies)}",
-        )
 
     valid_languages = ["ru", "en", "de", "es", "fr", "tr", "ar", "hi", "uk", "be", "kk"]
     if request.interface_language and request.interface_language.lower() not in valid_languages:
@@ -522,9 +506,10 @@ async def update_preferences(request: UpdatePreferencesRequest, user=Depends(ver
             status_code=400, detail=f"Invalid language. Valid options: {', '.join(valid_languages)}"
         )
 
+    # NOTE: preferred_currency is ignored (all RUB now)
     await db.update_user_preferences(
         user.id,
-        preferred_currency=request.preferred_currency,
+        preferred_currency="RUB",  # Always RUB
         interface_language=request.interface_language,
     )
 
@@ -533,97 +518,24 @@ async def update_preferences(request: UpdatePreferencesRequest, user=Depends(ver
 
 @profile_router.post("/profile/convert-balance")
 async def convert_balance(request: ConvertBalanceRequest, user=Depends(verify_telegram_auth)):
-    """Convert user balance to a different currency."""
-    from core.db import get_redis
-    from core.services.currency import get_currency_service
-
-    req = request
+    """Convert user balance to a different currency.
+    
+    DEPRECATED: After RUB-only migration, this endpoint returns current balance.
+    Currency conversion is no longer supported.
+    """
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
 
     current_balance = float(db_user.balance) if db_user.balance else 0
-    current_currency = getattr(db_user, "balance_currency", "USD") or "USD"
-    target_currency = req.target_currency.upper()
 
-    valid_currencies = ["USD", "RUB"]
-    if target_currency not in valid_currencies:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid target currency. Valid options: {', '.join(valid_currencies)}",
-        )
-
-    if current_currency == target_currency:
-        return {
-            "success": True,
-            "message": "Balance is already in target currency",
-            "balance": current_balance,
-            "currency": current_currency,
-        }
-
-    if current_balance <= 0:
-        raise HTTPException(status_code=400, detail="Cannot convert zero balance")
-
-    redis = get_redis()
-    currency_service = get_currency_service(redis)
-
-    new_balance_decimal = await currency_service.convert_balance(
-        from_currency=current_currency, to_currency=target_currency, amount=current_balance
-    )
-    new_balance = float(new_balance_decimal)
-
-    rate = await _calculate_conversion_rate(
-        current_currency,
-        target_currency,
-        current_balance,
-        float(new_balance_decimal),
-        currency_service,
-    )
-
-    await (
-        db.client.table("users")
-        .update({"balance": new_balance, "balance_currency": target_currency})
-        .eq("telegram_id", user.id)
-        .execute()
-    )
-
-    await (
-        db.client.table("balance_transactions")
-        .insert(
-            {
-                "user_id": db_user.id,
-                "type": "conversion",
-                "amount": 0,
-                "currency": target_currency,
-                "balance_before": current_balance,
-                "balance_after": new_balance,
-                "status": "completed",
-                "description": f"Конвертация {current_balance:.2f} {current_currency} → {new_balance:.2f} {target_currency}",
-                "metadata": {
-                    "from_currency": current_currency,
-                    "to_currency": target_currency,
-                    "exchange_rate": calculate_exchange_rate(
-                        rate, current_currency, target_currency
-                    ),
-                },
-            }
-        )
-        .execute()
-    )
-
-    logger.info(
-        f"User {user.id} converted balance: {current_balance:.2f} {current_currency} → {new_balance:.2f} {target_currency}"
-    )
-
+    # After RUB-only migration, conversion is not supported
     return {
         "success": True,
-        "message": f"Balance converted to {target_currency}",
-        "previous_balance": current_balance,
-        "previous_currency": current_currency,
-        "new_balance": new_balance,
-        "new_currency": target_currency,
-        "exchange_rate": rate if current_currency == "USD" else 1 / rate,
+        "message": "Currency conversion is no longer supported. All amounts are in RUB.",
+        "balance": current_balance,
+        "currency": "RUB",
     }
 
 
