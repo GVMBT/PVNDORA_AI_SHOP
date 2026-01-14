@@ -1,6 +1,6 @@
 """
 Refund Expired Prepaid Items Cron Job
-Schedule: 0 * * * * (every hour)
+Schedule: */5 * * * * (every 5 minutes)
 
 Tasks:
 1. Find prepaid ORDER ITEMS where fulfillment_deadline has passed

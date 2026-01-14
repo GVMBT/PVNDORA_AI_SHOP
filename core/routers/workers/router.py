@@ -220,6 +220,35 @@ async def _process_single_item_delivery(
         logger.debug(f"deliver-goods: skipping preorder item {item.get('id')} (only_instant=True)")
         return None, True  # Waiting
 
+    # CRITICAL: Check if prepaid item has expired fulfillment_deadline
+    # If deadline passed, refund_expired_prepaid cron should have processed it
+    # But to prevent race condition, we skip delivery here as well
+    if status == "prepaid":
+        fulfillment_deadline_raw = item.get("fulfillment_deadline")
+        if fulfillment_deadline_raw:
+            try:
+                # Parse ISO format datetime string from database
+                if isinstance(fulfillment_deadline_raw, str):
+                    fulfillment_deadline = datetime.fromisoformat(
+                        fulfillment_deadline_raw.replace("Z", "+00:00")
+                    )
+                elif isinstance(fulfillment_deadline_raw, datetime):
+                    fulfillment_deadline = fulfillment_deadline_raw
+                else:
+                    fulfillment_deadline = None
+
+                if fulfillment_deadline and fulfillment_deadline < now:
+                    logger.warning(
+                        f"deliver-goods: skipping expired prepaid item {item.get('id')} "
+                        f"(fulfillment_deadline={fulfillment_deadline.isoformat()} < now={now.isoformat()})"
+                    )
+                    return None, False  # Expired, should be refunded
+            except (ValueError, TypeError, AttributeError) as e:
+                logger.warning(
+                    f"deliver-goods: failed to parse fulfillment_deadline for item {item.get('id')}: {e}"
+                )
+                # Continue with delivery if we can't parse deadline
+
     product_id = item.get("product_id")
     prod = products_map.get(product_id, {})
     prod_name = prod.get("name", "Product")
@@ -373,7 +402,7 @@ async def _send_delivery_notification(
     try:
         await notification_service.send_delivery(
             telegram_id=telegram_id,
-            product_name=f"Заказ #{order_id[:8]}",
+            _product_name=f"Заказ #{order_id[:8]}",
             content=content_block,
             order_id=order_id,
         )
