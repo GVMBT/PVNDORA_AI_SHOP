@@ -93,6 +93,12 @@ interface DecryptTextProps {
   revealed: boolean;
 }
 
+// Helper function to mask characters (preserve newlines)
+const maskTextChar = (char: string): string => {
+  if (char === "\n") return "\n";
+  return "•";
+};
+
 // Decrypt animation component
 // Preserves newlines (\n) during animation for multi-line credentials
 const DecryptText: React.FC<DecryptTextProps> = ({ text, revealed }) => {

@@ -10,8 +10,26 @@ from typing import Any
 
 
 def _get_secret() -> str:
-    # Dedicated secret if present, otherwise fall back to TELEGRAM_TOKEN
-    return os.environ.get("WEB_SESSION_SECRET") or os.environ.get("TELEGRAM_TOKEN", "")
+    """
+    Get web session secret.
+    
+    Requires WEB_SESSION_SECRET environment variable for security.
+    Falls back to TELEGRAM_TOKEN only in development (not recommended for production).
+    """
+    secret = os.environ.get("WEB_SESSION_SECRET")
+    if secret:
+        return secret
+    
+    # Fallback only for development (warn in production)
+    fallback = os.environ.get("TELEGRAM_TOKEN", "")
+    if fallback and os.environ.get("ENVIRONMENT") != "development":
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            "WEB_SESSION_SECRET not set! Using TELEGRAM_TOKEN as fallback. "
+            "This is insecure for production. Set WEB_SESSION_SECRET environment variable."
+        )
+    return fallback
 
 
 def _b64url_encode(data: bytes) -> str:

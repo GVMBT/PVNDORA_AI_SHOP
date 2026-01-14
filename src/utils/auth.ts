@@ -13,6 +13,12 @@ import { localStorage } from "./storage";
  * Extract session_token from URL query and persist to localStorage.
  * Used for web login flow when Telegram initData is unavailable.
  *
+ * ⚠️ SECURITY NOTE: Storing session tokens in localStorage makes them vulnerable to XSS attacks.
+ * This is acceptable for web fallback mode, but the primary authentication method for Telegram
+ * Mini Apps uses Telegram's initData (passed via header), which is more secure.
+ *
+ * TODO: Consider migrating to httpOnly cookies for better security in web mode.
+ *
  * @returns Extracted token or null if not found
  *
  * @example
@@ -75,6 +81,9 @@ export async function verifySessionToken(token: string): Promise<SessionVerifica
 /**
  * Get session token from localStorage
  *
+ * ⚠️ SECURITY NOTE: localStorage is accessible to JavaScript, making tokens vulnerable to XSS.
+ * Primary authentication uses Telegram initData (header-based), which is more secure.
+ *
  * @returns Session token string or null if not found
  */
 export function getSessionToken(): string | null {
@@ -83,6 +92,9 @@ export function getSessionToken(): string | null {
 
 /**
  * Save session token to localStorage
+ *
+ * ⚠️ SECURITY NOTE: localStorage is accessible to JavaScript, making tokens vulnerable to XSS.
+ * This is a fallback for web mode. Primary authentication uses Telegram initData.
  *
  * @param token - Session token string to save
  */

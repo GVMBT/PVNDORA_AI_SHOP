@@ -74,6 +74,7 @@ try:
     from core.routers.webhooks import router as webhooks_router
     from core.routers.workers.router import router as workers_router
     from core.services.database import close_database, init_database
+    from core.middleware.security import SecurityHeadersMiddleware
 except ImportError:
     # Use logging instead of print for better error tracking
     logging.basicConfig(level=logging.ERROR)
@@ -193,6 +194,10 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Security Headers Middleware - MUST be first (outermost)
+# Adds CSP, HSTS, X-Frame-Options, and other security headers
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Aikido Zen Middleware - MUST be added after authentication middleware
 # This enables request blocking for security threats
