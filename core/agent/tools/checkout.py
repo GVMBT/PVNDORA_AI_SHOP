@@ -580,7 +580,7 @@ async def checkout_cart(payment_method: str = "card") -> dict:
 
         db_user = user_result.data
         user_id = db_user["id"]
-        balance_currency = db_user.get("balance_currency") or "USD"
+        balance_currency = db_user.get("balance_currency") or "RUB"  # Default RUB after currency migration
         user_balance = to_decimal(db_user.get("balance", 0) or 0)
 
         # Get partner discount (if user was referred by partner with discount mode)
@@ -768,7 +768,8 @@ async def pay_cart_from_balance() -> dict:
 
         # Balance is stored in balance_currency, NOT always USD!
         balance_in_balance_currency = float(user_result.data.get("balance", 0) or 0)
-        balance_currency = user_result.data.get("balance_currency") or "USD"
+        # TODO(tech-debt): Default "RUB" after RUB-only migration
+        balance_currency = user_result.data.get("balance_currency") or "RUB"
         user_currency = ctx.currency  # Display currency for AI agent
 
         try:

@@ -266,7 +266,7 @@ async def _process_balance_payment(
 
     # Get user's balance in their local currency
     user_balance = to_decimal(db_user.balance) if db_user.balance else Decimal("0")
-    balance_currency = getattr(db_user, "balance_currency", "USD") or "USD"
+    balance_currency = getattr(db_user, "balance_currency", "RUB") or "RUB"  # Default RUB after currency migration
 
     # Get order total in user's balance currency
     order_total_usd = to_decimal(total_amount)

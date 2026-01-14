@@ -213,7 +213,8 @@ def determine_target_currency(
 ) -> str:
     """Determine target currency for Anchor Pricing based on payment method and gateway."""
     if payment_method == "balance":
-        return getattr(db_user, "balance_currency", "USD") or "USD"
+        # TODO(tech-debt): Default "RUB" after RUB-only migration
+        return getattr(db_user, "balance_currency", "RUB") or "RUB"
 
     if payment_gateway == "crystalpay":
         try:

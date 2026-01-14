@@ -346,7 +346,8 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
     if not target_item:
         raise HTTPException(status_code=400, detail="Product not found in order items")
 
-    balance_currency = getattr(db_user, "balance_currency", "USD") or "USD"
+    # TODO(tech-debt): Default "RUB" after RUB-only migration
+    balance_currency = getattr(db_user, "balance_currency", "RUB") or "RUB"
     redis = get_redis()
     currency_service = get_currency_service(redis)
 

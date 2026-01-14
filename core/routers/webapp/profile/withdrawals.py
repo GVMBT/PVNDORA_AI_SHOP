@@ -32,7 +32,7 @@ async def preview_withdrawal(request: WithdrawalPreviewRequest, user=Depends(ver
         raise HTTPException(status_code=404, detail="User not found")
 
     balance = float(db_user.balance) if db_user.balance else 0
-    balance_currency = getattr(db_user, "balance_currency", None) or "USD"
+    balance_currency = getattr(db_user, "balance_currency", None) or "RUB"  # Default RUB after currency migration
 
     redis = get_redis()
     currency_service = get_currency_service(redis)
@@ -103,7 +103,7 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
 
     # Get user's balance and balance_currency
     balance = float(db_user.balance) if db_user.balance else 0
-    balance_currency = getattr(db_user, "balance_currency", None) or "USD"
+    balance_currency = getattr(db_user, "balance_currency", None) or "RUB"  # Default RUB after currency migration
 
     # Get currency service for USDT calculation
     redis = get_redis()

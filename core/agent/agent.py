@@ -169,7 +169,8 @@ class ShopAgent:
             if result.data:
                 # Use balance_currency as primary source (actual currency of user's balance)
                 # This ensures AI uses the currency that matches user's actual balance
-                balance_currency_db = result.data.get("balance_currency") or "USD"
+                # TODO(tech-debt): Default "RUB" after RUB-only migration
+                balance_currency_db = result.data.get("balance_currency") or "RUB"
                 preferred_currency = result.data.get("preferred_currency")
                 db_language = result.data.get("language_code") or language
 

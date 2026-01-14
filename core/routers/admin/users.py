@@ -245,7 +245,7 @@ async def admin_get_users(limit: int = 50, offset: int = 0, admin=Depends(verify
                     "username": u.get("username") or u.get("first_name") or "Unknown",
                     "role": role,
                     "balance": to_float(u.get("balance", 0)),
-                    "balance_currency": u.get("balance_currency") or "USD",
+                    "balance_currency": u.get("balance_currency") or "RUB",  # TODO: default RUB after migration
                     "total_spent": total_spent,
                     "orders_count": orders_count,
                     "is_banned": u.get("is_banned", False),
@@ -358,7 +358,8 @@ async def admin_update_user_balance(
             raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
         current_balance = float(user_result.data.get("balance", 0))
-        balance_currency = user_result.data.get("balance_currency") or "USD"
+        # TODO(tech-debt): Default "RUB" after RUB-only migration
+        balance_currency = user_result.data.get("balance_currency") or "RUB"
         new_balance = current_balance + request.amount
 
         # Use RPC function to update balance and log transaction atomically

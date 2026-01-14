@@ -103,7 +103,8 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
     payment_currency = currency
 
     # Get user's balance_currency (currency of their actual balance)
-    balance_currency = getattr(db_user, "balance_currency", "USD") or "USD"
+    # TODO(tech-debt): Default "RUB" after RUB-only migration
+    balance_currency = getattr(db_user, "balance_currency", "RUB") or "RUB"
     current_balance = float(db_user.balance) if db_user.balance else 0
 
     # Convert payment amount to user's balance_currency if needed
