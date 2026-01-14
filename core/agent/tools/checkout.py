@@ -42,7 +42,9 @@ async def _get_partner_discount(db: Any, db_user: dict) -> int:
             if referrer.get("partner_mode") == "discount":
                 discount = int(referrer.get("partner_discount_percent") or 0)
                 if discount > 0:
-                    logger.info(f"Partner discount applied: {discount}% from referrer {referrer_id}")
+                    logger.info(
+                        f"Partner discount applied: {discount}% from referrer {referrer_id}"
+                    )
                     return discount
         return 0
     except Exception as e:

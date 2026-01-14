@@ -101,10 +101,14 @@ async def _update_order_expenses(db, order_id: str, cashback_usd: float) -> None
             .eq("order_id", order_id)
             .execute()
         )
-        logger.info(f"Updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD")
+        logger.info(
+            f"Updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD"
+        )
     else:
         # Create order_expenses first
-        logger.warning(f"order_expenses not found for {order_id}, calling calculate_order_expenses first")
+        logger.warning(
+            f"order_expenses not found for {order_id}, calling calculate_order_expenses first"
+        )
         await db.client.rpc("calculate_order_expenses", {"p_order_id": order_id}).execute()
         await (
             db.client.table("order_expenses")
@@ -112,7 +116,9 @@ async def _update_order_expenses(db, order_id: str, cashback_usd: float) -> None
             .eq("order_id", order_id)
             .execute()
         )
-        logger.info(f"Created and updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD")
+        logger.info(
+            f"Created and updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD"
+        )
 
 
 async def _convert_to_usd(amount: float, currency: str) -> float:
@@ -167,29 +173,35 @@ async def _get_user_and_order_for_cashback(db, order_id: str, user_telegram_id: 
     return await _get_user_from_order(db, order_id)
 
 
-async def _process_cashback_update(db, db_user, order_id: str, cashback_amount: float, balance_currency: str) -> float:
+async def _process_cashback_update(
+    db, db_user, order_id: str, cashback_amount: float, balance_currency: str
+) -> float:
     """Update user balance and create transaction for cashback."""
     new_balance = to_float(db_user.balance or 0) + cashback_amount
     await db.client.table("users").update({"balance": new_balance}).eq("id", db_user.id).execute()
 
     await (
         db.client.table("balance_transactions")
-        .insert({
-            "user_id": db_user.id,
-            "type": "cashback",
-            "amount": cashback_amount,
-            "currency": balance_currency,
-            "status": "completed",
-            "description": "5% кэшбек за отзыв",
-            "reference_id": order_id,
-        })
+        .insert(
+            {
+                "user_id": db_user.id,
+                "type": "cashback",
+                "amount": cashback_amount,
+                "currency": balance_currency,
+                "status": "completed",
+                "description": "5% кэшбек за отзыв",
+                "reference_id": order_id,
+            }
+        )
         .execute()
     )
 
     return new_balance
 
 
-async def _send_cashback_notification_safe(db_user, cashback_amount: float, new_balance: float, balance_currency: str) -> None:
+async def _send_cashback_notification_safe(
+    db_user, cashback_amount: float, new_balance: float, balance_currency: str
+) -> None:
     """Send cashback notification (safe, logs errors)."""
     try:
         notification_service = get_notification_service()
@@ -229,7 +241,9 @@ async def worker_process_refund(request: Request):
     # Get order with fiat amount
     order = (
         await db.client.table("orders")
-        .select("id, amount, fiat_amount, fiat_currency, user_id, user_telegram_id, status, products(name)")
+        .select(
+            "id, amount, fiat_amount, fiat_currency, user_id, user_telegram_id, status, products(name)"
+        )
         .eq("id", order_id)
         .single()
         .execute()
@@ -252,7 +266,9 @@ async def worker_process_refund(request: Request):
         .single()
         .execute()
     )
-    balance_currency = user_result.data.get("balance_currency", "USD") if user_result.data else "USD"
+    balance_currency = (
+        user_result.data.get("balance_currency", "USD") if user_result.data else "USD"
+    )
 
     # Calculate refund amount
     refund_amount = await _get_refund_amount(order.data, amount_usd, balance_currency)
@@ -260,19 +276,34 @@ async def worker_process_refund(request: Request):
     # 1. Rollback turnover and revoke referral bonuses
     rollback_result = await db.client.rpc(
         "rollback_user_turnover",
-        {"p_user_id": user_id, "p_amount_rub": amount_usd * usd_rate, "p_usd_rate": usd_rate, "p_order_id": order_id},
+        {
+            "p_user_id": user_id,
+            "p_amount_rub": amount_usd * usd_rate,
+            "p_usd_rate": usd_rate,
+            "p_order_id": order_id,
+        },
     ).execute()
 
     # 2. Refund to user balance
     await db.client.rpc(
         "add_to_user_balance",
-        {"p_user_id": user_id, "p_amount": refund_amount, "p_reason": f"Refund for order {order_id}: {reason}"},
+        {
+            "p_user_id": user_id,
+            "p_amount": refund_amount,
+            "p_reason": f"Refund for order {order_id}: {reason}",
+        },
     ).execute()
 
     # 3. Update order status
     await (
         db.client.table("orders")
-        .update({"status": "refunded", "refund_reason": reason, "refund_processed_at": datetime.now(UTC).isoformat()})
+        .update(
+            {
+                "status": "refunded",
+                "refund_reason": reason,
+                "refund_processed_at": datetime.now(UTC).isoformat(),
+            }
+        )
         .eq("id", order_id)
         .execute()
     )
@@ -338,10 +369,14 @@ async def worker_process_review_cashback(request: Request):
     cashback_amount = _round_for_currency(cashback_base * 0.05, balance_currency)
 
     # Update user balance and create transaction
-    new_balance = await _process_cashback_update(db, db_user, order_id, cashback_amount, balance_currency)
+    new_balance = await _process_cashback_update(
+        db, db_user, order_id, cashback_amount, balance_currency
+    )
 
     # Mark review as processed
-    await db.client.table("reviews").update({"cashback_given": True}).eq("id", review["id"]).execute()
+    await (
+        db.client.table("reviews").update({"cashback_given": True}).eq("id", review["id"]).execute()
+    )
 
     # Update order_expenses
     try:
@@ -353,6 +388,8 @@ async def worker_process_review_cashback(request: Request):
     # Send notification
     await _send_cashback_notification_safe(db_user, cashback_amount, new_balance, balance_currency)
 
-    logger.info(f"Cashback processed: user={db_user.telegram_id}, amount={cashback_amount} {balance_currency}")
+    logger.info(
+        f"Cashback processed: user={db_user.telegram_id}, amount={cashback_amount} {balance_currency}"
+    )
 
     return {"success": True, "cashback": cashback_amount, "new_balance": new_balance}

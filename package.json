@@ -16,7 +16,10 @@
         "preview": "vite preview",
         "check:all": "biome check . && npm run typecheck",
         "sonar": "sonar-scanner",
-        "sonar:check": "python scripts/run_sonarqube.py"
+        "sonar:check": "python scripts/run_sonarqube.py",
+        "quality:check": "python scripts/check_quality.py",
+        "quality:fix": "python scripts/fix_auto_fixable.py",
+        "quality:all": "npm run quality:fix && npm run quality:check"
     },
     "dependencies": {
         "@radix-ui/react-slot": "^1.2.4",

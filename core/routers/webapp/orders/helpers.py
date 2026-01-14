@@ -328,7 +328,9 @@ async def validate_and_prepare_cart_items(
         product_price_fiat = to_decimal(anchor_price)
 
         cart_promo_discount = (
-            cart.promo_discount_percent if cart.promo_code and cart.promo_discount_percent > 0 else 0
+            cart.promo_discount_percent
+            if cart.promo_code and cart.promo_discount_percent > 0
+            else 0
         )
         discount_percent = _calculate_discount_percent(
             item.discount_percent, cart_promo_discount, partner_discount
@@ -475,9 +477,7 @@ def calculate_discount_percent(total_amount: Decimal, total_original: Decimal) -
         return 0
 
     discount_ratio = subtract(Decimal("1"), divide(total_amount, total_original))
-    return max(
-        0, min(100, int(round_money(multiply(discount_ratio, Decimal("100")), to_int=True)))
-    )
+    return max(0, min(100, int(round_money(multiply(discount_ratio, Decimal("100")), to_int=True))))
 
 
 async def create_order_with_items(
@@ -596,7 +596,9 @@ async def process_external_payment(
         )
 
 
-async def save_payment_info(db, order_id: str, payment_url: str | None, invoice_id: str | None) -> None:
+async def save_payment_info(
+    db, order_id: str, payment_url: str | None, invoice_id: str | None
+) -> None:
     """Save payment URL and invoice ID to order."""
     try:
         update_payload = {"payment_url": payment_url}

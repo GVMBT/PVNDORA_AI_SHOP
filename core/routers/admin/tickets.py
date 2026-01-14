@@ -144,7 +144,11 @@ async def _update_ticket_status(db, ticket_id: str, new_status: str, comment: st
 
 
 async def _handle_rejected_ticket(
-    notification_service, ticket_id: str, user_telegram_id: int | None, user_language: str, comment: str | None
+    notification_service,
+    ticket_id: str,
+    user_telegram_id: int | None,
+    user_language: str,
+    comment: str | None,
 ) -> None:
     """Handle rejected ticket notification."""
     if not user_telegram_id:

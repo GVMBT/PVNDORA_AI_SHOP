@@ -45,10 +45,14 @@ async def _download_media_from_admin_bot(media_file_id: str, broadcast_id: str) 
         async with httpx.AsyncClient() as client:
             response = await client.get(file_url)
             if response.status_code == 200:
-                logger.info(f"Broadcast {broadcast_id}: Downloaded media file, size={len(response.content)} bytes")
+                logger.info(
+                    f"Broadcast {broadcast_id}: Downloaded media file, size={len(response.content)} bytes"
+                )
                 await admin_bot.session.close()
                 return response.content
-            logger.error(f"Broadcast {broadcast_id}: Failed to download media, status={response.status_code}")
+            logger.error(
+                f"Broadcast {broadcast_id}: Failed to download media, status={response.status_code}"
+            )
 
         await admin_bot.session.close()
     except Exception:
@@ -59,7 +63,9 @@ async def _download_media_from_admin_bot(media_file_id: str, broadcast_id: str) 
 
 def _get_localized_message(content: dict, lang: str) -> dict:
     """Get localized message content with fallbacks."""
-    return content.get(lang) or content.get("en") or (next(iter(content.values())) if content else {})
+    return (
+        content.get(lang) or content.get("en") or (next(iter(content.values())) if content else {})
+    )
 
 
 def _build_keyboard_rows(buttons: list, lang: str) -> list[list[InlineKeyboardButton]]:
@@ -67,12 +73,18 @@ def _build_keyboard_rows(buttons: list, lang: str) -> list[list[InlineKeyboardBu
     rows = []
     for btn in buttons:
         text_dict = btn.get("text", {})
-        btn_text = text_dict.get(lang) or text_dict.get("en") or (next(iter(text_dict.values())) if text_dict else "Button")
+        btn_text = (
+            text_dict.get(lang)
+            or text_dict.get("en")
+            or (next(iter(text_dict.values())) if text_dict else "Button")
+        )
 
         if "url" in btn:
             rows.append([InlineKeyboardButton(text=btn_text, url=btn["url"])])
         elif "web_app" in btn:
-            rows.append([InlineKeyboardButton(text=btn_text, web_app=WebAppInfo(url=btn["web_app"]["url"]))])
+            rows.append(
+                [InlineKeyboardButton(text=btn_text, web_app=WebAppInfo(url=btn["web_app"]["url"]))]
+            )
         elif "callback_data" in btn:
             rows.append([InlineKeyboardButton(text=btn_text, callback_data=btn["callback_data"])])
 
@@ -80,8 +92,14 @@ def _build_keyboard_rows(buttons: list, lang: str) -> list[list[InlineKeyboardBu
 
 
 async def _send_media_message(
-    bot: Bot, telegram_id: int, media_bytes: bytes | None, media_file_id: str | None,
-    media_type: str | None, text: str, parse_mode_str: str, keyboard: InlineKeyboardMarkup | None
+    bot: Bot,
+    telegram_id: int,
+    media_bytes: bytes | None,
+    media_file_id: str | None,
+    media_type: str | None,
+    text: str,
+    parse_mode_str: str,
+    keyboard: InlineKeyboardMarkup | None,
 ) -> bool:
     """Send message with media (photo, video, animation) or text. Returns True on success, False if nothing to send."""
     # Photo with bytes
@@ -89,7 +107,9 @@ async def _send_media_message(
         await bot.send_photo(
             chat_id=telegram_id,
             photo=BufferedInputFile(media_bytes, filename="broadcast.jpg"),
-            caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
+            caption=text,
+            parse_mode=parse_mode_str,
+            reply_markup=keyboard,
         )
         return True
 
@@ -98,7 +118,9 @@ async def _send_media_message(
         await bot.send_video(
             chat_id=telegram_id,
             video=BufferedInputFile(media_bytes, filename="broadcast.mp4"),
-            caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
+            caption=text,
+            parse_mode=parse_mode_str,
+            reply_markup=keyboard,
         )
         return True
 
@@ -107,40 +129,54 @@ async def _send_media_message(
         await bot.send_animation(
             chat_id=telegram_id,
             animation=BufferedInputFile(media_bytes, filename="broadcast.gif"),
-            caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
+            caption=text,
+            parse_mode=parse_mode_str,
+            reply_markup=keyboard,
         )
         return True
 
     # Fallback to file_id (may fail if from different bot)
     if media_file_id and media_type == "photo":
         await bot.send_photo(
-            chat_id=telegram_id, photo=media_file_id,
-            caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
+            chat_id=telegram_id,
+            photo=media_file_id,
+            caption=text,
+            parse_mode=parse_mode_str,
+            reply_markup=keyboard,
         )
         return True
 
     if media_file_id and media_type == "video":
         await bot.send_video(
-            chat_id=telegram_id, video=media_file_id,
-            caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
+            chat_id=telegram_id,
+            video=media_file_id,
+            caption=text,
+            parse_mode=parse_mode_str,
+            reply_markup=keyboard,
         )
         return True
 
     if media_file_id and media_type == "animation":
         await bot.send_animation(
-            chat_id=telegram_id, animation=media_file_id,
-            caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
+            chat_id=telegram_id,
+            animation=media_file_id,
+            caption=text,
+            parse_mode=parse_mode_str,
+            reply_markup=keyboard,
         )
         return True
 
     # Text-only message - only send if we have text content
     if text:
         from core.services.telegram_messaging import send_telegram_message_with_keyboard
+
         token = os.environ.get("TELEGRAM_TOKEN", "")
         await send_telegram_message_with_keyboard(
-            chat_id=telegram_id, text=text,
+            chat_id=telegram_id,
+            text=text,
             keyboard=keyboard if keyboard else None,
-            parse_mode=parse_mode_str, bot_token=token,
+            parse_mode=parse_mode_str,
+            bot_token=token,
         )
         return True
 
@@ -148,7 +184,9 @@ async def _send_media_message(
     return False
 
 
-async def _handle_send_failure(db, user_id: str, telegram_id: int, broadcast_id: str, error_msg: str) -> None:
+async def _handle_send_failure(
+    db, user_id: str, telegram_id: int, broadcast_id: str, error_msg: str
+) -> None:
     """Handle message send failure - update user and recipient status."""
     blocked_phrases = [
         "bot was blocked by the user",
@@ -177,8 +215,14 @@ async def _handle_send_failure(db, user_id: str, telegram_id: int, broadcast_id:
 
 
 async def _send_to_user(
-    db, bot: Bot, user_id: str, broadcast: dict, content: dict, buttons: list,
-    media_bytes: bytes | None, broadcast_id: str
+    db,
+    bot: Bot,
+    user_id: str,
+    broadcast: dict,
+    content: dict,
+    buttons: list,
+    media_bytes: bytes | None,
+    broadcast_id: str,
 ) -> bool:
     """Send broadcast message to a single user. Returns True if sent successfully."""
     media_file_id = broadcast.get("media_file_id")
@@ -218,8 +262,7 @@ async def _send_to_user(
 
     try:
         await _send_media_message(
-            bot, telegram_id, media_bytes, media_file_id, media_type,
-            text, parse_mode_str, keyboard
+            bot, telegram_id, media_bytes, media_file_id, media_type, text, parse_mode_str, keyboard
         )
 
         # Update recipient status
@@ -246,7 +289,9 @@ async def _send_to_user(
         return False
 
 
-async def _check_broadcast_complete(db, broadcast_id: str, broadcast: dict, sent: int, failed: int) -> None:
+async def _check_broadcast_complete(
+    db, broadcast_id: str, broadcast: dict, sent: int, failed: int
+) -> None:
     """Check if broadcast is complete and update status."""
     # Update broadcast stats
     new_sent_count = broadcast.get("sent_count", 0) + sent
@@ -298,7 +343,9 @@ async def _check_broadcast_complete(db, broadcast_id: str, broadcast: dict, sent
             .eq("id", broadcast_id)
             .execute()
         )
-        logger.info(f"Broadcast {broadcast_id} completed: {total_sent_in_db} sent, {total_failed_in_db} failed")
+        logger.info(
+            f"Broadcast {broadcast_id} completed: {total_sent_in_db} sent, {total_failed_in_db} failed"
+        )
 
 
 # =============================================================================
@@ -329,7 +376,9 @@ async def worker_send_broadcast(request: Request):
     user_ids = data.get("user_ids", [])
     target_bot = data.get("target_bot", "pvndora")
 
-    logger.info(f"Broadcast worker: broadcast_id={broadcast_id}, user_ids_count={len(user_ids)}, target_bot={target_bot}")
+    logger.info(
+        f"Broadcast worker: broadcast_id={broadcast_id}, user_ids_count={len(user_ids)}, target_bot={target_bot}"
+    )
 
     if not broadcast_id or not user_ids:
         logger.error("Broadcast worker: missing required fields")
@@ -360,7 +409,11 @@ async def worker_send_broadcast(request: Request):
     media_type = broadcast.get("media_type")
 
     # Get appropriate bot token
-    token = os.environ.get("DISCOUNT_BOT_TOKEN", "") if target_bot == "discount" else os.environ.get("TELEGRAM_TOKEN", "")
+    token = (
+        os.environ.get("DISCOUNT_BOT_TOKEN", "")
+        if target_bot == "discount"
+        else os.environ.get("TELEGRAM_TOKEN", "")
+    )
     if not token:
         return {"error": f"Bot token not configured for {target_bot}"}
 

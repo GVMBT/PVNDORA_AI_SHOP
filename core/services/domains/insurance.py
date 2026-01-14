@@ -541,7 +541,7 @@ class InsuranceService:
             # Count replacements for this user via order_items -> orders
             result = await self.client.rpc(
                 "count_user_monthly_replacements",
-                {"p_user_id": user_id, "p_since": thirty_days_ago}
+                {"p_user_id": user_id, "p_since": thirty_days_ago},
             ).execute()
 
             return result.data if result.data else 0

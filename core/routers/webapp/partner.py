@@ -93,15 +93,17 @@ async def _get_referrals_with_purchases(db, referrer_id: str) -> list[dict]:
             orders = orders_result.data or []
             total_spent = sum(to_float(o.get("amount", 0)) for o in orders)
 
-            referrals.append({
-                "telegram_id": ref.get("telegram_id"),
-                "username": ref.get("username"),
-                "first_name": ref.get("first_name"),
-                "joined_at": ref.get("created_at"),
-                "orders_count": len(orders),
-                "total_spent": total_spent,
-                "is_paying": len(orders) > 0,
-            })
+            referrals.append(
+                {
+                    "telegram_id": ref.get("telegram_id"),
+                    "username": ref.get("username"),
+                    "first_name": ref.get("first_name"),
+                    "joined_at": ref.get("created_at"),
+                    "orders_count": len(orders),
+                    "total_spent": total_spent,
+                    "is_paying": len(orders) > 0,
+                }
+            )
         return referrals
     except Exception as e:
         logger.warning("Failed to query referrals: %s", e)
@@ -112,10 +114,7 @@ async def _get_partner_analytics(db, user_id: str) -> dict:
     """Get partner analytics from view."""
     try:
         analytics_result = (
-            await db.client.table("partner_analytics")
-            .select("*")
-            .eq("user_id", user_id)
-            .execute()
+            await db.client.table("partner_analytics").select("*").eq("user_id", user_id).execute()
         )
         return analytics_result.data[0] if analytics_result.data else {}
     except Exception as e:
@@ -166,9 +165,7 @@ async def _get_top_products(db, user_id: str) -> list:
         return []
 
 
-def _build_dashboard_summary(
-    db_user, referrals: list, analytics: dict
-) -> dict:
+def _build_dashboard_summary(db_user, referrals: list, analytics: dict) -> dict:
     """Build summary section for partner dashboard."""
     total_referrals = len(referrals)
     paying_referrals = sum(1 for r in referrals if r.get("is_paying"))
@@ -258,7 +255,9 @@ async def set_partner_mode(request: PartnerModeRequest, user=Depends(verify_tele
             "success": True,
             "mode": request.mode,
             "discount_percent": discount_percent,
-            "message": "Режим скидок активирован" if request.mode == "discount" else "Режим комиссий активирован",
+            "message": "Режим скидок активирован"
+            if request.mode == "discount"
+            else "Режим комиссий активирован",
         }
     except HTTPException:
         raise
@@ -302,19 +301,21 @@ async def submit_partner_application(
     # Insert application
     result = (
         await db.client.table("partner_applications")
-        .insert({
-            "user_id": str(db_user.id),
-            "telegram_id": user.id,
-            "username": getattr(user, "username", None),
-            "email": request.email,
-            "phone": request.phone,
-            "source": request.source,
-            "audience_size": request.audience_size,
-            "description": request.description,
-            "expected_volume": request.expected_volume,
-            "social_links": request.social_links or {},
-            "status": "pending",
-        })
+        .insert(
+            {
+                "user_id": str(db_user.id),
+                "telegram_id": user.id,
+                "username": getattr(user, "username", None),
+                "email": request.email,
+                "phone": request.phone,
+                "source": request.source,
+                "audience_size": request.audience_size,
+                "description": request.description,
+                "expected_volume": request.expected_volume,
+                "social_links": request.social_links or {},
+                "status": "pending",
+            }
+        )
         .execute()
     )
 

@@ -350,9 +350,7 @@ async def _process_confirmed_payment(order_id: str, payment_id: str, db) -> dict
 
 
 # Helper to verify crystalpay payment (reduces cognitive complexity)
-async def _verify_crystalpay_payment(
-    payment_id: str, order_id: str, order_status: str, db
-) -> dict:
+async def _verify_crystalpay_payment(payment_id: str, order_id: str, order_status: str, db) -> dict:
     """Verify payment via CrystalPay gateway (reduces cognitive complexity)."""
     from core.routers.deps import get_payment_service
 
@@ -361,7 +359,9 @@ async def _verify_crystalpay_payment(
         invoice_info = await payment_service.get_invoice_info(payment_id)
         if invoice_info:
             gateway_status = invoice_info.get("state", "")
-            return await _handle_gateway_status(gateway_status, order_id, order_status, payment_id, db)
+            return await _handle_gateway_status(
+                gateway_status, order_id, order_status, payment_id, db
+            )
     except Exception as e:
         error_type = type(e).__name__
         logger.warning(
@@ -498,7 +498,9 @@ async def get_webapp_orders(
 
     for row in result.data:
         try:
-            order_dict = await _process_order_row(row, reviews_by_order, user_currency, currency_service)
+            order_dict = await _process_order_row(
+                row, reviews_by_order, user_currency, currency_service
+            )
             if order_dict:
                 orders.append(order_dict)
         except Exception as e:

@@ -199,7 +199,9 @@ async def send_telegram_message(
     if parse_mode:
         payload["parse_mode"] = parse_mode
 
-    return await _send_with_retry(url, payload, retries, request_timeout=timeout_seconds, chat_id=chat_id)
+    return await _send_with_retry(
+        url, payload, retries, request_timeout=timeout_seconds, chat_id=chat_id
+    )
 
 
 async def send_telegram_message_with_keyboard(

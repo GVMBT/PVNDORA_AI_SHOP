@@ -131,11 +131,13 @@ async def _allocate_stock_item(db, product_id: str, now: datetime) -> tuple[str 
     try:
         update_result = (
             await db.client.table("stock_items")
-            .update({
-                "status": "sold",
-                "reserved_at": now.isoformat(),
-                "sold_at": now.isoformat(),
-            })
+            .update(
+                {
+                    "status": "sold",
+                    "reserved_at": now.isoformat(),
+                    "sold_at": now.isoformat(),
+                }
+            )
             .eq("id", stock_id)
             .eq("status", "available")
             .execute()
@@ -284,8 +286,15 @@ async def _update_user_total_saved(db, order_data: dict, order_id: str) -> None:
         current_saved = to_float(user_check.data.get("total_saved") or 0) if user_check.data else 0
         new_saved = current_saved + saved_amount
 
-        await db.client.table("users").update({"total_saved": new_saved}).eq("id", user_id).execute()
-        await db.client.table("orders").update({"saved_calculated": True}).eq("id", order_id).execute()
+        await (
+            db.client.table("users").update({"total_saved": new_saved}).eq("id", user_id).execute()
+        )
+        await (
+            db.client.table("orders")
+            .update({"saved_calculated": True})
+            .eq("id", order_id)
+            .execute()
+        )
 
         logger.info(
             f"deliver-goods: Updated total_saved for user {user_id}: {current_saved:.2f} -> {new_saved:.2f}"
@@ -322,8 +331,13 @@ async def _fetch_delivered_items_content(db, order_id: str) -> list[str]:
 
 
 async def _send_delivery_notification(
-    notification_service, order_data: dict, order_id: str, delivered_lines: list[str],
-    waiting_count: int, new_status: str | None, db
+    notification_service,
+    order_data: dict,
+    order_id: str,
+    delivered_lines: list[str],
+    waiting_count: int,
+    new_status: str | None,
+    db,
 ) -> None:
     """Send delivery notification to user."""
     telegram_id = order_data.get("user_telegram_id")
@@ -384,10 +398,20 @@ def _get_validation_error_response(error_note: str | None) -> dict | None:
     if error_note == "discount_channel":
         return {"delivered": 0, "waiting": 0, "note": "discount_channel", "skipped": True}
     if error_note == "payment_not_confirmed":
-        return {"delivered": 0, "waiting": 0, "note": "payment_not_confirmed", "error": "Order payment not confirmed yet"}
+        return {
+            "delivered": 0,
+            "waiting": 0,
+            "note": "payment_not_confirmed",
+            "error": "Order payment not confirmed yet",
+        }
     if error_note and error_note.startswith("invalid_status:"):
         status = error_note.split(":")[1]
-        return {"delivered": 0, "waiting": 0, "note": "invalid_status", "error": f"Order status '{status}' is not valid for delivery"}
+        return {
+            "delivered": 0,
+            "waiting": 0,
+            "note": "invalid_status",
+            "error": f"Order status '{status}' is not valid for delivery",
+        }
     return None
 
 
@@ -452,7 +476,12 @@ async def _update_order_delivery_status(
             current_status=order_status,
         )
         if new_status == "delivered":
-            await db.client.table("orders").update({"delivered_at": now.isoformat()}).eq("id", order_id).execute()
+            await (
+                db.client.table("orders")
+                .update({"delivered_at": now.isoformat()})
+                .eq("id", order_id)
+                .execute()
+            )
         return new_status
     except Exception as e:
         logger.exception(
@@ -474,7 +503,11 @@ async def _deliver_items_for_order(
     CRITICAL: This function should ONLY be called AFTER payment is confirmed via webhook.
     Orders with status 'pending' should NOT be processed - payment is not confirmed yet.
     """
-    logger.debug("deliver-goods: starting for order %s, only_instant=%s", sanitize_id_for_logging(order_id), only_instant)
+    logger.debug(
+        "deliver-goods: starting for order %s, only_instant=%s",
+        sanitize_id_for_logging(order_id),
+        only_instant,
+    )
 
     # Validate order
     order_data, error_note = await _validate_order_for_delivery(db, order_id)
@@ -488,7 +521,11 @@ async def _deliver_items_for_order(
 
     # Get order items
     items = await db.get_order_items_by_order(order_id)
-    logger.debug("deliver-goods: found %d items for order %s", len(items) if items else 0, sanitize_id_for_logging(order_id))
+    logger.debug(
+        "deliver-goods: found %d items for order %s",
+        len(items) if items else 0,
+        sanitize_id_for_logging(order_id),
+    )
 
     if not items:
         return {"delivered": 0, "waiting": 0, "note": "no_items"}
@@ -498,13 +535,18 @@ async def _deliver_items_for_order(
     products_map = await _load_products_map(db, product_ids, order_id)
 
     # Process each item
-    delivered_lines, delivered_count, waiting_count, total_delivered = await _process_items_for_delivery(
-        db, items, products_map, now, only_instant
-    )
+    (
+        delivered_lines,
+        delivered_count,
+        waiting_count,
+        total_delivered,
+    ) = await _process_items_for_delivery(db, items, products_map, now, only_instant)
 
     # Update order status
     total_delivered_final = total_delivered + delivered_count
-    logger.debug(f"deliver-goods: order {order_id} status calc: total_delivered={total_delivered_final}")
+    logger.debug(
+        f"deliver-goods: order {order_id} status calc: total_delivered={total_delivered_final}"
+    )
 
     new_status = await _update_order_delivery_status(
         db, order_id, total_delivered_final, waiting_count, order_status, now
@@ -516,8 +558,13 @@ async def _deliver_items_for_order(
     # Send notification
     if order_data:
         await _send_delivery_notification(
-            notification_service, order_data, order_id, delivered_lines,
-            waiting_count, new_status, db
+            notification_service,
+            order_data,
+            order_id,
+            delivered_lines,
+            waiting_count,
+            new_status,
+            db,
         )
 
     return {"delivered": delivered_count, "waiting": waiting_count}

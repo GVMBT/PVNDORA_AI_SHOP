@@ -176,8 +176,12 @@ async def _build_default_referral_program(
 
 
 def _calculate_effective_level(
-    is_partner: bool, partner_override: int | None, unlocked: bool,
-    turnover_usd: float, threshold2: float, threshold3: float
+    is_partner: bool,
+    partner_override: int | None,
+    unlocked: bool,
+    turnover_usd: float,
+    threshold2: float,
+    threshold3: float,
 ) -> int:
     """Calculate effective referral level."""
     if is_partner and partner_override is not None:
@@ -235,8 +239,7 @@ def _build_referral_stats(s: dict) -> dict:
 
 
 def _calculate_next_threshold_display(
-    next_threshold: float | None, threshold2: float, threshold3: float,
-    thresholds_display: dict
+    next_threshold: float | None, threshold2: float, threshold3: float, thresholds_display: dict
 ) -> float | None:
     """Calculate next threshold in display currency."""
     if not next_threshold:
@@ -278,8 +281,8 @@ async def _build_referral_data(
     level3_unlocked = effective_level >= 3
 
     # Calculate amounts to levels
-    amount_to_level2, amount_to_level3, next_threshold, amount_to_next = _calculate_amounts_to_levels(
-        effective_level, turnover_usd, threshold2, threshold3
+    amount_to_level2, amount_to_level3, next_threshold, amount_to_next = (
+        _calculate_amounts_to_levels(effective_level, turnover_usd, threshold2, threshold3)
     )
 
     referral_program = {

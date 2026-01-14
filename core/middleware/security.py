@@ -18,7 +18,7 @@ from starlette.responses import Response
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """
     Middleware to add security headers to all responses.
-    
+
     Implements security headers recommended by OWASP and security scanners:
     - CSP: Prevents XSS attacks
     - HSTS: Forces HTTPS connections
@@ -52,7 +52,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         # HTTP Strict Transport Security (HSTS)
         # Max-age: 31536000 = 1 year in seconds
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains; preload"
+        )
 
         # X-Frame-Options (legacy, CSP frame-ancestors takes precedence)
         response.headers["X-Frame-Options"] = "DENY"

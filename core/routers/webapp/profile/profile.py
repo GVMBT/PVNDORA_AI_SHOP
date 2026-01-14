@@ -108,6 +108,7 @@ async def _get_referral_settings_cached(db):
             cached = await redis.get(cache_key)
             if cached:
                 import json
+
                 return json.loads(cached)
         except Exception:
             pass
@@ -133,6 +134,7 @@ async def _get_referral_settings_cached(db):
     if redis:
         try:
             import json
+
             await redis.set(cache_key, json.dumps(settings), ex=_referral_settings_cache_ttl)
         except Exception:
             pass
@@ -145,12 +147,18 @@ async def _get_referral_settings_cached(db):
 
 async def _fetch_profile_data(db, db_user):
     """Fetch all profile-related data in parallel."""
+
     async def fetch_settings():
         return await _get_referral_settings_cached(db)
 
     async def fetch_extended_stats():
         try:
-            result = await db.client.table("referral_stats_extended").select("*").eq("user_id", db_user.id).execute()
+            result = (
+                await db.client.table("referral_stats_extended")
+                .select("*")
+                .eq("user_id", db_user.id)
+                .execute()
+            )
             return result
         except Exception as e:
             logger.warning(f"Failed to query referral_stats_extended: {e}")
@@ -158,7 +166,15 @@ async def _fetch_profile_data(db, db_user):
 
     async def fetch_bonuses():
         try:
-            result = await db.client.table("referral_bonuses").select("*").eq("user_id", db_user.id).eq("eligible", True).order("created_at", desc=True).limit(10).execute()
+            result = (
+                await db.client.table("referral_bonuses")
+                .select("*")
+                .eq("user_id", db_user.id)
+                .eq("eligible", True)
+                .order("created_at", desc=True)
+                .limit(10)
+                .execute()
+            )
             return result
         except Exception as e:
             logger.warning(f"Failed to query referral_bonuses: {e}")
@@ -166,7 +182,14 @@ async def _fetch_profile_data(db, db_user):
 
     async def fetch_withdrawals():
         try:
-            result = await db.client.table("withdrawal_requests").select("*").eq("user_id", db_user.id).order("created_at", desc=True).limit(10).execute()
+            result = (
+                await db.client.table("withdrawal_requests")
+                .select("*")
+                .eq("user_id", db_user.id)
+                .order("created_at", desc=True)
+                .limit(10)
+                .execute()
+            )
             return result
         except Exception as e:
             logger.warning(f"Failed to query withdrawal_requests: {e}")
@@ -174,7 +197,15 @@ async def _fetch_profile_data(db, db_user):
 
     async def fetch_balance_transactions():
         try:
-            result = await db.client.table("balance_transactions").select("*").eq("user_id", db_user.id).eq("status", "completed").order("created_at", desc=True).limit(50).execute()
+            result = (
+                await db.client.table("balance_transactions")
+                .select("*")
+                .eq("user_id", db_user.id)
+                .eq("status", "completed")
+                .order("created_at", desc=True)
+                .limit(50)
+                .execute()
+            )
             return result
         except Exception as e:
             logger.warning(f"Failed to query balance_transactions: {e}")
@@ -190,9 +221,16 @@ async def _fetch_profile_data(db, db_user):
 
 
 def _build_profile_response(
-    db_user, formatter, referral_program, referral_stats,
-    bonus_result, withdrawal_result, balance_transactions_result,
-    balance_in_local, balance_currency, balance_usd
+    db_user,
+    formatter,
+    referral_program,
+    referral_stats,
+    bonus_result,
+    withdrawal_result,
+    balance_transactions_result,
+    balance_in_local,
+    balance_currency,
+    balance_usd,
 ) -> dict:
     """Build the profile response dict."""
     total_referral_earnings_usd = (
@@ -236,7 +274,9 @@ async def _fetch_level_referrals(db, user_id: str, level: int, offset: int, limi
     if level == 1:
         result = (
             await db.client.table("users")
-            .select("id, telegram_id, username, first_name, created_at, referral_program_unlocked, photo_url")
+            .select(
+                "id, telegram_id, username, first_name, created_at, referral_program_unlocked, photo_url"
+            )
             .eq("referrer_id", user_id)
             .order("created_at", desc=True)
             .range(offset, offset + limit - 1)
@@ -245,7 +285,9 @@ async def _fetch_level_referrals(db, user_id: str, level: int, offset: int, limi
         return result.data or [], None
 
     if level == 2:
-        direct_refs = await db.client.table("users").select("id").eq("referrer_id", user_id).execute()
+        direct_refs = (
+            await db.client.table("users").select("id").eq("referrer_id", user_id).execute()
+        )
         direct_ref_ids = [r["id"] for r in (direct_refs.data or [])]
 
         if not direct_ref_ids:
@@ -253,7 +295,9 @@ async def _fetch_level_referrals(db, user_id: str, level: int, offset: int, limi
 
         result = (
             await db.client.table("users")
-            .select("id, telegram_id, username, first_name, created_at, referral_program_unlocked, referrer_id, photo_url")
+            .select(
+                "id, telegram_id, username, first_name, created_at, referral_program_unlocked, referrer_id, photo_url"
+            )
             .in_("referrer_id", direct_ref_ids)
             .order("created_at", desc=True)
             .range(offset, offset + limit - 1)
@@ -276,7 +320,9 @@ async def _fetch_level_referrals(db, user_id: str, level: int, offset: int, limi
 
     result = (
         await db.client.table("users")
-        .select("id, telegram_id, username, first_name, created_at, referral_program_unlocked, referrer_id, photo_url")
+        .select(
+            "id, telegram_id, username, first_name, created_at, referral_program_unlocked, referrer_id, photo_url"
+        )
         .in_("referrer_id", l2_ids)
         .order("created_at", desc=True)
         .range(offset, offset + limit - 1)
@@ -328,8 +374,11 @@ async def _batch_fetch_referral_data(db, referral_ids: list, referrer_id: str) -
 
 
 def _build_enriched_referrals(
-    referrals_data: list, user_id: str, referral_ids: list,
-    orders_count_map: dict, earnings_map: dict
+    referrals_data: list,
+    user_id: str,
+    referral_ids: list,
+    orders_count_map: dict,
+    earnings_map: dict,
 ) -> list:
     """Build enriched referrals list with order counts and earnings."""
     enriched = []
@@ -338,17 +387,19 @@ def _build_enriched_referrals(
         if not ref_id or ref_id == user_id or ref_id not in referral_ids:
             continue
 
-        enriched.append({
-            "id": ref_id,
-            "telegram_id": ref.get("telegram_id"),
-            "username": ref.get("username"),
-            "first_name": ref.get("first_name"),
-            "created_at": ref.get("created_at"),
-            "is_active": ref.get("referral_program_unlocked", False),
-            "order_count": orders_count_map.get(ref_id, 0),
-            "earnings_generated": round(earnings_map.get(ref_id, 0), 2),
-            "photo_url": ref.get("photo_url"),
-        })
+        enriched.append(
+            {
+                "id": ref_id,
+                "telegram_id": ref.get("telegram_id"),
+                "username": ref.get("username"),
+                "first_name": ref.get("first_name"),
+                "created_at": ref.get("created_at"),
+                "is_active": ref.get("referral_program_unlocked", False),
+                "order_count": orders_count_map.get(ref_id, 0),
+                "earnings_generated": round(earnings_map.get(ref_id, 0), 2),
+                "photo_url": ref.get("photo_url"),
+            }
+        )
     return enriched
 
 
@@ -389,28 +440,47 @@ async def get_webapp_profile(db_user: User = Depends(get_db_user)):
 
     # Build referral data
     referral_stats = {
-        "level1_count": 0, "level2_count": 0, "level3_count": 0,
-        "level1_earnings": 0, "level2_earnings": 0, "level3_earnings": 0,
-        "active_referrals": 0, "click_count": 0, "conversion_rate": 0,
+        "level1_count": 0,
+        "level2_count": 0,
+        "level3_count": 0,
+        "level1_earnings": 0,
+        "level2_earnings": 0,
+        "level3_earnings": 0,
+        "active_referrals": 0,
+        "click_count": 0,
+        "conversion_rate": 0,
     }
 
     referral_program = await _build_default_referral_program(
-        THRESHOLD_LEVEL2, THRESHOLD_LEVEL3,
-        COMMISSION_LEVEL1, COMMISSION_LEVEL2, COMMISSION_LEVEL3,
-        formatter.currency, settings,
+        THRESHOLD_LEVEL2,
+        THRESHOLD_LEVEL3,
+        COMMISSION_LEVEL1,
+        COMMISSION_LEVEL2,
+        COMMISSION_LEVEL3,
+        formatter.currency,
+        settings,
     )
 
     if extended_stats_result.data:
         s = extended_stats_result.data[0]
         referral_stats, referral_program = await _build_referral_data(
-            s, THRESHOLD_LEVEL2, THRESHOLD_LEVEL3,
-            COMMISSION_LEVEL1, COMMISSION_LEVEL2, COMMISSION_LEVEL3,
-            formatter.currency, settings,
+            s,
+            THRESHOLD_LEVEL2,
+            THRESHOLD_LEVEL3,
+            COMMISSION_LEVEL1,
+            COMMISSION_LEVEL2,
+            COMMISSION_LEVEL3,
+            formatter.currency,
+            settings,
         )
 
     # Add partner mode settings
-    referral_program["partner_mode"] = getattr(db_user, "partner_mode", "commission") or "commission"
-    referral_program["partner_discount_percent"] = getattr(db_user, "partner_discount_percent", 0) or 0
+    referral_program["partner_mode"] = (
+        getattr(db_user, "partner_mode", "commission") or "commission"
+    )
+    referral_program["partner_discount_percent"] = (
+        getattr(db_user, "partner_discount_percent", 0) or 0
+    )
 
     # Get balance info
     balance_in_local = float(db_user.balance) if db_user.balance else 0
@@ -418,9 +488,16 @@ async def get_webapp_profile(db_user: User = Depends(get_db_user)):
     balance_usd = await _convert_balance_to_usd(balance_in_local, balance_currency, redis)
 
     return _build_profile_response(
-        db_user, formatter, referral_program, referral_stats,
-        bonus_result, withdrawal_result, balance_transactions_result,
-        balance_in_local, balance_currency, balance_usd
+        db_user,
+        formatter,
+        referral_program,
+        referral_stats,
+        bonus_result,
+        withdrawal_result,
+        balance_transactions_result,
+        balance_in_local,
+        balance_currency,
+        balance_usd,
     )
 
 
@@ -434,11 +511,16 @@ async def update_preferences(request: UpdatePreferencesRequest, user=Depends(ver
 
     valid_currencies = ["USD", "RUB", "EUR", "UAH", "TRY", "AED", "INR"]
     if request.preferred_currency and request.preferred_currency.upper() not in valid_currencies:
-        raise HTTPException(status_code=400, detail=f"Invalid currency. Valid options: {', '.join(valid_currencies)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid currency. Valid options: {', '.join(valid_currencies)}",
+        )
 
     valid_languages = ["ru", "en", "de", "es", "fr", "tr", "ar", "hi", "uk", "be", "kk"]
     if request.interface_language and request.interface_language.lower() not in valid_languages:
-        raise HTTPException(status_code=400, detail=f"Invalid language. Valid options: {', '.join(valid_languages)}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid language. Valid options: {', '.join(valid_languages)}"
+        )
 
     await db.update_user_preferences(
         user.id,
@@ -467,10 +549,18 @@ async def convert_balance(request: ConvertBalanceRequest, user=Depends(verify_te
 
     valid_currencies = ["USD", "RUB"]
     if target_currency not in valid_currencies:
-        raise HTTPException(status_code=400, detail=f"Invalid target currency. Valid options: {', '.join(valid_currencies)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid target currency. Valid options: {', '.join(valid_currencies)}",
+        )
 
     if current_currency == target_currency:
-        return {"success": True, "message": "Balance is already in target currency", "balance": current_balance, "currency": current_currency}
+        return {
+            "success": True,
+            "message": "Balance is already in target currency",
+            "balance": current_balance,
+            "currency": current_currency,
+        }
 
     if current_balance <= 0:
         raise HTTPException(status_code=400, detail="Cannot convert zero balance")
@@ -484,32 +574,47 @@ async def convert_balance(request: ConvertBalanceRequest, user=Depends(verify_te
     new_balance = float(new_balance_decimal)
 
     rate = await _calculate_conversion_rate(
-        current_currency, target_currency, current_balance, float(new_balance_decimal), currency_service
+        current_currency,
+        target_currency,
+        current_balance,
+        float(new_balance_decimal),
+        currency_service,
     )
 
-    await db.client.table("users").update({"balance": new_balance, "balance_currency": target_currency}).eq("telegram_id", user.id).execute()
-
     await (
-        db.client.table("balance_transactions")
-        .insert({
-            "user_id": db_user.id,
-            "type": "conversion",
-            "amount": 0,
-            "currency": target_currency,
-            "balance_before": current_balance,
-            "balance_after": new_balance,
-            "status": "completed",
-            "description": f"Конвертация {current_balance:.2f} {current_currency} → {new_balance:.2f} {target_currency}",
-            "metadata": {
-                "from_currency": current_currency,
-                "to_currency": target_currency,
-                "exchange_rate": calculate_exchange_rate(rate, current_currency, target_currency),
-            },
-        })
+        db.client.table("users")
+        .update({"balance": new_balance, "balance_currency": target_currency})
+        .eq("telegram_id", user.id)
         .execute()
     )
 
-    logger.info(f"User {user.id} converted balance: {current_balance:.2f} {current_currency} → {new_balance:.2f} {target_currency}")
+    await (
+        db.client.table("balance_transactions")
+        .insert(
+            {
+                "user_id": db_user.id,
+                "type": "conversion",
+                "amount": 0,
+                "currency": target_currency,
+                "balance_before": current_balance,
+                "balance_after": new_balance,
+                "status": "completed",
+                "description": f"Конвертация {current_balance:.2f} {current_currency} → {new_balance:.2f} {target_currency}",
+                "metadata": {
+                    "from_currency": current_currency,
+                    "to_currency": target_currency,
+                    "exchange_rate": calculate_exchange_rate(
+                        rate, current_currency, target_currency
+                    ),
+                },
+            }
+        )
+        .execute()
+    )
+
+    logger.info(
+        f"User {user.id} converted balance: {current_balance:.2f} {current_currency} → {new_balance:.2f} {target_currency}"
+    )
 
     return {
         "success": True,
@@ -551,7 +656,9 @@ async def get_referral_network(
         if not referral_ids:
             return {"referrals": [], "total": 0, "level": level, "offset": offset, "limit": limit}
 
-        orders_count_map, earnings_map = await _batch_fetch_referral_data(db, referral_ids, db_user.id)
+        orders_count_map, earnings_map = await _batch_fetch_referral_data(
+            db, referral_ids, db_user.id
+        )
 
         enriched_referrals = _build_enriched_referrals(
             referrals_data, user_id, referral_ids, orders_count_map, earnings_map

@@ -224,14 +224,27 @@ class OrderStatusService:
 
             # Handle post-status-update actions (notifications, alerts)
             await self._handle_post_status_update_actions(
-                update_result, order_id, order_amount, user_telegram_id,
-                fiat_amount, fiat_currency, final_status, items_result
+                update_result,
+                order_id,
+                order_amount,
+                user_telegram_id,
+                fiat_amount,
+                fiat_currency,
+                final_status,
+                items_result,
             )
 
             # Handle external payment transaction creation
             await self._handle_external_payment_transaction(
-                payment_method, user_id, order_amount, order_id,
-                fiat_amount, fiat_currency, payment_id, user_balance, tx_exists
+                payment_method,
+                user_id,
+                order_amount,
+                order_id,
+                fiat_amount,
+                fiat_currency,
+                payment_id,
+                user_balance,
+                tx_exists,
             )
 
             # Set fulfillment deadline for orders with preorder items
@@ -665,14 +678,25 @@ class OrderStatusService:
     ) -> None:
         """Handle balance_transaction creation for external payments (reduces cognitive complexity)."""
         # Only for external payments (not balance) - balance payments already create records via add_to_user_balance
-        if not payment_method or payment_method.lower() == "balance" or not user_id or not order_amount:
+        if (
+            not payment_method
+            or payment_method.lower() == "balance"
+            or not user_id
+            or not order_amount
+        ):
             return
 
         try:
             if user_balance is not None and not tx_exists:
                 await self._create_balance_transaction_for_purchase(
-                    user_id, order_id, order_amount, fiat_amount, fiat_currency,
-                    payment_method, payment_id, user_balance
+                    user_id,
+                    order_id,
+                    order_amount,
+                    fiat_amount,
+                    fiat_currency,
+                    payment_method,
+                    payment_id,
+                    user_balance,
                 )
             elif tx_exists:
                 logger.debug(
@@ -689,9 +713,7 @@ class OrderStatusService:
 
         try:
             logger.debug("[mark_payment_confirmed] Creating order_expenses")
-            await self.db.client.rpc(
-                "calculate_order_expenses", {"p_order_id": order_id}
-            ).execute()
+            await self.db.client.rpc("calculate_order_expenses", {"p_order_id": order_id}).execute()
             logger.debug("[mark_payment_confirmed] Successfully created order_expenses")
         except Exception:
             logger.warning("Failed to create order_expenses", exc_info=True)

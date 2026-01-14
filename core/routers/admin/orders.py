@@ -21,6 +21,7 @@ router = APIRouter(tags=["admin-orders"])
 
 # ==================== ORDERS ====================
 
+
 # Helper: Format order for admin panel (reduces cognitive complexity)
 def _format_order_for_admin(order: dict) -> dict:
     """Format a single order for admin panel display."""
@@ -143,7 +144,9 @@ async def admin_check_payment(order_id: str, admin=Depends(verify_admin)):
         except Exception as e:
             from core.logging import sanitize_id_for_logging
 
-            logger.exception("Failed to check CrystalPay invoice %s", sanitize_id_for_logging(payment_id))
+            logger.exception(
+                "Failed to check CrystalPay invoice %s", sanitize_id_for_logging(payment_id)
+            )
             return {
                 "order_id": order_id,
                 "payment_id": payment_id,

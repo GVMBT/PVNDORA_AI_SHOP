@@ -44,7 +44,6 @@ async def create_webapp_order(
     request: CreateOrderRequest,
     user=Depends(verify_telegram_auth),
     x_init_data: str = Header(None, alias="X-Init-Data"),
-    user_agent: str = Header(None, alias="User-Agent"),
 ):
     """Create new order from Mini App. Supports both single product and cart-based orders."""
     db = get_database()
@@ -131,10 +130,13 @@ async def _create_cart_order(
     )
 
     # Validate cart items and calculate totals
-    total_amount, total_original, total_fiat_amount, order_items = (
-        await validate_and_prepare_cart_items(
-            db, cart.items, cart, partner_discount, target_currency, currency_service
-        )
+    (
+        total_amount,
+        total_original,
+        total_fiat_amount,
+        order_items,
+    ) = await validate_and_prepare_cart_items(
+        db, cart.items, cart, partner_discount, target_currency, currency_service
     )
 
     # Enforce cooldown

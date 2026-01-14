@@ -1,0 +1,58 @@
+# import-linter configuration
+# https://github.com/seddonym/import-linter
+
+[importlinter]
+root_package = core
+
+# Contract 1: Domain layer independence
+# Domain services should not depend on infrastructure (routers, API)
+[contract:domain-independence]
+name = Domain layer should not depend on infrastructure
+type = layers
+layers = [
+    "core.services.domains",
+    "core.services.repositories",
+    "core.routers",
+    "api"
+]
+# Domain can import from repositories, but not from routers
+# Routers can import from domains, but domains cannot import from routers
+
+# Contract 2: Repository layer isolation
+# Repositories should only depend on models and database client
+[contract:repository-isolation]
+name = Repository layer should only depend on models
+type = layers
+layers = [
+    "core.services.repositories",
+    "core.services.models",
+    "core.services.database"
+]
+# Repositories can import models and database, but not domains or routers
+
+# Contract 3: Agent tools independence
+# AI agent tools should only depend on domain services, not routers
+[contract:agent-tools-independence]
+name = Agent tools should not depend on API layer
+type = layers
+layers = [
+    "core.agent.tools",
+    "core.services.domains",
+    "core.routers"
+]
+# Tools can import domains, but not routers
+
+# Contract 4: No circular dependencies
+[contract:no-circular]
+name = No circular dependencies between modules
+type = forbidden
+source_modules = [
+    "core.services.domains",
+    "core.services.repositories",
+    "core.routers"
+]
+forbidden_modules = [
+    "core.services.domains",
+    "core.services.repositories",
+    "core.routers"
+]

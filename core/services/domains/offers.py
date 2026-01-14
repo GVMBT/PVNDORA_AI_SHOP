@@ -68,7 +68,9 @@ def _is_date_in_range(date: datetime | None, min_date: datetime, max_date: datet
     return min_date <= date <= max_date
 
 
-async def _check_existing_promo(promo_service: PromoCodeService, user_id: str, trigger: str) -> bool:
+async def _check_existing_promo(
+    promo_service: PromoCodeService, user_id: str, trigger: str
+) -> bool:
     """Check if user already has a promo for this trigger. Returns True if exists."""
     existing = await promo_service.get_promo_by_trigger(user_id, trigger)
     return existing is not None
@@ -173,7 +175,9 @@ class OffersService:
         token = DISCOUNT_BOT_TOKEN if use_discount_bot else TELEGRAM_TOKEN
         return await _send_msg(chat_id=chat_id, text=text, parse_mode="HTML", bot_token=token)
 
-    async def _find_loyal_via_rpc(self, limit: int, min_date: datetime, max_date: datetime) -> list[OfferCandidate]:
+    async def _find_loyal_via_rpc(
+        self, limit: int, min_date: datetime, max_date: datetime
+    ) -> list[OfferCandidate]:
         """Find loyal customers via RPC."""
         result = await self.client.rpc(
             "find_loyal_discount_customers",
@@ -200,7 +204,9 @@ class OffersService:
             )
         return candidates
 
-    async def _find_loyal_via_fallback(self, limit: int, min_date: datetime, max_date: datetime) -> list[OfferCandidate]:
+    async def _find_loyal_via_fallback(
+        self, limit: int, min_date: datetime, max_date: datetime
+    ) -> list[OfferCandidate]:
         """Find loyal customers via direct query fallback."""
         result = (
             await self.client.table("users")
@@ -223,7 +229,9 @@ class OffersService:
             if not _is_date_in_range(third_order_date, min_date, max_date):
                 continue
 
-            if await _check_existing_promo(self.promo_service, user["id"], PromoTriggers.LOYAL_3_PURCHASES):
+            if await _check_existing_promo(
+                self.promo_service, user["id"], PromoTriggers.LOYAL_3_PURCHASES
+            ):
                 continue
 
             candidates.append(

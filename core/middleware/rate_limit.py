@@ -5,7 +5,7 @@ Provides rate limiting using Upstash Redis.
 """
 
 import time
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import HTTPException, Request, Response, status
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -36,7 +36,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # Only rate limit auth endpoints
         if not request.url.path.startswith("/api/auth"):
-            return await call_next(request)
+            response = await call_next(request)
+            return response  # type: ignore[no-any-return]
 
         # Get client IP
         client_ip = request.client.host if request.client else "unknown"
@@ -60,7 +61,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         await self._record_request(key)
 
         response = await call_next(request)
-        return response
+        return response  # type: ignore[no-any-return]
 
     async def _is_rate_limited(self, key: str) -> bool:
         """Check if key is rate limited."""

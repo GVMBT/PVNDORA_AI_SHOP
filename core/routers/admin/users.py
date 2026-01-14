@@ -31,6 +31,119 @@ ERR_USER_NOT_FOUND = "User not found"
 # =============================================================================
 
 
+def _sanitize_search_input(search: str) -> str | None:
+    """Sanitize search input to prevent SQL injection."""
+    sanitized = search.strip().replace("%", "").replace("'", "").replace('"', "")
+    return sanitized if sanitized else None
+
+
+def _apply_search_filter(query, search: str | None):
+    """Apply search filter to query (reduces cognitive complexity)."""
+    if not search:
+        return query
+
+    sanitized_search = _sanitize_search_input(search)
+    if not sanitized_search:
+        return query
+
+    try:
+        # Try to search by telegram_id (if search is numeric)
+        telegram_id = int(sanitized_search)
+        return query.or_(
+            f"telegram_id.eq.{telegram_id},"
+            f"username.ilike.%{sanitized_search}%,"
+            f"first_name.ilike.%{sanitized_search}%"
+        )
+    except ValueError:
+        # Search by username or first_name
+        return query.or_(
+            f"username.ilike.%{sanitized_search}%,first_name.ilike.%{sanitized_search}%"
+        )
+
+
+def _apply_filters(query, filter_banned: bool | None, filter_partner: bool | None):
+    """Apply boolean filters to query (reduces cognitive complexity)."""
+    if filter_banned is not None:
+        query = query.eq("is_banned", filter_banned)
+    if filter_partner is not None:
+        query = query.eq("is_partner", filter_partner)
+    return query
+
+
+def _validate_sort_by(sort_by: str) -> str:
+    """Validate and return sort_by field (reduces cognitive complexity)."""
+    valid_sorts = [
+        "total_orders",
+        "delivered_orders",
+        "refunded_orders",
+        "total_spent",
+        "total_tickets",
+        "open_tickets",
+        "total_reviews",
+        "avg_rating",
+        "total_referrals",
+        "total_withdrawals",
+        "joined_at",
+        "last_activity_at",
+        "balance",
+        "total_referral_earnings",
+        "warnings_count",
+    ]
+    return sort_by if sort_by in valid_sorts else "total_orders"
+
+
+def _format_user_crm_data(u: dict) -> dict:
+    """Format user data for CRM response (reduces cognitive complexity)."""
+    return {
+        "user_id": u.get("user_id"),
+        "telegram_id": u.get("telegram_id"),
+        "username": u.get("username"),
+        "first_name": u.get("first_name"),
+        "language_code": u.get("language_code"),
+        "joined_at": u.get("joined_at"),
+        "is_admin": u.get("is_admin", False),
+        "is_banned": u.get("is_banned", False),
+        "is_partner": u.get("is_partner", False),
+        "balance": to_float(u.get("balance", 0)),
+        "total_referral_earnings": to_float(u.get("total_referral_earnings", 0)),
+        "total_saved": to_float(u.get("total_saved", 0)),
+        "warnings_count": u.get("warnings_count", 0),
+        "do_not_disturb": u.get("do_not_disturb", False),
+        "last_activity_at": u.get("last_activity_at"),
+        "referral_program_unlocked": u.get("referral_program_unlocked", False),
+        "turnover_usd": to_float(u.get("turnover_usd", 0)),
+        "total_purchases_amount": to_float(u.get("total_purchases_amount", 0)),
+        # Orders metrics
+        "total_orders": u.get("total_orders", 0),
+        "delivered_orders": u.get("delivered_orders", 0),
+        "pending_orders": u.get("pending_orders", 0),
+        "paid_orders": u.get("paid_orders", 0),
+        "refunded_orders": u.get("refunded_orders", 0),
+        "refund_requests": u.get("refund_requests", 0),
+        "total_spent": to_float(u.get("total_spent", 0)),
+        "total_refunded": to_float(u.get("total_refunded", 0)),
+        # Tickets metrics
+        "total_tickets": u.get("total_tickets", 0),
+        "open_tickets": u.get("open_tickets", 0),
+        "approved_tickets": u.get("approved_tickets", 0),
+        "rejected_tickets": u.get("rejected_tickets", 0),
+        "closed_tickets": u.get("closed_tickets", 0),
+        # Reviews metrics
+        "total_reviews": u.get("total_reviews", 0),
+        "avg_rating": float(u.get("avg_rating", 0)),
+        # Referral metrics
+        "total_referrals": u.get("total_referrals", 0),
+        "active_referrals": u.get("active_referrals", 0),
+        # Withdrawal metrics
+        "total_withdrawals": u.get("total_withdrawals", 0),
+        "pending_withdrawals": u.get("pending_withdrawals", 0),
+        "total_withdrawn": float(u.get("total_withdrawn", 0)),
+        # Chat metrics
+        "total_chat_messages": u.get("total_chat_messages", 0),
+        "last_chat_message_at": u.get("last_chat_message_at"),
+    }
+
+
 def _prepare_partner_grant_data(
     update_data: dict, partner_level_override: int | None, now
 ) -> int | None:
@@ -167,136 +280,30 @@ async def admin_get_users_crm(
         # Build query
         query = db.client.table("users_extended_analytics").select("*")
 
-        # Apply search filter with parameterized queries to prevent SQL injection
-        if search:
-            # Sanitize search input - remove dangerous characters
-            sanitized_search = search.strip().replace("%", "").replace("'", "").replace('"', "")
-            if not sanitized_search:
-                search = None
-            else:
-                try:
-                    # Try to search by telegram_id (if search is numeric)
-                    telegram_id = int(sanitized_search)
-                    # Use separate filters instead of f-strings for safety
-                    query = query.or_(
-                        f"telegram_id.eq.{telegram_id},"
-                        f"username.ilike.%{sanitized_search}%,"
-                        f"first_name.ilike.%{sanitized_search}%"
-                    )
-                except ValueError:
-                    # Search by username or first_name (parameterized)
-                    query = query.or_(
-                        f"username.ilike.%{sanitized_search}%,first_name.ilike.%{sanitized_search}%"
-                    )
+        # Apply search filter
+        query = _apply_search_filter(query, search)
 
         # Apply filters
-        if filter_banned is not None:
-            query = query.eq("is_banned", filter_banned)
-        if filter_partner is not None:
-            query = query.eq("is_partner", filter_partner)
+        query = _apply_filters(query, filter_banned, filter_partner)
 
         # Validate sort_by
-        valid_sorts = [
-            "total_orders",
-            "delivered_orders",
-            "refunded_orders",
-            "total_spent",
-            "total_tickets",
-            "open_tickets",
-            "total_reviews",
-            "avg_rating",
-            "total_referrals",
-            "total_withdrawals",
-            "joined_at",
-            "last_activity_at",
-            "balance",
-            "total_referral_earnings",
-            "warnings_count",
-        ]
-        if sort_by not in valid_sorts:
-            sort_by = "total_orders"
+        validated_sort_by = _validate_sort_by(sort_by)
 
         # Execute query with sorting and pagination
         result = (
-            await query.order(sort_by, desc=(sort_order == "desc"))
+            await query.order(validated_sort_by, desc=(sort_order == "desc"))
             .range(offset, offset + limit - 1)
             .execute()
         )
 
-        # Get total count with same sanitization
+        # Get total count with same filters
         count_query = db.client.table("users_extended_analytics").select("user_id", count="exact")
-        if search:
-            sanitized_search = search.strip().replace("%", "").replace("'", "").replace('"', "")
-            if sanitized_search:
-                try:
-                    telegram_id = int(sanitized_search)
-                    count_query = count_query.or_(
-                        f"telegram_id.eq.{telegram_id},"
-                        f"username.ilike.%{sanitized_search}%,"
-                        f"first_name.ilike.%{sanitized_search}%"
-                    )
-                except ValueError:
-                    count_query = count_query.or_(
-                        f"username.ilike.%{sanitized_search}%,first_name.ilike.%{sanitized_search}%"
-                    )
-        if filter_banned is not None:
-            count_query = count_query.eq("is_banned", filter_banned)
-        if filter_partner is not None:
-            count_query = count_query.eq("is_partner", filter_partner)
+        count_query = _apply_search_filter(count_query, search)
+        count_query = _apply_filters(count_query, filter_banned, filter_partner)
 
         count_result = await count_query.execute()
 
-        users = []
-        for u in result.data or []:
-            user_data = {
-                "user_id": u.get("user_id"),
-                "telegram_id": u.get("telegram_id"),
-                "username": u.get("username"),
-                "first_name": u.get("first_name"),
-                "language_code": u.get("language_code"),
-                "joined_at": u.get("joined_at"),
-                "is_admin": u.get("is_admin", False),
-                "is_banned": u.get("is_banned", False),
-                "is_partner": u.get("is_partner", False),
-                "balance": to_float(u.get("balance", 0)),
-                "total_referral_earnings": to_float(u.get("total_referral_earnings", 0)),
-                "total_saved": to_float(u.get("total_saved", 0)),
-                "warnings_count": u.get("warnings_count", 0),
-                "do_not_disturb": u.get("do_not_disturb", False),
-                "last_activity_at": u.get("last_activity_at"),
-                "referral_program_unlocked": u.get("referral_program_unlocked", False),
-                "turnover_usd": to_float(u.get("turnover_usd", 0)),
-                "total_purchases_amount": to_float(u.get("total_purchases_amount", 0)),
-                # Orders metrics
-                "total_orders": u.get("total_orders", 0),
-                "delivered_orders": u.get("delivered_orders", 0),
-                "pending_orders": u.get("pending_orders", 0),
-                "paid_orders": u.get("paid_orders", 0),
-                "refunded_orders": u.get("refunded_orders", 0),
-                "refund_requests": u.get("refund_requests", 0),
-                "total_spent": to_float(u.get("total_spent", 0)),
-                "total_refunded": to_float(u.get("total_refunded", 0)),
-                # Tickets metrics
-                "total_tickets": u.get("total_tickets", 0),
-                "open_tickets": u.get("open_tickets", 0),
-                "approved_tickets": u.get("approved_tickets", 0),
-                "rejected_tickets": u.get("rejected_tickets", 0),
-                "closed_tickets": u.get("closed_tickets", 0),
-                # Reviews metrics
-                "total_reviews": u.get("total_reviews", 0),
-                "avg_rating": float(u.get("avg_rating", 0)),
-                # Referral metrics
-                "total_referrals": u.get("total_referrals", 0),
-                "active_referrals": u.get("active_referrals", 0),
-                # Withdrawal metrics
-                "total_withdrawals": u.get("total_withdrawals", 0),
-                "pending_withdrawals": u.get("pending_withdrawals", 0),
-                "total_withdrawn": float(u.get("total_withdrawn", 0)),
-                # Chat metrics
-                "total_chat_messages": u.get("total_chat_messages", 0),
-                "last_chat_message_at": u.get("last_chat_message_at"),
-            }
-            users.append(user_data)
+        users = [_format_user_crm_data(u) for u in (result.data or [])]
 
         return {"users": users, "total": count_result.count or 0, "limit": limit, "offset": offset}
     except Exception as e:

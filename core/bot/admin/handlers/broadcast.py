@@ -216,7 +216,10 @@ async def safe_edit_text(callback: CallbackQuery, text: str, **kwargs) -> bool:
             # Message already has the same content - not an error
             from core.logging import sanitize_string_for_logging
 
-            logger.debug("Message not modified (already correct): %s", sanitize_string_for_logging(callback.data))
+            logger.debug(
+                "Message not modified (already correct): %s",
+                sanitize_string_for_logging(callback.data),
+            )
             return False
         # Re-raise other BadRequest errors
         raise
@@ -927,7 +930,9 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
 
         from core.logging import sanitize_id_for_logging
 
-        logger.info("Broadcast %s: Handler completed successfully", sanitize_id_for_logging(broadcast_id))
+        logger.info(
+            "Broadcast %s: Handler completed successfully", sanitize_id_for_logging(broadcast_id)
+        )
 
     except Exception as e:
         logger.error("Broadcast CRITICAL ERROR: %s", type(e).__name__, exc_info=True)

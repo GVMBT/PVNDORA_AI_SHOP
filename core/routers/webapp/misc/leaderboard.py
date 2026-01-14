@@ -66,10 +66,7 @@ async def _get_period_leaderboard_data(
 async def _get_users_with_savings_count(db: Any) -> int:
     """Get count of users with savings."""
     users_with_savings_count = (
-        await db.client.table("users")
-        .select("id", count="exact")
-        .gt("total_saved", 0)
-        .execute()
+        await db.client.table("users").select("id", count="exact").gt("total_saved", 0).execute()
     )
     return users_with_savings_count.count or 0
 
@@ -89,9 +86,7 @@ async def _get_users_with_savings(
     return result.data or []
 
 
-async def _get_users_with_zero_savings(
-    db: Any, offset: int, limit: int
-) -> list[dict[str, Any]]:
+async def _get_users_with_zero_savings(db: Any, offset: int, limit: int) -> list[dict[str, Any]]:
     """Get users with zero savings for leaderboard."""
     fill_result = (
         await db.client.table("users")
@@ -125,7 +120,7 @@ async def _get_alltime_leaderboard_data(
 
 
 def _get_user_ids_for_period_query(
-    result_data: list[dict[str, Any]]
+    result_data: list[dict[str, Any]],
 ) -> tuple[list[int], dict[int, int]]:
     """Extract user IDs and telegram mapping for period-based queries."""
     user_ids_for_count: list[int] = []
@@ -146,9 +141,7 @@ async def _get_user_ids_for_alltime_query(
     db: Any, result_data: list[dict[str, Any]]
 ) -> tuple[list[int], dict[int, int]]:
     """Extract user IDs and telegram mapping for all-time queries."""
-    telegram_ids = [
-        entry.get("telegram_id") for entry in result_data if entry.get("telegram_id")
-    ]
+    telegram_ids = [entry.get("telegram_id") for entry in result_data if entry.get("telegram_id")]
 
     if not telegram_ids:
         return [], {}
@@ -206,9 +199,7 @@ async def _get_modules_count_map(
     return modules_count_map, telegram_id_to_user_id
 
 
-async def _calculate_user_rank(
-    db: Any, db_user: Any, total_users: int
-) -> tuple[int | None, float]:
+async def _calculate_user_rank(db: Any, db_user: Any, total_users: int) -> tuple[int | None, float]:
     """Calculate user rank when user is not in current page."""
     if not db_user:
         return None, 0.0

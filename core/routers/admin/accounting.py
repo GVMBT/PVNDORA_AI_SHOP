@@ -494,9 +494,7 @@ def _process_order_expenses_for_report(
     expense_totals["referrals"] += float(expenses.get("referral_payout_amount", 0) or 0)
     expense_totals["reserves"] += float(expenses.get("reserve_amount", 0) or 0)
     expense_totals["review_cashbacks"] += float(expenses.get("review_cashback_amount", 0) or 0)
-    expense_totals["replacement_costs"] += float(
-        expenses.get("insurance_replacement_cost", 0) or 0
-    )
+    expense_totals["replacement_costs"] += float(expenses.get("insurance_replacement_cost", 0) or 0)
 
 
 # Helper: Process single order for report (reduces cognitive complexity)
@@ -1563,7 +1561,9 @@ def _calculate_profit_values(
 ) -> tuple[float, float, float]:
     """Calculate profit values (reduces cognitive complexity)."""
     gross_profit = revenue - cogs
-    operating_expenses_total = acquiring + referrals + reserves + review_cashbacks + replacement_costs
+    operating_expenses_total = (
+        acquiring + referrals + reserves + review_cashbacks + replacement_costs
+    )
     operating_profit = gross_profit - operating_expenses_total
     net_profit = operating_profit - other_expenses + insurance_revenue
     return gross_profit, operating_profit, net_profit
@@ -1626,10 +1626,19 @@ def _build_income_statement(
 ) -> dict[str, Any]:
     """Build income statement section (reduces cognitive complexity)."""
     gross_profit, operating_profit, net_profit = _calculate_profit_values(
-        revenue, cogs, acquiring, referrals, reserves, review_cashbacks,
-        replacement_costs, other_expenses, insurance_revenue
+        revenue,
+        cogs,
+        acquiring,
+        referrals,
+        reserves,
+        review_cashbacks,
+        replacement_costs,
+        other_expenses,
+        insurance_revenue,
     )
-    operating_expenses_total = acquiring + referrals + reserves + review_cashbacks + replacement_costs
+    operating_expenses_total = (
+        acquiring + referrals + reserves + review_cashbacks + replacement_costs
+    )
 
     return {
         "revenue_gross": round(revenue_gross, 2),
@@ -1648,9 +1657,7 @@ def _build_income_statement(
             "total": round(operating_expenses_total, 2),
         },
         "operating_profit": round(operating_profit, 2),
-        "operating_margin_pct": round(
-            (operating_profit / revenue * 100) if revenue > 0 else 0, 2
-        ),
+        "operating_margin_pct": round((operating_profit / revenue * 100) if revenue > 0 else 0, 2),
         "other_expenses": round(other_expenses, 2),
         "other_expenses_by_category": {k: round(v, 2) for k, v in expenses_by_category.items()},
         "net_profit": round(net_profit, 2),
@@ -1753,9 +1760,18 @@ async def get_accounting_report(
 
     # Build income statement
     income_statement = _build_income_statement(
-        revenue, revenue_gross, total_discounts, cogs, acquiring, referrals,
-        reserves, review_cashbacks, replacement_costs, other_expenses,
-        insurance_revenue, expenses_by_category
+        revenue,
+        revenue_gross,
+        total_discounts,
+        cogs,
+        acquiring,
+        referrals,
+        reserves,
+        review_cashbacks,
+        replacement_costs,
+        other_expenses,
+        insurance_revenue,
+        expenses_by_category,
     )
 
     # Build liabilities section
@@ -1763,8 +1779,14 @@ async def get_accounting_report(
 
     # Build metrics section
     metrics = _build_metrics_section(
-        revenue, revenue_gross, total_discounts, cogs, acquiring,
-        referrals, review_cashbacks, len(orders)
+        revenue,
+        revenue_gross,
+        total_discounts,
+        cogs,
+        acquiring,
+        referrals,
+        review_cashbacks,
+        len(orders),
     )
 
     return {

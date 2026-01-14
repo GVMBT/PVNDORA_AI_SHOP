@@ -172,7 +172,9 @@ async def _validate_replacement_request(
     return None
 
 
-async def _send_ticket_admin_alert(db, ticket_id: str, user_id: str, issue_type: str | None, order_id: str | None) -> None:
+async def _send_ticket_admin_alert(
+    db, ticket_id: str, user_id: str, issue_type: str | None, order_id: str | None
+) -> None:
     """Send admin alert for new ticket."""
     try:
         from core.services.admin_alerts import get_admin_alert_service
@@ -195,6 +197,7 @@ async def _send_ticket_admin_alert(db, ticket_id: str, user_id: str, issue_type:
         )
     except Exception as e:
         from core.logging import sanitize_id_for_logging
+
         logger.warning(
             "Failed to send admin alert for ticket %s: %s",
             sanitize_id_for_logging(ticket_id),
@@ -338,13 +341,15 @@ class SupportService:
         try:
             ticket_result = (
                 await self.db.client.table("tickets")
-                .insert({
-                    "user_id": user_id,
-                    "order_id": order_id,
-                    "issue_type": "refund",
-                    "description": reason,
-                    "status": "open",
-                })
+                .insert(
+                    {
+                        "user_id": user_id,
+                        "order_id": order_id,
+                        "issue_type": "refund",
+                        "description": reason,
+                        "status": "open",
+                    }
+                )
                 .execute()
             )
 
