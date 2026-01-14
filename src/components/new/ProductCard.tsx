@@ -36,10 +36,8 @@ interface ProductCardProps {
 
 // Utility for fake hex stream
 const HexStream = () => {
-  // Pre-generate hex values for consistent keys
-  const hexValues = Array.from({ length: 8 }, () =>
-    Math.random().toString(16).substring(2, 6).toUpperCase()
-  );
+  // Static hex values for decorative display (not security-critical)
+  const hexValues = ["A3F2", "B7E1", "C9D4", "D2A8", "E5B3", "F1C7", "A8D9", "B4E6"] as const;
   return (
     <div className="flex flex-col text-[8px] font-mono text-pandora-cyan/60 leading-tight opacity-50">
       {hexValues.map((hex) => (

@@ -429,6 +429,7 @@ class PaymentService:
 
         sign_string = f"{invoice_id}:{salt}"
         # nosec B324 - SHA1 required by CrystalPay API for signature verification
+        # NOSONAR: SHA1 is required by CrystalPay API specification, not a security risk here
         expected_signature = hashlib.sha1(sign_string.encode()).hexdigest().lower()
 
         if not hmac.compare_digest(received_signature, expected_signature):

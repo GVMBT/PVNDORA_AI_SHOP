@@ -29,6 +29,7 @@ target-version = "py312"
 exclude = [
     "scripts/",  # Scripts use print() for CLI output - this is normal
     "tests/",  # Tests may have different style requirements
+    ".importlinter",  # INI config file, not Python
 ]
 
 [tool.ruff.lint]
@@ -82,50 +83,9 @@ ignore = [
 [tool.ruff.lint.isort]
 known-first-party = ["core", "api"]
 
-[tool.mypy]
-python_version = "3.12"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-check_untyped_defs = true
-disallow_untyped_decorators = false
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
-strict_optional = false
-show_error_codes = true
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = [
-    "supabase.*",
-    "aiogram.*",
-    "qstash.*",
-    "langchain.*",
-    "langgraph.*",
-    "openai.*",
-    "stripe.*",
-    "tenacity.*",
-]
-ignore_missing_imports = true
-
-# Supabase async client has typing issues with await
-[[tool.mypy.overrides]]
-module = [
-    "core.services.repositories.*",
-]
-disable_error_code = ["misc", "arg-type"]
-
-# Allow broader types in database layer
-[[tool.mypy.overrides]]
-module = [
-    "core.services.database",
-]
-disable_error_code = ["union-attr", "index", "arg-type", "return-value"]
+# Mypy configuration moved to mypy.ini for consistency
+# This file only contains Ruff configuration
+# Use: mypy --config-file mypy.ini core/ api/
 
 [tool.bandit]
 exclude_dirs = ["venv", ".venv", "node_modules", "dist", "build", "tests"]

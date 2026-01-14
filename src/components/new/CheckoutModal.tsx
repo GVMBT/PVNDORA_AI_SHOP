@@ -68,7 +68,14 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>("crystalpay");
   const [logs, setLogs] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [sessionId] = useState(() => Math.random().toString(36).substring(2, 8).toUpperCase());
+  const [sessionId] = useState(() => {
+    // Use crypto for session ID generation (security-sensitive)
+    if (typeof crypto !== "undefined" && crypto.randomUUID) {
+      return crypto.randomUUID().slice(0, 8).toUpperCase().replace(/-/g, "");
+    }
+    // Fallback: timestamp-based ID (less secure but better than Math.random)
+    return `S${Date.now().toString(36).slice(-7).toUpperCase()}`;
+  });
 
   // Calculate totals from cart items if not provided
   const { total, totalUsd } = useMemo(() => {

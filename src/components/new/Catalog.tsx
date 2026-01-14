@@ -48,12 +48,14 @@ interface CatalogProps {
 // Utility for fake hex stream
 // Decorative hex codes - static IDs used since items never reorder
 const HEX_IDS = ["h0", "h1", "h2", "h3", "h4", "h5", "h6", "h7"] as const;
+// Static hex values for decorative display (not security-critical)
+const STATIC_HEX_VALUES = ["A3F2", "B7E1", "C9D4", "D2A8", "E5B3", "F1C7", "A8D9", "B4E6"] as const;
 
 const _HexStream = () => {
   return (
     <div className="flex flex-col text-[8px] font-mono text-pandora-cyan/60 leading-tight opacity-50">
-      {HEX_IDS.map((id) => (
-        <span key={id}>0x{Math.random().toString(16).slice(2, 6).toUpperCase()}</span>
+      {HEX_IDS.map((id, index) => (
+        <span key={id}>0x{STATIC_HEX_VALUES[index]}</span>
       ))}
     </div>
   );

@@ -280,7 +280,8 @@ def _verify_crystalpay_signature(received_signature: str, invoice_id: str) -> bo
         return True  # Skip verification if no signature or salt
 
     sign_string = f"{invoice_id}:{salt}"
-    # nosec B324 - SHA1 required by CrystalPay API
+    # nosec B324 - SHA1 required by CrystalPay API for signature verification
+    # NOSONAR: SHA1 is required by CrystalPay API specification
     expected_signature = hashlib.sha1(sign_string.encode()).hexdigest().lower()
     return hmac.compare_digest(received_signature, expected_signature)
 
