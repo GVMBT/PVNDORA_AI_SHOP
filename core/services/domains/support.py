@@ -6,7 +6,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
 from dataclasses import dataclass
-from datetime import UTC
+from datetime import UTC, datetime
 from typing import Any
 
 from core.logging import get_logger
@@ -20,9 +20,9 @@ ALLOWED_REFUND_STATUSES = {"pending", "paid", "prepaid", "partial", "delivered"}
 FORBIDDEN_REFUND_STATUSES = {"refunded", "cancelled"}
 
 # Replacement configuration (anti-abuse)
-MAX_REPLACEMENTS_PER_MONTH = 20  # Reasonable limit for legitimate cases
-MAX_REPLACEMENT_TICKETS_PER_DAY = 5  # Prevent spam
-MIN_HOURS_BETWEEN_REPLACEMENTS = 1  # Cooldown between replacement requests
+MAX_REPLACEMENTS_PER_MONTH = 20
+MAX_REPLACEMENT_TICKETS_PER_DAY = 5
+MIN_HOURS_BETWEEN_REPLACEMENTS = 1
 
 
 @dataclass
@@ -47,15 +47,182 @@ class SupportTicket:
     status: str
 
 
-class SupportService:
-    """
-    Support domain service.
+# =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
 
-    Provides clean interface for:
-    - Support ticket creation
-    - FAQ retrieval
-    - Refund requests
-    """
+
+async def _check_existing_replacement(db, item_id: str) -> dict | None:
+    """Check if item already has an open/approved replacement ticket."""
+    existing = (
+        await db.client.table("tickets")
+        .select("id, status, created_at")
+        .eq("item_id", item_id)
+        .eq("issue_type", "replacement")
+        .in_("status", ["open", "approved"])
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    return existing.data[0] if existing.data else None
+
+
+async def _check_daily_replacement_limit(db, user_id: str) -> int:
+    """Check number of replacement tickets created today."""
+    today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    today_count = (
+        await db.client.table("tickets")
+        .select("id", count="exact")
+        .eq("user_id", user_id)
+        .eq("issue_type", "replacement")
+        .gte("created_at", today_start.isoformat())
+        .execute()
+    )
+    return today_count.count or 0
+
+
+async def _check_replacement_cooldown(db, user_id: str) -> float | None:
+    """Check hours since last replacement request. Returns None if no previous requests."""
+    last_replacement = (
+        await db.client.table("tickets")
+        .select("created_at")
+        .eq("user_id", user_id)
+        .eq("issue_type", "replacement")
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+
+    if not last_replacement.data:
+        return None
+
+    last_time = datetime.fromisoformat(
+        last_replacement.data[0]["created_at"].replace("Z", "+00:00")
+    )
+    return (datetime.now(UTC) - last_time).total_seconds() / 3600
+
+
+async def _check_monthly_replacement_limit(db, user_id: str, order_id: str | None) -> bool:
+    """Check if user has exceeded monthly replacement limit. Returns True if allowed."""
+    month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    monthly_count = (
+        await db.client.table("tickets")
+        .select("id", count="exact")
+        .eq("user_id", user_id)
+        .eq("issue_type", "replacement")
+        .in_("status", ["open", "approved"])
+        .gte("created_at", month_start.isoformat())
+        .execute()
+    )
+
+    if (monthly_count.count or 0) < MAX_REPLACEMENTS_PER_MONTH:
+        return True
+
+    # Allow if this item belongs to an order with existing replacement tickets
+    if order_id:
+        order_replacements = (
+            await db.client.table("tickets")
+            .select("id", count="exact")
+            .eq("user_id", user_id)
+            .eq("order_id", order_id)
+            .eq("issue_type", "replacement")
+            .in_("status", ["open", "approved"])
+            .execute()
+        )
+        return (order_replacements.count or 0) > 0
+
+    return False
+
+
+async def _validate_replacement_request(
+    db, user_id: str, item_id: str, order_id: str | None
+) -> dict | None:
+    """Validate replacement request against anti-abuse rules. Returns error dict or None if valid."""
+    # Check 1: Existing replacement for this item
+    if await _check_existing_replacement(db, item_id):
+        return {
+            "success": False,
+            "reason": "This account has already been requested for replacement. Please wait for processing.",
+        }
+
+    # Check 2: Daily limit
+    if await _check_daily_replacement_limit(db, user_id) >= MAX_REPLACEMENT_TICKETS_PER_DAY:
+        return {
+            "success": False,
+            "reason": f"Too many replacement requests today (limit: {MAX_REPLACEMENT_TICKETS_PER_DAY}). Please try again tomorrow.",
+        }
+
+    # Check 3: Cooldown
+    hours_since = await _check_replacement_cooldown(db, user_id)
+    if hours_since is not None and hours_since < MIN_HOURS_BETWEEN_REPLACEMENTS:
+        return {
+            "success": False,
+            "reason": f"Please wait {MIN_HOURS_BETWEEN_REPLACEMENTS} hour(s) between replacement requests.",
+        }
+
+    # Check 4: Monthly limit
+    if not await _check_monthly_replacement_limit(db, user_id, order_id):
+        return {
+            "success": False,
+            "reason": f"Monthly replacement limit reached ({MAX_REPLACEMENTS_PER_MONTH}). Contact support for assistance.",
+        }
+
+    return None
+
+
+async def _send_ticket_admin_alert(db, ticket_id: str, user_id: str, issue_type: str | None, order_id: str | None) -> None:
+    """Send admin alert for new ticket."""
+    try:
+        from core.services.admin_alerts import get_admin_alert_service
+
+        user_result = (
+            await db.client.table("users")
+            .select("telegram_id")
+            .eq("id", user_id)
+            .single()
+            .execute()
+        )
+        tg_id = user_result.data.get("telegram_id", 0) if user_result.data else 0
+
+        alert_service = get_admin_alert_service()
+        await alert_service.alert_support_ticket(
+            ticket_id=ticket_id,
+            user_telegram_id=tg_id,
+            issue_type=issue_type or "general",
+            order_id=order_id,
+        )
+    except Exception as e:
+        from core.logging import sanitize_id_for_logging
+        logger.warning(
+            "Failed to send admin alert for ticket %s: %s",
+            sanitize_id_for_logging(ticket_id),
+            type(e).__name__,
+        )
+
+
+def _validate_refund_status(order) -> dict | None:
+    """Validate order status for refund. Returns error dict or None if valid."""
+    if order.refund_requested:
+        return {"success": False, "reason": "Refund already requested"}
+
+    status_lower = (order.status or "").lower()
+    if status_lower in FORBIDDEN_REFUND_STATUSES:
+        return {"success": False, "reason": f"Refund not allowed for status '{order.status}'"}
+    if status_lower not in ALLOWED_REFUND_STATUSES:
+        return {"success": False, "reason": f"Refund not allowed for status '{order.status}'"}
+
+    return None
+
+
+# =============================================================================
+# Service Class
+# =============================================================================
+
+
+class SupportService:
+    """Support domain service."""
 
     def __init__(self, db):
         self.db = db
@@ -68,129 +235,19 @@ class SupportService:
         item_id: str | None = None,
         issue_type: str | None = None,
     ) -> dict[str, Any]:
-        """
-        Create a support ticket.
-
-        Args:
-            user_id: User database ID
-            message: Issue description
-            order_id: Related order ID (optional)
-            item_id: Specific order item ID (optional, for item-level issues)
-            issue_type: Type of issue (optional)
-
-        Returns:
-            Success/failure result with ticket ID
-        """
+        """Create a support ticket."""
         try:
             # Anti-abuse checks for replacement requests
             if issue_type == "replacement" and item_id:
-                # Check 1: Has this specific item_id already been replaced?
-                existing_replacement = (
-                    await self.db.client.table("tickets")
-                    .select("id, status, created_at")
-                    .eq("item_id", item_id)
-                    .eq("issue_type", "replacement")
-                    .in_("status", ["open", "approved"])
-                    .order("created_at", desc=True)
-                    .limit(1)
-                    .execute()
+                validation_error = await _validate_replacement_request(
+                    self.db, user_id, item_id, order_id
                 )
-
-                if existing_replacement.data:
-                    # Item already has an open/approved replacement ticket
-                    return {
-                        "success": False,
-                        "reason": "This account has already been requested for replacement. Please wait for processing.",
-                    }
-
-                # Check 2: Rate limiting - too many replacement tickets today?
-                from datetime import datetime
-
-                today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-
-                today_count = (
-                    await self.db.client.table("tickets")
-                    .select("id", count="exact")
-                    .eq("user_id", user_id)
-                    .eq("issue_type", "replacement")
-                    .gte("created_at", today_start.isoformat())
-                    .execute()
-                )
-
-                if (today_count.count or 0) >= MAX_REPLACEMENT_TICKETS_PER_DAY:
-                    return {
-                        "success": False,
-                        "reason": f"Too many replacement requests today (limit: {MAX_REPLACEMENT_TICKETS_PER_DAY}). Please try again tomorrow.",
-                    }
-
-                # Check 3: Cooldown - last replacement request was too recent?
-                last_replacement = (
-                    await self.db.client.table("tickets")
-                    .select("created_at")
-                    .eq("user_id", user_id)
-                    .eq("issue_type", "replacement")
-                    .order("created_at", desc=True)
-                    .limit(1)
-                    .execute()
-                )
-
-                if last_replacement.data:
-                    last_time = datetime.fromisoformat(
-                        last_replacement.data[0]["created_at"].replace("Z", "+00:00")
-                    )
-                    hours_since = (datetime.now(UTC) - last_time).total_seconds() / 3600
-
-                    if hours_since < MIN_HOURS_BETWEEN_REPLACEMENTS:
-                        return {
-                            "success": False,
-                            "reason": f"Please wait {MIN_HOURS_BETWEEN_REPLACEMENTS} hour(s) between replacement requests.",
-                        }
-
-                # Check 4: Monthly limit (but allow all items from same order)
-                month_start = datetime.now(UTC).replace(
-                    day=1, hour=0, minute=0, second=0, microsecond=0
-                )
-
-                monthly_count = (
-                    await self.db.client.table("tickets")
-                    .select("id", count="exact")
-                    .eq("user_id", user_id)
-                    .eq("issue_type", "replacement")
-                    .in_("status", ["open", "approved"])
-                    .gte("created_at", month_start.isoformat())
-                    .execute()
-                )
-
-                # If approaching limit, check if this is from a new order (allow if so)
-                if (monthly_count.count or 0) >= MAX_REPLACEMENTS_PER_MONTH:
-                    # Check if this item_id belongs to an order that already has replacement tickets
-                    # If yes, allow (same order = legitimate batch issue)
-                    # If no, block (new order = possible abuse)
-                    if order_id:
-                        order_replacements = (
-                            await self.db.client.table("tickets")
-                            .select("id", count="exact")
-                            .eq("user_id", user_id)
-                            .eq("order_id", order_id)
-                            .eq("issue_type", "replacement")
-                            .in_("status", ["open", "approved"])
-                            .execute()
-                        )
-                        # If this order already has replacement tickets, allow (batch issue)
-                        if (order_replacements.count or 0) == 0:
-                            return {
-                                "success": False,
-                                "reason": f"Monthly replacement limit reached ({MAX_REPLACEMENTS_PER_MONTH}). Contact support for assistance.",
-                            }
-                    else:
-                        return {
-                            "success": False,
-                            "reason": f"Monthly replacement limit reached ({MAX_REPLACEMENTS_PER_MONTH}). Contact support for assistance.",
-                        }
+                if validation_error:
+                    return validation_error
 
             ticket_data = {
                 "user_id": user_id,
-                "description": message,  # Use 'description' field (not 'message')
+                "description": message,
                 "status": "open",
             }
             if order_id:
@@ -202,59 +259,24 @@ class SupportService:
 
             result = await self.db.client.table("tickets").insert(ticket_data).execute()
 
-            if result.data:
-                ticket_id = result.data[0].get("id")
+            if not result.data:
+                return {"success": False, "reason": "Failed to create ticket"}
 
-                # Send admin alert (best-effort)
-                try:
-                    from core.services.admin_alerts import get_admin_alert_service
+            ticket_id = result.data[0].get("id")
+            await _send_ticket_admin_alert(self.db, ticket_id, user_id, issue_type, order_id)
 
-                    # Get user's telegram_id for the alert
-                    user_result = (
-                        await self.db.client.table("users")
-                        .select("telegram_id")
-                        .eq("id", user_id)
-                        .single()
-                        .execute()
-                    )
-                    tg_id = user_result.data.get("telegram_id", 0) if user_result.data else 0
+            return {
+                "success": True,
+                "ticket_id": ticket_id,
+                "message": "Support ticket created",
+            }
 
-                    alert_service = get_admin_alert_service()
-                    await alert_service.alert_support_ticket(
-                        ticket_id=ticket_id,
-                        user_telegram_id=tg_id,
-                        issue_type=issue_type or "general",
-                        order_id=order_id,
-                    )
-                except Exception as e:
-                    from core.logging import sanitize_id_for_logging
-
-                    logger.warning(
-                        "Failed to send admin alert for ticket %s: %s",
-                        sanitize_id_for_logging(ticket_id),
-                        type(e).__name__,
-                    )
-
-                return {
-                    "success": True,
-                    "ticket_id": ticket_id,
-                    "message": "Support ticket created",
-                }
-            return {"success": False, "reason": "Failed to create ticket"}
         except Exception as e:
             logger.error("Failed to create ticket: %s", type(e).__name__, exc_info=True)
             return {"success": False, "reason": "Database error"}
 
     async def get_faq(self, language: str = "en") -> list[FAQEntry]:
-        """
-        Get FAQ entries.
-
-        Args:
-            language: Language code
-
-        Returns:
-            List of FAQEntry
-        """
+        """Get FAQ entries."""
         try:
             entries = await self.db.get_faq(language)
             return [
@@ -271,42 +293,18 @@ class SupportService:
             return []
 
     async def search_faq(self, question: str, language: str = "en") -> FAQEntry | None:
-        """
-        Search FAQ for an answer.
-
-        Simple keyword matching - could be enhanced with embeddings.
-
-        Args:
-            question: User question
-            language: Language code
-
-        Returns:
-            FAQEntry if found, None otherwise
-        """
+        """Search FAQ for an answer."""
         entries = await self.get_faq(language)
         question_lower = question.lower()
 
         for entry in entries:
-            # Simple keyword matching
             if any(word in question_lower for word in entry.question.lower().split()):
                 return entry
 
         return None
 
     async def request_refund(self, user_id: str, order_id: str, reason: str = "") -> dict[str, Any]:
-        """
-        Request a refund for an order.
-
-        Validates order status, user ownership, and refund limits.
-
-        Args:
-            user_id: User database ID
-            order_id: Order ID
-            reason: Refund reason
-
-        Returns:
-            Success/failure result
-        """
+        """Request a refund for an order."""
         # Get order
         order = await self.db.get_order_by_id(order_id)
         if not order:
@@ -316,16 +314,10 @@ class SupportService:
         if order.user_id != user_id:
             return {"success": False, "reason": "Not your order"}
 
-        # Check if already requested
-        if order.refund_requested:
-            return {"success": False, "reason": "Refund already requested"}
-
         # Validate status
-        status_lower = (order.status or "").lower()
-        if status_lower in FORBIDDEN_REFUND_STATUSES:
-            return {"success": False, "reason": f"Refund not allowed for status '{order.status}'"}
-        if status_lower not in ALLOWED_REFUND_STATUSES:
-            return {"success": False, "reason": f"Refund not allowed for status '{order.status}'"}
+        status_error = _validate_refund_status(order)
+        if status_error:
+            return status_error
 
         # Check refund quota
         try:
@@ -346,15 +338,13 @@ class SupportService:
         try:
             ticket_result = (
                 await self.db.client.table("tickets")
-                .insert(
-                    {
-                        "user_id": user_id,
-                        "order_id": order_id,
-                        "issue_type": "refund",
-                        "description": reason,
-                        "status": "open",
-                    }
-                )
+                .insert({
+                    "user_id": user_id,
+                    "order_id": order_id,
+                    "issue_type": "refund",
+                    "description": reason,
+                    "status": "open",
+                })
                 .execute()
             )
 
@@ -380,17 +370,7 @@ class SupportService:
     async def get_user_tickets(
         self, user_id: str, status: str | None = None, limit: int = 20
     ) -> list[SupportTicket]:
-        """
-        Get user's support tickets.
-
-        Args:
-            user_id: User database ID
-            status: Filter by status (optional)
-            limit: Max results
-
-        Returns:
-            List of SupportTicket
-        """
+        """Get user's support tickets."""
         try:
             query = self.db.client.table("tickets").select("*").eq("user_id", user_id)
             if status:

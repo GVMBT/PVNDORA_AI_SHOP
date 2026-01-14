@@ -24,6 +24,7 @@ export default defineConfig({
   build: {
     target: 'es2020',
     minify: 'esbuild',
+    sourcemap: true, // Enable source maps for debugging production errors
     chunkSizeWarningLimit: 2000,
     rollupOptions: {
       output: {

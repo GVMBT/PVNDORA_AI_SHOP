@@ -21,9 +21,10 @@ from .models import PartnerApplicationRequest
 
 logger = get_logger(__name__)
 
-# Constants to avoid string duplication (S1192)
+# Constants
 ERROR_FAILED_CHECK_PARTNER_STATUS = "Failed to check partner status: %s"
 ERR_USER_NOT_FOUND = "User not found"
+ERR_PARTNER_ACCESS_REQUIRED = "Partner access required"
 
 
 class PartnerModeRequest(BaseModel):
@@ -33,13 +34,43 @@ class PartnerModeRequest(BaseModel):
 
 router = APIRouter(tags=["webapp-partner"])
 
+
 # =============================================================================
 # Helper Functions (reduce cognitive complexity)
 # =============================================================================
 
 
+async def _check_partner_status(db, user_id: str) -> bool:
+    """Check if user is a partner from referral_stats_extended view."""
+    extended_stats_result = (
+        await db.client.table("referral_stats_extended")
+        .select("is_partner")
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+
+    if not extended_stats_result.data:
+        return False
+
+    return bool(extended_stats_result.data[0].get("is_partner", False))
+
+
+async def _verify_partner_access(db, user_id: str) -> None:
+    """Verify user has partner access, raise HTTPException if not."""
+    try:
+        is_partner = await _check_partner_status(db, user_id)
+        if not is_partner:
+            raise HTTPException(status_code=403, detail=ERR_PARTNER_ACCESS_REQUIRED)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(ERROR_FAILED_CHECK_PARTNER_STATUS, type(e).__name__, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to verify partner status")
+
+
 async def _get_referrals_with_purchases(db, referrer_id: str) -> list[dict]:
-    """Get direct referrals with their purchase data (reduces cognitive complexity)."""
+    """Get direct referrals with their purchase data."""
     try:
         referrals_result = (
             await db.client.from_("users")
@@ -62,139 +93,130 @@ async def _get_referrals_with_purchases(db, referrer_id: str) -> list[dict]:
             orders = orders_result.data or []
             total_spent = sum(to_float(o.get("amount", 0)) for o in orders)
 
-            referrals.append(
-                {
-                    "telegram_id": ref.get("telegram_id"),
-                    "username": ref.get("username"),
-                    "first_name": ref.get("first_name"),
-                    "joined_at": ref.get("created_at"),
-                    "orders_count": len(orders),
-                    "total_spent": total_spent,
-                    "is_paying": len(orders) > 0,
-                }
-            )
+            referrals.append({
+                "telegram_id": ref.get("telegram_id"),
+                "username": ref.get("username"),
+                "first_name": ref.get("first_name"),
+                "joined_at": ref.get("created_at"),
+                "orders_count": len(orders),
+                "total_spent": total_spent,
+                "is_paying": len(orders) > 0,
+            })
         return referrals
     except Exception as e:
         logger.warning("Failed to query referrals: %s", e)
         return []
 
 
-@router.get("/partner/dashboard")
-async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
-    """
-    Partner Dashboard - extended analytics for VIP partners (is_partner=true).
-
-    Returns:
-    - summary: key metrics (balance, total earned, conversion %, referral count)
-    - referrals: detailed list of direct referrals with purchase history
-    - earnings_history: daily/weekly earnings breakdown
-    - top_products: most purchased products by referrals
-    """
-    db = get_database()
-    db_user = await db.get_user_by_telegram_id(user.id)
-    if not db_user:
-        raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
-
-    # Check if user is a partner (from referral_stats_extended view)
-    try:
-        extended_stats_result = (
-            await db.client.table("referral_stats_extended")
-            .select("is_partner")
-            .eq("user_id", db_user.id)
-            .limit(1)
-            .execute()
-        )
-
-        is_partner = False
-        if extended_stats_result.data and len(extended_stats_result.data) > 0:
-            is_partner = extended_stats_result.data[0].get("is_partner", False) or False
-
-        if not is_partner:
-            raise HTTPException(status_code=403, detail="Partner access required")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(ERROR_FAILED_CHECK_PARTNER_STATUS, type(e).__name__, exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to verify partner status")
-
-    # Get partner analytics from view
+async def _get_partner_analytics(db, user_id: str) -> dict:
+    """Get partner analytics from view."""
     try:
         analytics_result = (
             await db.client.table("partner_analytics")
             .select("*")
-            .eq("user_id", db_user.id)
+            .eq("user_id", user_id)
             .execute()
         )
-        analytics = analytics_result.data[0] if analytics_result.data else {}
+        return analytics_result.data[0] if analytics_result.data else {}
     except Exception as e:
         logger.warning("Failed to query partner_analytics: %s", type(e).__name__)
-        analytics = {}
+        return {}
 
-    referrals = await _get_referrals_with_purchases(db, db_user.id)
 
-    # Get earnings history (last 7 days)
+async def _get_earnings_history(db, user_id: str) -> list[dict]:
+    """Get earnings history for last 7 days grouped by day."""
     try:
         seven_days_ago = (datetime.now(UTC) - timedelta(days=7)).isoformat()
         earnings_result = (
             await db.client.table("referral_bonuses")
             .select("amount, level, created_at")
-            .eq("user_id", db_user.id)
+            .eq("user_id", user_id)
             .eq("eligible", True)
             .gte("created_at", seven_days_ago)
             .order("created_at", desc=True)
             .execute()
         )
 
-        # Group by day
         daily_earnings: defaultdict[str, float] = defaultdict(float)
         for bonus in earnings_result.data or []:
             bonus_dict = cast(dict[str, Any], bonus)
             created_at = bonus_dict.get("created_at", "")
-            day = str(created_at)[:10] if created_at else ""  # YYYY-MM-DD
+            day = str(created_at)[:10] if created_at else ""
             amount = bonus_dict.get("amount", 0)
             daily_earnings[day] += to_float(str(amount))
 
-        earnings_history = [
+        return [
             {"date": day, "amount": amount}
             for day, amount in sorted(daily_earnings.items(), reverse=True)
         ]
     except Exception as e:
         logger.warning("Failed to query earnings history: %s", type(e).__name__)
-        earnings_history = []
+        return []
 
-    # Get top purchased products by referrals
+
+async def _get_top_products(db, user_id: str) -> list:
+    """Get top purchased products by referrals."""
     try:
         top_products_result = await db.client.rpc(
-            "get_partner_top_products", {"p_partner_id": str(db_user.id), "p_limit": 5}
+            "get_partner_top_products", {"p_partner_id": str(user_id), "p_limit": 5}
         ).execute()
-        top_products = top_products_result.data or []
+        return top_products_result.data or []
     except Exception as e:
         logger.warning("get_partner_top_products RPC not available: %s", type(e).__name__)
-        top_products = []
+        return []
 
-    # Calculate summary
+
+def _build_dashboard_summary(
+    db_user, referrals: list, analytics: dict
+) -> dict:
+    """Build summary section for partner dashboard."""
     total_referrals = len(referrals)
     paying_referrals = sum(1 for r in referrals if r.get("is_paying"))
-    conversion_rate = (paying_referrals / total_referrals * 100) if total_referrals > 0 else 0
+    conversion_rate = (paying_referrals / total_referrals * 100) if total_referrals > 0 else 0.0
 
-    # Get partner mode
+    total_earned = 0.0
+    if hasattr(db_user, "total_referral_earnings") and db_user.total_referral_earnings:
+        total_earned = float(db_user.total_referral_earnings)
+
+    return {
+        "balance": float(db_user.balance) if db_user.balance else 0,
+        "total_earned": total_earned,
+        "total_referrals": total_referrals,
+        "paying_referrals": paying_referrals,
+        "conversion_rate": round(conversion_rate, 1),
+        "effective_level": analytics.get("effective_level", 3),
+        "referral_revenue": float(analytics.get("referral_revenue", 0) or 0),
+    }
+
+
+# =============================================================================
+# Partner Endpoints
+# =============================================================================
+
+
+@router.get("/partner/dashboard")
+async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
+    """Partner Dashboard - extended analytics for VIP partners."""
+    db = get_database()
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
+
+    await _verify_partner_access(db, db_user.id)
+
+    # Fetch all data
+    analytics = await _get_partner_analytics(db, db_user.id)
+    referrals = await _get_referrals_with_purchases(db, db_user.id)
+    earnings_history = await _get_earnings_history(db, db_user.id)
+    top_products = await _get_top_products(db, db_user.id)
+
+    summary = _build_dashboard_summary(db_user, referrals, analytics)
+
     partner_mode = getattr(db_user, "partner_mode", "commission") or "commission"
     partner_discount_percent = getattr(db_user, "partner_discount_percent", 0) or 0
 
     return {
-        "summary": {
-            "balance": float(db_user.balance) if db_user.balance else 0,
-            "total_earned": (
-                float(db_user.total_referral_earnings)
-                if hasattr(db_user, "total_referral_earnings") and db_user.total_referral_earnings
-                else 0
-            ),
-            "total_referrals": total_referrals,
-            "paying_referrals": paying_referrals,
-            "conversion_rate": round(conversion_rate, 1),
-            "effective_level": analytics.get("effective_level", 3),
-            "referral_revenue": float(analytics.get("referral_revenue", 0) or 0),
-        },
+        "summary": summary,
         "referrals": referrals,
         "earnings_history": earnings_history,
         "top_products": top_products,
@@ -206,54 +228,21 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
 
 @router.post("/partner/mode")
 async def set_partner_mode(request: PartnerModeRequest, user=Depends(verify_telegram_auth)):
-    """
-    Toggle partner mode between commission and discount.
-
-    In discount mode:
-    - Partner gives up commission earnings
-    - Their level 1 referrals get a discount (default 15%) on all purchases
-
-    In commission mode:
-    - Partner receives commission on referral purchases
-    - Referrals pay normal prices
-    """
+    """Toggle partner mode between commission and discount."""
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
-    # Check if user is a partner (from referral_stats_extended view)
-    try:
-        extended_stats_result = (
-            await db.client.table("referral_stats_extended")
-            .select("is_partner")
-            .eq("user_id", db_user.id)
-            .limit(1)
-            .execute()
-        )
+    await _verify_partner_access(db, db_user.id)
 
-        is_partner = False
-        if extended_stats_result.data and len(extended_stats_result.data) > 0:
-            is_partner = extended_stats_result.data[0].get("is_partner", False) or False
-
-        if not is_partner:
-            raise HTTPException(status_code=403, detail="Partner access required")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(ERROR_FAILED_CHECK_PARTNER_STATUS, type(e).__name__, exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to verify partner status")
-
-    # Validate mode
     if request.mode not in ["commission", "discount"]:
         raise HTTPException(status_code=400, detail="Mode must be 'commission' or 'discount'")
 
-    # Validate discount percent
     discount_percent = 0
     if request.mode == "discount":
-        discount_percent = min(max(request.discount_percent or 15, 5), 25)  # 5-25% range
+        discount_percent = min(max(request.discount_percent or 15, 5), 25)
 
-    # Update user
     try:
         result = (
             await db.client.table("users")
@@ -269,11 +258,7 @@ async def set_partner_mode(request: PartnerModeRequest, user=Depends(verify_tele
             "success": True,
             "mode": request.mode,
             "discount_percent": discount_percent,
-            "message": (
-                "Режим скидок активирован"
-                if request.mode == "discount"
-                else "Режим комиссий активирован"
-            ),
+            "message": "Режим скидок активирован" if request.mode == "discount" else "Режим комиссий активирован",
         }
     except HTTPException:
         raise
@@ -286,34 +271,15 @@ async def set_partner_mode(request: PartnerModeRequest, user=Depends(verify_tele
 async def submit_partner_application(
     request: PartnerApplicationRequest, user=Depends(verify_telegram_auth)
 ):
-    """
-    Submit application to become a VIP partner.
-
-    Required fields:
-    - source: Where your audience is (instagram, youtube, telegram_channel, website, other)
-    - audience_size: Size of your audience (1k-10k, 10k-50k, 50k-100k, 100k+)
-    - description: Why you want to become a partner
-    """
+    """Submit application to become a VIP partner."""
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
-    # Check if already a partner (from referral_stats_extended view)
+    # Check if already a partner
     try:
-        extended_stats_result = (
-            await db.client.table("referral_stats_extended")
-            .select("is_partner")
-            .eq("user_id", db_user.id)
-            .limit(1)
-            .execute()
-        )
-
-        is_partner = False
-        if extended_stats_result.data and len(extended_stats_result.data) > 0:
-            partner_data = cast(dict[str, Any], extended_stats_result.data[0])
-            is_partner = bool(partner_data.get("is_partner", False))
-
+        is_partner = await _check_partner_status(db, db_user.id)
         if is_partner:
             raise HTTPException(status_code=400, detail="You are already a partner")
     except HTTPException:
@@ -336,21 +302,19 @@ async def submit_partner_application(
     # Insert application
     result = (
         await db.client.table("partner_applications")
-        .insert(
-            {
-                "user_id": str(db_user.id),
-                "telegram_id": user.id,
-                "username": getattr(user, "username", None),
-                "email": request.email,
-                "phone": request.phone,
-                "source": request.source,
-                "audience_size": request.audience_size,
-                "description": request.description,
-                "expected_volume": request.expected_volume,
-                "social_links": request.social_links or {},
-                "status": "pending",
-            }
-        )
+        .insert({
+            "user_id": str(db_user.id),
+            "telegram_id": user.id,
+            "username": getattr(user, "username", None),
+            "email": request.email,
+            "phone": request.phone,
+            "source": request.source,
+            "audience_size": request.audience_size,
+            "description": request.description,
+            "expected_volume": request.expected_volume,
+            "social_links": request.social_links or {},
+            "status": "pending",
+        })
         .execute()
     )
 
@@ -360,7 +324,7 @@ async def submit_partner_application(
     application_data = cast(dict[str, Any], result.data[0])
     application_id = str(application_data["id"])
 
-    # Send admin alert (best-effort)
+    # Send admin alert
     try:
         from core.services.admin_alerts import get_admin_alert_service
 
@@ -389,20 +353,9 @@ async def get_partner_application_status(user=Depends(verify_telegram_auth)):
     if not db_user:
         raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
-    # Check if already partner (from referral_stats_extended view)
+    # Check if already partner
     try:
-        extended_stats_result = (
-            await db.client.table("referral_stats_extended")
-            .select("is_partner")
-            .eq("user_id", db_user.id)
-            .limit(1)
-            .execute()
-        )
-
-        is_partner = False
-        if extended_stats_result.data and len(extended_stats_result.data) > 0:
-            is_partner = extended_stats_result.data[0].get("is_partner", False) or False
-
+        is_partner = await _check_partner_status(db, db_user.id)
         if is_partner:
             return {"is_partner": True, "application": None, "message": "You are already a partner"}
     except Exception as e:
@@ -420,8 +373,13 @@ async def get_partner_application_status(user=Depends(verify_telegram_auth)):
 
     application = result.data[0] if result.data else None
 
+    can_apply = application is None
+    if application is not None:
+        app_status = application.get("status")
+        can_apply = app_status == "rejected"
+
     return {
         "is_partner": False,
         "application": application,
-        "can_apply": application is None or application.get("status") in ["rejected"],
+        "can_apply": can_apply,
     }

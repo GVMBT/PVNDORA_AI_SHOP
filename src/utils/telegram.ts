@@ -5,9 +5,10 @@
  * For React components, use useTelegram() hook instead.
  */
 
-/**
- * Get Telegram WebApp instance (if available)
- */
+import {
+  expandViewport,
+  requestFullscreen as sdkRequestFullscreen,
+} from "@telegram-apps/sdk";
 import type { WebApp } from "../types/telegram";
 
 export function getTelegramWebApp(): WebApp | undefined {
@@ -66,8 +67,6 @@ export function getStartParam(): string | null {
 export async function requestFullscreen(): Promise<void> {
   try {
     // Use modern SDK if available
-    const { requestFullscreen: sdkRequestFullscreen } = await import("@telegram-apps/sdk");
-
     if (sdkRequestFullscreen.isAvailable()) {
       await sdkRequestFullscreen();
       return;
@@ -100,8 +99,6 @@ export async function requestFullscreen(): Promise<void> {
 export async function expandWebApp(): Promise<void> {
   try {
     // Use modern SDK if available
-    const { expandViewport } = await import("@telegram-apps/sdk");
-
     if (expandViewport.isAvailable()) {
       expandViewport();
       return;

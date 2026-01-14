@@ -128,7 +128,7 @@ class AudioEngineClass {
 
     // Return existing promise if loading
     const loadingPromise = this.loadingPromises.get(key);
-    if (loadingPromise) {
+    if (loadingPromise !== undefined) {
       return loadingPromise;
     }
 

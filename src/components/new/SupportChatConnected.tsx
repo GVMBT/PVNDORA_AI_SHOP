@@ -114,6 +114,22 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
     }
   }, [isOpen, initialContext]);
 
+  // Load chat history function - must be defined BEFORE useEffect that uses it
+  const loadHistory = useCallback(async () => {
+    const history = await getHistory(20);
+    if (history.length > 0) {
+      // Convert history to display messages
+      const historyMessages: DisplayMessage[] = history.map((msg, idx) => ({
+        id: `history-${idx}`,
+        text: msg.content,
+        sender: msg.role === "user" ? "user" : "agent",
+        timestamp: msg.timestamp || (msg.role === "user" ? "YOU" : "AI"),
+      }));
+
+      setMessages([...INITIAL_MESSAGES, ...historyMessages]);
+    }
+  }, [getHistory]);
+
   // Load chat history on first open
   useEffect(() => {
     if (isOpen && !hasLoadedHistory.current) {
@@ -132,22 +148,7 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
         }
       });
     }
-  }, [isOpen, initialContext, loadHistory]); // Don't include initialContext to avoid re-loading history
-
-  const loadHistory = useCallback(async () => {
-    const history = await getHistory(20);
-    if (history.length > 0) {
-      // Convert history to display messages
-      const historyMessages: DisplayMessage[] = history.map((msg, idx) => ({
-        id: `history-${idx}`,
-        text: msg.content,
-        sender: msg.role === "user" ? "user" : "agent",
-        timestamp: msg.timestamp || (msg.role === "user" ? "YOU" : "AI"),
-      }));
-
-      setMessages([...INITIAL_MESSAGES, ...historyMessages]);
-    }
-  }, [getHistory]);
+  }, [isOpen, initialContext, loadHistory]);
 
   // Auto-scroll to bottom
   useEffect(() => {

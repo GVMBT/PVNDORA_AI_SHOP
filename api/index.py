@@ -10,6 +10,7 @@ Optimized for Vercel Hobby plan (max 12 serverless functions).
 # Documentation: https://docs.aikido.dev/zen
 try:
     import aikido_zen  # type: ignore[import-untyped]
+
     aikido_zen.protect()
     AIKIDO_ZEN_AVAILABLE = True
 except ImportError:
@@ -156,6 +157,7 @@ async def lifespan(fastapi_app: FastAPI):
 
     # Check Aikido Zen status
     import importlib.util
+
     if importlib.util.find_spec("aikido_zen") is not None:
         if os.environ.get("AIKIDO_TOKEN"):
             logger.info("Aikido Zen Runtime Protection: ACTIVE")
@@ -197,6 +199,7 @@ app = FastAPI(
 try:
     if AIKIDO_ZEN_AVAILABLE:
         from aikido_zen.middleware import AikidoStarletteMiddleware  # type: ignore
+
         app.add_middleware(AikidoStarletteMiddleware)
 except (ImportError, NameError):
     # Aikido middleware not available - continue without it

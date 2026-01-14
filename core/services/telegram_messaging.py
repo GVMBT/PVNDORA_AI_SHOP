@@ -14,12 +14,147 @@ from core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Constants (avoid string duplication)
+# Constants
 NO_RESPONSE_BODY = "No response body"
+PERMANENT_ERROR_CODES = {400, 403, 404}
 
 # Environment variables
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 DISCOUNT_BOT_TOKEN = os.environ.get("DISCOUNT_BOT_TOKEN", "")
+
+
+# =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
+
+
+def _is_permanent_error(status_code: int) -> bool:
+    """Check if error is permanent (no retry needed)."""
+    return status_code in PERMANENT_ERROR_CODES
+
+
+def _calculate_backoff_delay(attempt: int) -> float:
+    """Calculate exponential backoff delay."""
+    return float(0.5 * (2 ** attempt))
+
+
+async def _make_telegram_request(
+    client: httpx.AsyncClient, url: str, payload: dict, timeout: float
+) -> tuple[bool, int, str]:
+    """Make HTTP request to Telegram API. Returns (success, status_code, error_text)."""
+    response = await client.post(url, json=payload, timeout=timeout)
+
+    if response.status_code == 200:
+        return True, 200, ""
+
+    error_text = response.text[:200] if response.text else NO_RESPONSE_BODY
+    return False, response.status_code, error_text
+
+
+def _try_model_dump(keyboard) -> dict | None:
+    """Try to convert keyboard using model_dump (aiogram 3.x)."""
+    try:
+        result = keyboard.model_dump(exclude_none=True)
+        return dict(result) if result else None
+    except Exception:
+        logger.exception("Failed to convert keyboard using model_dump")
+        return None
+
+
+def _try_dict_method(keyboard) -> dict | None:
+    """Try to convert keyboard using dict method (aiogram 2.x)."""
+    try:
+        result = keyboard.dict(exclude_none=True)
+        return dict(result) if result else None
+    except Exception:
+        pass
+
+    try:
+        result = keyboard.dict()
+        return dict(result) if result else None
+    except Exception:
+        logger.exception("Failed to convert keyboard using dict")
+        return None
+
+
+def _convert_keyboard_to_dict(keyboard) -> dict | None:
+    """Convert aiogram keyboard to dict format."""
+    if isinstance(keyboard, dict):
+        return dict(keyboard)
+
+    if hasattr(keyboard, "model_dump"):
+        return _try_model_dump(keyboard)
+
+    if hasattr(keyboard, "dict"):
+        return _try_dict_method(keyboard)
+
+    logger.error(f"Unknown keyboard type: {type(keyboard)}")
+    return None
+
+
+def _truncate_message(text: str, max_length: int = 4096) -> str:
+    """Truncate message to Telegram's limit."""
+    if len(text) <= max_length:
+        return text
+
+    logger.warning(f"Truncating message from {len(text)} to {max_length - 3} characters")
+    return text[:max_length - 3] + "..."
+
+
+async def _send_with_retry(
+    url: str, payload: dict, retries: int, timeout: float, chat_id: int
+) -> bool:
+    """Send request with retry logic."""
+    last_error = None
+
+    for attempt in range(retries + 1):
+        try:
+            async with httpx.AsyncClient() as client:
+                success, status_code, error_text = await _make_telegram_request(
+                    client, url, payload, timeout
+                )
+
+                if success:
+                    logger.debug(f"Message sent successfully to {chat_id}")
+                    return True
+
+                logger.warning(f"Telegram API error for {chat_id}: status={status_code}, response={error_text}")
+
+                if _is_permanent_error(status_code):
+                    return False
+
+                last_error = f"HTTP {status_code}"
+
+        except httpx.TimeoutException:
+            last_error = "Timeout"
+            logger.warning(f"Timeout sending message to {chat_id} (attempt {attempt + 1}/{retries + 1})")
+        except httpx.ConnectError as e:
+            last_error = f"Connection error: {e}"
+            logger.warning(f"Connection error sending to {chat_id}: {e}")
+        except Exception as e:
+            last_error = str(e)
+            logger.exception(f"Unexpected error sending message to {chat_id}")
+
+        if attempt < retries:
+            delay = _calculate_backoff_delay(attempt)
+            await asyncio.sleep(delay)
+
+    logger.error(f"Failed to send message to {chat_id} after {retries + 1} attempts: {last_error}")
+    return False
+
+
+def _parse_error_response(response: httpx.Response) -> str:
+    """Parse error response from Telegram API."""
+    try:
+        error_data = response.json() if response.text else {}
+        return error_data.get("description", "") or response.text[:500] if response.text else NO_RESPONSE_BODY
+    except Exception:
+        return response.text[:500] if response.text else NO_RESPONSE_BODY
+
+
+# =============================================================================
+# Public API
+# =============================================================================
 
 
 async def send_telegram_message(
@@ -33,9 +168,6 @@ async def send_telegram_message(
     """
     Send a Telegram message with retry logic and error handling.
 
-    This is the single source of truth for all Telegram message sending.
-    Use this instead of direct bot.send_message() or httpx calls.
-
     Args:
         chat_id: Telegram chat ID (user or group)
         text: Message text (HTML or Markdown supported)
@@ -46,17 +178,6 @@ async def send_telegram_message(
 
     Returns:
         True if sent successfully, False otherwise
-
-    Example:
-        >>> await send_telegram_message(123456789, "Hello, <b>World</b>!")
-        True
-
-        >>> await send_telegram_message(
-        ...     chat_id=123456789,
-        ...     text="Custom bot message",
-        ...     bot_token=os.environ.get("DISCOUNT_BOT_TOKEN")
-        ... )
-        True
     """
     token = bot_token or TELEGRAM_TOKEN
     if not token:
@@ -64,60 +185,11 @@ async def send_telegram_message(
         return False
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-    }
+    payload = {"chat_id": chat_id, "text": text}
     if parse_mode:
         payload["parse_mode"] = parse_mode
 
-    last_error = None
-
-    for attempt in range(retries + 1):
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(url, json=payload, timeout=timeout)
-
-                if response.status_code == 200:
-                    logger.debug(f"Message sent successfully to {chat_id}")
-                    return True
-
-                # Log API error
-                error_text = response.text[:200] if response.text else NO_RESPONSE_BODY
-                logger.warning(
-                    f"Telegram API error for {chat_id}: "
-                    f"status={response.status_code}, response={error_text}"
-                )
-
-                # Check for permanent errors (no retry needed)
-                if response.status_code in [400, 403, 404]:
-                    # 400 - Bad request (invalid chat_id, message too long, etc.)
-                    # 403 - Forbidden (bot blocked by user, user not found)
-                    # 404 - Chat not found
-                    return False
-
-                # For other errors (429 rate limit, 5xx server errors), retry
-                last_error = f"HTTP {response.status_code}"
-
-        except httpx.TimeoutException:
-            last_error = "Timeout"
-            logger.warning(
-                f"Timeout sending message to {chat_id} (attempt {attempt + 1}/{retries + 1})"
-            )
-        except httpx.ConnectError as e:
-            last_error = f"Connection error: {e}"
-            logger.warning(f"Connection error sending to {chat_id}: {e}")
-        except Exception as e:
-            last_error = str(e)
-            logger.exception(f"Unexpected error sending message to {chat_id}")
-
-        # Exponential backoff before retry
-        if attempt < retries:
-            delay = 0.5 * (2**attempt)  # 0.5s, 1s, 2s...
-            await asyncio.sleep(delay)
-
-    logger.error(f"Failed to send message to {chat_id} after {retries + 1} attempts: {last_error}")
-    return False
+    return await _send_with_retry(url, payload, retries, timeout, chat_id)
 
 
 async def send_telegram_message_with_keyboard(
@@ -149,49 +221,14 @@ async def send_telegram_message_with_keyboard(
         logger.warning(f"No bot token configured for sending message to {chat_id}")
         return False
 
-    # Convert aiogram keyboard to dict if needed
-    keyboard_dict = keyboard
-    if isinstance(keyboard, dict):
-        # Already a dict, use as-is
-        keyboard_dict = keyboard
-    elif hasattr(keyboard, "model_dump"):
-        # aiogram 3.x InlineKeyboardMarkup - use model_dump with exclude_none=True
-        # This excludes None values which Telegram API doesn't accept
-        try:
-            keyboard_dict = keyboard.model_dump(exclude_none=True)
-        except Exception:
-            logger.exception("Failed to convert keyboard using model_dump")
-            return False
-    elif hasattr(keyboard, "dict"):
-        # aiogram 2.x InlineKeyboardMarkup
-        try:
-            # Try exclude_none=True first (Pydantic v2 compatible)
-            keyboard_dict = keyboard.dict(exclude_none=True)
-        except Exception:
-            try:
-                keyboard_dict = keyboard.dict()
-            except Exception:
-                logger.exception("Failed to convert keyboard using dict")
-                return False
-    else:
-        logger.error(
-            f"Unknown keyboard type: {type(keyboard)}, cannot convert to dict. Use InlineKeyboardMarkup from aiogram."
-        )
+    keyboard_dict = _convert_keyboard_to_dict(keyboard)
+    if keyboard_dict is None:
         return False
 
-    # Check message length (Telegram limit: 4096 characters)
-    if len(text) > 4096:
-        logger.error(f"Message too long for {chat_id}: {len(text)} characters (max 4096)")
-        # Truncate message
-        text = text[:4090] + "..."
-        logger.warning(f"Truncated message to {len(text)} characters")
+    text = _truncate_message(text)
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-        "reply_markup": keyboard_dict,
-    }
+    payload = {"chat_id": chat_id, "text": text, "reply_markup": keyboard_dict}
     if parse_mode:
         payload["parse_mode"] = parse_mode
 
@@ -205,26 +242,10 @@ async def send_telegram_message_with_keyboard(
                 if response.status_code == 200:
                     return True
 
-                # Log API error with full response body
-                try:
-                    error_data = response.json() if response.text else {}
-                    error_description = (
-                        error_data.get("description", "") or response.text[:500]
-                        if response.text
-                        else NO_RESPONSE_BODY
-                    )
-                    logger.error(
-                        f"Telegram API error for {chat_id} (keyboard): "
-                        f"status={response.status_code}, description={error_description}"
-                    )
-                except Exception:
-                    error_text = response.text[:500] if response.text else NO_RESPONSE_BODY
-                    logger.exception(
-                        f"Telegram API error for {chat_id} (keyboard): "
-                        f"status={response.status_code}, response={error_text}"
-                    )
+                error_description = _parse_error_response(response)
+                logger.error(f"Telegram API error for {chat_id} (keyboard): status={response.status_code}, description={error_description}")
 
-                if response.status_code in [400, 403, 404]:
+                if _is_permanent_error(response.status_code):
                     return False
 
                 last_error = f"HTTP {response.status_code}"
@@ -234,13 +255,15 @@ async def send_telegram_message_with_keyboard(
             logger.warning(f"Error sending keyboard message to {chat_id}: {e}")
 
         if attempt < retries:
-            await asyncio.sleep(0.5 * (2**attempt))
+            await asyncio.sleep(_calculate_backoff_delay(attempt))
 
     logger.error(f"Failed to send keyboard message to {chat_id}: {last_error}")
     return False
 
 
+# =============================================================================
 # Convenience functions for specific bots
+# =============================================================================
 
 
 async def send_via_main_bot(chat_id: int, text: str, parse_mode: str = "HTML") -> bool:

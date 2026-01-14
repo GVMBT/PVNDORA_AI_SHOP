@@ -342,10 +342,11 @@ async def _process_confirmed_payment(order_id: str, payment_id: str, db) -> dict
     except Exception as e:
         from core.logging import sanitize_id_for_logging
 
+        error_type = type(e).__name__
         logger.warning(
             "Failed to queue delivery for %s: %s",
             sanitize_id_for_logging(order_id),
-            type(e).__name__,
+            error_type,
         )
 
     return {"status": final_status, "verified": True}
@@ -366,10 +367,11 @@ async def _verify_crystalpay_payment(
             gateway_status = invoice_info.get("state", "")
             return await _handle_gateway_status(gateway_status, order_id, order_status, payment_id, db)
     except Exception as e:
+        error_type = type(e).__name__
         logger.warning(
             "Failed to verify payment for order %s: %s",
             sanitize_id_for_logging(order_id),
-            type(e).__name__,
+            error_type,
         )
     return {"status": order_status, "verified": False, "message": "Verification failed"}
 

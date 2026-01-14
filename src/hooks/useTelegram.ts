@@ -43,6 +43,58 @@ interface UseTelegramReturn {
   setBackButton: (config: BackButtonConfig) => void;
 }
 
+// =============================================================================
+// Helper Functions (reduce cognitive complexity)
+// =============================================================================
+
+const getDevModeUser = (): TelegramUser => ({
+  id: 123456789,
+  is_bot: false,
+  first_name: "Test",
+  last_name: "User",
+  username: "testuser",
+  language_code: "en",
+});
+
+const mapHapticStyleToTelegram = (style: HapticStyle): TelegramHapticStyle => {
+  const customStyles: HapticStyle[] = ["success", "warning", "error"];
+  return customStyles.includes(style) ? "medium" : (style as TelegramHapticStyle);
+};
+
+const mapHapticStyleToNotificationType = (style: HapticStyle): HapticNotificationType => {
+  const notificationMap: Record<string, HapticNotificationType> = {
+    success: "success",
+    warning: "warning",
+    error: "error",
+  };
+  return notificationMap[style] || "error";
+};
+
+const applyMainButtonConfig = (btn: NonNullable<WebApp["MainButton"]>, config: MainButtonConfig): void => {
+  if (config.text) btn.setText(config.text);
+  if (config.color) btn.setParams({ color: config.color });
+  if (config.textColor) btn.setParams({ text_color: config.textColor });
+  if (config.onClick) btn.onClick(config.onClick);
+
+  if (config.isVisible !== undefined) {
+    config.isVisible ? btn.show() : btn.hide();
+  }
+  if (config.isLoading !== undefined) {
+    config.isLoading ? btn.showProgress() : btn.hideProgress();
+  }
+};
+
+const applyBackButtonConfig = (btn: NonNullable<WebApp["BackButton"]>, config: BackButtonConfig): void => {
+  if (config.onClick) btn.onClick(config.onClick);
+  if (config.isVisible !== undefined) {
+    config.isVisible ? btn.show() : btn.hide();
+  }
+};
+
+// =============================================================================
+// Main Hook
+// =============================================================================
+
 /**
  * Hook for Telegram WebApp SDK integration
  */
@@ -56,16 +108,13 @@ export function useTelegram(): UseTelegramReturn {
     const tg: WebApp | undefined = globalThis.Telegram?.WebApp;
 
     if (tg) {
-      // Mark as ready
       tg.ready();
       tg.expand();
 
-      // Get init data
       setInitData(tg.initData);
       setUser(tg.initDataUnsafe?.user || null);
       setColorScheme(tg.colorScheme || "dark");
 
-      // Theme changed listener
       tg.onEvent("themeChanged", () => {
         setColorScheme(tg.colorScheme);
       });
@@ -74,14 +123,7 @@ export function useTelegram(): UseTelegramReturn {
     } else {
       // Development mode without Telegram
       setInitData("");
-      setUser({
-        id: 123456789,
-        is_bot: false,
-        first_name: "Test",
-        last_name: "User",
-        username: "testuser",
-        language_code: "en",
-      });
+      setUser(getDevModeUser());
       setIsReady(true);
     }
   }, []);
@@ -110,24 +152,14 @@ export function useTelegram(): UseTelegramReturn {
   const hapticFeedback = useCallback(
     (type: HapticType = "impact", style: HapticStyle = "medium"): void => {
       const haptic = globalThis.Telegram?.WebApp?.HapticFeedback;
-      if (haptic) {
-        if (type === "impact") {
-          // Map custom styles to Telegram styles
-          const telegramStyle: TelegramHapticStyle =
-            style === "success" || style === "warning" || style === "error" ? "medium" : style;
-          haptic.impactOccurred(telegramStyle);
-        } else if (type === "notification") {
-          // Map custom styles to Telegram notification types
-          const notificationMap: Record<string, HapticNotificationType> = {
-            success: "success",
-            warning: "warning",
-            error: "error",
-          };
-          const notificationType: HapticNotificationType = notificationMap[style] || "error";
-          haptic.notificationOccurred(notificationType);
-        } else if (type === "selection") {
-          haptic.selectionChanged();
-        }
+      if (!haptic) return;
+
+      if (type === "impact") {
+        haptic.impactOccurred(mapHapticStyleToTelegram(style));
+      } else if (type === "notification") {
+        haptic.notificationOccurred(mapHapticStyleToNotificationType(style));
+      } else if (type === "selection") {
+        haptic.selectionChanged();
       }
     },
     []
@@ -152,26 +184,14 @@ export function useTelegram(): UseTelegramReturn {
   const setMainButton = useCallback((config: MainButtonConfig): void => {
     const btn = globalThis.Telegram?.WebApp?.MainButton;
     if (btn) {
-      if (config.text) btn.setText(config.text);
-      if (config.color) btn.setParams({ color: config.color });
-      if (config.textColor) btn.setParams({ text_color: config.textColor });
-      if (config.onClick) btn.onClick(config.onClick);
-      if (config.isVisible !== undefined) {
-        config.isVisible ? btn.show() : btn.hide();
-      }
-      if (config.isLoading !== undefined) {
-        config.isLoading ? btn.showProgress() : btn.hideProgress();
-      }
+      applyMainButtonConfig(btn, config);
     }
   }, []);
 
   const setBackButton = useCallback((config: BackButtonConfig): void => {
     const btn = globalThis.Telegram?.WebApp?.BackButton;
     if (btn) {
-      if (config.onClick) btn.onClick(config.onClick);
-      if (config.isVisible !== undefined) {
-        config.isVisible ? btn.show() : btn.hide();
-      }
+      applyBackButtonConfig(btn, config);
     }
   }, []);
 

@@ -36,21 +36,25 @@ async def _fetch_telegram_photo_url(telegram_id: int) -> str | None:
             data = resp.json()
             if not data.get("ok"):
                 return None
+
             photos = data.get("result", {}).get("photos", [])
             if not photos:
                 return None
+
             largest = photos[0][-1] if photos[0] else None
             if not largest or not largest.get("file_id"):
                 return None
-            file_id = largest["file_id"]
 
+            file_id = largest["file_id"]
             file_resp = await client.get(f"{api_base}/getFile", params={"file_id": file_id})
             file_data = file_resp.json()
             if not file_data.get("ok"):
                 return None
+
             file_path = file_data.get("result", {}).get("file_path")
             if not file_path:
                 return None
+
             return f"{file_base}/{file_path}"
     except Exception:
         return None
@@ -66,13 +70,15 @@ async def _maybe_refresh_photo(db, db_user, telegram_id: int) -> None:
     redis = None
     try:
         try:
-            from core.db import get_redis  # local import to avoid cycles
+            from core.db import get_redis
 
             redis = get_redis()
         except Exception:
             redis = None
 
         gate_key = f"user:photo:refresh:{telegram_id}"
+
+        # Check gate (skip if recently refreshed)
         if redis:
             try:
                 if await redis.get(gate_key):
@@ -80,12 +86,10 @@ async def _maybe_refresh_photo(db, db_user, telegram_id: int) -> None:
             except Exception:
                 pass
 
-        current_photo = getattr(db_user, "photo_url", None)
-        if current_photo:
-            # We still allow refresh (for updated TG photo) but behind gate
-            pass
-
+        # Fetch and update photo
         photo_url = await _fetch_telegram_photo_url(telegram_id)
+        current_photo = getattr(db_user, "photo_url", None)
+
         if photo_url and photo_url != current_photo:
             try:
                 await db.update_user_photo(telegram_id, photo_url)
@@ -93,14 +97,42 @@ async def _maybe_refresh_photo(db, db_user, telegram_id: int) -> None:
             except Exception as e:
                 logger.warning(f"Failed to update user photo: {e}")
 
+        # Set gate
         if redis:
             try:
                 await redis.set(gate_key, "1", ex=PHOTO_REFRESH_TTL)
             except Exception:
                 pass
     except Exception as e:
-        # Non-fatal
         logger.warning(f"Photo refresh failed: {e}")
+
+
+async def _get_anchor_thresholds_for_display(
+    display_currency: str, settings: dict, threshold2: float, threshold3: float
+) -> dict:
+    """Get anchor thresholds for display in user's preferred currency."""
+    thresholds_display = {"level2": threshold2, "level3": threshold3}
+
+    if not settings or display_currency == "USD":
+        return thresholds_display
+
+    try:
+        from core.db import get_redis
+        from core.services.currency import get_currency_service
+
+        redis = get_redis()
+        currency_service = get_currency_service(redis)
+
+        thresholds_display["level2"] = float(
+            await currency_service.get_anchor_threshold(settings, display_currency, 2)
+        )
+        thresholds_display["level3"] = float(
+            await currency_service.get_anchor_threshold(settings, display_currency, 3)
+        )
+    except Exception as e:
+        logger.warning(f"Failed to get anchor thresholds: {e}")
+
+    return thresholds_display
 
 
 async def _build_default_referral_program(
@@ -113,34 +145,17 @@ async def _build_default_referral_program(
     settings: dict = None,
 ) -> dict:
     """Build default referral program data."""
-    from core.db import get_redis
-    from core.services.currency import get_currency_service
-
-    # Get anchor thresholds for display
-    thresholds_display = {"level2": threshold2, "level3": threshold3}
-
-    if settings and display_currency != "USD":
-        try:
-            redis = get_redis()
-            currency_service = get_currency_service(redis)
-            thresholds_display["level2"] = float(
-                await currency_service.get_anchor_threshold(settings, display_currency, 2)
-            )
-            thresholds_display["level3"] = float(
-                await currency_service.get_anchor_threshold(settings, display_currency, 3)
-            )
-        except Exception as e:
-            logger.warning(f"Failed to get anchor thresholds: {e}")
-
-    # Next threshold for locked users (level 0) is level 2 threshold
+    thresholds_display = await _get_anchor_thresholds_for_display(
+        display_currency, settings, threshold2, threshold3
+    )
     next_threshold_display = thresholds_display["level2"]
 
     return {
         "unlocked": False,
         "status": "locked",
         "is_partner": False,
-        "partner_mode": "commission",  # Default partner mode
-        "partner_discount_percent": 0,  # Default discount
+        "partner_mode": "commission",
+        "partner_discount_percent": 0,
         "effective_level": 0,
         "level1_unlocked": False,
         "level2_unlocked": False,
@@ -160,57 +175,27 @@ async def _build_default_referral_program(
     }
 
 
-async def _build_referral_data(
-    s: dict,
-    threshold2: float,
-    threshold3: float,
-    comm1: float,
-    comm2: float,
-    comm3: float,
-    display_currency: str = "USD",
-    settings: dict = None,
-) -> tuple:
-    """Build referral stats and program data from extended stats."""
-    # Calculate conversion rate (referrals / clicks * 100)
-    click_count = s.get("click_count", 0) or 0
-    total_referrals = s.get("level1_count", 0) or 0
-    conversion_rate = round((total_referrals / click_count * 100), 1) if click_count > 0 else 0
-
-    referral_stats = {
-        "level1_count": s.get("level1_count", 0),
-        "level2_count": s.get("level2_count", 0),
-        "level3_count": s.get("level3_count", 0),
-        "level1_earnings": float(s.get("level1_earnings") or 0),
-        "level2_earnings": float(s.get("level2_earnings") or 0),
-        "level3_earnings": float(s.get("level3_earnings") or 0),
-        "active_referrals": s.get("active_referrals_count", 0),
-        "click_count": click_count,
-        "conversion_rate": conversion_rate,
-    }
-
-    # Core program data from view
-    unlocked = s.get("referral_program_unlocked", False)
-    is_partner = s.get("is_partner", False)
-    partner_override = s.get("partner_level_override")
-    turnover_usd = float(s.get("turnover_usd") or 0)
-
-    # Calculate effective level
+def _calculate_effective_level(
+    is_partner: bool, partner_override: int | None, unlocked: bool,
+    turnover_usd: float, threshold2: float, threshold3: float
+) -> int:
+    """Calculate effective referral level."""
     if is_partner and partner_override is not None:
-        effective_level = partner_override
-    elif not unlocked:
-        effective_level = 0
-    elif turnover_usd >= threshold3:
-        effective_level = 3
-    elif turnover_usd >= threshold2:
-        effective_level = 2
-    elif unlocked:
-        effective_level = 1
-    else:
-        effective_level = 0
+        return partner_override
+    if not unlocked:
+        return 0
+    if turnover_usd >= threshold3:
+        return 3
+    if turnover_usd >= threshold2:
+        return 2
+    # unlocked is True at this point (checked above)
+    return 1
 
-    status = "locked" if not unlocked else "active"
 
-    level1_unlocked = effective_level >= 1
+def _calculate_amounts_to_levels(
+    effective_level: int, turnover_usd: float, threshold2: float, threshold3: float
+) -> tuple[float, float, float | None, float]:
+    """Calculate amounts needed to reach next levels."""
     level2_unlocked = effective_level >= 2
     level3_unlocked = effective_level >= 3
 
@@ -226,6 +211,76 @@ async def _build_referral_data(
     else:
         next_threshold = None
         amount_to_next = 0
+
+    return amount_to_level2, amount_to_level3, next_threshold, amount_to_next
+
+
+def _build_referral_stats(s: dict) -> dict:
+    """Build referral stats from extended stats."""
+    click_count = s.get("click_count", 0) or 0
+    total_referrals = s.get("level1_count", 0) or 0
+    conversion_rate = round((total_referrals / click_count * 100), 1) if click_count > 0 else 0
+
+    return {
+        "level1_count": s.get("level1_count", 0),
+        "level2_count": s.get("level2_count", 0),
+        "level3_count": s.get("level3_count", 0),
+        "level1_earnings": float(s.get("level1_earnings") or 0),
+        "level2_earnings": float(s.get("level2_earnings") or 0),
+        "level3_earnings": float(s.get("level3_earnings") or 0),
+        "active_referrals": s.get("active_referrals_count", 0),
+        "click_count": click_count,
+        "conversion_rate": conversion_rate,
+    }
+
+
+def _calculate_next_threshold_display(
+    next_threshold: float | None, threshold2: float, threshold3: float,
+    thresholds_display: dict
+) -> float | None:
+    """Calculate next threshold in display currency."""
+    if not next_threshold:
+        return None
+    if next_threshold == threshold2:
+        return thresholds_display["level2"]
+    if next_threshold == threshold3:
+        return thresholds_display["level3"]
+    return None
+
+
+async def _build_referral_data(
+    s: dict,
+    threshold2: float,
+    threshold3: float,
+    comm1: float,
+    comm2: float,
+    comm3: float,
+    display_currency: str = "USD",
+    settings: dict = None,
+) -> tuple:
+    """Build referral stats and program data from extended stats."""
+    referral_stats = _build_referral_stats(s)
+
+    # Core program data from view
+    unlocked = s.get("referral_program_unlocked", False)
+    is_partner = s.get("is_partner", False)
+    partner_override = s.get("partner_level_override")
+    turnover_usd = float(s.get("turnover_usd") or 0)
+
+    # Calculate effective level
+    effective_level = _calculate_effective_level(
+        is_partner, partner_override, unlocked, turnover_usd, threshold2, threshold3
+    )
+
+    status = "locked" if not unlocked else "active"
+    level1_unlocked = effective_level >= 1
+    level2_unlocked = effective_level >= 2
+    level3_unlocked = effective_level >= 3
+
+    # Calculate amounts to levels
+    amount_to_level2, amount_to_level3, next_threshold, amount_to_next = _calculate_amounts_to_levels(
+        effective_level, turnover_usd, threshold2, threshold3
+    )
 
     referral_program = {
         "unlocked": unlocked,
@@ -247,46 +302,15 @@ async def _build_referral_data(
         "level3_unlocked_at": s.get("level3_unlocked_at"),
     }
 
-    # Get anchor thresholds for display (using anchor thresholds from settings, like anchor prices)
-    # Priority: 1) anchor threshold in currency, 2) convert from USD
-    thresholds_display = {"level2": threshold2, "level3": threshold3}
-
-    if settings and display_currency != "USD":
-        try:
-            from core.db import get_redis
-            from core.services.currency import get_currency_service
-
-            redis = get_redis()
-            currency_service = get_currency_service(redis)
-
-            thresholds_display["level2"] = float(
-                await currency_service.get_anchor_threshold(settings, display_currency, 2)
-            )
-            thresholds_display["level3"] = float(
-                await currency_service.get_anchor_threshold(settings, display_currency, 3)
-            )
-        except Exception as e:
-            logger.warning(f"Failed to get anchor thresholds for display: {e}")
-            # Fallback: convert from USD using exchange rate
-            try:
-                exchange_rate = await currency_service.get_exchange_rate(display_currency)
-                if exchange_rate > 0:
-                    thresholds_display["level2"] = round(threshold2 * exchange_rate, 2)
-                    thresholds_display["level3"] = round(threshold3 * exchange_rate, 2)
-            except Exception:
-                pass
-
+    # Get anchor thresholds for display
+    thresholds_display = await _get_anchor_thresholds_for_display(
+        display_currency, settings, threshold2, threshold3
+    )
     referral_program["thresholds_display"] = thresholds_display
 
-    # Also add next_threshold in display currency for progress calculation
-    if referral_program.get("next_threshold_usd"):
-        if next_threshold == threshold2:
-            referral_program["next_threshold_display"] = thresholds_display["level2"]
-        elif next_threshold == threshold3:
-            referral_program["next_threshold_display"] = thresholds_display["level3"]
-        else:
-            referral_program["next_threshold_display"] = None
-    else:
-        referral_program["next_threshold_display"] = None
+    # Calculate next_threshold in display currency
+    referral_program["next_threshold_display"] = _calculate_next_threshold_display(
+        next_threshold, threshold2, threshold3, thresholds_display
+    )
 
     return referral_stats, referral_program

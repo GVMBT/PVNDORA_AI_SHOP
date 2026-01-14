@@ -421,9 +421,12 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
   const resultsRef = useRef<Record<string, unknown>>({});
   const startTimeRef = useRef<number>(Date.now());
 
-  // Add log entry
+  // Add log entry - use crypto for unique IDs to avoid duplicate keys
+  const logCounter = useRef(0);
   const addLog = useCallback((id: string, text: string, type: LogEntry["type"]) => {
-    setLogs((prev) => [...prev, { id: `${id}-${Date.now()}`, text, type }]);
+    logCounter.current += 1;
+    const uniqueId = `${id}-${Date.now()}-${logCounter.current}`;
+    setLogs((prev) => [...prev, { id: uniqueId, text, type }]);
   }, []);
 
   // Execute all boot tasks sequentially

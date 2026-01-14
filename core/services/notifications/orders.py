@@ -169,10 +169,11 @@ class OrderNotificationsMixin(NotificationServiceBase):
             from core.logging import sanitize_id_for_logging
 
             sanitized_order_id = sanitize_id_for_logging(order_id)
+            error_type = type(e).__name__
             logger.warning(
                 "Failed to fetch order items for notification %s: %s",
                 sanitized_order_id,
-                type(e).__name__,
+                error_type,
             )
 
         return instant_items, prepaid_items

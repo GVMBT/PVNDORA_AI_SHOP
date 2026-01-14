@@ -325,7 +325,6 @@ async def approve_withdrawal(
             "Error approving withdrawal %s: %s",
             sanitize_id_for_logging(withdrawal_id),
             type(e).__name__,
-            exc_info=True,
         )
         raise HTTPException(status_code=500, detail=ERROR_INTERNAL)
 
@@ -437,7 +436,6 @@ async def reject_withdrawal(
             "Error rejecting withdrawal %s: %s",
             sanitize_id_for_logging(withdrawal_id),
             type(e).__name__,
-            exc_info=True,
         )
         raise HTTPException(status_code=500, detail=ERROR_INTERNAL)
 
@@ -530,6 +528,5 @@ async def complete_withdrawal(
             "Error completing withdrawal %s: %s",
             sanitize_id_for_logging(withdrawal_id),
             type(e).__name__,
-            exc_info=True,
         )
         raise HTTPException(status_code=500, detail=ERROR_INTERNAL)
