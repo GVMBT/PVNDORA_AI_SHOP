@@ -168,16 +168,12 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
 
         payment_service = PaymentService()
 
-        # Check if request is from Telegram Mini App
-        is_telegram_miniapp = True  # Default to True since this is via telegram auth
-
         # Pass user's currency directly to CrystalPay
         result = await payment_service.create_crystalpay_payment_topup(
             topup_id=topup_id,
             user_id=str(db_user.id),
             amount=payment_amount,
             currency=payment_currency,
-            is_telegram_miniapp=is_telegram_miniapp,
         )
 
         if not result or not result.get("payment_url"):

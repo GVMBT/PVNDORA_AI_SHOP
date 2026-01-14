@@ -59,7 +59,7 @@ export function useCheckoutFlow({
     loading: cartLoading,
   } = useCart();
   const { t, formatPrice } = useLocale();
-  const { setBackButton, hapticFeedback, showAlert, openLink, close } = useTelegram();
+  const { setBackButton, hapticFeedback, showAlert } = useTelegram();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [promoCode, setPromoCode] = useState("");

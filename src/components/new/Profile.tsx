@@ -180,7 +180,7 @@ const Profile: React.FC<ProfileProps> = ({
     if (onSetPartnerMode) {
       try {
         await onSetPartnerMode(apiMode);
-      } catch (_e) {
+      } catch (error_) {
         // Revert on error - use the previous mode (opposite of new)
         setRewardMode(newMode === "cash" ? "discount" : "cash");
       }

@@ -222,7 +222,7 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
         };
         setMessages((prev) => [...prev, errorMsg]);
       }
-    } catch (_err) {
+    } catch {
       const errorMsg: DisplayMessage = {
         id: `error-${Date.now()}`,
         text: "Failed to reach AI. Check your connection.",

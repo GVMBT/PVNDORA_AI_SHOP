@@ -549,7 +549,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
 
                 <div className="flex items-center justify-between border-t border-white/5 pt-3">
                   <div className="flex gap-1">
-                    {[...new Array(5)].map((_, starIndex) => (
+                    {Array.from({ length: 5 }).map((_, starIndex) => (
                       <div
                         key={`star-${review.id}-${starIndex}`}
                         className={`w-1.5 h-1.5 rounded-full ${starIndex < review.rating ? "bg-pandora-cyan" : "bg-gray-800"}`}
@@ -578,17 +578,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {relatedProducts.map((rel) => (
-              <div
+              <button
                 key={rel.id}
-                role="button"
-                tabIndex={0}
+                type="button"
                 onClick={() => onProductSelect?.(rel)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    onProductSelect?.(rel);
-                  }
-                }}
-                className="bg-[#0a0a0a] border border-white/10 p-3 flex gap-3 cursor-pointer hover:border-pandora-cyan/50 hover:bg-white/[0.02] transition-all group"
+                className="bg-[#0a0a0a] border border-white/10 p-3 flex gap-3 cursor-pointer hover:border-pandora-cyan/50 hover:bg-white/[0.02] transition-all group text-left"
               >
                 <div className="w-12 h-12 bg-black shrink-0 border border-white/10 relative overflow-hidden">
                   <img
@@ -611,7 +605,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
                 <div className="flex items-center text-gray-600 group-hover:text-pandora-cyan group-hover:translate-x-1 transition-all">
                   <ArrowRight size={14} />
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>

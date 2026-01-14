@@ -77,17 +77,31 @@ const runAllTasks = async (
 };
 
 // Helper: Main boot sequence orchestrator (reduces cognitive complexity)
-const runBootSequenceFlow = async (
-  tasks: BootTask[],
-  addLog: (id: string, text: string, type: LogEntry["type"]) => void,
-  resultsRef: React.MutableRefObject<Record<string, unknown>>,
-  setErrorMessage: (msg: string | null) => void,
-  setPhase: (phase: BootPhase) => void,
-  setProgress: (progress: number) => void,
-  startTime: number,
-  minDuration: number,
-  isCancelled: () => boolean
-): Promise<void> => {
+interface BootSequenceParams {
+  tasks: BootTask[];
+  addLog: (id: string, text: string, type: LogEntry["type"]) => void;
+  resultsRef: React.MutableRefObject<Record<string, unknown>>;
+  setErrorMessage: (msg: string | null) => void;
+  setPhase: (phase: BootPhase) => void;
+  setProgress: (progress: number) => void;
+  startTime: number;
+  minDuration: number;
+  isCancelled: () => boolean;
+}
+
+const runBootSequenceFlow = async (params: BootSequenceParams): Promise<void> => {
+  const {
+    tasks,
+    addLog,
+    resultsRef,
+    setErrorMessage,
+    setPhase,
+    setProgress,
+    startTime,
+    minDuration,
+    isCancelled,
+  } = params;
+
   await runInitialMessages(addLog);
 
   const success = await runAllTasks(
@@ -417,17 +431,17 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
     let cancelled = false;
     const isCancelled = () => cancelled;
 
-    runBootSequenceFlow(
+    runBootSequenceFlow({
       tasks,
       addLog,
       resultsRef,
       setErrorMessage,
       setPhase,
       setProgress,
-      startTimeRef.current,
+      startTime: startTimeRef.current,
       minDuration,
-      isCancelled
-    );
+      isCancelled,
+    });
 
     return () => {
       cancelled = true;

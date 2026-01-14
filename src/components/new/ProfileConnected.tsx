@@ -45,7 +45,6 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
     updateFromProfile,
     setCurrency,
     setLocale,
-    setExchangeRate,
     currency: contextCurrency,
   } = useLocaleContext();
   const { t, formatPrice } = useLocale();
@@ -415,7 +414,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
       } else {
         setPartnerApplication(null);
       }
-    } catch (_err) {
+    } catch {
       // Ignore error, will show form anyway
       setPartnerApplication(null);
     }

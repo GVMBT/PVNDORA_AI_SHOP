@@ -326,7 +326,7 @@ async def approve_withdrawal(
             type(e).__name__,
             exc_info=True,
         )
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/{withdrawal_id}/reject")
@@ -438,7 +438,7 @@ async def reject_withdrawal(
             type(e).__name__,
             exc_info=True,
         )
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/{withdrawal_id}/complete")
@@ -531,4 +531,4 @@ async def complete_withdrawal(
             type(e).__name__,
             exc_info=True,
         )
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
