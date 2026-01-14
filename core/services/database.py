@@ -178,19 +178,10 @@ class Database:
         user_telegram_id: int | None = None,
         expires_at: datetime | None = None,
         payment_url: str | None = None,
-        # New currency snapshot fields
-        fiat_amount: float | None = None,
-        fiat_currency: str | None = None,
-        exchange_rate_snapshot: float | None = None,
     ) -> Order:
         """Create new order.
 
         Note: product_id removed - products are stored in order_items table.
-
-        Args:
-            fiat_amount: Amount in user's currency (what they see/pay)
-            fiat_currency: User's currency code (RUB, USD, etc.)
-            exchange_rate_snapshot: Exchange rate at order creation (1 USD = X fiat)
         """
         return await self.orders_domain.create(
             user_id=user_id,
@@ -202,9 +193,6 @@ class Database:
             user_telegram_id=user_telegram_id,
             expires_at=expires_at,
             payment_url=payment_url,
-            fiat_amount=fiat_amount,
-            fiat_currency=fiat_currency,
-            exchange_rate_snapshot=exchange_rate_snapshot,
         )
 
     async def create_order_with_availability_check(

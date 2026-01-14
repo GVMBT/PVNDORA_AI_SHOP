@@ -229,7 +229,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
                     {formatCurrency(u.balance, u.balanceCurrency)}
                   </td>
                   <td className="p-4">{u.purchases}</td>
-                  <td className="p-4">{formatCurrency(u.spent, "USD")}</td>
+                  <td className="p-4">{formatCurrency(u.spent, u.balanceCurrency || "RUB")}</td>
                   <td className="p-4">
                     {u.isBanned ? (
                       <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30">

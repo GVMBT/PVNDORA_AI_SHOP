@@ -237,43 +237,24 @@ async def _process_external_payment(
         }
 
 
-# Helper: Create order with currency snapshot (reduces cognitive complexity)
+# Helper: Create order (reduces cognitive complexity)
 async def _create_order_with_currency_snapshot(
     db: Any,
     user_id: str,
     ctx: Any,
     total_amount: Decimal,
     total_original: Decimal,
-    total_fiat_amount: Decimal,
-    target_currency: str,
-    gateway_currency: str,
-    currency_service: Any,
     payment_method: str,
     payment_gateway: str,
     order_items: list[dict[str, Any]],
 ) -> tuple[Any, str]:
-    """Create order with currency snapshot and order items."""
+    """Create order with order items.
+
+    After RUB-only migration: all amounts are in RUB, currency conversion removed.
+    """
     from core.routers.webapp.orders.helpers import persist_order, persist_order_items
 
-    # Currency Handling
-    fiat_amount = total_fiat_amount
-    fiat_currency = target_currency
-
-    exchange_rate_snapshot = 1.0
-    try:
-        exchange_rate_snapshot = await currency_service.snapshot_rate(gateway_currency)
-
-        # CRITICAL: Recalculate base USD amount from the realized Fiat amount
-        if exchange_rate_snapshot > 0:
-            total_amount = round_money(divide(fiat_amount, to_decimal(exchange_rate_snapshot)))
-
-        logger.info(
-            f"Order created: {to_float(total_amount)} USD | {to_float(fiat_amount)} {fiat_currency} (Rate: {exchange_rate_snapshot})"
-        )
-    except Exception as e:
-        logger.warning("Failed to snapshot rate or recalculate USD amount: %s", type(e).__name__)
-        exchange_rate_snapshot = 1.0
-
+    # After RUB-only migration: all amounts are in RUB, no currency conversion needed
     # Calculate discount percent
     discount_pct = 0
     if total_original > 0:
@@ -281,6 +262,10 @@ async def _create_order_with_currency_snapshot(
         discount_pct = max(
             0, min(100, int(round_money(multiply(discount_ratio, Decimal("100")), to_int=True)))
         )
+
+    logger.info(
+        f"Order created: {to_float(total_amount)} RUB (Rate: 1.0, all RUB now)"
+    )
 
     # Create order
     payment_expires_at = datetime.now(UTC) + timedelta(minutes=15)
@@ -294,9 +279,6 @@ async def _create_order_with_currency_snapshot(
         payment_gateway=payment_gateway if payment_method != "balance" else None,
         user_telegram_id=ctx.telegram_id,
         expires_at=payment_expires_at,
-        fiat_amount=fiat_amount,
-        fiat_currency=fiat_currency,
-        exchange_rate_snapshot=exchange_rate_snapshot,
     )
 
     order_id = order.id
@@ -614,17 +596,13 @@ async def checkout_cart(payment_method: str = "card") -> dict:
             currency_service,
         )
 
-        # 3. Calculate currency snapshot and create order
+        # 3. Create order (all amounts in RUB after migration)
         order, order_id = await _create_order_with_currency_snapshot(
             db,
             user_id,
             ctx,
             total_amount,
             total_original,
-            total_fiat_amount,
-            target_currency,
-            gateway_currency,
-            currency_service,
             payment_method,
             payment_gateway,
             order_items,

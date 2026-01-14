@@ -111,7 +111,7 @@ async def _get_anchor_thresholds_for_display(
     display_currency: str, settings: dict, threshold2: float, threshold3: float
 ) -> dict:
     """Get thresholds for display (all in RUB now).
-    
+
     NOTE: After RUB-only migration, thresholds are stored in RUB.
     display_currency parameter is kept for backward compatibility but ignored.
     """
@@ -129,7 +129,7 @@ async def _build_default_referral_program(
     settings: dict = None,
 ) -> dict:
     """Build default referral program data.
-    
+
     NOTE: After RUB-only migration, all monetary values are in RUB.
     Field names with '_usd' suffix kept for backward compatibility.
     """
@@ -249,7 +249,7 @@ async def _build_referral_data(
     settings: dict = None,
 ) -> tuple:
     """Build referral stats and program data from extended stats.
-    
+
     NOTE: After RUB-only migration, all monetary values are in RUB.
     Field names with '_usd' suffix kept for backward compatibility.
     """

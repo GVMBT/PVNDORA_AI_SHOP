@@ -249,8 +249,8 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
       setShowDatePicker(true);
     } else {
       setShowDatePicker(false);
-      // Refresh with new period (currency param kept for backward compatibility)
-      if (onRefresh) onRefresh(p, undefined, undefined, "USD");
+      // Refresh with new period (currency param kept for backward compatibility, but now RUB-only)
+      if (onRefresh) onRefresh(p, undefined, undefined, "RUB");
     }
   };
 
@@ -383,7 +383,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  if (onRefresh) onRefresh("custom", customFrom, customTo, "USD");
+                  if (onRefresh) onRefresh("custom", customFrom, customTo, "RUB");
                 }}
                 className="text-xs text-pandora-cyan hover:underline"
               >
@@ -405,7 +405,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
             <button
               type="button"
               onClick={() =>
-                onRefresh(period, customFrom || undefined, customTo || undefined, "USD")
+                onRefresh(period, customFrom || undefined, customTo || undefined, "RUB")
               }
               disabled={isLoading}
               className="p-2 bg-[#0e0e0e] border border-white/10 rounded-sm hover:border-pandora-cyan transition-colors disabled:opacity-50"

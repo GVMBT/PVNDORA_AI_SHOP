@@ -25,15 +25,12 @@ crud_router = APIRouter()
 # =============================================================================
 
 
-async def _check_balance_sufficiency(
+def _check_balance_sufficiency(
     amount: float | None,
-    user_currency: str,
-    balance_currency: str,
     user_balance: float,
-    currency_service,
 ) -> bool:
     """Check if balance is sufficient for order amount.
-    
+
     After RUB-only migration, all amounts are in RUB.
     """
     if not amount:
@@ -42,9 +39,9 @@ async def _check_balance_sufficiency(
     return user_balance >= amount
 
 
-def _get_user_currency(db_user, user, currency_service) -> str:
+def _get_user_currency() -> str:
     """Get user's currency.
-    
+
     After RUB-only migration, always returns RUB.
     """
     return "RUB"
@@ -103,11 +100,9 @@ def _build_order_item(item: dict, order_status: str, reviewed_product_ids: set) 
     }
 
 
-async def _process_order_row(
+def _process_order_row(
     row: dict,
     reviews_by_order: dict[str, set],
-    user_currency: str,
-    currency_service,
 ) -> dict | None:
     """Process a single order row and build order dict (reduces cognitive complexity)."""
     from core.logging import sanitize_id_for_logging
@@ -134,7 +129,7 @@ async def _process_order_row(
             items[i]["fulfillment_deadline"] = row.get("fulfillment_deadline")
 
     # Build order dict using helper
-    return await _build_order_dict(row, items, product_data, user_currency, currency_service)
+    return _build_order_dict(row, items, product_data)
 
 
 def _build_balance_payment_method(
@@ -206,15 +201,13 @@ def _build_crypto_payment_method(user_currency: str) -> PaymentMethod:
     )
 
 
-async def _build_order_dict(
+def _build_order_dict(
     row: dict,
     items: list[dict],
     product_data: dict | None,
-    user_currency: str,
-    currency_service,
 ) -> dict:
     """Build APIOrder dict from order data.
-    
+
     After RUB-only migration, all amounts are in RUB.
     """
     amount = float(row.get("amount", 0))
@@ -438,7 +431,7 @@ async def get_webapp_orders(
 
     db = get_database()
     redis = get_redis()
-    currency_service = get_currency_service(redis)
+    get_currency_service(redis)
 
     db_user = await db.get_user_by_telegram_id(user.id)
 
@@ -470,7 +463,7 @@ async def get_webapp_orders(
         )
         raise HTTPException(status_code=500, detail=ERROR_FAILED_TO_FETCH_ORDERS)
 
-    user_currency = _get_user_currency(db_user, user, currency_service)
+    user_currency = _get_user_currency()
 
     if not result.data:
         from core.logging import sanitize_id_for_logging
@@ -486,9 +479,7 @@ async def get_webapp_orders(
 
     for row in result.data:
         try:
-            order_dict = await _process_order_row(
-                row, reviews_by_order, user_currency, currency_service
-            )
+            order_dict = _process_order_row(row, reviews_by_order)
             if order_dict:
                 orders.append(order_dict)
         except Exception as e:
@@ -545,9 +536,7 @@ async def get_payment_methods(
 
     if user_balance > 0:
         balance_display = currency_service.format_price(user_balance, balance_currency)
-        balance_sufficient = await _check_balance_sufficiency(
-            amount, user_currency, balance_currency, user_balance, currency_service
-        )
+        balance_sufficient = _check_balance_sufficiency(amount, user_balance)
         methods.append(
             _build_balance_payment_method(
                 user_balance, balance_currency, balance_display, balance_sufficient

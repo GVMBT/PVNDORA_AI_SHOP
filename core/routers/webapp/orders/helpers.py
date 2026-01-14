@@ -75,9 +75,6 @@ async def persist_order(
     payment_gateway: str | None,
     user_telegram_id: int,
     expires_at: datetime,
-    fiat_amount: Decimal | None = None,
-    fiat_currency: str | None = None,
-    exchange_rate_snapshot: float | None = None,
 ):
     """Create order record in database using thread for sync operation."""
     order_payload = {
@@ -92,14 +89,6 @@ async def persist_order(
         "user_telegram_id": user_telegram_id,
         "expires_at": expires_at.isoformat(),
     }
-
-    # Add fiat fields if provided
-    if fiat_amount is not None:
-        order_payload["fiat_amount"] = to_float(fiat_amount)
-    if fiat_currency:
-        order_payload["fiat_currency"] = fiat_currency
-    if exchange_rate_snapshot is not None:
-        order_payload["exchange_rate_snapshot"] = exchange_rate_snapshot
 
     result = await db.client.table("orders").insert(order_payload).execute()
     row = result.data[0]
@@ -490,9 +479,6 @@ async def create_order_with_items(
     discount_pct: int,
     payment_method: str,
     payment_gateway: str | None,
-    fiat_amount: Decimal,
-    fiat_currency: str,
-    exchange_rate_snapshot: float,
     order_items: list[dict[str, Any]],
 ) -> Order:
     """
@@ -510,9 +496,6 @@ async def create_order_with_items(
         payment_gateway=payment_gateway,
         user_telegram_id=user_id,
         expires_at=payment_expires_at,
-        fiat_amount=fiat_amount,
-        fiat_currency=fiat_currency,
-        exchange_rate_snapshot=exchange_rate_snapshot,
     )
 
     try:

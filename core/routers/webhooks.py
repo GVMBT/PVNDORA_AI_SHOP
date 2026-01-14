@@ -291,29 +291,13 @@ def _verify_crystalpay_signature(received_signature: str, invoice_id: str) -> bo
 async def _convert_payment_to_balance_currency(
     payment_amount: float, payment_currency: str, balance_currency: str
 ) -> float:
-    """Convert payment amount to user's balance currency."""
-    if payment_currency == balance_currency:
-        return payment_amount
+    """Convert payment amount to user's balance currency.
 
-    from core.db import get_redis
-    from core.services.currency import get_currency_service
-
-    redis = get_redis()
-    currency_service = get_currency_service(redis)
-
-    payment_rate = (
-        await currency_service.get_exchange_rate(payment_currency)
-        if payment_currency != "USD"
-        else 1.0
-    )
-    balance_rate = (
-        await currency_service.get_exchange_rate(balance_currency)
-        if balance_currency != "USD"
-        else 1.0
-    )
-
-    amount_usd = payment_amount / payment_rate if payment_rate > 0 else payment_amount
-    return amount_usd * balance_rate
+    After RUB-only migration, all currencies are RUB, so no conversion needed.
+    """
+    # After RUB-only migration, all amounts are in RUB
+    # No conversion needed - just return the amount
+    return payment_amount
 
 
 async def _parse_webhook_body(
@@ -657,7 +641,7 @@ async def crystalpay_topup_webhook(request: Request):
         )
 
         # Validate topup transaction
-        topup_id, error_response = await _validate_topup_transaction(data)
+        topup_id, error_response = _validate_topup_transaction(data)
         if error_response:
             return error_response
 

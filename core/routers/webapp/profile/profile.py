@@ -35,7 +35,7 @@ profile_router = APIRouter()
 
 def calculate_exchange_rate(rate: float, from_currency: str, to_currency: str) -> float:
     """Format exchange rate for display.
-    
+
     DEPRECATED: After RUB-only migration, always returns 1.0.
     Kept for backward compatibility.
     """
@@ -51,7 +51,7 @@ async def _calculate_conversion_rate(
     currency_service,
 ) -> float:
     """Calculate exchange rate for conversion metadata.
-    
+
     DEPRECATED: After RUB-only migration, always returns 1.0.
     Kept for backward compatibility.
     """
@@ -60,7 +60,7 @@ async def _calculate_conversion_rate(
 
 async def _convert_balance_to_usd(balance_in_local: float, balance_currency: str, redis) -> float:
     """Get balance value.
-    
+
     DEPRECATED: After RUB-only migration, returns balance as-is (in RUB).
     The function name mentions USD for backward compatibility.
     """
@@ -492,7 +492,7 @@ async def get_webapp_profile(db_user: User = Depends(get_db_user)):
 @profile_router.put("/profile/preferences")
 async def update_preferences(request: UpdatePreferencesRequest, user=Depends(verify_telegram_auth)):
     """Update user preferences (interface language only).
-    
+
     NOTE: Currency preference is ignored after RUB-only migration.
     """
     db = get_database()
@@ -519,7 +519,7 @@ async def update_preferences(request: UpdatePreferencesRequest, user=Depends(ver
 @profile_router.post("/profile/convert-balance")
 async def convert_balance(request: ConvertBalanceRequest, user=Depends(verify_telegram_auth)):
     """Convert user balance to a different currency.
-    
+
     DEPRECATED: After RUB-only migration, this endpoint returns current balance.
     Currency conversion is no longer supported.
     """

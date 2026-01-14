@@ -20,7 +20,6 @@ from core.services.money import to_decimal, to_float
 
 from ..models import ConfirmPaymentRequest, CreateOrderRequest, OrderResponse
 from .helpers import (
-    calculate_currency_snapshot,
     calculate_discount_percent,
     cleanup_promo_and_cart,
     create_order_with_items,
@@ -145,10 +144,8 @@ async def _create_cart_order(
     # Format product names
     product_names = format_product_names(order_items)
 
-    # Calculate currency snapshot
-    total_amount, exchange_rate_snapshot = await calculate_currency_snapshot(
-        currency_service, target_currency, total_fiat_amount
-    )
+    # After RUB-only migration: total_amount = total_fiat_amount (all in RUB)
+    total_amount = total_fiat_amount
 
     # Calculate discount percent
     discount_pct = calculate_discount_percent(total_amount, total_original)
@@ -166,9 +163,6 @@ async def _create_cart_order(
         discount_pct=discount_pct,
         payment_method=payment_method,
         payment_gateway=payment_gateway,
-        fiat_amount=total_fiat_amount,
-        fiat_currency=target_currency,
-        exchange_rate_snapshot=exchange_rate_snapshot,
         order_items=order_items,
     )
 

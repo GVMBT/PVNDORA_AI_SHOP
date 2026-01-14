@@ -58,7 +58,7 @@ class AmountResponse(TypedDict):
 class CurrencyFormatter:
     """
     Unified currency formatter for API responses.
-    
+
     Simplified for RUB-only system.
     """
 
@@ -77,7 +77,7 @@ class CurrencyFormatter:
     ) -> "CurrencyFormatter":
         """
         Factory method to create CurrencyFormatter.
-        
+
         Always returns RUB formatter (no conversion needed).
         """
         return cls(currency="RUB", exchange_rate=1.0)
@@ -100,11 +100,11 @@ class CurrencyFormatter:
     def format_balance(self, amount: float | Decimal, currency: str = "RUB") -> str:
         """
         Format a balance amount with RUB symbol.
-        
+
         Args:
             amount: The amount to format (in RUB)
             currency: Ignored (always RUB)
-            
+
         Returns:
             Formatted string like "1 000 ₽"
         """
@@ -116,7 +116,7 @@ class CurrencyFormatter:
     def format_amount(self, amount: float | Decimal | str | None) -> AmountResponse:
         """
         Format an amount for API response.
-        
+
         Returns dict with amount in RUB.
         Note: 'usd' key is kept for backwards compatibility but contains RUB value.
         """

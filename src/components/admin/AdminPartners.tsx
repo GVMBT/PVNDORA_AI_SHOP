@@ -282,7 +282,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
                           {p.level || "USER"}
                         </span>
                       </td>
-                      <td className="p-4 text-pandora-cyan">{p.earned || 0} USD</td>
+                      <td className="p-4 text-pandora-cyan">{p.earned || 0} ₽</td>
                       <td className="p-4 text-[10px] uppercase text-gray-400">
                         {p.rewardType === "commission" ? "💰 Комиссия" : "🎁 Скидка рефералам"}
                       </td>
@@ -332,7 +332,7 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
                     <StatusBadge status={p.status || "ACTIVE"} />
                   </div>
                   <div className="text-xs text-gray-500 mb-2">
-                    {p.level || "USER"} • Заработок: {p.earned || 0} USD
+                    {p.level || "USER"} • Заработок: {p.earned || 0} ₽
                   </div>
                   <button
                     type="button"

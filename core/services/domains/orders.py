@@ -30,10 +30,6 @@ class OrdersDomain:
         expires_at: datetime | None = None,
         payment_url: str | None = None,
         source_channel: str = "premium",
-        # Currency snapshot fields
-        fiat_amount: float | None = None,
-        fiat_currency: str | None = None,
-        exchange_rate_snapshot: float | None = None,
     ) -> Order:
         """Create new order.
 
@@ -41,9 +37,6 @@ class OrdersDomain:
 
         Args:
             source_channel: Order origin - 'premium' (PVNDORA), 'discount' (discount bot), 'migrated' (converted user)
-            fiat_amount: Amount in user's currency (what they see/pay)
-            fiat_currency: User's currency code (RUB, USD, etc.)
-            exchange_rate_snapshot: Exchange rate at order creation (1 USD = X fiat)
         """
         return await self.repo.create(
             user_id=user_id,
@@ -56,9 +49,6 @@ class OrdersDomain:
             expires_at=expires_at,
             payment_url=payment_url,
             source_channel=source_channel,
-            fiat_amount=fiat_amount,
-            fiat_currency=fiat_currency,
-            exchange_rate_snapshot=exchange_rate_snapshot,
         )
 
     async def get_by_id(self, order_id: str) -> Order | None:

@@ -36,7 +36,7 @@ app = FastAPI()
 async def update_exchange_rates_entrypoint(request: Request):
     """
     Update USDT/RUB rate for withdrawal calculations.
-    
+
     All other currency rates are no longer needed as system is RUB-only.
     """
     auth_header = request.headers.get("Authorization", "")
@@ -46,17 +46,17 @@ async def update_exchange_rates_entrypoint(request: Request):
     try:
         # Fetch USDT/RUB rate from a crypto exchange API
         usdt_rub_rate = await fetch_usdt_rub_rate()
-        
+
         # Store in Redis for withdrawal calculations
         redis_url = os.environ.get("UPSTASH_REDIS_REST_URL", "")
         redis_token = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
-        
+
         if redis_url and redis_token:
             from upstash_redis.asyncio import Redis as AsyncRedis
             redis = AsyncRedis(url=redis_url, token=redis_token)
             await redis.setex("currency:rate:USDT_RUB", 3600, str(usdt_rub_rate))
             logger.info(f"Updated USDT/RUB rate in Redis: {usdt_rub_rate}")
-        
+
         now = datetime.now(UTC).isoformat()
         result = {
             "success": True,
@@ -76,7 +76,7 @@ async def update_exchange_rates_entrypoint(request: Request):
 async def fetch_usdt_rub_rate() -> float:
     """
     Fetch current USDT/RUB rate from exchange API.
-    
+
     Tries multiple sources for reliability.
     """
     # Try Binance P2P API (most accurate for RUB)
@@ -97,7 +97,7 @@ async def fetch_usdt_rub_rate() -> float:
             )
             response.raise_for_status()
             data = response.json()
-            
+
             if data.get("data"):
                 prices = [float(ad["adv"]["price"]) for ad in data["data"][:5]]
                 if prices:
