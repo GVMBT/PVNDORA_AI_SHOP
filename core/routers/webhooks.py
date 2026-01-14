@@ -281,8 +281,10 @@ def _verify_crystalpay_signature(received_signature: str, invoice_id: str) -> bo
 
     sign_string = f"{invoice_id}:{salt}"
     # nosec B324 - SHA1 required by CrystalPay API for signature verification
-    # NOSONAR: SHA1 is required by CrystalPay API specification
-    expected_signature = hashlib.sha1(sign_string.encode()).hexdigest().lower()
+    # Security: SHA1 is required by CrystalPay API specification for webhook signature verification.
+    # This is not a security risk as we are verifying signatures FROM CrystalPay, not generating them.
+    # The weak hash is their requirement, not our choice.
+    expected_signature = hashlib.sha1(sign_string.encode()).hexdigest().lower()  # NOSONAR
     return hmac.compare_digest(received_signature, expected_signature)
 
 
