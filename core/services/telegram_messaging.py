@@ -103,33 +103,33 @@ def _truncate_message(text: str, max_length: int = 4096) -> str:
 
 
 async def _send_with_retry(
-    url: str, payload: dict, retries: int, timeout: float, chat_id: int
+    url: str, payload: dict, retries: int, request_timeout: float, chat_id: int
 ) -> bool:
     """Send request with retry logic."""
     last_error = None
-    timeout_obj = httpx.Timeout(timeout, connect=timeout)
 
     for attempt in range(retries + 1):
         try:
-            async with httpx.AsyncClient(timeout=timeout_obj) as client:
-                success, status_code, error_text = await _make_telegram_request(
-                    client, url, payload
-                )
+            async with asyncio.timeout(request_timeout):
+                async with httpx.AsyncClient() as client:
+                    success, status_code, error_text = await _make_telegram_request(
+                        client, url, payload
+                    )
 
-                if success:
-                    logger.debug(f"Message sent successfully to {chat_id}")
-                    return True
+                    if success:
+                        logger.debug(f"Message sent successfully to {chat_id}")
+                        return True
 
-                logger.warning(
-                    f"Telegram API error for {chat_id}: status={status_code}, response={error_text}"
-                )
+                    logger.warning(
+                        f"Telegram API error for {chat_id}: status={status_code}, response={error_text}"
+                    )
 
-                if _is_permanent_error(status_code):
-                    return False
+                    if _is_permanent_error(status_code):
+                        return False
 
-                last_error = f"HTTP {status_code}"
+                    last_error = f"HTTP {status_code}"
 
-        except httpx.TimeoutException:
+        except TimeoutError:
             last_error = "Timeout"
             logger.warning(
                 f"Timeout sending message to {chat_id} (attempt {attempt + 1}/{retries + 1})"
@@ -173,7 +173,7 @@ async def send_telegram_message(
     parse_mode: str | None = "HTML",
     bot_token: str | None = None,
     retries: int = 2,
-    timeout: float = DEFAULT_TIMEOUT,
+    timeout_seconds: float = DEFAULT_TIMEOUT,
 ) -> bool:
     """
     Send a Telegram message with retry logic and error handling.
@@ -184,7 +184,7 @@ async def send_telegram_message(
         parse_mode: "HTML", "Markdown", or None
         bot_token: Optional bot token. If not provided, uses TELEGRAM_TOKEN
         retries: Number of retry attempts (default 2)
-        timeout: Request timeout in seconds (default 10)
+        timeout_seconds: Request timeout in seconds (default 10)
 
     Returns:
         True if sent successfully, False otherwise
@@ -199,7 +199,7 @@ async def send_telegram_message(
     if parse_mode:
         payload["parse_mode"] = parse_mode
 
-    return await _send_with_retry(url, payload, retries, timeout, chat_id)
+    return await _send_with_retry(url, payload, retries, request_timeout=timeout_seconds, chat_id=chat_id)
 
 
 async def send_telegram_message_with_keyboard(
@@ -209,7 +209,7 @@ async def send_telegram_message_with_keyboard(
     parse_mode: str | None = "HTML",
     bot_token: str | None = None,
     retries: int = 2,
-    timeout: float = DEFAULT_TIMEOUT,
+    timeout_seconds: float = DEFAULT_TIMEOUT,
 ) -> bool:
     """
     Send a Telegram message with inline keyboard.
@@ -221,7 +221,7 @@ async def send_telegram_message_with_keyboard(
         parse_mode: Parse mode
         bot_token: Optional bot token
         retries: Number of retry attempts
-        timeout: Request timeout in seconds. Uses timeout context manager internally.
+        timeout_seconds: Request timeout in seconds. Uses timeout context manager internally.
 
     Returns:
         True if sent successfully, False otherwise
@@ -245,26 +245,26 @@ async def send_telegram_message_with_keyboard(
 
     last_error = None
 
-    timeout_obj = httpx.Timeout(timeout, connect=timeout)
     for attempt in range(retries + 1):
         try:
-            async with httpx.AsyncClient(timeout=timeout_obj) as client:
-                response = await client.post(url, json=payload)
+            async with asyncio.timeout(timeout_seconds):
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(url, json=payload)
 
-                if response.status_code == 200:
-                    return True
+                    if response.status_code == 200:
+                        return True
 
-                error_description = _parse_error_response(response)
-                logger.error(
-                    f"Telegram API error for {chat_id} (keyboard): status={response.status_code}, description={error_description}"
-                )
+                    error_description = _parse_error_response(response)
+                    logger.error(
+                        f"Telegram API error for {chat_id} (keyboard): status={response.status_code}, description={error_description}"
+                    )
 
-                if _is_permanent_error(response.status_code):
-                    return False
+                    if _is_permanent_error(response.status_code):
+                        return False
 
-                last_error = f"HTTP {response.status_code}"
+                    last_error = f"HTTP {response.status_code}"
 
-        except httpx.TimeoutException:
+        except TimeoutError:
             last_error = "Timeout"
             logger.warning(
                 f"Timeout sending keyboard message to {chat_id} (attempt {attempt + 1}/{retries + 1})"

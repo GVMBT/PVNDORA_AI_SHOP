@@ -20,9 +20,17 @@ function convertToError(error: unknown): Error {
   }
   if (error && typeof error === "object" && "message" in error) {
     const msg = error.message;
-    return new Error(typeof msg === "string" ? msg : String(msg));
+    return new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
   }
-  return new Error(String(error));
+  // For objects without message property, use JSON.stringify to avoid [object Object]
+  if (error && typeof error === "object") {
+    try {
+      return new Error(JSON.stringify(error));
+    } catch {
+      return new Error("Unknown error object");
+    }
+  }
+  return new Error(typeof error === "string" ? error : "Unknown error");
 }
 
 export interface ErrorContext {

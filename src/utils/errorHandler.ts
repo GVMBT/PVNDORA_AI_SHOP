@@ -21,7 +21,20 @@ export function getErrorMessage(error: unknown, fallback = "An error occurred"):
     if (typeof message === "string") {
       return message;
     }
-    return String(message);
+    // Use JSON.stringify to avoid [object Object]
+    try {
+      return JSON.stringify(message);
+    } catch {
+      return fallback;
+    }
+  }
+  // For objects without message property
+  if (error && typeof error === "object") {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return fallback;
+    }
   }
   return fallback;
 }
