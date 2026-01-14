@@ -219,6 +219,26 @@ class CurrencyFormatter:
         currency_service = get_currency_service()
         return currency_service.format_price(amount, self.currency)
 
+    def format_balance(self, amount: float | Decimal, currency: str) -> str:
+        """
+        Format a balance amount with a specific currency symbol.
+
+        Unlike format(), this uses the provided currency, not the formatter's currency.
+        Useful for displaying user balance which is stored in a specific currency.
+
+        Args:
+            amount: The amount to format (already in the target currency)
+            currency: The currency code to format with (e.g., "RUB", "USD")
+
+        Returns:
+            Formatted string like "$100.00" or "1 000 ₽"
+        """
+        if amount is None:
+            amount = 0
+
+        currency_service = get_currency_service()
+        return currency_service.format_price(amount, currency)
+
     def format_amount(self, amount_usd: float | Decimal | str | None) -> AmountResponse:
         """
         Format an amount for API response.

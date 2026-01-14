@@ -8,7 +8,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from core.auth import verify_admin
-from core.logging import get_logger
+from core.logging import get_logger, sanitize_id_for_logging
 from core.services.database import get_database
 
 logger = get_logger(__name__)
@@ -169,7 +169,7 @@ async def resolve_ticket(
                     reason=comment or "Your request was reviewed and could not be approved.",
                     language=user_language,
                 )
-                logger.info("Sent rejection notification for ticket %s", ticket_id)
+                logger.info("Sent rejection notification for ticket %s", sanitize_id_for_logging(ticket_id))
             except Exception as e:
                 logger.error("Failed to send rejection notification: %s", e, exc_info=True)
 
@@ -187,7 +187,9 @@ async def resolve_ticket(
                         {"ticket_id": ticket_id, "item_id": item_id, "order_id": order_id},
                     )
                     logger.info(
-                        f"Triggered replacement worker for ticket {ticket_id}, item {item_id}"
+                        "Triggered replacement worker for ticket %s, item %s",
+                        sanitize_id_for_logging(ticket_id),
+                        sanitize_id_for_logging(item_id),
                     )
 
                     # Notify user that replacement is being processed
@@ -224,7 +226,9 @@ async def resolve_ticket(
                             },
                         )
                         logger.info(
-                            f"Triggered refund worker for ticket {ticket_id}, order {order_id}"
+                            "Triggered refund worker for ticket %s, order %s",
+                            sanitize_id_for_logging(ticket_id),
+                            sanitize_id_for_logging(order_id),
                         )
 
                         # Notify user that refund is being processed

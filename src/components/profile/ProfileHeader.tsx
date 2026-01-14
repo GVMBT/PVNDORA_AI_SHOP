@@ -65,7 +65,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onBack, onAdminEnte
             </h2>
             <div className="flex items-center gap-3 text-xs font-mono text-gray-500">
               <span>{user.handle}</span>
-              <span className="text-pandora-cyan">//</span>
+              <span className="text-pandora-cyan">{"// "}</span>
               <span>{user.id}</span>
               {user.role === "ADMIN" && (
                 <span className="text-red-500 font-bold bg-red-900/10 px-1 border border-red-500/30">

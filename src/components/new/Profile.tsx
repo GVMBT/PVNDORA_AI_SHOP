@@ -75,6 +75,42 @@ const Profile: React.FC<ProfileProps> = ({
     }
   }, [propProfile?.partnerMode]);
 
+  // All callbacks must be defined before any conditional returns
+  const handleCopy = useCallback(async () => {
+    if (onHaptic) onHaptic("light");
+    if (onCopyLink) {
+      onCopyLink();
+    } else if (propProfile?.referralLink) {
+      await copyToClipboard(propProfile.referralLink);
+    }
+  }, [onHaptic, onCopyLink, propProfile?.referralLink, copyToClipboard]);
+
+  const handleShare = useCallback(async () => {
+    if (onHaptic) onHaptic("medium");
+
+    // Use prop handler if provided
+    if (onShareProp) {
+      onShareProp();
+      return;
+    }
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "PVNDORA // INVITE",
+          text: "Access Restricted Neural Markets. Join via my secured node.",
+          url: propProfile?.referralLink,
+        });
+      } catch (error) {
+        logger.error("Share failed", error);
+        // Share cancelled or failed - silent handling
+      }
+    } else {
+      // Fallback if native share is not supported
+      handleCopy();
+    }
+  }, [onHaptic, onShareProp, propProfile?.referralLink, handleCopy]);
+
   // Use provided profile data only - NO MOCK FALLBACK (production)
   if (!propProfile) {
     // Return empty state if no profile data provided
@@ -113,41 +149,6 @@ const Profile: React.FC<ProfileProps> = ({
   const maxTurnover = nextLevel ? nextLevel.min : currentLevel.max;
   const progressPercent = propProfile.career.progressPercent;
 
-  const handleCopy = useCallback(async () => {
-    if (onHaptic) onHaptic("light");
-    if (onCopyLink) {
-      onCopyLink();
-    } else if (user.referralLink) {
-      await copyToClipboard(user.referralLink);
-    }
-  }, [onHaptic, onCopyLink, user.referralLink, copyToClipboard]);
-
-  const handleShare = useCallback(async () => {
-    if (onHaptic) onHaptic("medium");
-
-    // Use prop handler if provided
-    if (onShareProp) {
-      onShareProp();
-      return;
-    }
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "PVNDORA // INVITE",
-          text: "Access Restricted Neural Markets. Join via my secured node.",
-          url: user.referralLink,
-        });
-      } catch (error) {
-        logger.error("Share failed", error);
-        // Share cancelled or failed - silent handling
-      }
-    } else {
-      // Fallback if native share is not supported
-      handleCopy();
-    }
-  }, [onHaptic, onShareProp, user.referralLink, handleCopy]);
-
   const changeLine = (line: 1 | 2 | 3) => {
     if (onHaptic) onHaptic("light");
     setNetworkLine(line);
@@ -180,8 +181,8 @@ const Profile: React.FC<ProfileProps> = ({
       try {
         await onSetPartnerMode(apiMode);
       } catch (_e) {
-        // Revert on error
-        setRewardMode(rewardMode);
+        // Revert on error - use the previous mode (opposite of new)
+        setRewardMode(newMode === "cash" ? "discount" : "cash");
       }
     }
   };

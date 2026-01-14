@@ -190,7 +190,7 @@ const PandoraBox: React.FC = () => {
           {/* TRANSLATE TO CENTER OF CUBE */}
           <g transform="translate(300, 200)">
             {/* --- INNER CORE (More Intense) --- */}
-            <g className="core-pulse" transform-origin="100 100">
+            <g className="core-pulse">
               <circle
                 cx="100"
                 cy="110"

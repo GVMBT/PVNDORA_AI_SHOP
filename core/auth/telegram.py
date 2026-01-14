@@ -107,7 +107,7 @@ async def _try_bearer_auth(authorization: str, x_init_data: str | None) -> Teleg
 
 
 # Helper: Verify and extract user from initData (reduces cognitive complexity)
-async def _verify_and_extract_user_from_init_data(
+def _verify_and_extract_user_from_init_data(
     init_data: str,
 ) -> TelegramUser:
     """Verify initData signature and extract user."""
@@ -156,7 +156,7 @@ async def verify_telegram_auth(
     if not init_data:
         raise HTTPException(status_code=401, detail="No authorization header")
 
-    extracted_user = await _verify_and_extract_user_from_init_data(init_data)
+    extracted_user = _verify_and_extract_user_from_init_data(init_data)
 
     # Update user's photo_url if provided
     await _update_user_photo_if_provided(extracted_user)

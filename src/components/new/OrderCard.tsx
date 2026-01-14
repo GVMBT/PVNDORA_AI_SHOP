@@ -160,7 +160,8 @@ const OrderCard: React.FC<OrderCardProps> = ({
                 ID: {order.displayId || order.id}
               </span>
               <span className="hidden sm:inline text-[10px] font-mono text-gray-600 uppercase">
-                // {order.date}
+                {"// "}
+                {order.date}
               </span>
               {!isExpanded && (
                 <span className="text-[10px] font-mono text-gray-500">

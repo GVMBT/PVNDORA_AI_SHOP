@@ -313,7 +313,7 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
                     </div>
                     <div className="font-mono text-[9px] text-pandora-cyan flex items-center gap-1">
                       <span className="w-1 h-1 bg-green-500 rounded-full animate-pulse" />
-                      CHANNEL_OPEN
+                      <span>CHANNEL_OPEN</span>
                     </div>
                   </div>
                 </div>

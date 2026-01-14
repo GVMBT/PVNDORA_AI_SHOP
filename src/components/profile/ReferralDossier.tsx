@@ -89,7 +89,7 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
               </div>
               <div className="space-y-1">
                 <div className="text-xs text-gray-500 font-mono">
-                  STATUS:
+                  <span>STATUS:</span>
                   <span className={`ml-2 font-bold ${getStatusColor(referral.status)}`}>
                     <DecryptedText text={referral.status} reveal={true} />
                   </span>
@@ -193,7 +193,7 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
               onClick={onClose}
               className="w-full py-4 border border-white/10 text-gray-500 hover:text-white hover:bg-white/5 text-xs font-mono uppercase tracking-widest transition-colors mt-8"
             >
-              // CLOSE_FILE
+              {"// CLOSE_FILE"}
             </button>
           </div>
         </motion.div>

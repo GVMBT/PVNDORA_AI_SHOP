@@ -549,7 +549,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
 
                 <div className="flex items-center justify-between border-t border-white/5 pt-3">
                   <div className="flex gap-1">
-                    {[...Array(5)].map((_, starIndex) => (
+                    {[...new Array(5)].map((_, starIndex) => (
                       <div
                         key={`star-${review.id}-${starIndex}`}
                         className={`w-1.5 h-1.5 rounded-full ${starIndex < review.rating ? "bg-pandora-cyan" : "bg-gray-800"}`}
@@ -580,7 +580,14 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
             {relatedProducts.map((rel) => (
               <div
                 key={rel.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onProductSelect?.(rel)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    onProductSelect?.(rel);
+                  }
+                }}
                 className="bg-[#0a0a0a] border border-white/10 p-3 flex gap-3 cursor-pointer hover:border-pandora-cyan/50 hover:bg-white/[0.02] transition-all group"
               >
                 <div className="w-12 h-12 bg-black shrink-0 border border-white/10 relative overflow-hidden">

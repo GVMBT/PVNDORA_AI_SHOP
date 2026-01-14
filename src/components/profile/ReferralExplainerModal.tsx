@@ -284,7 +284,7 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                             </div>
                           </div>
 
-                          {threshold && (
+                          {threshold !== null && (
                             <div className="text-right">
                               <div className="text-xs text-gray-500 font-mono">
                                 {isRu ? "ПОРОГ" : "THRESHOLD"}
@@ -303,7 +303,7 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                 </div>
 
                 {/* Progress to next level */}
-                {currentLevel < 3 &&
+                {currentLevel < 3 ? (
                   (() => {
                     // Determine next level threshold (anchor threshold in display currency from backend)
                     let nextThreshold: number;
@@ -348,7 +348,8 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                         )}
                       </div>
                     );
-                  })()}
+                  })()
+                ) : null}
               </div>
 
               {/* Examples */}

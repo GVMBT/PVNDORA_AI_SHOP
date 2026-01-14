@@ -243,8 +243,11 @@ class OrderNotificationsMixin(NotificationServiceBase):
             from core.services.telegram_messaging import send_telegram_message
 
             await send_telegram_message(chat_id=telegram_id, text=message, parse_mode="HTML")
+            from core.logging import sanitize_id_for_logging
+
             logger.info(
-                f"Sent payment confirmed notification to {telegram_id} for order {order_id}"
+                "Sent payment confirmed notification for order %s",
+                sanitize_id_for_logging(order_id),
             )
         except Exception:
             # Don't log telegram_id (user-controlled data) - just log error

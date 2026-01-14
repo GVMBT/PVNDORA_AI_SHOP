@@ -60,7 +60,7 @@ export function useLocale(): UseLocaleReturn {
 
       // Replace params
       if (typeof value === "string" && Object.keys(params).length > 0) {
-        return value.replace(/\{(\w+)\}/g, (_, paramKey) =>
+        return value.replaceAll(/\{(\w+)\}/g, (_, paramKey) =>
           String(params[paramKey] ?? `{${paramKey}}`)
         );
       }

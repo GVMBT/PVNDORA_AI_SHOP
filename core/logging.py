@@ -73,9 +73,33 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
+def _escape_log_injection(value: str) -> str:
+    """
+    Escape characters that could be used for log injection attacks (CWE-117).
+
+    Replaces newlines, carriage returns, and other control characters
+    that could manipulate log format or inject fake log entries.
+
+    Args:
+        value: String to escape
+
+    Returns:
+        Escaped string safe for logging
+    """
+    # Replace characters that could break log format or inject entries
+    return (
+        value.replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
+        .replace("\x00", "")  # Remove null bytes
+    )
+
+
 def sanitize_id_for_logging(id_value: str | None) -> str:
     """
     Sanitize ID for safe logging (truncate to first 8 chars to avoid logging user-controlled data).
+
+    Also escapes log injection characters (CWE-117).
 
     Args:
         id_value: ID value to sanitize (can be None)
@@ -85,12 +109,16 @@ def sanitize_id_for_logging(id_value: str | None) -> str:
     """
     if not id_value:
         return "N/A"
-    return id_value[:8] if len(id_value) > 8 else id_value
+    # Convert to string and escape injection characters first
+    safe_value = _escape_log_injection(str(id_value))
+    return safe_value[:8] if len(safe_value) > 8 else safe_value
 
 
 def sanitize_string_for_logging(value: str | None, max_length: int = 50) -> str:
     """
     Sanitize string for safe logging (truncate to max_length to avoid logging large user-controlled data).
+
+    Also escapes log injection characters (CWE-117).
 
     Args:
         value: String value to sanitize (can be None)
@@ -101,9 +129,11 @@ def sanitize_string_for_logging(value: str | None, max_length: int = 50) -> str:
     """
     if not value:
         return "N/A"
-    if len(value) <= max_length:
-        return value
-    return value[:max_length] + "..."
+    # Escape injection characters first
+    safe_value = _escape_log_injection(str(value))
+    if len(safe_value) <= max_length:
+        return safe_value
+    return safe_value[:max_length] + "..."
 
 
 # Convenience exports

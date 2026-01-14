@@ -231,7 +231,7 @@ const TerminalStatusMessages: React.FC<{
       >
         <div className="text-pandora-cyan font-mono text-sm font-bold flex items-center gap-2">
           <span className="w-2 h-2 bg-pandora-cyan rounded-full animate-pulse" />
-          UPLINK ESTABLISHED — WELCOME, OPERATOR
+          <span>UPLINK ESTABLISHED — WELCOME, OPERATOR</span>
         </div>
       </motion.div>
     );

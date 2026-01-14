@@ -39,7 +39,7 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
       const localizedSource = t(`profile.billing.transaction.${sourceKey}`) || log.source;
 
       // Parse amount (remove sign, convert)
-      const amountNum = Number.parseFloat(log.amount.replace(/[+\-,]/g, "")) || 0;
+      const amountNum = Number.parseFloat(log.amount.replaceAll(/[+\-,]/g, "")) || 0;
       const isIncome = log.type === "INCOME";
 
       // Only convert if transaction currency differs from display currency

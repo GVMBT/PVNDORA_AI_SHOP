@@ -51,7 +51,7 @@ const GuaranteesComponent: React.FC = () => {
             </div>
             <h2 className="text-3xl md:text-5xl font-display font-bold text-white uppercase tracking-tight flex flex-col md:block">
               <span>{t("guarantees.security")}</span>
-              <span className="text-gray-600 mx-2 hidden md:inline">//</span>
+              <span className="text-gray-600 mx-2 hidden md:inline">{"//  "}</span>
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white">
                 {t("guarantees.guaranteesTitle")}
               </span>

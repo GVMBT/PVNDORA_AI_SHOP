@@ -365,10 +365,11 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Email */}
                 <div>
-                  <label className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
+                  <label htmlFor="partner-email" className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
                     EMAIL_ADDRESS *
                   </label>
                   <input
+                    id="partner-email"
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleChange("email", e.target.value)}
@@ -379,10 +380,11 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
 
                 {/* Phone */}
                 <div>
-                  <label className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
+                  <label htmlFor="partner-phone" className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
                     CONTACT_LINE *
                   </label>
                   <input
+                    id="partner-phone"
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => handleChange("phone", e.target.value)}
@@ -394,10 +396,11 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
                 {/* Source & Audience - 2 column */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
+                    <label htmlFor="partner-source" className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
                       NETWORK_SOURCE *
                     </label>
                     <select
+                      id="partner-source"
                       value={formData.source}
                       onChange={(e) => handleChange("source", e.target.value)}
                       className="w-full bg-black/50 border border-white/20 px-3 py-2.5 text-white text-sm font-mono focus:border-pandora-cyan focus:outline-none appearance-none cursor-pointer"
@@ -414,10 +417,11 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
+                    <label htmlFor="partner-audience-size" className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
                       NETWORK_SIZE *
                     </label>
                     <select
+                      id="partner-audience-size"
                       value={formData.audienceSize}
                       onChange={(e) => handleChange("audienceSize", e.target.value)}
                       className="w-full bg-black/50 border border-white/20 px-3 py-2.5 text-white text-sm font-mono focus:border-pandora-cyan focus:outline-none appearance-none cursor-pointer"
@@ -436,10 +440,11 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
 
                 {/* Description */}
                 <div>
-                  <label className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
+                  <label htmlFor="partner-description" className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
                     MISSION_BRIEF *
                   </label>
                   <textarea
+                    id="partner-description"
                     value={formData.description}
                     onChange={(e) => handleChange("description", e.target.value)}
                     className="w-full bg-black/50 border border-white/20 px-3 py-2.5 text-white text-sm font-mono focus:border-pandora-cyan focus:outline-none focus:bg-pandora-cyan/5 transition-all resize-none placeholder:text-gray-600"
@@ -450,10 +455,11 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
 
                 {/* Expected Volume (optional) */}
                 <div>
-                  <label className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
+                  <label htmlFor="partner-volume" className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
                     PROJECTED_OUTPUT <span className="text-gray-600">(опционально)</span>
                   </label>
                   <input
+                    id="partner-volume"
                     type="text"
                     value={formData.expectedVolume || ""}
                     onChange={(e) => handleChange("expectedVolume", e.target.value)}

@@ -380,7 +380,10 @@ async def reject_withdrawal(
                 },
             ).execute()
             logger.info(
-                f"Returned {amount_debited:.2f} {balance_currency} to user {user_id} after withdrawal rejection"
+                "Returned %.2f %s to user %s after withdrawal rejection",
+                amount_debited,
+                sanitize_string_for_logging(balance_currency, max_length=10),
+                sanitize_id_for_logging(user_id),
             )
 
         # Update withdrawal status to rejected
