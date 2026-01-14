@@ -65,8 +65,17 @@ try:
     # Include other routers
     from core.routers.admin.accounting import router as accounting_router
     from core.routers.admin.analytics import router as analytics_router
+    from core.routers.admin.broadcast import router as admin_broadcast_router
+    from core.routers.admin.migration import router as admin_migration_router
+    from core.routers.admin.orders import router as admin_orders_router
     from core.routers.admin.products import router as admin_products_router
+    from core.routers.admin.promo import router as admin_promo_router
+    from core.routers.admin.rag import router as admin_rag_router
+    from core.routers.admin.referral import router as admin_referral_router
+    from core.routers.admin.replacements import router as admin_replacements_router
+    from core.routers.admin.tickets import router as admin_tickets_router
     from core.routers.admin.users import router as admin_users_router
+    from core.routers.admin.withdrawals import router as admin_withdrawals_router
     from core.routers.deps import shutdown_services
 
     # WebApp router - single unified router from __init__.py
@@ -527,5 +536,14 @@ app.include_router(webapp_router)
 # Admin routers
 app.include_router(admin_products_router, prefix=ADMIN_API_PREFIX)
 app.include_router(admin_users_router, prefix=ADMIN_API_PREFIX)
+app.include_router(admin_orders_router, prefix=ADMIN_API_PREFIX)
+app.include_router(admin_tickets_router, prefix=ADMIN_API_PREFIX)
+app.include_router(admin_promo_router, prefix=ADMIN_API_PREFIX)
+app.include_router(admin_withdrawals_router, prefix=ADMIN_API_PREFIX)
+app.include_router(admin_broadcast_router, prefix=ADMIN_API_PREFIX)
+app.include_router(admin_migration_router, prefix=ADMIN_API_PREFIX)
+app.include_router(admin_rag_router, prefix=ADMIN_API_PREFIX)
+app.include_router(admin_referral_router, prefix=ADMIN_API_PREFIX)
+app.include_router(admin_replacements_router, prefix=ADMIN_API_PREFIX)
 app.include_router(accounting_router, prefix=ADMIN_API_PREFIX)
 app.include_router(analytics_router, prefix=ADMIN_API_PREFIX)
