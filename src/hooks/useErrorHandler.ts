@@ -8,6 +8,23 @@ import { useCallback } from "react";
 import { logger } from "../utils/logger";
 import { useTelegram } from "./useTelegram";
 
+/**
+ * Convert unknown error to Error instance
+ */
+function convertToError(error: unknown): Error {
+  if (error instanceof Error) {
+    return error;
+  }
+  if (typeof error === "string") {
+    return new Error(error);
+  }
+  if (error && typeof error === "object" && "message" in error) {
+    const msg = error.message;
+    return new Error(typeof msg === "string" ? msg : String(msg));
+  }
+  return new Error(String(error));
+}
+
 export interface ErrorContext {
   component?: string;
   action?: string;
@@ -49,31 +66,7 @@ export function useErrorHandler() {
       } = options;
 
       // Convert to Error if needed
-      let err: Error;
-      if (error instanceof Error) {
-        err = error;
-      } else if (typeof error === "string") {
-        err = new Error(error);
-      } else if (error && typeof error === "object" && "message" in error) {
-        const message = error.message;
-        let messageStr: string;
-        if (typeof message === "string") {
-          messageStr = message;
-        } else if (message && typeof message === "object") {
-          messageStr = String(message);
-        } else {
-          messageStr = String(message);
-        }
-        err = new Error(messageStr);
-      } else {
-        let errorStr: string;
-        if (error && typeof error === "object") {
-          errorStr = String(error);
-        } else {
-          errorStr = String(error);
-        }
-        err = new Error(errorStr);
-      }
+      const err = convertToError(error);
 
       // Log error
       if (shouldLog) {

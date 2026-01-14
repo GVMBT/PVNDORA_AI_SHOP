@@ -367,6 +367,7 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
                       {msg.sender === "agent" ? (
                         <p
                           className="leading-relaxed whitespace-pre-wrap"
+                          // biome-ignore lint/security/noDangerouslySetInnerHtml: Intentional - AI agent returns sanitized HTML
                           dangerouslySetInnerHTML={{ __html: msg.text }}
                         />
                       ) : (

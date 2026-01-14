@@ -445,8 +445,12 @@ function formatTimeAgo(timestamp: string): string {
 
 /**
  * Generate mock activity data for chart visualization
+ *
+ * SECURITY: Math.random() is safe here - used only for UI visualization,
+ * not for any security-sensitive operations.
  */
 function generateMockActivity(orderCount: number): number[] {
   const base = Math.min(orderCount * 10, 50);
+  // NOSONAR: Math.random() is safe for UI chart visualization
   return Array.from({ length: 7 }, () => Math.floor(base + Math.random() * (100 - base)));
 }

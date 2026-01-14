@@ -305,6 +305,7 @@ export interface APILeaderboardResponse {
   leaderboard: APILeaderboardEntry[];
   user_rank: number;
   user_saved: number;
+  has_more?: boolean;
 }
 
 // ==================== CART ====================

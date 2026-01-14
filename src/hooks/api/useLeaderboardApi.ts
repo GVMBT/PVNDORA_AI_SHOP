@@ -44,8 +44,7 @@ export function useLeaderboardTyped() {
 
         loadedOffsetsRef.current.add(offset);
 
-        const responseHasMore = (response as any).has_more;
-        setHasMore(responseHasMore ?? adapted.length === limit);
+        setHasMore(response.has_more ?? adapted.length === limit);
         setCurrentOffset(offset + adapted.length);
 
         if (append && offset > 0) {

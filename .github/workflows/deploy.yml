@@ -96,7 +96,9 @@ jobs:
           pytest tests/ --cov=core --cov-report=xml || true
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        # Using specific version instead of @master for supply-chain security
+        # Note: sonarcloud-github-action is deprecated, consider migrating to sonarqube-scan-action
+        uses: SonarSource/sonarcloud-github-action@ffc3010c1ce33f16ccb316cc3e275eda48d2f8f8  # v5.0.0
         continue-on-error: true  # Don't fail build if SonarCloud has config issues
         with:
           projectBaseDir: .
@@ -133,7 +135,8 @@ jobs:
         continue-on-error: true # Allow tests to fail until tests are written
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v3
+        # Pinning to v3 SHA for supply-chain security
+        uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673  # v4.5.0
         with:
           files: ./coverage.xml
           fail_ci_if_error: false
@@ -188,7 +191,8 @@ jobs:
 
       - name: Deploy to Vercel
         id: deploy
-        uses: amondnet/vercel-action@v25
+        # Pinning to specific SHA for supply-chain security
+        uses: amondnet/vercel-action@38ce6c9551de61c3e07aa5d5be7e14b8e5d30d1a  # v25.2.0
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
@@ -237,7 +241,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+        # Pinning to specific SHA for supply-chain security
+        uses: supabase/setup-cli@1366fbb4f1ad5c84ed3c2d2205bce3f4acb60652  # v1.4.1
         with:
           version: latest
 

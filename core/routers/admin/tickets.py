@@ -287,8 +287,7 @@ async def _process_approved_ticket(
             )
     except Exception as e:
         logger.error(
-            "Failed to trigger automatic processing for ticket %s: %s",
-            sanitize_id_for_logging(ticket_id),
+            "Failed to trigger automatic processing for ticket: %s",
             type(e).__name__,
             exc_info=True,
         )

@@ -90,10 +90,7 @@ function getCurrencyForLocale(locale: LocaleCode): CurrencyCode {
   return localeToCurrency[locale] || "USD";
 }
 
-export function LocaleProvider({
-  children,
-  initialProfile,
-}: Readonly<LocaleProviderProps>) {
+export function LocaleProvider({ children, initialProfile }: Readonly<LocaleProviderProps>) {
   const defaultLocale = getDefaultLocale();
   const defaultCurrency = getCurrencyForLocale(defaultLocale);
 

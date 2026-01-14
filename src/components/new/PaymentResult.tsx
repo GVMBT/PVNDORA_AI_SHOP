@@ -124,7 +124,14 @@ export function PaymentResult({
   // Helper to handle 404 errors (reduces cognitive complexity)
   const handle404Error = useCallback(
     (error: unknown): { status: PaymentStatus; error: Error; httpStatus: number } | null => {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      let errorMessage: string;
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      } else {
+        errorMessage = String(error);
+      }
       if (errorMessage.includes("404") || errorMessage.includes("ORDER_NOT_FOUND")) {
         return {
           status: "unknown" as PaymentStatus,
@@ -154,23 +161,16 @@ export function PaymentResult({
       }
     } catch (error: unknown) {
       let errorInstance: Error;
-      
+
       if (error instanceof Error) {
         errorInstance = error;
       } else if (error) {
-        let errorStr: string;
-        if (typeof error === "string") {
-          errorStr = error;
-        } else if (error && typeof error === "object") {
-          errorStr = String(error);
-        } else {
-          errorStr = String(error);
-        }
+        const errorStr = typeof error === "string" ? error : String(error);
         errorInstance = new Error(errorStr);
       } else {
         errorInstance = new Error("Unknown error");
       }
-      
+
       logger.error("Status check failed", errorInstance);
       return {
         status: "unknown" as PaymentStatus,

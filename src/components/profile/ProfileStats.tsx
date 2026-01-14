@@ -250,6 +250,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
           <div className="mt-4 flex items-center justify-between text-[10px] font-mono text-gray-500 border-t border-white/5 pt-3">
             <span>{t("profile.uplink.rewardPreference").toUpperCase()}:</span>
             <button
+              type="button"
               onClick={onToggleRewardMode}
               className={`flex items-center gap-2 font-bold px-3 py-1 border rounded-sm transition-colors ${
                 rewardMode === "cash"

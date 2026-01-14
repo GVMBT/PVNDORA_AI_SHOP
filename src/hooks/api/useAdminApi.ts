@@ -100,6 +100,16 @@ export interface AdminAnalytics {
   revenue_by_day: { date: string; amount: number }[];
 }
 
+export interface StockItem {
+  id: string;
+  product_id: string;
+  content: string;
+  status: "available" | "reserved" | "sold";
+  created_at?: string;
+  reserved_at?: string;
+  sold_at?: string;
+}
+
 // Products Hook
 export function useAdminProductsTyped() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
@@ -205,7 +215,7 @@ export function useAdminProductsTyped() {
   );
 
   const getStock = useCallback(
-    async (productId?: string, availableOnly: boolean = true): Promise<any[]> => {
+    async (productId?: string, availableOnly: boolean = true): Promise<StockItem[]> => {
       try {
         let url = "/stock";
         const params = new URLSearchParams();
@@ -213,7 +223,7 @@ export function useAdminProductsTyped() {
         if (!availableOnly) params.append("available_only", "false");
         if (params.toString()) url += `?${params.toString()}`;
 
-        const response = await adminRequest<{ stock: any[] }>(url);
+        const response = await adminRequest<{ stock: StockItem[] }>(url);
         return response.stock || [];
       } catch (err) {
         logger.error("Failed to fetch stock", err);

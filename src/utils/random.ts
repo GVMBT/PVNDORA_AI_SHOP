@@ -2,8 +2,19 @@
  * Random Utilities
  *
  * Utility functions for random number generation.
- * For cryptographic/security purposes, use crypto APIs instead.
- * These are optimized for visual effects and UI animations.
+ *
+ * SECURITY NOTE:
+ * These functions use Math.random() which is NOT cryptographically secure.
+ * This is intentional and safe for our use cases:
+ * - UI animations and visual effects
+ * - Mock data generation for charts
+ * - Particle systems and audio effects
+ * - Session IDs for display purposes only
+ *
+ * For cryptographic/security purposes (tokens, passwords, auth),
+ * use crypto.getRandomValues() or the Web Crypto API instead.
+ *
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues
  */
 
 /**

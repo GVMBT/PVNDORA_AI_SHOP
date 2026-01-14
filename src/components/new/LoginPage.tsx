@@ -61,26 +61,19 @@ const LoginPage = ({
       } catch (err: unknown) {
         let errorInstance: Error;
         let errorMessage: string;
-        
+
         if (err instanceof Error) {
           errorInstance = err;
           errorMessage = err.message;
         } else if (err) {
-          let errStr: string;
-          if (typeof err === "string") {
-            errStr = err;
-          } else if (err && typeof err === "object") {
-            errStr = String(err);
-          } else {
-            errStr = String(err);
-          }
+          const errStr = typeof err === "string" ? err : String(err);
           errorInstance = new Error(errStr);
           errorMessage = errStr;
         } else {
           errorInstance = new Error("Unknown error");
           errorMessage = "Failed to authenticate";
         }
-        
+
         logger.error("Login error", errorInstance);
         setError(errorMessage);
       } finally {

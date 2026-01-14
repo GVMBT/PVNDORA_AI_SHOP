@@ -17,9 +17,9 @@ interface ImportMetaEnv {
 // Helper to safely access import.meta.env
 const getEnv = (): ImportMetaEnv => {
   // Use optional chaining for safe access
-  const env = (import.meta as any)?.env as ImportMetaEnv | undefined;
-  if (env) {
-    return env;
+  const meta = import.meta as { env?: ImportMetaEnv };
+  if (meta.env) {
+    return meta.env;
   }
   return { MODE: "production", DEV: false, PROD: true };
 };
@@ -152,7 +152,7 @@ export function getLanguageCode(): string {
  */
 export function getCurrencyForLanguage(lang?: string): "RUB" | "USD" {
   const langCode = lang || getLanguageCode();
-  return LOCALE.CIS_LANGUAGES.includes(langCode as any) ? "RUB" : "USD";
+  return (LOCALE.CIS_LANGUAGES as readonly string[]).includes(langCode) ? "RUB" : "USD";
 }
 
 /**

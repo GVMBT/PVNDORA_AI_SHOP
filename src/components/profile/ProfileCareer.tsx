@@ -143,6 +143,7 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
             <div className="absolute inset-0 bg-pandora-cyan/5 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
 
             <button
+              type="button"
               onClick={onApplyPartner}
               className="relative w-full py-3.5 bg-black/50 hover:bg-black/70 border border-pandora-cyan/30 hover:border-pandora-cyan/50 text-pandora-cyan font-mono text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all group overflow-hidden"
             >

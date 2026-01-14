@@ -715,7 +715,9 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                         value={editingProduct?.prices?.RUB || ""}
                         onChange={(e) => {
                           const value = e.target.value ? Number(e.target.value) : undefined;
-                          const newPrices = editingProduct?.prices ? { ...editingProduct.prices } : {};
+                          const newPrices = editingProduct?.prices
+                            ? { ...editingProduct.prices }
+                            : {};
                           if (value !== undefined && value > 0) {
                             newPrices.RUB = value;
                           } else {
@@ -754,7 +756,9 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                         value={editingProduct?.prices?.USD || ""}
                         onChange={(e) => {
                           const value = e.target.value ? Number(e.target.value) : undefined;
-                          const newPrices = editingProduct?.prices ? { ...editingProduct.prices } : {};
+                          const newPrices = editingProduct?.prices
+                            ? { ...editingProduct.prices }
+                            : {};
                           if (value !== undefined && value > 0) {
                             newPrices.USD = value;
                           } else {
@@ -800,7 +804,9 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                           value={editingProduct?.msrp_prices?.RUB || ""}
                           onChange={(e) => {
                             const value = e.target.value ? Number(e.target.value) : undefined;
-                            const newMsrpPrices = { ...(editingProduct?.msrp_prices || {}) };
+                            const newMsrpPrices = editingProduct?.msrp_prices
+                              ? { ...editingProduct.msrp_prices }
+                              : {};
                             if (value !== undefined && value > 0) {
                               newMsrpPrices.RUB = value;
                             } else {
@@ -838,9 +844,11 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                           id="product-msrp-usd"
                           type="number"
                           value={editingProduct?.msrp_prices?.USD || ""}
-                            onChange={(e) => {
+                          onChange={(e) => {
                             const value = e.target.value ? Number(e.target.value) : undefined;
-                            const newMsrpPrices = editingProduct?.msrp_prices ? { ...editingProduct.msrp_prices } : {};
+                            const newMsrpPrices = editingProduct?.msrp_prices
+                              ? { ...editingProduct.msrp_prices }
+                              : {};
                             if (value !== undefined && value > 0) {
                               newMsrpPrices.USD = value;
                             } else {
