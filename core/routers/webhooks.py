@@ -288,8 +288,8 @@ def _verify_crystalpay_signature(received_signature: str, invoice_id: str) -> bo
     return hmac.compare_digest(received_signature, expected_signature)
 
 
-async def _convert_payment_to_balance_currency(
-    payment_amount: float, payment_currency: str, balance_currency: str
+def _convert_payment_to_balance_currency(
+    payment_amount: float,
 ) -> float:
     """Convert payment amount to user's balance currency.
 
@@ -526,10 +526,8 @@ async def _process_topup_balance_update(
         else None
     )
 
-    # Convert payment to user's balance currency
-    amount_to_add = await _convert_payment_to_balance_currency(
-        payment_amount, payment_currency, balance_currency
-    )
+    # Convert payment to user's balance currency (after RUB-only migration: no conversion)
+    amount_to_add = _convert_payment_to_balance_currency(payment_amount)
     logger.info(
         f"Top-up conversion: {payment_amount} {payment_currency} → {amount_to_add:.2f} {balance_currency}"
     )

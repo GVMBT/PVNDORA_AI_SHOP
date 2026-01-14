@@ -66,20 +66,24 @@ class CurrencyFormatter:
     exchange_rate: float = 1.0
 
     @classmethod
-    async def create(
+    @classmethod
+    def create(
         cls,
-        user_telegram_id: int | None = None,
-        db=None,
-        redis=None,
-        preferred_currency: str | None = None,
-        language_code: str | None = None,
-        db_user=None,
+        user_telegram_id: int | None = None,  # Kept for backward compatibility
+        db=None,  # Kept for backward compatibility
+        redis=None,  # Kept for backward compatibility
+        preferred_currency: str | None = None,  # Kept for backward compatibility
+        language_code: str | None = None,  # Kept for backward compatibility
+        db_user=None,  # Kept for backward compatibility
+        **kwargs,  # Accept any additional kwargs for backward compatibility
     ) -> "CurrencyFormatter":
         """
         Factory method to create CurrencyFormatter.
 
-        Always returns RUB formatter (no conversion needed).
+        After RUB-only migration: Always returns RUB formatter (no conversion needed).
+        All parameters are kept for backward compatibility but ignored.
         """
+        _ = user_telegram_id, db, redis, preferred_currency, language_code, db_user, kwargs  # Unused after RUB-only migration
         return cls(currency="RUB", exchange_rate=1.0)
 
     def convert(self, amount: float | Decimal | str) -> float:

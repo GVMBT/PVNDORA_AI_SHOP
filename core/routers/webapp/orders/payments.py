@@ -145,20 +145,18 @@ async def _create_cart_order(
     product_names = format_product_names(order_items)
 
     # After RUB-only migration: total_amount = total_fiat_amount (all in RUB)
-    total_amount = total_fiat_amount
-
     # Calculate discount percent
-    discount_pct = calculate_discount_percent(total_amount, total_original)
+    discount_pct = calculate_discount_percent(total_fiat_amount, total_original)
 
     # Create order with items
     logger.info(
-        f"[DEBUG-HYP-E] Order created, before payment processing: payment_method={payment_method}, total_amount={total_amount}"
+        f"[DEBUG-HYP-E] Order created, before payment processing: payment_method={payment_method}, total_amount={total_fiat_amount}"
     )
     order = await create_order_with_items(
         db=db,
         db_user=db_user,
         user_id=user.id,
-        total_amount=total_amount,
+        total_amount=total_fiat_amount,
         total_original=total_original,
         discount_pct=discount_pct,
         payment_method=payment_method,

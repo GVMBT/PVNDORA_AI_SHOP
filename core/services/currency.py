@@ -61,11 +61,13 @@ class CurrencyService:
     def get_user_currency(
         self, language_code: str | None = None, preferred_currency: str | None = None
     ) -> str:
-        """Always returns RUB."""
+        """Always returns RUB. Parameters ignored after RUB-only migration."""
+        _ = language_code, preferred_currency  # Unused after RUB-only migration
         return "RUB"
 
     async def get_exchange_rate(self, target_currency: str) -> float:
-        """Always returns 1.0 (RUB is base currency)."""
+        """Always returns 1.0 (RUB is base currency). Parameter ignored after RUB-only migration."""
+        _ = target_currency  # Unused after RUB-only migration
         return 1.0
 
     async def convert_price(
@@ -93,6 +95,7 @@ class CurrencyService:
         return to_float(rounded)
 
     def format_price(self, price: float | Decimal | str, currency: str = "RUB") -> str:
+        _ = currency  # Unused after RUB-only migration
         """
         Format price with RUB symbol.
 
@@ -132,6 +135,7 @@ class CurrencyService:
         return to_decimal(base_price)
 
     def has_anchor_price(self, product: dict[str, Any] | Any, currency: str) -> bool:
+        _ = currency  # Unused after RUB-only migration
         """Always returns True for RUB (price is always set)."""
         return currency == "RUB"
 
@@ -166,11 +170,13 @@ class CurrencyService:
         return to_decimal(threshold)
 
     async def snapshot_rate(self, currency: str) -> float:
-        """Always returns 1.0 (no rate conversion needed)."""
+        """Always returns 1.0 (no rate conversion needed). Parameter ignored after RUB-only migration."""
+        _ = currency  # Unused after RUB-only migration
         return 1.0
 
     def get_balance_currency(self, language_code: str | None = None) -> str:
-        """Always returns RUB."""
+        """Always returns RUB. Parameter ignored after RUB-only migration."""
+        _ = language_code  # Unused after RUB-only migration
         return "RUB"
 
     async def convert_balance(
@@ -181,6 +187,7 @@ class CurrencyService:
     ) -> Decimal:
         """
         No conversion needed - all balances are in RUB.
+        Parameters from_currency and to_currency are ignored after RUB-only migration.
 
         Args:
             from_currency: Ignored
