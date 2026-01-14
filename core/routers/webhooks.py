@@ -517,7 +517,6 @@ async def _process_topup_balance_update(
     payment_currency = str(tx_metadata.get("payment_currency") or tx.get("currency") or "RUB")
 
     current_balance = float(user_data.get("balance") or 0)
-    # TODO(tech-debt): Default "RUB" after RUB-only migration
     balance_currency = str(user_data.get("balance_currency") or "RUB")
     user_telegram_id_raw = user_data.get("telegram_id")
     user_telegram_id = (
