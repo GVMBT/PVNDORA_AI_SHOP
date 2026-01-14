@@ -22,6 +22,9 @@ class ToggleVIPRequest(PydanticBaseModel):
 
 logger = get_logger(__name__)
 
+# Error message constants
+ERR_USER_NOT_FOUND = "User not found"
+
 
 # =============================================================================
 # Helper Functions (reduce cognitive complexity)
@@ -298,7 +301,7 @@ async def admin_ban_user(user_id: str, ban: bool = True, admin=Depends(verify_ad
         )
 
         if not result.data:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
         return {"success": True, "is_banned": ban}
     except HTTPException:
@@ -331,7 +334,7 @@ async def admin_update_user_balance(
         )
 
         if not user_result.data:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
         current_balance = float(user_result.data.get("balance", 0))
         balance_currency = user_result.data.get("balance_currency") or "USD"
@@ -399,7 +402,7 @@ async def admin_update_warnings(
         )
 
         if not result.data:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
         return {"success": True, "warnings_count": request.count}
     except HTTPException:
@@ -445,7 +448,7 @@ async def admin_toggle_vip(user_id: str, request: ToggleVIPRequest, admin=Depend
         result = await db.client.table("users").update(update_data).eq("id", user_id).execute()
 
         if not result.data:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
         user = result.data[0]
         username = user.get("username") or user.get("first_name") or "Unknown"

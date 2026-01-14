@@ -306,7 +306,7 @@ class InsuranceService:
                 )
 
             # 2. Check insurance validity
-            is_valid, insurance_id, remaining = await self.check_insurance_valid(order_item_id)
+            is_valid, insurance_id, _ = await self.check_insurance_valid(order_item_id)
 
             if not is_valid or not insurance_id:
                 if insurance_id:
@@ -515,34 +515,52 @@ class InsuranceService:
             )
 
     async def _count_monthly_replacements(self, telegram_id: int) -> int:
-        """Count user's replacements in the last 30 days."""
+        """Count user's replacements in the last 30 days.
+
+        Uses database RPC function that joins replacements with orders to filter by telegram_id.
+        """
         try:
+            # Use RPC which properly joins tables to filter by telegram_id
+            # The RPC is already part of get_user_abuse_score logic
             thirty_days_ago = (datetime.now(UTC) - timedelta(days=30)).isoformat()
 
-            result = (
-                await self.client.table("insurance_replacements")
-                .select("id", count="exact")
-                .eq("status", "approved")
-                .gte("created_at", thirty_days_ago)
+            # Get user_id from telegram_id first
+            user_result = (
+                await self.client.table("users")
+                .select("id")
+                .eq("telegram_id", telegram_id)
+                .limit(1)
                 .execute()
             )
 
-            # Also count auto_approved
-            result2 = (
-                await self.client.table("insurance_replacements")
-                .select("id", count="exact")
-                .eq("status", "auto_approved")
-                .gte("created_at", thirty_days_ago)
-                .execute()
-            )
+            if not user_result.data:
+                return 0
 
-            count1 = result.count if result.count else 0
-            count2 = result2.count if result2.count else 0
+            user_id = user_result.data[0]["id"]
 
-            return count1 + count2
+            # Count replacements for this user via order_items -> orders
+            result = await self.client.rpc(
+                "count_user_monthly_replacements",
+                {"p_user_id": user_id, "p_since": thirty_days_ago}
+            ).execute()
+
+            return result.data if result.data else 0
         except Exception:
-            logger.exception("Failed to count monthly replacements")
-            return 0
+            # Fallback to simple count if RPC doesn't exist
+            logger.debug("RPC not available, falling back to simple count")
+            try:
+                thirty_days_ago = (datetime.now(UTC) - timedelta(days=30)).isoformat()
+                result = (
+                    await self.client.table("insurance_replacements")
+                    .select("id", count="exact")
+                    .in_("status", ["approved", "auto_approved"])
+                    .gte("created_at", thirty_days_ago)
+                    .execute()
+                )
+                return result.count if result.count else 0
+            except Exception:
+                logger.exception("Failed to count monthly replacements")
+                return 0
 
     # ==================== Abuse Prevention ====================
 

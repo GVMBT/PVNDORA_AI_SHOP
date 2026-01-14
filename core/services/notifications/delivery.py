@@ -23,7 +23,6 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
     async def _send_credentials(
         self,
         telegram_id: int,
-        product_name: str,
         credentials: str,
         instructions: str | None,
         expires_at: datetime | None,

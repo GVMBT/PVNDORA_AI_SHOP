@@ -167,7 +167,7 @@ async def resolve_ticket(
                     telegram_id=user_telegram_id,
                     ticket_id=ticket_id[:8],
                     reason=comment or "Your request was reviewed and could not be approved.",
-                    language=user_language,
+                    _language=user_language,
                 )
                 logger.info("Sent rejection notification for ticket %s", sanitize_id_for_logging(ticket_id))
             except Exception as e:
@@ -198,7 +198,7 @@ async def resolve_ticket(
                             telegram_id=user_telegram_id,
                             ticket_id=ticket_id[:8],
                             issue_type=issue_type,
-                            language=user_language,
+                            _language=user_language,
                         )
 
                 elif issue_type == "refund" and order_id:
@@ -237,7 +237,7 @@ async def resolve_ticket(
                                 telegram_id=user_telegram_id,
                                 ticket_id=ticket_id[:8],
                                 issue_type=issue_type,
-                                language=user_language,
+                                _language=user_language,
                             )
 
             except Exception as e:

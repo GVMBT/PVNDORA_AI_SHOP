@@ -13,6 +13,9 @@ from core.services.database import get_database
 
 from .models import AddStockRequest, BulkStockRequest, CreateProductRequest
 
+# Error message constants
+ERR_PRODUCT_NOT_FOUND = "Product not found"
+
 router = APIRouter(tags=["admin-products"])
 
 
@@ -185,7 +188,7 @@ async def admin_delete_product(product_id: str, admin=Depends(verify_admin)):
     result = await db.client.table("products").delete().eq("id", product_id).execute()
 
     if not result.data:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=404, detail=ERR_PRODUCT_NOT_FOUND)
 
     return {"success": True, "deleted": True}
 
@@ -200,7 +203,7 @@ async def admin_add_stock(request: AddStockRequest, admin=Depends(verify_admin))
 
     product = await db.get_product_by_id(request.product_id)
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=404, detail=ERR_PRODUCT_NOT_FOUND)
 
     data = {"product_id": request.product_id, "content": request.content, "status": "available"}
 
@@ -223,7 +226,7 @@ async def admin_add_stock_bulk(request: BulkStockRequest, admin=Depends(verify_a
 
     product = await db.get_product_by_id(request.product_id)
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=404, detail=ERR_PRODUCT_NOT_FOUND)
 
     items_data = []
     for content in request.items:
@@ -329,7 +332,7 @@ async def _notify_waitlist_for_product(db, product_name: str, product_id: str | 
                 telegram_id=user["telegram_id"],
                 product_name=product_name,
                 language=user.get("language_code", "en"),
-                product_id=product_id,
+                _product_id=product_id,
                 in_stock=in_stock,
             )
 

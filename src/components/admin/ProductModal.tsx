@@ -51,10 +51,16 @@ interface ProductModalProps {
 
 type ProductTab = "general" | "pricing" | "inventory";
 
+interface StockItem {
+  id: string;
+  content: string;
+  status: string;
+}
+
 const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, onSave }) => {
   const [activeTab, setActiveTab] = useState<ProductTab>("general");
   const [inventoryText, setInventoryText] = useState("");
-  const [stockItems, setStockItems] = useState<any[]>([]);
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [loadingStock, setLoadingStock] = useState(false);
   const [addingStock, setAddingStock] = useState(false);
   const { addStockBulk, deleteStockItem, getStock } = useAdminProductsTyped();
@@ -214,7 +220,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
     if (stockItems.length === 0) return <p className="text-xs text-gray-500">Сток пуст</p>;
     return (
       <div className="max-h-48 overflow-y-auto space-y-2">
-        {stockItems.map((item: any) => (
+        {stockItems.map((item) => (
           <div
             key={item.id}
             className="flex items-start justify-between gap-2 p-2 bg-black/50 border border-white/5 rounded-sm"
@@ -228,6 +234,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
               </span>
               {item.status === "available" && (
                 <button
+                  type="button"
                   onClick={() => handleDeleteStock(item.id)}
                   className="text-red-400 hover:text-red-300 p-1"
                   title="Удалить"
@@ -305,6 +312,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
               { id: "inventory" as const, label: "Склад", icon: Terminal },
             ].map((tab) => (
               <button
+                type="button"
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2 text-xs font-bold uppercase flex items-center gap-2 transition-colors ${
@@ -329,17 +337,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                 </h4>
                 <div className="flex gap-4 items-start">
                   {/* Загрузка изображения */}
-                  <div
-                    role="button"
-                    tabIndex={0}
+                  <button
+                    type="button"
                     className="relative group w-32 h-32 bg-black border border-white/20 flex items-center justify-center cursor-pointer hover:border-pandora-cyan transition-colors rounded-sm"
                     onClick={triggerFileInput}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        triggerFileInput();
-                      }
-                    }}
                   >
                     {editingProduct?.image ? (
                       <img
@@ -353,14 +354,14 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                         <span className="text-[9px] uppercase">Загрузить</span>
                       </div>
                     )}
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                    />
-                  </div>
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                  />
 
                   {/* URL */}
                   <div className="flex-1 space-y-3">
@@ -976,6 +977,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                       <Package size={12} /> ТЕКУЩИЙ СТОК
                     </span>
                     <button
+                      type="button"
                       onClick={loadStock}
                       disabled={loadingStock}
                       className="text-[10px] text-gray-400 hover:text-blue-400 font-mono flex items-center gap-1 disabled:opacity-50"
@@ -1014,6 +1016,7 @@ license_key_xyz789`}
 
               <div className="flex justify-end mt-4">
                 <button
+                  type="button"
                   onClick={handleAddStock}
                   disabled={!inventoryText.trim() || !editingProduct.id || addingStock}
                   className="bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-black disabled:text-gray-500 font-bold py-2 px-6 text-xs uppercase flex items-center gap-2 rounded-sm transition-colors"
@@ -1037,12 +1040,14 @@ license_key_xyz789`}
             <p className="text-[10px] text-gray-600">* Обязательные поля</p>
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={onClose}
                 className="px-4 py-2 border border-white/10 text-xs font-bold text-gray-400 hover:text-white hover:border-white/30 rounded-sm transition-colors"
               >
                 ОТМЕНА
               </button>
               <button
+                type="button"
                 onClick={() => onSave(editingProduct)}
                 className="px-6 py-2 bg-pandora-cyan text-black text-xs font-bold hover:bg-white flex items-center gap-2 rounded-sm transition-colors"
               >

@@ -365,7 +365,10 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Email */}
                 <div>
-                  <label htmlFor="partner-email" className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
+                  <label
+                    htmlFor="partner-email"
+                    className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider"
+                  >
                     EMAIL_ADDRESS *
                   </label>
                   <input
@@ -380,7 +383,10 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
 
                 {/* Phone */}
                 <div>
-                  <label htmlFor="partner-phone" className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
+                  <label
+                    htmlFor="partner-phone"
+                    className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider"
+                  >
                     CONTACT_LINE *
                   </label>
                   <input
@@ -396,7 +402,10 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
                 {/* Source & Audience - 2 column */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label htmlFor="partner-source" className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
+                    <label
+                      htmlFor="partner-source"
+                      className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider"
+                    >
                       NETWORK_SOURCE *
                     </label>
                     <select
@@ -417,7 +426,10 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
                   </div>
 
                   <div>
-                    <label htmlFor="partner-audience-size" className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
+                    <label
+                      htmlFor="partner-audience-size"
+                      className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider"
+                    >
                       NETWORK_SIZE *
                     </label>
                     <select
@@ -440,7 +452,10 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
 
                 {/* Description */}
                 <div>
-                  <label htmlFor="partner-description" className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
+                  <label
+                    htmlFor="partner-description"
+                    className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider"
+                  >
                     MISSION_BRIEF *
                   </label>
                   <textarea
@@ -455,7 +470,10 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
 
                 {/* Expected Volume (optional) */}
                 <div>
-                  <label htmlFor="partner-volume" className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider">
+                  <label
+                    htmlFor="partner-volume"
+                    className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider"
+                  >
                     PROJECTED_OUTPUT <span className="text-gray-600">(опционально)</span>
                   </label>
                   <input

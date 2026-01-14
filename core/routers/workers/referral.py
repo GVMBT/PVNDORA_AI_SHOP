@@ -420,8 +420,6 @@ async def worker_process_replacement(request: Request):
         )
 
         if not update_result.data:
-            from core.logging import sanitize_id_for_logging
-
             logger.warning("process-replacement: stock %s was already reserved", sanitize_id_for_logging(stock_id))
             return {
                 "queued": True,

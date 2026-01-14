@@ -200,8 +200,8 @@ async def _get_promo_for_insurance_status(
             PromoTriggers.ISSUE_NO_INSURANCE,
         )
 
-    if has_insurance and not can_replace:
-        # Check if replacement failed due to limit
+    if not can_replace:
+        # has_insurance is True here (checked above), check if replacement failed due to limit
         replacement_status = replacement_result.get("status") if replacement_result else None
         replacement_message = (
             (replacement_result.get("message") or "").lower() if replacement_result else ""

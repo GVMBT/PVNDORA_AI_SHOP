@@ -118,7 +118,6 @@ class ProductSearch:
         product_id: str,
         name: str,
         description: str,
-        product_type: str,
         instructions: str | None = None,
     ) -> bool:
         """
@@ -261,7 +260,6 @@ class ProductSearch:
                     product_id=product["id"],
                     name=product["name"],
                     description=product.get("description", ""),
-                    product_type=product["type"],
                     instructions=product.get("instructions", ""),
                 )
                 if success:

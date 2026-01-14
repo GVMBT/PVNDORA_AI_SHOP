@@ -303,53 +303,53 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                 </div>
 
                 {/* Progress to next level */}
-                {currentLevel < 3 ? (
-                  (() => {
-                    // Determine next level threshold (anchor threshold in display currency from backend)
-                    let nextThreshold: number;
-                    if (currentLevel === 1) {
-                      nextThreshold = thresholds.level2; // PROXY -> OPERATOR (20000 RUB or 250 USD)
-                    } else if (currentLevel === 2) {
-                      nextThreshold = thresholds.level3; // OPERATOR -> ARCHITECT (80000 RUB or 1000 USD)
-                    } else {
-                      return null; // Already max level
-                    }
+                {currentLevel < 3
+                  ? (() => {
+                      // Determine next level threshold (anchor threshold in display currency from backend)
+                      let nextThreshold: number;
+                      if (currentLevel === 1) {
+                        nextThreshold = thresholds.level2; // PROXY -> OPERATOR (20000 RUB or 250 USD)
+                      } else if (currentLevel === 2) {
+                        nextThreshold = thresholds.level3; // OPERATOR -> ARCHITECT (80000 RUB or 1000 USD)
+                      } else {
+                        return null; // Already max level
+                      }
 
-                    // Use pre-calculated progress from adapter (if provided), otherwise calculate
-                    // The adapter calculates it correctly: converts turnover to display currency and compares with anchor threshold
-                    const progressPercent =
-                      propProgressPercent === undefined
-                        ? Math.min(100, Math.max(0, (currentTurnover / nextThreshold) * 100))
-                        : propProgressPercent;
+                      // Use pre-calculated progress from adapter (if provided), otherwise calculate
+                      // The adapter calculates it correctly: converts turnover to display currency and compares with anchor threshold
+                      const progressPercent =
+                        propProgressPercent === undefined
+                          ? Math.min(100, Math.max(0, (currentTurnover / nextThreshold) * 100))
+                          : propProgressPercent;
 
-                    return (
-                      <div className="mt-4 p-3 bg-pandora-cyan/5 border border-pandora-cyan/20 rounded-sm">
-                        <div className="flex items-center justify-between text-[10px] font-mono text-gray-500 mb-2">
-                          <span>{isRu ? "ВАШ ОБОРОТ" : "YOUR TURNOVER"}</span>
-                          <span>
-                            {formatPrice(currentTurnover, currency)} /{" "}
-                            {formatPrice(nextThreshold, currency)}
-                          </span>
-                        </div>
-                        <div className="h-2 bg-black/50 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-pandora-cyan to-white transition-all duration-500"
-                            style={{
-                              width: `${progressPercent}%`,
-                            }}
-                          />
-                        </div>
-                        {progressPercent >= 100 && currentLevel < 3 && (
-                          <div className="mt-2 text-[9px] text-green-500 font-mono text-center">
-                            {isRu
-                              ? "✓ Порог достигнут! Обновите профиль."
-                              : "✓ Threshold reached! Refresh profile."}
+                      return (
+                        <div className="mt-4 p-3 bg-pandora-cyan/5 border border-pandora-cyan/20 rounded-sm">
+                          <div className="flex items-center justify-between text-[10px] font-mono text-gray-500 mb-2">
+                            <span>{isRu ? "ВАШ ОБОРОТ" : "YOUR TURNOVER"}</span>
+                            <span>
+                              {formatPrice(currentTurnover, currency)} /{" "}
+                              {formatPrice(nextThreshold, currency)}
+                            </span>
                           </div>
-                        )}
-                      </div>
-                    );
-                  })()
-                ) : null}
+                          <div className="h-2 bg-black/50 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-pandora-cyan to-white transition-all duration-500"
+                              style={{
+                                width: `${progressPercent}%`,
+                              }}
+                            />
+                          </div>
+                          {progressPercent >= 100 && currentLevel < 3 && (
+                            <div className="mt-2 text-[9px] text-green-500 font-mono text-center">
+                              {isRu
+                                ? "✓ Порог достигнут! Обновите профиль."
+                                : "✓ Threshold reached! Refresh profile."}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()
+                  : null}
               </div>
 
               {/* Examples */}

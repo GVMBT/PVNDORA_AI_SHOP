@@ -151,7 +151,7 @@ async def cmd_users(message: Message):
     buyers_result = (
         await db.client.table("orders").select("user_id").eq("status", "delivered").execute()
     )
-    unique_buyers = len(set(o["user_id"] for o in (buyers_result.data or [])))
+    unique_buyers = len({o["user_id"] for o in (buyers_result.data or [])})
 
     # Referral stats
     with_referrers_res = (

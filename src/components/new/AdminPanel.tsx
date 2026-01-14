@@ -239,17 +239,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {/* Overlay for mobile sidebar */}
       {isSidebarOpen && (
-        <div
-          role="button"
-          tabIndex={0}
+        <button
+          type="button"
           aria-label="Close sidebar"
-          className="fixed inset-0 bg-black/80 z-30 md:hidden"
+          className="fixed inset-0 bg-black/80 z-30 md:hidden cursor-default"
           onClick={() => setSidebarOpen(false)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              setSidebarOpen(false);
-            }
-          }}
         />
       )}
 

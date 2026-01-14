@@ -443,8 +443,6 @@ async def _create_cart_order(
             amount=payable_amount,
             product_name=product_names,
             gateway=payment_gateway,
-            payment_method=payment_method,
-            user_email=f"{user.id}@telegram.user",
             user_id=user.id,
             currency=gateway_currency,
             is_telegram_miniapp=is_telegram_miniapp,

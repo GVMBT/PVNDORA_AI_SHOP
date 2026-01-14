@@ -96,6 +96,7 @@ const CatalogConnected: React.FC<CatalogConnectedProps> = ({
           <div className="font-mono text-sm text-red-400 mb-2">CONNECTION_ERROR</div>
           <p className="text-gray-500 text-sm">{error}</p>
           <button
+            type="button"
             onClick={() => getProducts()}
             className="mt-6 px-6 py-2 bg-white/10 border border-white/20 text-white text-xs font-mono uppercase hover:bg-white/20 transition-colors"
           >

@@ -199,7 +199,11 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <span className="w-1.5 h-6 bg-pandora-cyan block" />
             {t("checkout.title")}
           </h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-500 hover:text-white transition-colors"
+          >
             <X size={24} />
           </button>
         </div>
@@ -286,6 +290,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                 {/* Button with proper spacing */}
                 <button
+                  type="button"
                   onClick={closeSuccess}
                   className="bg-white text-black font-bold py-3 px-8 hover:bg-gray-200 transition-colors text-sm sm:text-base"
                 >

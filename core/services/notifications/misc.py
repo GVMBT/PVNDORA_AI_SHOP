@@ -197,3 +197,13 @@ class MiscNotificationsMixin(NotificationServiceBase):
             logger.info(f"Sent partner status revoked notification to {telegram_id}")
         except Exception:
             logger.exception(f"Failed to send partner status revoked notification to {telegram_id}")
+
+    async def send_system_notification(self, telegram_id: int, message: str) -> None:
+        """Send a generic system notification to user."""
+        try:
+            from core.services.telegram_messaging import send_telegram_message
+
+            await send_telegram_message(chat_id=telegram_id, text=message, parse_mode="HTML")
+            logger.info(f"Sent system notification to {telegram_id}")
+        except Exception:
+            logger.exception(f"Failed to send system notification to {telegram_id}")

@@ -23,6 +23,7 @@ logger = get_logger(__name__)
 
 # Constants to avoid string duplication (S1192)
 ERROR_FAILED_CHECK_PARTNER_STATUS = "Failed to check partner status: %s"
+ERR_USER_NOT_FOUND = "User not found"
 
 
 class PartnerModeRequest(BaseModel):
@@ -92,7 +93,7 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
     # Check if user is a partner (from referral_stats_extended view)
     try:
@@ -219,7 +220,7 @@ async def set_partner_mode(request: PartnerModeRequest, user=Depends(verify_tele
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
     # Check if user is a partner (from referral_stats_extended view)
     try:
@@ -296,7 +297,7 @@ async def submit_partner_application(
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
     # Check if already a partner (from referral_stats_extended view)
     try:
@@ -386,7 +387,7 @@ async def get_partner_application_status(user=Depends(verify_telegram_auth)):
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
     # Check if already partner (from referral_stats_extended view)
     try:

@@ -54,7 +54,7 @@ class RestrictionCreate(BaseModel):
     user_id: str
     restriction_type: str  # replacement_blocked, insurance_blocked, purchase_blocked
     reason: str
-    expires_days: int | None = None  # None = permanent
+    expires_days: int | None = None  # If None, restriction is permanent
 
 
 class RestrictionResponse(BaseModel):

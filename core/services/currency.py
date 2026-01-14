@@ -582,7 +582,7 @@ class CurrencyService:
         if rate == 0:
             rate = 1.0
 
-        # amount / rate = USD
+        # Convert to USD by dividing by rate
         return round_money(to_decimal(amount) / to_decimal(rate))
 
     # =========================================================================

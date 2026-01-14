@@ -117,14 +117,14 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
       <AnimatePresence>
         {isCreating && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-            <div
-              role="button"
-              tabIndex={0}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-default"
               onClick={() => !creating && setIsCreating(false)}
               onKeyDown={(e) => {
                 if (e.key === "Escape" && !creating) setIsCreating(false);
               }}
+              aria-label="Close modal"
             />
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}

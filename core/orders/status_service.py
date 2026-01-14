@@ -255,7 +255,7 @@ class OrderStatusService:
             else:
                 # Send admin alert for paid orders (best-effort)
                 try:
-                    await self._send_order_alert(order_id, order_amount, user_id)
+                    await self._send_order_alert(order_id, order_amount)
                 except Exception:
                     logger.warning("Failed to send admin alert", exc_info=True)
 
@@ -457,7 +457,7 @@ class OrderStatusService:
 
         return product_display, total_qty
 
-    async def _send_order_alert(self, order_id: str, amount: float, user_id: str) -> None:
+    async def _send_order_alert(self, order_id: str, amount: float) -> None:
         """Send admin alert for new paid order (best-effort)."""
         try:
             from core.services.admin_alerts import get_admin_alert_service
@@ -651,9 +651,10 @@ class OrderStatusService:
 
             # Check REAL stock availability for each product
             # Don't trust fulfillment_type - check actual stock_items table
-            product_ids = list(
-                {item.get("product_id") for item in items_result.data if item.get("product_id")}
-            )
+            product_ids = [
+                item.get("product_id") for item in items_result.data if item.get("product_id")
+            ]
+            product_ids = list(dict.fromkeys(product_ids))  # Deduplicate while preserving order
 
             for product_id in product_ids:
                 # Check if product has ANY available stock right now

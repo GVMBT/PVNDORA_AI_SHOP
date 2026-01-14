@@ -21,9 +21,9 @@ import type { BootTask } from "../new";
 const safeFetch = (url: string): Promise<Response | null> => fetch(url).catch((): null => null);
 
 interface UseBootTasksProps {
-  getProducts: () => Promise<any>;
-  getCart: () => Promise<any>;
-  getProfile: () => Promise<any>;
+  getProducts: () => Promise<unknown>;
+  getCart: () => Promise<unknown>;
+  getProfile: () => Promise<unknown>;
 }
 
 export function useBootTasks({ getProducts, getCart, getProfile }: UseBootTasksProps): BootTask[] {

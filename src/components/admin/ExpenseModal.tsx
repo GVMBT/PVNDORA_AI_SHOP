@@ -249,12 +249,12 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
             </div>
 
             {/* Category */}
-            <div>
-              <span className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
+            <fieldset className="border-0 p-0 m-0">
+              <legend className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
                 <Tag size={12} />
                 Категория
-              </span>
-              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Категория расхода">
+              </legend>
+              <div className="grid grid-cols-2 gap-2">
                 {EXPENSE_CATEGORIES.map((cat) => (
                   <button
                     type="button"
@@ -277,7 +277,7 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
                   </button>
                 ))}
               </div>
-            </div>
+            </fieldset>
 
             {/* Date */}
             <div>

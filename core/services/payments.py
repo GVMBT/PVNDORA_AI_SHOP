@@ -14,6 +14,10 @@ from core.services.money import to_float
 
 logger = logging.getLogger(__name__)
 
+# Constants for HTTP headers and error messages
+CONTENT_TYPE_JSON = "application/json"
+ERR_UNKNOWN = "Unknown error"
+
 
 class PaymentService:
     """Payment service for CrystalPay payment gateway"""
@@ -106,8 +110,8 @@ class PaymentService:
         product_name: str,
         method: str = "crystalpay",
         currency: str = "RUB",
-        _user_id: int | None = None,  # Kept for API compatibility
-        is_telegram_miniapp: bool = True,
+        user_id: int | None = None,  # Kept for API compatibility
+        is_telegram_miniapp: bool = True,  # Kept for API compatibility
         **kwargs,
     ) -> dict[str, Any]:
         """
@@ -134,7 +138,6 @@ class PaymentService:
             amount=amount,
             product_name=product_name,
             currency=currency,
-            is_telegram_miniapp=is_telegram_miniapp,
         )
 
     async def create_invoice(
@@ -177,7 +180,7 @@ class PaymentService:
         product_name: str,
         currency: str = "RUB",
         _user_id: int | None = None,
-        is_telegram_miniapp: bool = True,
+        _is_telegram_miniapp: bool = True,
     ) -> dict[str, Any]:
         """
         Create CrystalPay invoice via API.
@@ -189,7 +192,7 @@ class PaymentService:
 
         Response: id, url, rub_amount, currency, amount, type
         """
-        login, secret, salt, api_url = self._validate_crystalpay_config()
+        login, secret, _, api_url = self._validate_crystalpay_config()
 
         payment_amount = to_float(amount)
         payment_currency = (currency or "RUB").upper()
@@ -224,8 +227,8 @@ class PaymentService:
             payload["required_method"] = required_method
 
         headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
+            "Content-Type": CONTENT_TYPE_JSON,
+            "Accept": CONTENT_TYPE_JSON,
         }
 
         logger.info(
@@ -251,7 +254,7 @@ class PaymentService:
 
             if data.get("error"):
                 errors = data.get("errors", [])
-                error_msg = ", ".join(errors) if errors else "Unknown error"
+                error_msg = ", ".join(errors) if errors else ERR_UNKNOWN
                 logger.error("CrystalPay API error for order %s: %s", order_id, error_msg)
                 raise ValueError(f"CrystalPay error: {error_msg}")
 
@@ -297,12 +300,12 @@ class PaymentService:
         user_id: str,
         amount: float,
         currency: str = "RUB",
-        is_telegram_miniapp: bool = True,
+        _is_telegram_miniapp: bool = True,
     ) -> dict[str, Any]:
         """
         Create CrystalPay invoice for balance top-up.
         """
-        login, secret, salt, api_url = self._validate_crystalpay_config()
+        login, secret, _, api_url = self._validate_crystalpay_config()
 
         payment_amount = to_float(amount)
         payment_currency = currency.upper()
@@ -336,8 +339,8 @@ class PaymentService:
             payload["required_method"] = required_method
 
         headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
+            "Content-Type": CONTENT_TYPE_JSON,
+            "Accept": CONTENT_TYPE_JSON,
         }
 
         logger.info(
@@ -361,7 +364,7 @@ class PaymentService:
 
             if data.get("error"):
                 errors = data.get("errors", [])
-                error_msg = ", ".join(errors) if errors else "Unknown error"
+                error_msg = ", ".join(errors) if errors else ERR_UNKNOWN
                 logger.error("CrystalPay TOPUP error: %s", error_msg)
                 raise ValueError(f"CrystalPay error: {error_msg}")
 
@@ -513,7 +516,7 @@ class PaymentService:
 
     async def get_crystalpay_invoice_info(self, invoice_id: str) -> dict[str, Any]:
         """Get CrystalPay invoice info by ID."""
-        login, secret, salt, api_url = self._validate_crystalpay_config()
+        login, secret, _, api_url = self._validate_crystalpay_config()
 
         payload = {
             "auth_login": login,
@@ -522,8 +525,8 @@ class PaymentService:
         }
 
         headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
+            "Content-Type": CONTENT_TYPE_JSON,
+            "Accept": CONTENT_TYPE_JSON,
         }
 
         client = self._get_http_client()
@@ -536,7 +539,7 @@ class PaymentService:
 
             if data.get("error"):
                 errors = data.get("errors", [])
-                error_msg = ", ".join(errors) if errors else "Unknown error"
+                error_msg = ", ".join(errors) if errors else ERR_UNKNOWN
                 raise ValueError(f"CrystalPay error: {error_msg}")
 
             return data

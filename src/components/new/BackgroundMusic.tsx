@@ -12,7 +12,8 @@ import { logger } from "../../utils/logger";
 
 // Helper: Determine if running inside Telegram WebApp
 const isTelegramEnvironment = (): boolean =>
-  globalThis.window !== undefined && !!(globalThis as any).Telegram?.WebApp;
+  globalThis.window !== undefined &&
+  !!(globalThis as unknown as { Telegram?: { WebApp?: unknown } }).Telegram?.WebApp;
 
 interface BackgroundMusicProps {
   src?: string;
@@ -437,6 +438,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
   return (
     <div className="fixed bottom-24 right-4 z-[90] opacity-0 hover:opacity-100 transition-opacity pointer-events-none group">
       <button
+        type="button"
         onClick={toggleMute}
         className="pointer-events-auto w-10 h-10 bg-black/50 border border-white/10 rounded-full flex items-center justify-center hover:bg-black/70 hover:border-pandora-cyan/30 transition-all"
         title={isMuted ? "Unmute ambient music" : "Mute ambient music"}

@@ -1057,7 +1057,7 @@ async def _get_recipients_list(
         buyers_result = (
             await db.client.table("orders").select("user_id").eq("status", "delivered").execute()
         )
-        buyer_ids = list(set(o["user_id"] for o in (buyers_result.data or [])))
+        buyer_ids = list({o["user_id"] for o in (buyers_result.data or [])})
         if buyer_ids:
             query = query.in_("id", buyer_ids)
         else:
@@ -1068,7 +1068,7 @@ async def _get_recipients_list(
         buyers_result = (
             await db.client.table("orders").select("user_id").eq("status", "delivered").execute()
         )
-        buyer_ids = list(set(o["user_id"] for o in (buyers_result.data or [])))
+        buyer_ids = list({o["user_id"] for o in (buyers_result.data or [])})
         if buyer_ids:
             query = query.not_.in_("id", buyer_ids)
 

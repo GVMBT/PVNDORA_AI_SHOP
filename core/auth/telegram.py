@@ -107,9 +107,7 @@ async def _try_bearer_auth(authorization: str, x_init_data: str | None) -> Teleg
 
 
 # Helper: Verify and extract user from initData (reduces cognitive complexity)
-def _verify_and_extract_user_from_init_data(
-    init_data: str,
-) -> TelegramUser:
+def _verify_and_extract_user_from_init_data(init_data: str) -> TelegramUser:
     """Verify initData signature and extract user."""
     token = _get_telegram_token()
     if not validate_telegram_init_data(init_data, token):

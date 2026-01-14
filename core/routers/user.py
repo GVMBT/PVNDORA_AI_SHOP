@@ -19,6 +19,9 @@ from core.services.database import get_database
 
 logger = get_logger(__name__)
 
+# Error message constants
+ERR_USER_NOT_FOUND = "User not found"
+
 router = APIRouter(prefix="/api", tags=["user"])
 
 
@@ -99,7 +102,7 @@ async def create_referral_share_link(user=Depends(verify_telegram_auth)):
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
     total_saved = (
         int(float(db_user.total_saved))
@@ -181,7 +184,7 @@ async def get_wishlist(user=Depends(verify_telegram_auth)):
     db_user = await db.get_user_by_telegram_id(user.id)
 
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
     products = await db.get_wishlist(db_user.id)
     return [
@@ -197,7 +200,7 @@ async def add_to_wishlist(product_id: str, user=Depends(verify_telegram_auth)):
     db_user = await db.get_user_by_telegram_id(user.id)
 
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
     await db.add_to_wishlist(db_user.id, product_id)
     return {"success": True}
@@ -210,7 +213,7 @@ async def remove_from_wishlist(product_id: str, user=Depends(verify_telegram_aut
     db_user = await db.get_user_by_telegram_id(user.id)
 
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
     await db.remove_from_wishlist(db_user.id, product_id)
     return {"success": True}
@@ -228,7 +231,7 @@ async def submit_review(request: SubmitReviewRequest, user=Depends(verify_telegr
 
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
     order = await db.get_order_by_id(request.order_id)
     if not order:

@@ -378,14 +378,14 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
       <AnimatePresence>
         {selectedUser && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-            <div
-              role="button"
-              tabIndex={0}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-default"
               onClick={() => !processing && setSelectedUser(null)}
               onKeyDown={(e) => {
                 if (e.key === "Escape" && !processing) setSelectedUser(null);
               }}
+              aria-label="Close modal"
             />
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -472,14 +472,14 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
       <AnimatePresence>
         {balanceModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-            <div
-              role="button"
-              tabIndex={0}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-default"
               onClick={() => !processing && setBalanceModal(null)}
               onKeyDown={(e) => {
                 if (e.key === "Escape" && !processing) setBalanceModal(null);
               }}
+              aria-label="Close modal"
             />
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}

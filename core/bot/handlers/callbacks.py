@@ -25,6 +25,10 @@ logger = get_logger(__name__)
 
 router = Router()
 
+# Constants for error messages (avoid duplication)
+ERR_PRODUCT_NOT_FOUND = "Product not found"
+ERR_ORDER_NOT_FOUND_RU = "❌ Заказ не найден"
+
 
 # ==================== CHANNEL SUBSCRIPTION ====================
 
@@ -96,7 +100,7 @@ async def callback_waitlist(callback: CallbackQuery, db_user: User):
             get_text("waitlist_added", db_user.language_code, product=product.name), show_alert=True
         )
     else:
-        await callback.answer("Product not found", show_alert=True)
+        await callback.answer(ERR_PRODUCT_NOT_FOUND, show_alert=True)
 
 
 @router.callback_query(F.data.startswith("wishlist:"))
@@ -112,7 +116,7 @@ async def callback_wishlist(callback: CallbackQuery, db_user: User):
             get_text("wishlist_added", db_user.language_code, product=product.name), show_alert=True
         )
     else:
-        await callback.answer("Product not found", show_alert=True)
+        await callback.answer(ERR_PRODUCT_NOT_FOUND, show_alert=True)
 
 
 @router.callback_query(F.data.startswith("support:"))
@@ -208,7 +212,7 @@ async def _submit_review(
     db = get_database()
     order = await db.get_order_by_id(order_id)
     if not order:
-        await callback.message.edit_text("❌ Заказ не найден")
+        await callback.message.edit_text(ERR_ORDER_NOT_FOUND_RU)
         return
 
     # Get product_id from order_items (source of truth)
@@ -245,7 +249,7 @@ async def _submit_review_from_message(
     db = get_database()
     order = await db.get_order_by_id(order_id)
     if not order:
-        await message.answer("❌ Заказ не найден")
+        await message.answer(ERR_ORDER_NOT_FOUND_RU)
         return
 
     # Get product_id from order_items (source of truth)
@@ -351,7 +355,7 @@ async def callback_buy_again(callback: CallbackQuery, db_user: User, bot: Bot):
     order = await db.get_order_by_id(order_id)
 
     if not order:
-        await callback.answer("❌ Заказ не найден", show_alert=True)
+        await callback.answer(ERR_ORDER_NOT_FOUND_RU, show_alert=True)
         return
 
     # Get product from order_items (source of truth)

@@ -22,8 +22,6 @@ async def create_payment_wrapper(
     amount: Decimal,
     product_name: str,
     gateway: str = "crystalpay",
-    payment_method: str = "card",
-    user_email: str = "",
     user_id: int = 0,
     currency: str = "RUB",
     is_telegram_miniapp: bool = True,

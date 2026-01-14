@@ -52,7 +52,7 @@ const runFinalMessages = async (
 const runAllTasks = async (
   tasks: BootTask[],
   addLog: (id: string, text: string, type: LogEntry["type"]) => void,
-  resultsRef: React.MutableRefObject<Record<string, any>>,
+  resultsRef: React.MutableRefObject<Record<string, unknown>>,
   setErrorMessage: (msg: string | null) => void,
   setPhase: (phase: BootPhase) => void,
   setProgress: (progress: number) => void,
@@ -80,7 +80,7 @@ const runAllTasks = async (
 const runBootSequenceFlow = async (
   tasks: BootTask[],
   addLog: (id: string, text: string, type: LogEntry["type"]) => void,
-  resultsRef: React.MutableRefObject<Record<string, any>>,
+  resultsRef: React.MutableRefObject<Record<string, unknown>>,
   setErrorMessage: (msg: string | null) => void,
   setPhase: (phase: BootPhase) => void,
   setProgress: (progress: number) => void,
@@ -109,7 +109,7 @@ const runBootSequenceFlow = async (
 const executeTask = async (
   task: BootTask,
   addLog: (id: string, text: string, type: LogEntry["type"]) => void,
-  resultsRef: React.MutableRefObject<Record<string, any>>,
+  resultsRef: React.MutableRefObject<Record<string, unknown>>,
   setErrorMessage: (msg: string | null) => void,
   setPhase: (phase: BootPhase) => void
 ): Promise<boolean> => {
@@ -146,12 +146,12 @@ export interface BootTask {
   label: string; // Display text while loading
   successLabel?: string; // Display text on success
   errorLabel?: string; // Display text on error
-  execute: () => Promise<any>; // Actual async work
+  execute: () => Promise<unknown>; // Actual async work
   critical?: boolean; // If true, boot fails on error
 }
 
 interface BootSequenceProps {
-  onComplete: (results: Record<string, any>) => void;
+  onComplete: (results: Record<string, unknown>) => void;
   tasks: BootTask[];
   minDuration?: number; // Minimum display time in ms
 }
@@ -249,6 +249,7 @@ const TerminalStatusMessages: React.FC<{
           BOOT FAILURE: {errorMessage}
         </div>
         <button
+          type="button"
           onClick={() => globalThis.location.reload()}
           className="mt-4 px-4 py-2 bg-red-500/20 border border-red-500 text-red-500 font-mono text-xs hover:bg-red-500/30 transition-colors"
         >
@@ -328,6 +329,7 @@ const BootSequenceContent: React.FC<{
         className="flex justify-center mt-6"
       >
         <button
+          type="button"
           onClick={onEnterSystem}
           className="px-8 py-3 bg-pandora-cyan text-black font-display font-bold text-sm tracking-wider hover:bg-white transition-colors shadow-[0_0_20px_rgba(0,255,255,0.3)]"
           style={{
@@ -402,7 +404,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
   const [glitchActive, setGlitchActive] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const resultsRef = useRef<Record<string, any>>({});
+  const resultsRef = useRef<Record<string, unknown>>({});
   const startTimeRef = useRef<number>(Date.now());
 
   // Add log entry

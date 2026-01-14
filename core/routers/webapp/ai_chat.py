@@ -15,6 +15,9 @@ from core.services.database import get_database
 
 logger = get_logger(__name__)
 
+# Error message constants
+ERR_USER_NOT_FOUND = "User not found"
+
 router = APIRouter(prefix="/ai", tags=["webapp-ai"])
 
 # Lazy singleton
@@ -85,7 +88,7 @@ async def send_chat_message(request: ChatMessageRequest, user=Depends(verify_tel
     # Get user from database
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
     # Get user language and normalize it
     from core.i18n import detect_language
@@ -145,7 +148,7 @@ async def get_chat_history(
 
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
     history = await db.chat_domain.get_history(db_user.id, limit)
 
@@ -168,7 +171,7 @@ async def clear_chat_history(user=Depends(verify_telegram_auth)):
 
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
     try:
         # Delete chat history for user

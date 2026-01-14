@@ -71,7 +71,7 @@ def validate_gateway_config(gateway: str) -> str:
 def is_gateway_configured(gateway: str) -> bool:
     """Check if a gateway is properly configured without raising exceptions."""
     config = get_gateway_config(gateway)
-    return all(value for value in config.values())
+    return all(config.values())
 
 
 def get_default_gateway() -> str:

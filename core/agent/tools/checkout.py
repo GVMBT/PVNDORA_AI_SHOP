@@ -171,8 +171,6 @@ async def _process_external_payment(
             amount=payable_amount,  # In gateway_currency (user's currency), Decimal type
             product_name=product_names,
             gateway=payment_gateway,
-            payment_method=payment_method,
-            user_email=f"{ctx.telegram_id}@telegram.user",
             user_id=ctx.telegram_id,
             currency=gateway_currency,  # Pass user's currency, not USD!
             is_telegram_miniapp=True,
@@ -428,7 +426,6 @@ async def _process_balance_payment(
 async def _finalize_balance_payment(
     db: Any,
     order_id: str,
-    user_id: str,
     cart: Any,
     cart_manager: Any,
     ctx: Any,
@@ -657,7 +654,6 @@ async def checkout_cart(payment_method: str = "card") -> dict:
             return await _finalize_balance_payment(
                 db,
                 order.id,
-                user_id,
                 cart,
                 cart_manager,
                 ctx,
@@ -676,7 +672,7 @@ async def checkout_cart(payment_method: str = "card") -> dict:
             cart_manager,
             ctx,
             currency_service,
-            total_fiat_amount,  # payable_amount = total_fiat_amount
+            total_fiat_amount,  # Use fiat amount for payment
             gateway_currency,
             payment_gateway,
             payment_method,

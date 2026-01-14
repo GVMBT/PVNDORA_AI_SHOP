@@ -78,4 +78,6 @@ class NotificationServiceBase:
     """
 
     def __init__(self):
+        # Base class initialization - subclasses may extend this
+        # No state needed at base level as we use external services
         pass

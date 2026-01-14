@@ -13,6 +13,9 @@ from core.services.models import Product
 
 logger = get_logger(__name__)
 
+# Error message constants
+ERR_PRODUCT_NOT_FOUND = "Product not found"
+
 
 @dataclass
 class ProductAvailability:
@@ -102,7 +105,7 @@ class CatalogService:
                     self._rag_search = ProductSearch()
                     if not self._rag_search.is_available:
                         self._rag_search = False  # Mark as unavailable
-            except (ImportError, Exception) as e:
+            except Exception as e:
                 logger.warning("RAG search unavailable: %s", type(e).__name__)
                 self._rag_search = False
         return self._rag_search if self._rag_search else None
@@ -318,7 +321,7 @@ class CatalogService:
         """
         product = await self.db.get_product_by_id(product_id)
         if not product:
-            return PurchaseIntent(success=False, reason="Product not found")
+            return PurchaseIntent(success=False, reason=ERR_PRODUCT_NOT_FOUND)
 
         status = getattr(product, "status", "active")
 
@@ -374,12 +377,12 @@ class CatalogService:
 
         products = await self.db.search_products(product_name)
         if not products:
-            return {"success": False, "reason": "Product not found"}
+            return {"success": False, "reason": ERR_PRODUCT_NOT_FOUND}
 
         product = products[0]
         details = await self.db.get_product_by_id(product.id)
         if not details:
-            return {"success": False, "reason": "Product not found"}
+            return {"success": False, "reason": ERR_PRODUCT_NOT_FOUND}
 
         status = getattr(details, "status", "active")
 

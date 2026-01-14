@@ -64,17 +64,10 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
         w-64
       `}
       >
-        <div
-          role="button"
-          tabIndex={0}
-          className="hidden md:flex h-20 items-center px-6 border-b border-white/10 cursor-pointer hover:bg-white/5 transition-colors"
+        <button
+          type="button"
+          className="hidden md:flex h-20 items-center px-6 border-b border-white/10 cursor-pointer hover:bg-white/5 transition-colors w-full text-left"
           onClick={onToggleCollapse}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              onToggleCollapse();
-            }
-          }}
           title="Toggle Sidebar"
         >
           <Terminal className="text-red-500 mr-3 shrink-0" />
@@ -84,7 +77,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
               <div className="text-[9px] font-mono text-red-500 uppercase">Root Access</div>
             </div>
           )}
-        </div>
+        </button>
 
         <div className="flex-1 py-6 space-y-1 px-3 mt-16 md:mt-0">
           <AdminNavItem

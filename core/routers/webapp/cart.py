@@ -23,6 +23,9 @@ from .models import AddToCartRequest, ApplyPromoRequest, UpdateCartItemRequest
 
 logger = get_logger(__name__)
 
+# Error message constants
+ERR_CART_EMPTY = "Cart is empty"
+
 
 # =============================================================================
 # Helper Functions (reduce cognitive complexity)
@@ -157,7 +160,6 @@ async def _format_cart_response(cart, db, user_telegram_id: int):
 
     # CRITICAL: Calculate display totals using anchor prices from items, NOT conversion from USD
     # This ensures totals match item prices (which use anchor prices)
-    total_display = sum(item["total_price"] for item in items_with_details)
     subtotal_display = sum(
         item["total_price"] for item in items_with_details
     )  # Before promo (if promo exists, it's applied at cart level)
@@ -352,7 +354,7 @@ async def apply_cart_promo(request: ApplyPromoRequest, user=Depends(verify_teleg
         cart_manager = get_cart_manager()
         cart = await cart_manager.get_cart(user.id)
         if cart is None:
-            raise HTTPException(status_code=400, detail="Cart is empty")
+            raise HTTPException(status_code=400, detail=ERR_CART_EMPTY)
 
         # Check if product is in cart
         product_in_cart = any(item.product_id == product_id for item in cart.items)
@@ -374,7 +376,7 @@ async def apply_cart_promo(request: ApplyPromoRequest, user=Depends(verify_teleg
         raise HTTPException(status_code=400, detail=str(e))
 
     if cart is None:
-        raise HTTPException(status_code=400, detail="Cart is empty")
+        raise HTTPException(status_code=400, detail=ERR_CART_EMPTY)
 
     return await _format_cart_response(cart, db, user.id)  # user.id is telegram_id
 
@@ -387,7 +389,7 @@ async def remove_cart_promo(user=Depends(verify_telegram_auth)):
     cart_manager = get_cart_manager()
     cart = await cart_manager.remove_promo_code(user.id)
     if cart is None:
-        raise HTTPException(status_code=400, detail="Cart is empty")
+        raise HTTPException(status_code=400, detail=ERR_CART_EMPTY)
 
     db = get_database()
     return await _format_cart_response(cart, db, user.id)
