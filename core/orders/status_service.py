@@ -236,62 +236,11 @@ class OrderStatusService:
             # OPTIMIZATION #6: Parallelize independent queries (order_items and user balance)
             import asyncio
 
-            async def fetch_order_items():
-                """Fetch order_items for notification and fulfillment deadline."""
-                try:
-                    result = (
-                        await self.db.client.table("order_items")
-                        .select("fulfillment_type")
-                        .eq("order_id", order_id)
-                        .execute()
-                    )
-                    return result.data or []
-                except Exception:
-                    logger.warning("Failed to fetch order_items", exc_info=True)
-                    return []
-
-            async def fetch_user_balance_and_check_tx():
-                """Fetch user balance and check if transaction exists (only if needed)."""
-                if (
-                    payment_method
-                    and payment_method.lower() != "balance"
-                    and user_id
-                    and order_amount
-                ):
-                    try:
-                        # Check if transaction already exists (idempotency)
-                        existing_tx = (
-                            await self.db.client.table("balance_transactions")
-                            .select("id")
-                            .eq("user_id", user_id)
-                            .eq("type", "purchase")
-                            .eq("description", f"Purchase: Order {order_id}")
-                            .limit(1)
-                            .execute()
-                        )
-
-                        if not existing_tx.data:
-                            # Get user's current balance for logging
-                            user_result = (
-                                await self.db.client.table("users")
-                                .select("balance")
-                                .eq("id", user_id)
-                                .single()
-                                .execute()
-                            )
-                            balance = (
-                                float(user_result.data.get("balance", 0)) if user_result.data else 0
-                            )
-                            return balance, False  # (balance, tx_exists)
-                        return None, True  # Transaction exists
-                    except Exception:
-                        logger.warning("Failed to fetch user balance", exc_info=True)
-                        return None, False
-                return None, False  # Not needed
-
             # Execute queries in parallel (outside if/else to use results in both branches)
             items_result, (user_balance, tx_exists) = await asyncio.gather(
-                fetch_order_items(), fetch_user_balance_and_check_tx(), return_exceptions=True
+                self._fetch_order_items_for_notification(order_id),
+                self._fetch_user_balance_and_check_tx(payment_method, user_id, order_id, order_amount),
+                return_exceptions=True,
             )
 
             # Handle exceptions
@@ -327,43 +276,9 @@ class OrderStatusService:
                 try:
                     # OPTIMIZATION #6: Use user_balance from parallel query (already fetched above)
                     if user_balance is not None and not tx_exists:
-                        current_balance = user_balance
-
-                        # Use fiat_amount and fiat_currency if available (real payment amount), otherwise fallback to USD amount
-                        if fiat_amount is not None and fiat_currency:
-                            transaction_amount = float(fiat_amount)
-                            transaction_currency = fiat_currency
-                        else:
-                            # Fallback: use USD amount (legacy orders)
-                            transaction_amount = float(order_amount)
-                            transaction_currency = "USD"
-
-                        # Create purchase transaction record
-                        await (
-                            self.db.client.table("balance_transactions")
-                            .insert(
-                                {
-                                    "user_id": user_id,
-                                    "type": "purchase",
-                                    "amount": transaction_amount,
-                                    "currency": transaction_currency,
-                                    "balance_before": current_balance,
-                                    "balance_after": current_balance,  # Balance doesn't change for external payments
-                                    "status": "completed",
-                                    "description": f"Purchase: Order {order_id}",
-                                    "metadata": {
-                                        "order_id": order_id,
-                                        "payment_method": payment_method,
-                                        "payment_id": payment_id,
-                                    },
-                                }
-                            )
-                            .execute()
-                        )
-                        logger.debug(
-                            "[mark_payment_confirmed] Created balance_transaction for purchase: %s %s",
-                            transaction_amount,
-                            transaction_currency,
+                        await self._create_balance_transaction_for_purchase(
+                            user_id, order_id, order_amount, fiat_amount, fiat_currency,
+                            payment_method, payment_id, user_balance
                         )
                     elif tx_exists:
                         logger.debug(
@@ -396,6 +311,101 @@ class OrderStatusService:
 
             logger.exception("[mark_payment_confirmed] Traceback: %s", traceback.format_exc())
             raise
+
+    async def _fetch_order_items_for_notification(self, order_id: str) -> list:
+        """Fetch order_items for notification and fulfillment deadline (reduces cognitive complexity)."""
+        try:
+            result = (
+                await self.db.client.table("order_items")
+                .select("fulfillment_type")
+                .eq("order_id", order_id)
+                .execute()
+            )
+            return result.data or []
+        except Exception:
+            logger.warning("Failed to fetch order_items", exc_info=True)
+            return []
+
+    async def _fetch_user_balance_and_check_tx(
+        self, payment_method: str, user_id: str, order_id: str, order_amount: float
+    ) -> tuple[float | None, bool]:
+        """Fetch user balance and check if transaction exists (reduces cognitive complexity)."""
+        if payment_method and payment_method.lower() != "balance" and user_id and order_amount:
+            try:
+                # Check if transaction already exists (idempotency)
+                existing_tx = (
+                    await self.db.client.table("balance_transactions")
+                    .select("id")
+                    .eq("user_id", user_id)
+                    .eq("type", "purchase")
+                    .eq("description", f"Purchase: Order {order_id}")
+                    .limit(1)
+                    .execute()
+                )
+
+                if not existing_tx.data:
+                    # Get user's current balance for logging
+                    user_result = (
+                        await self.db.client.table("users")
+                        .select("balance")
+                        .eq("id", user_id)
+                        .single()
+                        .execute()
+                    )
+                    balance = float(user_result.data.get("balance", 0)) if user_result.data else 0
+                    return balance, False  # (balance, tx_exists)
+                return None, True  # Transaction exists
+            except Exception:
+                logger.warning("Failed to fetch user balance", exc_info=True)
+                return None, False
+        return None, False  # Not needed
+
+    async def _create_balance_transaction_for_purchase(
+        self,
+        user_id: str,
+        order_id: str,
+        order_amount: float,
+        fiat_amount: float | None,
+        fiat_currency: str | None,
+        payment_method: str,
+        payment_id: str | None,
+        user_balance: float,
+    ) -> None:
+        """Create balance_transaction record for purchase (reduces cognitive complexity)."""
+        # Use fiat_amount and fiat_currency if available
+        if fiat_amount is not None and fiat_currency:
+            transaction_amount = float(fiat_amount)
+            transaction_currency = fiat_currency
+        else:
+            transaction_amount = float(order_amount)
+            transaction_currency = "USD"
+
+        await (
+            self.db.client.table("balance_transactions")
+            .insert(
+                {
+                    "user_id": user_id,
+                    "type": "purchase",
+                    "amount": transaction_amount,
+                    "currency": transaction_currency,
+                    "balance_before": user_balance,
+                    "balance_after": user_balance,  # Balance doesn't change for external payments
+                    "status": "completed",
+                    "description": f"Purchase: Order {order_id}",
+                    "metadata": {
+                        "order_id": order_id,
+                        "payment_method": payment_method,
+                        "payment_id": payment_id,
+                    },
+                }
+            )
+            .execute()
+        )
+        logger.debug(
+            "[mark_payment_confirmed] Created balance_transaction for purchase: %s %s",
+            transaction_amount,
+            transaction_currency,
+        )
 
     async def _calculate_display_amount(
         self, fiat_amount: float | None, amount: float, currency: str

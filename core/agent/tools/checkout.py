@@ -21,6 +21,35 @@ from .base import get_db, get_user_context
 logger = get_logger(__name__)
 
 
+# Helper: Get partner discount from referrer (reduces cognitive complexity)
+async def _get_partner_discount(db: Any, db_user: dict) -> int:
+    """Get discount from referrer if they use partner_mode='discount'."""
+    try:
+        referrer_id = db_user.get("referrer_id")
+        if not referrer_id:
+            return 0
+
+        referrer_result = (
+            await db.client.table("users")
+            .select("partner_mode, partner_discount_percent")
+            .eq("id", str(referrer_id))
+            .single()
+            .execute()
+        )
+
+        if referrer_result.data:
+            referrer = referrer_result.data
+            if referrer.get("partner_mode") == "discount":
+                discount = int(referrer.get("partner_discount_percent") or 0)
+                if discount > 0:
+                    logger.info(f"Partner discount applied: {discount}% from referrer {referrer_id}")
+                    return discount
+        return 0
+    except Exception as e:
+        logger.warning("Failed to get partner discount: %s", type(e).__name__)
+        return 0
+
+
 # Helper: Validate cart items and calculate totals (reduces cognitive complexity)
 async def _validate_and_prepare_cart_items(
     db: Any,
@@ -556,36 +585,7 @@ async def checkout_cart(payment_method: str = "card") -> dict:
         user_balance = to_decimal(db_user.get("balance", 0) or 0)
 
         # Get partner discount (if user was referred by partner with discount mode)
-        async def get_partner_discount() -> int:
-            """Get discount from referrer if they use partner_mode='discount'."""
-            try:
-                referrer_id = db_user.get("referrer_id")
-                if not referrer_id:
-                    return 0
-
-                referrer_result = (
-                    await db.client.table("users")
-                    .select("partner_mode, partner_discount_percent")
-                    .eq("id", str(referrer_id))
-                    .single()
-                    .execute()
-                )
-
-                if referrer_result.data:
-                    referrer = referrer_result.data
-                    if referrer.get("partner_mode") == "discount":
-                        discount = int(referrer.get("partner_discount_percent") or 0)
-                        if discount > 0:
-                            logger.info(
-                                f"Partner discount applied: {discount}% from referrer {referrer_id}"
-                            )
-                            return discount
-                return 0
-            except Exception as e:
-                logger.warning("Failed to get partner discount: %s", type(e).__name__)
-                return 0
-
-        partner_discount = await get_partner_discount()
+        partner_discount = await _get_partner_discount(db, db_user)
 
         # 1. Determine target currency for Anchor Pricing
         redis = get_redis()

@@ -21,6 +21,9 @@ from .models import PartnerApplicationRequest
 
 logger = get_logger(__name__)
 
+# Constants to avoid string duplication (S1192)
+ERROR_FAILED_CHECK_PARTNER_STATUS = "Failed to check partner status: %s"
+
 
 class PartnerModeRequest(BaseModel):
     mode: str  # 'commission' or 'discount'
@@ -110,7 +113,7 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to check partner status: %s", type(e).__name__, exc_info=True)
+        logger.error(ERROR_FAILED_CHECK_PARTNER_STATUS, type(e).__name__, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to verify partner status")
 
     # Get partner analytics from view
@@ -237,7 +240,7 @@ async def set_partner_mode(request: PartnerModeRequest, user=Depends(verify_tele
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to check partner status: %s", type(e).__name__, exc_info=True)
+        logger.error(ERROR_FAILED_CHECK_PARTNER_STATUS, type(e).__name__, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to verify partner status")
 
     # Validate mode
@@ -315,7 +318,7 @@ async def submit_partner_application(
     except HTTPException:
         raise
     except Exception as e:
-        logger.warning("Failed to check partner status: %s", type(e).__name__)
+        logger.warning(ERROR_FAILED_CHECK_PARTNER_STATUS, type(e).__name__)
 
     # Check for existing pending application
     existing = (
@@ -402,7 +405,7 @@ async def get_partner_application_status(user=Depends(verify_telegram_auth)):
         if is_partner:
             return {"is_partner": True, "application": None, "message": "You are already a partner"}
     except Exception as e:
-        logger.warning("Failed to check partner status: %s", type(e).__name__)
+        logger.warning(ERROR_FAILED_CHECK_PARTNER_STATUS, type(e).__name__)
 
     # Get latest application
     result = (

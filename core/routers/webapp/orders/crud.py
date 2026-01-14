@@ -430,14 +430,14 @@ async def get_webapp_orders(
 
             orders.append(order_dict)
         except Exception as e:
-                from core.logging import sanitize_id_for_logging
+            from core.logging import sanitize_id_for_logging
 
-                logger.error(
-                    "Failed to process order %s: %s",
-                    sanitize_id_for_logging(str(row.get("id"))),
-                    type(e).__name__,
-                    exc_info=True,
-                )
+            logger.error(
+                "Failed to process order %s: %s",
+                sanitize_id_for_logging(str(row.get("id"))),
+                type(e).__name__,
+                exc_info=True,
+            )
             continue
 
     from core.logging import sanitize_id_for_logging

@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Request
 
-from core.logging import get_logger
+from core.logging import get_logger, sanitize_id_for_logging
 from core.routers.deps import get_notification_service, verify_qstash
 from core.services.database import get_database
 from core.services.money import to_float
@@ -37,7 +37,6 @@ async def _queue_replacement_for_stock(db, ticket_id: str) -> None:
         .eq("id", ticket_id)
         .execute()
     )
-    from core.logging import sanitize_id_for_logging
 
     logger.info("Ticket %s queued for replacement when stock available", sanitize_id_for_logging(ticket_id))
 
@@ -288,8 +287,6 @@ async def worker_calculate_referral(request: Request):
         }
     except Exception as e:
         # If referral program not unlocked or percent is null, skip bonus and continue
-        from core.logging import sanitize_id_for_logging
-
         logger.warning(
             "Referral bonus failed for order %s: %s",
             sanitize_id_for_logging(order_id),
@@ -358,8 +355,6 @@ async def worker_process_replacement(request: Request):
     )
 
     if not item_res.data or len(item_res.data) == 0:
-        from core.logging import sanitize_id_for_logging
-
         logger.error("process-replacement: Order item %s not found", sanitize_id_for_logging(item_id))
         return {"error": "Order item not found"}
 
@@ -484,18 +479,15 @@ async def worker_process_replacement(request: Request):
             update_data["expires_at"] = expires_at_str
 
         await db.client.table("order_items").update(update_data).eq("id", item_id).execute()
-        from core.logging import sanitize_id_for_logging
 
         logger.info("process-replacement: Replaced key for order_item %s (1 key replaced)", sanitize_id_for_logging(item_id))
     except Exception as e:
-            from core.logging import sanitize_id_for_logging
-
-            logger.error(
-                "process-replacement: Failed to update order item %s: %s",
-                sanitize_id_for_logging(item_id),
-                type(e).__name__,
-                exc_info=True,
-            )
+        logger.error(
+            "process-replacement: Failed to update order item %s: %s",
+            sanitize_id_for_logging(item_id),
+            type(e).__name__,
+            exc_info=True,
+        )
         # Rollback stock reservation
         try:
             await (
@@ -531,8 +523,6 @@ async def worker_process_replacement(request: Request):
             )
         except Exception as e:
             logger.error("process-replacement: Failed to send notification: %s", type(e).__name__, exc_info=True)
-
-    from core.logging import sanitize_id_for_logging
 
     logger.info("process-replacement: Successfully replaced key for item %s (1 key replaced)", sanitize_id_for_logging(item_id))
 

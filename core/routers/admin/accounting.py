@@ -1504,6 +1504,41 @@ async def create_expense(expense: ExpenseCreate, admin=Depends(verify_admin)):
 # =============================================================================
 
 
+def _get_period_start_date(period: str) -> datetime:
+    """Get start date for period (reduces cognitive complexity)."""
+    now = datetime.now(UTC)
+    period_days = {"week": 7, "month": 30, "quarter": 90, "year": 365}
+    return now - timedelta(days=period_days.get(period, 365))
+
+
+def _group_expenses_by_category(expenses_data: list[dict]) -> dict[str, float]:
+    """Group expenses by category (reduces cognitive complexity)."""
+    expenses_by_category: dict[str, float] = {}
+    for e in expenses_data:
+        cat = e.get("category", "other")
+        expenses_by_category[cat] = expenses_by_category.get(cat, 0) + float(e.get("amount_usd", 0))
+    return expenses_by_category
+
+
+def _calculate_profit_values(
+    revenue: float,
+    cogs: float,
+    acquiring: float,
+    referrals: float,
+    reserves: float,
+    review_cashbacks: float,
+    replacement_costs: float,
+    other_expenses: float,
+    insurance_revenue: float,
+) -> tuple[float, float, float]:
+    """Calculate profit values (reduces cognitive complexity)."""
+    gross_profit = revenue - cogs
+    operating_expenses_total = acquiring + referrals + reserves + review_cashbacks + replacement_costs
+    operating_profit = gross_profit - operating_expenses_total
+    net_profit = operating_profit - other_expenses + insurance_revenue
+    return gross_profit, operating_profit, net_profit
+
+
 @router.get("/accounting/report")
 async def get_accounting_report(
     period: str = Query("month", enum=["week", "month", "quarter", "year"]),
@@ -1517,14 +1552,7 @@ async def get_accounting_report(
 
     # Determine date range
     now = datetime.now(UTC)
-    if period == "week":
-        start_date = now - timedelta(days=7)
-    elif period == "month":
-        start_date = now - timedelta(days=30)
-    elif period == "quarter":
-        start_date = now - timedelta(days=90)
-    else:
-        start_date = now - timedelta(days=365)
+    start_date = _get_period_start_date(period)
 
     # Get orders with expenses and currency snapshot fields
     orders_result = (
@@ -1579,18 +1607,14 @@ async def get_accounting_report(
     )
 
     other_expenses = sum(float(e.get("amount_usd", 0)) for e in (other_expenses_result.data or []))
-    expenses_by_category = {}
-    for e in other_expenses_result.data or []:
-        cat = e.get("category", "other")
-        expenses_by_category[cat] = expenses_by_category.get(cat, 0) + float(e.get("amount_usd", 0))
+    expenses_by_category = _group_expenses_by_category(other_expenses_result.data or [])
 
     # Calculate profits
-    gross_profit = revenue - cogs
-    operating_expenses_total = (
-        acquiring + referrals + reserves + review_cashbacks + replacement_costs
+    gross_profit, operating_profit, net_profit = _calculate_profit_values(
+        revenue, cogs, acquiring, referrals, reserves, review_cashbacks,
+        replacement_costs, other_expenses, insurance_revenue
     )
-    operating_profit = gross_profit - operating_expenses_total
-    net_profit = operating_profit - other_expenses + insurance_revenue
+    operating_expenses_total = acquiring + referrals + reserves + review_cashbacks + replacement_costs
 
     # Get liabilities by currency
     liabilities_by_currency: dict = {}
