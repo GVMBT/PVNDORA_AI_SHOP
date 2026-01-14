@@ -3,10 +3,10 @@ fastapi>=0.115.0
 pydantic>=2.4.0
 
 # Telegram Bot
-aiogram>=3.20.0
+aiogram>=3.22.0
 
 # AI - OpenRouter (OpenAI-compatible API for LLM + Embeddings)
-openai>=1.0.0
+openai>=1.54.3
 tenacity>=8.2.0
 
 # AI - LangChain/LangGraph Agent (via OpenAI-compatible)
@@ -15,7 +15,7 @@ langgraph>=0.2.0
 langchain-core>=0.3.81
 
 # Database & Cache
-supabase>=2.10.0
+supabase>=2.31.15
 upstash-redis==1.5.0
 
 # Payments (lazy loaded)

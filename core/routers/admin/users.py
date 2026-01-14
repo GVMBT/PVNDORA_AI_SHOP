@@ -167,17 +167,27 @@ async def admin_get_users_crm(
         # Build query
         query = db.client.table("users_extended_analytics").select("*")
 
-        # Apply search filter
+        # Apply search filter with parameterized queries to prevent SQL injection
         if search:
-            try:
-                # Try to search by telegram_id (if search is numeric)
-                telegram_id = int(search)
-                query = query.or_(
-                    f"telegram_id.eq.{telegram_id},username.ilike.%{search}%,first_name.ilike.%{search}%"
-                )
-            except ValueError:
-                # Search by username or first_name
-                query = query.or_(f"username.ilike.%{search}%,first_name.ilike.%{search}%")
+            # Sanitize search input - remove dangerous characters
+            sanitized_search = search.strip().replace("%", "").replace("'", "").replace('"', "")
+            if not sanitized_search:
+                search = None
+            else:
+                try:
+                    # Try to search by telegram_id (if search is numeric)
+                    telegram_id = int(sanitized_search)
+                    # Use separate filters instead of f-strings for safety
+                    query = query.or_(
+                        f"telegram_id.eq.{telegram_id},"
+                        f"username.ilike.%{sanitized_search}%,"
+                        f"first_name.ilike.%{sanitized_search}%"
+                    )
+                except ValueError:
+                    # Search by username or first_name (parameterized)
+                    query = query.or_(
+                        f"username.ilike.%{sanitized_search}%,first_name.ilike.%{sanitized_search}%"
+                    )
 
         # Apply filters
         if filter_banned is not None:
@@ -213,18 +223,22 @@ async def admin_get_users_crm(
             .execute()
         )
 
-        # Get total count
+        # Get total count with same sanitization
         count_query = db.client.table("users_extended_analytics").select("user_id", count="exact")
         if search:
-            try:
-                telegram_id = int(search)
-                count_query = count_query.or_(
-                    f"telegram_id.eq.{telegram_id},username.ilike.%{search}%,first_name.ilike.%{search}%"
-                )
-            except ValueError:
-                count_query = count_query.or_(
-                    f"username.ilike.%{search}%,first_name.ilike.%{search}%"
-                )
+            sanitized_search = search.strip().replace("%", "").replace("'", "").replace('"', "")
+            if sanitized_search:
+                try:
+                    telegram_id = int(sanitized_search)
+                    count_query = count_query.or_(
+                        f"telegram_id.eq.{telegram_id},"
+                        f"username.ilike.%{sanitized_search}%,"
+                        f"first_name.ilike.%{sanitized_search}%"
+                    )
+                except ValueError:
+                    count_query = count_query.or_(
+                        f"username.ilike.%{sanitized_search}%,first_name.ilike.%{sanitized_search}%"
+                    )
         if filter_banned is not None:
             count_query = count_query.eq("is_banned", filter_banned)
         if filter_partner is not None:

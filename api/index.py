@@ -75,6 +75,7 @@ try:
     from core.routers.workers.router import router as workers_router
     from core.services.database import close_database, init_database
     from core.middleware.security import SecurityHeadersMiddleware
+    from core.middleware.rate_limit import RateLimitMiddleware
 except ImportError:
     # Use logging instead of print for better error tracking
     logging.basicConfig(level=logging.ERROR)
@@ -199,6 +200,23 @@ app = FastAPI(
 # Adds CSP, HSTS, X-Frame-Options, and other security headers
 app.add_middleware(SecurityHeadersMiddleware)
 
+# Rate Limiting Middleware - protects auth endpoints from brute force
+# Uses Redis if available, falls back to in-memory cache
+try:
+    from core.db import get_redis
+
+    redis_client = get_redis()
+    if redis_client:
+        app.add_middleware(RateLimitMiddleware, redis_client=redis_client)
+        logger.info("Rate limiting enabled with Redis")
+    else:
+        app.add_middleware(RateLimitMiddleware)
+        logger.warning("Rate limiting enabled with in-memory cache (not distributed)")
+except (ImportError, ValueError, Exception) as e:
+    # Continue without rate limiting if Redis unavailable or not configured
+    logger.warning(f"Rate limiting unavailable: {e}, continuing without it")
+    app.add_middleware(RateLimitMiddleware)  # Use in-memory fallback
+
 # Aikido Zen Middleware - MUST be added after authentication middleware
 # This enables request blocking for security threats
 try:
@@ -211,10 +229,20 @@ except (ImportError, NameError):
     pass
 
 # CORS for Mini App
+# ⚠️ SECURITY NOTE: allow_origins=["*"] is required for Telegram Mini Apps
+# Telegram Mini Apps can be opened from any domain via t.me links.
+# This is safe because:
+# 1. Authentication is verified via Telegram initData (HMAC-SHA256 signed)
+# 2. All authenticated endpoints verify Telegram signature
+# 3. Credentials are only sent with requests (credentials=True allows cookies/tokens)
+# 4. Without credentials=True, browsers won't send Authorization headers from cross-origin
+#
+# Alternative (if we had fixed origins): allow_origins=["https://t.me", "https://web.telegram.org"]
+# But Telegram Mini Apps can be opened from various Telegram clients/domains
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Telegram Mini Apps require this
-    allow_credentials=True,
+    allow_origins=["*"],  # Telegram Mini Apps require this (see security note above)
+    allow_credentials=True,  # Required for Authorization headers from Telegram Mini Apps
     allow_methods=["*"],
     allow_headers=["*"],
 )
