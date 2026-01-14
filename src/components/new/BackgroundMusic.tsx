@@ -171,10 +171,10 @@ const setupAudioEventListeners = (
   const handleStalled = () => {
     logger.warn("[BackgroundMusic] Stalled - retrying...");
     const isCurrentlyPlaying = isPlayingRef.current;
-    if (audio && !cancelled() && isCurrentlyPlaying) {
+    if (!cancelled() && isCurrentlyPlaying) {
       setTimeout(() => {
         const stillPlaying = isPlayingRef.current;
-        if (audio && !cancelled() && stillPlaying) {
+        if (!cancelled() && stillPlaying && audio) {
           audio.play().catch(() => {});
         }
       }, 500);
@@ -241,7 +241,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isPlayingRef = useRef(false);
   const wasPlayingBeforeHiddenRef = useRef(false);
-  const [, setIsPlaying] = useState(false);
+  const [_isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<Error | null>(null);
@@ -301,7 +301,9 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
           handleAudioLoadError(audioError, {
             retryCountRef,
             maxRetries,
-            loadAudio,
+            loadAudio: () => {
+              void loadAudio();
+            },
             cancelled: isCancelled,
             setLoadError,
             setIsLoading,

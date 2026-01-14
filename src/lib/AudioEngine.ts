@@ -168,7 +168,7 @@ class AudioEngineClass {
   /**
    * Play a sound file from cache or load it
    */
-  private async playSoundFile(key: string, volume: number = 1.0): Promise<void> {
+  private async playSoundFile(key: string, volume: number = 1): Promise<void> {
     if (!this.ctx || !this.masterGain || !this.enabled) return;
 
     const buffer = await this.loadSound(key);

@@ -52,10 +52,10 @@ const CartSummary: React.FC<CartSummaryProps> = ({
 
     try {
       const result = await onApplyPromo(promoInput.trim().toUpperCase());
-      if (!result.success) {
-        setPromoError(result.message || t("checkout.promoInvalid"));
-      } else {
+      if (result.success) {
         setPromoInput("");
+      } else {
+        setPromoError(result.message || t("checkout.promoInvalid"));
       }
     } catch {
       setPromoError(t("checkout.promoFailed"));

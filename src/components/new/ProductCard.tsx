@@ -37,7 +37,7 @@ interface ProductCardProps {
 // Utility for fake hex stream
 const HexStream = () => {
   // Pre-generate hex values for consistent keys
-  const hexValues = Array.from({ length: 8 }, () => 
+  const hexValues = Array.from({ length: 8 }, () =>
     Math.random().toString(16).substring(2, 6).toUpperCase()
   );
   return (

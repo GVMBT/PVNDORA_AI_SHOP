@@ -106,12 +106,9 @@ function NewAppInner() {
 
   // Auth State - also check storage for already-booted case
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(() => {
-    // If we're already booted, we need to restore auth state
+    // Always return null initially to trigger auth re-check
     // This prevents the flicker when returning from payment redirect
-    if (sessionStorage.get(CACHE.BOOT_STATE_KEY) === "true") {
-      // Return null to trigger auth re-check
-      return null;
-    }
+    // and ensures auth state is verified on every mount
     return null;
   });
   const [isAuthChecking, setIsAuthChecking] = useState(false);

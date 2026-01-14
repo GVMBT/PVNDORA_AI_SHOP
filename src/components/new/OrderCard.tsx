@@ -121,8 +121,9 @@ const OrderCard: React.FC<OrderCardProps> = ({
       } else {
         setPaymentCheckResult("Ошибка проверки оплаты");
       }
-    } catch (_error) {
-      setPaymentCheckResult("Ошибка при проверке оплаты");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Ошибка при проверке оплаты";
+      setPaymentCheckResult(errorMessage);
     } finally {
       setIsCheckingPayment(false);
     }

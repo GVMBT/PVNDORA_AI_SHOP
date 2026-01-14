@@ -21,6 +21,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onBack, onAdminEnte
       {/* Unified Header */}
       <div className="mb-8 md:mb-16">
         <button
+          type="button"
           onClick={onBack}
           className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors"
         >
@@ -34,7 +35,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onBack, onAdminEnte
         </h1>
         <div className="flex items-center gap-2 text-[10px] font-mono text-pandora-cyan tracking-widest uppercase">
           <User size={12} />
-          <span>User_Identity // Stats</span>
+          <span>User_Identity | Stats</span>
         </div>
       </div>
 
@@ -78,6 +79,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onBack, onAdminEnte
         {/* Admin Entry */}
         {user.role === "ADMIN" && (
           <button
+            type="button"
             onClick={onAdminEnter}
             className="flex items-center gap-2 bg-red-900/10 border border-red-500/30 text-red-500 px-4 py-2 hover:bg-red-500 hover:text-white transition-all text-xs font-mono font-bold uppercase tracking-widest"
           >

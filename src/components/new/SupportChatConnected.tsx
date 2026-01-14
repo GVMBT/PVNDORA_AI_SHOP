@@ -320,6 +320,7 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
                 </div>
                 <div className="flex items-center gap-2">
                   <button
+                    type="button"
                     onClick={handleClear}
                     className="p-1 hover:bg-white/10 rounded transition-colors"
                     title="Clear history"
@@ -327,6 +328,7 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
                     <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
                   </button>
                   <button
+                    type="button"
                     onClick={handleRefresh}
                     className="p-1 hover:bg-white/10 rounded transition-colors"
                     title="Refresh history"
@@ -337,6 +339,7 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
                     />
                   </button>
                   <button
+                    type="button"
                     onClick={toggleChat}
                     className="p-1 hover:bg-white/10 rounded transition-colors"
                   >
@@ -414,6 +417,7 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
                     className="flex-1 bg-white/5 border border-white/10 text-white text-xs font-mono p-2.5 focus:outline-none focus:border-pandora-cyan/50 placeholder:text-gray-600 disabled:opacity-50"
                   />
                   <button
+                    type="button"
                     onClick={handleSend}
                     disabled={!inputValue.trim() || loading || isTyping}
                     className="p-2.5 bg-pandora-cyan/20 border border-pandora-cyan/50 text-pandora-cyan hover:bg-pandora-cyan hover:text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed"
@@ -431,6 +435,7 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
 
         {/* Toggle Button (HUD widget style) */}
         <button
+          type="button"
           onClick={toggleChat}
           className="pointer-events-auto relative w-16 h-16 md:w-20 md:h-20 flex items-center justify-center group"
         >

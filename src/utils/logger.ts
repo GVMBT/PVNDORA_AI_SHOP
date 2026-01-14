@@ -98,11 +98,13 @@ class Logger {
     this.log("warn", message, ...args);
   }
 
-  error(message: string, error?: Error | unknown, ...args: unknown[]): void {
+  error(message: string, error?: Error, ...args: unknown[]): void {
     if (error instanceof Error) {
       this.log("error", message, error, error.stack, ...args);
-    } else {
+    } else if (error !== undefined) {
       this.log("error", message, error, ...args);
+    } else {
+      this.log("error", message, ...args);
     }
   }
 

@@ -43,7 +43,7 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
   thresholds = { level2: 250, level3: 1000 },
   commissions = { level1: 10, level2: 7, level3: 3 },
   currency: propCurrency,
-  exchangeRate = 1.0,
+  exchangeRate = 1,
   isVip = false,
   onApplyPartner,
 }) => {
@@ -56,6 +56,7 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
       <h3 className="text-xs font-mono text-gray-500 uppercase mb-4 flex items-center gap-2">
         <ShieldCheck size={14} /> {t("profile.career.title")}
         <button
+          type="button"
           onClick={() => setShowExplainer(true)}
           className="ml-auto text-pandora-cyan hover:text-white transition-colors flex items-center gap-1 text-[9px]"
         >
@@ -158,7 +159,7 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
               <span className="relative z-10 flex items-center gap-2">
                 <ShieldCheck size={14} className="group-hover:scale-110 transition-transform" />
                 <span className="group-hover:text-white transition-colors">
-                  ELITE_OPERATOR // РЕГИСТРАЦИЯ
+                  ELITE_OPERATOR | РЕГИСТРАЦИЯ
                 </span>
                 <Star
                   size={12}
@@ -176,7 +177,7 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
           <div className="mt-6 pt-4 border-t border-white/10 text-center">
             <div className="inline-flex items-center gap-2 text-pandora-cyan font-mono text-xs uppercase bg-pandora-cyan/10 border border-pandora-cyan/30 px-4 py-2">
               <ShieldCheck size={14} />
-              <span>ELITE_OPERATOR // АКТИВЕН</span>
+              <span>ELITE_OPERATOR | АКТИВЕН</span>
               <Star size={12} />
             </div>
           </div>

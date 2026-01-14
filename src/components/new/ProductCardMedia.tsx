@@ -104,7 +104,7 @@ class ParticleSystem {
       this.particles.forEach((other) => {
         const dx = particle.x - other.x;
         const dy = particle.y - other.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const distance = Math.hypot(dx, dy);
 
         if (distance < 80) {
           this.ctx.beginPath();

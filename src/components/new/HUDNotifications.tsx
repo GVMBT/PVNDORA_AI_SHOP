@@ -19,7 +19,15 @@ import {
   Zap,
 } from "lucide-react";
 import type React from "react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { AudioEngine } from "../../lib/AudioEngine";
 import { generateId } from "../../utils/id";
 

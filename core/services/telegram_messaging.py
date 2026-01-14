@@ -111,26 +111,26 @@ async def _send_with_retry(
 
     for attempt in range(retries + 1):
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
+            async with httpx.AsyncClient() as client:
                 with anyio.move_on_after(timeout):
                     success, status_code, error_text = await _make_telegram_request(
                         client, url, payload
                     )
 
-                if success:
-                    logger.debug(f"Message sent successfully to {chat_id}")
-                    return True
+                    if success:
+                        logger.debug(f"Message sent successfully to {chat_id}")
+                        return True
 
-                logger.warning(
-                    f"Telegram API error for {chat_id}: status={status_code}, response={error_text}"
-                )
+                    logger.warning(
+                        f"Telegram API error for {chat_id}: status={status_code}, response={error_text}"
+                    )
 
-                if _is_permanent_error(status_code):
-                    return False
+                    if _is_permanent_error(status_code):
+                        return False
 
-                last_error = f"HTTP {status_code}"
+                    last_error = f"HTTP {status_code}"
 
-        except httpx.TimeoutException:
+        except anyio.MoveOnAfterTimeout:
             last_error = "Timeout"
             logger.warning(
                 f"Timeout sending message to {chat_id} (attempt {attempt + 1}/{retries + 1})"
@@ -222,11 +222,13 @@ async def send_telegram_message_with_keyboard(
         parse_mode: Parse mode
         bot_token: Optional bot token
         retries: Number of retry attempts
-        timeout: Request timeout
+        timeout: Request timeout in seconds. Uses timeout context manager internally.
 
     Returns:
         True if sent successfully, False otherwise
     """
+    import anyio
+
     token = bot_token or TELEGRAM_TOKEN
     if not token:
         logger.warning(f"No bot token configured for sending message to {chat_id}")
@@ -247,22 +249,28 @@ async def send_telegram_message_with_keyboard(
 
     for attempt in range(retries + 1):
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                response = await client.post(url, json=payload)
+            async with httpx.AsyncClient() as client:
+                with anyio.move_on_after(timeout):
+                    response = await client.post(url, json=payload)
 
-                if response.status_code == 200:
-                    return True
+                    if response.status_code == 200:
+                        return True
 
-                error_description = _parse_error_response(response)
-                logger.error(
-                    f"Telegram API error for {chat_id} (keyboard): status={response.status_code}, description={error_description}"
-                )
+                    error_description = _parse_error_response(response)
+                    logger.error(
+                        f"Telegram API error for {chat_id} (keyboard): status={response.status_code}, description={error_description}"
+                    )
 
-                if _is_permanent_error(response.status_code):
-                    return False
+                    if _is_permanent_error(response.status_code):
+                        return False
 
-                last_error = f"HTTP {response.status_code}"
+                    last_error = f"HTTP {response.status_code}"
 
+        except anyio.MoveOnAfterTimeout:
+            last_error = "Timeout"
+            logger.warning(
+                f"Timeout sending keyboard message to {chat_id} (attempt {attempt + 1}/{retries + 1})"
+            )
         except Exception as e:
             last_error = str(e)
             logger.warning(f"Error sending keyboard message to {chat_id}: {e}")

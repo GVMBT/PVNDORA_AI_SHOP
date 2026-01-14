@@ -13,7 +13,7 @@ import type React from "react";
 import { memo, useEffect } from "react";
 
 interface AppLayoutProps {
-  children: React.ReactNode;
+  readonly children: React.ReactNode;
 }
 
 function AppLayoutComponent({ children }: AppLayoutProps) {

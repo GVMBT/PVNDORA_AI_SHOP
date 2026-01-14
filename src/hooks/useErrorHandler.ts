@@ -49,7 +49,16 @@ export function useErrorHandler() {
       } = options;
 
       // Convert to Error if needed
-      const err = error instanceof Error ? error : new Error(String(error));
+      const err =
+        error instanceof Error
+          ? error
+          : new Error(
+              typeof error === "string"
+                ? error
+                : error && typeof error === "object" && "message" in error
+                  ? String(error.message)
+                  : String(error)
+            );
 
       // Log error
       if (shouldLog) {

@@ -48,8 +48,7 @@ async def _download_media_from_admin_bot(media_file_id: str, broadcast_id: str) 
                 logger.info(f"Broadcast {broadcast_id}: Downloaded media file, size={len(response.content)} bytes")
                 await admin_bot.session.close()
                 return response.content
-            else:
-                logger.error(f"Broadcast {broadcast_id}: Failed to download media, status={response.status_code}")
+            logger.error(f"Broadcast {broadcast_id}: Failed to download media, status={response.status_code}")
 
         await admin_bot.session.close()
     except Exception:
@@ -84,58 +83,58 @@ async def _send_media_message(
     bot: Bot, telegram_id: int, media_bytes: bytes | None, media_file_id: str | None,
     media_type: str | None, text: str, parse_mode_str: str, keyboard: InlineKeyboardMarkup | None
 ) -> bool:
-    """Send message with media (photo, video, animation) or text."""
-    try:
-        # Photo with bytes
-        if media_bytes and media_type == "photo":
-            await bot.send_photo(
-                chat_id=telegram_id,
-                photo=BufferedInputFile(media_bytes, filename="broadcast.jpg"),
-                caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
-            )
-            return True
+    """Send message with media (photo, video, animation) or text. Returns True on success, False if nothing to send."""
+    # Photo with bytes
+    if media_bytes and media_type == "photo":
+        await bot.send_photo(
+            chat_id=telegram_id,
+            photo=BufferedInputFile(media_bytes, filename="broadcast.jpg"),
+            caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
+        )
+        return True
 
-        # Video with bytes
-        if media_bytes and media_type == "video":
-            await bot.send_video(
-                chat_id=telegram_id,
-                video=BufferedInputFile(media_bytes, filename="broadcast.mp4"),
-                caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
-            )
-            return True
+    # Video with bytes
+    if media_bytes and media_type == "video":
+        await bot.send_video(
+            chat_id=telegram_id,
+            video=BufferedInputFile(media_bytes, filename="broadcast.mp4"),
+            caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
+        )
+        return True
 
-        # Animation with bytes
-        if media_bytes and media_type == "animation":
-            await bot.send_animation(
-                chat_id=telegram_id,
-                animation=BufferedInputFile(media_bytes, filename="broadcast.gif"),
-                caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
-            )
-            return True
+    # Animation with bytes
+    if media_bytes and media_type == "animation":
+        await bot.send_animation(
+            chat_id=telegram_id,
+            animation=BufferedInputFile(media_bytes, filename="broadcast.gif"),
+            caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
+        )
+        return True
 
-        # Fallback to file_id (may fail if from different bot)
-        if media_file_id and media_type == "photo":
-            await bot.send_photo(
-                chat_id=telegram_id, photo=media_file_id,
-                caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
-            )
-            return True
+    # Fallback to file_id (may fail if from different bot)
+    if media_file_id and media_type == "photo":
+        await bot.send_photo(
+            chat_id=telegram_id, photo=media_file_id,
+            caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
+        )
+        return True
 
-        if media_file_id and media_type == "video":
-            await bot.send_video(
-                chat_id=telegram_id, video=media_file_id,
-                caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
-            )
-            return True
+    if media_file_id and media_type == "video":
+        await bot.send_video(
+            chat_id=telegram_id, video=media_file_id,
+            caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
+        )
+        return True
 
-        if media_file_id and media_type == "animation":
-            await bot.send_animation(
-                chat_id=telegram_id, animation=media_file_id,
-                caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
-            )
-            return True
+    if media_file_id and media_type == "animation":
+        await bot.send_animation(
+            chat_id=telegram_id, animation=media_file_id,
+            caption=text, parse_mode=parse_mode_str, reply_markup=keyboard,
+        )
+        return True
 
-        # Text-only message
+    # Text-only message - only send if we have text content
+    if text:
         from core.services.telegram_messaging import send_telegram_message_with_keyboard
         token = os.environ.get("TELEGRAM_TOKEN", "")
         await send_telegram_message_with_keyboard(
@@ -145,8 +144,8 @@ async def _send_media_message(
         )
         return True
 
-    except Exception:
-        raise  # Re-raise to be handled by caller
+    # No content to send
+    return False
 
 
 async def _handle_send_failure(db, user_id: str, telegram_id: int, broadcast_id: str, error_msg: str) -> None:
@@ -234,8 +233,15 @@ async def _send_to_user(
         return True
 
     except Exception as e:
+        error_type = type(e).__name__
+        from core.logging import sanitize_id_for_logging
+
+        logger.warning(
+            "Broadcast to user failed: broadcast_id=%s, error_type=%s",
+            sanitize_id_for_logging(broadcast_id),
+            error_type,
+        )
         error_msg = str(e)
-        logger.warning(f"Broadcast to {telegram_id} failed: {error_msg}")
         await _handle_send_failure(db, user_id, telegram_id, broadcast_id, error_msg)
         return False
 
@@ -315,8 +321,9 @@ async def worker_send_broadcast(request: Request):
         data = await verify_qstash(request)
         logger.info(f"QStash verified, data keys: {list(data.keys())}")
     except Exception as e:
+        error_type = type(e).__name__
         logger.exception("QStash verification failed")
-        return {"error": f"QStash verification failed: {e!s}"}
+        return {"error": f"QStash verification failed: {error_type}"}
 
     broadcast_id = data.get("broadcast_id")
     user_ids = data.get("user_ids", [])

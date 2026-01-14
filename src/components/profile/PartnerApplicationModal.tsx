@@ -208,9 +208,10 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-6">
                   <div className="text-[10px] font-mono tracking-widest text-gray-500">
-                    STATUS_CHECK // ELITE_PROGRAM
+                    STATUS_CHECK | ELITE_PROGRAM
                   </div>
                   <button
+                    type="button"
                     onClick={onClose}
                     className="text-gray-500 hover:text-white transition-colors"
                   >
@@ -243,6 +244,7 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
                 </div>
 
                 <button
+                  type="button"
                   onClick={onClose}
                   className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/20 text-white font-mono text-sm uppercase tracking-wider transition-all"
                 >
@@ -298,6 +300,7 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
                 </p>
 
                 <button
+                  type="button"
                   onClick={onClose}
                   className="w-full py-3 bg-green-400/20 hover:bg-green-400/30 border border-green-400/50 text-green-400 font-mono text-sm uppercase tracking-wider transition-all"
                 >
@@ -333,10 +336,11 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
               <div className="flex items-center gap-3">
                 <Shield className="text-pandora-cyan" size={18} />
                 <span className="text-xs font-mono text-pandora-cyan tracking-wider">
-                  ELITE_OPERATOR // РЕГИСТРАЦИЯ
+                  ELITE_OPERATOR | РЕГИСТРАЦИЯ
                 </span>
               </div>
               <button
+                type="button"
                 onClick={onClose}
                 className="text-gray-500 hover:text-pandora-cyan transition-colors"
               >

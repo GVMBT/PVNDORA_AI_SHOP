@@ -20,7 +20,8 @@ export interface ApiError {
 export function parseApiError(error: unknown, endpoint?: string): ApiError {
   if (error instanceof Error) {
     // Check for HTTP status codes in message
-    const statusMatch = error.message.match(/HTTP (\d+)/);
+    const statusRegex = /HTTP (\d+)/;
+    const statusMatch = statusRegex.exec(error.message);
     const status = statusMatch ? Number.parseInt(statusMatch[1], 10) : undefined;
 
     // Determine if error is retryable

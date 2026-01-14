@@ -16,7 +16,6 @@ import type { UserData } from "./types";
 interface AdminUsersProps {
   users: UserData[];
   onBanUser?: (userId: number, ban: boolean) => void;
-  onUpdateBalance?: (userId: number, amount: number) => void;
   onRefresh?: () => void;
 }
 

@@ -36,7 +36,7 @@ function adaptCartItem(item: APICartItem, currency: string): CartItem {
 export function adaptCart(response: APICartResponse): CartData {
   const items = response.items || [];
   const currency = response.currency || "USD";
-  const exchangeRate = response.exchange_rate || 1.0;
+  const exchangeRate = response.exchange_rate || 1;
 
   // USD values (for calculations) - ALWAYS use these for math
   const totalUsd = response.total_usd ?? response.total ?? 0;

@@ -117,8 +117,8 @@ async def _allocate_stock_item(db, product_id: str, now: datetime) -> tuple[str 
             .execute()
         )
         stock_item = stock_res.data[0] if stock_res.data else None
-    except Exception as e:
-        logger.exception(f"deliver-goods: stock query failed for product {product_id}: {e}")
+    except Exception:
+        logger.exception(f"deliver-goods: stock query failed for product {product_id}")
         return None, None
 
     if not stock_item:
@@ -147,8 +147,8 @@ async def _allocate_stock_item(db, product_id: str, now: datetime) -> tuple[str 
         logger.warning(f"deliver-goods: stock {stock_id} was already reserved")
         return None, None
 
-    except Exception as e:
-        logger.exception(f"deliver-goods: failed to mark stock sold {stock_id}: {e}")
+    except Exception:
+        logger.exception(f"deliver-goods: failed to mark stock sold {stock_id}")
         return None, None
 
 
@@ -183,8 +183,8 @@ async def _update_order_item_as_delivered(
         await db.client.table("order_items").update(update_data).eq("id", item_id).execute()
         return True
 
-    except Exception as e:
-        logger.exception(f"deliver-goods: failed to update order_item {item_id}: {e}")
+    except Exception:
+        logger.exception(f"deliver-goods: failed to update order_item {item_id}")
         # Rollback: mark stock item as available again
         try:
             await (
@@ -251,8 +251,8 @@ async def _process_single_item_delivery(
             .eq("id", item_id)
             .execute()
         )
-    except Exception as e:
-        logger.error(f"deliver-goods: failed to update timestamp for item {item_id}: {e}")
+    except Exception:
+        logger.exception(f"deliver-goods: failed to update timestamp for item {item_id}")
     return None, True  # Waiting
 
 
@@ -290,8 +290,8 @@ async def _update_user_total_saved(db, order_data: dict, order_id: str) -> None:
         logger.info(
             f"deliver-goods: Updated total_saved for user {user_id}: {current_saved:.2f} -> {new_saved:.2f}"
         )
-    except Exception as e:
-        logger.error(f"deliver-goods: Failed to update total_saved for order {order_id}: {e}")
+    except Exception:
+        logger.exception(f"deliver-goods: Failed to update total_saved for order {order_id}")
 
 
 async def _fetch_delivered_items_content(db, order_id: str) -> list[str]:
@@ -316,8 +316,8 @@ async def _fetch_delivered_items_content(db, order_id: str) -> list[str]:
             if delivery_content:
                 lines.append(f"{product_name}:\n{delivery_content}")
         return lines
-    except Exception as e:
-        logger.error(f"deliver-goods: Failed to fetch delivered items content: {e}")
+    except Exception:
+        logger.exception("deliver-goods: Failed to fetch delivered items content")
         return []
 
 
@@ -404,8 +404,8 @@ async def _load_products_map(db, product_ids: list[str], order_id: str) -> dict:
             .execute()
         )
         return {p["id"]: p for p in (prod_res.data or [])}
-    except Exception as e:
-        logger.error(f"deliver-goods: failed to load products for order {order_id}: {e}")
+    except Exception:
+        logger.exception(f"deliver-goods: failed to load products for order {order_id}")
         return {}
 
 

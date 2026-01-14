@@ -38,17 +38,17 @@ export type ViewType =
   | "payment-result";
 
 interface AppRouterProps {
-  currentView: ViewType;
-  selectedProduct: CatalogProduct | null;
-  legalDoc: string;
-  paymentResultOrderId: string | null;
-  onNavigate: (view: ViewType) => void;
-  onNavigateLegal: (doc: string) => void;
-  onProductSelect: (product: CatalogProduct) => void;
-  onBackToCatalog: () => void;
-  onAddToCart: (product: CatalogProduct, quantity?: number) => void;
-  onOpenSupport: (context?: RefundContext | null) => void;
-  onHaptic: (type?: FeedbackType) => void;
+  readonly currentView: ViewType;
+  readonly selectedProduct: CatalogProduct | null;
+  readonly legalDoc: string;
+  readonly paymentResultOrderId: string | null;
+  readonly onNavigate: (view: ViewType) => void;
+  readonly onNavigateLegal: (doc: string) => void;
+  readonly onProductSelect: (product: CatalogProduct) => void;
+  readonly onBackToCatalog: () => void;
+  readonly onAddToCart: (product: CatalogProduct, quantity?: number) => void;
+  readonly onOpenSupport: (context?: RefundContext | null) => void;
+  readonly onHaptic: (type?: FeedbackType) => void;
 }
 
 /**

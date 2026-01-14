@@ -213,7 +213,10 @@ const SupportChat: React.FC<SupportChatProps> = ({
               {/* Input Area */}
               <div className="p-3 bg-black/90 border-t border-white/10 shrink-0 relative z-30">
                 <div className="relative flex items-end gap-2 bg-[#0a0a0a] border border-white/10 p-1.5 rounded-sm focus-within:border-pandora-cyan/50 transition-colors">
-                  <button type="button" className="p-1.5 text-gray-500 hover:text-white transition-colors h-8 flex items-center justify-center">
+                  <button
+                    type="button"
+                    className="p-1.5 text-gray-500 hover:text-white transition-colors h-8 flex items-center justify-center"
+                  >
                     <Paperclip size={14} />
                   </button>
                   <textarea

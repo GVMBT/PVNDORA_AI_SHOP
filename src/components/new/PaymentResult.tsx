@@ -52,10 +52,10 @@ const getLogTypeColor = (type: string): string => {
 };
 
 interface PaymentResultProps {
-  orderId: string;
-  isTopUp?: boolean; // True if this is a balance top-up, not an order
-  onComplete: () => void;
-  onViewOrders: () => void; // For topup, this navigates to profile
+  readonly orderId: string;
+  readonly isTopUp?: boolean; // True if this is a balance top-up, not an order
+  readonly onComplete: () => void;
+  readonly onViewOrders: () => void; // For topup, this navigates to profile
 }
 
 interface OrderStatusResponse {
@@ -153,7 +153,8 @@ export function PaymentResult({
         throw error;
       }
     } catch (error: unknown) {
-      const errorInstance = error instanceof Error ? error : new Error(String(error));
+      const errorMessage = error instanceof Error ? error.message : (error ? String(error) : "Unknown error");
+      const errorInstance = error instanceof Error ? error : new Error(errorMessage);
       logger.error("Status check failed", errorInstance);
       return {
         status: "unknown" as PaymentStatus,

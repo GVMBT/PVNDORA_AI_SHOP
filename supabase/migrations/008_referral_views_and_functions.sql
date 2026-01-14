@@ -12,7 +12,7 @@ WITH level1_stats AS (
     SELECT 
         u.id AS user_id,
         COUNT(DISTINCT r1.id) AS level1_count,
-        COALESCE(SUM(CASE WHEN rb1.level = 1 AND rb1.eligible THEN rb1.amount ELSE 0 END), 0) AS level1_earnings
+        COALESCE(SUM(CASE WHEN rb1.level = 1 AND rb1.eligible IS TRUE THEN rb1.amount ELSE 0 END), 0) AS level1_earnings
     FROM users u
     LEFT JOIN users r1 ON r1.referrer_id = u.id
     LEFT JOIN referral_bonuses rb1 ON rb1.referrer_id = u.id AND rb1.level = 1
@@ -22,7 +22,7 @@ level2_stats AS (
     SELECT 
         u.id AS user_id,
         COUNT(DISTINCT r2.id) AS level2_count,
-        COALESCE(SUM(CASE WHEN rb2.level = 2 AND rb2.eligible THEN rb2.amount ELSE 0 END), 0) AS level2_earnings
+        COALESCE(SUM(CASE WHEN rb2.level = 2 AND rb2.eligible IS TRUE THEN rb2.amount ELSE 0 END), 0) AS level2_earnings
     FROM users u
     LEFT JOIN users r1 ON r1.referrer_id = u.id
     LEFT JOIN users r2 ON r2.referrer_id = r1.id
@@ -33,7 +33,7 @@ level3_stats AS (
     SELECT 
         u.id AS user_id,
         COUNT(DISTINCT r3.id) AS level3_count,
-        COALESCE(SUM(CASE WHEN rb3.level = 3 AND rb3.eligible THEN rb3.amount ELSE 0 END), 0) AS level3_earnings
+        COALESCE(SUM(CASE WHEN rb3.level = 3 AND rb3.eligible IS TRUE THEN rb3.amount ELSE 0 END), 0) AS level3_earnings
     FROM users u
     LEFT JOIN users r1 ON r1.referrer_id = u.id
     LEFT JOIN users r2 ON r2.referrer_id = r1.id
@@ -113,7 +113,7 @@ SELECT
 FROM users u
 LEFT JOIN users r ON r.referrer_id = u.id
 LEFT JOIN orders o ON o.user_id = r.id
-LEFT JOIN referral_bonuses rb ON rb.referrer_id = u.id AND rb.eligible = true;
+LEFT JOIN referral_bonuses rb ON rb.referrer_id = u.id AND rb.eligible IS TRUE;
 
 -- ============================================================
 -- 3. Referral ROI Dashboard View
@@ -141,7 +141,7 @@ SELECT
 FROM users u
 LEFT JOIN users r ON r.referrer_id = u.id
 LEFT JOIN orders o ON o.user_id = r.id
-LEFT JOIN referral_bonuses rb ON rb.referrer_id = u.id AND rb.eligible = true;
+LEFT JOIN referral_bonuses rb ON rb.referrer_id = u.id AND rb.eligible IS TRUE;
 
 -- ============================================================
 -- 4. Partner Analytics View (for CRM)
@@ -163,7 +163,7 @@ WITH referral_stats AS (
     FROM users u
     LEFT JOIN users r ON r.referrer_id = u.id
     LEFT JOIN orders o ON o.user_id = r.id
-    WHERE u.is_partner = true OR EXISTS (SELECT 1 FROM users r2 WHERE r2.referrer_id = u.id)
+    WHERE u.is_partner IS TRUE OR EXISTS (SELECT 1 FROM users r2 WHERE r2.referrer_id = u.id)
     GROUP BY u.id
 ),
 level_counts AS (
@@ -205,5 +205,5 @@ FROM users u
 LEFT JOIN referral_stats_extended rse ON rse.user_id = u.id
 LEFT JOIN referral_stats rs ON rs.user_id = u.id
 LEFT JOIN level_counts lc ON lc.user_id = u.id
-WHERE u.is_partner = true OR EXISTS (SELECT 1 FROM users r2 WHERE r2.referrer_id = u.id);
+WHERE u.is_partner IS TRUE OR EXISTS (SELECT 1 FROM users r2 WHERE r2.referrer_id = u.id);
 

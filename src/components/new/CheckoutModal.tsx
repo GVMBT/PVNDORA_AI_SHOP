@@ -32,7 +32,6 @@ interface CheckoutModalProps {
   originalTotal?: number;
   // Currency info
   currency?: string;
-  exchangeRate?: number;
   // Promo
   promoCode?: string | null;
   promoDiscountPercent?: number | null;
@@ -44,8 +43,6 @@ interface CheckoutModalProps {
   onSuccess: () => void;
   onApplyPromo?: (code: string) => Promise<{ success: boolean; message?: string }>;
   onRemovePromo?: () => void;
-  loading?: boolean;
-  error?: string | null;
 }
 
 const CheckoutModal: React.FC<CheckoutModalProps> = ({

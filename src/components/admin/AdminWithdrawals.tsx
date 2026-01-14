@@ -233,7 +233,9 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                   {getStatusLabel(w.status)}
                 </span>
               </div>
-              <div className="font-bold text-white text-sm mb-1">{formatAmountWithCurrency(w.amount)}</div>
+              <div className="font-bold text-white text-sm mb-1">
+                {formatAmountWithCurrency(w.amount)}
+              </div>
               <div className="text-xs text-gray-400 mb-1">
                 {w.first_name || w.username || `Пользователь ${w.telegram_id || "Неизвестно"}`}
               </div>
@@ -313,9 +315,9 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                 <div>
                   <div className="text-gray-500 mb-1">Баланс</div>
                   <div className="text-white font-mono">
-                    {selectedWithdrawal.user_balance !== undefined
-                      ? formatAmountWithCurrency(selectedWithdrawal.user_balance)
-                      : "Н/Д"}
+                    {selectedWithdrawal.user_balance === undefined
+                      ? "Н/Д"
+                      : formatAmountWithCurrency(selectedWithdrawal.user_balance)}
                   </div>
                 </div>
               </div>

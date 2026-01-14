@@ -5,8 +5,7 @@ import { useClipboard } from "../../hooks/useClipboard";
 import { useLocale } from "../../hooks/useLocale";
 import { useTimeoutState } from "../../hooks/useTimeoutState";
 import { logger } from "../../utils/logger";
-import type { RefundContext } from "./OrderCard";
-import OrderCard, { type OrderData } from "./OrderCard";
+import OrderCard, { type OrderData, type RefundContext } from "./OrderCard";
 import OrderReviewModal from "./OrderReviewModal";
 
 // Re-export types for backward compatibility
@@ -27,7 +26,12 @@ interface OrdersProps {
 
 type TabId = "all" | "active" | "log";
 
-const Orders: React.FC<OrdersProps> = ({ orders: propOrders, onBack, onOpenSupport, onSubmitReview }) => {
+const Orders: React.FC<OrdersProps> = ({
+  orders: propOrders,
+  onBack,
+  onOpenSupport,
+  onSubmitReview,
+}) => {
   const { t } = useLocale();
   // Use provided orders - NO MOCK fallback
   const ordersData = propOrders || [];

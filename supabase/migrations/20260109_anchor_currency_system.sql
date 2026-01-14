@@ -126,7 +126,7 @@ BEGIN
   SELECT COALESCE(SUM(amount), 0)
   INTO v_referral_payout
   FROM referral_bonuses
-  WHERE order_id = p_order_id AND eligible = true;
+  WHERE order_id = p_order_id AND eligible IS TRUE;
   
   -- 4. Reserves
   v_reserve := v_order.amount * (

@@ -230,7 +230,7 @@ const Modal: React.FC<{
     if (withdrawPreview && !withdrawPreview.can_withdraw) {
       return "Сумма слишком мала. После комиссии вы получите менее 8.5 USDT (требование биржи: минимум 10 USD).";
     }
-    if (!withdrawDetails || !withdrawDetails.trim()) {
+    if (!withdrawDetails?.trim()) {
       return t("modal.errors.enterDetails");
     }
     return null;

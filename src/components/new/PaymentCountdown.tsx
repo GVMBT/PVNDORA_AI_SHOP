@@ -8,7 +8,7 @@ import { AlertTriangle, Clock } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface PaymentCountdownProps {
-  deadline: string;
+  readonly deadline: string;
 }
 
 export function PaymentCountdown({ deadline }: PaymentCountdownProps) {

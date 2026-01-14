@@ -318,7 +318,7 @@ export function adaptProfile(
 
         // Get display currency and exchange rate
         const displayCurrency = normalizeCurrency(responseCurrency || profile.currency || "USD");
-        const exchangeRate = responseExchangeRate || response.exchange_rate || 1.0;
+        const exchangeRate = responseExchangeRate || response.exchange_rate || 1;
 
         // Convert turnover to display currency for progress calculation
         const turnoverDisplay =
@@ -371,7 +371,7 @@ export function adaptProfile(
     language: profile.interface_language || "en",
     interfaceLanguage: profile.interface_language || undefined,
     photoUrl,
-    exchangeRate: responseExchangeRate || response.exchange_rate || 1.0, // Exchange rate for frontend conversion
+    exchangeRate: responseExchangeRate || response.exchange_rate || 1, // Exchange rate for frontend conversion
   };
 }
 

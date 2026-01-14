@@ -94,7 +94,7 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
           <div className="divide-y divide-white/5">
             {/* Desktop Header Row (Hidden on Mobile) */}
             <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-3 bg-white/[0.02] border-b border-white/5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
-              <div className="col-span-2 flex items-center gap-2">ID // Type</div>
+              <div className="col-span-2 flex items-center gap-2">ID | Type</div>
               <div className="col-span-5">Source / Activity</div>
               <div className="col-span-3 text-right">Amount</div>
               <div className="col-span-2 text-right">Timestamp</div>

@@ -95,7 +95,7 @@ BEGIN
         FROM reserve_product_for_purchase(p_product_id, p_user_telegram_id);
         
         v_order_type := 'instant';
-        v_status := 'pending';
+        v_status := c_status_pending;
         v_fulfillment_deadline := NULL;
     ELSE
         -- Товара нет - предоплата
@@ -105,7 +105,7 @@ BEGIN
         v_discount := 0;
         v_expires_at := NULL;
         v_order_type := 'prepaid';
-        v_status := 'pending';
+        v_status := c_status_pending;
         
         -- Расчет дедлайна выполнения
         v_fulfillment_deadline := NOW() + 
@@ -265,7 +265,7 @@ BEGIN
     SELECT * INTO v_order
     FROM orders
     WHERE id = p_order_id
-    AND status IN ('prepaid', 'fulfilling', 'failed', 'pending')
+    AND status IN ('prepaid', 'fulfilling', 'failed', 'pending')  -- Status constants: prepaid, fulfilling, failed, pending
     FOR UPDATE;
     
     IF NOT FOUND THEN

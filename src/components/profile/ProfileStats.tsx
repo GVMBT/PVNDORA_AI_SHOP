@@ -95,7 +95,8 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
         }
       } catch (err) {
         logger.error("Error changing currency", err);
-        // Error handled by logger in parent
+        // Error handled by logger - rethrow to allow parent to handle
+        throw err;
       }
     },
     [onHaptic, onUpdatePreferences]
@@ -110,7 +111,9 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
           if (onHaptic) onHaptic("light");
           // No reload needed - context will update automatically
         } catch (err) {
-          // Error handled by logger in parent
+          // Error handled by logger - rethrow to allow parent to handle
+          logger.error("Error changing language", err);
+          throw err;
         }
       }
     },
@@ -140,6 +143,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
 
           <div className="grid grid-cols-2 gap-3 mt-auto">
             <button
+              type="button"
               onClick={() => {
                 if (onHaptic) onHaptic("light");
                 if (onTopUp) onTopUp();
@@ -149,6 +153,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
               <Plus size={14} /> {t("profile.actions.topUp")}
             </button>
             <button
+              type="button"
               onClick={() => {
                 if (onHaptic) onHaptic("medium");
                 if (onWithdraw) onWithdraw();
@@ -213,6 +218,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
             {/* Actions */}
             <div className="flex flex-col gap-2 w-full md:w-48">
               <button
+                type="button"
                 onClick={onShare}
                 className="flex-1 bg-pandora-cyan text-black font-bold py-3 uppercase tracking-widest hover:bg-white transition-all flex items-center justify-center gap-2 rounded-sm shadow-[0_0_15px_rgba(0,255,255,0.3)] relative overflow-hidden group/btn"
               >
@@ -223,6 +229,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
               </button>
 
               <button
+                type="button"
                 onClick={onCopy}
                 className="flex-1 bg-white/5 hover:bg-white/10 text-white font-mono text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-2 rounded-sm border border-white/10"
               >
@@ -316,6 +323,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
                   </span>
                   <div className="flex bg-black/50 border border-white/10 rounded-sm overflow-hidden">
                     <button
+                      type="button"
                       onClick={() => handleLanguageChange("ru")}
                       className={`px-3 py-1.5 text-[10px] font-mono font-bold transition-all ${
                         contextLocale === "ru"
@@ -326,6 +334,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
                       RU
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleLanguageChange("en")}
                       className={`px-3 py-1.5 text-[10px] font-mono font-bold transition-all ${
                         contextLocale === "en"

@@ -230,7 +230,7 @@ async def get_broadcast_stats(admin_user=Depends(verify_admin)):
     # Users with orders
     orders_result = await db.client.table("orders").select("user_telegram_id").execute()
     unique_buyers = len(
-        set(o["user_telegram_id"] for o in (orders_result.data or []) if o.get("user_telegram_id"))
+        {o["user_telegram_id"] for o in (orders_result.data or []) if o.get("user_telegram_id")}
     )
 
     # Bot availability

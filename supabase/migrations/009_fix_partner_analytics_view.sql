@@ -16,7 +16,7 @@ WITH referral_stats AS (
     FROM users u
     LEFT JOIN users r ON r.referrer_id = u.id
     LEFT JOIN orders o ON o.user_id = r.id
-    WHERE u.is_partner = true OR EXISTS (SELECT 1 FROM users r2 WHERE r2.referrer_id = u.id)
+    WHERE u.is_partner IS TRUE OR EXISTS (SELECT 1 FROM users r2 WHERE r2.referrer_id = u.id)
     GROUP BY u.id
 ),
 level_counts AS (
@@ -29,7 +29,7 @@ level_counts AS (
     LEFT JOIN users r1 ON r1.referrer_id = u.id
     LEFT JOIN users r2 ON r2.referrer_id = r1.id
     LEFT JOIN users r3 ON r3.referrer_id = r2.id
-    WHERE u.is_partner = true OR EXISTS (SELECT 1 FROM users r4 WHERE r4.referrer_id = u.id)
+    WHERE u.is_partner IS TRUE OR EXISTS (SELECT 1 FROM users r4 WHERE r4.referrer_id = u.id)
     GROUP BY u.id
 )
 SELECT 
@@ -58,5 +58,5 @@ FROM users u
 LEFT JOIN referral_stats_extended rse ON rse.user_id = u.id
 LEFT JOIN referral_stats rs ON rs.user_id = u.id
 LEFT JOIN level_counts lc ON lc.user_id = u.id
-WHERE u.is_partner = true OR EXISTS (SELECT 1 FROM users r2 WHERE r2.referrer_id = u.id);
+WHERE u.is_partner IS TRUE OR EXISTS (SELECT 1 FROM users r2 WHERE r2.referrer_id = u.id);
 

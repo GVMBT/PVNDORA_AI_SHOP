@@ -96,7 +96,7 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
   thresholds = { level2: 250, level3: 1000 },
   commissions = { level1: 10, level2: 7, level3: 3 },
   currency = "USD",
-  exchangeRate = 1.0,
+  exchangeRate: _exchangeRate = 1,
 }) => {
   const { locale, formatPrice } = useLocale();
   const isRu = locale === "ru";
@@ -142,6 +142,7 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
 
             {/* Close button */}
             <button
+              type="button"
               onClick={onClose}
               className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-gray-500 hover:text-white transition-colors z-10"
             >
@@ -318,9 +319,8 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                       // Use pre-calculated progress from adapter (if provided), otherwise calculate
                       // The adapter calculates it correctly: converts turnover to display currency and compares with anchor threshold
                       const progressPercent =
-                        propProgressPercent === undefined
-                          ? Math.min(100, Math.max(0, (currentTurnover / nextThreshold) * 100))
-                          : propProgressPercent;
+                        propProgressPercent ??
+                        Math.min(100, Math.max(0, (currentTurnover / nextThreshold) * 100));
 
                       return (
                         <div className="mt-4 p-3 bg-pandora-cyan/5 border border-pandora-cyan/20 rounded-sm">
@@ -370,6 +370,7 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
             {/* Footer */}
             <div className="p-6 pt-4 border-t border-white/5">
               <button
+                type="button"
                 onClick={onClose}
                 className="w-full bg-pandora-cyan text-black font-bold py-3 uppercase tracking-widest hover:bg-white transition-colors flex items-center justify-center gap-2 rounded-sm"
               >

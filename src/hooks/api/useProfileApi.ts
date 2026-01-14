@@ -35,8 +35,8 @@ export function useProfileTyped() {
           level2Res.referrals || [],
           level3Res.referrals || []
         );
-      } catch (networkErr) {
-        logger.warn("Failed to fetch referral network, using empty tree", networkErr);
+      } catch (error_) {
+        logger.warn("Failed to fetch referral network, using empty tree", error_);
       }
 
       setProfile(adapted);

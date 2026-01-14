@@ -11,6 +11,9 @@ import { useLocale } from "../../hooks/useLocale";
 import { formatPrice } from "../../utils/currency";
 import type { NetworkNodeData } from "./types";
 
+// Type alias for network line
+type NetworkLine = 1 | 2 | 3;
+
 // Helper functions to avoid nested ternaries
 const getNodeAvatarContent = (node: NetworkNodeData) => {
   if (node.photoUrl) {
@@ -64,8 +67,9 @@ const ProfileNetwork: React.FC<ProfileNetworkProps> = ({
         <div className="flex items-center bg-[#050505] border border-white/10 rounded-sm overflow-hidden">
           {[1, 2, 3].map((line) => (
             <button
+              type="button"
               key={line}
-              onClick={() => onLineChange(line as 1 | 2 | 3)}
+              onClick={() => onLineChange(line as NetworkLine)}
               className={`px-4 py-1.5 text-[9px] font-mono font-bold border-r border-white/10 last:border-0 hover:bg-white/5 transition-colors uppercase whitespace-nowrap ${
                 networkLine === line ? "bg-pandora-cyan/20 text-pandora-cyan" : "text-gray-500"
               }`}

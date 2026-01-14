@@ -348,7 +348,7 @@ BEGIN
         -- Mark bonuses as ineligible
         UPDATE referral_bonuses 
         SET eligible = false, ineligible_reason = 'Order refunded'
-        WHERE order_id = p_order_id AND eligible = true;
+        WHERE order_id = p_order_id AND eligible IS TRUE;
         
         GET DIAGNOSTICS v_bonuses_revoked = ROW_COUNT;
         

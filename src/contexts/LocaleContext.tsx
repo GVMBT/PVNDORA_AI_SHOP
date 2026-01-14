@@ -90,7 +90,10 @@ function getCurrencyForLocale(locale: LocaleCode): CurrencyCode {
   return localeToCurrency[locale] || "USD";
 }
 
-export function LocaleProvider({ children, initialProfile }: LocaleProviderProps) {
+export function LocaleProvider({
+  children,
+  initialProfile,
+}: Readonly<LocaleProviderProps>) {
   const defaultLocale = getDefaultLocale();
   const defaultCurrency = getCurrencyForLocale(defaultLocale);
 
@@ -109,7 +112,7 @@ export function LocaleProvider({ children, initialProfile }: LocaleProviderProps
   });
 
   const [exchangeRate, setExchangeRateState] = useState<number>(() => {
-    return initialProfile?.exchangeRate || 1.0;
+    return initialProfile?.exchangeRate || 1;
   });
 
   // Update from profile data
@@ -153,7 +156,7 @@ export function LocaleProvider({ children, initialProfile }: LocaleProviderProps
   // Convert USD amount to display currency
   const convertFromUsd = useCallback(
     (amountUsd: number): number => {
-      if (currency === "USD" || exchangeRate === 1.0) {
+      if (currency === "USD" || exchangeRate === 1) {
         return amountUsd;
       }
       const converted = amountUsd * exchangeRate;

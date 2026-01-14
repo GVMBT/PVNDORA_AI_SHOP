@@ -223,7 +223,7 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({ onClose
     originalTotal: cart?.originalTotal,
     // Currency info
     currency: cart?.currency || "USD",
-    exchangeRate: cart?.exchangeRate || 1.0,
+    exchangeRate: cart?.exchangeRate || 1,
     // Promo
     promoCode: cart?.promoCode,
     promoDiscountPercent: cart?.promoDiscountPercent,

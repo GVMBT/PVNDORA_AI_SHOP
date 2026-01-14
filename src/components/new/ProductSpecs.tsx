@@ -128,7 +128,8 @@ const getHumanValue = (value: string): string => {
     }
   }
   if (value.includes("ALLOCATION_QUEUE")) {
-    const match = value.match(/~?(\d+)H?/);
+    const regex = /~?(\d+)H?/;
+    const match = regex.exec(value);
     if (match) {
       const hours = Number.parseInt(match[1], 10);
       return `~${hours} ч`;

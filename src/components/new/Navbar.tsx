@@ -645,7 +645,7 @@ const NavItem: React.FC<NavItemProps> = ({
     }}
     transition={{ type: "spring", stiffness: 400, damping: 35 }}
     style={{ willChange: "padding-left, padding-right" }}
-    title={!isExpanded ? label : undefined}
+    title={isExpanded ? undefined : label}
   >
     {/* Active Indicator (Left Line) */}
     <motion.div
@@ -712,7 +712,14 @@ const NavItem: React.FC<NavItemProps> = ({
   </motion.button>
 );
 
-const MobileNavItem: React.FC<NavItemProps> = ({ icon, label, active, onClick }) => (
+interface MobileNavItemProps {
+  icon: React.ReactNode;
+  label: string;
+  active?: boolean;
+  onClick?: () => void;
+}
+
+const MobileNavItem: React.FC<MobileNavItemProps> = ({ icon, label, active, onClick }) => (
   <button
     type="button"
     onClick={onClick}

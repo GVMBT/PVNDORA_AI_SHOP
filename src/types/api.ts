@@ -7,8 +7,7 @@
 
 // ==================== COMMON ====================
 
-/** UUID type alias for documentation purposes - all IDs are UUID strings */
-export type UUID = string;
+/** All IDs are UUID strings */
 export type OrderStatus =
   | "pending"
   | "paid"
@@ -24,7 +23,7 @@ export type ProductStatus = "active" | "discontinued" | "coming_soon" | "out_of_
 // ==================== PRODUCTS ====================
 
 export interface APIProduct {
-  id: UUID;
+  id: string;
   name: string;
   description: string;
   image_url?: string;
@@ -84,8 +83,8 @@ export interface APIProductResponse {
 // ==================== ORDERS ====================
 
 export interface APIOrderItem {
-  id: UUID;
-  product_id: UUID;
+  id: string;
+  product_id: string;
   product_name: string;
   quantity?: number;
   price?: number;
@@ -134,7 +133,7 @@ export interface APIOrdersResponse {
 }
 
 export interface APICreateOrderRequest {
-  product_id?: UUID;
+  product_id?: string;
   quantity?: number;
   promo_code?: string;
   payment_method?: "card" | "sbp" | "crypto" | "balance";
@@ -222,11 +221,11 @@ export interface APIReferralStats {
 }
 
 export interface APIBonusHistoryItem {
-  id: UUID;
+  id: string;
   amount: number;
   level: number;
-  from_user_id?: UUID;
-  order_id?: UUID;
+  from_user_id?: string;
+  order_id?: string;
   created_at: string;
   eligible: boolean;
 }
@@ -241,8 +240,8 @@ export interface APIWithdrawalRequest {
 }
 
 export interface APIBalanceTransaction {
-  id: UUID;
-  user_id: UUID;
+  id: string;
+  user_id: string;
   type: "topup" | "purchase" | "refund" | "bonus" | "withdrawal" | "cashback" | "credit" | "debit";
   amount: number;
   currency: string;
@@ -311,7 +310,7 @@ export interface APILeaderboardResponse {
 // ==================== CART ====================
 
 export interface APICartItem {
-  product_id: UUID;
+  product_id: string;
   product_name: string;
   quantity: number;
   instant_quantity: number;
@@ -380,7 +379,7 @@ export interface APIReviewRequest {
 
 export interface APIReviewResponse {
   success: boolean;
-  review_id?: UUID;
+  review_id?: string;
 }
 
 // ==================== TELEGRAM USER ====================

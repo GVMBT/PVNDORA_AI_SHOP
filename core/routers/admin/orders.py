@@ -198,13 +198,11 @@ async def admin_force_order_status(
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to update order status")
 
-    from core.logging import sanitize_id_for_logging, sanitize_string_for_logging
+    from core.logging import sanitize_id_for_logging
 
     logger.warning(
-        "Admin force status change: order %s %s -> %s",
+        "Admin force status change: order %s",
         sanitize_id_for_logging(order_id),
-        sanitize_string_for_logging(old_status),
-        sanitize_string_for_logging(request.new_status),
     )
 
     return {

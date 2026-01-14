@@ -27,7 +27,7 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | null>(null);
 
-export function CartProvider({ children }: { children: ReactNode }) {
+export function CartProvider({ children }: Readonly<{ children: ReactNode }>) {
   const { get, post, patch, del, loading, error } = useApi();
   const [cart, setCart] = useState<CartData | null>(null);
 
@@ -154,11 +154,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     ]
   );
 
-  return (
-    <CartContext.Provider value={contextValue}>
-      {children}
-    </CartContext.Provider>
-  );
+  return <CartContext.Provider value={contextValue}>{children}</CartContext.Provider>;
 }
 
 export function useCart(): CartContextType {

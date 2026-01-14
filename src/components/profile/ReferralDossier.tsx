@@ -64,7 +64,11 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
                 </div>
               )}
             </div>
-            <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-gray-500 hover:text-white transition-colors"
+            >
               <X size={24} />
             </button>
           </div>
@@ -125,7 +129,10 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
                 </div>
 
                 {activityData.map((val, idx) => (
-                  <div key={`activity-${idx}-${val}`} className="flex-1 flex flex-col justify-end group/bar h-full">
+                  <div
+                    key={`activity-${idx}-${val}`}
+                    className="flex-1 flex flex-col justify-end group/bar h-full"
+                  >
                     <motion.div
                       initial={{ height: 0 }}
                       animate={{ height: `${val}%` }}
@@ -190,6 +197,7 @@ const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) 
 
             {/* Close Button */}
             <button
+              type="button"
               onClick={onClose}
               className="w-full py-4 border border-white/10 text-gray-500 hover:text-white hover:bg-white/5 text-xs font-mono uppercase tracking-widest transition-colors mt-8"
             >
