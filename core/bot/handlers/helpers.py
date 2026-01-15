@@ -20,10 +20,10 @@ def get_share_keyboard(product_name: str = "") -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="📤 Поделиться с друзьями", switch_inline_query=product_name
-                )
-            ]
-        ]
+                    text="📤 Поделиться с друзьями", switch_inline_query=product_name,
+                ),
+            ],
+        ],
     )
 
 
@@ -33,16 +33,15 @@ def get_share_current_chat_keyboard(product_name: str) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="📤 Поделиться здесь", switch_inline_query_current_chat=product_name
-                )
-            ]
-        ]
+                    text="📤 Поделиться здесь", switch_inline_query_current_chat=product_name,
+                ),
+            ],
+        ],
     )
 
 
 async def safe_answer(message: Message, text: str, **kwargs) -> bool:
-    """
-    Safely send message, handling Telegram API errors gracefully.
+    """Safely send message, handling Telegram API errors gracefully.
     Returns True if sent successfully, False otherwise.
     """
     try:

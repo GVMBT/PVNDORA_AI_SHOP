@@ -45,7 +45,7 @@ def get_terms_keyboard(lang: str) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [InlineKeyboardButton(text=read_text, callback_data="discount:terms:read")],
             [InlineKeyboardButton(text=accept_text, callback_data="discount:terms:accept")],
-        ]
+        ],
     )
 
 
@@ -61,7 +61,7 @@ def get_categories_keyboard(categories: list[dict], lang: str) -> InlineKeyboard
     for cat in categories:
         name = cat.get("name_ru" if lang == "ru" else "name", cat.get("name", "Unknown"))
         buttons.append(
-            [InlineKeyboardButton(text=f"📁 {name}", callback_data=f"discount:cat:{cat['id'][:8]}")]
+            [InlineKeyboardButton(text=f"📁 {name}", callback_data=f"discount:cat:{cat['id'][:8]}")],
         )
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -69,7 +69,7 @@ def get_categories_keyboard(categories: list[dict], lang: str) -> InlineKeyboard
 
 # Helper to format product price string (reduces cognitive complexity)
 def _format_product_price(
-    discount_price_usd: float, display_price: float, currency: str, currency_symbol: str
+    discount_price_usd: float, display_price: float, currency: str, currency_symbol: str,
 ) -> str:
     """Format product price string."""
     from core.services.currency import INTEGER_CURRENCIES
@@ -83,7 +83,7 @@ def _format_product_price(
 
 # Helper to build pagination buttons (reduces cognitive complexity)
 def _build_pagination_buttons(
-    page: int, total_products: int, page_size: int, category_id: str | None
+    page: int, total_products: int, page_size: int, category_id: str | None,
 ) -> list[InlineKeyboardButton]:
     """Build pagination navigation buttons."""
     nav_buttons = []
@@ -95,7 +95,7 @@ def _build_pagination_buttons(
             InlineKeyboardButton(
                 text="◀️",
                 callback_data=f"discount:page:{page - 1}:{category_id[:8] if category_id else 'all'}",
-            )
+            ),
         )
 
     total_pages = (total_products - 1) // page_size + 1
@@ -106,7 +106,7 @@ def _build_pagination_buttons(
             InlineKeyboardButton(
                 text="▶️",
                 callback_data=f"discount:page:{page + 1}:{category_id[:8] if category_id else 'all'}",
-            )
+            ),
         )
 
     return nav_buttons
@@ -139,7 +139,7 @@ def get_products_keyboard(
 
         display_price = discount_price_usd * exchange_rate
         price_str = _format_product_price(
-            discount_price_usd, display_price, currency, currency_symbol
+            discount_price_usd, display_price, currency, currency_symbol,
         )
 
         stock_emoji = "🟢" if stock > 0 else "🟡"
@@ -149,8 +149,8 @@ def get_products_keyboard(
                 InlineKeyboardButton(
                     text=f"{stock_emoji} {name} — {price_str}",
                     callback_data=f"discount:prod:{p['id'][:8]}",
-                )
-            ]
+                ),
+            ],
         )
 
     nav_buttons = _build_pagination_buttons(page, len(products), page_size, category_id)
@@ -190,7 +190,7 @@ def _get_buy_button_text(price_formatted: str, lang: str, in_stock: bool) -> str
 
 # Helper to format insurance option text (reduces cognitive complexity)
 def _format_insurance_text(
-    days: int, currency_symbol: str, ins_price_display: float, lang: str
+    days: int, currency_symbol: str, ins_price_display: float, lang: str,
 ) -> str:
     """Format insurance option text."""
     if lang == "ru":
@@ -218,7 +218,7 @@ def get_product_card_keyboard(
 
     buy_text = _get_buy_button_text(price_formatted, lang, in_stock)
     buttons.append(
-        [InlineKeyboardButton(text=buy_text, callback_data=f"discount:buy:{product_id[:8]}:0")]
+        [InlineKeyboardButton(text=buy_text, callback_data=f"discount:buy:{product_id[:8]}:0")],
     )
 
     if insurance_options:
@@ -237,9 +237,9 @@ def get_product_card_keyboard(
             buttons.append(
                 [
                     InlineKeyboardButton(
-                        text=ins_text, callback_data=f"discount:buy:{product_id[:8]}:{ins_id}"
-                    )
-                ]
+                        text=ins_text, callback_data=f"discount:buy:{product_id[:8]}:{ins_id}",
+                    ),
+                ],
             )
 
     back_text = "⬅️ К каталогу" if lang == "ru" else "⬅️ To catalog"
@@ -258,7 +258,7 @@ def get_payment_keyboard(payment_url: str, lang: str) -> InlineKeyboardMarkup:
     pay_text = "💳 Оплатить" if lang == "ru" else "💳 Pay"
 
     return InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text=pay_text, url=payment_url)]]
+        inline_keyboard=[[InlineKeyboardButton(text=pay_text, url=payment_url)]],
     )
 
 
@@ -270,10 +270,10 @@ def get_order_queued_keyboard(lang: str, order_id: str) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=status_text, callback_data=f"discount:status:{order_id[:8]}"
-                )
-            ]
-        ]
+                    text=status_text, callback_data=f"discount:status:{order_id[:8]}",
+                ),
+            ],
+        ],
     )
 
 
@@ -283,7 +283,7 @@ def get_order_queued_keyboard(lang: str, order_id: str) -> InlineKeyboardMarkup:
 
 
 def get_orders_keyboard(
-    orders: list[dict], _lang: str, exchange_rate: float = 1.0, currency: str = "USD"
+    orders: list[dict], _lang: str, exchange_rate: float = 1.0, currency: str = "USD",
 ) -> InlineKeyboardMarkup:
     """User orders list."""
     buttons = []
@@ -319,8 +319,8 @@ def get_orders_keyboard(
                 InlineKeyboardButton(
                     text=f"{status_emoji} #{order_id} — {amount_formatted}",
                     callback_data=f"discount:order:{order_id}",
-                )
-            ]
+                ),
+            ],
         )
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -337,7 +337,7 @@ def get_order_detail_keyboard(order: dict, lang: str) -> InlineKeyboardMarkup:
         # Problem button
         problem_text = "⚠️ Проблема с аккаунтом" if lang == "ru" else "⚠️ Account Problem"
         buttons.append(
-            [InlineKeyboardButton(text=problem_text, callback_data=f"discount:issue:{order_id}")]
+            [InlineKeyboardButton(text=problem_text, callback_data=f"discount:issue:{order_id}")],
         )
 
         # PVNDORA promo
@@ -371,22 +371,22 @@ def get_issue_types_keyboard(order_id: str, lang: str) -> InlineKeyboardMarkup:
         buttons.append(
             [
                 InlineKeyboardButton(
-                    text=text, callback_data=f"discount:issue_type:{order_id[:8]}:{issue_type}"
-                )
-            ]
+                    text=text, callback_data=f"discount:issue_type:{order_id[:8]}:{issue_type}",
+                ),
+            ],
         )
 
     # Cancel
     cancel_text = "❌ Отмена" if lang == "ru" else "❌ Cancel"
     buttons.append(
-        [InlineKeyboardButton(text=cancel_text, callback_data=f"discount:order:{order_id[:8]}")]
+        [InlineKeyboardButton(text=cancel_text, callback_data=f"discount:order:{order_id[:8]}")],
     )
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def get_issue_result_keyboard(
-    has_insurance: bool, can_replace: bool, promo_code: str | None, lang: str
+    has_insurance: bool, can_replace: bool, promo_code: str | None, lang: str,
 ) -> InlineKeyboardMarkup:
     """Issue resolution options."""
     buttons = []
@@ -394,7 +394,7 @@ def get_issue_result_keyboard(
     if has_insurance and can_replace:
         replace_text = "🔄 Получить замену" if lang == "ru" else "🔄 Get Replacement"
         buttons.append(
-            [InlineKeyboardButton(text=replace_text, callback_data="discount:replace:confirm")]
+            [InlineKeyboardButton(text=replace_text, callback_data="discount:replace:confirm")],
         )
 
     # PVNDORA offer

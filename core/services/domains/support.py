@@ -1,5 +1,4 @@
-"""
-Support Domain Service
+"""Support Domain Service.
 
 Handles support tickets, FAQ, and refund requests.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
@@ -98,7 +97,7 @@ async def _check_replacement_cooldown(db, user_id: str) -> float | None:
         return None
 
     last_time = datetime.fromisoformat(
-        last_replacement.data[0]["created_at"].replace("Z", "+00:00")
+        last_replacement.data[0]["created_at"],
     )
     return (datetime.now(UTC) - last_time).total_seconds() / 3600
 
@@ -137,7 +136,7 @@ async def _check_monthly_replacement_limit(db, user_id: str, order_id: str | Non
 
 
 async def _validate_replacement_request(
-    db, user_id: str, item_id: str, order_id: str | None
+    db, user_id: str, item_id: str, order_id: str | None,
 ) -> dict | None:
     """Validate replacement request against anti-abuse rules. Returns error dict or None if valid."""
     # Check 1: Existing replacement for this item
@@ -173,7 +172,7 @@ async def _validate_replacement_request(
 
 
 async def _send_ticket_admin_alert(
-    db, ticket_id: str, user_id: str, issue_type: str | None, order_id: str | None
+    db, ticket_id: str, user_id: str, issue_type: str | None, order_id: str | None,
 ) -> None:
     """Send admin alert for new ticket."""
     try:
@@ -227,7 +226,7 @@ def _validate_refund_status(order) -> dict | None:
 class SupportService:
     """Support domain service."""
 
-    def __init__(self, db):
+    def __init__(self, db) -> None:
         self.db = db
 
     async def create_ticket(
@@ -243,7 +242,7 @@ class SupportService:
             # Anti-abuse checks for replacement requests
             if issue_type == "replacement" and item_id:
                 validation_error = await _validate_replacement_request(
-                    self.db, user_id, item_id, order_id
+                    self.db, user_id, item_id, order_id,
                 )
                 if validation_error:
                     return validation_error
@@ -348,7 +347,7 @@ class SupportService:
                         "issue_type": "refund",
                         "description": reason,
                         "status": "open",
-                    }
+                    },
                 )
                 .execute()
             )
@@ -373,7 +372,7 @@ class SupportService:
             return {"success": False, "reason": "Failed to process refund request"}
 
     async def get_user_tickets(
-        self, user_id: str, status: str | None = None, limit: int = 20
+        self, user_id: str, status: str | None = None, limit: int = 20,
     ) -> list[SupportTicket]:
         """Get user's support tickets."""
         try:

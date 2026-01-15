@@ -6,14 +6,10 @@ from aiogram import F, Router
 from aiogram.enums import ParseMode
 from aiogram.types import CallbackQuery, Message
 
+from core.bot.discount.keyboards import get_product_card_keyboard, get_products_keyboard
 from core.logging import get_logger
 from core.services.database import User, get_database
 from core.services.domains import InsuranceService
-
-from ..keyboards import (
-    get_product_card_keyboard,
-    get_products_keyboard,
-)
 
 logger = get_logger(__name__)
 
@@ -132,9 +128,9 @@ async def get_product_by_id(db, product_id: str) -> dict | None:
         product = None
         for p in all_products:
             if str(p["id"]).startswith(product_id.lower()) or str(p["id"]).startswith(
-                product_id.upper()
+                product_id.upper(),
             ):
-                product = cast(dict[str, Any], p)
+                product = cast("dict[str, Any]", p)
                 break
 
         return product
@@ -144,7 +140,7 @@ async def get_product_by_id(db, product_id: str) -> dict | None:
 
 
 @router.message(F.text.in_(["🛒 Каталог", "🛒 Catalog"]))
-async def msg_catalog(message: Message, db_user: User):
+async def msg_catalog(message: Message, db_user: User) -> None:
     """Show catalog - all discount products directly."""
     lang = db_user.language_code
     db = get_database()
@@ -173,14 +169,14 @@ async def msg_catalog(message: Message, db_user: User):
     await message.answer(
         text,
         reply_markup=get_products_keyboard(
-            products, lang, "all", page=0, exchange_rate=exchange_rate, currency=currency
+            products, lang, "all", page=0, exchange_rate=exchange_rate, currency=currency,
         ),
         parse_mode=ParseMode.HTML,
     )
 
 
 @router.callback_query(F.data == "discount:catalog")
-async def cb_catalog(callback: CallbackQuery, db_user: User):
+async def cb_catalog(callback: CallbackQuery, db_user: User) -> None:
     """Show catalog - all discount products."""
     lang = db_user.language_code
     db = get_database()
@@ -203,7 +199,7 @@ async def cb_catalog(callback: CallbackQuery, db_user: User):
     await callback.message.edit_text(
         text,
         reply_markup=get_products_keyboard(
-            products, lang, "all", page=0, exchange_rate=exchange_rate, currency=currency
+            products, lang, "all", page=0, exchange_rate=exchange_rate, currency=currency,
         ),
         parse_mode=ParseMode.HTML,
     )
@@ -211,7 +207,7 @@ async def cb_catalog(callback: CallbackQuery, db_user: User):
 
 
 @router.callback_query(F.data.startswith("discount:page:"))
-async def cb_products_page(callback: CallbackQuery, db_user: User):
+async def cb_products_page(callback: CallbackQuery, db_user: User) -> None:
     """Handle products pagination."""
     lang = db_user.language_code
 
@@ -241,7 +237,7 @@ async def cb_products_page(callback: CallbackQuery, db_user: User):
     await callback.message.edit_text(
         text,
         reply_markup=get_products_keyboard(
-            products, lang, category_id, page=page, exchange_rate=exchange_rate, currency=currency
+            products, lang, category_id, page=page, exchange_rate=exchange_rate, currency=currency,
         ),
         parse_mode=ParseMode.HTML,
     )
@@ -284,7 +280,7 @@ def _format_product_card_text(
 
 
 @router.callback_query(F.data.startswith("discount:prod:"))
-async def cb_product_selected(callback: CallbackQuery, db_user: User):
+async def cb_product_selected(callback: CallbackQuery, db_user: User) -> None:
     """Show product card."""
     lang = db_user.language_code
     db = get_database()
@@ -296,7 +292,7 @@ async def cb_product_selected(callback: CallbackQuery, db_user: User):
 
     if not product:
         await callback.answer(
-            "Товар не найден" if lang == "ru" else "Product not found", show_alert=True
+            "Товар не найден" if lang == "ru" else "Product not found", show_alert=True,
         )
         return
 
@@ -355,6 +351,6 @@ async def cb_product_selected(callback: CallbackQuery, db_user: User):
 
 
 @router.callback_query(F.data == "noop")
-async def cb_noop(callback: CallbackQuery):
+async def cb_noop(callback: CallbackQuery) -> None:
     """No-op callback for decorative buttons."""
     await callback.answer()

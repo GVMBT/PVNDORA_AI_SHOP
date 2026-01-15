@@ -1,5 +1,4 @@
-"""
-Miscellaneous Notifications
+"""Miscellaneous Notifications.
 
 Notifications for broadcast, waitlist, partner applications, etc.
 """
@@ -24,8 +23,7 @@ class MiscNotificationsMixin(NotificationServiceBase):
         _product_id: str | None = None,
         in_stock: bool = False,
     ) -> None:
-        """
-        Notify user that waitlisted product is available again.
+        """Notify user that waitlisted product is available again.
 
         Args:
             telegram_id: User's Telegram ID
@@ -33,6 +31,7 @@ class MiscNotificationsMixin(NotificationServiceBase):
             language: User's language code
             product_id: Product ID (optional, for creating order link)
             in_stock: Whether product is currently in stock
+
         """
         # Build message based on stock status
         if in_stock:
@@ -50,8 +49,7 @@ class MiscNotificationsMixin(NotificationServiceBase):
             logger.exception("Failed to send waitlist notification")
 
     async def send_broadcast(self, message: str, exclude_dnd: bool = True) -> int:
-        """
-        Send broadcast message to all users.
+        """Send broadcast message to all users.
 
         Args:
             message: Message text
@@ -59,6 +57,7 @@ class MiscNotificationsMixin(NotificationServiceBase):
 
         Returns:
             Number of successfully sent messages
+
         """
         db = get_database()
 
@@ -75,7 +74,7 @@ class MiscNotificationsMixin(NotificationServiceBase):
         for user in result.data:
             try:
                 success = await send_telegram_message(
-                    chat_id=user["telegram_id"], text=message, parse_mode=None
+                    chat_id=user["telegram_id"], text=message, parse_mode=None,
                 )
                 if success:
                     sent_count += 1
@@ -121,7 +120,7 @@ class MiscNotificationsMixin(NotificationServiceBase):
             logger.exception(f"Failed to send partner approved notification to {telegram_id}")
 
     async def send_partner_application_rejected_notification(
-        self, telegram_id: int, reason: str | None = None
+        self, telegram_id: int, reason: str | None = None,
     ) -> None:
         """Notify user that their partner application was rejected."""
         lang = await get_user_language(telegram_id)
@@ -158,7 +157,7 @@ class MiscNotificationsMixin(NotificationServiceBase):
             logger.exception(f"Failed to send partner rejected notification to {telegram_id}")
 
     async def send_partner_status_revoked_notification(
-        self, telegram_id: int, reason: str | None = None
+        self, telegram_id: int, reason: str | None = None,
     ) -> None:
         """Notify user that their VIP partner status has been revoked."""
         lang = await get_user_language(telegram_id)

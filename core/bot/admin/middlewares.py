@@ -1,5 +1,4 @@
-"""
-Admin Bot Middlewares
+"""Admin Bot Middlewares.
 
 Restricts access to authorized admins only.
 """
@@ -17,8 +16,7 @@ logger = get_logger(__name__)
 
 
 class AdminAuthMiddleware(BaseMiddleware):
-    """
-    Verify that the user is an admin before processing any request.
+    """Verify that the user is an admin before processing any request.
     Uses the `is_admin` field from the users table.
     """
 

@@ -8,11 +8,10 @@ from aiogram import F, Router
 from aiogram.enums import ParseMode
 from aiogram.types import CallbackQuery
 
+from core.bot.discount.keyboards import get_issue_result_keyboard, get_issue_types_keyboard
 from core.logging import get_logger
 from core.services.database import User, get_database
 from core.services.domains import InsuranceService, PromoCodeService, PromoTriggers
-
-from ..keyboards import get_issue_result_keyboard, get_issue_types_keyboard
 
 logger = get_logger(__name__)
 
@@ -86,7 +85,7 @@ async def get_order_item_with_insurance(db, order_short_id: str) -> dict[str, An
         if not items_result.data:
             return None
 
-        item = cast(dict[str, Any], items_result.data[0])
+        item = cast("dict[str, Any]", items_result.data[0])
         item["order_id"] = order["id"]
         item["user_id"] = order["user_id"]
 
@@ -98,7 +97,7 @@ async def get_order_item_with_insurance(db, order_short_id: str) -> dict[str, An
 
 
 @router.callback_query(F.data.startswith("discount:issue:"))
-async def cb_issue_start(callback: CallbackQuery, db_user: User):
+async def cb_issue_start(callback: CallbackQuery, db_user: User) -> None:
     """Start issue reporting flow."""
     lang = db_user.language_code
 
@@ -111,7 +110,7 @@ async def cb_issue_start(callback: CallbackQuery, db_user: User):
     )
 
     await callback.message.edit_text(
-        text, reply_markup=get_issue_types_keyboard(order_short_id, lang), parse_mode=ParseMode.HTML
+        text, reply_markup=get_issue_types_keyboard(order_short_id, lang), parse_mode=ParseMode.HTML,
     )
     await callback.answer()
 
@@ -127,13 +126,12 @@ async def _generate_promo_for_issue(
     existing_promo = await promo_service.get_promo_by_trigger(user_id, trigger)
     if existing_promo:
         return existing_promo.code
-    promo = await promo_service.generate_personal_promo(
+    return await promo_service.generate_personal_promo(
         user_id=user_id,
         telegram_id=telegram_id,
         trigger=trigger,
         discount_percent=50,
     )
-    return promo
 
 
 # Helper: Get issue reason from type (reduces cognitive complexity)
@@ -159,7 +157,7 @@ async def _handle_replacement_request(
 ) -> tuple[bool, dict | None]:
     """Handle replacement request, return (success, result_dict)."""
     result = await insurance_service.request_replacement(
-        order_item_id=order_item["id"], telegram_id=telegram_id, reason=reason
+        order_item_id=order_item["id"], telegram_id=telegram_id, reason=reason,
     )
 
     if not result.success:
@@ -262,7 +260,7 @@ def _get_issue_result_message(has_insurance: bool, can_replace: bool, lang: str)
 
 
 @router.callback_query(F.data.startswith("discount:issue_type:"))
-async def cb_issue_type_selected(callback: CallbackQuery, db_user: User):
+async def cb_issue_type_selected(callback: CallbackQuery, db_user: User) -> None:
     """Process issue type and check insurance."""
     lang = db_user.language_code
     db = get_database()
@@ -276,7 +274,7 @@ async def cb_issue_type_selected(callback: CallbackQuery, db_user: User):
 
     if not order_item:
         await callback.answer(
-            "Заказ не найден" if lang == "ru" else "Order not found", show_alert=True
+            "Заказ не найден" if lang == "ru" else "Order not found", show_alert=True,
         )
         return
 
@@ -297,7 +295,7 @@ async def cb_issue_type_selected(callback: CallbackQuery, db_user: User):
         if can_replace:
             # Try to request replacement
             success, result = await _handle_replacement_request(
-                insurance_service, order_item, db_user.telegram_id, reason, lang, callback
+                insurance_service, order_item, db_user.telegram_id, reason, lang, callback,
             )
             if success:
                 return
@@ -331,7 +329,7 @@ async def cb_issue_type_selected(callback: CallbackQuery, db_user: User):
 
 
 @router.callback_query(F.data == "discount:replace:confirm")
-async def cb_replace_confirm(callback: CallbackQuery, db_user: User):
+async def cb_replace_confirm(callback: CallbackQuery, db_user: User) -> None:
     """This shouldn't be called directly - replacement happens in issue_type handler."""
     lang = db_user.language_code
 

@@ -1,5 +1,4 @@
-"""
-Order Notifications
+"""Order Notifications.
 
 Notifications for order lifecycle events.
 """
@@ -115,7 +114,7 @@ class OrderNotificationsMixin(NotificationServiceBase):
     """Mixin for order-related notifications."""
 
     async def send_review_request(self, order_id: str) -> None:
-        """Send review request 1 hour after purchase"""
+        """Send review request 1 hour after purchase."""
         db = get_database()
 
         order = await db.get_order_by_id(order_id)
@@ -145,7 +144,7 @@ class OrderNotificationsMixin(NotificationServiceBase):
             from core.services.telegram_messaging import send_telegram_message_with_keyboard
 
             await send_telegram_message_with_keyboard(
-                chat_id=user["telegram_id"], text=message, keyboard=keyboard
+                chat_id=user["telegram_id"], text=message, keyboard=keyboard,
             )
         except Exception:
             logger.exception("Failed to send review request")
@@ -175,9 +174,9 @@ class OrderNotificationsMixin(NotificationServiceBase):
         return instant_items, prepaid_items
 
     async def send_expiration_reminder(
-        self, telegram_id: int, product_name: str, days_left: int, language: str
+        self, telegram_id: int, product_name: str, days_left: int, language: str,
     ) -> None:
-        """Send subscription expiration reminder"""
+        """Send subscription expiration reminder."""
         message = get_text("subscription_expiring", language, product=product_name, days=days_left)
 
         try:
@@ -197,8 +196,7 @@ class OrderNotificationsMixin(NotificationServiceBase):
         _has_instant_items: bool = True,
         _preorder_count: int = 0,
     ) -> None:
-        """
-        Send payment confirmation notification to user.
+        """Send payment confirmation notification to user.
 
         Args:
             telegram_id: User's Telegram ID
@@ -208,6 +206,7 @@ class OrderNotificationsMixin(NotificationServiceBase):
             status: Order status ('paid' or 'prepaid')
             has_instant_items: Whether order has instant delivery items
             preorder_count: Number of preorder items waiting
+
         """
         from .base import _msg, get_user_language
 

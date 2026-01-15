@@ -1,10 +1,10 @@
-"""
-Admin RAG Router
+"""Admin RAG Router.
 
 RAG (semantic search) indexing endpoint.
 """
 
 import os
+from typing import Annotated
 
 from fastapi import APIRouter, Header, HTTPException
 
@@ -12,8 +12,8 @@ router = APIRouter(tags=["admin-rag"])
 
 
 @router.post("/index-products")
-async def admin_index_products(authorization: str = Header(None)):
-    """Index all products for RAG (semantic search)"""
+async def admin_index_products(authorization: Annotated[str | None, Header()] = None):
+    """Index all products for RAG (semantic search)."""
     cron_secret = os.environ.get("CRON_SECRET", "")
     if authorization != f"Bearer {cron_secret}":
         raise HTTPException(status_code=401, detail="Unauthorized")

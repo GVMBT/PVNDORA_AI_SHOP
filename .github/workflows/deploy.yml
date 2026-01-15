@@ -46,6 +46,14 @@ jobs:
         run: lint-imports .importlinter
         continue-on-error: true # Don't fail build initially
 
+      - name: Detect N+1 Queries
+        run: python scripts/detect_nplusone.py
+        continue-on-error: true # Don't fail build, just report
+
+      - name: Detect Chatty Logic
+        run: python scripts/detect_chatty_logic.py --threshold 5
+        continue-on-error: true # Don't fail build, just report
+
   # ============================================================
   # Lint Frontend (JavaScript/TypeScript)
   # ============================================================

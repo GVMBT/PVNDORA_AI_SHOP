@@ -1,6 +1,5 @@
-"""
-Daily Cleanup Cron Job
-Schedule: 0 3 * * * (3:00 AM UTC daily)
+"""Daily Cleanup Cron Job
+Schedule: 0 3 * * * (3:00 AM UTC daily).
 
 Tasks:
 1. Clear expired cart reservations (older than 24h)
@@ -32,8 +31,7 @@ app = FastAPI()
 
 
 async def _fix_inconsistent_order_statuses(db, now: datetime) -> int:
-    """
-    Fix orders with inconsistent statuses.
+    """Fix orders with inconsistent statuses.
     E.g., orders with status 'partial' where all items are actually 'delivered'.
 
     OPTIMIZED: Uses batch query to get all items at once, avoiding N+1 queries.
@@ -84,7 +82,7 @@ async def _fix_inconsistent_order_statuses(db, now: datetime) -> int:
         # BATCH UPDATE: Update all qualifying orders at once
         if orders_to_fix:
             await db.client.table("orders").update(
-                {"status": "delivered", "delivered_at": now.isoformat()}
+                {"status": "delivered", "delivered_at": now.isoformat()},
             ).in_("id", orders_to_fix).eq("status", "partial").execute()
 
         return len(orders_to_fix)
@@ -98,9 +96,7 @@ async def _fix_inconsistent_order_statuses(db, now: datetime) -> int:
 
 @app.get("/api/cron/daily_cleanup")
 async def daily_cleanup_entrypoint(request: Request):
-    """
-    Vercel Cron entrypoint for daily cleanup tasks.
-    """
+    """Vercel Cron entrypoint for daily cleanup tasks."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
         return JSONResponse({"error": "Unauthorized"}, status_code=401)

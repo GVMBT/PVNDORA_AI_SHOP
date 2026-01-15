@@ -1,5 +1,4 @@
-"""
-FastAPI Dependencies for User Context
+"""FastAPI Dependencies for User Context.
 
 Provides cached db_user dependency to avoid duplicate DB queries
 within the same request context.
@@ -33,8 +32,7 @@ def _cache_db_user(telegram_id: int, db_user: User) -> None:
 
 
 async def get_db_user(user: TelegramUser = Depends(verify_telegram_auth)) -> User:
-    """
-    Get db_user from database with request-scoped caching.
+    """Get db_user from database with request-scoped caching.
 
     OPTIMIZATION: Caches db_user in ContextVar to avoid duplicate DB queries
     when multiple dependencies need db_user in the same request.

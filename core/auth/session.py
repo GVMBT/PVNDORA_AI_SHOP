@@ -10,8 +10,7 @@ from typing import Any
 
 
 def _get_secret() -> str:
-    """
-    Get web session secret.
+    """Get web session secret.
 
     Requires WEB_SESSION_SECRET environment variable for security.
     Falls back to TELEGRAM_TOKEN only in development (not recommended for production).
@@ -28,7 +27,7 @@ def _get_secret() -> str:
         logger = logging.getLogger(__name__)
         logger.warning(
             "WEB_SESSION_SECRET not set! Using TELEGRAM_TOKEN as fallback. "
-            "This is insecure for production. Set WEB_SESSION_SECRET environment variable."
+            "This is insecure for production. Set WEB_SESSION_SECRET environment variable.",
         )
     return fallback
 
@@ -43,13 +42,13 @@ def _b64url_decode(data: str) -> bytes:
 
 
 def create_web_session(user_id: str, telegram_id: int, username: str, is_admin: bool) -> str:
-    """
-    Create a stateless HMAC-signed session token.
-    Structure: base64url(payload).base64url(signature)
+    """Create a stateless HMAC-signed session token.
+    Structure: base64url(payload).base64url(signature).
     """
     secret = _get_secret()
     if not secret:
-        raise RuntimeError("WEB_SESSION_SECRET or TELEGRAM_TOKEN is required for web sessions")
+        msg = "WEB_SESSION_SECRET or TELEGRAM_TOKEN is required for web sessions"
+        raise RuntimeError(msg)
 
     now = datetime.now(UTC)
     payload = {
@@ -76,7 +75,7 @@ def verify_web_session_token(token: str) -> dict[str, Any] | None:
     try:
         payload_b64, sig_b64 = token.split(".", 1)
         expected_sig = hmac.new(
-            secret.encode("utf-8"), payload_b64.encode("utf-8"), hashlib.sha256
+            secret.encode("utf-8"), payload_b64.encode("utf-8"), hashlib.sha256,
         ).digest()
         if not hmac.compare_digest(expected_sig, _b64url_decode(sig_b64)):
             return None

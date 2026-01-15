@@ -1,5 +1,4 @@
-"""
-Support ticket endpoints.
+"""Support ticket endpoints.
 
 User support ticket management.
 """
@@ -60,7 +59,7 @@ async def get_user_tickets(user=Depends(verify_telegram_auth)):
                 "order_id": t.get("order_id"),
                 "item_id": t.get("item_id"),  # Include item_id in response
                 "created_at": t["created_at"],
-            }
+            },
         )
 
     return {"tickets": tickets, "count": len(tickets)}
@@ -98,7 +97,7 @@ async def create_user_ticket(request: CreateTicketRequest, user=Depends(verify_t
         )
         if not item_result.data:
             raise HTTPException(
-                status_code=400, detail="Invalid item ID or item does not belong to the order"
+                status_code=400, detail="Invalid item ID or item does not belong to the order",
             )
 
     ticket_data = {
@@ -155,5 +154,5 @@ async def get_user_ticket(ticket_id: str, user=Depends(verify_telegram_auth)):
             "admin_reply": t.get("admin_comment"),
             "order_id": t.get("order_id"),
             "created_at": t["created_at"],
-        }
+        },
     }

@@ -1,5 +1,4 @@
-"""
-WebApp Cart Router
+"""WebApp Cart Router.
 
 Shopping cart endpoints with unified currency handling.
 
@@ -8,7 +7,6 @@ Response format:
 - Frontend uses USD for calculations, display for UI
 """
 
-import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -33,10 +31,9 @@ ERR_CART_EMPTY = "Cart is empty"
 
 
 async def _calculate_display_prices(
-    item, product, currency_service, formatter
+    item, product, currency_service, formatter,
 ) -> tuple[float, float, float]:
-    """
-    Calculate display prices using anchor pricing.
+    """Calculate display prices using anchor pricing.
 
     Args:
         item: Cart item with USD prices
@@ -46,6 +43,7 @@ async def _calculate_display_prices(
 
     Returns:
         (unit_price_display, final_price_display, total_price_display)
+
     """
     target_currency = formatter.currency
 
@@ -78,8 +76,7 @@ router = APIRouter(tags=["webapp-cart"])
 
 
 async def _format_cart_response(cart, db, user_telegram_id: int):
-    """
-    Build cart response with unified currency handling.
+    """Build cart response with unified currency handling.
 
     Response includes:
     - *_usd fields: values in USD for calculations
@@ -161,7 +158,7 @@ async def _format_cart_response(cart, db, user_telegram_id: int):
                 "total_price": total_price_display,
                 # Currency (for this item)
                 "currency": formatter.currency,
-            }
+            },
         )
 
     # Calculate original total (before promo) if promo applied
@@ -229,11 +226,11 @@ def _ensure_product_orderable(product):
     status = getattr(product, "status", "active")
     if status == "discontinued":
         raise HTTPException(
-            status_code=400, detail="Product is discontinued and unavailable for order."
+            status_code=400, detail="Product is discontinued and unavailable for order.",
         )
     if status == "coming_soon":
         raise HTTPException(
-            status_code=400, detail="Product is coming soon. Use waitlist to be notified."
+            status_code=400, detail="Product is coming soon. Use waitlist to be notified.",
         )
     return status
 

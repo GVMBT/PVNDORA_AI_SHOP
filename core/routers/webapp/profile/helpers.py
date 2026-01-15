@@ -1,9 +1,9 @@
-"""
-Profile Helpers
+"""Profile Helpers.
 
 Shared utility functions for profile endpoints.
 """
 
+import contextlib
 import os
 
 import httpx
@@ -16,8 +16,7 @@ PHOTO_REFRESH_TTL = 6 * 60 * 60  # 6 hours
 
 
 async def _fetch_telegram_photo_url(telegram_id: int) -> str | None:
-    """
-    Fetch user's Telegram profile photo via Bot API.
+    """Fetch user's Telegram profile photo via Bot API.
     Returns direct file URL or None if not available.
     """
     bot_token = os.environ.get("TELEGRAM_TOKEN")
@@ -61,8 +60,7 @@ async def _fetch_telegram_photo_url(telegram_id: int) -> str | None:
 
 
 async def _maybe_refresh_photo(db, db_user, telegram_id: int) -> None:
-    """
-    Refresh user photo if:
+    """Refresh user photo if:
       - No photo_url stored, or
       - TTL expired (redis gate)
     Uses a 6h gate to avoid spamming Telegram API.
@@ -99,16 +97,14 @@ async def _maybe_refresh_photo(db, db_user, telegram_id: int) -> None:
 
         # Set gate
         if redis:
-            try:
+            with contextlib.suppress(Exception):
                 await redis.set(gate_key, "1", ex=PHOTO_REFRESH_TTL)
-            except Exception:
-                pass
     except Exception as e:
         logger.warning(f"Photo refresh failed: {e}")
 
 
 async def _get_anchor_thresholds_for_display(
-    display_currency: str, settings: dict, threshold2: float, threshold3: float
+    display_currency: str, settings: dict, threshold2: float, threshold3: float,
 ) -> dict:
     """Get thresholds for display (all in RUB now).
 
@@ -126,7 +122,7 @@ async def _build_default_referral_program(
     comm2: float,
     comm3: float,
     display_currency: str = "RUB",
-    settings: dict = None,
+    settings: dict | None = None,
 ) -> dict:
     """Build default referral program data.
 
@@ -184,7 +180,7 @@ def _calculate_effective_level(
 
 
 def _calculate_amounts_to_levels(
-    effective_level: int, turnover_usd: float, threshold2: float, threshold3: float
+    effective_level: int, turnover_usd: float, threshold2: float, threshold3: float,
 ) -> tuple[float, float, float | None, float]:
     """Calculate amounts needed to reach next levels."""
     level2_unlocked = effective_level >= 2
@@ -226,7 +222,7 @@ def _build_referral_stats(s: dict) -> dict:
 
 
 def _calculate_next_threshold_display(
-    next_threshold: float | None, threshold2: float, threshold3: float, thresholds_display: dict
+    next_threshold: float | None, threshold2: float, threshold3: float, thresholds_display: dict,
 ) -> float | None:
     """Calculate next threshold in display currency."""
     if not next_threshold:
@@ -246,7 +242,7 @@ async def _build_referral_data(
     comm2: float,
     comm3: float,
     display_currency: str = "RUB",
-    settings: dict = None,
+    settings: dict | None = None,
 ) -> tuple:
     """Build referral stats and program data from extended stats.
 
@@ -264,7 +260,7 @@ async def _build_referral_data(
 
     # Calculate effective level (thresholds are in RUB)
     effective_level = _calculate_effective_level(
-        is_partner, partner_override, unlocked, turnover, threshold2, threshold3
+        is_partner, partner_override, unlocked, turnover, threshold2, threshold3,
     )
 
     status = "locked" if not unlocked else "active"

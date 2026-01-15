@@ -1,9 +1,10 @@
-"""
-Admin Tickets Router
+"""Admin Tickets Router.
 
 Support ticket management endpoints.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
+
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -34,18 +35,16 @@ def _format_ticket_data(ticket_row: dict) -> dict:
             "telegram_id": user_data.get("telegram_id"),
             "credentials": order_item_data.get("delivery_content") if order_item_data else None,
             "product_name": product_data.get("name") if product_data else None,
-        }
+        },
     )
     return formatted
 
 
 @router.get("")
 async def get_tickets(
-    status: str = Query(
-        "open", description="Filter by status: open, approved, rejected, closed, all"
-    ),
-    limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
+    status: Annotated[str, Query(description="Filter by status: open, approved, rejected, closed, all")] = "open",
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
     admin=Depends(verify_admin),
 ):
     """Get support tickets with optional status filter. Includes item credentials for admin verification."""
@@ -56,7 +55,7 @@ async def get_tickets(
         query = (
             db.client.table("tickets")
             .select(
-                "*, users(username, first_name, telegram_id), order_items(delivery_content, products(name))"
+                "*, users(username, first_name, telegram_id), order_items(delivery_content, products(name))",
             )
             .order("created_at", desc=True)
             .limit(limit)
@@ -86,7 +85,7 @@ async def get_ticket(ticket_id: str, admin=Depends(verify_admin)):
         result = (
             await db.client.table("tickets")
             .select(
-                "*, users(username, first_name, telegram_id), orders(id, amount, status), order_items(delivery_content, products(name))"
+                "*, users(username, first_name, telegram_id), orders(id, amount, status), order_items(delivery_content, products(name))",
             )
             .eq("id", ticket_id)
             .single()
@@ -116,7 +115,7 @@ async def _fetch_and_validate_ticket(db, ticket_id: str) -> dict:
     ticket_res = (
         await db.client.table("tickets")
         .select(
-            "id, status, issue_type, item_id, order_id, user_id, users(telegram_id, language_code)"
+            "id, status, issue_type, item_id, order_id, user_id, users(telegram_id, language_code)",
         )
         .eq("id", ticket_id)
         .single()
@@ -128,7 +127,7 @@ async def _fetch_and_validate_ticket(db, ticket_id: str) -> dict:
 
     if ticket_res.data["status"] != "open":
         raise HTTPException(
-            status_code=400, detail=f"Ticket is already {ticket_res.data['status']}"
+            status_code=400, detail=f"Ticket is already {ticket_res.data['status']}",
         )
 
     return ticket_res.data
@@ -300,8 +299,8 @@ async def _process_approved_ticket(
 @router.post("/{ticket_id}/resolve")
 async def resolve_ticket(
     ticket_id: str,
-    approve: bool = Query(True, description="Approve (true) or reject (false)"),
-    comment: str | None = Query(None, description="Admin comment"),
+    approve: Annotated[bool, Query(description="Approve (true) or reject (false)")] = True,
+    comment: Annotated[str | None, Query(description="Admin comment")] = None,
     admin=Depends(verify_admin),
 ):
     """Resolve a support ticket (approve or reject). Notifies user of decision."""
@@ -325,7 +324,7 @@ async def resolve_ticket(
 
         if not approve:
             await _handle_rejected_ticket(
-                notification_service, ticket_id, user_telegram_id, user_language, comment
+                notification_service, ticket_id, user_telegram_id, user_language, comment,
             )
         else:
             await _process_approved_ticket(
@@ -351,7 +350,7 @@ async def resolve_ticket(
 
 @router.post("/{ticket_id}/close")
 async def close_ticket(
-    ticket_id: str, comment: str | None = Query(None), admin=Depends(verify_admin)
+    ticket_id: str, comment: Annotated[str | None, Query()] = None, admin=Depends(verify_admin),
 ):
     """Close a ticket."""
     db = get_database()

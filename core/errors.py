@@ -1,5 +1,4 @@
-"""
-Common Error Constants
+"""Common Error Constants.
 
 Centralized error messages to avoid string duplication (SonarQube S1192).
 """

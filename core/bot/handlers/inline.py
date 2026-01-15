@@ -23,7 +23,7 @@ router = Router()
 
 
 @router.inline_query()
-async def handle_inline_query(query: InlineQuery, db_user: User, bot: Bot):
+async def handle_inline_query(query: InlineQuery, db_user: User, bot: Bot) -> None:
     """Handle inline queries for product sharing and search."""
     if db_user is None:
         await query.answer([], cache_time=0)
@@ -59,10 +59,10 @@ async def handle_inline_query(query: InlineQuery, db_user: User, bot: Bot):
                 ),
                 reply_markup=InlineKeyboardMarkup(
                     inline_keyboard=[
-                        [InlineKeyboardButton(text="🛍 Перейти в магазин", url=referral_link)]
-                    ]
+                        [InlineKeyboardButton(text="🛍 Перейти в магазин", url=referral_link)],
+                    ],
                 ),
-            )
+            ),
         )
 
         results.append(
@@ -79,10 +79,10 @@ async def handle_inline_query(query: InlineQuery, db_user: User, bot: Bot):
                 ),
                 reply_markup=InlineKeyboardMarkup(
                     inline_keyboard=[
-                        [InlineKeyboardButton(text="🛍 Открыть каталог", url=referral_link)]
-                    ]
+                        [InlineKeyboardButton(text="🛍 Открыть каталог", url=referral_link)],
+                    ],
                 ),
-            )
+            ),
         )
     else:
         # Search products to share
@@ -114,12 +114,12 @@ async def handle_inline_query(query: InlineQuery, db_user: User, bot: Bot):
                             inline_keyboard=[
                                 [
                                     InlineKeyboardButton(
-                                        text=f"Купить {product.name}", url=product_link
-                                    )
-                                ]
-                            ]
+                                        text=f"Купить {product.name}", url=product_link,
+                                    ),
+                                ],
+                            ],
                         ),
-                    )
+                    ),
                 )
         except Exception as e:
             logger.error(f"Inline product search failed: {e}", exc_info=True)
@@ -134,17 +134,17 @@ async def handle_inline_query(query: InlineQuery, db_user: User, bot: Bot):
                     ),
                     reply_markup=InlineKeyboardMarkup(
                         inline_keyboard=[
-                            [InlineKeyboardButton(text="🔍 Искать в PVNDORA", url=referral_link)]
-                        ]
+                            [InlineKeyboardButton(text="🔍 Искать в PVNDORA", url=referral_link)],
+                        ],
                     ),
-                )
+                ),
             )
 
     await query.answer(results, cache_time=300, is_personal=True)
 
 
 @router.chosen_inline_result()
-async def handle_chosen_inline_result(chosen_result: ChosenInlineResult, db_user: User):
+async def handle_chosen_inline_result(chosen_result: ChosenInlineResult, db_user: User) -> None:
     """Track when user sends an inline result for analytics."""
     try:
         db = get_database()

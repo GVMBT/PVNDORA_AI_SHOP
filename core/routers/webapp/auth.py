@@ -1,5 +1,4 @@
-"""
-WebApp Auth Router
+"""WebApp Auth Router.
 
 Web authentication via Telegram Login Widget for desktop/web access.
 """
@@ -40,8 +39,7 @@ def verify_telegram_login_hash(data: dict, bot_token: str) -> bool:
 
 @router.post("/auth/telegram-login")
 async def telegram_login_widget_auth(data: TelegramLoginData):
-    """
-    Authenticate user via Telegram Login Widget (for desktop/web access).
+    """Authenticate user via Telegram Login Widget (for desktop/web access).
 
     Verifies the hash using bot token and creates a session.
     Only admins can access the web panel.
@@ -128,8 +126,7 @@ async def verify_web_session_endpoint(data: SessionTokenRequest):
 
 @router.get("/auth/dev-token/{telegram_id}")
 async def get_dev_token(telegram_id: int):
-    """
-    DEV ONLY: Generate a session token for a user by telegram_id.
+    """DEV ONLY: Generate a session token for a user by telegram_id.
     This endpoint should be disabled in production or protected by secret.
     """
     # For now, allow if TELEGRAM_TOKEN exists (means we're in dev/staging)

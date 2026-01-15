@@ -625,9 +625,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                         min={0}
                       />
                     </div>
-                    <p className="text-[9px] text-gray-600 mt-1">
-                      Основная цена в рублях
-                    </p>
+                    <p className="text-[9px] text-gray-600 mt-1">Основная цена в рублях</p>
                   </div>
 
                   <div>
@@ -688,7 +686,6 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                   </div>
                 </div>
               </div>
-
 
               {/* Себестоимость и маржа */}
               <div className="bg-[#050505] p-4 border border-white/10 rounded-sm">

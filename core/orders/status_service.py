@@ -1,5 +1,4 @@
-"""
-Order Status Management Service
+"""Order Status Management Service.
 
 Centralized service for managing order status transitions.
 Ensures status changes only happen after payment confirmation.
@@ -23,7 +22,7 @@ def _sanitize_id_for_logging(id_value: str) -> str:
 class OrderStatusService:
     """Centralized service for order status management."""
 
-    def __init__(self, db):
+    def __init__(self, db) -> None:
         self.db = db
 
     async def get_order_status(self, order_id: str) -> str | None:
@@ -43,11 +42,11 @@ class OrderStatusService:
         return None
 
     async def can_transition_to(self, order_id: str, target_status: str) -> tuple[bool, str | None]:
-        """
-        Check if order can transition to target status.
+        """Check if order can transition to target status.
 
         Returns:
             (can_transition, reason_if_not)
+
         """
         current_status = await self.get_order_status(order_id)
         if not current_status:
@@ -84,8 +83,7 @@ class OrderStatusService:
         reason: str | None = None,
         check_transition: bool = True,
     ) -> bool:
-        """
-        Update order status with validation.
+        """Update order status with validation.
 
         Args:
             order_id: Order ID
@@ -95,10 +93,11 @@ class OrderStatusService:
 
         Returns:
             True if updated, False otherwise
+
         """
         order_id_safe = _sanitize_id_for_logging(order_id)
         logger.debug(
-            f"[StatusService] update_status called: order_id={order_id_safe}, new_status={new_status}, check_transition={check_transition}"
+            f"[StatusService] update_status called: order_id={order_id_safe}, new_status={new_status}, check_transition={check_transition}",
         )
 
         if check_transition:
@@ -141,10 +140,9 @@ class OrderStatusService:
             return False
 
     async def mark_payment_confirmed(
-        self, order_id: str, payment_id: str | None = None, check_stock: bool = True
+        self, order_id: str, payment_id: str | None = None, check_stock: bool = True,
     ) -> str:
-        """
-        Mark order as payment confirmed.
+        """Mark order as payment confirmed.
 
         IDEMPOTENT: If order is already paid/prepaid, returns current status without changes.
 
@@ -154,6 +152,7 @@ class OrderStatusService:
 
         Returns:
             Final status set ('paid' or 'prepaid')
+
         """
         order_id_safe = _sanitize_id_for_logging(order_id)
         logger.debug(
@@ -170,7 +169,7 @@ class OrderStatusService:
             order_result = (
                 await self.db.client.table("orders")
                 .select(
-                    "status, order_type, payment_method, user_id, user_telegram_id, amount, fiat_amount, fiat_currency"
+                    "status, order_type, payment_method, user_id, user_telegram_id, amount, fiat_amount, fiat_currency",
                 )
                 .eq("id", order_id)
                 .single()
@@ -181,14 +180,15 @@ class OrderStatusService:
 
             if not order_result.data:
                 order_id_safe = _sanitize_id_for_logging(order_id)
-                raise ValueError(f"Order {order_id_safe} not found")
+                msg = f"Order {order_id_safe} not found"
+                raise ValueError(msg)
 
             current_status = order_result.data.get("status", "").lower()
             order_type = order_result.data.get("order_type", "instant")
             payment_method = order_result.data.get("payment_method", "")
             user_id = order_result.data.get("user_id")
             user_telegram_id = order_result.data.get(
-                "user_telegram_id"
+                "user_telegram_id",
             )  # OPTIMIZATION #6: Extract from first query
             order_amount = order_result.data.get("amount", 0)
             fiat_amount = order_result.data.get("fiat_amount")
@@ -204,7 +204,7 @@ class OrderStatusService:
             # IDEMPOTENCY: If already paid/prepaid/delivered, return current status
             if current_status in ("paid", "prepaid", "delivered", "partial"):
                 logger.debug(
-                    "Order already in status '%s' (idempotency check), skipping", current_status
+                    "Order already in status '%s' (idempotency check), skipping", current_status,
                 )
                 return current_status
 
@@ -219,7 +219,7 @@ class OrderStatusService:
 
             # Fetch data needed for post-update actions (parallel queries)
             items_result, user_balance, tx_exists = await self._fetch_data_for_post_update(
-                order_id, payment_method, user_id, order_amount
+                order_id, payment_method, user_id, order_amount,
             )
 
             # Handle post-status-update actions (notifications, alerts)
@@ -277,7 +277,7 @@ class OrderStatusService:
             return []
 
     async def _fetch_user_balance_and_check_tx(
-        self, payment_method: str, user_id: str, order_id: str, order_amount: float
+        self, payment_method: str, user_id: str, order_id: str, order_amount: float,
     ) -> tuple[float | None, bool]:
         """Fetch user balance and check if transaction exists (reduces cognitive complexity)."""
         if payment_method and payment_method.lower() != "balance" and user_id and order_amount:
@@ -347,7 +347,7 @@ class OrderStatusService:
                         "payment_method": payment_method,
                         "payment_id": payment_id,
                     },
-                }
+                },
             )
             .execute()
         )
@@ -358,7 +358,7 @@ class OrderStatusService:
         )
 
     async def _calculate_display_amount(
-        self, fiat_amount: float | None, amount: float, currency: str
+        self, fiat_amount: float | None, amount: float, currency: str,
     ) -> float:
         """Calculate display amount for alert (reduces cognitive complexity)."""
         if fiat_amount is not None:
@@ -455,7 +455,7 @@ class OrderStatusService:
         has_stock = await self._check_stock_availability(order_id)
         final_status = "paid" if has_stock else "prepaid"
         logger.debug(
-            "[mark_payment_confirmed] has_stock=%s, final_status=%s", has_stock, final_status
+            "[mark_payment_confirmed] has_stock=%s, final_status=%s", has_stock, final_status,
         )
         return final_status
 
@@ -515,7 +515,7 @@ class OrderStatusService:
         if not user_balance or tx_exists:
             if tx_exists:
                 logger.debug(
-                    "[mark_payment_confirmed] balance_transaction already exists, skipping"
+                    "[mark_payment_confirmed] balance_transaction already exists, skipping",
                 )
             return
 
@@ -542,7 +542,7 @@ class OrderStatusService:
                             "payment_method": payment_method,
                             "payment_id": payment_id,
                         },
-                    }
+                    },
                 )
                 .execute()
             )
@@ -556,7 +556,7 @@ class OrderStatusService:
 
     # Helper: Set fulfillment deadline for preorder items (reduces cognitive complexity)
     async def _set_fulfillment_deadline(
-        self, order_id: str, items_result: list[dict[str, Any]], final_status: str
+        self, order_id: str, items_result: list[dict[str, Any]], final_status: str,
     ) -> None:
         """Set fulfillment deadline for orders with preorder items."""
         has_preorder_items = any(
@@ -565,7 +565,7 @@ class OrderStatusService:
 
         if not has_preorder_items:
             logger.debug(
-                "[mark_payment_confirmed] Order has no preorder items, skipping fulfillment_deadline"
+                "[mark_payment_confirmed] Order has no preorder items, skipping fulfillment_deadline",
             )
             return
 
@@ -604,13 +604,13 @@ class OrderStatusService:
             final_status,
         )
         update_result = await self.update_status(
-            order_id, final_status, "Payment confirmed via webhook", check_transition=False
+            order_id, final_status, "Payment confirmed via webhook", check_transition=False,
         )
         logger.debug("[mark_payment_confirmed] update_status returned: %s", update_result)
         return update_result
 
     async def _fetch_data_for_post_update(
-        self, order_id: str, payment_method: str, user_id: str | None, order_amount: float
+        self, order_id: str, payment_method: str, user_id: str | None, order_amount: float,
     ) -> tuple[list, float | None, bool]:
         """Fetch order items and user balance data in parallel (reduces cognitive complexity)."""
         import asyncio
@@ -700,7 +700,7 @@ class OrderStatusService:
                 )
             elif tx_exists:
                 logger.debug(
-                    "[mark_payment_confirmed] balance_transaction already exists, skipping"
+                    "[mark_payment_confirmed] balance_transaction already exists, skipping",
                 )
         except Exception:
             logger.warning("Failed to create balance_transaction", exc_info=True)
@@ -744,22 +744,20 @@ class OrderStatusService:
             ]
             product_ids = list(dict.fromkeys(product_ids))  # Deduplicate while preserving order
 
-            for product_id in product_ids:
-                # Check if product has ANY available stock right now
-                stock_check = (
-                    await self.db.client.table("stock_items")
-                    .select("id")
-                    .eq("product_id", product_id)
-                    .eq("status", "available")
-                    .limit(1)
-                    .execute()
-                )
-                if stock_check.data:
-                    # At least one product has stock
-                    return True
+            if not product_ids:
+                return False
 
-            # No stock available for any product
-            return False
+            # BATCH query to avoid N+1: check all products at once
+            stock_check = (
+                await self.db.client.table("stock_items")
+                .select("product_id")
+                .in_("product_id", product_ids)
+                .eq("status", "available")
+                .limit(1)
+                .execute()
+            )
+            # At least one product has stock
+            return bool(stock_check.data)
         except Exception:
             logger.exception("Failed to check stock availability")
             return False
@@ -771,8 +769,7 @@ class OrderStatusService:
         waiting_count: int,
         current_status: str | None = None,
     ) -> str | None:
-        """
-        Update order status based on delivery results.
+        """Update order status based on delivery results.
 
         Args:
             order_id: Order ID
@@ -782,6 +779,7 @@ class OrderStatusService:
 
         Returns:
             New status or None if no change
+
         """
         # OPTIMIZATION: Use provided current_status if available, otherwise fetch
         if current_status is None:
@@ -820,8 +818,7 @@ class OrderStatusService:
         return None
 
     async def _recalculate_order_status_from_items(self, order_id: str) -> str | None:
-        """
-        Recalculate order status based on actual item statuses.
+        """Recalculate order status based on actual item statuses.
         Useful for fixing inconsistent states.
         """
         try:

@@ -9,7 +9,7 @@ from core.services.repositories import ProductRepository
 class ProductsDomain:
     """Product domain operations."""
 
-    def __init__(self, repo: ProductRepository):
+    def __init__(self, repo: ProductRepository) -> None:
         self.repo = repo
 
     async def get_all(self, status: str = "active") -> list[Product]:

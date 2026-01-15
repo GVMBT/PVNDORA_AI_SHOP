@@ -70,8 +70,7 @@ class ProductRepository(BaseRepository):
         """Create new product."""
         result = await self.client.table("products").insert(data).execute()
         # Fetch from VIEW to get stock_count = 0
-        created_product = await self.get_by_id(result.data[0]["id"])
-        return created_product
+        return await self.get_by_id(result.data[0]["id"])
 
     async def update(self, product_id: str, data: dict[str, Any]) -> Product | None:
         """Update product."""

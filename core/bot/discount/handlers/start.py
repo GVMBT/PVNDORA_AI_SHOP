@@ -7,10 +7,13 @@ from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandStart
 from aiogram.types import CallbackQuery, Message
 
+from core.bot.discount.keyboards import (
+    get_help_keyboard,
+    get_main_menu_keyboard,
+    get_terms_keyboard,
+)
 from core.logging import get_logger
 from core.services.database import User, get_database
-
-from ..keyboards import get_help_keyboard, get_main_menu_keyboard, get_terms_keyboard
 
 logger = get_logger(__name__)
 
@@ -18,7 +21,7 @@ router = Router(name="discount_start")
 
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, db_user: User, bot: Bot):
+async def cmd_start(message: Message, db_user: User, bot: Bot) -> None:
     """Handle /start command with terms prompt."""
     lang = db_user.language_code
     db = get_database()
@@ -46,7 +49,7 @@ async def cmd_start(message: Message, db_user: User, bot: Bot):
         )
 
         await message.answer(
-            text, reply_markup=get_main_menu_keyboard(lang), parse_mode=ParseMode.HTML
+            text, reply_markup=get_main_menu_keyboard(lang), parse_mode=ParseMode.HTML,
         )
     else:
         # Show terms
@@ -76,7 +79,7 @@ async def cmd_start(message: Message, db_user: User, bot: Bot):
 
 
 @router.callback_query(F.data == "discount:terms:read")
-async def cb_terms_read(callback: CallbackQuery, db_user: User):
+async def cb_terms_read(callback: CallbackQuery, db_user: User) -> None:
     """Show full terms text."""
     lang = db_user.language_code
 
@@ -125,13 +128,13 @@ async def cb_terms_read(callback: CallbackQuery, db_user: User):
     )
 
     await callback.message.edit_text(
-        text, reply_markup=get_terms_keyboard(lang), parse_mode=ParseMode.HTML
+        text, reply_markup=get_terms_keyboard(lang), parse_mode=ParseMode.HTML,
     )
     await callback.answer()
 
 
 @router.callback_query(F.data == "discount:terms:accept")
-async def cb_terms_accept(callback: CallbackQuery, db_user: User):
+async def cb_terms_accept(callback: CallbackQuery, db_user: User) -> None:
     """Accept terms and show main menu."""
     lang = db_user.language_code
     db = get_database()
@@ -162,9 +165,9 @@ async def cb_terms_accept(callback: CallbackQuery, db_user: User):
 
 
 @router.callback_query(F.data == "discount:check_sub")
-async def cb_check_subscription(callback: CallbackQuery, db_user: User, bot: Bot):
+async def cb_check_subscription(callback: CallbackQuery, db_user: User, bot: Bot) -> None:
     """Re-check channel subscription."""
-    from ..middlewares import REQUIRED_CHANNEL
+    from core.bot.discount.middlewares import REQUIRED_CHANNEL
 
     lang = db_user.language_code
 
@@ -200,7 +203,7 @@ async def cb_check_subscription(callback: CallbackQuery, db_user: User, bot: Bot
 
 
 @router.message(Command("help"))
-async def cmd_help(message: Message, db_user: User):
+async def cmd_help(message: Message, db_user: User) -> None:
     """Handle /help command."""
     lang = db_user.language_code
 
@@ -214,13 +217,13 @@ async def cmd_help(message: Message, db_user: User):
 
 
 @router.message(F.text.in_(["❓ Помощь", "❓ Help"]))
-async def msg_help(message: Message, db_user: User):
+async def msg_help(message: Message, db_user: User) -> None:
     """Handle help button."""
     await cmd_help(message, db_user)
 
 
 @router.callback_query(F.data == "discount:help:faq")
-async def cb_help_faq(callback: CallbackQuery, db_user: User):
+async def cb_help_faq(callback: CallbackQuery, db_user: User) -> None:
     """Show FAQ."""
     lang = db_user.language_code
 
@@ -255,13 +258,13 @@ async def cb_help_faq(callback: CallbackQuery, db_user: User):
     )
 
     await callback.message.edit_text(
-        text, reply_markup=get_help_keyboard(lang), parse_mode=ParseMode.HTML
+        text, reply_markup=get_help_keyboard(lang), parse_mode=ParseMode.HTML,
     )
     await callback.answer()
 
 
 @router.callback_query(F.data == "discount:help:crypto")
-async def cb_help_crypto(callback: CallbackQuery, db_user: User):
+async def cb_help_crypto(callback: CallbackQuery, db_user: User) -> None:
     """Show crypto payment guide."""
     lang = db_user.language_code
 
@@ -290,6 +293,6 @@ async def cb_help_crypto(callback: CallbackQuery, db_user: User):
     )
 
     await callback.message.edit_text(
-        text, reply_markup=get_help_keyboard(lang), parse_mode=ParseMode.HTML
+        text, reply_markup=get_help_keyboard(lang), parse_mode=ParseMode.HTML,
     )
     await callback.answer()

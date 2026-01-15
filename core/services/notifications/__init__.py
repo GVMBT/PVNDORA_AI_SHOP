@@ -1,5 +1,4 @@
-"""
-Notification Service Module
+"""Notification Service Module.
 
 Unified notification service combining all notification types.
 Backward compatible - exposes NotificationService as main class.
@@ -28,8 +27,7 @@ class NotificationService(
     WithdrawalNotificationsMixin,
     MiscNotificationsMixin,
 ):
-    """
-    Service for sending notifications and fulfilling orders.
+    """Service for sending notifications and fulfilling orders.
 
     Combines all notification mixins into a single service class.
 
@@ -37,7 +35,7 @@ class NotificationService(
     Use workers._deliver_items_for_order() instead for order fulfillment.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
 

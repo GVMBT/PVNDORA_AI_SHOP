@@ -1,5 +1,4 @@
-"""
-Centralized logging configuration for PVNDORA.
+"""Centralized logging configuration for PVNDORA.
 
 Usage:
     from core.logging import get_logger
@@ -61,21 +60,20 @@ _configure_root_logger()
 
 @cache
 def get_logger(name: str) -> logging.Logger:
-    """
-    Get or create a logger with the given name.
+    """Get or create a logger with the given name.
 
     Args:
         name: Logger name (typically __name__)
 
     Returns:
         Configured logger instance
+
     """
     return logging.getLogger(name)
 
 
 def _escape_log_injection(value: str) -> str:
-    """
-    Escape characters that could be used for log injection attacks (CWE-117).
+    """Escape characters that could be used for log injection attacks (CWE-117).
 
     Replaces newlines, carriage returns, and other control characters
     that could manipulate log format or inject fake log entries.
@@ -85,6 +83,7 @@ def _escape_log_injection(value: str) -> str:
 
     Returns:
         Escaped string safe for logging
+
     """
     # Replace characters that could break log format or inject entries
     return (
@@ -96,8 +95,7 @@ def _escape_log_injection(value: str) -> str:
 
 
 def sanitize_id_for_logging(id_value: str | None) -> str:
-    """
-    Sanitize ID for safe logging (truncate to first 8 chars to avoid logging user-controlled data).
+    """Sanitize ID for safe logging (truncate to first 8 chars to avoid logging user-controlled data).
 
     Also escapes log injection characters (CWE-117).
 
@@ -106,6 +104,7 @@ def sanitize_id_for_logging(id_value: str | None) -> str:
 
     Returns:
         Sanitized ID string (first 8 chars) or "N/A" if None
+
     """
     if not id_value:
         return "N/A"
@@ -115,8 +114,7 @@ def sanitize_id_for_logging(id_value: str | None) -> str:
 
 
 def sanitize_string_for_logging(value: str | None, max_length: int = 50) -> str:
-    """
-    Sanitize string for safe logging (truncate to max_length to avoid logging large user-controlled data).
+    """Sanitize string for safe logging (truncate to max_length to avoid logging large user-controlled data).
 
     Also escapes log injection characters (CWE-117).
 
@@ -126,6 +124,7 @@ def sanitize_string_for_logging(value: str | None, max_length: int = 50) -> str:
 
     Returns:
         Sanitized string or "N/A" if None
+
     """
     if not value:
         return "N/A"

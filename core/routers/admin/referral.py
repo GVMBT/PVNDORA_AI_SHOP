@@ -1,5 +1,4 @@
-"""
-Admin Referral Router
+"""Admin Referral Router.
 
 Referral program settings, metrics, partners management, and applications.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
@@ -56,7 +55,7 @@ def _update_anchor_thresholds(update_data: dict, request: ReferralSettingsReques
 
 @router.get("/referral/settings")
 async def admin_get_referral_settings(admin=Depends(verify_admin)):
-    """Get current referral program settings"""
+    """Get current referral program settings."""
     db = get_database()
 
     result = await db.client.table("referral_settings").select("*").limit(1).execute()
@@ -74,7 +73,7 @@ async def admin_get_referral_settings(admin=Depends(verify_admin)):
                     "USD": {"level2": 250, "level3": 1000},
                     "RUB": {"level2": 20000, "level3": 80000},
                 },
-            }
+            },
         }
 
     settings_data = result.data[0]
@@ -93,9 +92,9 @@ async def admin_get_referral_settings(admin=Depends(verify_admin)):
 
 @router.put("/referral/settings")
 async def admin_update_referral_settings(
-    request: ReferralSettingsRequest, admin=Depends(verify_admin)
+    request: ReferralSettingsRequest, admin=Depends(verify_admin),
 ):
-    """Update referral program settings (thresholds and commissions)"""
+    """Update referral program settings (thresholds and commissions)."""
     db = get_database()
 
     update_data = {"updated_at": datetime.now(UTC).isoformat()}
@@ -119,7 +118,7 @@ async def admin_update_referral_settings(
 
 @router.get("/metrics/referral")
 async def admin_get_referral_metrics(admin=Depends(verify_admin)):
-    """Get detailed referral program metrics"""
+    """Get detailed referral program metrics."""
     db = get_database()
 
     try:
@@ -148,9 +147,7 @@ async def admin_get_referral_metrics(admin=Depends(verify_admin)):
 
 @router.get("/referral/dashboard")
 async def admin_get_referral_dashboard(admin=Depends(verify_admin)):
-    """
-    ROI Dashboard - key metrics for referral channel effectiveness.
-    """
+    """ROI Dashboard - key metrics for referral channel effectiveness."""
     db = get_database()
 
     try:
@@ -228,7 +225,7 @@ async def admin_get_partners_crm(
             error_msg = str(view_error)
             if "relation" in error_msg.lower() or "does not exist" in error_msg.lower():
                 raise HTTPException(
-                    status_code=500, detail=f"View '{view_name}' not found. Please apply migration."
+                    status_code=500, detail=f"View '{view_name}' not found. Please apply migration.",
                 )
             raise
 
@@ -279,7 +276,7 @@ async def admin_get_partners_crm(
 
 @router.get("/referral-metrics")
 async def admin_get_referral_metrics_detailed(admin=Depends(verify_admin)):
-    """Get comprehensive referral program metrics (detailed version)"""
+    """Get comprehensive referral program metrics (detailed version)."""
     db = get_database()
 
     try:
@@ -292,7 +289,7 @@ async def admin_get_referral_metrics_detailed(admin=Depends(verify_admin)):
     top_earners = (
         await db.client.table("users")
         .select(
-            "id, telegram_id, username, first_name, total_referral_earnings, turnover_usd, is_partner"
+            "id, telegram_id, username, first_name, total_referral_earnings, turnover_usd, is_partner",
         )
         .gt("total_referral_earnings", 0)
         .order("total_referral_earnings", desc=True)
@@ -334,7 +331,7 @@ async def admin_get_referral_metrics_detailed(admin=Depends(verify_admin)):
 
 @router.get("/partners")
 async def admin_get_partners(admin=Depends(verify_admin)):
-    """Get all partners (VIP referrers)"""
+    """Get all partners (VIP referrers)."""
     db = get_database()
 
     result = (
@@ -342,7 +339,7 @@ async def admin_get_partners(admin=Depends(verify_admin)):
         .select(
             "id, telegram_id, username, first_name, is_partner, partner_level_override, "
             "turnover_usd, referral_program_unlocked, total_referral_earnings, balance, "
-            "level1_unlocked_at, level2_unlocked_at, level3_unlocked_at, created_at, partner_mode"
+            "level1_unlocked_at, level2_unlocked_at, level3_unlocked_at, created_at, partner_mode",
         )
         .eq("is_partner", True)
         .order("total_referral_earnings", desc=True)
@@ -373,7 +370,7 @@ async def admin_get_partners(admin=Depends(verify_admin)):
                 "effective_level": stats.get("effective_level", 0),
                 # Partner reward mode: 'commission' (default) or 'discount'
                 "partner_mode": p.get("partner_mode") or "commission",
-            }
+            },
         )
 
     return {"partners": partners, "count": len(partners)}
@@ -394,7 +391,7 @@ async def admin_set_partner(request: SetPartnerRequest, admin=Depends(verify_adm
 
     if not user_result.data:
         raise HTTPException(
-            status_code=404, detail=f"User with telegram_id {request.telegram_id} not found"
+            status_code=404, detail=f"User with telegram_id {request.telegram_id} not found",
         )
 
     user_id = user_result.data["id"]
@@ -483,7 +480,7 @@ async def admin_review_application(request: ReviewApplicationRequest, admin=Depe
                 "admin_comment": request.admin_comment,
                 "reviewed_by": admin_id,
                 "reviewed_at": datetime.now(UTC).isoformat(),
-            }
+            },
         )
         .eq("id", request.application_id)
         .execute()
@@ -501,11 +498,11 @@ async def admin_review_application(request: ReviewApplicationRequest, admin=Depe
             notification_service = get_notification_service()
             if request.approve:
                 await notification_service.send_partner_application_approved_notification(
-                    telegram_id=user_telegram_id
+                    telegram_id=user_telegram_id,
                 )
             else:
                 await notification_service.send_partner_application_rejected_notification(
-                    telegram_id=user_telegram_id, reason=request.admin_comment
+                    telegram_id=user_telegram_id, reason=request.admin_comment,
                 )
         except Exception as e:
             logger.warning(f"Failed to send partner application notification: {e}")

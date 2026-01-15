@@ -1,5 +1,4 @@
-"""
-Delivery Notifications
+"""Delivery Notifications.
 
 Notifications for order delivery and credentials.
 """
@@ -29,7 +28,7 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
         order_id: str,
         language: str,
     ) -> None:
-        """Send credentials to user via Telegram"""
+        """Send credentials to user via Telegram."""
         # Format expiration
         expires_str = "N/A"
         if expires_at:
@@ -57,15 +56,15 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
             from core.services.telegram_messaging import send_telegram_message_with_keyboard
 
             await send_telegram_message_with_keyboard(
-                chat_id=telegram_id, text=message, keyboard=keyboard, parse_mode="HTML"
+                chat_id=telegram_id, text=message, keyboard=keyboard, parse_mode="HTML",
             )
         except Exception:
             logger.exception(f"Failed to send credentials to {telegram_id}")
 
     async def send_replacement_notification(
-        self, telegram_id: int, product_name: str, item_id: str
+        self, telegram_id: int, product_name: str, item_id: str,
     ) -> None:
-        """Send notification about account replacement"""
+        """Send notification about account replacement."""
         lang = await get_user_language(telegram_id)
         short_id = item_id[:8] if len(item_id) > 8 else item_id
 
@@ -97,16 +96,16 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
                     InlineKeyboardButton(
                         text="📦 Мои заказы" if lang == "ru" else "📦 My Orders",
                         web_app=WebAppInfo(url=f"{webapp_url}/orders"),
-                    )
-                ]
-            ]
+                    ),
+                ],
+            ],
         )
 
         try:
             from core.services.telegram_messaging import send_telegram_message_with_keyboard
 
             await send_telegram_message_with_keyboard(
-                chat_id=telegram_id, text=message, keyboard=keyboard, parse_mode="HTML"
+                chat_id=telegram_id, text=message, keyboard=keyboard, parse_mode="HTML",
             )
             logger.info(f"Sent replacement notification to {telegram_id}")
         except Exception:
@@ -205,9 +204,9 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
                         InlineKeyboardButton(
                             text="📦 Мои заказы" if lang == "ru" else "📦 My Orders",
                             web_app=WebAppInfo(url=f"{webapp_url}/orders"),
-                        )
-                    ]
-                ]
+                        ),
+                    ],
+                ],
             )
 
         try:
@@ -215,7 +214,7 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
 
             if keyboard:
                 await send_telegram_message_with_keyboard(
-                    chat_id=telegram_id, text=message, keyboard=keyboard, parse_mode="HTML"
+                    chat_id=telegram_id, text=message, keyboard=keyboard, parse_mode="HTML",
                 )
             else:
                 from core.services.telegram_messaging import send_telegram_message

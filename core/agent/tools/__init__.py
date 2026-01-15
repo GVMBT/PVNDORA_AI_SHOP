@@ -1,5 +1,4 @@
-"""
-LangChain Tools for Shop Agent
+"""LangChain Tools for Shop Agent.
 
 Complete toolset covering all app functionality:
 - Catalog & Search
@@ -113,43 +112,43 @@ def get_all_tools():
 
 
 __all__ = [
-    # Base
-    "set_db",
-    "get_db",
-    "set_user_context",
-    "get_user_context",
-    # Catalog
-    "get_catalog",
-    "search_products",
-    "get_product_details",
-    "check_product_availability",
-    # Cart
-    "get_user_cart",
     "add_to_cart",
-    "remove_from_cart",
-    "update_cart_quantity",
-    "clear_cart",
-    "apply_promo_code",
-    # Orders
-    "get_user_orders",
-    "get_order_credentials",
-    "resend_order_credentials",
-    # Profile
-    "get_user_profile",
-    "get_referral_info",
-    "get_balance_history",
+    "add_to_waitlist",
     # Wishlist
     "add_to_wishlist",
-    "get_wishlist",
-    "remove_from_wishlist",
-    "add_to_waitlist",
-    # Support
-    "search_faq",
-    "create_support_ticket",
-    "request_refund",
+    "apply_promo_code",
+    "check_product_availability",
     # Checkout
     "checkout_cart",
-    "pay_cart_from_balance",
+    "clear_cart",
+    "create_support_ticket",
     # Registry
     "get_all_tools",
+    "get_balance_history",
+    # Catalog
+    "get_catalog",
+    "get_db",
+    "get_order_credentials",
+    "get_product_details",
+    "get_referral_info",
+    # Cart
+    "get_user_cart",
+    "get_user_context",
+    # Orders
+    "get_user_orders",
+    # Profile
+    "get_user_profile",
+    "get_wishlist",
+    "pay_cart_from_balance",
+    "remove_from_cart",
+    "remove_from_wishlist",
+    "request_refund",
+    "resend_order_credentials",
+    # Support
+    "search_faq",
+    "search_products",
+    # Base
+    "set_db",
+    "set_user_context",
+    "update_cart_quantity",
 ]

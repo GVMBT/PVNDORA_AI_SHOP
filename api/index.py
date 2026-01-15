@@ -1,5 +1,4 @@
-"""
-PVNDORA AI Marketplace - Main FastAPI Application
+"""PVNDORA AI Marketplace - Main FastAPI Application.
 
 Single entry point for all webhooks and API routes.
 Optimized for Vercel Hobby plan (max 12 serverless functions).
@@ -76,6 +75,8 @@ try:
         ChannelSubscriptionMiddleware,
         LanguageMiddleware,
     )
+    from core.middleware.rate_limit import RateLimitMiddleware
+    from core.middleware.security import SecurityHeadersMiddleware
 
     # Include other routers
     from core.routers.admin.accounting import router as accounting_router
@@ -98,8 +99,6 @@ try:
     from core.routers.webhooks import router as webhooks_router
     from core.routers.workers.router import router as workers_router
     from core.services.database import close_database, init_database
-    from core.middleware.security import SecurityHeadersMiddleware
-    from core.middleware.rate_limit import RateLimitMiddleware
 except ImportError:
     # Use logging instead of print for better error tracking
     logging.basicConfig(level=logging.ERROR)
@@ -124,7 +123,7 @@ WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://pvndora.app")
 
 
 class BotState:
-    """Container for bot state to avoid global variables"""
+    """Container for bot state to avoid global variables."""
 
     bot: Bot | None = None
     dp: Dispatcher | None = None
@@ -135,16 +134,16 @@ class BotState:
 
 
 def get_bot() -> Bot | None:
-    """Get or create bot instance"""
+    """Get or create bot instance."""
     if BotState.bot is None and TELEGRAM_TOKEN:
         BotState.bot = Bot(
-            token=TELEGRAM_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+            token=TELEGRAM_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML),
         )
     return BotState.bot
 
 
 def get_dispatcher() -> Dispatcher:
-    """Get or create dispatcher instance"""
+    """Get or create dispatcher instance."""
     if BotState.dp is None:
         BotState.dp = Dispatcher()
 
@@ -172,7 +171,7 @@ def get_dispatcher() -> Dispatcher:
 
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
-    """Application lifespan handler"""
+    """Application lifespan handler."""
     # Startup - Initialize async database singleton
     try:
         await init_database()
@@ -225,6 +224,31 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Digma Observability - MUST be setup before adding routers
+# Automatically tracks: N+1 queries, chatty logic, dead code, performance
+try:
+    from core.observability.digma_setup import setup_digma
+
+    setup_digma(app)
+except ImportError:
+    logger.info("Digma observability not available (OpenTelemetry not installed)")
+except Exception as e:
+    logger.warning(f"Failed to setup Digma observability: {e}")
+
+# Query Monitor Middleware - отслеживает N+1 queries и Chatty Logic в runtime
+# Должен быть добавлен ПЕРЕД SecurityHeadersMiddleware для доступа к request.state
+try:
+    from core.middleware.query_monitor import QueryMonitorMiddleware, set_query_monitor
+
+    query_monitor = QueryMonitorMiddleware(app, threshold_nplusone=5, threshold_chatty=20)
+    app.add_middleware(QueryMonitorMiddleware, threshold_nplusone=5, threshold_chatty=20)
+    set_query_monitor(query_monitor)
+    logger.info("Query Monitor middleware enabled (N+1 and Chatty Logic detection)")
+except ImportError:
+    logger.info("Query Monitor middleware not available")
+except Exception as e:
+    logger.warning(f"Failed to setup Query Monitor middleware: {e}")
+
 # Security Headers Middleware - MUST be first (outermost)
 # Adds CSP, HSTS, X-Frame-Options, and other security headers
 app.add_middleware(SecurityHeadersMiddleware)
@@ -263,7 +287,7 @@ try:
         else:
             logger.warning(
                 "Aikido Zen whitelist not set. If admin endpoints are blocked, "
-                "set AIKIDO_WHITELIST=/api/admin/* in Vercel Environment Variables"
+                "set AIKIDO_WHITELIST=/api/admin/* in Vercel Environment Variables",
             )
     else:
         logger.warning("Aikido Zen middleware not added (AIKIDO_ZEN_AVAILABLE=False)")
@@ -295,14 +319,14 @@ app.add_middleware(
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint."""
     return {"status": "ok", "version": "1.0.0"}
 
 
 @app.post("/webhook")
 @app.post("/webhook/telegram")
 async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
-    """Handle Main Bot Telegram webhook updates"""
+    """Handle Main Bot Telegram webhook updates."""
     try:
         bot_instance = get_bot()
         dispatcher = get_dispatcher()
@@ -310,7 +334,7 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
         if not bot_instance:
             logger.error("Bot not configured - TELEGRAM_TOKEN may be missing")
             return JSONResponse(
-                status_code=200, content={"ok": False, "error": "Bot not configured"}
+                status_code=200, content={"ok": False, "error": "Bot not configured"},
             )
 
         # Parse update
@@ -347,8 +371,8 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
         return JSONResponse(status_code=200, content={"ok": False, "error": error_msg})
 
 
-async def _process_update_async(bot_instance: Bot, dispatcher: Dispatcher, update: Update):
-    """Process update asynchronously"""
+async def _process_update_async(bot_instance: Bot, dispatcher: Dispatcher, update: Update) -> None:
+    """Process update asynchronously."""
     update_id = update.update_id if hasattr(update, "update_id") else "unknown"
     try:
         await dispatcher.feed_update(bot_instance, update)
@@ -363,16 +387,16 @@ DISCOUNT_BOT_TOKEN = os.environ.get("DISCOUNT_BOT_TOKEN", "")
 
 
 def get_discount_bot() -> Bot | None:
-    """Get or create discount bot instance"""
+    """Get or create discount bot instance."""
     if BotState.discount_bot is None and DISCOUNT_BOT_TOKEN:
         BotState.discount_bot = Bot(
-            token=DISCOUNT_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+            token=DISCOUNT_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML),
         )
     return BotState.discount_bot
 
 
 def get_discount_dispatcher() -> Dispatcher | None:
-    """Get or create discount dispatcher instance"""
+    """Get or create discount dispatcher instance."""
     if BotState.discount_dp is None and DISCOUNT_BOT_TOKEN:
         BotState.discount_dp = Dispatcher()
 
@@ -392,7 +416,7 @@ def get_discount_dispatcher() -> Dispatcher | None:
 
 @app.post("/webhook/discount")
 async def discount_webhook(request: Request, background_tasks: BackgroundTasks):
-    """Handle Discount Bot Telegram webhook updates"""
+    """Handle Discount Bot Telegram webhook updates."""
     try:
         bot_instance = get_discount_bot()
         dispatcher = get_discount_dispatcher()
@@ -400,7 +424,7 @@ async def discount_webhook(request: Request, background_tasks: BackgroundTasks):
         if not bot_instance or not dispatcher:
             logger.error("Discount bot not configured - DISCOUNT_BOT_TOKEN may be missing")
             return JSONResponse(
-                status_code=200, content={"ok": False, "error": "Discount bot not configured"}
+                status_code=200, content={"ok": False, "error": "Discount bot not configured"},
             )
 
         try:
@@ -408,7 +432,7 @@ async def discount_webhook(request: Request, background_tasks: BackgroundTasks):
         except Exception as err:  # pylint: disable=broad-exception-caught
             logger.warning(ERROR_PARSE_JSON, err)
             return JSONResponse(
-                status_code=200, content={"ok": False, "error": f"Invalid JSON: {err!s}"}
+                status_code=200, content={"ok": False, "error": f"Invalid JSON: {err!s}"},
             )
 
         try:
@@ -416,7 +440,7 @@ async def discount_webhook(request: Request, background_tasks: BackgroundTasks):
         except Exception as err:  # pylint: disable=broad-exception-caught
             logger.warning(ERROR_VALIDATE_UPDATE, err)
             return JSONResponse(
-                status_code=200, content={"ok": False, "error": f"Invalid update: {err!s}"}
+                status_code=200, content={"ok": False, "error": f"Invalid update: {err!s}"},
             )
 
         # Process update in background
@@ -432,7 +456,7 @@ async def discount_webhook(request: Request, background_tasks: BackgroundTasks):
 
 @app.post("/api/webhook/discount/set")
 async def set_discount_webhook():
-    """Set Discount Bot Telegram webhook"""
+    """Set Discount Bot Telegram webhook."""
     if not DISCOUNT_BOT_TOKEN:
         return {"error": "DISCOUNT_BOT_TOKEN not configured"}
 
@@ -468,16 +492,16 @@ ADMIN_BOT_TOKEN = os.environ.get("ADMIN_BOT_TOKEN", "")
 
 
 def get_admin_bot() -> Bot | None:
-    """Get or create admin bot instance"""
+    """Get or create admin bot instance."""
     if BotState.admin_bot is None and ADMIN_BOT_TOKEN:
         BotState.admin_bot = Bot(
-            token=ADMIN_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+            token=ADMIN_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML),
         )
     return BotState.admin_bot
 
 
 def get_admin_dispatcher() -> Dispatcher | None:
-    """Get or create admin dispatcher instance"""
+    """Get or create admin dispatcher instance."""
     if BotState.admin_dp is None and ADMIN_BOT_TOKEN:
         BotState.admin_dp = Dispatcher(storage=MemoryStorage())
 
@@ -493,7 +517,7 @@ def get_admin_dispatcher() -> Dispatcher | None:
 
 @app.post("/webhook/admin")
 async def admin_webhook(request: Request, background_tasks: BackgroundTasks):
-    """Handle Admin Bot Telegram webhook updates"""
+    """Handle Admin Bot Telegram webhook updates."""
     try:
         bot_instance = get_admin_bot()
         dispatcher = get_admin_dispatcher()
@@ -501,7 +525,7 @@ async def admin_webhook(request: Request, background_tasks: BackgroundTasks):
         if not bot_instance or not dispatcher:
             logger.error("Admin bot not configured - ADMIN_BOT_TOKEN may be missing")
             return JSONResponse(
-                status_code=200, content={"ok": False, "error": "Admin bot not configured"}
+                status_code=200, content={"ok": False, "error": "Admin bot not configured"},
             )
 
         try:
@@ -509,7 +533,7 @@ async def admin_webhook(request: Request, background_tasks: BackgroundTasks):
         except Exception as err:  # pylint: disable=broad-exception-caught
             logger.warning(ERROR_PARSE_JSON, err)
             return JSONResponse(
-                status_code=200, content={"ok": False, "error": f"Invalid JSON: {err!s}"}
+                status_code=200, content={"ok": False, "error": f"Invalid JSON: {err!s}"},
             )
 
         try:
@@ -517,7 +541,7 @@ async def admin_webhook(request: Request, background_tasks: BackgroundTasks):
         except Exception as err:  # pylint: disable=broad-exception-caught
             logger.warning(ERROR_VALIDATE_UPDATE, err)
             return JSONResponse(
-                status_code=200, content={"ok": False, "error": f"Invalid update: {err!s}"}
+                status_code=200, content={"ok": False, "error": f"Invalid update: {err!s}"},
             )
 
         # Process update in background
@@ -533,7 +557,7 @@ async def admin_webhook(request: Request, background_tasks: BackgroundTasks):
 
 @app.post("/api/webhook/admin/set")
 async def set_admin_webhook():
-    """Set Admin Bot Telegram webhook"""
+    """Set Admin Bot Telegram webhook."""
     if not ADMIN_BOT_TOKEN:
         return {"error": "ADMIN_BOT_TOKEN not configured"}
 

@@ -1,5 +1,4 @@
-"""
-Support Tools for Shop Agent.
+"""Support Tools for Shop Agent.
 
 FAQ search, ticket creation, refunds.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
@@ -33,7 +32,7 @@ def _calculate_warranty_status(delivered_at: str | None, warranty_hours: int) ->
     if not delivered_at:
         return "unknown"
     try:
-        item_delivered = datetime.fromisoformat(delivered_at.replace("Z", "+00:00"))
+        item_delivered = datetime.fromisoformat(delivered_at)
         now = datetime.now(UTC)
         days_since = (now - item_delivered).days
         warranty_days = warranty_hours / 24
@@ -94,8 +93,7 @@ async def _get_warranty_status(db, order, extracted_item_id: str | None) -> str:
 
 @tool
 async def search_faq(question: str) -> dict:
-    """
-    Search FAQ for answer to common question.
+    """Search FAQ for answer to common question.
     Use first before creating support ticket.
     Uses language from context.
 
@@ -104,6 +102,7 @@ async def search_faq(question: str) -> dict:
 
     Returns:
         Matching FAQ entry if found
+
     """
     try:
         ctx = get_user_context()
@@ -137,8 +136,7 @@ async def create_support_ticket(
     order_id_prefix: str | None = None,
     item_id: str | None = None,
 ) -> dict:
-    """
-    Create support ticket for user's issue.
+    """Create support ticket for user's issue.
     All tickets require manual review by admin/support.
     Uses user_id from context.
 
@@ -154,6 +152,7 @@ async def create_support_ticket(
 
     Returns:
         Ticket info with status
+
     """
     if issue_type in ("replacement", "refund") and not order_id_prefix:
         return {
@@ -205,8 +204,7 @@ async def create_support_ticket(
 
 @tool
 async def request_refund(order_id: str, reason: str) -> dict:
-    """
-    Request refund for an order.
+    """Request refund for an order.
     Uses user_id from context.
 
     Args:
@@ -215,6 +213,7 @@ async def request_refund(order_id: str, reason: str) -> dict:
 
     Returns:
         Ticket ID for refund request
+
     """
     try:
         ctx = get_user_context()

@@ -1,5 +1,4 @@
-"""
-Admin Analytics Router
+"""Admin Analytics Router.
 
 Sales analytics and business metrics endpoints.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
@@ -58,7 +57,7 @@ def _calculate_totals(
 
 @router.get("/analytics")
 async def admin_get_analytics(days: int = 7, admin=Depends(verify_admin)):
-    """Get comprehensive sales analytics with real data from database"""
+    """Get comprehensive sales analytics with real data from database."""
     db = get_database()
 
     _now, today_start, week_start, month_start, chart_days_start = _calculate_date_ranges(days)
@@ -154,7 +153,7 @@ async def admin_get_analytics(days: int = 7, admin=Depends(verify_admin)):
         if created_at:
             # Parse date and get date string (YYYY-MM-DD)
             try:
-                date_obj = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                date_obj = datetime.fromisoformat(created_at)
                 date_str = date_obj.strftime("%Y-%m-%d")
                 amount = float(o.get("amount", 0))
                 revenue_by_day_map[date_str] = revenue_by_day_map.get(date_str, 0) + amount
@@ -201,7 +200,7 @@ async def admin_get_analytics(days: int = 7, admin=Depends(verify_admin)):
 
 @router.get("/metrics/business")
 async def admin_get_business_metrics(days: int = 30, admin=Depends(verify_admin)):
-    """Get comprehensive business metrics from views"""
+    """Get comprehensive business metrics from views."""
     db = get_database()
 
     # Get daily metrics
@@ -375,7 +374,7 @@ async def admin_get_discount_analytics(days: int = 30, admin=Depends(verify_admi
         "insurance": {
             "items_with_insurance": insurance_items.count if insurance_items.count else 0,
             "insurance_rate": round(
-                (insurance_items.count or 0) / max(discount_orders.count or 1, 1) * 100, 1
+                (insurance_items.count or 0) / max(discount_orders.count or 1, 1) * 100, 1,
             ),
         },
         "replacements": {

@@ -1,5 +1,4 @@
-"""
-WebApp API Router
+"""WebApp API Router.
 
 Mini App endpoints for Telegram WebApp frontend.
 Combines all sub-routers into a single router with prefix /api/webapp.

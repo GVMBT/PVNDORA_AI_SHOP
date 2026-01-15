@@ -19,7 +19,7 @@ router = Router()
 
 
 # Helper to process referral from start parameter (reduces cognitive complexity)
-async def _process_referral_from_start(message: Message, db_user: User, db):
+async def _process_referral_from_start(message: Message, db_user: User, db) -> None:
     """Process referral code from /start command."""
     if not (message.text and "start" in message.text.lower()):
         return
@@ -36,7 +36,7 @@ async def _process_referral_from_start(message: Message, db_user: User, db):
                 continue
 
             await db.client.rpc(
-                "increment_referral_click", {"referrer_user_id": referrer.id}
+                "increment_referral_click", {"referrer_user_id": referrer.id},
             ).execute()
 
             if not db_user.referrer_id:
@@ -51,8 +51,8 @@ async def _process_referral_from_start(message: Message, db_user: User, db):
 
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, db_user: User, bot: Bot):
-    """Handle /start command with optional referral and onboarding"""
+async def cmd_start(message: Message, db_user: User, bot: Bot) -> None:
+    """Handle /start command with optional referral and onboarding."""
     db = get_database()
 
     history = await db.get_chat_history(db_user.id, limit=1)
@@ -67,8 +67,8 @@ async def cmd_start(message: Message, db_user: User, bot: Bot):
 
 
 @router.message(Command("help"))
-async def cmd_help(message: Message, db_user: User):
-    """Handle /help command with quick access buttons"""
+async def cmd_help(message: Message, db_user: User) -> None:
+    """Handle /help command with quick access buttons."""
     text = get_text("help", db_user.language_code)
 
     # Get localized button texts
@@ -81,27 +81,27 @@ async def cmd_help(message: Message, db_user: User):
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=f"❓ {faq_text}", web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=faq")
+                    text=f"❓ {faq_text}", web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=faq"),
                 ),
                 InlineKeyboardButton(
-                    text=f"📄 {terms_text}", web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=terms")
+                    text=f"📄 {terms_text}", web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=terms"),
                 ),
             ],
             [
                 InlineKeyboardButton(
                     text=f"🆘 {support_text}",
                     web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=contacts"),
-                )
+                ),
             ],
-        ]
+        ],
     )
 
     await message.answer(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
 
 
 @router.message(Command("faq"))
-async def cmd_faq(message: Message, db_user: User):
-    """Handle /faq command - open FAQ page"""
+async def cmd_faq(message: Message, db_user: User) -> None:
+    """Handle /faq command - open FAQ page."""
     title = get_text("faq.title", db_user.language_code, default="FAQ")
     subtitle = get_text("faq.subtitle", db_user.language_code, default="Часто задаваемые вопросы")
     text = f"<b>{title}</b>\n\n{subtitle}"
@@ -110,20 +110,20 @@ async def cmd_faq(message: Message, db_user: User):
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=btn_text, web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=faq")
-                )
-            ]
-        ]
+                    text=btn_text, web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=faq"),
+                ),
+            ],
+        ],
     )
     await message.answer(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
 
 
 @router.message(Command("terms"))
-async def cmd_terms(message: Message, db_user: User):
-    """Handle /terms command - open Terms of Service page"""
+async def cmd_terms(message: Message, db_user: User) -> None:
+    """Handle /terms command - open Terms of Service page."""
     title = get_text("terms.title", db_user.language_code, default="Пользовательское соглашение")
     subtitle = get_text(
-        "terms.subtitle", db_user.language_code, default="Условия использования сервиса"
+        "terms.subtitle", db_user.language_code, default="Условия использования сервиса",
     )
     text = f"<b>{title}</b>\n\n{subtitle}"
     btn_text = get_text("btn_open_terms", db_user.language_code, default="📄 Открыть условия")
@@ -131,17 +131,17 @@ async def cmd_terms(message: Message, db_user: User):
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=btn_text, web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=terms")
-                )
-            ]
-        ]
+                    text=btn_text, web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=terms"),
+                ),
+            ],
+        ],
     )
     await message.answer(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
 
 
 @router.message(Command("support"))
-async def cmd_support(message: Message, db_user: User):
-    """Handle /support command - open support/contacts page"""
+async def cmd_support(message: Message, db_user: User) -> None:
+    """Handle /support command - open support/contacts page."""
     title = get_text("contacts.title", db_user.language_code, default="Поддержка")
     subtitle = get_text(
         "contacts.supportDescription",
@@ -154,17 +154,17 @@ async def cmd_support(message: Message, db_user: User):
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=btn_text, web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=contacts")
-                )
-            ]
-        ]
+                    text=btn_text, web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=contacts"),
+                ),
+            ],
+        ],
     )
     await message.answer(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
 
 
 @router.message(Command("my_orders"))
-async def cmd_my_orders(message: Message, db_user: User):
-    """Handle /my_orders command - show purchase history"""
+async def cmd_my_orders(message: Message, db_user: User) -> None:
+    """Handle /my_orders command - show purchase history."""
     db = get_database()
     orders = await db.get_user_orders(db_user.id, limit=10)
 
@@ -196,14 +196,14 @@ async def cmd_my_orders(message: Message, db_user: User):
         order_lines.append(f"{status_icon} {product_name} - {order.amount}₽")
 
     text = get_text(
-        "order_history", db_user.language_code, orders="\n".join(order_lines), count=len(orders)
+        "order_history", db_user.language_code, orders="\n".join(order_lines), count=len(orders),
     )
     await message.answer(text, parse_mode=ParseMode.HTML)
 
 
 @router.message(Command("wishlist"))
-async def cmd_wishlist(message: Message, db_user: User):
-    """Handle /wishlist command - show saved products"""
+async def cmd_wishlist(message: Message, db_user: User) -> None:
+    """Handle /wishlist command - show saved products."""
     db = get_database()
     products = await db.get_wishlist(db_user.id)
 
@@ -232,15 +232,15 @@ async def cmd_wishlist(message: Message, db_user: User):
         await message.answer(
             text,
             reply_markup=get_product_keyboard(
-                db_user.language_code, product.id, WEBAPP_URL, in_stock=product.stock_count > 0
+                db_user.language_code, product.id, WEBAPP_URL, in_stock=product.stock_count > 0,
             ),
             parse_mode=ParseMode.HTML,
         )
 
 
 @router.message(Command("referral"))
-async def cmd_referral(message: Message, db_user: User, bot: Bot):
-    """Handle /referral command - show referral link"""
+async def cmd_referral(message: Message, db_user: User, bot: Bot) -> None:
+    """Handle /referral command - show referral link."""
     bot_info = await bot.get_me()
     referral_link = f"https://t.me/{bot_info.username}?start=ref_{message.from_user.id}"
 

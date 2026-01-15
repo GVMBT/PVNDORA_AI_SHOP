@@ -1,8 +1,9 @@
-"""
-Cart Tools for Shop Agent.
+"""Cart Tools for Shop Agent.
 
 Shopping cart management: add, remove, update, promo codes.
 """
+
+import contextlib
 
 from langchain_core.tools import tool
 
@@ -15,13 +16,13 @@ logger = get_logger(__name__)
 
 @tool
 async def get_user_cart() -> dict:
-    """
-    Get user's shopping cart.
+    """Get user's shopping cart.
     ALWAYS call this before mentioning cart contents.
     Uses telegram_id from context.
 
     Returns:
         Cart with items and totals in user's currency
+
     """
     try:
         from core.cart import get_cart_manager
@@ -41,10 +42,8 @@ async def get_user_cart() -> dict:
 
         total_converted = cart.total
         if target_currency != "USD":
-            try:
+            with contextlib.suppress(Exception):
                 total_converted = await currency_service.convert_price(cart.total, target_currency)
-            except Exception:
-                pass
 
         return {
             "success": True,
@@ -72,8 +71,7 @@ async def get_user_cart() -> dict:
 
 @tool
 async def add_to_cart(product_id: str, quantity: int = 1) -> dict:
-    """
-    Add product to user's cart.
+    """Add product to user's cart.
     Uses telegram_id from context.
 
     Args:
@@ -82,6 +80,7 @@ async def add_to_cart(product_id: str, quantity: int = 1) -> dict:
 
     Returns:
         Updated cart info
+
     """
     try:
         from core.cart import get_cart_manager
@@ -111,10 +110,8 @@ async def add_to_cart(product_id: str, quantity: int = 1) -> dict:
         currency_service = get_currency_service(redis)
         total_converted = cart.total
         if ctx.currency != "USD":
-            try:
+            with contextlib.suppress(Exception):
                 total_converted = await currency_service.convert_price(cart.total, ctx.currency)
-            except Exception:
-                pass
 
         total_formatted = currency_service.format_price(total_converted, ctx.currency)
 
@@ -133,8 +130,7 @@ async def add_to_cart(product_id: str, quantity: int = 1) -> dict:
 
 @tool
 async def remove_from_cart(product_id: str) -> dict:
-    """
-    Remove product from cart.
+    """Remove product from cart.
     Uses telegram_id from context.
 
     Args:
@@ -142,6 +138,7 @@ async def remove_from_cart(product_id: str) -> dict:
 
     Returns:
         Updated cart info
+
     """
     try:
         from core.cart import get_cart_manager
@@ -179,8 +176,7 @@ async def remove_from_cart(product_id: str) -> dict:
 
 @tool
 async def update_cart_quantity(product_id: str, quantity: int) -> dict:
-    """
-    Update quantity of product in cart.
+    """Update quantity of product in cart.
     Uses telegram_id from context.
 
     Args:
@@ -189,6 +185,7 @@ async def update_cart_quantity(product_id: str, quantity: int) -> dict:
 
     Returns:
         Updated cart info
+
     """
     try:
         from core.cart import get_cart_manager
@@ -202,7 +199,7 @@ async def update_cart_quantity(product_id: str, quantity: int) -> dict:
         available_stock = await db.get_available_stock_count(product_id)
 
         cart = await cart_manager.update_item_quantity(
-            ctx.telegram_id, product_id, quantity, available_stock
+            ctx.telegram_id, product_id, quantity, available_stock,
         )
 
         if cart is None or not cart.items:
@@ -231,12 +228,12 @@ async def update_cart_quantity(product_id: str, quantity: int) -> dict:
 
 @tool
 async def clear_cart() -> dict:
-    """
-    Clear user's shopping cart.
+    """Clear user's shopping cart.
     Uses telegram_id from context.
 
     Returns:
         Confirmation
+
     """
     try:
         from core.cart import get_cart_manager
@@ -252,8 +249,7 @@ async def clear_cart() -> dict:
 
 @tool
 async def apply_promo_code(code: str) -> dict:
-    """
-    Apply promo code to cart.
+    """Apply promo code to cart.
     Uses telegram_id from context.
 
     Supports both cart-wide and product-specific promo codes:
@@ -265,6 +261,7 @@ async def apply_promo_code(code: str) -> dict:
 
     Returns:
         Discount info
+
     """
     try:
         ctx = get_user_context()

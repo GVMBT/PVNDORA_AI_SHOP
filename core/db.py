@@ -1,5 +1,4 @@
-"""
-Database Module - Supabase and Redis Clients
+"""Database Module - Supabase and Redis Clients.
 
 This module provides:
 - Redis client for FSM, carts, leaderboards
@@ -26,17 +25,17 @@ from core.services.database import (
 )
 
 __all__ = [
+    "TTL",
+    "RedisKeys",
+    "close_database",
     # Supabase
     "get_database",
     "get_database_async",
-    "init_database",
-    "close_database",
-    "is_database_initialized",
     # Redis
     "get_redis",
     "get_redis_sync",
-    "RedisKeys",
-    "TTL",
+    "init_database",
+    "is_database_initialized",
 ]
 
 # For type-checkers only
@@ -55,14 +54,14 @@ except ImportError:
     Redis = None  # type: ignore
     AsyncRedis = None  # type: ignore
     warnings.warn(
-        "upstash_redis not installed. Falling back to lightweight REST client.", ImportWarning
+        "upstash_redis not installed. Falling back to lightweight REST client.", ImportWarning, stacklevel=2,
     )
     import httpx
 
     class AsyncRedisFallback:
         """Minimal async Redis client using Upstash REST (get/set/delete only)."""
 
-        def __init__(self, url: str, token: str):
+        def __init__(self, url: str, token: str) -> None:
             self.url = url.rstrip("/")
             self.token = token
             self._client: httpx.AsyncClient | None = None
@@ -71,7 +70,7 @@ except ImportError:
         def client(self) -> httpx.AsyncClient:
             if self._client is None:
                 self._client = httpx.AsyncClient(
-                    base_url=self.url, headers={"Authorization": f"Bearer {self.token}"}
+                    base_url=self.url, headers={"Authorization": f"Bearer {self.token}"},
                 )
             return self._client
 
@@ -82,11 +81,11 @@ except ImportError:
             return data.get("result")
 
         async def set(self, key: str, value: str, ex: int | None = None, nx: bool = False):
-            """
-            SET key value with optional EX (expiration) and NX (only if not exists).
+            """SET key value with optional EX (expiration) and NX (only if not exists).
 
             Returns:
                 True if key was set, False if NX was True and key already exists
+
             """
             params = {}
             if ex is not None:
@@ -105,7 +104,7 @@ except ImportError:
             """SET with expiration in seconds."""
             return await self.set(key, value, ex=seconds)
 
-        async def delete(self, key: str):
+        async def delete(self, key: str) -> bool:
             # Upstash REST API requires POST for DEL command, not HTTP DELETE
             resp = await self.client.post(f"/del/{key}")
             resp.raise_for_status()
@@ -127,8 +126,7 @@ _sync_redis_client: Redis | None = None
 
 
 def get_redis() -> AsyncRedis:
-    """
-    Get async Upstash Redis client (singleton).
+    """Get async Upstash Redis client (singleton).
 
     Uses standard Upstash env var names:
     - UPSTASH_REDIS_REST_URL
@@ -145,26 +143,29 @@ def get_redis() -> AsyncRedis:
 
     if _redis_client is None:
         if not UPSTASH_REDIS_REST_URL or not UPSTASH_REDIS_REST_TOKEN:
-            raise ValueError("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set")
+            msg = "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set"
+            raise ValueError(msg)
         if AsyncRedis is None:
-            raise ImportError("upstash_redis is not installed in the runtime environment")
+            msg = "upstash_redis is not installed in the runtime environment"
+            raise ImportError(msg)
         _redis_client = AsyncRedis(url=UPSTASH_REDIS_REST_URL, token=UPSTASH_REDIS_REST_TOKEN)
 
     return _redis_client
 
 
 def get_redis_sync() -> Redis:
-    """
-    Get sync Upstash Redis client (singleton).
+    """Get sync Upstash Redis client (singleton).
     Use only when async is not available.
     """
     global _sync_redis_client
 
     if _sync_redis_client is None:
         if not UPSTASH_REDIS_REST_URL or not UPSTASH_REDIS_REST_TOKEN:
-            raise ValueError("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set")
+            msg = "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set"
+            raise ValueError(msg)
         if Redis is None:
-            raise ImportError("upstash_redis is not installed in the runtime environment")
+            msg = "upstash_redis is not installed in the runtime environment"
+            raise ImportError(msg)
         _sync_redis_client = Redis(url=UPSTASH_REDIS_REST_URL, token=UPSTASH_REDIS_REST_TOKEN)
 
     return _sync_redis_client

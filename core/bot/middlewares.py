@@ -1,5 +1,6 @@
-"""Telegram Bot Middlewares"""
+"""Telegram Bot Middlewares."""
 
+import contextlib
 import os
 from collections.abc import Awaitable, Callable
 from datetime import UTC
@@ -25,8 +26,7 @@ REQUIRED_CHANNEL = os.environ.get("PVNDORA_REQUIRED_CHANNEL", "@pvndora_news")
 
 
 class AuthMiddleware(BaseMiddleware):
-    """
-    Middleware for user authentication and ban check.
+    """Middleware for user authentication and ban check.
     Creates user if not exists, blocks banned users.
     """
 
@@ -108,10 +108,8 @@ class AuthMiddleware(BaseMiddleware):
             # Check for referrer in start command
             referrer_id = None
             if isinstance(event, Message) and event.text and event.text.startswith("/start ref_"):
-                try:
+                with contextlib.suppress(ValueError, IndexError):
                     referrer_id = int(event.text.split("ref_")[1].split()[0])
-                except (ValueError, IndexError):
-                    pass
 
             # Create new user
             db_user = await db.create_user(
@@ -143,8 +141,7 @@ class AuthMiddleware(BaseMiddleware):
 
 
 class ChannelSubscriptionMiddleware(BaseMiddleware):
-    """
-    Require channel subscription before using the bot.
+    """Require channel subscription before using the bot.
     This helps with retention and protects against bans.
     """
 
@@ -164,7 +161,7 @@ class ChannelSubscriptionMiddleware(BaseMiddleware):
                 isinstance(event, CallbackQuery)
                 and event.data
                 and any(cb in event.data for cb in self.EXEMPT_CALLBACKS)
-            )
+            ),
         )
 
     def _get_subscription_text(self, lang: str) -> str:
@@ -187,7 +184,7 @@ class ChannelSubscriptionMiddleware(BaseMiddleware):
             f"<i>After subscribing, click the button below</i>"
         )
 
-    async def _show_subscription_prompt(self, event: TelegramObject, lang: str):
+    async def _show_subscription_prompt(self, event: TelegramObject, lang: str) -> None:
         """Show subscription prompt (reduces cognitive complexity)."""
         text = self._get_subscription_text(lang)
         keyboard = InlineKeyboardMarkup(
@@ -196,15 +193,15 @@ class ChannelSubscriptionMiddleware(BaseMiddleware):
                     InlineKeyboardButton(
                         text="📢 Подписаться" if lang == "ru" else "📢 Subscribe",
                         url=f"https://t.me/{REQUIRED_CHANNEL.lstrip('@')}",
-                    )
+                    ),
                 ],
                 [
                     InlineKeyboardButton(
                         text="✅ Я подписался" if lang == "ru" else "✅ I subscribed",
                         callback_data="pvndora:check_sub",
-                    )
+                    ),
                 ],
-            ]
+            ],
         )
 
         if isinstance(event, Message):
@@ -249,8 +246,7 @@ class ChannelSubscriptionMiddleware(BaseMiddleware):
 
 
 class LanguageMiddleware(BaseMiddleware):
-    """
-    Middleware for language detection and update.
+    """Middleware for language detection and update.
     Updates user language if it changed in Telegram settings.
     """
 
@@ -278,8 +274,7 @@ class LanguageMiddleware(BaseMiddleware):
 
 
 class ActivityMiddleware(BaseMiddleware):
-    """
-    Middleware for tracking user activity.
+    """Middleware for tracking user activity.
     Updates last_activity_at for re-engagement features.
     """
 
@@ -301,9 +296,7 @@ class ActivityMiddleware(BaseMiddleware):
 
 
 class AnalyticsMiddleware(BaseMiddleware):
-    """
-    Middleware for logging analytics events.
-    """
+    """Middleware for logging analytics events."""
 
     async def __call__(
         self,

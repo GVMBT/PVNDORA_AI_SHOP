@@ -225,9 +225,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
                     <div className="text-[10px] text-gray-600">ID: {u.id}</div>
                   </td>
                   <td className="p-4">{getRoleBadge(u.role)}</td>
-                  <td className="p-4 text-pandora-cyan">
-                    {formatCurrency(u.balance)}
-                  </td>
+                  <td className="p-4 text-pandora-cyan">{formatCurrency(u.balance)}</td>
                   <td className="p-4">{u.purchases}</td>
                   <td className="p-4">{formatCurrency(u.spent)}</td>
                   <td className="p-4">

@@ -18,21 +18,21 @@ from .users import UsersDomain
 from .wishlist import WishlistService
 
 __all__ = [
-    # Legacy domain wrappers
-    "UsersDomain",
-    "ProductsDomain",
-    "StockDomain",
-    "OrdersDomain",
-    "ChatDomain",
     # Service Layer
     "CatalogService",
-    "WishlistService",
-    "ReferralService",
-    "SupportService",
+    "ChatDomain",
+    "DiscountOrderService",
     # Discount channel
     "InsuranceService",
+    "OffersService",
+    "OrdersDomain",
+    "ProductsDomain",
     "PromoCodeService",
     "PromoTriggers",
-    "DiscountOrderService",
-    "OffersService",
+    "ReferralService",
+    "StockDomain",
+    "SupportService",
+    # Legacy domain wrappers
+    "UsersDomain",
+    "WishlistService",
 ]

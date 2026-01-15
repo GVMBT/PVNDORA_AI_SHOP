@@ -1,5 +1,4 @@
-"""
-Shared Dependencies for Routers
+"""Shared Dependencies for Routers.
 
 Lazy-loaded singletons to optimize cold start.
 Import heavy modules only when needed.
@@ -28,7 +27,7 @@ _bot: Optional["Bot"] = None
 
 
 def get_notification_service() -> "NotificationService":
-    """Get or create NotificationService singleton (lazy loaded)"""
+    """Get or create NotificationService singleton (lazy loaded)."""
     global _notification_service
     if _notification_service is None:
         from core.services.notifications import NotificationService
@@ -38,7 +37,7 @@ def get_notification_service() -> "NotificationService":
 
 
 def get_payment_service() -> "PaymentService":
-    """Get or create PaymentService singleton (lazy loaded)"""
+    """Get or create PaymentService singleton (lazy loaded)."""
     global _payment_service
     if _payment_service is None:
         from core.services.payments import PaymentService
@@ -48,7 +47,7 @@ def get_payment_service() -> "PaymentService":
 
 
 def get_admin_alerts() -> "AdminAlertService":
-    """Get or create AdminAlertService singleton (lazy loaded)"""
+    """Get or create AdminAlertService singleton (lazy loaded)."""
     global _admin_alert_service
     if _admin_alert_service is None:
         from core.services.admin_alerts import AdminAlertService
@@ -58,7 +57,7 @@ def get_admin_alerts() -> "AdminAlertService":
 
 
 def get_cart_manager_lazy() -> "CartManager":
-    """Get or create CartManager singleton (lazy loaded)"""
+    """Get or create CartManager singleton (lazy loaded)."""
     global _cart_manager
     if _cart_manager is None:
         from core.cart import get_cart_manager
@@ -68,7 +67,7 @@ def get_cart_manager_lazy() -> "CartManager":
 
 
 def get_bot() -> Optional["Bot"]:
-    """Get or create Bot singleton (lazy loaded)"""
+    """Get or create Bot singleton (lazy loaded)."""
     global _bot
     if _bot is None:
         telegram_token = os.environ.get("TELEGRAM_TOKEN", "")
@@ -78,7 +77,7 @@ def get_bot() -> Optional["Bot"]:
             from aiogram.enums import ParseMode
 
             _bot = Bot(
-                token=telegram_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+                token=telegram_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML),
             )
     return _bot
 
@@ -93,14 +92,14 @@ def get_webapp_url() -> str:
 
 @lru_cache(maxsize=1)
 def get_qstash_verifier():
-    """Get QStash verification function (cached import)"""
+    """Get QStash verification function (cached import)."""
     from core.queue import verify_qstash_request
 
     return verify_qstash_request
 
 
 async def verify_qstash(request):
-    """Verify QStash request signature and return parsed body"""
+    """Verify QStash request signature and return parsed body."""
     verify_fn = get_qstash_verifier()
     return await verify_fn(request)  # Returns dict with parsed JSON body
 
@@ -109,14 +108,14 @@ async def verify_qstash(request):
 
 
 def get_queue_publisher():
-    """Get queue publishing functions (lazy loaded)"""
+    """Get queue publishing functions (lazy loaded)."""
     from core.queue import WorkerEndpoints, publish_to_worker
 
     return publish_to_worker, WorkerEndpoints
 
 
 # ==================== SHUTDOWN HELPERS ====================
-async def shutdown_services():
+async def shutdown_services() -> None:
     """Cleanly close singleton services (http clients, etc.)."""
     global _payment_service
     if _payment_service is not None:

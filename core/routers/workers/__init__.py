@@ -1,5 +1,4 @@
-"""
-Workers Module
+"""Workers Module.
 
 QStash workers for guaranteed delivery of critical operations.
 Re-exports main router for backward compatibility.

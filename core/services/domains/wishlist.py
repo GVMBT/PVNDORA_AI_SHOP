@@ -1,5 +1,4 @@
-"""
-Wishlist Domain Service
+"""Wishlist Domain Service.
 
 Handles user wishlist operations.
 Currently used only for stock notifications (waitlist_notify_in_stock).
@@ -32,24 +31,23 @@ class WishlistItem:
 
 
 class WishlistService:
-    """
-    Wishlist domain service.
+    """Wishlist domain service.
 
     Provides clean interface for wishlist operations.
     """
 
-    def __init__(self, db):
+    def __init__(self, db) -> None:
         self.db = db
 
     async def get_items(self, user_id: str) -> list[WishlistItem]:
-        """
-        Get user's wishlist items.
+        """Get user's wishlist items.
 
         Args:
             user_id: User database ID
 
         Returns:
             List of WishlistItem
+
         """
         try:
             result = (
@@ -72,7 +70,7 @@ class WishlistService:
                         product_name=products_data.get("name", "Unknown"),
                         price=products_data.get("price", 0),
                         in_stock=stock_count > 0,
-                    )
+                    ),
                 )
 
             return items
@@ -81,8 +79,7 @@ class WishlistService:
             return []
 
     async def add_item(self, user_id: str, product_id: str) -> dict[str, Any]:
-        """
-        Add product to wishlist.
+        """Add product to wishlist.
 
         Args:
             user_id: User database ID
@@ -90,6 +87,7 @@ class WishlistService:
 
         Returns:
             Success/failure result
+
         """
         # Get product info
         product = await self.db.get_product_by_id(product_id)
@@ -129,8 +127,7 @@ class WishlistService:
             return {"success": False, "reason": "Database error"}
 
     async def remove_item(self, user_id: str, product_id: str) -> dict[str, Any]:
-        """
-        Remove product from wishlist.
+        """Remove product from wishlist.
 
         Args:
             user_id: User database ID
@@ -138,6 +135,7 @@ class WishlistService:
 
         Returns:
             Success/failure result
+
         """
         try:
             await (
@@ -154,8 +152,7 @@ class WishlistService:
             return {"success": False, "reason": "Failed to remove"}
 
     async def is_in_wishlist(self, user_id: str, product_id: str) -> bool:
-        """
-        Check if product is in user's wishlist.
+        """Check if product is in user's wishlist.
 
         Args:
             user_id: User database ID
@@ -163,6 +160,7 @@ class WishlistService:
 
         Returns:
             True if in wishlist
+
         """
         try:
             result = (

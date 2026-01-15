@@ -1,5 +1,4 @@
-"""
-Misc Router - Main Entry Point
+"""Misc Router - Main Entry Point.
 
 Aggregates all misc-related endpoints (FAQ, Promo, Reviews, Leaderboard, Support).
 """

@@ -13,7 +13,7 @@ from core.services.repositories import OrderRepository
 class OrdersDomain:
     """Order domain operations."""
 
-    def __init__(self, repo: OrderRepository, client):
+    def __init__(self, repo: OrderRepository, client) -> None:
         self.repo = repo
         self.client = client
 
@@ -37,6 +37,7 @@ class OrdersDomain:
 
         Args:
             source_channel: Order origin - 'premium' (PVNDORA), 'discount' (discount bot), 'migrated' (converted user)
+
         """
         return await self.repo.create(
             user_id=user_id,
@@ -109,7 +110,8 @@ class OrdersDomain:
             },
         ).execute()
         if not result.data:
-            raise ValueError("Failed to create order")
+            msg = "Failed to create order"
+            raise ValueError(msg)
         return result.data[0]
 
     # Order items operations (using raw client)

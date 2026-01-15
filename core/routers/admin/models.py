@@ -1,5 +1,4 @@
-"""
-Admin API Pydantic Models
+"""Admin API Pydantic Models.
 
 Shared models for all admin endpoints.
 """
@@ -10,8 +9,7 @@ from pydantic import BaseModel
 
 
 class CreateProductRequest(BaseModel):
-    """
-    Product creation/update request.
+    """Product creation/update request.
 
     Field mapping (frontend → DB):
     - category → type (ai, dev, design, music)

@@ -1,5 +1,4 @@
-"""
-WebApp API Pydantic Models
+"""WebApp API Pydantic Models.
 
 Shared models for all webapp endpoints.
 """

@@ -98,11 +98,7 @@ type AccountingPeriod = "today" | "month" | "all" | "custom";
 
 interface AdminAccountingProps {
   data?: AccountingData;
-  onRefresh?: (
-    period?: AccountingPeriod,
-    customFrom?: string,
-    customTo?: string
-  ) => void;
+  onRefresh?: (period?: AccountingPeriod, customFrom?: string, customTo?: string) => void;
   onAddExpense?: () => void;
   isLoading?: boolean;
 }
@@ -323,9 +319,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
           {onRefresh && (
             <button
               type="button"
-              onClick={() =>
-                onRefresh(period, customFrom || undefined, customTo || undefined)
-              }
+              onClick={() => onRefresh(period, customFrom || undefined, customTo || undefined)}
               disabled={isLoading}
               className="p-2 bg-[#0e0e0e] border border-white/10 rounded-sm hover:border-pandora-cyan transition-colors disabled:opacity-50"
             >
@@ -398,9 +392,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
         {/* 1. Общая выручка */}
         <div className="mb-6 bg-[#151515] p-4 rounded-sm">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-gray-400 text-sm uppercase">
-              1. Чистая Выручка (Net Revenue)
-            </span>
+            <span className="text-gray-400 text-sm uppercase">1. Чистая Выручка (Net Revenue)</span>
             <span className="text-white font-mono font-bold text-xl">
               {formatMoney(d.totalRevenue)}
             </span>
@@ -420,50 +412,22 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
 
         {/* 2. Расходы */}
         <div className="mb-6">
-          <div className="text-xs uppercase text-red-400 font-mono mb-3 px-2">
-            2. Расходы
-          </div>
+          <div className="text-xs uppercase text-red-400 font-mono mb-3 px-2">2. Расходы</div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 px-4">
             {/* Себестоимость */}
             <div className="col-span-1 md:col-span-2 flex justify-between items-center border-b border-white/5 pb-2 mb-2">
               <span className="text-white font-bold text-sm">Себестоимость товаров (COGS)</span>
-              <span className="text-red-400 font-mono font-bold">
-                {formatMoney(d.totalCogs)}
-              </span>
+              <span className="text-red-400 font-mono font-bold">{formatMoney(d.totalCogs)}</span>
             </div>
 
-            <MetricRow
-              label="Эквайринг (комиссии)"
-              value={d.totalAcquiringFees}
-              isExpense
-            />
-            <MetricRow
-              label="Реферальные выплаты"
-              value={d.totalReferralPayouts}
-              isExpense
-            />
-            <MetricRow
-              label="Резервы (маркетинг 5%)"
-              value={d.totalReserves}
-              isExpense
-            />
-            <MetricRow
-              label="Кэшбэк за отзывы"
-              value={d.totalReviewCashbacks}
-              isExpense
-            />
-            <MetricRow
-              label="Замены по гарантии"
-              value={d.totalReplacementCosts}
-              isExpense
-            />
+            <MetricRow label="Эквайринг (комиссии)" value={d.totalAcquiringFees} isExpense />
+            <MetricRow label="Реферальные выплаты" value={d.totalReferralPayouts} isExpense />
+            <MetricRow label="Резервы (маркетинг 5%)" value={d.totalReserves} isExpense />
+            <MetricRow label="Кэшбэк за отзывы" value={d.totalReviewCashbacks} isExpense />
+            <MetricRow label="Замены по гарантии" value={d.totalReplacementCosts} isExpense />
             {d.totalOtherExpenses > 0 && (
-              <MetricRow
-                label="Прочие расходы"
-                value={d.totalOtherExpenses}
-                isExpense
-              />
+              <MetricRow label="Прочие расходы" value={d.totalOtherExpenses} isExpense />
             )}
           </div>
         </div>
@@ -514,9 +478,7 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
               <div className="text-xs text-gray-500">
                 Всего отложено: {formatMoney(reservesAccumulated)}
               </div>
-              <div className="text-xs text-gray-500">
-                Потрачено: {formatMoney(reservesUsed)}
-              </div>
+              <div className="text-xs text-gray-500">Потрачено: {formatMoney(reservesUsed)}</div>
             </div>
           </div>
         </div>

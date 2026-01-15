@@ -1,5 +1,4 @@
-"""
-Optimization: Centralized user activity tracking with Redis debounce.
+"""Optimization: Centralized user activity tracking with Redis debounce.
 
 Helper function to update user activity with debounce (max 1 per minute per user).
 Call this from verify_telegram_auth or endpoints to update user activity.
@@ -16,8 +15,7 @@ ACTIVITY_DEBOUNCE_TTL = 60  # seconds
 
 
 async def _update_user_activity_async(telegram_id: int) -> None:
-    """
-    Update user activity asynchronously (fire-and-forget).
+    """Update user activity asynchronously (fire-and-forget).
     Uses Redis debounce to avoid excessive DB updates.
 
     IMPORTANT: Uses atomic SETNX to avoid race conditions when
@@ -57,8 +55,7 @@ async def _update_user_activity_async(telegram_id: int) -> None:
 
 
 def update_user_activity_with_debounce(telegram_id: int) -> None:
-    """
-    Update user activity with Redis debounce (max 1 per minute per user).
+    """Update user activity with Redis debounce (max 1 per minute per user).
 
     This is a fire-and-forget operation that doesn't block the request.
     Uses Redis debounce to limit DB updates.
@@ -70,6 +67,7 @@ def update_user_activity_with_debounce(telegram_id: int) -> None:
 
     Args:
         telegram_id: Telegram user ID
+
     """
     # Fire-and-forget async update (non-blocking)
     try:

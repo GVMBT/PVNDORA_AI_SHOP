@@ -20,15 +20,15 @@ ERR_UNKNOWN = "Unknown error"
 
 
 class PaymentService:
-    """Payment service for CrystalPay payment gateway"""
+    """Payment service for CrystalPay payment gateway."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # CrystalPay credentials (docs.crystalpay.io)
         self.crystalpay_login = os.environ.get("CRYSTALPAY_LOGIN", "")
         self.crystalpay_secret = os.environ.get("CRYSTALPAY_SECRET", "")
         self.crystalpay_salt = os.environ.get("CRYSTALPAY_SALT", "")
         self.crystalpay_api_url = os.environ.get(
-            "CRYSTALPAY_API_URL", "https://api.crystalpay.io/v3"
+            "CRYSTALPAY_API_URL", "https://api.crystalpay.io/v3",
         )
 
         # Webhook URLs
@@ -54,11 +54,14 @@ class PaymentService:
         api_url = self.crystalpay_api_url.rstrip("/")
 
         if not login:
-            raise ValueError("CrystalPay Login (CRYSTALPAY_LOGIN) не настроен")
+            msg = "CrystalPay Login (CRYSTALPAY_LOGIN) не настроен"
+            raise ValueError(msg)
         if not secret:
-            raise ValueError("CrystalPay Secret (CRYSTALPAY_SECRET) не настроен")
+            msg = "CrystalPay Secret (CRYSTALPAY_SECRET) не настроен"
+            raise ValueError(msg)
         if not salt:
-            raise ValueError("CrystalPay Salt (CRYSTALPAY_SALT) не настроен")
+            msg = "CrystalPay Salt (CRYSTALPAY_SALT) не настроен"
+            raise ValueError(msg)
         return login, secret, salt, api_url
 
     async def _save_payment_reference(self, order_id: str, pid_value: str) -> None:
@@ -114,8 +117,7 @@ class PaymentService:
         _is_telegram_miniapp: bool = True,  # Kept for API compatibility
         **kwargs,
     ) -> dict[str, Any]:
-        """
-        Create payment and return payment URL.
+        """Create payment and return payment URL.
 
         Args:
             order_id: Unique order ID
@@ -128,6 +130,7 @@ class PaymentService:
 
         Returns:
             Dict with payment_url, invoice_id
+
         """
         # Only CrystalPay is supported
         if method and method not in ("crystalpay", "card", "crypto"):
@@ -148,9 +151,7 @@ class PaymentService:
         user_telegram_id: int | None = None,
         currency: str = "RUB",
     ) -> dict[str, Any]:
-        """
-        Alias for create_payment for backward compatibility.
-        """
+        """Alias for create_payment for backward compatibility."""
         return await self.create_payment(
             order_id=order_id,
             amount=amount,
@@ -160,15 +161,14 @@ class PaymentService:
         )
 
     def list_payment_methods(self) -> dict[str, Any]:
-        """
-        Return available payment methods.
+        """Return available payment methods.
         CrystalPay supports card, crypto, etc.
         """
         return {
             "systems": [
                 {"system_group": "card", "name": "Банковская карта"},
                 {"system_group": "crypto", "name": "Криптовалюта"},
-            ]
+            ],
         }
 
     # ==================== CRYSTALPAY ====================
@@ -182,8 +182,7 @@ class PaymentService:
         _user_id: int | None = None,
         _is_telegram_miniapp: bool = True,
     ) -> dict[str, Any]:
-        """
-        Create CrystalPay invoice via API.
+        """Create CrystalPay invoice via API.
 
         Based on CrystalPay API documentation (docs.crystalpay.io/v3):
         - Endpoint: POST /invoice/create/
@@ -241,10 +240,10 @@ class PaymentService:
         client = self._get_http_client()
         try:
             response = await client.post(
-                f"{api_url}/invoice/create/", headers=headers, json=payload
+                f"{api_url}/invoice/create/", headers=headers, json=payload,
             )
             logger.info(
-                "CrystalPay API response status: %s for order %s", response.status_code, order_id
+                "CrystalPay API response status: %s for order %s", response.status_code, order_id,
             )
 
             data = response.json()
@@ -256,14 +255,16 @@ class PaymentService:
                 errors = data.get("errors", [])
                 error_msg = ", ".join(errors) if errors else ERR_UNKNOWN
                 logger.error("CrystalPay API error for order %s: %s", order_id, error_msg)
-                raise ValueError(f"CrystalPay error: {error_msg}")
+                msg = f"CrystalPay error: {error_msg}"
+                raise ValueError(msg)
 
             invoice_id = data.get("id")
             payment_url = data.get("url")
 
             if not payment_url:
                 logger.error("CrystalPay: URL not in response. Keys: %s", list(data.keys()))
-                raise ValueError("Payment URL not found in CrystalPay response")
+                msg = "Payment URL not found in CrystalPay response"
+                raise ValueError(msg)
 
             # Save payment reference
             if invoice_id:
@@ -289,10 +290,12 @@ class PaymentService:
                 order_id,
                 error_detail,
             )
-            raise ValueError(f"CrystalPay API error: {error_detail}")
+            msg = f"CrystalPay API error: {error_detail}"
+            raise ValueError(msg)
         except httpx.RequestError as e:
             logger.exception("CrystalPay network error")
-            raise ValueError(f"Failed to connect to CrystalPay API: {e!s}")
+            msg = f"Failed to connect to CrystalPay API: {e!s}"
+            raise ValueError(msg)
 
     async def create_crystalpay_payment_topup(
         self,
@@ -302,9 +305,7 @@ class PaymentService:
         currency: str = "RUB",
         _is_telegram_miniapp: bool = True,
     ) -> dict[str, Any]:
-        """
-        Create CrystalPay invoice for balance top-up.
-        """
+        """Create CrystalPay invoice for balance top-up."""
         login, secret, _, api_url = self._validate_crystalpay_config()
 
         payment_amount = to_float(amount)
@@ -354,7 +355,7 @@ class PaymentService:
         client = self._get_http_client()
         try:
             response = await client.post(
-                f"{api_url}/invoice/create/", headers=headers, json=payload
+                f"{api_url}/invoice/create/", headers=headers, json=payload,
             )
 
             data = response.json()
@@ -366,16 +367,18 @@ class PaymentService:
                 errors = data.get("errors", [])
                 error_msg = ", ".join(errors) if errors else ERR_UNKNOWN
                 logger.error("CrystalPay TOPUP error: %s", error_msg)
-                raise ValueError(f"CrystalPay error: {error_msg}")
+                msg = f"CrystalPay error: {error_msg}"
+                raise ValueError(msg)
 
             payment_url = data.get("url")
             invoice_id = data.get("id")
 
             if not payment_url:
-                raise ValueError("Payment URL not found in CrystalPay response")
+                msg = "Payment URL not found in CrystalPay response"
+                raise ValueError(msg)
 
             logger.info(
-                "CrystalPay TOPUP created: topup_id=%s, invoice_id=%s", topup_id, invoice_id
+                "CrystalPay TOPUP created: topup_id=%s, invoice_id=%s", topup_id, invoice_id,
             )
             return {
                 "payment_url": payment_url,
@@ -385,12 +388,14 @@ class PaymentService:
         except httpx.HTTPStatusError as e:
             error_detail = e.response.text[:200]
             logger.exception(
-                "CrystalPay TOPUP API error %s: %s", e.response.status_code, error_detail
+                "CrystalPay TOPUP API error %s: %s", e.response.status_code, error_detail,
             )
-            raise ValueError(f"CrystalPay API error: {error_detail}")
+            msg = f"CrystalPay API error: {error_detail}"
+            raise ValueError(msg)
         except httpx.RequestError as e:
             logger.exception("CrystalPay TOPUP network error")
-            raise ValueError(f"Failed to connect to CrystalPay API: {e!s}")
+            msg = f"Failed to connect to CrystalPay API: {e!s}"
+            raise ValueError(msg)
 
     def _extract_webhook_data(self, data: dict[str, Any]) -> dict[str, Any]:
         """Extract and normalize webhook data (reduces cognitive complexity)."""
@@ -415,7 +420,7 @@ class PaymentService:
         return None, "order_id not found"
 
     def _verify_signature(
-        self, invoice_id: str, received_signature: str, salt: str
+        self, invoice_id: str, received_signature: str, salt: str,
     ) -> tuple[bool, str]:
         """Verify webhook signature (reduces cognitive complexity)."""
         if not received_signature:
@@ -423,7 +428,7 @@ class PaymentService:
 
         if not salt:
             logger.warning(
-                "CrystalPay webhook: Signature provided but CRYSTALPAY_SALT not configured!"
+                "CrystalPay webhook: Signature provided but CRYSTALPAY_SALT not configured!",
             )
             return True, ""  # Continue without verification
 
@@ -451,8 +456,7 @@ class PaymentService:
             return 0.0, 0.0
 
     async def verify_crystalpay_webhook(self, data: dict[str, Any]) -> dict[str, Any]:
-        """
-        Verify CrystalPay webhook signature and extract order info.
+        """Verify CrystalPay webhook signature and extract order info.
 
         CrystalPay callback format (POST JSON):
         - signature: sha1(id + ':' + salt)
@@ -495,14 +499,14 @@ class PaymentService:
 
             if state != "payed":
                 logger.warning(
-                    "CrystalPay webhook: Payment state '%s' for order %s", state, order_id
+                    "CrystalPay webhook: Payment state '%s' for order %s", state, order_id,
                 )
                 return {"success": False, "error": f"Payment not successful. State: {state}"}
 
             amount, rub_amount = self._parse_amounts(amount_str, rub_amount_str)
 
             logger.info(
-                "CrystalPay webhook verified: order=%s, amount=%s %s", order_id, amount, currency
+                "CrystalPay webhook verified: order=%s, amount=%s %s", order_id, amount, currency,
             )
             return {
                 "success": True,
@@ -543,7 +547,8 @@ class PaymentService:
             if data.get("error"):
                 errors = data.get("errors", [])
                 error_msg = ", ".join(errors) if errors else ERR_UNKNOWN
-                raise ValueError(f"CrystalPay error: {error_msg}")
+                msg = f"CrystalPay error: {error_msg}"
+                raise ValueError(msg)
 
             return data
         except Exception:
@@ -553,10 +558,9 @@ class PaymentService:
     # ==================== REFUNDS ====================
 
     async def process_refund(
-        self, order_id: str, amount: float, method: str = "crystalpay"
+        self, order_id: str, amount: float, method: str = "crystalpay",
     ) -> dict[str, Any]:
-        """
-        Process refund for an order.
+        """Process refund for an order.
         Refunds are credited to user balance (manual processing).
         """
         if not order_id:
@@ -597,7 +601,7 @@ class PaymentService:
             if user_id:
                 result = (
                     await db.client.table("orders")
-                    .select("id", count=cast(Any, "exact"))
+                    .select("id", count=cast("Any", "exact"))
                     .eq("user_id", user_id)
                     .eq("refund_requested", True)
                     .execute()
@@ -616,7 +620,7 @@ class PaymentService:
                         "issue_type": "refund",
                         "description": f"Manual refund requested, amount={amount}",
                         "status": "open",
-                    }
+                    },
                 )
                 .execute()
             )

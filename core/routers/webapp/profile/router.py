@@ -1,5 +1,4 @@
-"""
-Profile Router - Main Entry Point
+"""Profile Router - Main Entry Point.
 
 Aggregates all profile-related endpoints.
 """

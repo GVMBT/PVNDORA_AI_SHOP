@@ -1,5 +1,4 @@
-"""
-Payment Workers
+"""Payment Workers.
 
 QStash workers for payment-related operations (refund, cashback).
 """
@@ -25,7 +24,7 @@ ERROR_ORDER_NOT_FOUND = "Order not found"
 
 
 async def _calculate_cashback_base(
-    order_data: dict, order_amount: float, balance_currency: str
+    order_data: dict, order_amount: float, balance_currency: str,
 ) -> float:
     """Calculate cashback base amount in user's balance currency."""
     fiat_amount = order_data.get("fiat_amount")
@@ -102,12 +101,12 @@ async def _update_order_expenses(db, order_id: str, cashback_usd: float) -> None
             .execute()
         )
         logger.info(
-            f"Updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD"
+            f"Updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD",
         )
     else:
         # Create order_expenses first
         logger.warning(
-            f"order_expenses not found for {order_id}, calling calculate_order_expenses first"
+            f"order_expenses not found for {order_id}, calling calculate_order_expenses first",
         )
         await db.client.rpc("calculate_order_expenses", {"p_order_id": order_id}).execute()
         await (
@@ -117,7 +116,7 @@ async def _update_order_expenses(db, order_id: str, cashback_usd: float) -> None
             .execute()
         )
         logger.info(
-            f"Created and updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD"
+            f"Created and updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD",
         )
 
 
@@ -174,7 +173,7 @@ async def _get_user_and_order_for_cashback(db, order_id: str, user_telegram_id: 
 
 
 async def _process_cashback_update(
-    db, db_user, order_id: str, cashback_amount: float, balance_currency: str
+    db, db_user, order_id: str, cashback_amount: float, balance_currency: str,
 ) -> float:
     """Update user balance and create transaction for cashback."""
     new_balance = to_float(db_user.balance or 0) + cashback_amount
@@ -191,7 +190,7 @@ async def _process_cashback_update(
                 "status": "completed",
                 "description": "5% кэшбек за отзыв",
                 "reference_id": order_id,
-            }
+            },
         )
         .execute()
     )
@@ -200,7 +199,7 @@ async def _process_cashback_update(
 
 
 async def _send_cashback_notification_safe(
-    db_user, cashback_amount: float, new_balance: float, balance_currency: str
+    db_user, cashback_amount: float, new_balance: float, balance_currency: str,
 ) -> None:
     """Send cashback notification (safe, logs errors)."""
     try:
@@ -242,7 +241,7 @@ async def worker_process_refund(request: Request):
     order = (
         await db.client.table("orders")
         .select(
-            "id, amount, fiat_amount, fiat_currency, user_id, user_telegram_id, status, products(name)"
+            "id, amount, fiat_amount, fiat_currency, user_id, user_telegram_id, status, products(name)",
         )
         .eq("id", order_id)
         .single()
@@ -302,7 +301,7 @@ async def worker_process_refund(request: Request):
                 "status": "refunded",
                 "refund_reason": reason,
                 "refund_processed_at": datetime.now(UTC).isoformat(),
-            }
+            },
         )
         .eq("id", order_id)
         .execute()
@@ -370,7 +369,7 @@ async def worker_process_review_cashback(request: Request):
 
     # Update user balance and create transaction
     new_balance = await _process_cashback_update(
-        db, db_user, order_id, cashback_amount, balance_currency
+        db, db_user, order_id, cashback_amount, balance_currency,
     )
 
     # Mark review as processed
@@ -389,7 +388,7 @@ async def worker_process_review_cashback(request: Request):
     await _send_cashback_notification_safe(db_user, cashback_amount, new_balance, balance_currency)
 
     logger.info(
-        f"Cashback processed: user={db_user.telegram_id}, amount={cashback_amount} {balance_currency}"
+        f"Cashback processed: user={db_user.telegram_id}, amount={cashback_amount} {balance_currency}",
     )
 
     return {"success": True, "cashback": cashback_amount, "new_balance": new_balance}

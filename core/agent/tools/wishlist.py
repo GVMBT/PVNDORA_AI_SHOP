@@ -1,5 +1,4 @@
-"""
-Wishlist & Waitlist Tools for Shop Agent.
+"""Wishlist & Waitlist Tools for Shop Agent.
 
 Save products for later, join waitlists.
 """
@@ -15,8 +14,7 @@ logger = get_logger(__name__)
 
 @tool
 async def add_to_wishlist(product_id: str) -> dict:
-    """
-    Add product to user's wishlist (saved for later).
+    """Add product to user's wishlist (saved for later).
     Uses user_id from context.
 
     Args:
@@ -24,6 +22,7 @@ async def add_to_wishlist(product_id: str) -> dict:
 
     Returns:
         Confirmation
+
     """
     try:
         ctx = get_user_context()
@@ -41,12 +40,12 @@ async def add_to_wishlist(product_id: str) -> dict:
 
 @tool
 async def get_wishlist() -> dict:
-    """
-    Get user's wishlist.
+    """Get user's wishlist.
     Uses user_id from context.
 
     Returns:
         List of saved products
+
     """
     try:
         ctx = get_user_context()
@@ -72,8 +71,7 @@ async def get_wishlist() -> dict:
 
 @tool
 async def remove_from_wishlist(product_id: str) -> dict:
-    """
-    Remove product from user's wishlist.
+    """Remove product from user's wishlist.
     Uses user_id from context.
 
     Args:
@@ -81,6 +79,7 @@ async def remove_from_wishlist(product_id: str) -> dict:
 
     Returns:
         Confirmation
+
     """
     try:
         ctx = get_user_context()
@@ -94,8 +93,7 @@ async def remove_from_wishlist(product_id: str) -> dict:
 
 @tool
 async def add_to_waitlist(product_name: str) -> dict:
-    """
-    Add user to waitlist for coming_soon product.
+    """Add user to waitlist for coming_soon product.
     User will be notified when product becomes available.
     Uses user_id from context.
 
@@ -104,6 +102,7 @@ async def add_to_waitlist(product_name: str) -> dict:
 
     Returns:
         Confirmation
+
     """
     try:
         ctx = get_user_context()

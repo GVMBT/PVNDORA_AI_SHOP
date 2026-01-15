@@ -1,10 +1,10 @@
-"""
-Order Helper Functions
+"""Order Helper Functions.
 
 Shared utilities for order creation and payment processing.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
+import contextlib
 import logging
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -29,8 +29,7 @@ async def create_payment_wrapper(
     currency: str = "RUB",
     is_telegram_miniapp: bool = True,
 ) -> dict[str, Any]:
-    """
-    Async wrapper for synchronous payment creation.
+    """Async wrapper for synchronous payment creation.
     Returns dict with payment_url and invoice_id.
     """
     formatted_amount = to_float(amount)
@@ -59,10 +58,12 @@ async def create_payment_wrapper(
                     "invoice_id": getattr(invoice_data, "invoice_id", None)
                     or getattr(invoice_data, "id", None),
                 }
-            raise ValueError(f"Unexpected response type from CrystalPay: {type(invoice_data)}")
+            msg = f"Unexpected response type from CrystalPay: {type(invoice_data)}"
+            raise ValueError(msg)
 
         return await _make_crystalpay_invoice()
-    raise ValueError(f"Unsupported payment gateway: {gateway}")
+    msg = f"Unsupported payment gateway: {gateway}"
+    raise ValueError(msg)
 
 
 async def persist_order(
@@ -143,7 +144,7 @@ async def persist_order_items(db, order_id: str, items: list[dict[str, Any]]) ->
             float(total_amount / item_quantity) if item_quantity > 0 else float(total_amount)
         )
         # discount_percent is INTEGER in DB - convert to int, not float
-        discount_pct = int(round(to_float(item.get("discount_percent", 0))))
+        discount_pct = round(to_float(item.get("discount_percent", 0)))
 
         for _ in range(item_quantity):
             row = {
@@ -165,8 +166,7 @@ async def persist_order_items(db, order_id: str, items: list[dict[str, Any]]) ->
 
 
 async def get_partner_discount(db, db_user) -> int:
-    """
-    Get discount from referrer if they use partner_mode='discount'.
+    """Get discount from referrer if they use partner_mode='discount'.
     Returns discount percent (0 if no discount).
     """
     try:
@@ -188,7 +188,7 @@ async def get_partner_discount(db, db_user) -> int:
                 if discount > 0:
                     referrer_id = db_user.referrer_id
                     logger.info(
-                        "Partner discount applied: %s%% from referrer %s", discount, referrer_id
+                        "Partner discount applied: %s%% from referrer %s", discount, referrer_id,
                     )
                     return discount
         return 0
@@ -198,7 +198,7 @@ async def get_partner_discount(db, db_user) -> int:
 
 
 def determine_target_currency(
-    db_user, user, payment_method: str, payment_gateway: str, currency_service
+    db_user, user, payment_method: str, payment_gateway: str, currency_service,
 ) -> str:
     """Determine target currency for Anchor Pricing based on payment method and gateway."""
     if payment_method == "balance":
@@ -252,7 +252,7 @@ def _calculate_product_prices(product, item_quantity: int) -> tuple[Decimal, Dec
 
 
 def _calculate_discount_percent(
-    item_discount: int, cart_promo_discount: int, partner_discount: int
+    item_discount: int, cart_promo_discount: int, partner_discount: int,
 ) -> int:
     """Calculate effective discount percent from all sources."""
     discount_percent = item_discount
@@ -272,7 +272,7 @@ def _calculate_final_prices(
 ) -> tuple[Decimal, Decimal]:
     """Calculate final prices per unit and totals after discount."""
     discount_multiplier = subtract(
-        Decimal("1"), divide(to_decimal(discount_percent), Decimal("100"))
+        Decimal(1), divide(to_decimal(discount_percent), Decimal(100)),
     )
 
     final_price_per_unit_usd = round_money(multiply(product_price_usd, discount_multiplier))
@@ -295,13 +295,12 @@ async def validate_and_prepare_cart_items(
     target_currency: str,
     currency_service,
 ) -> tuple[Decimal, Decimal, Decimal, list[dict[str, Any]]]:
-    """
-    Validate cart items, calculate totals using Decimal, handle stock deficits.
+    """Validate cart items, calculate totals using Decimal, handle stock deficits.
     Calculates both USD total and Fiat total (using Anchor Prices).
     """
-    total_amount_usd = Decimal("0")
-    total_original_usd = Decimal("0")
-    total_fiat_amount = Decimal("0")
+    total_amount_usd = Decimal(0)
+    total_original_usd = Decimal(0)
+    total_fiat_amount = Decimal(0)
     prepared_items = []
 
     for item in cart_items:
@@ -322,11 +321,11 @@ async def validate_and_prepare_cart_items(
             else 0
         )
         discount_percent = _calculate_discount_percent(
-            item.discount_percent, cart_promo_discount, partner_discount
+            item.discount_percent, cart_promo_discount, partner_discount,
         )
 
         final_price_total_usd, final_price_total_fiat = _calculate_final_prices(
-            product_price_usd, product_price_fiat, discount_percent, item.quantity, target_currency
+            product_price_usd, product_price_fiat, discount_percent, item.quantity, target_currency,
         )
 
         total_amount_usd += final_price_total_usd
@@ -344,7 +343,7 @@ async def validate_and_prepare_cart_items(
                 "original_price": original_price_usd,
                 "discount_percent": discount_percent,
                 "fulfillment_time_hours": getattr(product, "fulfillment_time_hours", None) or 24,
-            }
+            },
         )
     return total_amount_usd, total_original_usd, total_fiat_amount, prepared_items
 
@@ -359,7 +358,7 @@ async def _check_redis_cooldown(user_id: int) -> tuple[Any, bool]:
         existing = await cooldown_redis.get(cooldown_key)
         if existing:
             raise HTTPException(
-                status_code=429, detail="Подождите ~1 минуту перед повторным созданием платежа"
+                status_code=429, detail="Подождите ~1 минуту перед повторным созданием платежа",
             )
         return cooldown_redis, False
     except HTTPException:
@@ -389,7 +388,7 @@ async def _check_db_cooldown(db, db_user, cooldown_seconds: int) -> None:
             created_at = row.get("created_at")
             if created_at:
                 try:
-                    created_dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                    created_dt = datetime.fromisoformat(created_at)
                     if datetime.now(UTC) - created_dt < timedelta(seconds=cooldown_seconds):
                         raise HTTPException(
                             status_code=429,
@@ -406,8 +405,7 @@ async def _check_db_cooldown(db, db_user, cooldown_seconds: int) -> None:
 
 
 async def enforce_order_cooldown(db, db_user, user_id: int) -> tuple[Any, int]:
-    """
-    Enforce cooldown between order creations.
+    """Enforce cooldown between order creations.
     Returns (cooldown_redis, cooldown_seconds) tuple.
     """
     cooldown_seconds = 90
@@ -436,10 +434,9 @@ def format_product_names(order_items: list[dict[str, Any]]) -> str:
 
 
 async def calculate_currency_snapshot(
-    currency_service, target_currency: str, fiat_amount: Decimal
+    currency_service, target_currency: str, fiat_amount: Decimal,
 ) -> tuple[Decimal, float]:
-    """
-    Calculate currency snapshot and convert fiat amount back to USD.
+    """Calculate currency snapshot and convert fiat amount back to USD.
     Returns (total_amount_usd, exchange_rate_snapshot).
     """
     exchange_rate_snapshot = 1.0
@@ -451,7 +448,7 @@ async def calculate_currency_snapshot(
             total_amount = round_money(divide(fiat_amount, to_decimal(exchange_rate_snapshot)))
 
         logger.info(
-            f"Order created: {to_float(total_amount)} USD | {to_float(fiat_amount)} {target_currency} (Rate: {exchange_rate_snapshot})"
+            f"Order created: {to_float(total_amount)} USD | {to_float(fiat_amount)} {target_currency} (Rate: {exchange_rate_snapshot})",
         )
     except Exception as e:
         logger.warning(f"Failed to snapshot rate or recalculate USD amount: {e}")
@@ -465,8 +462,8 @@ def calculate_discount_percent(total_amount: Decimal, total_original: Decimal) -
     if total_original <= 0:
         return 0
 
-    discount_ratio = subtract(Decimal("1"), divide(total_amount, total_original))
-    return max(0, min(100, int(round_money(multiply(discount_ratio, Decimal("100")), to_int=True))))
+    discount_ratio = subtract(Decimal(1), divide(total_amount, total_original))
+    return max(0, min(100, int(round_money(multiply(discount_ratio, Decimal(100)), to_int=True))))
 
 
 async def create_order_with_items(
@@ -480,8 +477,7 @@ async def create_order_with_items(
     payment_gateway: str | None,
     order_items: list[dict[str, Any]],
 ) -> Order:
-    """
-    Create order in DB with order items.
+    """Create order in DB with order items.
     Rolls back order if items creation fails.
     """
     payment_expires_at = datetime.now(UTC) + timedelta(minutes=15)
@@ -503,7 +499,7 @@ async def create_order_with_items(
         logger.exception(f"Failed to create order_items for order {order.id}")
         await db.client.table("orders").delete().eq("id", order.id).execute()
         raise HTTPException(
-            status_code=500, detail="Failed to create order items. Please try again."
+            status_code=500, detail="Failed to create order items. Please try again.",
         )
 
     return order
@@ -520,8 +516,7 @@ async def process_external_payment(
     is_telegram_miniapp: bool,
     db,
 ) -> tuple[str | None, str | None]:
-    """
-    Process external payment creation.
+    """Process external payment creation.
     Returns (payment_url, invoice_id) or raises HTTPException on failure.
     Rolls back order on payment creation failure.
     """
@@ -539,16 +534,14 @@ async def process_external_payment(
         payment_url = pay_result.get("payment_url")
         invoice_id = pay_result.get("invoice_id")
         logger.info(
-            f"CrystalPay payment created for order {order_id}: payment_url={payment_url[:50] if payment_url else 'None'}..., invoice_id={invoice_id}"
+            f"CrystalPay payment created for order {order_id}: payment_url={payment_url[:50] if payment_url else 'None'}..., invoice_id={invoice_id}",
         )
         return payment_url, invoice_id
 
     except ValueError as e:
         logger.exception("[DEBUG-HYP-D] create_payment_wrapper ValueError: error_type=ValueError")
-        try:
+        with contextlib.suppress(Exception):
             await db.client.table("order_items").delete().eq("order_id", order_id).execute()
-        except Exception:
-            pass
         await db.client.table("orders").delete().eq("id", order_id).execute()
         error_msg = str(e)
         logger.exception(f"Payment creation failed: {error_msg}")
@@ -568,19 +561,17 @@ async def process_external_payment(
     except Exception as e:
         error_type = type(e).__name__
         logger.exception(f"[DEBUG-HYP-D] create_payment_wrapper Exception: error_type={error_type}")
-        try:
+        with contextlib.suppress(Exception):
             await db.client.table("order_items").delete().eq("order_id", order_id).execute()
-        except Exception:
-            pass
         await db.client.table("orders").delete().eq("id", order_id).execute()
         logger.exception("Payment creation failed")
         raise HTTPException(
-            status_code=502, detail="Платёжная система недоступна. Попробуйте позже."
+            status_code=502, detail="Платёжная система недоступна. Попробуйте позже.",
         )
 
 
 async def save_payment_info(
-    db, order_id: str, payment_url: str | None, invoice_id: str | None
+    db, order_id: str, payment_url: str | None, invoice_id: str | None,
 ) -> None:
     """Save payment URL and invoice ID to order."""
     try:

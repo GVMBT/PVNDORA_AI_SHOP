@@ -17,8 +17,7 @@ class PaymentMethod(str, Enum):
 
 
 class OrderStatus(str, Enum):
-    """
-    Order status lifecycle.
+    """Order status lifecycle.
 
     Flow:
         pending -> paid/prepaid -> partial -> delivered
@@ -76,8 +75,7 @@ GATEWAY_CURRENCY: dict[str, str] = {
 
 
 def normalize_gateway(gateway: str) -> str:
-    """
-    Normalize gateway name to canonical form.
+    """Normalize gateway name to canonical form.
     All gateways now map to crystalpay.
 
     Args:
@@ -88,6 +86,7 @@ def normalize_gateway(gateway: str) -> str:
 
     Example:
         normalize_gateway("CrystalPay") -> "crystalpay"
+
     """
     if not gateway:
         return PaymentGateway.CRYSTALPAY.value

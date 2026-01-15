@@ -1,5 +1,4 @@
-"""
-Base module for agent tools.
+"""Base module for agent tools.
 
 Contains database and user context management shared across all tool modules.
 """
@@ -26,7 +25,7 @@ class _UserContext:
 _user_ctx = _UserContext()
 
 
-def set_db(db):
+def set_db(db) -> None:
     """Set the database instance for tools."""
     global _db
     _db = db
@@ -35,15 +34,16 @@ def set_db(db):
 def get_db():
     """Get the database instance."""
     if _db is None:
-        raise RuntimeError("Database not initialized. Call set_db() first.")
+        msg = "Database not initialized. Call set_db() first."
+        raise RuntimeError(msg)
     return _db
 
 
-def set_user_context(user_id: str, telegram_id: int, language: str, currency: str):
+def set_user_context(user_id: str, telegram_id: int, language: str, currency: str) -> None:
     """Set user context for all tools. Called by agent before each chat."""
     global _user_ctx
     _user_ctx = _UserContext(
-        user_id=user_id, telegram_id=telegram_id, language=language, currency=currency
+        user_id=user_id, telegram_id=telegram_id, language=language, currency=currency,
     )
     logger.debug(f"User context set: {_user_ctx}")
 

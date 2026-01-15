@@ -1,5 +1,4 @@
-"""
-FAQ and Promo Code endpoints.
+"""FAQ and Promo Code endpoints.
 
 FAQ entries and promo code validation.
 """
@@ -8,9 +7,8 @@ from fastapi import APIRouter, Depends
 
 from core.auth import verify_telegram_auth
 from core.logging import get_logger
+from core.routers.webapp.models import PromoCheckRequest
 from core.services.database import get_database
-
-from ..models import PromoCheckRequest
 
 logger = get_logger(__name__)
 faq_router = APIRouter(tags=["webapp-misc-faq"])
@@ -31,7 +29,7 @@ async def get_webapp_faq(language_code: str = "en", user=Depends(verify_telegram
                 "question": entry.get("question"),
                 "answer": entry.get("answer"),
                 "category": entry.get("category", "general"),
-            }
+            },
         )
 
     return {"faq": faq_list, "total": len(faq_list)}

@@ -1,5 +1,4 @@
-"""
-Admin Bot Handlers
+"""Admin Bot Handlers.
 
 Combines all admin command and callback handlers.
 """

@@ -23,8 +23,7 @@ REQUIRED_CHANNEL = os.environ.get("DISCOUNT_REQUIRED_CHANNEL", "@pvndora_news")
 
 
 class DiscountAuthMiddleware(BaseMiddleware):
-    """
-    Auth middleware for discount bot.
+    """Auth middleware for discount bot.
     Creates user with discount_tier_source=True if new.
     """
 
@@ -89,8 +88,7 @@ class DiscountAuthMiddleware(BaseMiddleware):
 
 
 class ChannelSubscriptionMiddleware(BaseMiddleware):
-    """
-    Require channel subscription before using the bot.
+    """Require channel subscription before using the bot.
     This protects against ban - channel is harder to take down.
     """
 
@@ -106,7 +104,7 @@ class ChannelSubscriptionMiddleware(BaseMiddleware):
             f"After subscribing, click the button below."
         )
 
-    async def _show_subscription_prompt(self, event: TelegramObject, lang: str):
+    async def _show_subscription_prompt(self, event: TelegramObject, lang: str) -> None:
         """Show subscription prompt (reduces cognitive complexity)."""
         from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -117,15 +115,15 @@ class ChannelSubscriptionMiddleware(BaseMiddleware):
                     InlineKeyboardButton(
                         text="📢 Подписаться" if lang == "ru" else "📢 Subscribe",
                         url=f"https://t.me/{REQUIRED_CHANNEL.lstrip('@')}",
-                    )
+                    ),
                 ],
                 [
                     InlineKeyboardButton(
                         text="✅ Я подписался" if lang == "ru" else "✅ I subscribed",
                         callback_data="discount:check_sub",
-                    )
+                    ),
                 ],
-            ]
+            ],
         )
 
         if isinstance(event, Message):
@@ -170,9 +168,7 @@ class ChannelSubscriptionMiddleware(BaseMiddleware):
 
 
 class TermsAcceptanceMiddleware(BaseMiddleware):
-    """
-    Require terms acceptance before first use.
-    """
+    """Require terms acceptance before first use."""
 
     # Commands that don't require terms acceptance
     EXEMPT_COMMANDS = {"/start", "/terms"}
@@ -190,7 +186,7 @@ class TermsAcceptanceMiddleware(BaseMiddleware):
                 isinstance(event, CallbackQuery)
                 and event.data
                 and any(cb in event.data for cb in self.EXEMPT_CALLBACKS)
-            )
+            ),
         )
 
     def _get_terms_text(self, lang: str) -> str:
@@ -215,7 +211,7 @@ class TermsAcceptanceMiddleware(BaseMiddleware):
             "Click the button below to accept."
         )
 
-    async def _show_terms_prompt(self, event: TelegramObject, lang: str):
+    async def _show_terms_prompt(self, event: TelegramObject, lang: str) -> None:
         """Show terms acceptance prompt (reduces cognitive complexity)."""
         from .keyboards import get_terms_keyboard
 

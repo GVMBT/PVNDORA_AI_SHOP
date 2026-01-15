@@ -1,6 +1,4 @@
-"""
-Shared constants for misc router modules.
-"""
+"""Shared constants for misc router modules."""
 
 # Review cashback configuration
 REVIEW_CASHBACK_PERCENT = 0.05  # 5% cashback for reviews

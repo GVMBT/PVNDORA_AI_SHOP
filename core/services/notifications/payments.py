@@ -1,5 +1,4 @@
-"""
-Payment Notifications
+"""Payment Notifications.
 
 Notifications for payment-related events (cashback, refund, topup).
 """
@@ -17,7 +16,7 @@ class PaymentNotificationsMixin(NotificationServiceBase):
     """Mixin for payment-related notifications."""
 
     async def _refund_to_balance(self, order, user: dict, language: str, reason: str) -> None:
-        """Refund order amount to user balance"""
+        """Refund order amount to user balance."""
         db = get_database()
 
         # Credit to balance
@@ -53,6 +52,7 @@ class PaymentNotificationsMixin(NotificationServiceBase):
             new_balance: New balance in user's balance_currency
             currency: User's balance currency (RUB, USD, etc.) - CRITICAL!
             reason: Reason for cashback (review, etc.)
+
         """
         lang = await get_user_language(telegram_id)
 
@@ -122,8 +122,7 @@ class PaymentNotificationsMixin(NotificationServiceBase):
         currency: str = "USD",
         reason: str = "Fulfillment deadline exceeded",
     ) -> None:
-        """
-        Send refund notification to user.
+        """Send refund notification to user.
 
         Args:
             telegram_id: User's Telegram ID
@@ -131,6 +130,7 @@ class PaymentNotificationsMixin(NotificationServiceBase):
             amount: Refund amount in user's balance currency
             currency: User's balance currency (USD, RUB, etc.)
             reason: Reason for refund
+
         """
         try:
             from core.services.currency import CURRENCY_SYMBOLS
@@ -158,7 +158,7 @@ class PaymentNotificationsMixin(NotificationServiceBase):
             logger.exception("Failed to send refund notification")
 
     async def send_topup_success_notification(
-        self, telegram_id: int, amount: float, currency: str, new_balance: float
+        self, telegram_id: int, amount: float, currency: str, new_balance: float,
     ) -> None:
         """Notify user that their balance was topped up."""
         lang = await get_user_language(telegram_id)

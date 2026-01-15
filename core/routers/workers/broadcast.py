@@ -1,5 +1,4 @@
-"""
-Broadcast Worker
+"""Broadcast Worker.
 
 QStash worker for sending broadcast messages to users.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
@@ -46,12 +45,12 @@ async def _download_media_from_admin_bot(media_file_id: str, broadcast_id: str) 
             response = await client.get(file_url)
             if response.status_code == 200:
                 logger.info(
-                    f"Broadcast {broadcast_id}: Downloaded media file, size={len(response.content)} bytes"
+                    f"Broadcast {broadcast_id}: Downloaded media file, size={len(response.content)} bytes",
                 )
                 await admin_bot.session.close()
                 return response.content
             logger.error(
-                f"Broadcast {broadcast_id}: Failed to download media, status={response.status_code}"
+                f"Broadcast {broadcast_id}: Failed to download media, status={response.status_code}",
             )
 
         await admin_bot.session.close()
@@ -83,7 +82,7 @@ def _build_keyboard_rows(buttons: list, lang: str) -> list[list[InlineKeyboardBu
             rows.append([InlineKeyboardButton(text=btn_text, url=btn["url"])])
         elif "web_app" in btn:
             rows.append(
-                [InlineKeyboardButton(text=btn_text, web_app=WebAppInfo(url=btn["web_app"]["url"]))]
+                [InlineKeyboardButton(text=btn_text, web_app=WebAppInfo(url=btn["web_app"]["url"]))],
             )
         elif "callback_data" in btn:
             rows.append([InlineKeyboardButton(text=btn_text, callback_data=btn["callback_data"])])
@@ -185,7 +184,7 @@ async def _send_media_message(
 
 
 async def _handle_send_failure(
-    db, user_id: str, telegram_id: int, broadcast_id: str, error_msg: str
+    db, user_id: str, telegram_id: int, broadcast_id: str, error_msg: str,
 ) -> None:
     """Handle message send failure - update user and recipient status."""
     blocked_phrases = [
@@ -262,7 +261,7 @@ async def _send_to_user(
 
     try:
         await _send_media_message(
-            bot, telegram_id, media_bytes, media_file_id, media_type, text, parse_mode_str, keyboard
+            bot, telegram_id, media_bytes, media_file_id, media_type, text, parse_mode_str, keyboard,
         )
 
         # Update recipient status
@@ -290,7 +289,7 @@ async def _send_to_user(
 
 
 async def _check_broadcast_complete(
-    db, broadcast_id: str, broadcast: dict, sent: int, failed: int
+    db, broadcast_id: str, broadcast: dict, sent: int, failed: int,
 ) -> None:
     """Check if broadcast is complete and update status."""
     # Update broadcast stats
@@ -333,7 +332,7 @@ async def _check_broadcast_complete(
 
     logger.info(
         f"Broadcast {broadcast_id}: DB counts - total={total_recipients}, "
-        f"sent={total_sent_in_db}, failed={total_failed_in_db}, processed={total_processed}"
+        f"sent={total_sent_in_db}, failed={total_failed_in_db}, processed={total_processed}",
     )
 
     if total_processed >= total_recipients > 0:
@@ -344,7 +343,7 @@ async def _check_broadcast_complete(
             .execute()
         )
         logger.info(
-            f"Broadcast {broadcast_id} completed: {total_sent_in_db} sent, {total_failed_in_db} failed"
+            f"Broadcast {broadcast_id} completed: {total_sent_in_db} sent, {total_failed_in_db} failed",
         )
 
 
@@ -355,8 +354,7 @@ async def _check_broadcast_complete(
 
 @broadcast_router.post("/send-broadcast")
 async def worker_send_broadcast(request: Request):
-    """
-    QStash Worker: Send broadcast message to batch of users.
+    """QStash Worker: Send broadcast message to batch of users.
 
     Accepts:
     - broadcast_id: ID рассылки
@@ -377,7 +375,7 @@ async def worker_send_broadcast(request: Request):
     target_bot = data.get("target_bot", "pvndora")
 
     logger.info(
-        f"Broadcast worker: broadcast_id={broadcast_id}, user_ids_count={len(user_ids)}, target_bot={target_bot}"
+        f"Broadcast worker: broadcast_id={broadcast_id}, user_ids_count={len(user_ids)}, target_bot={target_bot}",
     )
 
     if not broadcast_id or not user_ids:
@@ -430,7 +428,7 @@ async def worker_send_broadcast(request: Request):
     try:
         for user_id in user_ids:
             success = await _send_to_user(
-                db, bot, user_id, broadcast, content, buttons, media_bytes, broadcast_id
+                db, bot, user_id, broadcast, content, buttons, media_bytes, broadcast_id,
             )
             if success:
                 sent += 1

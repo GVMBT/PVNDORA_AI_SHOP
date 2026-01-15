@@ -1,5 +1,4 @@
-"""
-FSM States for Admin Bot
+"""FSM States for Admin Bot.
 
 Defines conversation states for broadcast creation flow.
 """
@@ -8,7 +7,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 
 class BroadcastStates(StatesGroup):
-    """States for broadcast creation flow"""
+    """States for broadcast creation flow."""
 
     # Step 1: Select target bot
     select_bot = State()

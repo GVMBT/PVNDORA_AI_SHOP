@@ -1,5 +1,4 @@
-"""
-Order Tools for Shop Agent.
+"""Order Tools for Shop Agent.
 
 Order history, credentials retrieval, resending.
 """
@@ -15,8 +14,7 @@ logger = get_logger(__name__)
 
 @tool
 async def get_user_orders(limit: int = 5) -> dict:
-    """
-    Get user's order history.
+    """Get user's order history.
     Use when user asks about their orders.
     Uses user_id from context.
 
@@ -25,6 +23,7 @@ async def get_user_orders(limit: int = 5) -> dict:
 
     Returns:
         List of orders with status
+
     """
     try:
         ctx = get_user_context()
@@ -74,8 +73,7 @@ async def get_user_orders(limit: int = 5) -> dict:
 
 @tool
 async def get_order_credentials(order_id_prefix: str) -> dict:
-    """
-    Get credentials/login data for a delivered order.
+    """Get credentials/login data for a delivered order.
     Use when user asks for login/password from their order.
     Uses user_id from context.
 
@@ -84,6 +82,7 @@ async def get_order_credentials(order_id_prefix: str) -> dict:
 
     Returns:
         Credentials for delivered items
+
     """
     try:
         ctx = get_user_context()
@@ -109,7 +108,7 @@ async def get_order_credentials(order_id_prefix: str) -> dict:
                         "product_name": item.get("product_name", "Product"),
                         "credentials": content,
                         "instructions": item.get("delivery_instructions", ""),
-                    }
+                    },
                 )
 
         if not credentials:
@@ -140,8 +139,7 @@ async def get_order_credentials(order_id_prefix: str) -> dict:
 
 @tool
 async def resend_order_credentials(order_id_prefix: str) -> dict:
-    """
-    Resend order credentials to user via Telegram.
+    """Resend order credentials to user via Telegram.
     Use when user asks to resend/forward their login/password.
     Uses user_id and telegram_id from context.
 
@@ -150,6 +148,7 @@ async def resend_order_credentials(order_id_prefix: str) -> dict:
 
     Returns:
         Confirmation
+
     """
     try:
         from core.services.notifications import NotificationService

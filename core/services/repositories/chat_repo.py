@@ -1,9 +1,11 @@
 """Chat Repository - Chat history and support tickets."""
 
-from collections.abc import Awaitable
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from .base import BaseRepository
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable
 
 
 class ChatRepository(BaseRepository):
@@ -12,7 +14,7 @@ class ChatRepository(BaseRepository):
     async def save_message(self, user_id: str, role: str, message: str) -> None:
         """Save chat message."""
         await cast(
-            Awaitable[Any],
+            "Awaitable[Any]",
             self.client.table("chat_history")
             .insert({"user_id": user_id, "role": role, "message": message})
             .execute(),
@@ -21,7 +23,7 @@ class ChatRepository(BaseRepository):
     async def get_history(self, user_id: str, limit: int = 20) -> list[dict[str, str]]:
         """Get recent chat history (chronological order)."""
         result = await cast(
-            Awaitable[Any],
+            "Awaitable[Any]",
             self.client.table("chat_history")
             .select("role,message")
             .eq("user_id", user_id)
@@ -33,11 +35,11 @@ class ChatRepository(BaseRepository):
         return [{"role": m["role"], "content": m["message"]} for m in reversed(result.data)]
 
     async def create_ticket(
-        self, user_id: str, subject: str, message: str, order_id: str | None = None
+        self, user_id: str, subject: str, message: str, order_id: str | None = None,
     ) -> dict[str, Any]:
         """Create support ticket."""
         result = await cast(
-            Awaitable[Any],
+            "Awaitable[Any]",
             self.client.table("support_tickets")
             .insert(
                 {
@@ -46,7 +48,7 @@ class ChatRepository(BaseRepository):
                     "initial_message": message,
                     "order_id": order_id,
                     "status": "open",
-                }
+                },
             )
             .execute(),
         )
@@ -55,7 +57,7 @@ class ChatRepository(BaseRepository):
     async def get_ticket(self, ticket_id: str) -> dict[str, Any] | None:
         """Get support ticket by ID."""
         result = await cast(
-            Awaitable[Any],
+            "Awaitable[Any]",
             self.client.table("support_tickets").select("*").eq("id", ticket_id).execute(),
         )
         return result.data[0] if result.data else None
@@ -63,19 +65,19 @@ class ChatRepository(BaseRepository):
     async def get_user_tickets(self, user_id: str) -> list[dict[str, Any]]:
         """Get user's support tickets."""
         result = await cast(
-            Awaitable[Any],
+            "Awaitable[Any]",
             self.client.table("support_tickets")
             .select("*")
             .eq("user_id", user_id)
             .order("created_at", desc=True)
             .execute(),
         )
-        return cast(list[dict[str, Any]], result.data)
+        return cast("list[dict[str, Any]]", result.data)
 
     async def update_ticket_status(self, ticket_id: str, status: str) -> None:
         """Update ticket status."""
         await cast(
-            Awaitable[Any],
+            "Awaitable[Any]",
             self.client.table("support_tickets")
             .update({"status": status})
             .eq("id", ticket_id)
@@ -85,7 +87,7 @@ class ChatRepository(BaseRepository):
     async def add_ticket_message(self, ticket_id: str, sender: str, message: str) -> None:
         """Add message to ticket."""
         await cast(
-            Awaitable[Any],
+            "Awaitable[Any]",
             self.client.table("ticket_messages")
             .insert({"ticket_id": ticket_id, "sender": sender, "message": message})
             .execute(),

@@ -1,5 +1,4 @@
-"""
-Admin Broadcast Router
+"""Admin Broadcast Router.
 
 Allows admin to send messages to all users via Telegram bots.
 All methods use async/await with supabase-py v2.
@@ -30,11 +29,11 @@ class BroadcastRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=4096)
     target_bot: str = Field(default="main", description="Target bot: 'main', 'discount', or 'all'")
     filter_language: str | None = Field(
-        None, description="Filter users by language_code (ru, en, etc)"
+        None, description="Filter users by language_code (ru, en, etc)",
     )
     filter_has_orders: bool | None = Field(None, description="Filter users who have made orders")
     preview_only: bool = Field(
-        default=False, description="If true, only return count of target users"
+        default=False, description="If true, only return count of target users",
     )
     parse_mode: str = Field(default="HTML", description="Telegram parse mode: HTML or Markdown")
 
@@ -50,20 +49,19 @@ class BroadcastResult(BaseModel):
 
 
 async def send_telegram_message(
-    bot_token: str, chat_id: int, text: str, parse_mode: str = "HTML"
+    bot_token: str, chat_id: int, text: str, parse_mode: str = "HTML",
 ) -> bool:
     """Send a single message via Telegram Bot API.
 
     Wrapper around consolidated telegram_messaging service for backward compatibility.
     """
     return await _send_telegram_message(
-        chat_id=chat_id, text=text, parse_mode=parse_mode, bot_token=bot_token
+        chat_id=chat_id, text=text, parse_mode=parse_mode, bot_token=bot_token,
     )
 
 
 async def _get_target_users(db, request: BroadcastRequest) -> list[dict]:
-    """
-    Get list of target users based on broadcast filters.
+    """Get list of target users based on broadcast filters.
 
     Args:
         db: Database instance
@@ -71,6 +69,7 @@ async def _get_target_users(db, request: BroadcastRequest) -> list[dict]:
 
     Returns:
         List of user dicts with telegram_id
+
     """
     query = db.client.table("users").select("telegram_id, language_code")
 
@@ -139,7 +138,7 @@ async def _send_broadcast_messages(
 
         # Try each bot token
         message_sent = False
-        for bot_name, bot_token in bot_tokens:
+        for _bot_name, bot_token in bot_tokens:
             success = await send_telegram_message(bot_token, telegram_id, message, parse_mode)
             if success:
                 message_sent = True
@@ -160,15 +159,16 @@ async def _send_broadcast_messages(
 
 @router.post("", response_model=BroadcastResult)
 async def send_broadcast(request: BroadcastRequest, admin_user=Depends(verify_admin)):
-    """
-    Send broadcast message to users.
+    """Send broadcast message to users.
 
-    Parameters:
+    Parameters
+    ----------
     - message: Text to send (supports HTML)
     - target_bot: 'main', 'discount', or 'all'
     - filter_language: Optional language filter (ru, en, etc)
     - filter_has_orders: Optional filter for users with orders
     - preview_only: If true, only return count without sending
+
     """
     db = get_database()
 
@@ -189,17 +189,17 @@ async def send_broadcast(request: BroadcastRequest, admin_user=Depends(verify_ad
     bot_tokens = _get_bot_tokens(request.target_bot)
     if not bot_tokens:
         raise HTTPException(
-            status_code=400, detail=f"No bot token configured for target: {request.target_bot}"
+            status_code=400, detail=f"No bot token configured for target: {request.target_bot}",
         )
 
     # Send messages with rate limiting
     sent_count, failed_count, failed_user_ids = await _send_broadcast_messages(
-        target_users, bot_tokens, request.message, request.parse_mode
+        target_users, bot_tokens, request.message, request.parse_mode,
     )
 
     logger.info(
         f"Broadcast completed: sent={sent_count}, failed={failed_count}, "
-        f"target_bot={request.target_bot}, admin={admin_user.username if admin_user else 'unknown'}"
+        f"target_bot={request.target_bot}, admin={admin_user.username if admin_user else 'unknown'}",
     )
 
     return BroadcastResult(
@@ -230,7 +230,7 @@ async def get_broadcast_stats(admin_user=Depends(verify_admin)):
     # Users with orders
     orders_result = await db.client.table("orders").select("user_telegram_id").execute()
     unique_buyers = len(
-        {o["user_telegram_id"] for o in (orders_result.data or []) if o.get("user_telegram_id")}
+        {o["user_telegram_id"] for o in (orders_result.data or []) if o.get("user_telegram_id")},
     )
 
     # Bot availability

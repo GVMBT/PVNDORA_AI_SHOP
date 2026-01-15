@@ -1,6 +1,5 @@
-"""
-Discount Offers Cron Job
-Schedule: 0 12 * * * (12:00 UTC daily)
+"""Discount Offers Cron Job
+Schedule: 0 12 * * * (12:00 UTC daily).
 
 Tasks:
 1. Send offers to loyal customers (3+ purchases)
@@ -31,9 +30,7 @@ app = FastAPI()
 
 @app.get("/api/cron/discount_offers")
 async def discount_offers_entrypoint(request: Request):
-    """
-    Vercel Cron entrypoint for discount offers.
-    """
+    """Vercel Cron entrypoint for discount offers."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
         return JSONResponse({"error": "Unauthorized"}, status_code=401)

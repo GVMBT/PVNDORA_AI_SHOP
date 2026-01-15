@@ -17,7 +17,7 @@ class CartItem:
     instant_quantity: int  # Available in stock
     prepaid_quantity: int  # Needs to be ordered
     unit_price: Decimal
-    discount_percent: Decimal = Decimal("0")
+    discount_percent: Decimal = Decimal(0)
     added_at: str = ""
 
     def __post_init__(self):
@@ -30,7 +30,7 @@ class CartItem:
     @property
     def final_price(self) -> Decimal:
         """Price after discount for a single unit."""
-        multiplier = subtract(Decimal("1"), divide(self.discount_percent, Decimal("100")))
+        multiplier = subtract(Decimal(1), divide(self.discount_percent, Decimal(100)))
         return round_money(multiply(self.unit_price, multiplier))
 
     @property
@@ -73,7 +73,7 @@ class Cart:
     user_telegram_id: int
     items: list[CartItem]
     promo_code: str | None = None
-    promo_discount_percent: Decimal = Decimal("0")
+    promo_discount_percent: Decimal = Decimal(0)
     created_at: str = ""
     updated_at: str = ""
 
@@ -95,7 +95,7 @@ class Cart:
         """Total for items available instantly."""
         return sum(
             (item.final_price * item.instant_quantity for item in self.items),
-            Decimal("0"),
+            Decimal(0),
         )
 
     @property
@@ -103,14 +103,14 @@ class Cart:
         """Total for items that need to be ordered."""
         return sum(
             (item.final_price * item.prepaid_quantity for item in self.items),
-            Decimal("0"),
+            Decimal(0),
         )
 
     @property
     def subtotal(self) -> Decimal:
         """Subtotal after item-level discounts but before cart-level promo code."""
         # Calculate subtotal with item-level discounts (from CartItem.final_price)
-        return sum((item.total_price for item in self.items), Decimal("0"))
+        return sum((item.total_price for item in self.items), Decimal(0))
 
     @property
     def total(self) -> Decimal:
@@ -125,7 +125,7 @@ class Cart:
 
         # Step 2: Apply cart-level promo discount (if promo_code is cart-wide, not product-specific)
         if self.promo_discount_percent > 0:
-            multiplier = subtract(Decimal("1"), divide(self.promo_discount_percent, Decimal("100")))
+            multiplier = subtract(Decimal(1), divide(self.promo_discount_percent, Decimal(100)))
             return round_money(multiply(subtotal_after_items, multiplier))
 
         return subtotal_after_items

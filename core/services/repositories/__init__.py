@@ -1,5 +1,4 @@
-"""
-Repository Pattern for Database Operations
+"""Repository Pattern for Database Operations.
 
 Provides clean separation of concerns:
 - UserRepository: User CRUD, auth, activity

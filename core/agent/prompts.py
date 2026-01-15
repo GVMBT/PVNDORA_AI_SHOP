@@ -1,5 +1,4 @@
-"""
-System Prompts for PVNDORA Shop Agent
+"""System Prompts for PVNDORA Shop Agent.
 
 Dynamic agent — all business data comes from database via tools.
 NO hardcoded values for prices, percentages, thresholds, warranties.
@@ -159,15 +158,15 @@ def get_system_prompt(
 
 
 async def format_product_catalog(
-    products: list, language: str = "en", _exchange_rate: float = 1.0
+    products: list, language: str = "en", _exchange_rate: float = 1.0,
 ) -> str:
-    """
-    Format product list for system prompt with proper currency conversion.
+    """Format product list for system prompt with proper currency conversion.
 
     Args:
         products: List of product objects
         language: User's language code
         exchange_rate: Exchange rate for user's currency (1 USD = X currency)
+
     """
     if not products:
         return "No products available."

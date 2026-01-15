@@ -1,5 +1,4 @@
-"""
-Money Utilities - Safe Decimal operations for monetary values.
+"""Money Utilities - Safe Decimal operations for monetary values.
 
 Avoids float precision issues by using Decimal throughout.
 """
@@ -10,21 +9,21 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 MONEY_PRECISION = Decimal("0.01")
 
 # Precision for integer currencies (RUB, UAH, etc.)
-INTEGER_PRECISION = Decimal("1")
+INTEGER_PRECISION = Decimal(1)
 
 
 def to_decimal(value: str | float | Decimal | None) -> Decimal:
-    """
-    Convert any value to Decimal safely.
+    """Convert any value to Decimal safely.
 
     Args:
         value: Value to convert (str, int, float, Decimal, or None)
 
     Returns:
         Decimal representation of the value, or Decimal("0") if None/invalid
+
     """
     if value is None:
-        return Decimal("0")
+        return Decimal(0)
 
     if isinstance(value, Decimal):
         return value
@@ -36,12 +35,11 @@ def to_decimal(value: str | float | Decimal | None) -> Decimal:
             return Decimal(str(value))
         return Decimal(value)
     except (InvalidOperation, ValueError, TypeError):
-        return Decimal("0")
+        return Decimal(0)
 
 
 def to_kopecks(value: str | float | Decimal) -> int:
-    """
-    Convert decimal amount to minor units (kopecks/cents).
+    """Convert decimal amount to minor units (kopecks/cents).
 
     Used for payment APIs that expect integer minor units.
 
@@ -50,27 +48,27 @@ def to_kopecks(value: str | float | Decimal) -> int:
 
     Returns:
         Amount in minor units (e.g., 10050 kopecks)
+
     """
     decimal_value = to_decimal(value)
     return int((decimal_value * 100).to_integral_value(rounding=ROUND_HALF_UP))
 
 
 def from_kopecks(kopecks: int) -> Decimal:
-    """
-    Convert minor units (kopecks/cents) to decimal amount.
+    """Convert minor units (kopecks/cents) to decimal amount.
 
     Args:
         kopecks: Amount in minor units (e.g., 10050)
 
     Returns:
         Amount in major units as Decimal (e.g., 100.50)
+
     """
     return Decimal(kopecks) / Decimal(100)
 
 
 def round_money(value: str | float | Decimal, to_int: bool = False) -> Decimal:
-    """
-    Round monetary value to appropriate precision.
+    """Round monetary value to appropriate precision.
 
     Args:
         value: Value to round
@@ -78,6 +76,7 @@ def round_money(value: str | float | Decimal, to_int: bool = False) -> Decimal:
 
     Returns:
         Rounded Decimal value
+
     """
     decimal_value = to_decimal(value)
     precision = INTEGER_PRECISION if to_int else MONEY_PRECISION
@@ -85,8 +84,7 @@ def round_money(value: str | float | Decimal, to_int: bool = False) -> Decimal:
 
 
 def format_money(value: str | float | Decimal, currency: str = "USD") -> str:
-    """
-    Format monetary value with currency symbol.
+    """Format monetary value with currency symbol.
 
     Args:
         value: Value to format
@@ -94,6 +92,7 @@ def format_money(value: str | float | Decimal, currency: str = "USD") -> str:
 
     Returns:
         Formatted string with currency symbol
+
     """
     decimal_value = to_decimal(value)
 
@@ -115,8 +114,7 @@ def format_money(value: str | float | Decimal, currency: str = "USD") -> str:
 
 
 def to_float(value: str | float | Decimal) -> float:
-    """
-    Convert Decimal to float for JSON serialization or external APIs.
+    """Convert Decimal to float for JSON serialization or external APIs.
 
     Use only at API boundaries, not for internal calculations.
 
@@ -125,6 +123,7 @@ def to_float(value: str | float | Decimal) -> float:
 
     Returns:
         Float representation
+
     """
     return float(to_decimal(value))
 
@@ -148,7 +147,7 @@ def divide(value: str | float | Decimal, divisor: str | float | Decimal) -> Deci
     """Safe division of monetary value."""
     d = to_decimal(divisor)
     if d == 0:
-        return Decimal("0")
+        return Decimal(0)
     return to_decimal(value) / d
 
 
@@ -158,11 +157,11 @@ def percent(value: str | float | Decimal, percent_value: str | float | Decimal) 
 
 
 def compare(a: str | float | Decimal, b: str | float | Decimal) -> int:
-    """
-    Compare two monetary values.
+    """Compare two monetary values.
 
     Returns:
         -1 if a < b, 0 if a == b, 1 if a > b
+
     """
     diff = to_decimal(a) - to_decimal(b)
     if diff < 0:

@@ -32,6 +32,7 @@ class OrderRepository(BaseRepository):
 
         Args:
             source_channel: Order origin - 'premium' (PVNDORA), 'discount' (discount bot), 'migrated' (converted user)
+
         """
         data = {
             "user_id": user_id,
@@ -57,8 +58,9 @@ class OrderRepository(BaseRepository):
             logger = logging.getLogger(__name__)
             # Don't log full data dict (may contain user-controlled data)
             logger.error("ERROR: product_id found in order data")
+            msg = "product_id should not be in order data - it was removed from orders table"
             raise ValueError(
-                "product_id should not be in order data - it was removed from orders table"
+                msg,
             )
 
         # Remove any deprecated fields that might accidentally be in data
@@ -85,7 +87,7 @@ class OrderRepository(BaseRepository):
         return Order(**result.data[0]) if result.data else None
 
     async def update_status(
-        self, order_id: str, status: str, expires_at: datetime | None = None
+        self, order_id: str, status: str, expires_at: datetime | None = None,
     ) -> None:
         """Update order status.
 
@@ -116,6 +118,7 @@ class OrderRepository(BaseRepository):
             offset: Pagination offset
             source_channel: Filter by source_channel (e.g. 'discount', 'premium')
             exclude_source_channel: Exclude orders with this source_channel
+
         """
         query = self.client.table("orders").select("*").eq("user_id", user_id)
 

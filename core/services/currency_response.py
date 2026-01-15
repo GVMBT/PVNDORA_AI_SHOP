@@ -1,5 +1,4 @@
-"""
-Unified Currency Response System - RUB Only
+"""Unified Currency Response System - RUB Only.
 
 This module provides CurrencyFormatter for API responses.
 All monetary values are stored and displayed in RUB.
@@ -37,10 +36,9 @@ logger = get_logger(__name__)
 
 
 def round_referral_threshold(
-    threshold: float, target_currency: str = "RUB", exchange_rate: float = 1.0
+    threshold: float, target_currency: str = "RUB", exchange_rate: float = 1.0,
 ) -> float:
-    """
-    Return referral threshold in RUB.
+    """Return referral threshold in RUB.
     All thresholds are now stored in RUB directly.
     """
     return float(threshold)
@@ -56,8 +54,7 @@ class AmountResponse(TypedDict):
 
 @dataclass
 class CurrencyFormatter:
-    """
-    Unified currency formatter for API responses.
+    """Unified currency formatter for API responses.
 
     Simplified for RUB-only system.
     """
@@ -76,8 +73,7 @@ class CurrencyFormatter:
         db_user=None,  # Kept for backward compatibility
         **kwargs,  # Accept any additional kwargs for backward compatibility
     ) -> "CurrencyFormatter":
-        """
-        Factory method to create CurrencyFormatter.
+        """Factory method to create CurrencyFormatter.
 
         After RUB-only migration: Always returns RUB formatter (no conversion needed).
         All parameters are kept for backward compatibility but ignored.
@@ -101,8 +97,7 @@ class CurrencyFormatter:
         return currency_service.format_price(amount, "RUB")
 
     def format_balance(self, amount: float | Decimal, currency: str = "RUB") -> str:
-        """
-        Format a balance amount with RUB symbol.
+        """Format a balance amount with RUB symbol.
 
         Args:
             amount: The amount to format (in RUB)
@@ -110,6 +105,7 @@ class CurrencyFormatter:
 
         Returns:
             Formatted string like "1 000 ₽"
+
         """
         if amount is None:
             amount = 0
@@ -117,8 +113,7 @@ class CurrencyFormatter:
         return currency_service.format_price(amount, "RUB")
 
     def format_amount(self, amount: float | Decimal | str | None) -> AmountResponse:
-        """
-        Format an amount for API response.
+        """Format an amount for API response.
 
         Returns dict with amount in RUB.
         Note: 'usd' key is kept for backwards compatibility but contains RUB value.
@@ -135,9 +130,7 @@ class CurrencyFormatter:
         }
 
     def with_currency(self, response: dict[str, Any]) -> dict[str, Any]:
-        """
-        Add currency metadata to any response dict.
-        """
+        """Add currency metadata to any response dict."""
         result = {
             **response,
             "currency": "RUB",
@@ -159,9 +152,7 @@ class CurrencyFormatter:
         original_price: float | Decimal | None = None,
         discount_percent: int = 0,
     ) -> dict[str, Any]:
-        """
-        Format a complete price response for products/cart items.
-        """
+        """Format a complete price response for products/cart items."""
         price_rub = self.convert(price)
         response = {
             "price_usd": price_rub,  # Backwards compat - actually RUB
@@ -182,15 +173,13 @@ class CurrencyFormatter:
 
 # Convenience function
 def get_currency_formatter(
-    user_telegram_id: int | None = None, db=None, redis=None, **kwargs
+    user_telegram_id: int | None = None, db=None, redis=None, **kwargs,
 ) -> CurrencyFormatter:
     """Get a CurrencyFormatter (always RUB)."""
     return CurrencyFormatter.create(user_telegram_id, db, redis, **kwargs)
 
 
 def format_price_simple(amount: float | Decimal, currency: str = "RUB") -> str:
-    """
-    Simple price formatting in RUB.
-    """
+    """Simple price formatting in RUB."""
     currency_service = get_currency_service()
     return currency_service.format_price(amount, "RUB")

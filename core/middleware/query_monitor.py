@@ -1,5 +1,4 @@
-"""
-Runtime Query Monitor Middleware
+"""Runtime Query Monitor Middleware.
 
 Отслеживает все Supabase запросы в runtime и обнаруживает:
 - N+1 queries (повторяющиеся запросы)
@@ -20,9 +19,8 @@ is sufficient.
 import time
 import uuid
 from collections import defaultdict
-from typing import Dict, List
 
-from fastapi import Request, Response
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from core.logging import get_logger
@@ -31,26 +29,25 @@ logger = get_logger(__name__)
 
 
 class QueryMonitorMiddleware(BaseHTTPMiddleware):
-    """
-    Middleware для мониторинга DB запросов в runtime.
+    """Middleware для мониторинга DB запросов в runtime.
 
     Обнаруживает:
     - N+1 queries (одинаковые запросы повторяются много раз)
     - Chatty logic (слишком много запросов в одном HTTP запросе)
     """
 
-    def __init__(self, app, threshold_nplusone: int = 5, threshold_chatty: int = 20):
-        """
-        Args:
-            app: FastAPI application
-            threshold_nplusone: Минимальное количество повторений для N+1 (default: 5)
-            threshold_chatty: Максимальное количество запросов для Chatty Logic (default: 20)
+    def __init__(self, app, threshold_nplusone: int = 5, threshold_chatty: int = 20) -> None:
+        """Args:
+        app: FastAPI application
+        threshold_nplusone: Минимальное количество повторений для N+1 (default: 5)
+        threshold_chatty: Максимальное количество запросов для Chatty Logic (default: 20).
+
         """
         super().__init__(app)
         self.threshold_nplusone = threshold_nplusone
         self.threshold_chatty = threshold_chatty
         # Храним запросы по request_id
-        self.request_queries: Dict[str, List[dict]] = defaultdict(list)
+        self.request_queries: dict[str, list[dict]] = defaultdict(list)
 
     async def dispatch(self, request: Request, call_next):
         """Обрабатывает HTTP запрос и отслеживает DB запросы."""
@@ -71,7 +68,7 @@ class QueryMonitorMiddleware(BaseHTTPMiddleware):
 
         return response
 
-    async def _analyze_queries(self, request_id: str, request: Request):
+    async def _analyze_queries(self, request_id: str, request: Request) -> None:
         """Анализирует запросы на наличие проблем."""
         queries = self.request_queries.get(request_id, [])
 
@@ -83,11 +80,11 @@ class QueryMonitorMiddleware(BaseHTTPMiddleware):
             duration = time.time() - request.state.query_start_time
             logger.warning(
                 f"[QueryMonitor] Chatty Logic detected in {request.url.path} "
-                f"(Request ID: {request_id[:8]}): {len(queries)} queries in {duration:.2f}s"
+                f"(Request ID: {request_id[:8]}): {len(queries)} queries in {duration:.2f}s",
             )
             logger.warning(
                 f"[QueryMonitor] Consider using batch operations. "
-                f"Queries: {self._summarize_queries(queries)}"
+                f"Queries: {self._summarize_queries(queries)}",
             )
 
         # Проверка N+1 (повторяющиеся запросы)
@@ -96,18 +93,18 @@ class QueryMonitorMiddleware(BaseHTTPMiddleware):
             for issue in nplusone_issues:
                 logger.warning(
                     f"[QueryMonitor] N+1 Query detected in {request.url.path} "
-                    f"(Request ID: {request_id[:8]}): {issue['table']} queried {issue['count']} times"
+                    f"(Request ID: {request_id[:8]}): {issue['table']} queried {issue['count']} times",
                 )
                 logger.warning(
                     f"[QueryMonitor] Pattern: {issue['pattern']}. "
-                    f"Suggestion: Use batch query with .in_() filter"
+                    f"Suggestion: Use batch query with .in_() filter",
                 )
 
         # Очищаем данные после анализа
         if request_id in self.request_queries:
             del self.request_queries[request_id]
 
-    def _detect_nplusone(self, queries: List[dict]) -> List[dict]:
+    def _detect_nplusone(self, queries: list[dict]) -> list[dict]:
         """Обнаруживает N+1 паттерны."""
         # Группируем запросы по таблице и фильтрам
         query_groups = defaultdict(list)
@@ -116,7 +113,7 @@ class QueryMonitorMiddleware(BaseHTTPMiddleware):
             key = self._get_query_key(q)
             query_groups[key].append(q)
 
-        # Находим группы с большим количеством повторений
+        # Find groups with large number of repetitions
         issues = []
         for key, group_queries in query_groups.items():
             if len(group_queries) >= self.threshold_nplusone:
@@ -128,7 +125,7 @@ class QueryMonitorMiddleware(BaseHTTPMiddleware):
                         "count": len(group_queries),
                         "pattern": key,
                         "example": example.get("query", ""),
-                    }
+                    },
                 )
 
         return issues
@@ -143,7 +140,7 @@ class QueryMonitorMiddleware(BaseHTTPMiddleware):
         filter_key = "_".join(sorted(f"{k}={v}" for k, v in filters.items() if k != "id"))
         return f"{table}_{operation}_{filter_key}"
 
-    def _summarize_queries(self, queries: List[dict]) -> str:
+    def _summarize_queries(self, queries: list[dict]) -> str:
         """Создает краткое описание запросов."""
         table_counts = defaultdict(int)
         for q in queries:
@@ -154,10 +151,9 @@ class QueryMonitorMiddleware(BaseHTTPMiddleware):
         return f"Tables: {summary}"
 
     def log_query(
-        self, request_id: str, table: str, operation: str, filters: dict | None = None, query: str = ""
-    ):
-        """
-        Логирует DB запрос (вызывается из Database класса).
+        self, request_id: str, table: str, operation: str, filters: dict | None = None, query: str = "",
+    ) -> None:
+        """Логирует DB запрос (вызывается из Database класса).
 
         Args:
             request_id: ID HTTP запроса (из request.state.query_monitor_id)
@@ -165,6 +161,7 @@ class QueryMonitorMiddleware(BaseHTTPMiddleware):
             operation: Тип операции (select, insert, update, delete, rpc)
             filters: Фильтры запроса
             query: Полный текст запроса (опционально)
+
         """
         if not request_id:
             return
@@ -176,7 +173,7 @@ class QueryMonitorMiddleware(BaseHTTPMiddleware):
                 "filters": filters or {},
                 "query": query,
                 "timestamp": time.time(),
-            }
+            },
         )
 
 
@@ -189,7 +186,7 @@ def get_query_monitor() -> QueryMonitorMiddleware | None:
     return _query_monitor
 
 
-def set_query_monitor(monitor: QueryMonitorMiddleware):
+def set_query_monitor(monitor: QueryMonitorMiddleware) -> None:
     """Установить глобальный экземпляр QueryMonitor."""
     global _query_monitor
     _query_monitor = monitor

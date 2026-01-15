@@ -1,5 +1,4 @@
-"""
-FSM States for Bot Conversation Flows
+"""FSM States for Bot Conversation Flows.
 
 Defines states for multi-step interactions:
 - Support ticket creation

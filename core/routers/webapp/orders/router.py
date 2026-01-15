@@ -1,5 +1,4 @@
-"""
-Orders Router Module
+"""Orders Router Module.
 
 Main router for order-related endpoints.
 Combines CRUD and payment endpoints.

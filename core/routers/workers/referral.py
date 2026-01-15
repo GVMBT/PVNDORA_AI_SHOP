@@ -1,5 +1,4 @@
-"""
-Referral Workers
+"""Referral Workers.
 
 QStash workers for referral program operations.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
@@ -32,19 +31,19 @@ async def _queue_replacement_for_stock(db, ticket_id: str) -> None:
             {
                 "status": "queued",
                 "notes": "Queued for auto-delivery when stock available",
-            }
+            },
         )
         .eq("id", ticket_id)
         .execute()
     )
 
     logger.info(
-        "Ticket %s queued for replacement when stock available", sanitize_id_for_logging(ticket_id)
+        "Ticket %s queued for replacement when stock available", sanitize_id_for_logging(ticket_id),
     )
 
 
 async def _notify_replacement_queued(
-    notification_service, user_telegram_id: int | None, _product_id: str
+    notification_service, user_telegram_id: int | None, _product_id: str,
 ) -> None:
     """Send notification about queued replacement. product_id kept for API consistency."""
     if not user_telegram_id:
@@ -102,7 +101,7 @@ async def _get_order_item_for_replacement(db, item_id: str) -> tuple[dict | None
 
     if not item_res.data:
         logger.error(
-            "process-replacement: Order item %s not found", sanitize_id_for_logging(item_id)
+            "process-replacement: Order item %s not found", sanitize_id_for_logging(item_id),
         )
         return None, {"error": "Order item not found"}
 
@@ -117,7 +116,7 @@ async def _get_order_item_for_replacement(db, item_id: str) -> tuple[dict | None
 
 
 async def _reserve_stock_for_replacement(
-    db, product_id: str, now
+    db, product_id: str, now,
 ) -> tuple[dict | None, dict | None]:
     """Find and reserve stock for replacement (reduces complexity)."""
     stock_res = (
@@ -180,7 +179,7 @@ async def _rollback_stock_reservation(db, stock_id: str) -> None:
 
 
 async def _update_order_item_with_replacement(
-    db, item_id: str, stock_id: str, stock_content: str, expires_at_str: str | None, now
+    db, item_id: str, stock_id: str, stock_content: str, expires_at_str: str | None, now,
 ) -> dict | None:
     """Update order item with replacement content (reduces complexity)."""
     update_data = {
@@ -217,7 +216,7 @@ async def _close_replacement_ticket(db, ticket_id: str) -> None:
             {
                 "status": "closed",
                 "admin_comment": "Replacement completed automatically. New account delivered.",
-            }
+            },
         )
         .eq("id", ticket_id)
         .execute()
@@ -225,7 +224,7 @@ async def _close_replacement_ticket(db, ticket_id: str) -> None:
 
 
 async def _notify_replacement_success(
-    notification_service, user_telegram_id: int | None, product_name: str, item_id: str
+    notification_service, user_telegram_id: int | None, product_name: str, item_id: str,
 ) -> None:
     """Send notification about successful replacement (reduces complexity)."""
     if not user_telegram_id:
@@ -264,7 +263,7 @@ async def _send_level_bonus_notification(
     level: int,
     bonus_amount: float,
     purchase_amount: float,
-):
+) -> None:
     """Send notification for a specific level bonus (reduces cognitive complexity)."""
     bonus_record = (
         await db.client.table("referral_bonuses")
@@ -297,7 +296,7 @@ async def _send_level_bonus_notification(
 
 
 async def _send_referral_bonus_notifications(
-    db, notification_service, bonuses: dict, buyer_id: str, purchase_amount: float
+    db, notification_service, bonuses: dict, buyer_id: str, purchase_amount: float,
 ) -> None:
     """Send notifications to referrers about their earned bonuses."""
     if not bonuses or not bonuses.get("success"):
@@ -332,7 +331,7 @@ async def _unlock_referral_program(
     is_partner: bool,
     telegram_id: int | None,
     notification_service,
-):
+) -> None:
     """Unlock referral program for first purchase (reduces cognitive complexity)."""
     if was_unlocked:
         return
@@ -359,14 +358,14 @@ async def _send_level_up_notification(
     partner_level_override: int | None,
     user_id: str,
     notification_service,
-):
+) -> None:
     """Send level up notification if applicable (reduces cognitive complexity)."""
     if not (level_up and new_level > 0 and telegram_id):
         return
 
     if is_partner and partner_level_override == 3:
         logger.debug(
-            "Skipping level_up notification for VIP partner %s (already has level 3)", user_id
+            "Skipping level_up notification for VIP partner %s (already has level 3)", user_id,
         )
         return
 
@@ -375,8 +374,7 @@ async def _send_level_up_notification(
 
 @referral_router.post("/calculate-referral")
 async def worker_calculate_referral(request: Request):
-    """
-    QStash Worker: Calculate and apply referral bonuses.
+    """QStash Worker: Calculate and apply referral bonuses.
 
     Logic:
     1. Update buyer's turnover (in USD) - recalculates as own orders + referral orders (may unlock new levels)
@@ -396,7 +394,7 @@ async def worker_calculate_referral(request: Request):
     order = (
         await db.client.table("orders")
         .select(
-            "amount, user_id, user_telegram_id, users(referrer_id, referral_program_unlocked, is_partner, partner_level_override)"
+            "amount, user_id, user_telegram_id, users(referrer_id, referral_program_unlocked, is_partner, partner_level_override)",
         )
         .eq("id", order_id)
         .single()
@@ -425,7 +423,7 @@ async def worker_calculate_referral(request: Request):
 
     # Unlock referral program
     await _unlock_referral_program(
-        db, user_id, was_unlocked, is_partner, telegram_id, notification_service
+        db, user_id, was_unlocked, is_partner, telegram_id, notification_service,
     )
 
     # Send level up notification
@@ -487,8 +485,7 @@ async def worker_calculate_referral(request: Request):
 
 @referral_router.post("/process-replacement")
 async def worker_process_replacement(request: Request):
-    """
-    QStash Worker: Process account replacement for approved replacement tickets.
+    """QStash Worker: Process account replacement for approved replacement tickets.
 
     Finds new stock item for the same product and updates order_item with new credentials.
     """
@@ -556,7 +553,7 @@ async def worker_process_replacement(request: Request):
 
     if not product_res.data:
         logger.error(
-            "process-replacement: Product %s not found", sanitize_id_for_logging(product_id)
+            "process-replacement: Product %s not found", sanitize_id_for_logging(product_id),
         )
         await _rollback_stock_reservation(db, stock_id)
         return {"error": "Product not found"}
@@ -572,7 +569,7 @@ async def worker_process_replacement(request: Request):
 
     # Update order item with replacement
     update_error = await _update_order_item_with_replacement(
-        db, item_id, stock_id, stock_content, expires_at_str, now
+        db, item_id, stock_id, stock_content, expires_at_str, now,
     )
     if update_error:
         await _rollback_stock_reservation(db, stock_id)

@@ -22,8 +22,7 @@ GATEWAY_NAMES: dict[str, str] = {
 
 
 def get_gateway_config(_gateway: str) -> dict[str, str | None]:
-    """
-    Get all environment variables for a gateway.
+    """Get all environment variables for a gateway.
 
     Returns dict with env var names as keys and their values (or None if not set).
     """
@@ -36,8 +35,7 @@ def get_gateway_config(_gateway: str) -> dict[str, str | None]:
 
 
 def validate_gateway_config(gateway: str) -> str:
-    """
-    Validate payment gateway environment configuration.
+    """Validate payment gateway environment configuration.
 
     Args:
         gateway: Gateway name (will be normalized)
@@ -47,6 +45,7 @@ def validate_gateway_config(gateway: str) -> str:
 
     Raises:
         HTTPException: If gateway is not configured
+
     """
     gateway = normalize_gateway(gateway)
     config = get_gateway_config(gateway)
@@ -62,7 +61,7 @@ def validate_gateway_config(gateway: str) -> str:
         env_vars = GATEWAY_ENV_REQUIREMENTS.get(gateway, ())
         logger.error(f"Payment gateway {name} not configured. Missing: {missing}")
         raise HTTPException(
-            status_code=500, detail=f"{name} не настроен. Настройте: {', '.join(env_vars)}"
+            status_code=500, detail=f"{name} не настроен. Настройте: {', '.join(env_vars)}",
         )
 
     return gateway

@@ -1,4 +1,4 @@
-"""Telegram WebApp initData Validation"""
+"""Telegram WebApp initData Validation."""
 
 import hashlib
 import hmac
@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 
 class TelegramUser(BaseModel):
-    """Telegram user data from initData"""
+    """Telegram user data from initData."""
 
     id: int
     first_name: str
@@ -21,8 +21,7 @@ class TelegramUser(BaseModel):
 
 
 def validate_telegram_init_data(init_data: str, bot_token: str) -> bool:
-    """
-    Validate Telegram Mini App initData using HMAC-SHA256.
+    """Validate Telegram Mini App initData using HMAC-SHA256.
 
     Args:
         init_data: The initData string from Telegram WebApp
@@ -30,6 +29,7 @@ def validate_telegram_init_data(init_data: str, bot_token: str) -> bool:
 
     Returns:
         True if valid, False otherwise
+
     """
     try:
         parsed = parse_qs(init_data)
@@ -52,7 +52,7 @@ def validate_telegram_init_data(init_data: str, bot_token: str) -> bool:
 
         # Calculate hash
         calculated_hash = hmac.new(
-            secret_key, data_check_string.encode(), hashlib.sha256
+            secret_key, data_check_string.encode(), hashlib.sha256,
         ).hexdigest()
 
         return hmac.compare_digest(calculated_hash, received_hash)
@@ -61,14 +61,14 @@ def validate_telegram_init_data(init_data: str, bot_token: str) -> bool:
 
 
 def extract_user_from_init_data(init_data: str) -> TelegramUser | None:
-    """
-    Extract user information from validated initData.
+    """Extract user information from validated initData.
 
     Args:
         init_data: The initData string from Telegram WebApp
 
     Returns:
         TelegramUser object or None if parsing fails
+
     """
     try:
         parsed = parse_qs(init_data)
@@ -84,8 +84,7 @@ def extract_user_from_init_data(init_data: str) -> TelegramUser | None:
 
 
 def get_init_data_param(init_data: str, param: str) -> str | None:
-    """
-    Get a specific parameter from initData.
+    """Get a specific parameter from initData.
 
     Args:
         init_data: The initData string
@@ -93,6 +92,7 @@ def get_init_data_param(init_data: str, param: str) -> str | None:
 
     Returns:
         Parameter value or None
+
     """
     try:
         parsed = parse_qs(init_data)

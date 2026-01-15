@@ -82,7 +82,7 @@ class InsuranceService:
     HOLD_FOR_REVIEW_THRESHOLD = 60  # Above this, hold for manual review
     MAX_REPLACEMENTS_PER_MONTH = 2  # Per user, across all orders
 
-    def __init__(self, db_client):
+    def __init__(self, db_client) -> None:
         self.client = db_client
 
     # ==================== Insurance Options ====================
@@ -133,7 +133,7 @@ class InsuranceService:
                 if product_duration and option.duration_days > product_duration:
                     logger.debug(
                         f"Skipping insurance option {option.id}: "
-                        f"{option.duration_days}d > product {product_duration}d"
+                        f"{option.duration_days}d > product {product_duration}d",
                     )
                     continue
                 options.append(option)
@@ -144,7 +144,7 @@ class InsuranceService:
                 if product_duration and option.duration_days > product_duration:
                     logger.debug(
                         f"Skipping universal insurance option {option.id}: "
-                        f"{option.duration_days}d > product {product_duration}d"
+                        f"{option.duration_days}d > product {product_duration}d",
                     )
                     continue
                 options.append(option)
@@ -158,13 +158,13 @@ class InsuranceService:
             return []
 
     def calculate_insurance_price(
-        self, product_discount_price: float, insurance_option: InsuranceOption
+        self, product_discount_price: float, insurance_option: InsuranceOption,
     ) -> float:
         """Calculate insurance price based on product discount price and option percentage."""
         return round(product_discount_price * (insurance_option.price_percent / 100), 2)
 
     async def attach_insurance_to_order_item(
-        self, order_item_id: str, insurance_id: str, delivery_date: datetime | None = None
+        self, order_item_id: str, insurance_id: str, delivery_date: datetime | None = None,
     ) -> bool:
         """Attach insurance to an order item and set expiration."""
         try:
@@ -189,14 +189,14 @@ class InsuranceService:
             await (
                 self.client.table("order_items")
                 .update(
-                    {"insurance_id": insurance_id, "insurance_expires_at": expires_at.isoformat()}
+                    {"insurance_id": insurance_id, "insurance_expires_at": expires_at.isoformat()},
                 )
                 .eq("id", order_item_id)
                 .execute()
             )
 
             logger.info(
-                f"Attached insurance {insurance_id} to order_item {order_item_id}, expires {expires_at}"
+                f"Attached insurance {insurance_id} to order_item {order_item_id}, expires {expires_at}",
             )
             return True
         except Exception:
@@ -210,6 +210,7 @@ class InsuranceService:
 
         Returns:
             (is_valid, insurance_id, remaining_replacements)
+
         """
         try:
             result = (
@@ -227,7 +228,7 @@ class InsuranceService:
             expires_at_str = result.data.get("insurance_expires_at")
 
             if expires_at_str:
-                expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
+                expires_at = datetime.fromisoformat(expires_at_str)
                 if expires_at < datetime.now(UTC):
                     return (False, insurance_id, 0)
 
@@ -246,7 +247,7 @@ class InsuranceService:
 
             # Count used replacements via RPC
             count_result = await self.client.rpc(
-                "count_replacements", {"p_order_item_id": order_item_id}
+                "count_replacements", {"p_order_item_id": order_item_id},
             ).execute()
 
             used_replacements = count_result.data if count_result.data else 0
@@ -258,7 +259,7 @@ class InsuranceService:
             return (False, None, 0)
 
     async def request_replacement(
-        self, order_item_id: str, telegram_id: int, reason: str
+        self, order_item_id: str, telegram_id: int, reason: str,
     ) -> ReplacementResult:
         """Request a replacement under insurance.
 
@@ -286,7 +287,7 @@ class InsuranceService:
 
             # Check if user can request replacements via RPC
             can_request = await self.client.rpc(
-                "can_request_replacement", {"p_user_id": user_id}
+                "can_request_replacement", {"p_user_id": user_id},
             ).execute()
 
             if not can_request.data:
@@ -339,11 +340,11 @@ class InsuranceService:
             if abuse_score < self.AUTO_APPROVE_THRESHOLD and monthly_count == 0:
                 # Auto-approve for low-risk users with no prior replacements this month
                 return await self._process_auto_approval(
-                    order_item_id, insurance_id, old_stock_item_id, reason, abuse_score
+                    order_item_id, insurance_id, old_stock_item_id, reason, abuse_score,
                 )
             # Hold for review
             return await self._create_pending_replacement(
-                order_item_id, insurance_id, old_stock_item_id, reason, abuse_score
+                order_item_id, insurance_id, old_stock_item_id, reason, abuse_score,
             )
 
         except Exception as e:
@@ -446,7 +447,7 @@ class InsuranceService:
             )
 
             logger.info(
-                f"Auto-approved replacement {replacement_id} for order_item {order_item_id}"
+                f"Auto-approved replacement {replacement_id} for order_item {order_item_id}",
             )
 
             return ReplacementResult(
@@ -461,7 +462,7 @@ class InsuranceService:
         except Exception as e:
             logger.exception("Failed to process auto-approval")
             return ReplacementResult(
-                success=False, status="error", message=str(e), abuse_score=abuse_score
+                success=False, status="error", message=str(e), abuse_score=abuse_score,
             )
 
     async def _create_pending_replacement(
@@ -511,7 +512,7 @@ class InsuranceService:
         except Exception as e:
             logger.exception("Failed to create pending replacement")
             return ReplacementResult(
-                success=False, status="error", message=str(e), abuse_score=abuse_score
+                success=False, status="error", message=str(e), abuse_score=abuse_score,
             )
 
     async def _count_monthly_replacements(self, telegram_id: int) -> int:
@@ -568,7 +569,7 @@ class InsuranceService:
         """Get abuse risk score for a user (0-100)."""
         try:
             result = await self.client.rpc(
-                "get_user_abuse_score", {"p_telegram_id": telegram_id}
+                "get_user_abuse_score", {"p_telegram_id": telegram_id},
             ).execute()
 
             return result.data if result.data else 0
@@ -660,7 +661,7 @@ class InsuranceService:
             return []
 
     async def approve_replacement(
-        self, replacement_id: str, admin_user_id: str, new_stock_item_id: str | None = None
+        self, replacement_id: str, admin_user_id: str, new_stock_item_id: str | None = None,
     ) -> bool:
         """Approve a pending replacement."""
         try:
@@ -743,7 +744,7 @@ class InsuranceService:
             return False
 
     async def reject_replacement(
-        self, replacement_id: str, admin_user_id: str, rejection_reason: str
+        self, replacement_id: str, admin_user_id: str, rejection_reason: str,
     ) -> bool:
         """Reject a pending replacement."""
         try:
@@ -755,7 +756,7 @@ class InsuranceService:
                         "rejection_reason": rejection_reason,
                         "processed_by": admin_user_id,
                         "processed_at": datetime.now(UTC).isoformat(),
-                    }
+                    },
                 )
                 .eq("id", replacement_id)
                 .execute()

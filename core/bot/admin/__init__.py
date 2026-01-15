@@ -1,5 +1,4 @@
-"""
-Admin Bot Module for PVNDORA
+"""Admin Bot Module for PVNDORA.
 
 Manages broadcast messaging, stats, and administrative functions.
 """

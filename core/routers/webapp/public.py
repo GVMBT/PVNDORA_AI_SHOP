@@ -1,12 +1,11 @@
-"""
-WebApp Public Router
+"""WebApp Public Router.
 
 Public endpoints that don't require authentication.
 All prices include both USD and display values for unified currency handling.
 Supports anchor pricing (fixed prices per currency).
 """
 
-from typing import Any, cast
+from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -49,7 +48,7 @@ async def _fetch_single_product(db: Database, product_id: str) -> dict[str, Any]
     if not isinstance(product_raw, dict):
         raise HTTPException(status_code=500, detail="Invalid product data format")
 
-    return cast(dict[str, Any], product_raw)
+    return cast("dict[str, Any]", product_raw)
 
 
 async def _fetch_social_proof_single(db: Database, product_id: str) -> dict[str, Any]:
@@ -62,14 +61,14 @@ async def _fetch_social_proof_single(db: Database, product_id: str) -> dict[str,
             .single()
             .execute()
         )
-        return cast(dict[str, Any], result.data) if result.data else {}
+        return cast("dict[str, Any]", result.data) if result.data else {}
     except Exception as e:
         logger.warning("Failed to get social proof: %s", type(e).__name__)
         return {}
 
 
 async def _batch_fetch_social_proof(
-    db: Database, product_ids: list[str]
+    db: Database, product_ids: list[str],
 ) -> dict[str, dict[str, Any]]:
     """Batch fetch social proof data for multiple products."""
     if not product_ids:
@@ -85,7 +84,7 @@ async def _batch_fetch_social_proof(
         )
         for sp_raw in result.data or []:
             if isinstance(sp_raw, dict):
-                sp = cast(dict[str, Any], sp_raw)
+                sp = cast("dict[str, Any]", sp_raw)
                 pid = sp.get("product_id")
                 if pid:
                     social_proof_map[pid] = sp
@@ -108,7 +107,7 @@ async def _batch_fetch_ratings(db: Database, product_ids: list[str]) -> dict[str
             .in_("product_id", product_ids)
             .execute()
         )
-        for r in cast(list[dict[str, Any]], result.data or []):
+        for r in cast("list[dict[str, Any]]", result.data or []):
             pid = str(r["product_id"])
             if pid not in ratings_map:
                 ratings_map[pid] = []
@@ -226,7 +225,7 @@ def _build_product_response(
                 "duration_days": product.get("duration_days"),
                 "instructions": product.get("instructions"),
                 "instruction_files": product.get("instruction_files") or [],
-            }
+            },
         )
         # Override sales_count from social_proof_data if provided
         if social_proof_data:
@@ -246,10 +245,8 @@ def _build_product_response(
 @router.get("/products/{product_id}")
 async def get_webapp_product(
     product_id: str,
-    language_code: str | None = Query(
-        None, description="User language code for currency conversion"
-    ),
-    currency: str | None = Query(None, description="User preferred currency (USD, RUB, EUR, etc.)"),
+    language_code: Annotated[str | None, Query(description="User language code for currency conversion")] = None,
+    currency: Annotated[str | None, Query(description="User preferred currency (USD, RUB, EUR, etc.)")] = None,
 ):
     """Get product with discount and social proof for Mini App.
 
@@ -311,10 +308,8 @@ async def get_webapp_product(
 
 @router.get("/products")
 async def get_webapp_products(
-    language_code: str | None = Query(
-        None, description="User language code for currency conversion"
-    ),
-    currency: str | None = Query(None, description="User preferred currency (USD, RUB, EUR, etc.)"),
+    language_code: Annotated[str | None, Query(description="User language code for currency conversion")] = None,
+    currency: Annotated[str | None, Query(description="User preferred currency (USD, RUB, EUR, etc.)")] = None,
 ):
     """Get all active products for Mini App catalog.
 
@@ -340,7 +335,7 @@ async def get_webapp_products(
 
         products_raw = products_result.data or []
         products: list[dict[str, Any]] = [
-            cast(dict[str, Any], p) for p in products_raw if isinstance(p, dict)
+            cast("dict[str, Any]", p) for p in products_raw if isinstance(p, dict)
         ]
 
         # Currency services

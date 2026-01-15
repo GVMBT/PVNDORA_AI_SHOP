@@ -16,8 +16,7 @@ DELIVERED_STATES = ["delivered", "partial", "completed"]
 
 
 def _derive_product_name(items: list[dict[str, Any]], product: Any) -> str:
-    """
-    Derive product name from order items, falling back to product object.
+    """Derive product name from order items, falling back to product object.
 
     Args:
         items: List of order items with product info
@@ -25,6 +24,7 @@ def _derive_product_name(items: list[dict[str, Any]], product: Any) -> str:
 
     Returns:
         Product name string
+
     """
     if items:
         # Get first item's product name
@@ -47,10 +47,9 @@ def _derive_product_name(items: list[dict[str, Any]], product: Any) -> str:
 
 
 def convert_order_prices_with_formatter(
-    amount: Decimal, original_price: Decimal | None, formatter: "CurrencyFormatter"
+    amount: Decimal, original_price: Decimal | None, formatter: "CurrencyFormatter",
 ) -> dict[str, Any]:
-    """
-    Convert order prices using unified CurrencyFormatter.
+    """Convert order prices using unified CurrencyFormatter.
 
     Returns dict with both USD and display values.
     """
@@ -70,10 +69,9 @@ def convert_order_prices_with_formatter(
 
 
 def build_item_payload(
-    item_data: dict[str, Any], product: dict[str, Any], has_review: bool = False
+    item_data: dict[str, Any], product: dict[str, Any], has_review: bool = False,
 ) -> dict[str, Any]:
-    """
-    Build order item payload for API response.
+    """Build order item payload for API response.
 
     Args:
         item_data: Raw item data from database
@@ -82,6 +80,7 @@ def build_item_payload(
 
     Returns:
         Formatted item payload dict
+
     """
     status_lower = str(item_data.get("status", "")).lower()
 
@@ -95,7 +94,7 @@ def build_item_payload(
         "delivered_at": item_data.get("delivered_at"),
         "expires_at": item_data.get("expires_at"),
         "fulfillment_deadline": item_data.get(
-            "fulfillment_deadline"
+            "fulfillment_deadline",
         ),  # When we promise to deliver prepaid items
         "has_review": has_review,
     }
@@ -163,8 +162,7 @@ def build_order_payload(
     amount_usd: float | None = None,
     original_price_usd: float | None = None,
 ) -> dict[str, Any]:
-    """
-    Build order payload for API response.
+    """Build order payload for API response.
 
     Args:
         order: Order model instance
@@ -178,6 +176,7 @@ def build_order_payload(
 
     Returns:
         Formatted order payload dict
+
     """
     product_name = _derive_product_name(items, product)
 

@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class CartManager:
-    """
-    Manages shopping carts in Redis.
+    """Manages shopping carts in Redis.
 
     Features:
     - Auto-split items into instant (in stock) vs prepaid (on demand)
@@ -23,7 +22,7 @@ class CartManager:
     - Promo code support
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._redis = None  # Lazy initialization
 
     @property
@@ -33,8 +32,9 @@ class CartManager:
             try:
                 self._redis = get_redis()
             except ValueError as e:
+                msg = f"Redis not available: {e}. Check UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables."
                 raise ValueError(
-                    f"Redis not available: {e}. Check UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables."
+                    msg,
                 )
         return self._redis
 
@@ -56,7 +56,8 @@ class CartManager:
                 return None
         except Exception as e:
             logger.exception("Failed to get cart from Redis")
-            raise ValueError(f"Cart service unavailable: {e!s}")
+            msg = f"Cart service unavailable: {e!s}"
+            raise ValueError(msg)
 
     async def save_cart(self, cart: Cart) -> bool:
         """Save cart to Redis with TTL."""
@@ -68,7 +69,8 @@ class CartManager:
             return True
         except Exception as e:
             logger.exception("Failed to save cart to Redis")
-            raise ValueError(f"Cart service unavailable: {e!s}")
+            msg = f"Cart service unavailable: {e!s}"
+            raise ValueError(msg)
 
     async def add_item(
         self,
@@ -83,21 +85,27 @@ class CartManager:
         """Add item to cart with auto-split for instant vs prepaid."""
         # Validate inputs
         if not product_id or not isinstance(product_id, str):
-            raise ValueError("product_id must be a non-empty string")
+            msg = "product_id must be a non-empty string"
+            raise ValueError(msg)
         if not product_name or not isinstance(product_name, str):
-            raise ValueError("product_name must be a non-empty string")
+            msg = "product_name must be a non-empty string"
+            raise ValueError(msg)
         if not isinstance(quantity, int) or quantity < 1:
-            raise ValueError("quantity must be a positive integer")
+            msg = "quantity must be a positive integer"
+            raise ValueError(msg)
         if not isinstance(available_stock, int) or available_stock < 0:
-            raise ValueError("available_stock must be a non-negative integer")
+            msg = "available_stock must be a non-negative integer"
+            raise ValueError(msg)
         if not isinstance(unit_price, (int, float, Decimal)) or unit_price < 0:
-            raise ValueError("unit_price must be a non-negative number")
+            msg = "unit_price must be a non-negative number"
+            raise ValueError(msg)
         if (
             not isinstance(discount_percent, (int, float, Decimal))
             or discount_percent < 0
             or discount_percent > 100
         ):
-            raise ValueError("discount_percent must be between 0 and 100")
+            msg = "discount_percent must be between 0 and 100"
+            raise ValueError(msg)
 
         cart = await self.get_cart(user_telegram_id)
         if cart is None:
@@ -134,7 +142,7 @@ class CartManager:
         return cart
 
     def _update_cart_item_quantity(
-        self, cart: Cart, product_id: str, new_quantity: int, available_stock: int
+        self, cart: Cart, product_id: str, new_quantity: int, available_stock: int,
     ) -> None:
         """Update item quantity in cart (reduces cognitive complexity)."""
         if new_quantity <= 0:
@@ -148,13 +156,15 @@ class CartManager:
                     break
 
     async def update_item_quantity(
-        self, user_telegram_id: int, product_id: str, new_quantity: int, available_stock: int
+        self, user_telegram_id: int, product_id: str, new_quantity: int, available_stock: int,
     ) -> Cart | None:
         """Update item quantity in cart."""
         if not isinstance(new_quantity, int) or new_quantity < 0:
-            raise ValueError("new_quantity must be a non-negative integer")
+            msg = "new_quantity must be a non-negative integer"
+            raise ValueError(msg)
         if not isinstance(available_stock, int) or available_stock < 0:
-            raise ValueError("available_stock must be a non-negative integer")
+            msg = "available_stock must be a non-negative integer"
+            raise ValueError(msg)
 
         try:
             cart = await self.get_cart(user_telegram_id)
@@ -173,7 +183,8 @@ class CartManager:
             raise
         except Exception as e:
             logger.exception("Failed to update cart item quantity")
-            raise ValueError(f"Cart service unavailable: {e!s}")
+            msg = f"Cart service unavailable: {e!s}"
+            raise ValueError(msg)
 
     async def remove_item(self, user_telegram_id: int, product_id: str) -> Cart | None:
         """Remove item from cart."""
@@ -197,6 +208,7 @@ class CartManager:
 
         Returns:
             Updated cart or None if cart is empty
+
         """
         cart = await self.get_cart(user_telegram_id)
         if cart is None:
@@ -211,12 +223,13 @@ class CartManager:
                     found = True
 
             if not found:
-                raise ValueError(f"Product {product_id} not found in cart")
+                msg = f"Product {product_id} not found in cart"
+                raise ValueError(msg)
 
             # Store promo code info for reference (item-level)
             cart.promo_code = promo_code
             cart.promo_discount_percent = to_decimal(
-                0
+                0,
             )  # Cart-level discount = 0 for product-specific
         else:
             # Cart-wide promo: apply discount to entire cart
@@ -258,7 +271,8 @@ class CartManager:
             return True
         except Exception as e:
             logger.exception("Failed to clear cart from Redis")
-            raise ValueError(f"Cart service unavailable: {e!s}")
+            msg = f"Cart service unavailable: {e!s}"
+            raise ValueError(msg)
 
     async def get_cart_summary(self, user_telegram_id: int) -> dict:
         """Get cart summary for AI context."""
@@ -294,7 +308,8 @@ class CartManager:
             raise
         except Exception as e:
             logger.exception("Failed to get cart summary")
-            raise ValueError(f"Cart service unavailable: {e!s}")
+            msg = f"Cart service unavailable: {e!s}"
+            raise ValueError(msg)
 
 
 # Singleton instance

@@ -1,5 +1,4 @@
-"""
-Currency Service - Simplified for RUB-only
+"""Currency Service - Simplified for RUB-only.
 
 All amounts are now in RUB. This service provides backwards-compatible
 interface while always returning RUB values.
@@ -46,20 +45,19 @@ FALLBACK_RATES: dict[str, float] = {
 
 
 class CurrencyService:
-    """
-    Simplified currency service - RUB only.
+    """Simplified currency service - RUB only.
 
     All methods return RUB values. Currency conversion is no longer performed.
     This provides backwards compatibility while simplifying the codebase.
     """
 
-    def __init__(self, redis_client=None):
+    def __init__(self, redis_client=None) -> None:
         """Initialize currency service (redis no longer needed for rates)."""
         self.redis = redis_client
         self.language_to_currency = LANGUAGE_TO_CURRENCY
 
     def get_user_currency(
-        self, language_code: str | None = None, preferred_currency: str | None = None
+        self, language_code: str | None = None, preferred_currency: str | None = None,
     ) -> str:
         """Always returns RUB. Parameters ignored after RUB-only migration."""
         _ = language_code, preferred_currency  # Unused after RUB-only migration
@@ -76,8 +74,7 @@ class CurrencyService:
         target_currency: str = "RUB",
         round_to_int: bool = True,
     ) -> float:
-        """
-        No conversion needed - returns the RUB price as-is.
+        """No conversion needed - returns the RUB price as-is.
 
         Args:
             price_rub: Price in RUB
@@ -86,6 +83,7 @@ class CurrencyService:
 
         Returns:
             Price as float (rounded to integer for RUB)
+
         """
         decimal_price = to_decimal(price_rub)
         if round_to_int:
@@ -115,10 +113,9 @@ class CurrencyService:
     # =========================================================================
 
     async def get_anchor_price(
-        self, product: dict[str, Any] | Any, target_currency: str = "RUB"
+        self, product: dict[str, Any] | Any, target_currency: str = "RUB",
     ) -> Decimal:
-        """
-        Get product price in RUB (always the price field now).
+        """Get product price in RUB (always the price field now).
 
         Args:
             product: Product dict or object with 'price'
@@ -126,6 +123,7 @@ class CurrencyService:
 
         Returns:
             Price in RUB as Decimal
+
         """
         if hasattr(product, "__getitem__"):
             base_price = product.get("price", 0)
@@ -145,8 +143,7 @@ class CurrencyService:
         target_currency: str,
         level: int,
     ) -> Decimal:
-        """
-        Get referral threshold for specified level in RUB.
+        """Get referral threshold for specified level in RUB.
 
         Args:
             settings: Referral settings with level thresholds
@@ -155,9 +152,11 @@ class CurrencyService:
 
         Returns:
             Threshold in RUB as Decimal
+
         """
         if level not in [2, 3]:
-            raise ValueError(f"Level must be 2 or 3, got {level}")
+            msg = f"Level must be 2 or 3, got {level}"
+            raise ValueError(msg)
 
         # Thresholds are now stored in RUB
         if hasattr(settings, "__getitem__"):
@@ -185,8 +184,7 @@ class CurrencyService:
         to_currency: str,
         amount: float | Decimal | str,
     ) -> Decimal:
-        """
-        No conversion needed - all balances are in RUB.
+        """No conversion needed - all balances are in RUB.
         Parameters from_currency and to_currency are ignored after RUB-only migration.
 
         Args:
@@ -196,12 +194,13 @@ class CurrencyService:
 
         Returns:
             Same amount rounded as Decimal
+
         """
         decimal_amount = to_decimal(amount)
         return round_money(decimal_amount, to_int=True)
 
     async def convert_to_base_currency(
-        self, amount: float | Decimal | str, from_currency: str
+        self, amount: float | Decimal | str, from_currency: str,
     ) -> Decimal:
         """No conversion - RUB is now base currency."""
         return round_money(to_decimal(amount), to_int=True)
@@ -233,8 +232,7 @@ class CurrencyService:
         balance_currency: str = "RUB",
         network_fee: float | None = None,
     ) -> dict[str, Any]:
-        """
-        Calculate withdrawal payout in USDT from RUB balance.
+        """Calculate withdrawal payout in USDT from RUB balance.
 
         Formula: amount_to_pay = (amount_rub / usdt_rub_rate) - network_fee
 
@@ -245,6 +243,7 @@ class CurrencyService:
 
         Returns:
             Dict with calculation details
+
         """
         if network_fee is None:
             network_fee = NETWORK_FEE_USDT
@@ -280,8 +279,7 @@ class CurrencyService:
         network_fee: float | None = None,
         usdt_rate: float | None = None,
     ) -> dict[str, Any]:
-        """
-        Calculate minimum withdrawal amount in RUB.
+        """Calculate minimum withdrawal amount in RUB.
 
         Formula: min_rub = (min_usdt_after_fees + network_fee) * usdt_rub_rate
         """
@@ -317,9 +315,7 @@ class CurrencyService:
         network_fee: float | None = None,
         min_usdt_after_fees: float | None = None,
     ) -> dict[str, Any]:
-        """
-        Calculate maximum withdrawal amount from RUB balance.
-        """
+        """Calculate maximum withdrawal amount from RUB balance."""
         if network_fee is None:
             network_fee = NETWORK_FEE_USDT
         if min_usdt_after_fees is None:

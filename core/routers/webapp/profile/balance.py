@@ -1,5 +1,4 @@
-"""
-Balance Endpoints
+"""Balance Endpoints.
 
 Balance top-up and related operations.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
@@ -9,9 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from core.auth import verify_telegram_auth
 from core.logging import get_logger
+from core.routers.webapp.models import TopUpRequest
 from core.services.database import get_database
-
-from ..models import TopUpRequest
 
 logger = get_logger(__name__)
 
@@ -23,7 +21,7 @@ balance_router = APIRouter()
 
 
 async def _calculate_amount_to_credit(
-    currency: str, balance_currency: str, amount: float, currency_service
+    currency: str, balance_currency: str, amount: float, currency_service,
 ) -> float:
     """Calculate amount to credit in balance currency (reduces cognitive complexity)."""
     if currency == balance_currency:
@@ -54,8 +52,7 @@ async def _calculate_amount_to_credit(
 
 @balance_router.post("/profile/topup")
 async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)):
-    """
-    Create a balance top-up payment via CrystalPay.
+    """Create a balance top-up payment via CrystalPay.
 
     Minimum: 5 USD equivalent.
     Returns payment URL for redirect.
@@ -116,7 +113,7 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
 
     # Calculate amount to credit in balance currency
     amount_to_credit = await _calculate_amount_to_credit(
-        currency, balance_currency, request.amount, currency_service
+        currency, balance_currency, request.amount, currency_service,
     )
 
     # Round for non-RUB/USD currencies
@@ -124,7 +121,7 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
         round_money(
             Decimal(amount_to_credit),
             to_int=(balance_currency in ["RUB", "UAH", "TRY", "INR"]),
-        )
+        ),
     )
 
     # Create pending transaction record in user's balance_currency
@@ -150,7 +147,7 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
                             formatter.exchange_rate if currency != balance_currency else 1.0
                         ),
                     },
-                }
+                },
             )
             .execute()
         )
@@ -198,7 +195,7 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
                         "original_amount": request.amount,
                         "invoice_id": result.get("invoice_id"),
                     },
-                }
+                },
             )
             .eq("id", topup_id)
             .execute()
@@ -228,8 +225,7 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
 
 @balance_router.get("/profile/topup/{topup_id}/status")
 async def get_topup_status(topup_id: str):
-    """
-    Get top-up transaction status for polling.
+    """Get top-up transaction status for polling.
 
     Note: This endpoint is public because:
     1. topup_id (UUID) is effectively a secret - only the user who created it knows it

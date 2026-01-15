@@ -1,4 +1,4 @@
-"""Internationalization System"""
+"""Internationalization System."""
 
 import json
 from pathlib import Path
@@ -25,7 +25,7 @@ _translations: dict[str, dict[str, Any]] = {}
 
 
 def _get_locales_path() -> Path:
-    """Get path to locales directory"""
+    """Get path to locales directory."""
     # Try different paths for Vercel and local development
     paths = [
         Path(__file__).parent.parent.parent / "locales",  # From core/i18n/
@@ -44,7 +44,7 @@ def _get_locales_path() -> Path:
 
 
 def _load_translations(lang: str) -> dict[str, Any]:
-    """Load translations for a language"""
+    """Load translations for a language."""
     if lang in _translations:
         return _translations[lang]
 
@@ -102,8 +102,7 @@ def _get_text_with_fallback(key: str, lang: str, default: str | None) -> str:
 
 
 def get_text(key: str, lang: str = DEFAULT_LANGUAGE, default: str | None = None, **kwargs) -> str:
-    """
-    Get translated text by key.
+    """Get translated text by key.
 
     Args:
         key: Translation key (e.g., "welcome", "btn_buy", "faq.title")
@@ -113,6 +112,7 @@ def get_text(key: str, lang: str = DEFAULT_LANGUAGE, default: str | None = None,
 
     Returns:
         Translated string or key/default if not found
+
     """
     lang = lang.split("-")[0].lower() if lang else DEFAULT_LANGUAGE
 
@@ -131,7 +131,7 @@ def get_text(key: str, lang: str = DEFAULT_LANGUAGE, default: str | None = None,
 
 
 def get_all_texts(lang: str = DEFAULT_LANGUAGE) -> dict[str, Any]:
-    """Get all translations for a language"""
+    """Get all translations for a language."""
     lang = lang.split("-")[0].lower() if lang else DEFAULT_LANGUAGE
     if lang not in SUPPORTED_LANGUAGES:
         lang = DEFAULT_LANGUAGE
@@ -139,14 +139,14 @@ def get_all_texts(lang: str = DEFAULT_LANGUAGE) -> dict[str, Any]:
 
 
 def detect_language(language_code: str | None) -> str:
-    """
-    Detect and normalize language code from Telegram.
+    """Detect and normalize language code from Telegram.
 
     Args:
         language_code: Language code from Telegram user
 
     Returns:
         Normalized supported language code
+
     """
     if not language_code:
         return DEFAULT_LANGUAGE
@@ -159,6 +159,6 @@ def detect_language(language_code: str | None) -> str:
 
 
 def reload_translations() -> None:
-    """Clear translation cache and reload"""
+    """Clear translation cache and reload."""
     global _translations
     _translations = {}

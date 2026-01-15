@@ -1,9 +1,10 @@
-"""
-Admin Users CRM Router
+"""Admin Users CRM Router.
 
 Extended user analytics and management.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
+
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel as PydanticBaseModel
@@ -52,12 +53,12 @@ def _apply_search_filter(query, search: str | None):
         return query.or_(
             f"telegram_id.eq.{telegram_id},"
             f"username.ilike.%{sanitized_search}%,"
-            f"first_name.ilike.%{sanitized_search}%"
+            f"first_name.ilike.%{sanitized_search}%",
         )
     except ValueError:
         # Search by username or first_name
         return query.or_(
-            f"username.ilike.%{sanitized_search}%,first_name.ilike.%{sanitized_search}%"
+            f"username.ilike.%{sanitized_search}%,first_name.ilike.%{sanitized_search}%",
         )
 
 
@@ -145,7 +146,7 @@ def _format_user_crm_data(u: dict) -> dict:
 
 
 def _prepare_partner_grant_data(
-    update_data: dict, partner_level_override: int | None, now
+    update_data: dict, partner_level_override: int | None, now,
 ) -> int | None:
     """Prepare update data for granting VIP partner status."""
     update_data["partner_granted_at"] = now.isoformat()
@@ -201,7 +202,7 @@ router = APIRouter(tags=["admin-users"])
 
 @router.get("/users")
 async def admin_get_users(limit: int = 50, offset: int = 0, admin=Depends(verify_admin)):
-    """Get users for admin panel - uses users_extended_analytics VIEW to avoid N+1 queries"""
+    """Get users for admin panel - uses users_extended_analytics VIEW to avoid N+1 queries."""
     db = get_database()
 
     try:
@@ -211,7 +212,7 @@ async def admin_get_users(limit: int = 50, offset: int = 0, admin=Depends(verify
             await db.client.table("users_extended_analytics")
             .select(
                 "id, telegram_id, username, first_name, balance, is_admin, "
-                "total_referral_earnings, created_at, orders_count, total_spent"
+                "total_referral_earnings, created_at, orders_count, total_spent",
             )
             .order("created_at", desc=True)
             .range(offset, offset + limit - 1)
@@ -257,7 +258,7 @@ async def admin_get_users(limit: int = 50, offset: int = 0, admin=Depends(verify
                     "partner_mode": extra.get("partner_mode") or "commission",
                     "total_referral_earnings": to_float(u.get("total_referral_earnings", 0)),
                     "created_at": u.get("created_at"),
-                }
+                },
             )
 
         return {"users": users}
@@ -272,12 +273,12 @@ async def admin_get_users_crm(
     sort_order: str = "desc",
     limit: int = 50,
     offset: int = 0,
-    search: str | None = Query(None, description="Search by username, first_name, or telegram_id"),
-    filter_banned: bool | None = Query(None, description="Filter by banned status"),
-    filter_partner: bool | None = Query(None, description="Filter by partner status"),
+    search: Annotated[str | None, Query(description="Search by username, first_name, or telegram_id")] = None,
+    filter_banned: Annotated[bool | None, Query(description="Filter by banned status")] = None,
+    filter_partner: Annotated[bool | None, Query(description="Filter by partner status")] = None,
     admin=Depends(verify_admin),
 ):
-    """Get all users with extended analytics (orders, refunds, tickets, etc.)"""
+    """Get all users with extended analytics (orders, refunds, tickets, etc.)."""
     db = get_database()
 
     try:
@@ -317,7 +318,7 @@ async def admin_get_users_crm(
 
 @router.post("/users/{user_id}/ban")
 async def admin_ban_user(user_id: str, ban: bool = True, admin=Depends(verify_admin)):
-    """Ban or unban a user"""
+    """Ban or unban a user."""
     db = get_database()
 
     try:
@@ -338,10 +339,9 @@ async def admin_ban_user(user_id: str, ban: bool = True, admin=Depends(verify_ad
 
 @router.post("/users/{user_id}/balance")
 async def admin_update_user_balance(
-    user_id: str, request: UpdateBalanceRequest, admin=Depends(verify_admin)
+    user_id: str, request: UpdateBalanceRequest, admin=Depends(verify_admin),
 ):
-    """
-    Update user balance (add or subtract).
+    """Update user balance (add or subtract).
 
     IMPORTANT: Amount is in user's balance_currency (not USD).
     If user has balance_currency=RUB, amount should be in RUB.
@@ -413,9 +413,9 @@ async def admin_update_user_balance(
 
 @router.post("/users/{user_id}/warnings")
 async def admin_update_warnings(
-    user_id: str, request: UpdateWarningsRequest, admin=Depends(verify_admin)
+    user_id: str, request: UpdateWarningsRequest, admin=Depends(verify_admin),
 ):
-    """Update user warnings count"""
+    """Update user warnings count."""
     db = get_database()
 
     try:
@@ -439,13 +439,13 @@ async def admin_update_warnings(
 
 @router.post("/users/{user_id}/vip")
 async def admin_toggle_vip(user_id: str, request: ToggleVIPRequest, admin=Depends(verify_admin)):
-    """
-    Grant or revoke VIP partner status.
+    """Grant or revoke VIP partner status.
 
     Args:
         user_id: UUID of the user
         request.is_partner: True to grant VIP, False to revoke
         request.partner_level_override: Optional level override (1, 2, or 3)
+
     """
     is_partner = request.is_partner
     partner_level_override = request.partner_level_override
@@ -464,7 +464,7 @@ async def admin_toggle_vip(user_id: str, request: ToggleVIPRequest, admin=Depend
 
         if is_partner:
             final_level_override = _prepare_partner_grant_data(
-                update_data, partner_level_override, now
+                update_data, partner_level_override, now,
             )
         else:
             _prepare_partner_revoke_data(update_data)

@@ -1,5 +1,4 @@
-"""
-Supabase Database Service
+"""Supabase Database Service.
 
 Provides Database class with all operations via Repository pattern.
 Maintains backward compatibility while delegating to specialized repositories.
@@ -15,10 +14,9 @@ Usage:
     await init_database()
 """
 
-import asyncio
 import os
 from datetime import UTC, datetime
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from supabase._async.client import AsyncClient
 from supabase._async.client import create_client as acreate_client
@@ -43,10 +41,12 @@ from core.services.repositories import (
     UserRepository,
 )
 
+if TYPE_CHECKING:
+    import asyncio
+
 
 class Database:
-    """
-    Supabase database client with all operations.
+    """Supabase database client with all operations.
 
     Uses Repository pattern internally but exposes flat API for backward compatibility.
 
@@ -54,7 +54,7 @@ class Database:
     Must be initialized via async factory method `create()` or `init_database()`.
     """
 
-    def __init__(self, client: AsyncClient):
+    def __init__(self, client: AsyncClient) -> None:
         """Private constructor. Use Database.create() or init_database() instead."""
         self.client = client
 
@@ -82,7 +82,8 @@ class Database:
         url = os.environ.get("SUPABASE_URL")
         key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
         if not url or not key:
-            raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
+            msg = "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set"
+            raise ValueError(msg)
 
         client = await acreate_client(url, key)
         return cls(client)
@@ -119,7 +120,7 @@ class Database:
     ) -> None:
         """Update user preferences for currency and interface language."""
         await self.users_domain.update_preferences(
-            telegram_id, preferred_currency, interface_language
+            telegram_id, preferred_currency, interface_language,
         )
 
     async def update_user_activity(self, telegram_id: int) -> None:
@@ -196,10 +197,9 @@ class Database:
         )
 
     async def create_order_with_availability_check(
-        self, product_id: str, user_telegram_id: int
+        self, product_id: str, user_telegram_id: int,
     ) -> dict[str, Any]:
-        """
-        Create order with automatic availability check.
+        """Create order with automatic availability check.
 
         Uses PostgreSQL RPC function that:
         - If product is in stock → creates instant order (reserves stock item)
@@ -211,6 +211,7 @@ class Database:
 
         Returns:
             Dict with order_id, order_type, status, stock_item_id, amount, fulfillment_deadline
+
         """
         return await self.orders_domain.create_with_availability_check(product_id, user_telegram_id)
 
@@ -218,7 +219,7 @@ class Database:
         return await self.orders_domain.get_by_id(order_id)
 
     async def update_order_status(
-        self, order_id: str, status: str, expires_at: datetime | None = None
+        self, order_id: str, status: str, expires_at: datetime | None = None,
     ) -> None:
         """Update order status.
 
@@ -265,7 +266,7 @@ class Database:
         return await self.chat_domain.get_history(user_id, limit)
 
     async def create_ticket(
-        self, user_id: str, subject: str, message: str, order_id: str | None = None
+        self, user_id: str, subject: str, message: str, order_id: str | None = None,
     ) -> dict[str, Any]:
         return await self.chat_domain.create_ticket(user_id, subject, message, order_id)
 
@@ -305,7 +306,7 @@ class Database:
         await (
             self.client.table("wishlist")
             .upsert(
-                {"user_id": user_id, "product_id": product_id}, on_conflict="user_id,product_id"
+                {"user_id": user_id, "product_id": product_id}, on_conflict="user_id,product_id",
             )
             .execute()
         )
@@ -339,7 +340,7 @@ class Database:
     # ==================== REVIEWS ====================
 
     async def create_review(
-        self, user_id: str, order_id: str, product_id: str, rating: int, text: str | None = None
+        self, user_id: str, order_id: str, product_id: str, rating: int, text: str | None = None,
     ) -> None:
         """Create product review."""
         await (
@@ -351,7 +352,7 @@ class Database:
                     "product_id": product_id,
                     "rating": rating,
                     "text": text,
-                }
+                },
             )
             .execute()
         )
@@ -390,7 +391,7 @@ class Database:
 
         promo = result.data[0]
         if promo.get("expires_at") and datetime.fromisoformat(
-            promo["expires_at"].replace("Z", "+00:00")
+            promo["expires_at"],
         ) < datetime.now(UTC):
             return None
         if promo.get("usage_limit") and promo["usage_count"] >= promo["usage_limit"]:
@@ -431,7 +432,7 @@ class Database:
     # ==================== ANALYTICS ====================
 
     async def log_event(
-        self, user_id: str | None, event_type: str, metadata: dict | None = None
+        self, user_id: str | None, event_type: str, metadata: dict | None = None,
     ) -> None:
         """Log analytics event."""
         await (
@@ -454,6 +455,7 @@ class Database:
         """Process 3-level referral bonus for completed order."""
         current_user_id = order.user_id
         bonuses_awarded = []
+        bonuses_to_insert = []  # Batch insert для избежания Chatty Logic
 
         for level_config in self.REFERRAL_LEVELS:
             level = level_config["level"]
@@ -476,29 +478,31 @@ class Database:
             bonus = round(order.amount * (percent / 100), 2)
             await self.update_user_balance(referrer_id, bonus)
 
-            await (
-                self.client.table("referral_bonuses")
-                .insert(
-                    {
-                        "user_id": referrer_id,
-                        "from_user_id": str(order.user_id),
-                        "order_id": str(order.id),
-                        "level": level,
-                        "percent": percent,
-                        "amount": bonus,
-                    }
-                )
-                .execute()
+            # Собираем бонусы для batch insert (избегаем Chatty Logic)
+            bonuses_to_insert.append(
+                {
+                    "user_id": referrer_id,
+                    "from_user_id": str(order.user_id),
+                    "order_id": str(order.id),
+                    "level": level,
+                    "percent": percent,
+                    "amount": bonus,
+                },
             )
 
+            # RPC вызовы остаются отдельными (нельзя батчить)
             await self.client.rpc(
-                "increment_referral_earnings", {"p_user_id": referrer_id, "p_amount": bonus}
+                "increment_referral_earnings", {"p_user_id": referrer_id, "p_amount": bonus},
             ).execute()
 
             bonuses_awarded.append({"level": level, "referrer_id": referrer_id, "bonus": bonus})
             logger.info(f"Referral L{level}: {percent}% = {bonus}₽ to user {referrer_id}")
 
             current_user_id = referrer_id
+
+        # Batch insert всех бонусов сразу (вместо 3 отдельных запросов)
+        if bonuses_to_insert:
+            await self.client.table("referral_bonuses").insert(bonuses_to_insert).execute()
 
         if bonuses_awarded:
             logger.info(f"Total referral bonuses: {sum(b['bonus'] for b in bonuses_awarded)}₽")
@@ -527,6 +531,7 @@ async def init_database() -> Database:
 
     Returns:
         Database instance (also cached as singleton)
+
     """
     global _db
     if _db is not None:
@@ -565,6 +570,7 @@ async def get_database_async() -> Database:
 
     Returns:
         Database instance
+
     """
     if _db is None:
         return await init_database()
@@ -585,11 +591,15 @@ def get_database() -> Database:
 
     Returns:
         Database instance
+
     """
     if _db is None:
-        raise RuntimeError(
+        msg = (
             "Database not initialized. Use 'await get_database_async()' for lazy init, "
             "or call 'await init_database()' at startup."
+        )
+        raise RuntimeError(
+            msg,
         )
     return _db
 

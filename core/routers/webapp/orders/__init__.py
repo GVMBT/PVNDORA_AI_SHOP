@@ -1,5 +1,4 @@
-"""
-Orders Module
+"""Orders Module.
 
 Order creation, history, and payment processing.
 Re-exports main router for backward compatibility.

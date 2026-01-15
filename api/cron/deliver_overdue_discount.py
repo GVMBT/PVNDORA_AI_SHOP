@@ -1,5 +1,4 @@
-"""
-Cron: Deliver Overdue Discount Orders
+"""Cron: Deliver Overdue Discount Orders.
 
 Fallback for QStash - if scheduled_delivery_at has passed
 but order is still 'paid', deliver it.
@@ -45,7 +44,7 @@ async def get_referral_percentages() -> dict[str, int]:
         db = await get_database_async()
         result = await db.client.table("referral_settings").select("*").limit(1).execute()
         if result.data and isinstance(result.data[0], dict):
-            s = cast(dict[str, Any], result.data[0])
+            s = cast("dict[str, Any]", result.data[0])
             _referral_settings_cache = {
                 "l1": int(s.get("level1_commission_percent", 10) or 10),
                 "l2": int(s.get("level2_commission_percent", 7) or 7),
@@ -118,7 +117,7 @@ async def _mark_stock_as_sold(db: Any, stock_item_id: str) -> None:
 
 
 async def _update_order_item_delivered(
-    db: Any, order_item_id: str, stock_item_id: str, content: str
+    db: Any, order_item_id: str, stock_item_id: str, content: str,
 ) -> None:
     """Update order item with delivery content and status."""
     await (
@@ -129,7 +128,7 @@ async def _update_order_item_delivered(
                 "delivery_content": content,
                 "status": "delivered",
                 "delivered_at": datetime.now(UTC).isoformat(),
-            }
+            },
         )
         .eq("id", order_item_id)
         .execute()
@@ -261,7 +260,7 @@ async def _get_user_purchase_count(db: Any, telegram_id: int) -> int:
 
 
 async def _send_loyal_promo_if_eligible(
-    user_id: str, telegram_id: int, lang: str, purchase_count: int
+    user_id: str, telegram_id: int, lang: str, purchase_count: int,
 ) -> bool:
     """Send loyal customer promo code after 3rd purchase."""
     from core.services.domains.promo import PromoCodeService, PromoTriggers
@@ -271,7 +270,7 @@ async def _send_loyal_promo_if_eligible(
 
     try:
         existing = await promo_service.get_promo_by_trigger(
-            user_id, PromoTriggers.LOYAL_3_PURCHASES
+            user_id, PromoTriggers.LOYAL_3_PURCHASES,
         )
         if existing:
             return False
@@ -318,7 +317,7 @@ async def _send_loyal_promo_if_eligible(
         from core.services.telegram_messaging import send_telegram_message as _send_msg
 
         return await _send_msg(
-            chat_id=telegram_id, text=text, parse_mode="HTML", bot_token=TELEGRAM_TOKEN
+            chat_id=telegram_id, text=text, parse_mode="HTML", bot_token=TELEGRAM_TOKEN,
         )
 
     except Exception as e:
@@ -327,7 +326,7 @@ async def _send_loyal_promo_if_eligible(
 
 
 async def _deliver_order_item(
-    db: Any, order_id: str, item: dict[str, Any], telegram_id: int
+    db: Any, order_id: str, item: dict[str, Any], telegram_id: int,
 ) -> bool:
     """Deliver a single order item. Returns True on success."""
     order_item_id = item["id"]
@@ -373,7 +372,7 @@ async def _deliver_order_item(
         )
         if user_lookup.data:
             await _send_loyal_promo_if_eligible(
-                user_lookup.data.get("id"), telegram_id, lang, purchase_count
+                user_lookup.data.get("id"), telegram_id, lang, purchase_count,
             )
 
     return True
@@ -405,7 +404,7 @@ async def deliver_discount_order(db: Any, order_id: str, order_data: dict[str, A
                 all_delivered = False
                 continue
 
-            item = cast(dict[str, Any], item_raw)
+            item = cast("dict[str, Any]", item_raw)
             success = await _deliver_order_item(db, order_id, item, telegram_id)
             if not success:
                 all_delivered = False
@@ -413,7 +412,7 @@ async def deliver_discount_order(db: Any, order_id: str, order_data: dict[str, A
                 product_id = item.get("product_id", "unknown")
                 failed_items.append({"item_id": item_id, "product_id": product_id})
                 logger.warning(
-                    f"Failed to deliver item {item_id} (product {product_id}) for order {order_id}"
+                    f"Failed to deliver item {item_id} (product {product_id}) for order {order_id}",
                 )
 
         # Only mark order as delivered if ALL items were successfully delivered
@@ -431,7 +430,7 @@ async def deliver_discount_order(db: Any, order_id: str, order_data: dict[str, A
         failed_count = len(failed_items)
         logger.error(
             f"Discount order {order_id} partially failed: {failed_count}/{total_items} items failed. "
-            f"Failed items: {failed_items}. Order status remains 'paid'."
+            f"Failed items: {failed_items}. Order status remains 'paid'.",
         )
         return False
 
@@ -473,12 +472,12 @@ async def deliver_overdue_discount(request: Request):
         for order_raw in overdue_orders:
             if not isinstance(order_raw, dict):
                 continue
-            order = cast(dict[str, Any], order_raw)
+            order = cast("dict[str, Any]", order_raw)
             if order.get("id") and await deliver_discount_order(db, order["id"], order):
                 delivered_count += 1
 
         return JSONResponse(
-            {"ok": True, "checked": len(overdue_orders), "delivered": delivered_count}
+            {"ok": True, "checked": len(overdue_orders), "delivered": delivered_count},
         )
 
     except Exception as e:

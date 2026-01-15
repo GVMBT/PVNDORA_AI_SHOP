@@ -1,5 +1,4 @@
-"""
-PVNDORA Shop Agent
+"""PVNDORA Shop Agent.
 
 Full-featured AI assistant powered by LangGraph + Gemini.
 Handles: Catalog, Cart, Orders, Credentials, Referrals, Support.

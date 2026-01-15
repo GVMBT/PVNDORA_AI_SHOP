@@ -1,5 +1,4 @@
-"""
-Stats Handlers for Admin Bot
+"""Stats Handlers for Admin Bot.
 
 Provides /stats, /users, /stock commands for monitoring.
 """
@@ -19,8 +18,8 @@ router = Router(name="stats")
 
 
 @router.message(Command("stats"))
-async def cmd_stats(message: Message):
-    """Show general statistics"""
+async def cmd_stats(message: Message) -> None:
+    """Show general statistics."""
     db = get_database()
     now = datetime.now(UTC)
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -118,8 +117,8 @@ async def cmd_stats(message: Message):
 
 
 @router.message(Command("users"))
-async def cmd_users(message: Message):
-    """Show user analytics"""
+async def cmd_users(message: Message) -> None:
+    """Show user analytics."""
     db = get_database()
     now = datetime.now(UTC)
     week_ago = now - timedelta(days=7)
@@ -205,8 +204,8 @@ async def cmd_users(message: Message):
 
 
 @router.message(Command("stock"))
-async def cmd_stock(message: Message):
-    """Show stock status"""
+async def cmd_stock(message: Message) -> None:
+    """Show stock status."""
     db = get_database()
 
     # Get products with stock counts
@@ -256,8 +255,8 @@ async def cmd_stock(message: Message):
 
 
 @router.message(Command("help"))
-async def cmd_help(message: Message):
-    """Show admin commands help"""
+async def cmd_help(message: Message) -> None:
+    """Show admin commands help."""
     await message.answer(
         "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
         "     🤖 <b>ADMIN BOT</b>\n"
@@ -275,8 +274,8 @@ async def cmd_help(message: Message):
 
 
 @router.message(Command("start"))
-async def cmd_start(message: Message):
-    """Welcome message for admin bot"""
+async def cmd_start(message: Message) -> None:
+    """Welcome message for admin bot."""
     await message.answer(
         "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
         "     🔐 <b>PVNDORA ADMIN</b>\n"

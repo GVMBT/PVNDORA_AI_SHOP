@@ -1,5 +1,4 @@
-"""
-Profile Tools for Shop Agent.
+"""Profile Tools for Shop Agent.
 
 User profile, referral info, balance history.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
@@ -20,13 +19,13 @@ logger = get_logger(__name__)
 
 
 def _determine_career_level(
-    user: dict, threshold_l2: float, threshold_l3: float, turnover: float
+    user: dict, threshold_l2: float, threshold_l3: float, turnover: float,
 ) -> tuple[int, int | None, float]:
-    """
-    Determine user's career level based on turnover.
+    """Determine user's career level based on turnover.
 
     Returns:
         (career_level, next_level, turnover_to_next)
+
     """
     if turnover >= threshold_l3:
         return 3, None, 0
@@ -36,14 +35,14 @@ def _determine_career_level(
 
 
 def _get_line_unlocked_status(user: dict) -> tuple[bool, bool, bool]:
-    """
-    Get line unlock status from user data.
+    """Get line unlock status from user data.
 
     Returns:
         (line1_unlocked, line2_unlocked, line3_unlocked)
+
     """
     line1_unlocked = user.get("level1_unlocked_at") is not None or user.get(
-        "referral_program_unlocked", False
+        "referral_program_unlocked", False,
     )
     line2_unlocked = user.get("level2_unlocked_at") is not None
     line3_unlocked = user.get("level3_unlocked_at") is not None
@@ -134,13 +133,13 @@ async def _get_network_stats(db, user_id: str, line2_unlocked: bool, line3_unloc
 
 @tool
 async def get_user_profile() -> dict:
-    """
-    Get user's full profile information.
+    """Get user's full profile information.
     Loads thresholds from referral_settings, converts balance to user currency.
     Uses user_id and currency from context.
 
     Returns:
         Complete profile with balance, career level, stats
+
     """
     try:
         from core.db import get_redis
@@ -163,7 +162,7 @@ async def get_user_profile() -> dict:
         referral_earnings = float(user.get("total_referral_earnings", 0) or 0)
 
         career_level, next_level, turnover_to_next = _determine_career_level(
-            user, threshold_l2, threshold_l3, turnover
+            user, threshold_l2, threshold_l3, turnover,
         )
 
         orders_result = (
@@ -181,10 +180,10 @@ async def get_user_profile() -> dict:
         # Convert amounts to target currency
         balance_converted = await _convert_to_currency(currency_service, balance, target_currency)
         total_saved_converted = await _convert_to_currency(
-            currency_service, total_saved, target_currency
+            currency_service, total_saved, target_currency,
         )
         referral_earnings_converted = await _convert_to_currency(
-            currency_service, referral_earnings, target_currency
+            currency_service, referral_earnings, target_currency,
         )
 
         return {
@@ -199,11 +198,11 @@ async def get_user_profile() -> dict:
             "turnover_to_next_usd": turnover_to_next,
             "total_saved": total_saved,
             "total_saved_formatted": currency_service.format_price(
-                total_saved_converted, target_currency
+                total_saved_converted, target_currency,
             ),
             "referral_earnings": referral_earnings,
             "referral_earnings_formatted": currency_service.format_price(
-                referral_earnings_converted, target_currency
+                referral_earnings_converted, target_currency,
             ),
             "orders_count": orders_count,
             "partner_mode": user.get("partner_mode", "commission"),
@@ -215,13 +214,13 @@ async def get_user_profile() -> dict:
 
 @tool
 async def get_referral_info() -> dict:
-    """
-    Get user's referral program info.
+    """Get user's referral program info.
     Loads settings from database (referral_settings table).
     Uses user_id and telegram_id from context.
 
     Returns:
         Complete referral info with link, earnings, network stats
+
     """
     try:
         ctx = get_user_context()
@@ -239,7 +238,7 @@ async def get_referral_info() -> dict:
             await db.client.table("users")
             .select(
                 "balance, turnover_usd, total_referral_earnings, partner_mode, partner_discount_percent, "
-                "level1_unlocked_at, level2_unlocked_at, level3_unlocked_at, referral_program_unlocked"
+                "level1_unlocked_at, level2_unlocked_at, level3_unlocked_at, referral_program_unlocked",
             )
             .eq("id", ctx.user_id)
             .single()
@@ -254,7 +253,7 @@ async def get_referral_info() -> dict:
         earnings = float(user.get("total_referral_earnings", 0) or 0)
 
         career_level, next_level, turnover_to_next = _determine_career_level(
-            user, threshold_l2, threshold_l3, turnover
+            user, threshold_l2, threshold_l3, turnover,
         )
 
         # Get line unlock status and network stats
@@ -305,8 +304,7 @@ async def get_referral_info() -> dict:
 
 @tool
 async def get_balance_history(limit: int = 10) -> dict:
-    """
-    Get user's balance transaction history.
+    """Get user's balance transaction history.
     Shows deposits, purchases, referral earnings, cashback, etc.
     Uses user_id from context.
 
@@ -315,6 +313,7 @@ async def get_balance_history(limit: int = 10) -> dict:
 
     Returns:
         List of balance transactions
+
     """
     try:
         from core.db import get_redis
@@ -345,7 +344,7 @@ async def get_balance_history(limit: int = 10) -> dict:
             if ctx.currency != "USD":
                 try:
                     amount_display = await currency_service.convert_price(
-                        abs(amount_usd), ctx.currency
+                        abs(amount_usd), ctx.currency,
                     )
                 except Exception:
                     amount_display = abs(amount_usd)
@@ -371,7 +370,7 @@ async def get_balance_history(limit: int = 10) -> dict:
                     "amount_formatted": f"{sign}{currency_service.format_price(amount_display, ctx.currency)}",
                     "description": tx.get("description", ""),
                     "created_at": tx.get("created_at"),
-                }
+                },
             )
 
         return {"success": True, "count": len(transactions), "transactions": transactions}

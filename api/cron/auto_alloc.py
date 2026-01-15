@@ -1,6 +1,6 @@
-"""
-Auto Allocation Cron Job
-Schedule: */5 * * * * (every 5 minutes) on Pro
+"""Auto Allocation Cron Job.
+
+Schedule: */5 * * * * (every 5 minutes) on Pro.
 
 Tasks:
 1. Attempt to deliver waiting order_items (pending/prepaid) for all products.
@@ -97,7 +97,7 @@ async def _get_replacement_context(db: Any, item_id: str) -> tuple[str | None, s
     )
     if not item_res.data or not isinstance(item_res.data, dict):
         return None, None
-    item_data = cast(dict[str, Any], item_res.data)
+    item_data = cast("dict[str, Any]", item_res.data)
     product_id = str(item_data.get("product_id")) if item_data.get("product_id") else None
     order_id = str(item_data.get("order_id")) if item_data.get("order_id") else None
     return product_id, order_id
@@ -118,7 +118,7 @@ async def _find_available_stock(db: Any, product_id: str) -> tuple[str | None, s
     raw_stock = stock_res.data[0]
     if not isinstance(raw_stock, dict):
         return None, ""
-    stock_item = cast(dict[str, Any], raw_stock)
+    stock_item = cast("dict[str, Any]", raw_stock)
     stock_id = str(stock_item.get("id")) if stock_item.get("id") else None
     stock_content = str(stock_item.get("content", ""))
     return stock_id, stock_content
@@ -133,7 +133,7 @@ async def _get_product_expiry_info(db: Any, product_id: str) -> tuple[int, str]:
         .single()
         .execute()
     )
-    product = cast(dict[str, Any], product_res.data) if isinstance(product_res.data, dict) else {}
+    product = cast("dict[str, Any]", product_res.data) if isinstance(product_res.data, dict) else {}
     duration_raw = product.get("duration_days")
     duration = (
         int(duration_raw) if isinstance(duration_raw, (int, float)) and duration_raw > 0 else 0
@@ -193,7 +193,7 @@ async def _process_single_replacement(
             {
                 "status": "closed",
                 "admin_comment": "Replacement auto-delivered when stock became available.",
-            }
+            },
         )
         .eq("id", ticket_id)
         .execute()
@@ -223,7 +223,7 @@ async def _notify_replacement_user(
     if not order_res.data or not isinstance(order_res.data, dict):
         return
 
-    order_data = cast(dict[str, Any], order_res.data)
+    order_data = cast("dict[str, Any]", order_res.data)
     user_telegram_id_raw = order_data.get("user_telegram_id")
     user_telegram_id = (
         int(user_telegram_id_raw)
@@ -243,7 +243,7 @@ async def _notify_replacement_user(
 
 
 async def _process_replacement_tickets(
-    db: Any, notification_service: Any, results: dict[str, Any], now: datetime
+    db: Any, notification_service: Any, results: dict[str, Any], now: datetime,
 ) -> None:
     """Process approved replacement tickets waiting for stock."""
     approved_tickets = (
@@ -261,7 +261,7 @@ async def _process_replacement_tickets(
     for raw_ticket in approved_tickets.data or []:
         if not isinstance(raw_ticket, dict):
             continue
-        ticket = cast(dict[str, Any], raw_ticket)
+        ticket = cast("dict[str, Any]", raw_ticket)
         try:
             if await _process_single_replacement(db, notification_service, ticket, now):
                 results["replacements"]["delivered"] += 1

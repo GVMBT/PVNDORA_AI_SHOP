@@ -48,7 +48,7 @@ class DiscountOrderService:
     MIN_DELAY_MINUTES = 60
     MAX_DELAY_MINUTES = 240
 
-    def __init__(self, db_client):
+    def __init__(self, db_client) -> None:
         self.client = db_client
         self.qstash_token = os.environ.get("QSTASH_TOKEN", "")
         self.qstash_url = os.environ.get("QSTASH_URL", "https://qstash.upstash.io")
@@ -77,7 +77,7 @@ class DiscountOrderService:
         return random.randint(self.MIN_DELAY_MINUTES, self.MAX_DELAY_MINUTES)
 
     async def schedule_delayed_delivery(
-        self, order_id: str, order_item_id: str, telegram_id: int, stock_item_id: str
+        self, order_id: str, order_item_id: str, telegram_id: int, stock_item_id: str,
     ) -> DelayedDeliveryTask | None:
         """Schedule delayed delivery via QStash.
 
@@ -89,6 +89,7 @@ class DiscountOrderService:
 
         Returns:
             DelayedDeliveryTask if scheduled successfully, None on error
+
         """
         try:
             delay_minutes = self._calculate_delay()
@@ -123,7 +124,7 @@ class DiscountOrderService:
 
             logger.info(
                 f"Scheduled delivery for order {order_id} in {delay_minutes} minutes "
-                f"(at {scheduled_at.isoformat()})"
+                f"(at {scheduled_at.isoformat()})",
             )
 
             # Update order with scheduled delivery time
@@ -160,7 +161,7 @@ class DiscountOrderService:
 
             if result.data and result.data.get("scheduled_delivery_at"):
                 return datetime.fromisoformat(
-                    result.data["scheduled_delivery_at"].replace("Z", "+00:00")
+                    result.data["scheduled_delivery_at"],
                 )
             return None
         except Exception:
@@ -192,7 +193,7 @@ class DiscountOrderService:
                     {
                         "terms_accepted": True,
                         "terms_accepted_at": datetime.now(UTC).isoformat(),
-                    }
+                    },
                 )
                 .eq("telegram_id", telegram_id)
                 .execute()

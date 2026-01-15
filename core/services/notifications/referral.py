@@ -1,5 +1,4 @@
-"""
-Referral Notifications
+"""Referral Notifications.
 
 Notifications for referral program events.
 """
@@ -15,9 +14,7 @@ class ReferralNotificationsMixin(NotificationServiceBase):
     """Mixin for referral-related notifications."""
 
     async def send_referral_unlock_notification(self, telegram_id: int) -> None:
-        """
-        Send notification when referral program is unlocked after first purchase.
-        """
+        """Send notification when referral program is unlocked after first purchase."""
         lang = await get_user_language(telegram_id)
         settings = await get_referral_settings()
         l1 = settings["level1_percent"]
@@ -64,9 +61,7 @@ class ReferralNotificationsMixin(NotificationServiceBase):
             logger.exception("Failed to send referral unlock notification")
 
     async def send_referral_level_up_notification(self, telegram_id: int, new_level: int) -> None:
-        """
-        Send notification when user's referral level increases.
-        """
+        """Send notification when user's referral level increases."""
         lang = await get_user_language(telegram_id)
         settings = await get_referral_settings()
         l1 = settings["level1_percent"]
@@ -175,7 +170,7 @@ class ReferralNotificationsMixin(NotificationServiceBase):
             logger.exception(f"Failed to send referral bonus notification to {telegram_id}")
 
     async def send_new_referral_notification(
-        self, telegram_id: int, referral_name: str, line: int = 1
+        self, telegram_id: int, referral_name: str, line: int = 1,
     ) -> None:
         """Notify referrer about new referral joining."""
         lang = await get_user_language(telegram_id)

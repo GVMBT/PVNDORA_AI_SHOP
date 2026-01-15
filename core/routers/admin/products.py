@@ -1,5 +1,4 @@
-"""
-Admin Products & Stock Router
+"""Admin Products & Stock Router.
 
 Product and stock management endpoints.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
@@ -24,7 +23,7 @@ router = APIRouter(tags=["admin-products"])
 
 @router.post("/products")
 async def admin_create_product(request: CreateProductRequest, admin=Depends(verify_admin)):
-    """Create a new product"""
+    """Create a new product."""
     db = get_database()
 
     product_data = {
@@ -115,7 +114,7 @@ async def admin_get_products(admin=Depends(verify_admin)):
                 "instructions": p.get("instructions", ""),
                 # Timestamps
                 "created_at": p.get("created_at"),
-            }
+            },
         )
 
     return {"products": products}
@@ -123,9 +122,9 @@ async def admin_get_products(admin=Depends(verify_admin)):
 
 @router.put("/products/{product_id}")
 async def admin_update_product(
-    product_id: str, request: CreateProductRequest, admin=Depends(verify_admin)
+    product_id: str, request: CreateProductRequest, admin=Depends(verify_admin),
 ):
-    """Update a product"""
+    """Update a product."""
     db = get_database()
 
     update_data = {
@@ -159,7 +158,7 @@ async def admin_update_product(
 
 @router.delete("/products/{product_id}")
 async def admin_delete_product(product_id: str, admin=Depends(verify_admin)):
-    """Permanently delete a product from database"""
+    """Permanently delete a product from database."""
     db = get_database()
 
     # Check if product has sold stock (cannot delete - has order history)
@@ -195,7 +194,7 @@ async def admin_delete_product(product_id: str, admin=Depends(verify_admin)):
 
 @router.post("/stock")
 async def admin_add_stock(request: AddStockRequest, admin=Depends(verify_admin)):
-    """Add single stock item for a product"""
+    """Add single stock item for a product."""
     db = get_database()
 
     product = await db.get_product_by_id(request.product_id)
@@ -218,7 +217,7 @@ async def admin_add_stock(request: AddStockRequest, admin=Depends(verify_admin))
 
 @router.post("/stock/bulk")
 async def admin_add_stock_bulk(request: BulkStockRequest, admin=Depends(verify_admin)):
-    """Bulk add stock items for a product"""
+    """Bulk add stock items for a product."""
     db = get_database()
 
     product = await db.get_product_by_id(request.product_id)
@@ -251,9 +250,9 @@ async def admin_add_stock_bulk(request: BulkStockRequest, admin=Depends(verify_a
 
 @router.get("/stock")
 async def admin_get_stock(
-    product_id: str | None = None, available_only: bool = True, admin=Depends(verify_admin)
+    product_id: str | None = None, available_only: bool = True, admin=Depends(verify_admin),
 ):
-    """Get stock items"""
+    """Get stock items."""
     db = get_database()
 
     query = (
@@ -271,7 +270,7 @@ async def admin_get_stock(
 
 @router.delete("/stock/{stock_item_id}")
 async def admin_delete_stock(stock_item_id: str, admin=Depends(verify_admin)):
-    """Delete a stock item"""
+    """Delete a stock item."""
     db = get_database()
 
     # Check if stock item exists
@@ -302,8 +301,8 @@ async def admin_delete_stock(stock_item_id: str, admin=Depends(verify_admin)):
 # ==================== HELPERS ====================
 
 
-async def _notify_waitlist_for_product(db, product_name: str, product_id: str | None = None):
-    """Notify users on waitlist when product becomes available"""
+async def _notify_waitlist_for_product(db, product_name: str, product_id: str | None = None) -> None:
+    """Notify users on waitlist when product becomes available."""
     waitlist = (
         await db.client.table("waitlist")
         .select("id,user_id,users(telegram_id,language_code)")
@@ -322,6 +321,9 @@ async def _notify_waitlist_for_product(db, product_name: str, product_id: str | 
 
     notification_service = get_notification_service()
 
+    # Collect IDs for batch delete (avoid N+1)
+    waitlist_ids_to_delete = []
+
     for item in waitlist.data:
         user = item.get("users")
         if user:
@@ -332,5 +334,8 @@ async def _notify_waitlist_for_product(db, product_name: str, product_id: str | 
                 _product_id=product_id,
                 in_stock=in_stock,
             )
+            waitlist_ids_to_delete.append(item["id"])
 
-            await db.client.table("waitlist").delete().eq("id", item["id"]).execute()
+    # Batch delete all notified items at once
+    if waitlist_ids_to_delete:
+        await db.client.table("waitlist").delete().in_("id", waitlist_ids_to_delete).execute()

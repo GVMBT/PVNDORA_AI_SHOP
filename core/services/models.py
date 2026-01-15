@@ -18,7 +18,7 @@ class User(BaseModel):
     language_code: str = "ru"
     preferred_currency: str | None = "RUB"  # DEPRECATED: Always RUB now
     interface_language: str | None = None  # User preferred interface language (ru, en, etc.)
-    balance: Decimal = Decimal("0")
+    balance: Decimal = Decimal(0)
     balance_currency: str = "RUB"  # DEPRECATED: Always RUB now
     referrer_id: str | None = None
     personal_ref_percent: int = 10  # Default L1 commission (actual from referral_settings)
@@ -26,8 +26,8 @@ class User(BaseModel):
     is_banned: bool = False
     warnings_count: int = 0
     do_not_disturb: bool = False
-    total_saved: Decimal = Decimal("0")
-    total_referral_earnings: Decimal = Decimal("0")
+    total_saved: Decimal = Decimal(0)
+    total_referral_earnings: Decimal = Decimal(0)
     last_activity_at: datetime | None = None
     created_at: datetime | None = None
     # Partner/Referral fields
@@ -36,8 +36,8 @@ class User(BaseModel):
     partner_mode: str = "commission"  # commission | discount
     partner_discount_percent: int = 0
     referral_program_unlocked: bool = False
-    turnover_usd: Decimal = Decimal("0")
-    total_purchases_amount: Decimal = Decimal("0")
+    turnover_usd: Decimal = Decimal(0)
+    total_purchases_amount: Decimal = Decimal(0)
     # Referral click tracking
     referral_clicks: int = 0
     # Profile photo from Telegram
@@ -103,12 +103,12 @@ class StockItem(BaseModel):
     created_at: datetime | None = None
     reserved_at: datetime | None = None
     sold_at: datetime | None = None
-    discount_percent: Decimal = Decimal("0")
+    discount_percent: Decimal = Decimal(0)
 
     @field_validator("discount_percent", mode="before")
     @classmethod
     def convert_discount_to_decimal(cls, v):
-        return _to_decimal(v) if v is not None else Decimal("0")
+        return _to_decimal(v) if v is not None else Decimal(0)
 
 
 class Order(BaseModel):
@@ -145,13 +145,13 @@ class Order(BaseModel):
     # Currency snapshot fields (DEPRECATED - all RUB now)
     fiat_amount: Decimal | None = None  # DEPRECATED: Same as amount
     fiat_currency: str | None = "RUB"  # DEPRECATED: Always RUB
-    exchange_rate_snapshot: Decimal | None = Decimal("1")  # DEPRECATED: Always 1
+    exchange_rate_snapshot: Decimal | None = Decimal(1)  # DEPRECATED: Always 1
 
     class Config:
         extra = "ignore"  # Ignore unknown fields from DB
 
     @field_validator(
-        "amount", "original_price", "fiat_amount", "exchange_rate_snapshot", mode="before"
+        "amount", "original_price", "fiat_amount", "exchange_rate_snapshot", mode="before",
     )
     @classmethod
     def convert_amount_to_decimal(cls, v):

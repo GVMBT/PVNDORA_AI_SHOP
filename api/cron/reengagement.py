@@ -1,6 +1,5 @@
-"""
-Re-engagement Cron Job
-Schedule: 0 12 * * * (12:00 PM UTC daily)
+"""Re-engagement Cron Job
+Schedule: 0 12 * * * (12:00 PM UTC daily).
 
 Tasks:
 1. Send notifications to users who haven't been active for 7+ days
@@ -74,7 +73,7 @@ async def _process_inactive_users(db: Any, now: datetime) -> int:
     for user_raw in inactive_users.data or []:
         if not isinstance(user_raw, dict):
             continue
-        user = cast(dict[str, Any], user_raw)
+        user = cast("dict[str, Any]", user_raw)
 
         # Skip if recently contacted
         if _was_recently_contacted(user.get("last_reengagement_at"), reengagement_cutoff):
@@ -101,7 +100,7 @@ def _was_recently_contacted(last_reengagement: str | None, cutoff: datetime) -> 
     if not last_reengagement:
         return False
     try:
-        last_dt = datetime.fromisoformat(last_reengagement.replace("Z", "+00:00"))
+        last_dt = datetime.fromisoformat(last_reengagement)
         return last_dt > cutoff
     except (ValueError, AttributeError):
         return False
@@ -125,7 +124,7 @@ async def _process_wishlist_reminders(db: Any, now: datetime) -> int:
     for item_raw in wishlist_items.data or []:
         if not isinstance(item_raw, dict):
             continue
-        item = cast(dict[str, Any], item_raw)
+        item = cast("dict[str, Any]", item_raw)
         user_data = item.get("users")
         if not isinstance(user_data, dict):
             continue
@@ -155,7 +154,7 @@ async def _process_expiring_subscriptions(db: Any, now: datetime) -> int:
     expiring_items = (
         await db.client.table("order_items")
         .select(
-            "id,order_id,expires_at,products(name),orders(user_telegram_id,users(language_code))"
+            "id,order_id,expires_at,products(name),orders(user_telegram_id,users(language_code))",
         )
         .eq("status", "delivered")
         .gte("expires_at", expiry_window_start.isoformat())
@@ -170,7 +169,7 @@ async def _process_expiring_subscriptions(db: Any, now: datetime) -> int:
     for item_raw in expiring_items.data or []:
         if not isinstance(item_raw, dict):
             continue
-        item = cast(dict[str, Any], item_raw)
+        item = cast("dict[str, Any]", item_raw)
 
         order_data = item.get("orders")
         product_data = item.get("products")
@@ -186,7 +185,7 @@ async def _process_expiring_subscriptions(db: Any, now: datetime) -> int:
         lang = user_data.get("language_code", "en") if isinstance(user_data, dict) else "en"
 
         message = get_text(
-            "subscription_expiring", lang, product=product_data.get("name", ""), days=days_left
+            "subscription_expiring", lang, product=product_data.get("name", ""), days=days_left,
         )
 
         if await _send_telegram_message(telegram_id, message):
@@ -201,7 +200,7 @@ def _calculate_days_left(expires_at_str: str | None, now: datetime) -> int:
     if not expires_at_str:
         return 3
     try:
-        expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
+        expires_at = datetime.fromisoformat(expires_at_str)
         return (expires_at - now).days
     except (ValueError, AttributeError):
         return 3
@@ -229,7 +228,7 @@ async def reengagement_entrypoint(request: Request):
 
         # 3. Expiring subscriptions
         results["tasks"]["expiry_notifications_sent"] = await _process_expiring_subscriptions(
-            db, now
+            db, now,
         )
 
     except Exception as e:

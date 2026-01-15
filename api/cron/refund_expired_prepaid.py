@@ -1,6 +1,5 @@
-"""
-Refund Expired Prepaid Items Cron Job
-Schedule: */5 * * * * (every 5 minutes)
+"""Refund Expired Prepaid Items Cron Job
+Schedule: */5 * * * * (every 5 minutes).
 
 Tasks:
 1. Find prepaid ORDER ITEMS where fulfillment_deadline has passed
@@ -62,7 +61,7 @@ async def _calculate_refund_amount(
     """Calculate refund amount in user's currency."""
     if order_fiat_amount and order_fiat_currency == balance_currency and order_amount > 0:
         # Use proportional share of fiat_amount
-        return int(round((item_price / order_amount) * order_fiat_amount))
+        return round((item_price / order_amount) * order_fiat_amount)
 
     if balance_currency == "USD":
         return int(item_price)
@@ -74,11 +73,11 @@ async def _calculate_refund_amount(
     redis = get_redis()
     currency_service = get_currency_service(redis)
     rate = await currency_service.get_exchange_rate(balance_currency)
-    return int(round(item_price * rate))
+    return round(item_price * rate)
 
 
 async def _update_order_status_if_all_refunded(
-    db: Any, order_id: str, processed_orders: set[str], results: dict[str, Any]
+    db: Any, order_id: str, processed_orders: set[str], results: dict[str, Any],
 ) -> None:
     """Update order status to refunded if all items are refunded."""
     if order_id in processed_orders:
@@ -99,7 +98,7 @@ async def _update_order_status_if_all_refunded(
                 {
                     "status": "refunded",
                     "refund_reason": "Auto-refund: fulfillment deadline exceeded",
-                }
+                },
             )
             .eq("id", order_id)
             .execute()
@@ -110,7 +109,7 @@ async def _update_order_status_if_all_refunded(
 
 
 async def _notify_user_refund(
-    telegram_id: int | str, product_name: str, refund_amount: int, balance_currency: str
+    telegram_id: int | str, product_name: str, refund_amount: int, balance_currency: str,
 ) -> None:
     """Notify user about refund via Telegram."""
     if not TELEGRAM_TOKEN:
@@ -145,7 +144,7 @@ async def _notify_user_refund(
 
 
 async def _process_single_refund(
-    db: Any, item: dict[str, Any], processed_orders: set[str], results: dict[str, Any]
+    db: Any, item: dict[str, Any], processed_orders: set[str], results: dict[str, Any],
 ) -> bool:
     """Process refund for a single expired item. Returns True on success."""
     from core.services.money import to_float
@@ -167,7 +166,7 @@ async def _process_single_refund(
 
     balance_currency = await _get_user_balance_currency(db, user_id)
     refund_amount = await _calculate_refund_amount(
-        item_price, order_amount, order_fiat_amount, order_fiat_currency, balance_currency
+        item_price, order_amount, order_fiat_amount, order_fiat_currency, balance_currency,
     )
 
     # 1. Update order_item status to refunded
@@ -192,7 +191,7 @@ async def _process_single_refund(
         await _notify_user_refund(telegram_id, product_name, refund_amount, balance_currency)
 
     logger.info(
-        f"Auto-refunded item {item_id}: {refund_amount} {balance_currency} for {product_name}"
+        f"Auto-refunded item {item_id}: {refund_amount} {balance_currency} for {product_name}",
     )
     return True
 
@@ -227,7 +226,7 @@ async def refund_expired_prepaid_entrypoint(request: Request):
                 product_id,
                 products(name),
                 orders(id, user_id, user_telegram_id, amount, fiat_amount, fiat_currency)
-                """
+                """,
             )
             .eq("status", "prepaid")
             .lt("fulfillment_deadline", now.isoformat())
@@ -240,7 +239,7 @@ async def refund_expired_prepaid_entrypoint(request: Request):
         for item_raw in expired_items.data or []:
             if not isinstance(item_raw, dict):
                 continue
-            item = cast(dict[str, Any], item_raw)
+            item = cast("dict[str, Any]", item_raw)
 
             try:
                 if await _process_single_refund(db, item, processed_orders, results):

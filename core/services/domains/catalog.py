@@ -1,5 +1,4 @@
-"""
-Catalog Domain Service
+"""Catalog Domain Service.
 
 Handles product search, discovery, and availability checking.
 Combines RAG (semantic search) with traditional database queries.
@@ -81,8 +80,7 @@ class PurchaseIntent:
 
 
 class CatalogService:
-    """
-    Catalog domain service.
+    """Catalog domain service.
 
     Provides clean interface for:
     - Product search (RAG + text fallback)
@@ -91,7 +89,7 @@ class CatalogService:
     - Waitlist management
     """
 
-    def __init__(self, db):
+    def __init__(self, db) -> None:
         self.db = db
         self._rag_search = None
 
@@ -111,14 +109,14 @@ class CatalogService:
         return self._rag_search if self._rag_search else None
 
     async def check_availability(self, product_name: str) -> ProductAvailability:
-        """
-        Check if a product is available.
+        """Check if a product is available.
 
         Args:
             product_name: Full or partial product name
 
         Returns:
             ProductAvailability with stock info
+
         """
         products = await self.db.search_products(product_name)
         if not products:
@@ -149,14 +147,14 @@ class CatalogService:
         )
 
     async def get_details(self, product_id: str) -> ProductDetails:
-        """
-        Get full product details.
+        """Get full product details.
 
         Args:
             product_id: Product UUID
 
         Returns:
             ProductDetails with all info
+
         """
         product = await self.db.get_product_by_id(product_id)
         if not product:
@@ -198,7 +196,7 @@ class CatalogService:
         return filters
 
     async def _perform_rag_search(
-        self, query: str, category: str, limit: int
+        self, query: str, category: str, limit: int,
     ) -> list[SearchResult]:
         """Perform RAG search and return results (reduces cognitive complexity)."""
         results: list[SearchResult] = []
@@ -221,7 +219,7 @@ class CatalogService:
                             in_stock=product.stock_count > 0,
                             stock_count=product.stock_count,
                             similarity_score=result.get("score", 0.0),
-                        )
+                        ),
                     )
         except Exception as e:
             logger.warning("RAG search failed: %s", type(e).__name__)
@@ -229,7 +227,7 @@ class CatalogService:
         return results
 
     async def _supplement_with_text_search(
-        self, query: str, results: list[SearchResult], limit: int
+        self, query: str, results: list[SearchResult], limit: int,
     ) -> list[SearchResult]:
         """Supplement results with text search (reduces cognitive complexity)."""
         if len(results) >= 3:
@@ -248,14 +246,13 @@ class CatalogService:
                         in_stock=p.stock_count > 0,
                         stock_count=p.stock_count,
                         similarity_score=0.0,
-                    )
+                    ),
                 )
 
         return results
 
     async def search(self, query: str, category: str = "all", limit: int = 5) -> list[SearchResult]:
-        """
-        Search products using RAG (semantic) or text fallback.
+        """Search products using RAG (semantic) or text fallback.
 
         Args:
             query: Search query
@@ -264,32 +261,33 @@ class CatalogService:
 
         Returns:
             List of SearchResult
+
         """
         results = await self._perform_rag_search(query, category, limit)
         results = await self._supplement_with_text_search(query, results, limit)
         return results[:limit]
 
     async def get_catalog(self, status: str = "active") -> list[Product]:
-        """
-        Get full product catalog.
+        """Get full product catalog.
 
         Args:
             status: Filter by status
 
         Returns:
             List of Product
+
         """
         return await self.db.get_products(status=status)
 
     async def compare(self, product_names: list[str]) -> list[dict[str, Any]]:
-        """
-        Compare multiple products.
+        """Compare multiple products.
 
         Args:
             product_names: List of product names to compare
 
         Returns:
             List of product comparisons
+
         """
         results = []
         for name in product_names:
@@ -305,19 +303,19 @@ class CatalogService:
                         "description": p.description,
                         "in_stock": p.stock_count > 0,
                         "rating": rating.get("average", 0.0),
-                    }
+                    },
                 )
         return results
 
     async def create_purchase_intent(self, product_id: str) -> PurchaseIntent:
-        """
-        Create purchase intent - validates product and determines order type.
+        """Create purchase intent - validates product and determines order type.
 
         Args:
             product_id: Product UUID
 
         Returns:
             PurchaseIntent with order details or rejection reason
+
         """
         product = await self.db.get_product_by_id(product_id)
         if not product:
@@ -328,13 +326,13 @@ class CatalogService:
         # Discontinued - not available
         if status == "discontinued":
             return PurchaseIntent(
-                success=False, reason="Product is discontinued and no longer available."
+                success=False, reason="Product is discontinued and no longer available.",
             )
 
         # Coming soon - only waitlist
         if status == "coming_soon":
             return PurchaseIntent(
-                success=False, reason="Product is coming soon. Please use waitlist to be notified."
+                success=False, reason="Product is coming soon. Please use waitlist to be notified.",
             )
 
         # Active or out_of_stock - can order
@@ -362,8 +360,7 @@ class CatalogService:
         )
 
     async def add_to_waitlist(self, user_id: str, product_name: str) -> dict[str, Any]:
-        """
-        Add user to waitlist for coming_soon products.
+        """Add user to waitlist for coming_soon products.
 
         Args:
             user_id: User database ID
@@ -371,6 +368,7 @@ class CatalogService:
 
         Returns:
             Success/failure result
+
         """
         if not product_name.strip():
             return {"success": False, "reason": "Product name is required"}

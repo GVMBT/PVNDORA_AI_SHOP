@@ -1,5 +1,4 @@
-"""
-PVNDORA Core Module
+"""PVNDORA Core Module.
 
 This package contains the core infrastructure components:
 - db: Database clients (Supabase + Redis)
@@ -58,4 +57,5 @@ def __getattr__(name):
         from core.queue import publish_to_worker
 
         return publish_to_worker
-    raise AttributeError(f"module 'core' has no attribute '{name}'")
+    msg = f"module 'core' has no attribute '{name}'"
+    raise AttributeError(msg)

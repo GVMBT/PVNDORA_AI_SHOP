@@ -1,10 +1,10 @@
-"""
-Checkout & Payment Tools for Shop Agent.
+"""Checkout & Payment Tools for Shop Agent.
 
 Order creation, payment processing, balance payments.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
+import contextlib
 import os
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -43,7 +43,7 @@ async def _get_partner_discount(db: Any, db_user: dict) -> int:
                 discount = int(referrer.get("partner_discount_percent") or 0)
                 if discount > 0:
                     logger.info(
-                        f"Partner discount applied: {discount}% from referrer {referrer_id}"
+                        f"Partner discount applied: {discount}% from referrer {referrer_id}",
                     )
                     return discount
         return 0
@@ -61,19 +61,19 @@ async def _validate_and_prepare_cart_items(
     target_curr: str,
     curr_service: Any,
 ) -> tuple[Decimal, Decimal, Decimal, list[dict[str, Any]]]:
-    """
-    Validate cart items, calculate totals using Decimal, handle stock deficits.
+    """Validate cart items, calculate totals using Decimal, handle stock deficits.
     Calculates both USD total and Fiat total (using Anchor Prices).
     """
-    total_amount_usd = Decimal("0")
-    total_original_usd = Decimal("0")
-    total_fiat_amount = Decimal("0")
+    total_amount_usd = Decimal(0)
+    total_original_usd = Decimal(0)
+    total_fiat_amount = Decimal(0)
     prepared_items = []
 
     for item in cart_items:
         product = await db.get_product_by_id(item.product_id)
         if not product:
-            raise ValueError(f"Product {item.product_id} not found")
+            msg = f"Product {item.product_id} not found"
+            raise ValueError(msg)
 
         # Check instant availability
         instant_q = item.instant_quantity
@@ -81,7 +81,7 @@ async def _validate_and_prepare_cart_items(
             available_stock = await db.get_available_stock_count(item.product_id)
             if available_stock < instant_q:
                 logger.warning(
-                    f"Stock changed for {product.name}. Requested {instant_q}, available {available_stock}"
+                    f"Stock changed for {product.name}. Requested {instant_q}, available {available_stock}",
                 )
                 # Convert deficit to prepaid
                 deficit = instant_q - available_stock
@@ -111,7 +111,7 @@ async def _validate_and_prepare_cart_items(
 
         # Calculate multiplier: (1 - discount/100)
         discount_multiplier = subtract(
-            Decimal("1"), divide(to_decimal(discount_percent), Decimal("100"))
+            Decimal(1), divide(to_decimal(discount_percent), Decimal(100)),
         )
 
         # Final prices
@@ -136,7 +136,7 @@ async def _validate_and_prepare_cart_items(
                 "amount": final_price_usd,  # Store USD amount in order_items for consistency
                 "original_price": original_price_usd,
                 "discount_percent": discount_percent,
-            }
+            },
         )
     return total_amount_usd, total_original_usd, total_fiat_amount, prepared_items
 
@@ -181,7 +181,7 @@ async def _process_external_payment(
         payment_url = pay_result.get("payment_url")
         invoice_id = pay_result.get("invoice_id")
         logger.info(
-            f"CrystalPay payment created for order {order.id}: payment_url={payment_url[:50] if payment_url else 'None'}..., invoice_id={invoice_id}"
+            f"CrystalPay payment created for order {order.id}: payment_url={payment_url[:50] if payment_url else 'None'}..., invoice_id={invoice_id}",
         )
 
         # Update order with payment details
@@ -201,7 +201,7 @@ async def _process_external_payment(
         # Format response
         if ctx.currency != gateway_currency:
             amount_display = await currency_service.convert_price(
-                to_float(payable_amount), ctx.currency
+                to_float(payable_amount), ctx.currency,
             )
         else:
             amount_display = to_float(payable_amount)
@@ -225,10 +225,8 @@ async def _process_external_payment(
     except Exception as e:
         logger.error("Payment service error: %s", type(e).__name__, exc_info=True)
         # Rollback order on payment creation error
-        try:
+        with contextlib.suppress(Exception):
             await db.client.table("order_items").delete().eq("order_id", order.id).execute()
-        except Exception:
-            pass
         await db.client.table("orders").delete().eq("id", order.id).execute()
         return {
             "success": False,
@@ -258,13 +256,13 @@ async def _create_order_with_currency_snapshot(
     # Calculate discount percent
     discount_pct = 0
     if total_original > 0:
-        discount_ratio = subtract(Decimal("1"), divide(total_amount, total_original))
+        discount_ratio = subtract(Decimal(1), divide(total_amount, total_original))
         discount_pct = max(
-            0, min(100, int(round_money(multiply(discount_ratio, Decimal("100")), to_int=True)))
+            0, min(100, int(round_money(multiply(discount_ratio, Decimal(100)), to_int=True))),
         )
 
     logger.info(
-        f"Order created: {to_float(total_amount)} RUB (Rate: 1.0, all RUB now)"
+        f"Order created: {to_float(total_amount)} RUB (Rate: 1.0, all RUB now)",
     )
 
     # Create order
@@ -290,10 +288,11 @@ async def _create_order_with_currency_snapshot(
         from core.logging import sanitize_id_for_logging
 
         logger.exception(
-            "Failed to create order_items for order %s", sanitize_id_for_logging(order.id)
+            "Failed to create order_items for order %s", sanitize_id_for_logging(order.id),
         )
         await db.client.table("orders").delete().eq("id", order.id).execute()
-        raise ValueError("Failed to create order items. Please try again.")
+        msg = "Failed to create order items. Please try again."
+        raise ValueError(msg)
 
     return order, order_id
 
@@ -323,7 +322,7 @@ def _determine_target_currency(
             if user_currency in supported_currencies:
                 return user_currency, user_currency
             return GATEWAY_CURRENCY.get("crystalpay", "RUB"), GATEWAY_CURRENCY.get(
-                "crystalpay", "RUB"
+                "crystalpay", "RUB",
             )
         except Exception:
             return "RUB", "RUB"
@@ -424,7 +423,7 @@ async def _finalize_balance_payment(
 
         status_service = OrderStatusService(db)
         final_status = await status_service.mark_payment_confirmed(
-            order_id=order_id, payment_id=f"balance-{order_id}", check_stock=True
+            order_id=order_id, payment_id=f"balance-{order_id}", check_stock=True,
         )
         from core.logging import sanitize_id_for_logging
 
@@ -457,7 +456,7 @@ async def _finalize_balance_payment(
         from core.logging import sanitize_id_for_logging
 
         logger.info(
-            "Delivery queued for balance payment order %s", sanitize_id_for_logging(order_id)
+            "Delivery queued for balance payment order %s", sanitize_id_for_logging(order_id),
         )
     except Exception as e:
         from core.logging import sanitize_id_for_logging
@@ -477,7 +476,7 @@ async def _finalize_balance_payment(
     # Format response
     if ctx.currency != balance_currency:
         amount_display = await currency_service.convert_price(
-            to_float(order_total_in_balance_currency), ctx.currency
+            to_float(order_total_in_balance_currency), ctx.currency,
         )
     else:
         amount_display = to_float(order_total_in_balance_currency)
@@ -514,8 +513,7 @@ async def _finalize_balance_payment(
 
 @tool
 async def checkout_cart(payment_method: str = "card") -> dict:
-    """
-    Create order from cart and get payment link.
+    """Create order from cart and get payment link.
     Use when user confirms they want to buy/purchase/order.
 
     CRITICAL: Call this when user says:
@@ -528,6 +526,7 @@ async def checkout_cart(payment_method: str = "card") -> dict:
 
     Returns:
         Order info with payment URL or confirmation
+
     """
     try:
         from core.cart import get_cart_manager
@@ -550,7 +549,7 @@ async def checkout_cart(payment_method: str = "card") -> dict:
         user_result = (
             await db.client.table("users")
             .select(
-                "id, balance, balance_currency, preferred_currency, language_code, referrer_id, interface_language"
+                "id, balance, balance_currency, preferred_currency, language_code, referrer_id, interface_language",
             )
             .eq("telegram_id", ctx.telegram_id)
             .single()
@@ -612,12 +611,12 @@ async def checkout_cart(payment_method: str = "card") -> dict:
         if payment_method == "balance":
             # Convert order total to balance currency
             order_total_in_balance_currency = await _convert_order_total_to_balance_currency(
-                total_amount, balance_currency, currency_service
+                total_amount, balance_currency, currency_service,
             )
 
             # Check balance sufficiency
             error = _check_balance_sufficiency(
-                user_balance, order_total_in_balance_currency, balance_currency, currency_service
+                user_balance, order_total_in_balance_currency, balance_currency, currency_service,
             )
             if error:
                 await db.client.table("orders").delete().eq("id", order.id).execute()
@@ -625,7 +624,7 @@ async def checkout_cart(payment_method: str = "card") -> dict:
 
             # Process balance payment
             error = await _process_balance_payment(
-                db, order.id, user_id, order_total_in_balance_currency, balance_currency
+                db, order.id, user_id, order_total_in_balance_currency, balance_currency,
             )
             if error:
                 return error
@@ -665,7 +664,7 @@ async def checkout_cart(payment_method: str = "card") -> dict:
 
 # Helper to format insufficient balance message (reduces cognitive complexity)
 def _format_insufficient_balance_message(
-    currency_service, balance: float, cart_total: float, user_currency: str
+    currency_service, balance: float, cart_total: float, user_currency: str,
 ) -> str:
     """Format insufficient balance error message."""
     if currency_service:
@@ -705,20 +704,19 @@ async def _calculate_balance_in_display_currency(
         if balance_rate > 0
         else balance_in_balance_currency
     )
-    balance = balance_usd * display_rate if display_rate > 0 else balance_usd
+    return balance_usd * display_rate if display_rate > 0 else balance_usd
 
-    return balance
 
 
 @tool
 async def pay_cart_from_balance() -> dict:
-    """
-    Pay for cart items using internal balance.
+    """Pay for cart items using internal balance.
     Use when user says "оплати с баланса", "спиши с баланса", "pay from balance".
     Uses telegram_id and user_id from context.
 
     Returns:
         Instructions or confirmation
+
     """
     try:
         from core.cart import get_cart_manager
@@ -757,12 +755,12 @@ async def pay_cart_from_balance() -> dict:
             currency_service = get_currency_service(redis)
 
             balance = await _calculate_balance_in_display_currency(
-                balance_in_balance_currency, balance_currency, user_currency, currency_service
+                balance_in_balance_currency, balance_currency, user_currency, currency_service,
             )
             cart_total = float(cart.total)
         except Exception as e:
             logger.warning(
-                "Currency conversion failed in pay_cart_from_balance: %s", type(e).__name__
+                "Currency conversion failed in pay_cart_from_balance: %s", type(e).__name__,
             )
             balance = balance_in_balance_currency
             cart_total = float(cart.total)
@@ -770,7 +768,7 @@ async def pay_cart_from_balance() -> dict:
 
         if balance < cart_total:
             message = _format_insufficient_balance_message(
-                currency_service, balance, cart_total, user_currency
+                currency_service, balance, cart_total, user_currency,
             )
 
             return {

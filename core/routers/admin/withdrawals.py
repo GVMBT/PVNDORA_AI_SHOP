@@ -1,11 +1,11 @@
-"""
-Admin Withdrawals Router
+"""Admin Withdrawals Router.
 
 Withdrawal requests management endpoints.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
 from datetime import UTC, datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -70,11 +70,9 @@ def validate_user_balance(
 
 @router.get("")
 async def get_withdrawals(
-    status: str = Query(
-        "pending", description="Filter by status: pending, processing, completed, rejected, all"
-    ),
-    limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
+    status: Annotated[str, Query(description="Filter by status: pending, processing, completed, rejected, all")] = "pending",
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
     admin=Depends(verify_admin),
 ):
     """Get withdrawal requests with optional status filter."""
@@ -84,7 +82,7 @@ async def get_withdrawals(
         query = (
             db.client.table("withdrawal_requests")
             .select(
-                "*, users!withdrawal_requests_user_id_fkey(username, first_name, telegram_id, balance)"
+                "*, users!withdrawal_requests_user_id_fkey(username, first_name, telegram_id, balance)",
             )
             .order("created_at", desc=True)
             .limit(limit)
@@ -106,7 +104,7 @@ async def get_withdrawals(
                     "first_name": user_data.get("first_name"),
                     "telegram_id": user_data.get("telegram_id"),
                     "user_balance": user_data.get("balance", 0),
-                }
+                },
             )
 
         return {"withdrawals": withdrawals, "count": len(withdrawals)}
@@ -125,7 +123,7 @@ async def get_withdrawal(withdrawal_id: str, admin=Depends(verify_admin)):
         result = (
             await db.client.table("withdrawal_requests")
             .select(
-                "*, users!withdrawal_requests_user_id_fkey(username, first_name, telegram_id, balance)"
+                "*, users!withdrawal_requests_user_id_fkey(username, first_name, telegram_id, balance)",
             )
             .eq("id", withdrawal_id)
             .single()
@@ -153,10 +151,9 @@ async def get_withdrawal(withdrawal_id: str, admin=Depends(verify_admin)):
 
 @router.post("/{withdrawal_id}/approve")
 async def approve_withdrawal(
-    withdrawal_id: str, request: ProcessWithdrawalRequest, admin=Depends(verify_admin)
+    withdrawal_id: str, request: ProcessWithdrawalRequest, admin=Depends(verify_admin),
 ):
-    """
-    Approve a withdrawal request and deduct balance.
+    """Approve a withdrawal request and deduct balance.
 
     Uses snapshot pricing: amount_debited is in user's balance currency,
     amount_to_pay is fixed USDT amount to send.
@@ -168,7 +165,7 @@ async def approve_withdrawal(
         withdrawal_result = (
             await db.client.table("withdrawal_requests")
             .select(
-                "id, user_id, amount, amount_debited, amount_to_pay, balance_currency, exchange_rate, status, payment_method, wallet_address, network_fee"
+                "id, user_id, amount, amount_debited, amount_to_pay, balance_currency, exchange_rate, status, payment_method, wallet_address, network_fee",
             )
             .eq("id", withdrawal_id)
             .single()
@@ -183,7 +180,7 @@ async def approve_withdrawal(
 
         user_id = withdrawal["user_id"]
         amount_debited, balance_currency, amount_to_pay_usdt = extract_withdrawal_amounts(
-            withdrawal
+            withdrawal,
         )
         payment_method = withdrawal.get("payment_method", "crypto")
         wallet_address = withdrawal.get("wallet_address", "")
@@ -205,7 +202,7 @@ async def approve_withdrawal(
         user_telegram_id = user_result.data.get("telegram_id")
 
         validate_user_balance(
-            current_balance, amount_debited, user_balance_currency, balance_currency
+            current_balance, amount_debited, user_balance_currency, balance_currency,
         )
         admin_id = get_admin_id(admin)
 
@@ -218,7 +215,7 @@ async def approve_withdrawal(
                     "admin_comment": request.admin_comment,
                     "processed_by": admin_id,
                     "processed_at": datetime.now(UTC).isoformat(),
-                }
+                },
             )
             .eq("id", withdrawal_id)
             .execute()
@@ -257,13 +254,13 @@ async def approve_withdrawal(
                             "exchange_rate": withdrawal.get("exchange_rate"),
                             "network_fee": withdrawal.get("network_fee"),
                         },
-                    }
+                    },
                 )
                 .execute()
             )
         except Exception:
             logger.exception(
-                "Failed to deduct balance for withdrawal %s", sanitize_id_for_logging(withdrawal_id)
+                "Failed to deduct balance for withdrawal %s", sanitize_id_for_logging(withdrawal_id),
             )
             # Rollback withdrawal status
             await (
@@ -274,7 +271,7 @@ async def approve_withdrawal(
                         "admin_comment": None,
                         "processed_by": None,
                         "processed_at": None,
-                    }
+                    },
                 )
                 .eq("id", withdrawal_id)
                 .execute()
@@ -306,7 +303,7 @@ async def approve_withdrawal(
                 )
             except Exception as e:
                 logger.warning(
-                    "Failed to send withdrawal approved notification: %s", type(e).__name__
+                    "Failed to send withdrawal approved notification: %s", type(e).__name__,
                 )
 
         return {
@@ -330,10 +327,9 @@ async def approve_withdrawal(
 
 @router.post("/{withdrawal_id}/reject")
 async def reject_withdrawal(
-    withdrawal_id: str, request: ProcessWithdrawalRequest, admin=Depends(verify_admin)
+    withdrawal_id: str, request: ProcessWithdrawalRequest, admin=Depends(verify_admin),
 ):
-    """
-    Reject a withdrawal request.
+    """Reject a withdrawal request.
 
     If status was 'processing' (balance already deducted), returns balance to user.
     Uses amount_debited for correct currency handling.
@@ -345,7 +341,7 @@ async def reject_withdrawal(
         withdrawal_result = (
             await db.client.table("withdrawal_requests")
             .select(
-                "id, status, user_id, amount, amount_debited, amount_to_pay, balance_currency, users!withdrawal_requests_user_id_fkey(telegram_id)"
+                "id, status, user_id, amount, amount_debited, amount_to_pay, balance_currency, users!withdrawal_requests_user_id_fkey(telegram_id)",
             )
             .eq("id", withdrawal_id)
             .single()
@@ -394,7 +390,7 @@ async def reject_withdrawal(
                     "admin_comment": request.admin_comment,
                     "processed_by": admin_id,
                     "processed_at": datetime.now(UTC).isoformat(),
-                }
+                },
             )
             .eq("id", withdrawal_id)
             .execute()
@@ -418,7 +414,7 @@ async def reject_withdrawal(
                 )
             except Exception as e:
                 logger.warning(
-                    "Failed to send withdrawal rejected notification: %s", type(e).__name__
+                    "Failed to send withdrawal rejected notification: %s", type(e).__name__,
                 )
 
         return {
@@ -440,7 +436,7 @@ async def reject_withdrawal(
 
 @router.post("/{withdrawal_id}/complete")
 async def complete_withdrawal(
-    withdrawal_id: str, request: ProcessWithdrawalRequest, admin=Depends(verify_admin)
+    withdrawal_id: str, request: ProcessWithdrawalRequest, admin=Depends(verify_admin),
 ):
     """Mark withdrawal as completed (funds sent)."""
     db = get_database()
@@ -450,7 +446,7 @@ async def complete_withdrawal(
         withdrawal_result = (
             await db.client.table("withdrawal_requests")
             .select(
-                "id, status, amount, amount_to_pay, payment_method, users!withdrawal_requests_user_id_fkey(telegram_id)"
+                "id, status, amount, amount_to_pay, payment_method, users!withdrawal_requests_user_id_fkey(telegram_id)",
             )
             .eq("id", withdrawal_id)
             .single()
@@ -485,7 +481,7 @@ async def complete_withdrawal(
                     "admin_comment": request.admin_comment,
                     "processed_by": admin_id,
                     "processed_at": datetime.now(UTC).isoformat(),
-                }
+                },
             )
             .eq("id", withdrawal_id)
             .execute()
@@ -509,7 +505,7 @@ async def complete_withdrawal(
                 )
             except Exception as e:
                 logger.warning(
-                    "Failed to send withdrawal completed notification: %s", type(e).__name__
+                    "Failed to send withdrawal completed notification: %s", type(e).__name__,
                 )
 
         return {

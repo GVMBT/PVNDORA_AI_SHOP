@@ -5,9 +5,8 @@ import os
 from fastapi import Header, HTTPException
 
 
-def verify_cron_secret(authorization: str = Header(None, alias="Authorization")):
-    """
-    Verify CRON_SECRET for scheduled jobs and internal workers.
+def verify_cron_secret(authorization: str = Header(None, alias="Authorization")) -> bool:
+    """Verify CRON_SECRET for scheduled jobs and internal workers.
 
     Use for cron endpoints and QStash workers.
     """

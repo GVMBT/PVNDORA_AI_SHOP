@@ -1,5 +1,4 @@
-"""
-LangGraph Shop Agent — Full-Featured & Fault-Tolerant
+"""LangGraph Shop Agent — Full-Featured & Fault-Tolerant.
 
 Complete agent covering all shop functionality with:
 - Persistent chat history from database
@@ -54,8 +53,7 @@ class UserContext:
 
 
 class ShopAgent:
-    """
-    LangGraph-based shop agent with full functionality.
+    """LangGraph-based shop agent with full functionality.
 
     Features:
     - ReAct pattern for reasoning + acting
@@ -70,14 +68,14 @@ class ShopAgent:
         db,
         model: str = DEFAULT_MODEL,
         temperature: float = 0.7,
-    ):
-        """
-        Initialize the agent.
+    ) -> None:
+        """Initialize the agent.
 
         Args:
             db: Database instance
             model: OpenRouter model name (e.g., google/gemini-3-flash-preview)
             temperature: LLM temperature (0.7 = balanced)
+
         """
         self.db = db
         self.model_name = model
@@ -94,7 +92,8 @@ class ShopAgent:
             if api_key:
                 logger.warning("Using legacy GEMINI_API_KEY. Please migrate to OPENROUTER_API_KEY.")
             else:
-                raise ValueError("OPENROUTER_API_KEY environment variable not set")
+                msg = "OPENROUTER_API_KEY environment variable not set"
+                raise ValueError(msg)
 
         self.llm = ChatOpenAI(
             model=model,
@@ -143,7 +142,7 @@ class ShopAgent:
                 lines.append(f"You: {content}")
 
         lines.append(
-            "\nUse this context to maintain conversation flow and avoid redundant questions.\n"
+            "\nUse this context to maintain conversation flow and avoid redundant questions.\n",
         )
         return "\n".join(lines)
 
@@ -180,7 +179,7 @@ class ShopAgent:
             exchange_rate = await currency_service.get_exchange_rate(currency)
 
             logger.info(
-                f"User context: user_id={user_id}, currency={currency} (RUB-only), rate={exchange_rate}"
+                f"User context: user_id={user_id}, currency={currency} (RUB-only), rate={exchange_rate}",
             )
 
         except Exception as e:
@@ -205,8 +204,7 @@ class ShopAgent:
         language: str = "en",
         telegram_id: int | None = None,
     ) -> AgentResponse:
-        """
-        Send message to agent.
+        """Send message to agent.
 
         Args:
             message: User message
@@ -216,13 +214,14 @@ class ShopAgent:
 
         Returns:
             AgentResponse with content and metadata
+
         """
         # Build user context with currency info
         user_ctx = await self._get_user_context(user_id, telegram_id or 0, language)
 
         # Set global user context for tools (auto-injection)
         set_user_context(
-            user_ctx.user_id, user_ctx.telegram_id, user_ctx.language, user_ctx.currency
+            user_ctx.user_id, user_ctx.telegram_id, user_ctx.language, user_ctx.currency,
         )
 
         # Load product catalog with proper currency conversion
@@ -367,14 +366,14 @@ _agent: ShopAgent | None = None
 
 
 def get_shop_agent(db=None) -> ShopAgent:
-    """
-    Get or create agent singleton.
+    """Get or create agent singleton.
 
     Args:
         db: Database instance (required on first call)
 
     Returns:
         ShopAgent instance
+
     """
     global _agent
 
@@ -388,7 +387,7 @@ def get_shop_agent(db=None) -> ShopAgent:
     return _agent
 
 
-def reset_agent():
+def reset_agent() -> None:
     """Reset agent singleton (for testing)."""
     global _agent
     _agent = None

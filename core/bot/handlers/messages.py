@@ -1,5 +1,7 @@
 """Text and voice message handlers - AI conversation entry points."""
 
+import contextlib
+
 from aiogram import Bot, F, Router
 from aiogram.enums import ParseMode
 from aiogram.types import InlineKeyboardMarkup, Message
@@ -16,7 +18,7 @@ router = Router()
 
 
 async def _get_product_keyboard_for_response(
-    response, db_user: User, db
+    response, db_user: User, db,
 ) -> InlineKeyboardMarkup | None:
     """Get product keyboard for response (reduces cognitive complexity)."""
     if not response.product_id:
@@ -36,7 +38,7 @@ async def _get_product_keyboard_for_response(
 
 
 async def _get_keyboard_for_payment_action(
-    response, db_user: User, db
+    response, db_user: User, db,
 ) -> InlineKeyboardMarkup | None:
     """Get keyboard for payment action (reduces cognitive complexity)."""
     product_keyboard = await _get_product_keyboard_for_response(response, db_user, db)
@@ -104,7 +106,7 @@ def _create_mock_response(reply_text: str, action_str: str, product_id: str | No
     from core.models import ActionType
 
     class MockResponse:
-        def __init__(self, text, action_str, product_id):
+        def __init__(self, text, action_str, product_id) -> None:
             self.reply_text = text
             self.product_id = product_id
             self.quantity = 1
@@ -121,20 +123,18 @@ def _create_mock_response(reply_text: str, action_str: str, product_id: str | No
 
 
 # Helper to send final response (reduces cognitive complexity)
-async def _send_final_response(progress_msg, message, reply_text, keyboard):
+async def _send_final_response(progress_msg, message, reply_text, keyboard) -> None:
     """Send final response, handling edit/delete fallback."""
     try:
         await progress_msg.edit_text(reply_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
     except Exception:
-        try:
+        with contextlib.suppress(Exception):
             await progress_msg.delete()
-        except Exception:
-            pass
         await safe_answer(message, reply_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
 
 
 @router.message(F.text)
-async def handle_text_message(message: Message, db_user: User, bot: Bot):
+async def handle_text_message(message: Message, db_user: User, bot: Bot) -> None:
     """Handle regular text messages - route to AI agent."""
     from core.agent import get_shop_agent
     from core.models import ActionType
@@ -184,7 +184,7 @@ async def handle_text_message(message: Message, db_user: User, bot: Bot):
 
 
 @router.message(F.voice)
-async def handle_voice_message(message: Message, db_user: User, bot: Bot):
+async def handle_voice_message(message: Message, db_user: User, bot: Bot) -> None:
     """Handle voice messages - temporarily unsupported after agent migration."""
     lang = db_user.language_code if db_user.language_code in ("ru", "en") else "en"
 

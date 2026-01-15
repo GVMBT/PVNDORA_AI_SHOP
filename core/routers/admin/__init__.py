@@ -1,5 +1,4 @@
-"""
-Admin API Router
+"""Admin API Router.
 
 Admin-only endpoints for managing products, users, orders, and stock.
 Combines all sub-routers into a single router with tag "admin".

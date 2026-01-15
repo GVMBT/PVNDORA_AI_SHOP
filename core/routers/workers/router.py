@@ -1,5 +1,4 @@
-"""
-QStash Workers Router - Main Router
+"""QStash Workers Router - Main Router.
 
 Central router that aggregates all worker endpoints.
 Contains shared utilities like _deliver_items_for_order.
@@ -37,17 +36,17 @@ router.include_router(broadcast_router)
 
 
 async def _validate_order_for_delivery(db, order_id: str) -> tuple[dict | None, str | None]:
-    """
-    Validate order status for delivery.
+    """Validate order status for delivery.
 
     Returns:
         (order_data, error_response) - error_response is None if valid
+
     """
     try:
         order_data = (
             await db.client.table("orders")
             .select(
-                "status, payment_method, source_channel, user_id, original_price, amount, saved_calculated, user_telegram_id, delivered_at"
+                "status, payment_method, source_channel, user_id, original_price, amount, saved_calculated, user_telegram_id, delivered_at",
             )
             .eq("id", order_id)
             .single()
@@ -101,11 +100,11 @@ async def _validate_order_for_delivery(db, order_id: str) -> tuple[dict | None, 
 
 
 async def _allocate_stock_item(db, product_id: str, now: datetime) -> tuple[str | None, str | None]:
-    """
-    Find and atomically reserve a stock item for a product.
+    """Find and atomically reserve a stock item for a product.
 
     Returns:
         (stock_id, stock_content) or (None, None) if no stock available
+
     """
     try:
         stock_res = (
@@ -136,7 +135,7 @@ async def _allocate_stock_item(db, product_id: str, now: datetime) -> tuple[str 
                     "status": "sold",
                     "reserved_at": now.isoformat(),
                     "sold_at": now.isoformat(),
-                }
+                },
             )
             .eq("id", stock_id)
             .eq("status", "available")
@@ -201,13 +200,13 @@ async def _update_order_item_as_delivered(
 
 
 async def _check_item_eligible_for_delivery(
-    item: dict, only_instant: bool
+    item: dict, only_instant: bool,
 ) -> tuple[bool, bool]:
-    """
-    Check if item is eligible for delivery processing.
+    """Check if item is eligible for delivery processing.
 
     Returns:
         (can_process, is_waiting) - can_process=False means skip, is_waiting indicates if waiting
+
     """
     status = str(item.get("status") or "").lower()
     if status in {"delivered", "cancelled", "refunded"}:
@@ -222,11 +221,11 @@ async def _check_item_eligible_for_delivery(
 
 
 async def _check_prepaid_deadline_expired(item: dict, now: datetime) -> bool:
-    """
-    Check if prepaid item has expired fulfillment_deadline.
+    """Check if prepaid item has expired fulfillment_deadline.
 
     Returns:
         True if expired (should skip), False if can continue
+
     """
     if str(item.get("status") or "").lower() != "prepaid":
         return False  # Not prepaid, continue
@@ -238,7 +237,7 @@ async def _check_prepaid_deadline_expired(item: dict, now: datetime) -> bool:
     try:
         if isinstance(fulfillment_deadline_raw, str):
             fulfillment_deadline = datetime.fromisoformat(
-                fulfillment_deadline_raw.replace("Z", "+00:00")
+                fulfillment_deadline_raw,
             )
         elif isinstance(fulfillment_deadline_raw, datetime):
             fulfillment_deadline = fulfillment_deadline_raw
@@ -248,12 +247,12 @@ async def _check_prepaid_deadline_expired(item: dict, now: datetime) -> bool:
         if fulfillment_deadline < now:
             logger.warning(
                 f"deliver-goods: skipping expired prepaid item {item.get('id')} "
-                f"(fulfillment_deadline={fulfillment_deadline.isoformat()} < now={now.isoformat()})"
+                f"(fulfillment_deadline={fulfillment_deadline.isoformat()} < now={now.isoformat()})",
             )
             return True  # Expired, skip
     except (ValueError, TypeError, AttributeError) as e:
         logger.warning(
-            f"deliver-goods: failed to parse fulfillment_deadline for item {item.get('id')}: {e}"
+            f"deliver-goods: failed to parse fulfillment_deadline for item {item.get('id')}: {e}",
         )
         # Continue with delivery if we can't parse deadline
 
@@ -261,13 +260,13 @@ async def _check_prepaid_deadline_expired(item: dict, now: datetime) -> bool:
 
 
 async def _try_deliver_with_stock(
-    db, item: dict, products_map: dict, now: datetime
+    db, item: dict, products_map: dict, now: datetime,
 ) -> tuple[str | None, bool]:
-    """
-    Try to deliver item if stock is available.
+    """Try to deliver item if stock is available.
 
     Returns:
         (delivery_line, is_waiting) - delivery_line is None if not delivered
+
     """
     product_id = item.get("product_id")
     prod = products_map.get(product_id, {})
@@ -284,12 +283,12 @@ async def _try_deliver_with_stock(
     duration_days = prod.get("duration_days")
 
     success = await _update_order_item_as_delivered(
-        db, item_id, stock_id, stock_content, instructions, duration_days, now
+        db, item_id, stock_id, stock_content, instructions, duration_days, now,
     )
 
     if success:
         logger.info(
-            f"deliver-goods: allocated stock item {stock_id} for product {product_id}, order_item {item_id}"
+            f"deliver-goods: allocated stock item {stock_id} for product {product_id}, order_item {item_id}",
         )
         return f"{prod_name}:\n{stock_content}", False
 
@@ -311,13 +310,13 @@ async def _update_item_timestamp(db, item_id: str, now: datetime) -> None:
 
 
 async def _process_single_item_delivery(
-    db, item: dict, products_map: dict, now: datetime, only_instant: bool
+    db, item: dict, products_map: dict, now: datetime, only_instant: bool,
 ) -> tuple[str | None, bool]:
-    """
-    Process delivery for a single order item.
+    """Process delivery for a single order item.
 
     Returns:
         (delivery_line, is_waiting) - delivery_line is None if not delivered
+
     """
     # Check if item is eligible for delivery
     can_process, is_waiting = await _check_item_eligible_for_delivery(item, only_instant)
@@ -377,7 +376,7 @@ async def _update_user_total_saved(db, order_data: dict, order_id: str) -> None:
         )
 
         logger.info(
-            f"deliver-goods: Updated total_saved for user {user_id}: {current_saved:.2f} -> {new_saved:.2f}"
+            f"deliver-goods: Updated total_saved for user {user_id}: {current_saved:.2f} -> {new_saved:.2f}",
         )
     except Exception:
         logger.exception(f"deliver-goods: Failed to update total_saved for order {order_id}")
@@ -514,7 +513,7 @@ async def _load_products_map(db, product_ids: list[str], order_id: str) -> dict:
 
 
 async def _process_items_for_delivery(
-    db, items: list, products_map: dict, now: datetime, only_instant: bool
+    db, items: list, products_map: dict, now: datetime, only_instant: bool,
 ) -> tuple[list[str], int, int, int]:
     """Process all items for delivery. Returns (delivered_lines, delivered_count, waiting_count, total_already_delivered)."""
     delivered_lines = []
@@ -529,7 +528,7 @@ async def _process_items_for_delivery(
             continue
 
         delivery_line, is_waiting = await _process_single_item_delivery(
-            db, it, products_map, now, only_instant
+            db, it, products_map, now, only_instant,
         )
 
         if delivery_line:
@@ -542,7 +541,7 @@ async def _process_items_for_delivery(
 
 
 async def _update_order_delivery_status(
-    db, order_id: str, total_delivered: int, waiting_count: int, order_status: str, now: datetime
+    db, order_id: str, total_delivered: int, waiting_count: int, order_status: str, now: datetime,
 ) -> str | None:
     """Update order delivery status. Returns new status or None."""
     try:
@@ -573,12 +572,11 @@ async def _update_order_delivery_status(
 
 
 async def _deliver_items_for_order(
-    db, notification_service, order_id: str, only_instant: bool = False
+    db, notification_service, order_id: str, only_instant: bool = False,
 ):
-    """
-    Deliver order_items for given order_id.
+    """Deliver order_items for given order_id.
     - only_instant=True: выдаём только instant позиции (для первичной выдачи после оплаты)
-    - otherwise: пытаемся выдать все открытые позиции, если есть сток
+    - otherwise: пытаемся выдать все открытые позиции, если есть сток.
 
     CRITICAL: This function should ONLY be called AFTER payment is confirmed via webhook.
     Orders with status 'pending' should NOT be processed - payment is not confirmed yet.
@@ -625,11 +623,11 @@ async def _deliver_items_for_order(
     # Update order status
     total_delivered_final = total_delivered + delivered_count
     logger.debug(
-        f"deliver-goods: order {order_id} status calc: total_delivered={total_delivered_final}"
+        f"deliver-goods: order {order_id} status calc: total_delivered={total_delivered_final}",
     )
 
     new_status = await _update_order_delivery_status(
-        db, order_id, total_delivered_final, waiting_count, order_status, now
+        db, order_id, total_delivered_final, waiting_count, order_status, now,
     )
 
     # Update user's total_saved

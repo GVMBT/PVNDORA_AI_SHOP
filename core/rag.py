@@ -1,5 +1,4 @@
-"""
-RAG Module - Semantic Product Search via Supabase REST API
+"""RAG Module - Semantic Product Search via Supabase REST API.
 
 Uses pgvector through Supabase PostgREST - no direct DB connection needed.
 Works with Supabase Connection Pooler (Transaction mode).
@@ -38,8 +37,7 @@ def get_http_client() -> httpx.AsyncClient:
 
 
 async def get_embedding(text: str) -> list[float]:
-    """
-    Generate embedding for text using OpenRouter API.
+    """Generate embedding for text using OpenRouter API.
 
     Uses text-embedding-3-large model (3072 dimensions).
     Reference: https://openrouter.ai/docs/api/api-reference/embeddings/create-embeddings
@@ -67,7 +65,7 @@ async def get_embedding(text: str) -> list[float]:
 
         if response.status_code != 200:
             logger.error(
-                f"OpenRouter embeddings API error: {response.status_code} - {response.text}"
+                f"OpenRouter embeddings API error: {response.status_code} - {response.text}",
             )
             return []
 
@@ -75,8 +73,7 @@ async def get_embedding(text: str) -> list[float]:
 
         # Response structure: { data: [{ embedding: [...], index: 0 }], ... }
         if data.get("data") and len(data["data"]) > 0:
-            embedding = data["data"][0].get("embedding", [])
-            return embedding
+            return data["data"][0].get("embedding", [])
 
         return []
 
@@ -86,8 +83,7 @@ async def get_embedding(text: str) -> list[float]:
 
 
 class ProductSearch:
-    """
-    Semantic product search using pgvector via Supabase REST API.
+    """Semantic product search using pgvector via Supabase REST API.
 
     Features:
     - Natural language queries ("I need to make presentations")
@@ -97,7 +93,7 @@ class ProductSearch:
     Uses Supabase RPC function search_products_semantic() for vector search.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._db = None
         self._initialized = False
 
@@ -120,8 +116,7 @@ class ProductSearch:
         description: str,
         instructions: str | None = None,
     ) -> bool:
-        """
-        Index a product for semantic search.
+        """Index a product for semantic search.
 
         Creates/updates embedding in product_embeddings table.
         """
@@ -175,10 +170,9 @@ class ProductSearch:
             return False
 
     async def search(
-        self, query: str, limit: int = 5, similarity_threshold: float = 0.3
+        self, query: str, limit: int = 5, similarity_threshold: float = 0.3,
     ) -> list[dict]:
-        """
-        Search products by semantic similarity.
+        """Search products by semantic similarity.
 
         Args:
             query: Natural language search query
@@ -187,6 +181,7 @@ class ProductSearch:
 
         Returns:
             List of matching products with similarity scores
+
         """
         if not self.is_available:
             return []
@@ -224,7 +219,7 @@ class ProductSearch:
                         "price": row["product_price"],
                         "type": row["product_type"],
                         "score": row["similarity"],
-                    }
+                    },
                 )
 
             return products
@@ -234,8 +229,7 @@ class ProductSearch:
             return []
 
     async def index_all_products(self) -> int:
-        """
-        Index all active products.
+        """Index all active products.
 
         Returns number of products indexed.
         """
@@ -298,8 +292,7 @@ def get_product_search() -> ProductSearch:
 
 
 async def search_products_for_ai(query: str, limit: int = 5) -> str:
-    """
-    Search products and format results for AI context.
+    """Search products and format results for AI context.
 
     Used in AI function calling and system prompt.
     """

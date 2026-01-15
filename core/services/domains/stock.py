@@ -7,7 +7,7 @@ from core.services.repositories import StockRepository
 class StockDomain:
     """Stock domain operations."""
 
-    def __init__(self, repo: StockRepository):
+    def __init__(self, repo: StockRepository) -> None:
         self.repo = repo
 
     async def get_available(self, product_id: str) -> StockItem | None:

@@ -8,7 +8,7 @@ from core.services.repositories import ChatRepository
 class ChatDomain:
     """Chat and support ticket operations."""
 
-    def __init__(self, repo: ChatRepository):
+    def __init__(self, repo: ChatRepository) -> None:
         self.repo = repo
 
     async def save_message(self, user_id: str, role: str, message: str) -> None:

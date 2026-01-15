@@ -1,5 +1,4 @@
-"""
-Admin Alert Service - Notifications to administrators via Telegram bot.
+"""Admin Alert Service - Notifications to administrators via Telegram bot.
 
 Sends alerts for critical business events:
 - New paid orders
@@ -46,7 +45,7 @@ SEVERITY_ICONS = {
 class AdminAlertService:
     """Service for sending alerts to admin Telegram accounts."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.bot_token = os.environ.get("TELEGRAM_TOKEN", "")
         self._bot: Bot | None = None
         self._admin_ids: list[int] | None = None
@@ -55,7 +54,7 @@ class AdminAlertService:
         """Get or create bot instance."""
         if self._bot is None and self.bot_token:
             self._bot = Bot(
-                token=self.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+                token=self.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML),
             )
         return self._bot
 
@@ -92,8 +91,7 @@ class AdminAlertService:
         severity: str = AlertSeverity.INFO,
         metadata: dict | None = None,
     ) -> int:
-        """
-        Send alert to all admin users.
+        """Send alert to all admin users.
 
         Args:
             title: Alert title
@@ -103,6 +101,7 @@ class AdminAlertService:
 
         Returns:
             Number of admins notified
+
         """
         admin_ids = await self._get_admin_ids()
         if not admin_ids:
@@ -131,7 +130,7 @@ class AdminAlertService:
                 # Note: disable_notification not supported in telegram_messaging yet
                 # Can be added if needed
                 success = await send_telegram_message(
-                    chat_id=admin_id, text=text, parse_mode="HTML"
+                    chat_id=admin_id, text=text, parse_mode="HTML",
                 )
                 if success:
                     sent_count += 1
@@ -168,7 +167,7 @@ class AdminAlertService:
         )
 
     async def alert_low_stock(
-        self, product_name: str, product_id: str, current_stock: int, threshold: int = 5
+        self, product_name: str, product_id: str, current_stock: int, threshold: int = 5,
     ) -> int:
         """Alert admins about low stock."""
         severity = AlertSeverity.WARNING if current_stock > 0 else AlertSeverity.ERROR
@@ -187,7 +186,7 @@ class AdminAlertService:
         )
 
     async def alert_payment_failure(
-        self, order_id: str, error: str, amount: float, gateway: str
+        self, order_id: str, error: str, amount: float, gateway: str,
     ) -> int:
         """Alert admins about payment processing failure."""
         return await self.send_alert(
@@ -233,7 +232,7 @@ class AdminAlertService:
         )
 
     async def alert_new_partner_application(
-        self, user_telegram_id: int, username: str | None, source: str, audience_size: str
+        self, user_telegram_id: int, username: str | None, source: str, audience_size: str,
     ) -> int:
         """Alert admins about new partner application."""
         user_display = f"@{username}" if username else f"ID: {user_telegram_id}"
@@ -250,7 +249,7 @@ class AdminAlertService:
         )
 
     async def alert_support_ticket(
-        self, ticket_id: str, user_telegram_id: int, issue_type: str, order_id: str | None = None
+        self, ticket_id: str, user_telegram_id: int, issue_type: str, order_id: str | None = None,
     ) -> int:
         """Alert admins about new support ticket."""
         metadata = {"ticket_id": ticket_id[:8]}
@@ -281,7 +280,7 @@ def get_admin_alert_service() -> AdminAlertService:
 
 # Convenience functions for quick alerts
 async def alert_admins(
-    title: str, message: str, severity: str = AlertSeverity.INFO, metadata: dict | None = None
+    title: str, message: str, severity: str = AlertSeverity.INFO, metadata: dict | None = None,
 ) -> int:
     """Quick function to send alert to admins."""
     service = get_admin_alert_service()

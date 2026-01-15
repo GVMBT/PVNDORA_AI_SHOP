@@ -1,5 +1,4 @@
-"""
-Review endpoints.
+"""Review endpoints.
 
 Product reviews with cashback rewards.
 """
@@ -9,11 +8,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from core.auth import verify_telegram_auth
 from core.db import get_redis
 from core.logging import get_logger
+from core.routers.webapp.models import WebAppReviewRequest
 from core.services.currency import INTEGER_CURRENCIES, get_currency_service
 from core.services.database import get_database
 from core.services.money import to_float
 
-from ..models import WebAppReviewRequest
 from .constants import REVIEW_CASHBACK_PERCENT
 
 logger = get_logger(__name__)
@@ -64,7 +63,7 @@ def _is_duplicate_key_error(exception: Exception) -> bool:
 
 
 async def _calculate_review_cashback(
-    target_item: dict, order, balance_currency: str, currency_service
+    target_item: dict, order, balance_currency: str, currency_service,
 ) -> float:
     """Calculate 5% cashback amount in user's balance currency.
 
@@ -122,7 +121,7 @@ async def _calculate_review_cashback(
 
 
 async def _update_order_expenses_cashback(
-    db, order_id: str, cashback_amount: float, balance_currency: str, currency_service
+    db, order_id: str, cashback_amount: float, balance_currency: str, currency_service,
 ) -> None:
     """Update order_expenses with review cashback amount (in USD for accounting)."""
     try:
@@ -144,7 +143,7 @@ async def _update_order_expenses_cashback(
         current_cashback_usd = 0.0
         if current_expenses.data and len(current_expenses.data) > 0:
             current_cashback_usd = to_float(
-                current_expenses.data[0].get("review_cashback_amount", 0)
+                current_expenses.data[0].get("review_cashback_amount", 0),
             )
 
         # Sum: existing + new cashback
@@ -159,12 +158,12 @@ async def _update_order_expenses_cashback(
                 .execute()
             )
             logger.info(
-                f"Updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD (added {cashback_usd:.2f} USD)"
+                f"Updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD (added {cashback_usd:.2f} USD)",
             )
         else:
             # order_expenses doesn't exist - create it via calculate_order_expenses first
             logger.warning(
-                f"order_expenses not found for {order_id}, calling calculate_order_expenses first"
+                f"order_expenses not found for {order_id}, calling calculate_order_expenses first",
             )
             await db.client.rpc("calculate_order_expenses", {"p_order_id": order_id}).execute()
 
@@ -176,7 +175,7 @@ async def _update_order_expenses_cashback(
                 .execute()
             )
             logger.info(
-                f"Created and updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD"
+                f"Created and updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD",
             )
     except Exception as e:
         from core.logging import sanitize_id_for_logging
@@ -224,7 +223,7 @@ async def _create_review_record(db, db_user, request, product_id: str) -> str:
                     "rating": request.rating,
                     "text": request.text,
                     "cashback_given": False,
-                }
+                },
             )
             .execute()
         )
@@ -275,7 +274,7 @@ async def _process_review_cashback(
     await db.client.table("reviews").update({"cashback_given": True}).eq("id", review_id).execute()
 
     await _update_order_expenses_cashback(
-        db, request.order_id, cashback_amount, balance_currency, currency_service
+        db, request.order_id, cashback_amount, balance_currency, currency_service,
     )
 
     return new_balance
@@ -283,8 +282,8 @@ async def _process_review_cashback(
 
 # Helper to send cashback notification (reduces cognitive complexity)
 async def _send_cashback_notification(
-    db_user, cashback_amount: float, new_balance: float, balance_currency: str
-):
+    db_user, cashback_amount: float, new_balance: float, balance_currency: str,
+) -> None:
     """Send cashback notification (best-effort)."""
     try:
         from core.routers.deps import get_notification_service
@@ -351,11 +350,11 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
     currency_service = get_currency_service(redis)
 
     cashback_amount = await _calculate_review_cashback(
-        target_item, order, balance_currency, currency_service
+        target_item, order, balance_currency, currency_service,
     )
 
     new_balance = await _process_review_cashback(
-        db, db_user, review_id, request, cashback_amount, balance_currency, currency_service
+        db, db_user, review_id, request, cashback_amount, balance_currency, currency_service,
     )
 
     await _send_cashback_notification(db_user, cashback_amount, new_balance, balance_currency)

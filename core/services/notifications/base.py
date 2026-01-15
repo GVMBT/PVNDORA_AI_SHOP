@@ -1,5 +1,4 @@
-"""
-NotificationService Base Module
+"""NotificationService Base Module.
 
 Core class and helpers for all notification types.
 Integrates with telegram_messaging.py for unified message sending.
@@ -77,7 +76,7 @@ class NotificationServiceBase:
     No direct bot access needed.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Base class initialization - subclasses may extend this
         # No state needed at base level as we use external services
         pass

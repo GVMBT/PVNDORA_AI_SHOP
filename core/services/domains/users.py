@@ -10,7 +10,7 @@ logger = get_logger(__name__)
 class UsersDomain:
     """User domain operations."""
 
-    def __init__(self, repo: UserRepository):
+    def __init__(self, repo: UserRepository) -> None:
         self.repo = repo
 
     async def get_by_telegram_id(self, telegram_id: int) -> User | None:
@@ -32,7 +32,7 @@ class UsersDomain:
                 referrer_id = referrer.id
 
         new_user = await self.repo.create(
-            telegram_id, username, first_name, language_code, referrer_id
+            telegram_id, username, first_name, language_code, referrer_id,
         )
 
         # Notify referrer about new referral (best-effort)
@@ -43,7 +43,7 @@ class UsersDomain:
                 notification_service = get_notification_service()
                 referral_name = username or first_name or f"ID:{telegram_id}"
                 await notification_service.send_new_referral_notification(
-                    telegram_id=referrer.telegram_id, referral_name=referral_name, line=1
+                    telegram_id=referrer.telegram_id, referral_name=referral_name, line=1,
                 )
             except Exception as e:
                 logger.warning(f"Failed to send new referral notification: {e}")

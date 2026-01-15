@@ -1,12 +1,11 @@
-"""
-Admin Accounting Router
+"""Admin Accounting Router.
 
 P&L reports, expense tracking, and financial overview.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -28,7 +27,7 @@ SELECT_WITHDRAWAL_FIELDS = "amount_debited, balance_currency"
 
 
 def parse_date_range(
-    from_date: str | None, to_date: str | None, period: str | None
+    from_date: str | None, to_date: str | None, period: str | None,
 ) -> tuple[datetime | None, datetime]:
     """Parse date range from query parameters (reduces cognitive complexity)."""
     now = datetime.now(UTC)
@@ -37,7 +36,7 @@ def parse_date_range(
 
     if from_date:
         try:
-            start_date = datetime.fromisoformat(from_date.replace("Z", "+00:00"))
+            start_date = datetime.fromisoformat(from_date)
             if not start_date.tzinfo:
                 start_date = start_date.replace(tzinfo=UTC)
         except ValueError:
@@ -45,13 +44,13 @@ def parse_date_range(
 
     if to_date:
         try:
-            end_date = datetime.fromisoformat(to_date.replace("Z", "+00:00"))
+            end_date = datetime.fromisoformat(to_date)
             if not end_date.tzinfo:
                 end_date = end_date.replace(tzinfo=UTC)
             end_date = end_date.replace(hour=23, minute=59, second=59)
         except ValueError:
             end_date = datetime.strptime(to_date, "%Y-%m-%d").replace(
-                hour=23, minute=59, second=59, tzinfo=UTC
+                hour=23, minute=59, second=59, tzinfo=UTC,
             )
 
     if not start_date and period:
@@ -79,12 +78,12 @@ def extract_order_data(
     if expenses_raw:
         if isinstance(expenses_raw, list):
             expenses = (
-                cast(dict[str, Any], expenses_raw[0])
+                cast("dict[str, Any]", expenses_raw[0])
                 if expenses_raw and isinstance(expenses_raw[0], dict)
                 else None
             )
         elif isinstance(expenses_raw, dict):
-            expenses = cast(dict[str, Any], expenses_raw)
+            expenses = cast("dict[str, Any]", expenses_raw)
 
     return currency, fiat_amount, amount_usd, expenses
 
@@ -251,7 +250,7 @@ def _process_single_order_for_overview(
     currency, fiat_amount, amount_usd, expenses = extract_order_data(order)
     real_amount = float(fiat_amount) if fiat_amount is not None else amount_usd
     fiat_gross, fiat_promo_discount, revenue_gross_usd = calculate_revenue_amounts(
-        amount_usd, real_amount, expenses, currency
+        amount_usd, real_amount, expenses, currency,
     )
 
     # Initialize currency bucket
@@ -308,7 +307,7 @@ def _process_orders_for_overview(
     for raw_order in orders:
         if not isinstance(raw_order, dict):
             continue
-        order = cast(dict[str, Any], raw_order)
+        order = cast("dict[str, Any]", raw_order)
         _process_single_order_for_overview(order, revenue_by_currency, expense_totals)
 
     # Round currency values
@@ -316,7 +315,7 @@ def _process_orders_for_overview(
         for key in revenue_by_currency[currency_key]:
             if key != "orders_count":
                 revenue_by_currency[currency_key][key] = round_currency_value(
-                    revenue_by_currency[currency_key][key], currency_key
+                    revenue_by_currency[currency_key][key], currency_key,
                 )
 
     return revenue_by_currency, expense_totals
@@ -381,7 +380,7 @@ def _calculate_monthly_profits(
         )
         month["operating_profit_usd"] = round(month["gross_profit_usd"] - operating_expenses, 2)
         month["net_profit_usd"] = round(
-            month["operating_profit_usd"] - month["other_expenses"] + month["insurance_revenue"], 2
+            month["operating_profit_usd"] - month["other_expenses"] + month["insurance_revenue"], 2,
         )
 
         # Round all fields
@@ -488,7 +487,7 @@ def _process_order_revenue(
 
 # Helper: Process order expenses (reduces cognitive complexity)
 def _process_order_expenses_for_report(
-    expenses: dict[str, Any], expense_totals: dict[str, float]
+    expenses: dict[str, Any], expense_totals: dict[str, float],
 ) -> None:
     """Process order expenses and update totals (reduces cognitive complexity)."""
     if not expenses:
@@ -556,7 +555,7 @@ def _process_expense_entry(
     expenses_by_category: dict[str, float],
 ) -> float:
     """Process a single expense entry and return updated total."""
-    e = cast(dict[str, Any], raw_e)
+    e = cast("dict[str, Any]", raw_e)
     amount_raw = e.get("amount_usd", 0)
     amount = float(amount_raw) if isinstance(amount_raw, (int, float)) else 0.0
     total_other_expenses += amount
@@ -570,7 +569,7 @@ def _process_expense_entry(
 
 # Helper: Get other expenses (reduces cognitive complexity)
 async def _get_other_expenses(
-    db: Any, start_date: datetime | None, end_date: datetime
+    db: Any, start_date: datetime | None, end_date: datetime,
 ) -> tuple[float, dict[str, float]]:
     """Get other expenses and expenses by category."""
     expenses_query = db.client.table("expenses").select("amount_usd, category")
@@ -585,7 +584,7 @@ async def _get_other_expenses(
     for raw_e in other_expenses_result.data or []:
         if isinstance(raw_e, dict):
             total_other_expenses = _process_expense_entry(
-                raw_e, total_other_expenses, expenses_by_category
+                raw_e, total_other_expenses, expenses_by_category,
             )
 
     return total_other_expenses, expenses_by_category
@@ -604,7 +603,7 @@ async def _get_insurance_revenue(db: Any, start_date: datetime | None, end_date:
     total_insurance_revenue = 0.0
     for raw_i in insurance_result.data or []:
         if isinstance(raw_i, dict):
-            i = cast(dict[str, Any], raw_i)
+            i = cast("dict[str, Any]", raw_i)
             price_raw = i.get("price", 0)
             total_insurance_revenue += (
                 float(price_raw) if isinstance(price_raw, (int, float)) else 0.0
@@ -615,7 +614,7 @@ async def _get_insurance_revenue(db: Any, start_date: datetime | None, end_date:
 
 # Helper: Get other expenses and insurance revenue (reduces cognitive complexity)
 async def _get_other_expenses_and_insurance(
-    db: Any, start_date: datetime | None, end_date: datetime
+    db: Any, start_date: datetime | None, end_date: datetime,
 ) -> tuple[float, dict[str, float], float]:
     """Get other expenses, expenses by category, and insurance revenue."""
     total_other_expenses, expenses_by_category = await _get_other_expenses(db, start_date, end_date)
@@ -630,16 +629,13 @@ async def _get_other_expenses_and_insurance(
 
 @router.get("/accounting/overview")
 async def get_financial_overview(
-    period: str | None = Query(None, description="Period: today, month, all"),
-    from_date: str | None = Query(None, alias="from", description="Start date (ISO format)"),
-    to_date: str | None = Query(None, alias="to", description="End date (ISO format)"),
-    display_currency: str = Query(
-        "USD", description="DEPRECATED - kept for backward compatibility"
-    ),
+    period: Annotated[str | None, Query(description="Period: today, month, all")] = None,
+    from_date: Annotated[str | None, Query(alias="from", description="Start date (ISO format)")] = None,
+    to_date: Annotated[str | None, Query(alias="to", description="End date (ISO format)")] = None,
+    display_currency: Annotated[str, Query(description="DEPRECATED - kept for backward compatibility")] = "USD",
     admin=Depends(verify_admin),
 ):
-    """
-    Get financial overview with REAL currency amounts (no conversion).
+    """Get financial overview with REAL currency amounts (no conversion).
 
     Returns separate totals for each currency (USD, RUB, etc.) showing
     what was actually paid, not converted values.
@@ -650,6 +646,7 @@ async def get_financial_overview(
         period: Filter by period (today, month, all). Ignored if from/to provided.
         from_date: Start date filter (ISO format: 2026-01-01)
         to_date: End date filter (ISO format: 2026-01-31)
+
     """
     db = get_database()
 
@@ -662,7 +659,7 @@ async def get_financial_overview(
         .select(
             "id, amount, original_price, fiat_amount, fiat_currency, exchange_rate_snapshot, "
             "created_at, order_expenses(cogs_amount, acquiring_fee_amount, referral_payout_amount, "
-            "reserve_amount, review_cashback_amount, insurance_replacement_cost, promo_discount_amount)"
+            "reserve_amount, review_cashback_amount, insurance_replacement_cost, promo_discount_amount)",
         )
         .eq("status", "delivered")
     )
@@ -709,7 +706,7 @@ async def get_financial_overview(
     try:
         reserves_result = await db.client.table("reserve_balance").select("*").single().execute()
         reserves_raw = reserves_result.data
-        reserves = cast(dict[str, Any], reserves_raw) if isinstance(reserves_raw, dict) else {}
+        reserves = cast("dict[str, Any]", reserves_raw) if isinstance(reserves_raw, dict) else {}
     except Exception:
         reserves: dict[str, Any] = {}
 
@@ -748,10 +745,10 @@ async def get_financial_overview(
         # Legacy totals in USD (for backward compatibility)
         "total_revenue": round(total_revenue_usd, 2),  # Чистая выручка (после промокодов)
         "total_revenue_gross": round(
-            total_revenue_gross_usd, 2
+            total_revenue_gross_usd, 2,
         ),  # Валовая выручка (наша цена БЕЗ промокодов)
         "total_discounts_given": round(
-            expense_totals.get("promo_discounts_total", total_revenue_gross_usd - total_revenue_usd), 2
+            expense_totals.get("promo_discounts_total", total_revenue_gross_usd - total_revenue_usd), 2,
         ),  # Скидки через промокоды (direct sum from order_expenses)
         # =====================================================================
         # EXPENSES (Always in USD - suppliers are paid in $)
@@ -790,10 +787,10 @@ async def get_financial_overview(
             "operating_profit": round(operating_profit_usd, 2),
             "net_profit": round(net_profit_usd, 2),
             "gross_margin_pct": round(
-                (gross_profit_usd / total_revenue_usd * 100) if total_revenue_usd > 0 else 0, 2
+                (gross_profit_usd / total_revenue_usd * 100) if total_revenue_usd > 0 else 0, 2,
             ),
             "net_margin_pct": round(
-                (net_profit_usd / total_revenue_usd * 100) if total_revenue_usd > 0 else 0, 2
+                (net_profit_usd / total_revenue_usd * 100) if total_revenue_usd > 0 else 0, 2,
             ),
         },
         # Legacy profit field
@@ -891,7 +888,7 @@ async def _get_insurance_by_date(db: Any, start_date: datetime) -> dict[str, flo
     for raw_ins in insurance_result.data or []:
         if not isinstance(raw_ins, dict):
             continue
-        ins = cast(dict[str, Any], raw_ins)
+        ins = cast("dict[str, Any]", raw_ins)
         created_at_raw = ins.get("created_at", "")
         created_at_str = str(created_at_raw) if created_at_raw else ""
         ins_date = created_at_str[:10] if len(created_at_str) >= 10 else ""
@@ -904,7 +901,7 @@ async def _get_insurance_by_date(db: Any, start_date: datetime) -> dict[str, flo
 
 # Helper: Calculate profits for daily entries (reduces cognitive complexity)
 def _calculate_daily_profits(
-    daily_data: dict[str, dict[str, Any]], insurance_by_date: dict[str, float], comprehensive: bool
+    daily_data: dict[str, dict[str, Any]], insurance_by_date: dict[str, float], comprehensive: bool,
 ) -> None:
     """Calculate profit metrics for each day."""
     for date, day in daily_data.items():
@@ -945,17 +942,17 @@ def _calculate_daily_profits(
 
 @router.get("/accounting/pl/daily")
 async def get_daily_pl(
-    days: int = Query(30, ge=1, le=365),
-    comprehensive: bool = Query(False, description="Include all cost categories"),
+    days: Annotated[int, Query(ge=1, le=365)] = 30,
+    comprehensive: Annotated[bool, Query(description="Include all cost categories")] = False,
     admin=Depends(verify_admin),
 ):
-    """
-    Get daily P&L report with REAL currency breakdown (no conversion).
+    """Get daily P&L report with REAL currency breakdown (no conversion).
 
     Returns:
         - Daily data with revenue_by_currency for each day
         - Expenses always in USD (COGS, acquiring, etc.)
         - Totals aggregated across all days
+
     """
     db = get_database()
 
@@ -967,7 +964,7 @@ async def get_daily_pl(
         .select(
             "id, amount, original_price, fiat_amount, fiat_currency, created_at, "
             "order_expenses(cogs_amount, acquiring_fee_amount, referral_payout_amount, "
-            "reserve_amount, review_cashback_amount, insurance_replacement_cost)"
+            "reserve_amount, review_cashback_amount, insurance_replacement_cost)",
         )
         .eq("status", "delivered")
         .gte("created_at", start_date.isoformat())
@@ -982,7 +979,7 @@ async def get_daily_pl(
     for raw_order in orders:
         if not isinstance(raw_order, dict):
             continue
-        order = cast(dict[str, Any], raw_order)
+        order = cast("dict[str, Any]", raw_order)
         _process_order_for_daily(order, daily_data)
 
     # Get insurance revenue if comprehensive
@@ -1024,16 +1021,16 @@ async def get_daily_pl(
 
     if comprehensive:
         totals["insurance_revenue"] = round(
-            sum(d.get("insurance_revenue", 0) for d in daily_list), 2
+            sum(d.get("insurance_revenue", 0) for d in daily_list), 2,
         )
 
     # Calculate margins
     if totals["revenue_usd"] > 0:
         totals["gross_margin_pct"] = round(
-            (totals["gross_profit_usd"] / totals["revenue_usd"]) * 100, 2
+            (totals["gross_profit_usd"] / totals["revenue_usd"]) * 100, 2,
         )
         totals["net_margin_pct"] = round(
-            (totals["net_profit_usd"] / totals["revenue_usd"]) * 100, 2
+            (totals["net_profit_usd"] / totals["revenue_usd"]) * 100, 2,
         )
     else:
         totals["gross_margin_pct"] = 0
@@ -1052,9 +1049,8 @@ async def get_daily_pl(
 
 
 @router.get("/accounting/pl/monthly")
-async def get_monthly_pl(months: int = Query(12, ge=1, le=36), admin=Depends(verify_admin)):
-    """
-    Get monthly P&L report with REAL currency breakdown (no conversion).
+async def get_monthly_pl(months: Annotated[int, Query(ge=1, le=36)] = 12, admin=Depends(verify_admin)):
+    """Get monthly P&L report with REAL currency breakdown (no conversion).
 
     Returns revenue by currency for each month, expenses in USD.
     """
@@ -1070,7 +1066,7 @@ async def get_monthly_pl(months: int = Query(12, ge=1, le=36), admin=Depends(ver
         .select(
             "id, amount, original_price, fiat_amount, fiat_currency, created_at, "
             "order_expenses(cogs_amount, acquiring_fee_amount, referral_payout_amount, "
-            "reserve_amount, review_cashback_amount, insurance_replacement_cost)"
+            "reserve_amount, review_cashback_amount, insurance_replacement_cost)",
         )
         .eq("status", "delivered")
         .gte("created_at", start_date.isoformat())
@@ -1091,7 +1087,7 @@ async def get_monthly_pl(months: int = Query(12, ge=1, le=36), admin=Depends(ver
     for exp in expenses_result.data or []:
         exp_date = exp.get("date", "")[:7]  # YYYY-MM
         other_expenses_by_month[exp_date] = other_expenses_by_month.get(exp_date, 0) + float(
-            exp.get("amount_usd", 0)
+            exp.get("amount_usd", 0),
         )
 
     # Fetch insurance revenue
@@ -1106,7 +1102,7 @@ async def get_monthly_pl(months: int = Query(12, ge=1, le=36), admin=Depends(ver
     for ins in insurance_result.data or []:
         ins_date = ins.get("created_at", "")[:7]  # YYYY-MM
         insurance_by_month[ins_date] = insurance_by_month.get(ins_date, 0) + float(
-            ins.get("price", 0)
+            ins.get("price", 0),
         )
 
     # Group by month and calculate profits
@@ -1147,10 +1143,10 @@ async def get_monthly_pl(months: int = Query(12, ge=1, le=36), admin=Depends(ver
     # Calculate margins
     if totals["revenue_usd"] > 0:
         totals["gross_margin_pct"] = round(
-            (totals["gross_profit_usd"] / totals["revenue_usd"]) * 100, 2
+            (totals["gross_profit_usd"] / totals["revenue_usd"]) * 100, 2,
         )
         totals["net_margin_pct"] = round(
-            (totals["net_profit_usd"] / totals["revenue_usd"]) * 100, 2
+            (totals["net_profit_usd"] / totals["revenue_usd"]) * 100, 2,
         )
     else:
         totals["gross_margin_pct"] = 0
@@ -1317,7 +1313,7 @@ def _init_currency_entry() -> dict:
 
 
 # Helper to process user balances (reduces cognitive complexity)
-async def _process_user_balances(db, liabilities_by_currency: dict):
+async def _process_user_balances(db, liabilities_by_currency: dict) -> None:
     """Process user balances by currency."""
     try:
         balances_result = (
@@ -1338,7 +1334,7 @@ async def _process_user_balances(db, liabilities_by_currency: dict):
 
 
 # Helper to process pending withdrawals (reduces cognitive complexity)
-async def _process_pending_withdrawals(db, liabilities_by_currency: dict):
+async def _process_pending_withdrawals(db, liabilities_by_currency: dict) -> None:
     """Process pending withdrawals by currency."""
     try:
         withdrawals_result = (
@@ -1362,7 +1358,7 @@ async def _process_pending_withdrawals(db, liabilities_by_currency: dict):
 
 
 # Helper to round currency values (reduces cognitive complexity)
-def _round_liability_values(liabilities_by_currency: dict):
+def _round_liability_values(liabilities_by_currency: dict) -> None:
     """Round liability values based on currency type."""
     INTEGER_CURRENCIES = ("RUB", "UAH", "TRY", "INR", "JPY", "KRW")
 
@@ -1379,8 +1375,7 @@ def _round_liability_values(liabilities_by_currency: dict):
 
 @router.get("/accounting/liabilities")
 async def get_liabilities(admin=Depends(verify_admin)):
-    """
-    Get current liabilities with REAL currency breakdown (no conversion).
+    """Get current liabilities with REAL currency breakdown (no conversion).
 
     Returns user balances and pending withdrawals per currency.
     """
@@ -1470,7 +1465,7 @@ async def recalculate_all_expenses(admin=Depends(verify_admin)):
 
 @router.get("/accounting/expenses")
 async def get_expenses(
-    days: int = Query(30, ge=1, le=365), category: str | None = None, admin=Depends(verify_admin)
+    days: Annotated[int, Query(ge=1, le=365)] = 30, category: str | None = None, admin=Depends(verify_admin),
 ):
     """Get direct expenses (non-COGS)."""
     db = get_database()
@@ -1590,7 +1585,7 @@ def _build_currency_breakdown(orders_by_currency: dict) -> dict[str, dict[str, f
 
 # Helper: Get insurance revenue and other expenses (reduces cognitive complexity)
 async def _get_insurance_and_expenses(
-    db: Any, start_date: datetime
+    db: Any, start_date: datetime,
 ) -> tuple[float, float, dict[str, float]]:
     """Get insurance revenue, other expenses, and expenses by category (reduces cognitive complexity)."""
     insurance_result = (
@@ -1710,18 +1705,17 @@ def _build_metrics_section(
         "referral_pct": round((referrals / revenue * 100) if revenue > 0 else 0, 2),
         "cashback_pct": round((review_cashbacks / revenue * 100) if revenue > 0 else 0, 2),
         "discount_rate_pct": round(
-            (total_discounts / revenue_gross * 100) if revenue_gross > 0 else 0, 2
+            (total_discounts / revenue_gross * 100) if revenue_gross > 0 else 0, 2,
         ),
     }
 
 
 @router.get("/accounting/report")
 async def get_accounting_report(
-    period: str = Query("month", enum=["week", "month", "quarter", "year"]),
+    period: Annotated[str, Query(enum=["week", "month", "quarter", "year"])] = "month",
     admin=Depends(verify_admin),
 ):
-    """
-    Get comprehensive accounting report for a period.
+    """Get comprehensive accounting report for a period.
     Includes ALL costs: COGS, Acquiring, Referrals, Reserves, Review Cashbacks, Replacements.
     """
     db = get_database()
@@ -1734,7 +1728,7 @@ async def get_accounting_report(
     orders_result = (
         await db.client.table("orders")
         .select(
-            "id, amount, original_price, discount_percent, created_at, fiat_currency, fiat_amount, exchange_rate_snapshot, order_expenses(*)"
+            "id, amount, original_price, discount_percent, created_at, fiat_currency, fiat_amount, exchange_rate_snapshot, order_expenses(*)",
         )
         .eq("status", "delivered")
         .gte("created_at", start_date.isoformat())
@@ -1760,7 +1754,7 @@ async def get_accounting_report(
 
     # Get insurance revenue and other expenses
     insurance_revenue, other_expenses, expenses_by_category = await _get_insurance_and_expenses(
-        db, start_date
+        db, start_date,
     )
 
     # Build income statement

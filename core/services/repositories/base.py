@@ -12,5 +12,5 @@ class BaseRepository:
     All methods should use await with the client.
     """
 
-    def __init__(self, client: Client | AsyncClient):
+    def __init__(self, client: Client | AsyncClient) -> None:
         self.client = client

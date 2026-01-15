@@ -1,22 +1,23 @@
-"""
-Profile Endpoints
+"""Profile Endpoints.
 
 User profile, preferences, and referral network endpoints.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
 import asyncio
+import contextlib
 from datetime import UTC
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from core.auth import verify_telegram_auth
 from core.auth.dependencies import get_db_user
 from core.logging import get_logger
+from core.routers.webapp.models import ConvertBalanceRequest, UpdatePreferencesRequest
 from core.services.database import get_database
 from core.services.models import User
 
-from ..models import ConvertBalanceRequest, UpdatePreferencesRequest
 from .helpers import (
     _build_default_referral_program,
     _build_referral_data,
@@ -83,10 +84,8 @@ async def _get_referral_settings_cached(db):
     from core.db import get_redis
 
     redis = None
-    try:
+    with contextlib.suppress(ValueError, ImportError):
         redis = get_redis()
-    except (ValueError, ImportError):
-        pass
 
     cache_key = "referral_settings:cache"
 
@@ -134,9 +133,8 @@ async def _get_referral_settings_cached(db):
 
 
 async def _fetch_profile_data(db, db_user):
-    """
-    Fetch all profile-related data using optimized VIEW.
-    
+    """Fetch all profile-related data using optimized VIEW.
+
     OPTIMIZATION: Uses user_profile_data VIEW to get all data in 1 query
     instead of 4 separate queries. Reduces DB round-trips from 5 to 2.
     """
@@ -146,14 +144,13 @@ async def _fetch_profile_data(db, db_user):
     async def fetch_profile_view():
         """Fetch all profile data from optimized VIEW in one query."""
         try:
-            result = (
+            return (
                 await db.client.table("user_profile_data")
                 .select("*")
                 .eq("user_id", db_user.id)
                 .single()
                 .execute()
             )
-            return result
         except Exception as e:
             logger.warning(f"Failed to query user_profile_data VIEW: {e}")
             # Fallback to empty structure
@@ -166,7 +163,7 @@ async def _fetch_profile_data(db, db_user):
                     "recent_bonuses": None,
                     "recent_withdrawals": None,
                     "recent_transactions": None,
-                }
+                },
             })()
 
     settings, profile_view = await asyncio.gather(
@@ -176,7 +173,7 @@ async def _fetch_profile_data(db, db_user):
 
     # Transform VIEW data to match old format for backward compatibility
     profile_data = profile_view.data if profile_view.data else {}
-    
+
     # Create mock result objects matching old structure
     extended_stats_result = type("obj", (object,), {
         "data": [{
@@ -184,19 +181,19 @@ async def _fetch_profile_data(db, db_user):
             "level2_count": profile_data.get("level2_count", 0),
             "level3_count": profile_data.get("level3_count", 0),
             "effective_level": profile_data.get("effective_level", 0),
-        }] if profile_data.get("level1_count", 0) > 0 else []
+        }] if profile_data.get("level1_count", 0) > 0 else [],
     })()
-    
+
     bonuses_result = type("obj", (object,), {
-        "data": profile_data.get("recent_bonuses") or []
+        "data": profile_data.get("recent_bonuses") or [],
     })()
-    
+
     withdrawals_result = type("obj", (object,), {
-        "data": profile_data.get("recent_withdrawals") or []
+        "data": profile_data.get("recent_withdrawals") or [],
     })()
-    
+
     transactions_result = type("obj", (object,), {
-        "data": profile_data.get("recent_transactions") or []
+        "data": profile_data.get("recent_transactions") or [],
     })()
 
     return (
@@ -263,7 +260,7 @@ async def _fetch_level_referrals(db, user_id: str, level: int, offset: int, limi
         result = (
             await db.client.table("users")
             .select(
-                "id, telegram_id, username, first_name, created_at, referral_program_unlocked, photo_url"
+                "id, telegram_id, username, first_name, created_at, referral_program_unlocked, photo_url",
             )
             .eq("referrer_id", user_id)
             .order("created_at", desc=True)
@@ -284,7 +281,7 @@ async def _fetch_level_referrals(db, user_id: str, level: int, offset: int, limi
         result = (
             await db.client.table("users")
             .select(
-                "id, telegram_id, username, first_name, created_at, referral_program_unlocked, referrer_id, photo_url"
+                "id, telegram_id, username, first_name, created_at, referral_program_unlocked, referrer_id, photo_url",
             )
             .in_("referrer_id", direct_ref_ids)
             .order("created_at", desc=True)
@@ -309,7 +306,7 @@ async def _fetch_level_referrals(db, user_id: str, level: int, offset: int, limi
     result = (
         await db.client.table("users")
         .select(
-            "id, telegram_id, username, first_name, created_at, referral_program_unlocked, referrer_id, photo_url"
+            "id, telegram_id, username, first_name, created_at, referral_program_unlocked, referrer_id, photo_url",
         )
         .in_("referrer_id", l2_ids)
         .order("created_at", desc=True)
@@ -386,7 +383,7 @@ def _build_enriched_referrals(
                 "order_count": orders_count_map.get(ref_id, 0),
                 "earnings_generated": round(earnings_map.get(ref_id, 0), 2),
                 "photo_url": ref.get("photo_url"),
-            }
+            },
         )
     return enriched
 
@@ -397,7 +394,7 @@ def _build_enriched_referrals(
 
 
 @profile_router.get("/profile")
-async def get_webapp_profile(db_user: User = Depends(get_db_user)):
+async def get_webapp_profile(db_user: Annotated[User, Depends(get_db_user)]):
     """Get user profile with referral stats, balance, and history."""
     db = get_database()
 
@@ -503,7 +500,7 @@ async def update_preferences(request: UpdatePreferencesRequest, user=Depends(ver
     valid_languages = ["ru", "en", "de", "es", "fr", "tr", "ar", "hi", "uk", "be", "kk"]
     if request.interface_language and request.interface_language.lower() not in valid_languages:
         raise HTTPException(
-            status_code=400, detail=f"Invalid language. Valid options: {', '.join(valid_languages)}"
+            status_code=400, detail=f"Invalid language. Valid options: {', '.join(valid_languages)}",
         )
 
     # NOTE: preferred_currency is ignored (all RUB now)
@@ -541,7 +538,7 @@ async def convert_balance(request: ConvertBalanceRequest, user=Depends(verify_te
 
 @profile_router.get("/referral/network")
 async def get_referral_network(
-    db_user: User = Depends(get_db_user), level: int = 1, limit: int = 50, offset: int = 0
+    db_user: Annotated[User, Depends(get_db_user)], level: int = 1, limit: int = 50, offset: int = 0,
 ):
     """Get user's referral network (tree of referrals)."""
     db = get_database()
@@ -569,11 +566,11 @@ async def get_referral_network(
             return {"referrals": [], "total": 0, "level": level, "offset": offset, "limit": limit}
 
         orders_count_map, earnings_map = await _batch_fetch_referral_data(
-            db, referral_ids, db_user.id
+            db, referral_ids, db_user.id,
         )
 
         enriched_referrals = _build_enriched_referrals(
-            referrals_data, user_id, referral_ids, orders_count_map, earnings_map
+            referrals_data, user_id, referral_ids, orders_count_map, earnings_map,
         )
 
         return {

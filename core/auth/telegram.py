@@ -137,12 +137,11 @@ async def verify_telegram_auth(
     authorization: str = Header(None, alias="Authorization"),
     x_init_data: str = Header(None, alias="X-Init-Data"),
 ) -> TelegramUser:
-    """
-    Verify Telegram Mini App authentication (hybrid mode).
+    """Verify Telegram Mini App authentication (hybrid mode).
     Accepts either:
     - Authorization: Bearer <session_token> (for web login)
     - Authorization: tma <initData> (for Telegram Mini App)
-    - X-Init-Data: <initData> (for Telegram Mini App)
+    - X-Init-Data: <initData> (for Telegram Mini App).
     """
     # Try Bearer token first (web session)
     bearer_user = await _try_bearer_auth(authorization, x_init_data)
@@ -197,7 +196,7 @@ async def _check_admin_cache(redis, cache_key: str, user_id: int):
 
 
 # Helper to cache admin result (reduces cognitive complexity)
-async def _cache_admin_result(redis, cache_key: str, is_admin: bool, admin_id: str | None = None):
+async def _cache_admin_result(redis, cache_key: str, is_admin: bool, admin_id: str | None = None) -> None:
     """Cache admin verification result."""
     if not redis:
         return
@@ -209,8 +208,7 @@ async def _cache_admin_result(redis, cache_key: str, is_admin: bool, admin_id: s
 
 
 async def verify_admin(user: TelegramUser = Depends(verify_telegram_auth)):
-    """
-    Verify that user is an admin (via Telegram initData).
+    """Verify that user is an admin (via Telegram initData).
     Returns db_user object if admin.
 
     OPTIMIZATION: Uses Redis cache to avoid duplicate DB queries

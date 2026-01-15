@@ -1,5 +1,4 @@
-"""
-Withdrawal Endpoints
+"""Withdrawal Endpoints.
 
 Balance withdrawal operations.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
@@ -9,9 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from core.auth import verify_telegram_auth
 from core.logging import get_logger
+from core.routers.webapp.models import WithdrawalPreviewRequest, WithdrawalRequest
 from core.services.database import get_database
-
-from ..models import WithdrawalPreviewRequest, WithdrawalRequest
 
 logger = get_logger(__name__)
 
@@ -20,9 +18,7 @@ withdrawals_router = APIRouter()
 
 @withdrawals_router.post("/profile/withdraw/preview")
 async def preview_withdrawal(request: WithdrawalPreviewRequest, user=Depends(verify_telegram_auth)):
-    """
-    Preview withdrawal calculation: shows fees and final USDT payout before creating request.
-    """
+    """Preview withdrawal calculation: shows fees and final USDT payout before creating request."""
     from core.db import get_redis
     from core.services.currency import MIN_USDT_AFTER_FEES, NETWORK_FEE_USDT, get_currency_service
 
@@ -41,12 +37,12 @@ async def preview_withdrawal(request: WithdrawalPreviewRequest, user=Depends(ver
 
     # Calculate minimum withdrawal amount (uses constants from currency service)
     min_withdrawal = await currency_service.calculate_min_withdrawal_amount(
-        balance_currency=balance_currency
+        balance_currency=balance_currency,
     )
 
     # Calculate maximum withdrawal amount (uses constants from currency service)
     max_withdrawal = await currency_service.calculate_max_withdrawal_amount(
-        balance=balance, balance_currency=balance_currency
+        balance=balance, balance_currency=balance_currency,
     )
 
     # Use requested amount, or full balance for preview
@@ -54,7 +50,7 @@ async def preview_withdrawal(request: WithdrawalPreviewRequest, user=Depends(ver
 
     # Calculate USDT payout for amount_to_calc
     withdrawal_calc = await currency_service.calculate_withdrawal_usdt(
-        amount_in_balance_currency=amount_to_calc, balance_currency=balance_currency
+        amount_in_balance_currency=amount_to_calc, balance_currency=balance_currency,
     )
 
     # Check if user can withdraw
@@ -86,8 +82,7 @@ async def preview_withdrawal(request: WithdrawalPreviewRequest, user=Depends(ver
 
 @withdrawals_router.post("/profile/withdraw")
 async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_telegram_auth)):
-    """
-    Request balance withdrawal to TRC20 USDT.
+    """Request balance withdrawal to TRC20 USDT.
 
     Uses snapshot pricing: exchange rate is fixed at request creation time.
     Admin sees fixed USDT amount to pay, regardless of rate changes.
@@ -114,7 +109,7 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
 
     # Calculate USDT payout with snapshot (uses constants from currency service)
     withdrawal_calc = await currency_service.calculate_withdrawal_usdt(
-        amount_in_balance_currency=request.amount, balance_currency=balance_currency
+        amount_in_balance_currency=request.amount, balance_currency=balance_currency,
     )
 
     amount_usd = withdrawal_calc["amount_usd"]
@@ -141,7 +136,7 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
 
     if request.method not in ["crypto"]:
         raise HTTPException(
-            status_code=400, detail="Invalid payment method. Only TRC20 USDT is supported."
+            status_code=400, detail="Invalid payment method. Only TRC20 USDT is supported.",
         )
 
     # Extract wallet address from details
@@ -177,7 +172,7 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
                     "exchange_rate": exchange_rate,
                     "usdt_payout": amount_to_pay_usdt,
                 },
-            }
+            },
         )
         .execute()
     )

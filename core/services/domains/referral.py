@@ -1,5 +1,4 @@
-"""
-Referral Domain Service
+"""Referral Domain Service.
 
 Handles referral system operations.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
@@ -35,8 +34,7 @@ class ReferralInfo:
 
 
 class ReferralService:
-    """
-    Referral domain service.
+    """Referral domain service.
 
     Provides clean interface for referral operations.
     """
@@ -46,18 +44,18 @@ class ReferralService:
     LEVEL_PERCENTS = {1: 10, 2: 7, 3: 3}
     BOT_USERNAME = "pvndora_ai_bot"
 
-    def __init__(self, db):
+    def __init__(self, db) -> None:
         self.db = db
 
     async def get_info(self, user_id: str) -> ReferralInfo:
-        """
-        Get user's referral information.
+        """Get user's referral information.
 
         Args:
             user_id: User database ID
 
         Returns:
             ReferralInfo with link and stats
+
         """
         try:
             # Get user data
@@ -91,8 +89,7 @@ class ReferralService:
             return ReferralInfo(success=False, error=str(e))
 
     async def _count_referral_levels(self, user_id: str) -> dict[int, ReferralLevel]:
-        """
-        Count referrals at each level.
+        """Count referrals at each level.
 
         Returns dict with levels 1, 2, 3.
         """
@@ -117,39 +114,40 @@ class ReferralService:
         # Get level 1 IDs for deeper traversal
         level1_ids = [r["id"] for r in (level1_result.data or [])]
 
-        # Level 2 - referrals of referrals
-        for l1_id in level1_ids:
-            l2_result = (
+        if not level1_ids:
+            return levels
+
+        # Level 2 - referrals of referrals (BATCH query to avoid N+1)
+        l2_result = (
+            await self.db.client.table("users")
+            .select("id, referrer_id", count="exact")
+            .in_("referrer_id", level1_ids)
+            .execute()
+        )
+        levels[2].count = l2_result.count or 0
+
+        # Level 3 - referrals of level 2 (BATCH query to avoid N+1)
+        if l2_result.data:
+            l2_ids = [l2["id"] for l2 in l2_result.data]
+            l3_result = (
                 await self.db.client.table("users")
                 .select("id", count="exact")
-                .eq("referrer_id", l1_id)
+                .in_("referrer_id", l2_ids)
                 .execute()
             )
-            l2_count = l2_result.count or 0
-            levels[2].count += l2_count
-
-            # Level 3
-            if l2_result.data:
-                for l2 in l2_result.data:
-                    l3_result = (
-                        await self.db.client.table("users")
-                        .select("id", count="exact")
-                        .eq("referrer_id", l2["id"])
-                        .execute()
-                    )
-                    levels[3].count += l3_result.count or 0
+            levels[3].count = l3_result.count or 0
 
         return levels
 
     async def get_referral_earnings(self, user_id: str) -> dict[str, Any]:
-        """
-        Get user's referral earnings history.
+        """Get user's referral earnings history.
 
         Args:
             user_id: User database ID
 
         Returns:
             Earnings summary
+
         """
         try:
             result = (

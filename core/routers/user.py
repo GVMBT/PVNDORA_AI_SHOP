@@ -1,5 +1,4 @@
-"""
-User API Router
+"""User API Router.
 
 User-specific endpoints (referral, wishlist, reviews).
 These are non-webapp endpoints with /api prefix.
@@ -36,7 +35,7 @@ class SubmitReviewRequest(BaseModel):
 
 @router.get("/user/referral")
 async def get_referral_info(user=Depends(verify_telegram_auth)):
-    """Get referral link and stats"""
+    """Get referral link and stats."""
     bot_instance = get_bot()
 
     if not bot_instance:
@@ -89,9 +88,8 @@ def _get_localized_texts(language_code: str) -> tuple[str, str]:
 
 @router.post("/webapp/referral/share-link")
 async def create_referral_share_link(user=Depends(verify_telegram_auth)):
-    """
-    Create a prepared inline message for sharing.
-    Returns prepared_message_id to be used with Telegram.WebApp.shareMessage()
+    """Create a prepared inline message for sharing.
+    Returns prepared_message_id to be used with Telegram.WebApp.shareMessage().
     """
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultPhoto
 
@@ -146,7 +144,7 @@ async def create_referral_share_link(user=Depends(verify_telegram_auth)):
         caption=caption_text,
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text=button_text, url=ref_link)]]
+            inline_keyboard=[[InlineKeyboardButton(text=button_text, url=ref_link)]],
         ),
     )
 
@@ -164,7 +162,7 @@ async def create_referral_share_link(user=Depends(verify_telegram_auth)):
 
         if "object has no attribute 'save_prepared_inline_message'" in error_msg:
             raise HTTPException(
-                status_code=501, detail="Feature not supported by bot backend version"
+                status_code=501, detail="Feature not supported by bot backend version",
             )
 
         # Check if it's a Telegram API error
@@ -179,7 +177,7 @@ async def create_referral_share_link(user=Depends(verify_telegram_auth)):
 
 @router.get("/wishlist")
 async def get_wishlist(user=Depends(verify_telegram_auth)):
-    """Get user's wishlist"""
+    """Get user's wishlist."""
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
 
@@ -195,7 +193,7 @@ async def get_wishlist(user=Depends(verify_telegram_auth)):
 
 @router.post("/wishlist/{product_id}")
 async def add_to_wishlist(product_id: str, user=Depends(verify_telegram_auth)):
-    """Add product to wishlist"""
+    """Add product to wishlist."""
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
 
@@ -208,7 +206,7 @@ async def add_to_wishlist(product_id: str, user=Depends(verify_telegram_auth)):
 
 @router.delete("/wishlist/{product_id}")
 async def remove_from_wishlist(product_id: str, user=Depends(verify_telegram_auth)):
-    """Remove product from wishlist"""
+    """Remove product from wishlist."""
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
 
@@ -224,7 +222,7 @@ async def remove_from_wishlist(product_id: str, user=Depends(verify_telegram_aut
 
 @router.post("/reviews")
 async def submit_review(request: SubmitReviewRequest, user=Depends(verify_telegram_auth)):
-    """Submit product review with 5% cashback via QStash worker"""
+    """Submit product review with 5% cashback via QStash worker."""
     from core.services.money import to_float
 
     db = get_database()
@@ -296,7 +294,7 @@ async def submit_review(request: SubmitReviewRequest, user=Depends(verify_telegr
                     "status": "completed",
                     "description": "5% кэшбек за отзыв",
                     "reference_id": request.order_id,
-                }
+                },
             )
             .execute()
         )

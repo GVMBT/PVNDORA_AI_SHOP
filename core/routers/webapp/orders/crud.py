@@ -1,5 +1,4 @@
-"""
-Order CRUD Endpoints
+"""Order CRUD Endpoints.
 
 Order history, status, and payment method endpoints.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
@@ -7,14 +6,19 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 
 import logging
 from datetime import datetime, timedelta
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from core.auth import verify_telegram_auth
 from core.errors import ERROR_FAILED_TO_FETCH_ORDERS, ERROR_ORDER_NOT_FOUND, ERROR_USER_NOT_FOUND
+from core.routers.webapp.models import (
+    OrdersListResponse,
+    OrderStatusResponse,
+    PaymentMethod,
+    PaymentMethodsResponse,
+)
 from core.services.database import get_database
-
-from ..models import OrdersListResponse, OrderStatusResponse, PaymentMethod, PaymentMethodsResponse
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +128,7 @@ def _process_order_row(
     # Build items using helper
     items = [_build_order_item(item, row["status"], reviewed_product_ids) for item in items_data]
     # Fix: Add fallback fulfillment_deadline from order
-    for i, item in enumerate(items_data):
+    for i, _item in enumerate(items_data):
         if not items[i]["fulfillment_deadline"]:
             items[i]["fulfillment_deadline"] = row.get("fulfillment_deadline")
 
@@ -239,7 +243,7 @@ def _build_order_dict(
 
 @crud_router.get("/orders/{order_id}/status")
 async def get_webapp_order_status(
-    order_id: str, user=Depends(verify_telegram_auth)
+    order_id: str, user=Depends(verify_telegram_auth),
 ) -> OrderStatusResponse:
     """Get order status with delivery progress."""
     db = get_database()
@@ -284,7 +288,7 @@ async def get_webapp_order_status(
         paid_at = order.get("paid_at") or order.get("created_at")
         if paid_at:
             try:
-                paid_dt = datetime.fromisoformat(paid_at.replace("Z", "+00:00"))
+                paid_dt = datetime.fromisoformat(paid_at)
                 est_dt = paid_dt + timedelta(hours=max_hours)
                 estimated_delivery_at = est_dt.isoformat()
             except Exception:
@@ -308,7 +312,7 @@ async def _process_confirmed_payment(order_id: str, payment_id: str, db) -> dict
 
     status_service = OrderStatusService(db)
     final_status = await status_service.mark_payment_confirmed(
-        order_id=order_id, payment_id=payment_id, check_stock=True
+        order_id=order_id, payment_id=payment_id, check_stock=True,
     )
 
     try:
@@ -341,7 +345,7 @@ async def _verify_crystalpay_payment(payment_id: str, order_id: str, order_statu
         if invoice_info:
             gateway_status = invoice_info.get("state", "")
             return await _handle_gateway_status(
-                gateway_status, order_id, order_status, payment_id, db
+                gateway_status, order_id, order_status, payment_id, db,
             )
     except Exception as e:
         error_type = type(e).__name__
@@ -354,7 +358,7 @@ async def _verify_crystalpay_payment(payment_id: str, order_id: str, order_statu
 
 # Helper to handle gateway status (reduces cognitive complexity)
 async def _handle_gateway_status(
-    gateway_status: str, order_id: str, order_status: str, payment_id: str, db
+    gateway_status: str, order_id: str, order_status: str, payment_id: str, db,
 ) -> dict:
     """Handle different gateway payment statuses."""
     if gateway_status == "payed":
@@ -383,8 +387,7 @@ async def _handle_gateway_status(
 
 @crud_router.post("/orders/{order_id}/verify-payment")
 async def verify_order_payment(order_id: str, user=Depends(verify_telegram_auth)):
-    """
-    Manually verify payment status via payment gateway.
+    """Manually verify payment status via payment gateway.
     Useful for checking payment on popup/window close.
     """
     db = get_database()
@@ -421,9 +424,9 @@ async def verify_order_payment(order_id: str, user=Depends(verify_telegram_auth)
 @crud_router.get("/orders")
 async def get_webapp_orders(
     user=Depends(verify_telegram_auth),
-    status: str | None = Query(None),
-    limit: int = Query(20, ge=1, le=100),
-    offset: int = Query(0, ge=0),
+    status: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> OrdersListResponse:
     """Get user's order history with filtering."""
     from core.db import get_redis
@@ -496,7 +499,7 @@ async def get_webapp_orders(
     from core.logging import sanitize_id_for_logging
 
     logger.info(
-        "Returning %d orders for user %s", len(orders), sanitize_id_for_logging(str(db_user.id))
+        "Returning %d orders for user %s", len(orders), sanitize_id_for_logging(str(db_user.id)),
     )
 
     return OrdersListResponse(orders=orders, count=len(orders), currency=user_currency)
@@ -505,13 +508,10 @@ async def get_webapp_orders(
 @crud_router.get("/payments/methods")
 async def get_payment_methods(
     user=Depends(verify_telegram_auth),
-    amount: float | None = Query(
-        None, description="Order amount in user's currency for availability check"
-    ),
-    currency: str | None = Query(None, description="Currency code (RUB, USD, etc)"),
+    amount: Annotated[float | None, Query(description="Order amount in user's currency for availability check")] = None,
+    currency: Annotated[str | None, Query(description="Currency code (RUB, USD, etc)")] = None,
 ) -> PaymentMethodsResponse:
-    """
-    Get available payment methods for user based on their region and balance.
+    """Get available payment methods for user based on their region and balance.
     Returns methods sorted by preference for the user's locale.
     """
     from core.db import get_redis
@@ -539,8 +539,8 @@ async def get_payment_methods(
         balance_sufficient = _check_balance_sufficiency(amount, user_balance)
         methods.append(
             _build_balance_payment_method(
-                user_balance, balance_currency, balance_display, balance_sufficient
-            )
+                user_balance, balance_currency, balance_display, balance_sufficient,
+            ),
         )
 
     # 2. CrystalPay card payment
@@ -560,5 +560,5 @@ async def get_payment_methods(
         recommended = "sbp"
 
     return PaymentMethodsResponse(
-        methods=methods, default_currency=user_currency, recommended_method=recommended
+        methods=methods, default_currency=user_currency, recommended_method=recommended,
     )

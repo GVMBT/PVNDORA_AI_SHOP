@@ -1,5 +1,4 @@
-"""
-Admin Promo Codes API
+"""Admin Promo Codes API.
 
 CRUD operations for promotional codes.
 """
@@ -103,7 +102,7 @@ async def create_promo_code(request: PromoCodeCreate, admin=Depends(verify_admin
             )
             if not product_check.data:
                 raise HTTPException(
-                    status_code=400, detail=f"Product {request.product_id} not found"
+                    status_code=400, detail=f"Product {request.product_id} not found",
                 )
 
         data = {
@@ -146,7 +145,7 @@ async def create_promo_code(request: PromoCodeCreate, admin=Depends(verify_admin
 
 @router.put("/promo/{promo_id}")
 async def update_promo_code(
-    promo_id: str, request: PromoCodeUpdate, admin=Depends(verify_admin)
+    promo_id: str, request: PromoCodeUpdate, admin=Depends(verify_admin),
 ) -> dict:
     """Update an existing promo code."""
     db = get_database()
@@ -162,7 +161,7 @@ async def update_promo_code(
             )
             if not product_check.data:
                 raise HTTPException(
-                    status_code=400, detail=f"Product {request.product_id} not found"
+                    status_code=400, detail=f"Product {request.product_id} not found",
                 )
 
         update_data = {}

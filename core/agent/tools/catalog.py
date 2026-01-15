@@ -1,5 +1,4 @@
-"""
-Catalog Tools for Shop Agent.
+"""Catalog Tools for Shop Agent.
 
 Product browsing, search, and availability checking.
 """
@@ -15,12 +14,12 @@ logger = get_logger(__name__)
 
 @tool
 async def get_catalog() -> dict:
-    """
-    Get full product catalog with prices and availability.
+    """Get full product catalog with prices and availability.
     Prices are automatically converted to user's currency (from context).
 
     Returns:
         List of all active products with stock status and prices in user's currency
+
     """
     try:
         from core.db import get_redis
@@ -43,7 +42,7 @@ async def get_catalog() -> dict:
             if target_currency != "USD":
                 try:
                     price_converted = await currency_service.convert_price(
-                        price_usd, target_currency
+                        price_usd, target_currency,
                     )
                 except Exception:
                     price_converted = price_usd
@@ -63,7 +62,7 @@ async def get_catalog() -> dict:
                     "in_stock": p.stock_count > 0,
                     "stock_count": p.stock_count,
                     "status": p.status,
-                }
+                },
             )
 
         return {
@@ -79,8 +78,7 @@ async def get_catalog() -> dict:
 
 @tool
 async def search_products(query: str) -> dict:
-    """
-    Search products by name or description.
+    """Search products by name or description.
     Use when user asks about specific products.
     Prices are automatically converted to user's currency.
 
@@ -89,6 +87,7 @@ async def search_products(query: str) -> dict:
 
     Returns:
         Matching products with prices in user's currency
+
     """
     try:
         from core.db import get_redis
@@ -111,7 +110,7 @@ async def search_products(query: str) -> dict:
             if target_currency != "USD":
                 try:
                     price_converted = await currency_service.convert_price(
-                        price_usd, target_currency
+                        price_usd, target_currency,
                     )
                 except Exception:
                     logger.exception("Currency conversion failed")
@@ -131,7 +130,7 @@ async def search_products(query: str) -> dict:
                     "currency": target_currency,
                     "in_stock": p.stock_count > 0,
                     "stock_count": p.stock_count,
-                }
+                },
             )
 
         return {
@@ -147,8 +146,7 @@ async def search_products(query: str) -> dict:
 
 @tool
 async def get_product_details(product_id: str) -> dict:
-    """
-    Get detailed info about a specific product.
+    """Get detailed info about a specific product.
     Prices are automatically converted to user's currency.
 
     Args:
@@ -156,6 +154,7 @@ async def get_product_details(product_id: str) -> dict:
 
     Returns:
         Full product details including description, pricing, availability
+
     """
     try:
         from core.db import get_redis
@@ -222,8 +221,7 @@ async def get_product_details(product_id: str) -> dict:
 
 @tool
 async def check_product_availability(product_name: str) -> dict:
-    """
-    Check if a product is available for purchase.
+    """Check if a product is available for purchase.
     Use before adding to cart or purchasing.
 
     Args:
@@ -231,6 +229,7 @@ async def check_product_availability(product_name: str) -> dict:
 
     Returns:
         Availability info with price in user's currency
+
     """
     try:
         from core.db import get_redis

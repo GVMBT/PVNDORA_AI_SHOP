@@ -1,5 +1,4 @@
-"""
-Consolidated Telegram Message Sending Service
+"""Consolidated Telegram Message Sending Service.
 
 Single source of truth for all Telegram message sending across the project.
 Replaces 8+ duplicate implementations with unified retry logic, error handling, and logging.
@@ -40,7 +39,7 @@ def _calculate_backoff_delay(attempt: int) -> float:
 
 
 async def _make_telegram_request(
-    client: httpx.AsyncClient, url: str, payload: dict
+    client: httpx.AsyncClient, url: str, payload: dict,
 ) -> tuple[bool, int, str]:
     """Make HTTP request to Telegram API. Returns (success, status_code, error_text)."""
     response = await client.post(url, json=payload)
@@ -103,7 +102,7 @@ def _truncate_message(text: str, max_length: int = 4096) -> str:
 
 
 async def _send_with_retry(
-    url: str, payload: dict, retries: int, request_timeout: float, chat_id: int
+    url: str, payload: dict, retries: int, request_timeout: float, chat_id: int,
 ) -> bool:
     """Send request with retry logic."""
     last_error = None
@@ -113,7 +112,7 @@ async def _send_with_retry(
             async with asyncio.timeout(request_timeout):
                 async with httpx.AsyncClient() as client:
                     success, status_code, error_text = await _make_telegram_request(
-                        client, url, payload
+                        client, url, payload,
                     )
 
                     if success:
@@ -121,7 +120,7 @@ async def _send_with_retry(
                         return True
 
                     logger.warning(
-                        f"Telegram API error for {chat_id}: status={status_code}, response={error_text}"
+                        f"Telegram API error for {chat_id}: status={status_code}, response={error_text}",
                     )
 
                     if _is_permanent_error(status_code):
@@ -132,7 +131,7 @@ async def _send_with_retry(
         except TimeoutError:
             last_error = "Timeout"
             logger.warning(
-                f"Timeout sending message to {chat_id} (attempt {attempt + 1}/{retries + 1})"
+                f"Timeout sending message to {chat_id} (attempt {attempt + 1}/{retries + 1})",
             )
         except httpx.ConnectError as e:
             last_error = f"Connection error: {e}"
@@ -175,8 +174,7 @@ async def send_telegram_message(
     retries: int = 2,
     timeout_seconds: float = DEFAULT_TIMEOUT,
 ) -> bool:
-    """
-    Send a Telegram message with retry logic and error handling.
+    """Send a Telegram message with retry logic and error handling.
 
     Args:
         chat_id: Telegram chat ID (user or group)
@@ -188,6 +186,7 @@ async def send_telegram_message(
 
     Returns:
         True if sent successfully, False otherwise
+
     """
     token = bot_token or TELEGRAM_TOKEN
     if not token:
@@ -200,7 +199,7 @@ async def send_telegram_message(
         payload["parse_mode"] = parse_mode
 
     return await _send_with_retry(
-        url, payload, retries, request_timeout=timeout_seconds, chat_id=chat_id
+        url, payload, retries, request_timeout=timeout_seconds, chat_id=chat_id,
     )
 
 
@@ -213,8 +212,7 @@ async def send_telegram_message_with_keyboard(
     retries: int = 2,
     timeout_seconds: float = DEFAULT_TIMEOUT,
 ) -> bool:
-    """
-    Send a Telegram message with inline keyboard.
+    """Send a Telegram message with inline keyboard.
 
     Args:
         chat_id: Telegram chat ID
@@ -227,8 +225,8 @@ async def send_telegram_message_with_keyboard(
 
     Returns:
         True if sent successfully, False otherwise
-    """
 
+    """
     token = bot_token or TELEGRAM_TOKEN
     if not token:
         logger.warning(f"No bot token configured for sending message to {chat_id}")
@@ -258,7 +256,7 @@ async def send_telegram_message_with_keyboard(
 
                     error_description = _parse_error_response(response)
                     logger.error(
-                        f"Telegram API error for {chat_id} (keyboard): status={response.status_code}, description={error_description}"
+                        f"Telegram API error for {chat_id} (keyboard): status={response.status_code}, description={error_description}",
                     )
 
                     if _is_permanent_error(response.status_code):
@@ -269,7 +267,7 @@ async def send_telegram_message_with_keyboard(
         except TimeoutError:
             last_error = "Timeout"
             logger.warning(
-                f"Timeout sending keyboard message to {chat_id} (attempt {attempt + 1}/{retries + 1})"
+                f"Timeout sending keyboard message to {chat_id} (attempt {attempt + 1}/{retries + 1})",
             )
         except Exception as e:
             last_error = str(e)
@@ -290,7 +288,7 @@ async def send_telegram_message_with_keyboard(
 async def send_via_main_bot(chat_id: int, text: str, parse_mode: str = "HTML") -> bool:
     """Send message via main PVNDORA bot."""
     return await send_telegram_message(
-        chat_id=chat_id, text=text, parse_mode=parse_mode, bot_token=TELEGRAM_TOKEN
+        chat_id=chat_id, text=text, parse_mode=parse_mode, bot_token=TELEGRAM_TOKEN,
     )
 
 

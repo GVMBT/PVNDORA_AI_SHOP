@@ -56,7 +56,7 @@ def _parse_order_date(date_str: str | None) -> datetime | None:
     if not date_str:
         return None
     try:
-        return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        return datetime.fromisoformat(date_str)
     except (ValueError, AttributeError):
         return None
 
@@ -69,7 +69,7 @@ def _is_date_in_range(date: datetime | None, min_date: datetime, max_date: datet
 
 
 async def _check_existing_promo(
-    promo_service: PromoCodeService, user_id: str, trigger: str
+    promo_service: PromoCodeService, user_id: str, trigger: str,
 ) -> bool:
     """Check if user already has a promo for this trigger. Returns True if exists."""
     existing = await promo_service.get_promo_by_trigger(user_id, trigger)
@@ -162,12 +162,12 @@ class OffersService:
     LOYAL_OFFER_DELAY_DAYS_MIN = 2
     LOYAL_OFFER_DELAY_DAYS_MAX = 5
 
-    def __init__(self, db_client):
+    def __init__(self, db_client) -> None:
         self.client = db_client
         self.promo_service = PromoCodeService(db_client)
 
     async def send_telegram_message(
-        self, chat_id: int, text: str, use_discount_bot: bool = True
+        self, chat_id: int, text: str, use_discount_bot: bool = True,
     ) -> bool:
         """Send a message via Telegram Bot API."""
         from core.services.telegram_messaging import send_telegram_message as _send_msg
@@ -176,7 +176,7 @@ class OffersService:
         return await _send_msg(chat_id=chat_id, text=text, parse_mode="HTML", bot_token=token)
 
     async def _find_loyal_via_rpc(
-        self, limit: int, min_date: datetime, max_date: datetime
+        self, limit: int, min_date: datetime, max_date: datetime,
     ) -> list[OfferCandidate]:
         """Find loyal customers via RPC."""
         result = await self.client.rpc(
@@ -200,12 +200,12 @@ class OffersService:
                     language_code=row.get("language_code", "en"),
                     trigger=PromoTriggers.LOYAL_3_PURCHASES,
                     order_count=row.get("order_count", 3),
-                )
+                ),
             )
         return candidates
 
     async def _find_loyal_via_fallback(
-        self, limit: int, min_date: datetime, max_date: datetime
+        self, limit: int, min_date: datetime, max_date: datetime,
     ) -> list[OfferCandidate]:
         """Find loyal customers via direct query fallback."""
         result = (
@@ -230,7 +230,7 @@ class OffersService:
                 continue
 
             if await _check_existing_promo(
-                self.promo_service, user["id"], PromoTriggers.LOYAL_3_PURCHASES
+                self.promo_service, user["id"], PromoTriggers.LOYAL_3_PURCHASES,
             ):
                 continue
 
@@ -242,7 +242,7 @@ class OffersService:
                     trigger=PromoTriggers.LOYAL_3_PURCHASES,
                     order_count=order_count,
                     last_order_date=third_order_date,
-                )
+                ),
             )
 
             if len(candidates) >= limit:
@@ -313,7 +313,7 @@ class OffersService:
             candidates = []
             for user in result.data or []:
                 existing = await self.promo_service.get_promo_by_trigger(
-                    user["id"], PromoTriggers.INACTIVE_7_DAYS
+                    user["id"], PromoTriggers.INACTIVE_7_DAYS,
                 )
 
                 # Only send if no recent promo (within 30 days)
@@ -328,7 +328,7 @@ class OffersService:
                         telegram_id=user["telegram_id"],
                         language_code=user.get("language_code", "en"),
                         trigger=PromoTriggers.INACTIVE_7_DAYS,
-                    )
+                    ),
                 )
 
             return candidates

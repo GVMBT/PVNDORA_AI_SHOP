@@ -3,6 +3,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -111,7 +112,7 @@ async def get_abuse_score(db_client, telegram_id: int | None) -> int:
     if not telegram_id:
         return 0
     score_result = await db_client.rpc(
-        "get_user_abuse_score", {"p_telegram_id": telegram_id}
+        "get_user_abuse_score", {"p_telegram_id": telegram_id},
     ).execute()
     return score_result.data if score_result.data else 0
 
@@ -122,7 +123,7 @@ async def get_abuse_score(db_client, telegram_id: int | None) -> int:
 
 
 @router.get("/pending", response_model=list[ReplacementResponse])
-async def get_pending_replacements(limit: int = Query(50, ge=1, le=100)):
+async def get_pending_replacements(limit: Annotated[int, Query(ge=1, le=100)] = 50):
     """Get pending replacement requests for moderation."""
     db = get_database()
 
@@ -130,7 +131,7 @@ async def get_pending_replacements(limit: int = Query(50, ge=1, le=100)):
         result = (
             await db.client.table("insurance_replacements")
             .select(
-                "*, order_items(order_id, products(name)), orders!order_items(user_telegram_id)"
+                "*, order_items(order_id, products(name)), orders!order_items(user_telegram_id)",
             )
             .eq("status", "pending")
             .order("created_at", desc=False)
@@ -162,7 +163,7 @@ async def get_pending_replacements(limit: int = Query(50, ge=1, le=100)):
                     user_abuse_score=abuse_score,
                     product_name=product_name,
                     order_id=order_id,
-                )
+                ),
             )
 
         return replacements
@@ -176,7 +177,7 @@ async def get_pending_replacements(limit: int = Query(50, ge=1, le=100)):
 async def approve_replacement(
     replacement_id: str,
     request: ApproveRequest,
-    admin_user_id: str = Query(..., description=ADMIN_USER_UUID_DESC),
+    admin_user_id: Annotated[str, Query(description=ADMIN_USER_UUID_DESC)],
 ):
     """Approve a pending replacement."""
     db = get_database()
@@ -198,14 +199,14 @@ async def approve_replacement(
 async def reject_replacement(
     replacement_id: str,
     request: RejectRequest,
-    admin_user_id: str = Query(..., description=ADMIN_USER_UUID_DESC),
+    admin_user_id: Annotated[str, Query(description=ADMIN_USER_UUID_DESC)],
 ):
     """Reject a pending replacement."""
     db = get_database()
     insurance_service = InsuranceService(db.client)
 
     success = await insurance_service.reject_replacement(
-        replacement_id=replacement_id, admin_user_id=admin_user_id, rejection_reason=request.reason
+        replacement_id=replacement_id, admin_user_id=admin_user_id, rejection_reason=request.reason,
     )
 
     if not success:
@@ -243,7 +244,7 @@ async def get_user_restrictions(user_id: str):
 
 @router.post("/restrictions", response_model=RestrictionResponse)
 async def add_user_restriction(
-    request: RestrictionCreate, admin_user_id: str = Query(..., description="Admin user UUID")
+    request: RestrictionCreate, admin_user_id: Annotated[str, Query(description="Admin user UUID")],
 ):
     """Add a restriction to a user."""
     db = get_database()
@@ -309,7 +310,7 @@ async def get_abuse_stats(telegram_id: int):
     try:
         # Get abuse score
         score_result = await db.client.rpc(
-            "get_user_abuse_score", {"p_telegram_id": telegram_id}
+            "get_user_abuse_score", {"p_telegram_id": telegram_id},
         ).execute()
         abuse_score = score_result.data if score_result.data else 0
 
@@ -326,7 +327,7 @@ async def get_abuse_stats(telegram_id: int):
             raise HTTPException(status_code=404, detail="User not found")
 
         user_id = user_result.data["id"]
-        created_at = datetime.fromisoformat(user_result.data["created_at"].replace("Z", "+00:00"))
+        created_at = datetime.fromisoformat(user_result.data["created_at"])
         account_age_days = (datetime.now(UTC) - created_at).days
 
         # Count orders

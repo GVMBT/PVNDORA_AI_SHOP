@@ -1,5 +1,4 @@
-"""
-Delivery Workers
+"""Delivery Workers.
 
 QStash workers for order delivery operations.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
@@ -18,8 +17,7 @@ delivery_router = APIRouter()
 
 @delivery_router.post("/deliver-goods")
 async def worker_deliver_goods(request: Request):
-    """
-    QStash Worker: Deliver digital goods after payment.
+    """QStash Worker: Deliver digital goods after payment.
     Called by QStash with guaranteed delivery.
     """
     data = await verify_qstash(request)
@@ -40,8 +38,7 @@ async def worker_deliver_goods(request: Request):
 
 @delivery_router.post("/deliver-batch")
 async def worker_deliver_batch(request: Request):
-    """
-    QStash Worker: Try to deliver all waiting items (pending/prepaid), any fulfillment_type.
+    """QStash Worker: Try to deliver all waiting items (pending/prepaid), any fulfillment_type.
     Useful for auto-allocation when stock is replenished.
     """
     await verify_qstash(request)  # Verify QStash signature

@@ -10,17 +10,17 @@ from aiogram import F, Router
 from aiogram.enums import ParseMode
 from aiogram.types import CallbackQuery, Message
 
+from core.bot.discount.keyboards import (
+    get_order_detail_keyboard,
+    get_orders_keyboard,
+    get_payment_keyboard,
+)
 from core.i18n import get_text
 
 # Removed unused imports: InsuranceService, DiscountOrderService
 from core.logging import get_logger
 from core.services.database import User, get_database
 
-from ..keyboards import (
-    get_order_detail_keyboard,
-    get_orders_keyboard,
-    get_payment_keyboard,
-)
 from .catalog import get_user_currency_info
 
 logger = get_logger(__name__)
@@ -34,7 +34,7 @@ CRYSTALPAY_API_URL = os.environ.get("CRYSTALPAY_API_URL", "https://api.crystalpa
 
 
 async def create_crystalpay_payment(
-    amount_usd: float, currency: str, order_id: str, description: str
+    amount_usd: float, currency: str, order_id: str, description: str,
 ) -> dict[str, Any] | None:
     """Create CrystalPay payment and return payment URL.
 
@@ -46,6 +46,7 @@ async def create_crystalpay_payment(
         currency: Target currency (USD, RUB, EUR, etc.)
         order_id: Order ID
         description: Payment description
+
     """
     try:
         import os
@@ -64,7 +65,7 @@ async def create_crystalpay_payment(
                 exchange_rate = await currency_service.get_exchange_rate(currency)
                 payment_amount = amount_usd * exchange_rate
                 logger.info(
-                    f"CrystalPay: converted ${amount_usd} USD to {payment_amount:.2f} {currency} (rate: {exchange_rate})"
+                    f"CrystalPay: converted ${amount_usd} USD to {payment_amount:.2f} {currency} (rate: {exchange_rate})",
                 )
             except Exception as e:
                 logger.warning("Currency conversion failed: %s, using USD amount", type(e).__name__)
@@ -97,16 +98,16 @@ async def create_crystalpay_payment(
         }
 
         logger.info(
-            f"CrystalPay discount payment: order={order_id}, callback={callback_url}, redirect={redirect_url}"
+            f"CrystalPay discount payment: order={order_id}, callback={callback_url}, redirect={redirect_url}",
         )
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{CRYSTALPAY_API_URL}/invoice/create/", json=payload, timeout=10
+                f"{CRYSTALPAY_API_URL}/invoice/create/", json=payload, timeout=10,
             )
 
             if response.status_code == 200:
-                data = cast(dict[str, Any], response.json())
+                data = cast("dict[str, Any]", response.json())
                 if data.get("error", False) is False:
                     invoice_id = data.get("id")
                     payment_url = data.get("url")
@@ -145,7 +146,7 @@ async def get_product_by_short_id(db, short_id: str) -> dict | None:
         for p in products:
             product_uuid_str = str(p["id"]).lower().replace("-", "")
             if product_uuid_str.startswith(short_id_lower):
-                return cast(dict[str, Any], p)
+                return cast("dict[str, Any]", p)
 
         return None
     except Exception:
@@ -177,7 +178,7 @@ def _determine_user_currency(db_user) -> str:
 
 
 async def _get_display_prices(
-    total_price: float, discount_price: float, insurance_price: float, user_currency: str
+    total_price: float, discount_price: float, insurance_price: float, user_currency: str,
 ) -> tuple[float, float, float, str]:
     """Convert prices to display currency (reduces cognitive complexity)."""
     if user_currency == "USD":
@@ -204,7 +205,7 @@ async def _get_display_prices(
 
 # Helper: Calculate insurance price and ID (reduces cognitive complexity)
 def _calculate_insurance_info(
-    insurance: dict | None, discount_price: float
+    insurance: dict | None, discount_price: float,
 ) -> tuple[float, str | None]:
     """Calculate insurance price and return (price, id)."""
     if not insurance:
@@ -240,7 +241,7 @@ async def _create_discount_order(
                 "source_channel": "discount",
                 "user_telegram_id": telegram_id,
                 "expires_at": expires_at.isoformat(),
-            }
+            },
         )
         .execute()
     )
@@ -256,7 +257,7 @@ async def _create_discount_order(
                 "quantity": 1,
                 "price": discount_price,
                 "insurance_id": insurance_id,
-            }
+            },
         )
         .execute()
     )
@@ -325,7 +326,7 @@ async def get_insurance_option(db, short_id: str) -> dict | None:
         for option in result.data:
             option_uuid = str(option["id"]).lower().replace("-", "")
             if option_uuid.startswith(short_id_lower):
-                return cast(dict[str, Any], option)
+                return cast("dict[str, Any]", option)
 
         return None
     except Exception as e:
@@ -334,7 +335,7 @@ async def get_insurance_option(db, short_id: str) -> dict | None:
 
 
 @router.callback_query(F.data.startswith("discount:buy:"))
-async def cb_buy_product(callback: CallbackQuery, db_user: User):
+async def cb_buy_product(callback: CallbackQuery, db_user: User) -> None:
     """Initiate purchase flow."""
     lang = db_user.language_code
     db = get_database()
@@ -409,7 +410,7 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
                 {
                     "payment_url": payment_url,
                     "payment_id": invoice_id,  # Required for webhook to find order
-                }
+                },
             )
             .eq("id", order_id)
             .execute()
@@ -436,7 +437,7 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
         )
 
         await callback.message.edit_text(
-            text, reply_markup=get_payment_keyboard(payment_url, lang), parse_mode=ParseMode.HTML
+            text, reply_markup=get_payment_keyboard(payment_url, lang), parse_mode=ParseMode.HTML,
         )
         await callback.answer()
 
@@ -446,7 +447,7 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User):
 
 
 @router.message(F.text.in_(["📦 Мои заказы", "📦 My Orders"]))
-async def msg_orders(message: Message, db_user: User):
+async def msg_orders(message: Message, db_user: User) -> None:
     """Show user orders."""
     lang = db_user.language_code
     db = get_database()
@@ -505,7 +506,7 @@ async def msg_orders(message: Message, db_user: User):
 
 
 @router.callback_query(F.data == "discount:orders")
-async def cb_orders(callback: CallbackQuery, db_user: User):
+async def cb_orders(callback: CallbackQuery, db_user: User) -> None:
     """Show user orders from callback."""
     lang = db_user.language_code
     db = get_database()
@@ -558,7 +559,7 @@ async def cb_orders(callback: CallbackQuery, db_user: User):
 
 # Helper: Find order by short ID (reduces cognitive complexity)
 async def _find_order_by_short_id(
-    db: Any, user_uuid: str, order_short_id: str
+    db: Any, user_uuid: str, order_short_id: str,
 ) -> dict[str, Any] | None:
     """Find order by short ID prefix."""
     orders_result = (
@@ -573,7 +574,7 @@ async def _find_order_by_short_id(
     for o in orders_result.data or []:
         order_uuid = str(o["id"]).lower().replace("-", "")
         if order_uuid.startswith(short_id_lower):
-            return cast(dict[str, Any], o)
+            return cast("dict[str, Any]", o)
     return None
 
 
@@ -648,7 +649,7 @@ def _build_order_detail_message(
 
 
 @router.callback_query(F.data.startswith("discount:order:"))
-async def cb_order_detail(callback: CallbackQuery, db_user: User):
+async def cb_order_detail(callback: CallbackQuery, db_user: User) -> None:
     """Show order details."""
     lang = db_user.language_code
     db = get_database()
@@ -675,7 +676,7 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User):
         order = await _find_order_by_short_id(db, user_uuid, order_short_id)
         if not order:
             await callback.answer(
-                "Заказ не найден" if lang == "ru" else "Order not found", show_alert=True
+                "Заказ не найден" if lang == "ru" else "Order not found", show_alert=True,
             )
             return
 
@@ -703,7 +704,7 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User):
         text = _build_order_detail_message(order, items, currency_symbol, display_amount, lang)
 
         await callback.message.edit_text(
-            text, reply_markup=get_order_detail_keyboard(order, lang), parse_mode=ParseMode.HTML
+            text, reply_markup=get_order_detail_keyboard(order, lang), parse_mode=ParseMode.HTML,
         )
         await callback.answer()
 
@@ -713,7 +714,7 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User):
 
 
 @router.callback_query(F.data.startswith("discount:status:"))
-async def cb_order_status(callback: CallbackQuery, db_user: User):
+async def cb_order_status(callback: CallbackQuery, db_user: User) -> None:
     """Check order status (redirects to order detail)."""
     order_short_id = callback.data.split(":")[2]
 

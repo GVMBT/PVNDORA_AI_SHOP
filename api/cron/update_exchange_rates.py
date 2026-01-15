@@ -1,6 +1,5 @@
-"""
-Cron Job: Update Exchange Rates
-Schedule: 0 */6 * * * (every 6 hours)
+"""Cron Job: Update Exchange Rates
+Schedule: 0 */6 * * * (every 6 hours).
 
 NOTE: This cron is no longer used for currency conversion as all amounts are now in RUB.
 It only updates USDT/RUB rate for withdrawals.
@@ -34,8 +33,7 @@ app = FastAPI()
 @app.get("/api/cron/update_exchange_rates")
 @app.post("/api/cron/update_exchange_rates")
 async def update_exchange_rates_entrypoint(request: Request):
-    """
-    Update USDT/RUB rate for withdrawal calculations.
+    """Update USDT/RUB rate for withdrawal calculations.
 
     All other currency rates are no longer needed as system is RUB-only.
     """
@@ -74,8 +72,7 @@ async def update_exchange_rates_entrypoint(request: Request):
 
 
 async def fetch_usdt_rub_rate() -> float:
-    """
-    Fetch current USDT/RUB rate from exchange API.
+    """Fetch current USDT/RUB rate from exchange API.
 
     Tries multiple sources for reliability.
     """

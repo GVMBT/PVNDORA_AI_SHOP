@@ -1,5 +1,4 @@
-"""
-Worker: Deliver Discount Order
+"""Worker: Deliver Discount Order
 Called by QStash after 1-4 hour delay.
 
 This worker:
@@ -62,7 +61,7 @@ async def _validate_order(db: Any, order_id: str) -> str | None:
     )
     if not order_result.data or not isinstance(order_result.data, dict):
         return None
-    status = cast(dict[str, Any], order_result.data).get("status")
+    status = cast("dict[str, Any]", order_result.data).get("status")
     return str(status) if status is not None else None
 
 
@@ -77,7 +76,7 @@ async def _get_stock_item(db: Any, stock_item_id: str) -> tuple[str, str] | None
     )
     if not stock_result.data or not isinstance(stock_result.data, dict):
         return None
-    stock_item = cast(dict[str, Any], stock_result.data)
+    stock_item = cast("dict[str, Any]", stock_result.data)
     product_name = (
         stock_item.get("products", {}).get("name", "Product")
         if isinstance(stock_item.get("products"), dict)
@@ -87,7 +86,7 @@ async def _get_stock_item(db: Any, stock_item_id: str) -> tuple[str, str] | None
 
 
 async def _mark_order_delivered(
-    db: Any, order_id: str, order_item_id: str, stock_item_id: str
+    db: Any, order_id: str, order_item_id: str, stock_item_id: str,
 ) -> None:
     """Mark stock as sold and order as delivered."""
     now_iso = datetime.now(UTC).isoformat()
@@ -121,7 +120,7 @@ async def _get_user_info(db: Any, telegram_id: int) -> tuple[str | None, str]:
         .execute()
     )
     if user_result.data and isinstance(user_result.data, dict):
-        user_data = cast(dict[str, Any], user_result.data)
+        user_data = cast("dict[str, Any]", user_result.data)
         return user_data.get("id"), user_data.get("language_code", "en")
     return None, "en"
 
@@ -214,7 +213,7 @@ async def _get_purchase_count(db: Any, telegram_id: int) -> int:
 
 
 async def _send_loyal_promo_if_eligible(
-    user_id: str, telegram_id: int, lang: str, purchase_count: int
+    user_id: str, telegram_id: int, lang: str, purchase_count: int,
 ) -> bool:
     """Send loyal customer promo code immediately after 3rd purchase."""
     from core.services.database import get_database_async
@@ -225,7 +224,7 @@ async def _send_loyal_promo_if_eligible(
 
     try:
         existing = await promo_service.get_promo_by_trigger(
-            user_id, PromoTriggers.LOYAL_3_PURCHASES
+            user_id, PromoTriggers.LOYAL_3_PURCHASES,
         )
         if existing:
             return False
@@ -334,5 +333,5 @@ async def deliver_discount_order(request: Request):
             "order_id": order_id,
             "telegram_id": telegram_id,
             "delivered_at": datetime.now(UTC).isoformat(),
-        }
+        },
     )

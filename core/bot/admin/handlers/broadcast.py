@@ -1,5 +1,4 @@
-"""
-Broadcast Handlers for Admin Bot
+"""Broadcast Handlers for Admin Bot.
 
 Implements the /broadcast command and FSM flow for creating mailings.
 """
@@ -14,10 +13,9 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
+from core.bot.admin.states import BroadcastStates
 from core.logging import get_logger
 from core.services.database import get_database
-
-from ..states import BroadcastStates
 
 logger = get_logger(__name__)
 router = Router(name="broadcast")
@@ -31,7 +29,7 @@ BUTTON_BACK = "◀️ Назад"
 
 
 async def validate_broadcast_data(
-    data: dict, callback: CallbackQuery, state: FSMContext
+    data: dict, callback: CallbackQuery, state: FSMContext,
 ) -> tuple[str, str] | None:
     """Validate broadcast data and return target_bot, target_audience or None (reduces cognitive complexity)."""
     target_bot = data.get("target_bot")
@@ -39,7 +37,7 @@ async def validate_broadcast_data(
 
     if not target_bot or not target_audience:
         await safe_edit_text(
-            callback, "❌ Ошибка: данные рассылки не найдены. Начните заново с /broadcast"
+            callback, "❌ Ошибка: данные рассылки не найдены. Начните заново с /broadcast",
         )
         await state.clear()
         return None
@@ -55,7 +53,7 @@ async def validate_base_url(callback: CallbackQuery, state: FSMContext) -> str |
     if not base_url or base_url == "http://localhost:8000":
         logger.error("Broadcast: BASE_URL/WEBAPP_URL not set! base_url=%s", base_url)
         await safe_edit_text(
-            callback, "❌ Ошибка конфигурации: BASE_URL не настроен. Рассылка невозможна."
+            callback, "❌ Ошибка конфигурации: BASE_URL не настроен. Рассылка невозможна.",
         )
         await state.clear()
         return None
@@ -63,7 +61,7 @@ async def validate_base_url(callback: CallbackQuery, state: FSMContext) -> str |
 
 
 async def create_broadcast_record(
-    db, data: dict, recipients: list, target_bot: str, target_audience: str, admin_id: str
+    db, data: dict, recipients: list, target_bot: str, target_audience: str, admin_id: str,
 ) -> str:
     """Create broadcast record in DB (reduces cognitive complexity)."""
     broadcast_data = {
@@ -86,7 +84,7 @@ async def create_broadcast_record(
     return broadcast_id
 
 
-async def create_recipient_records(db, broadcast_id: str, recipients: list):
+async def create_recipient_records(db, broadcast_id: str, recipients: list) -> None:
     """Create recipient records in batches (reduces cognitive complexity)."""
     recipient_records = []
     for user in recipients:
@@ -97,7 +95,7 @@ async def create_recipient_records(db, broadcast_id: str, recipients: list):
                 "telegram_id": user["telegram_id"],
                 "language_code": user.get("language_code", "en"),
                 "status": "pending",
-            }
+            },
         )
 
     batch_size = 100
@@ -108,7 +106,7 @@ async def create_recipient_records(db, broadcast_id: str, recipients: list):
 
 
 async def queue_broadcast_batches(
-    broadcast_id: str, recipients: list, target_bot: str
+    broadcast_id: str, recipients: list, target_bot: str,
 ) -> tuple[int, list[int]]:
     """Queue broadcast batches to QStash (reduces cognitive complexity)."""
     from core.queue import WorkerEndpoints, publish_to_worker
@@ -173,7 +171,7 @@ async def send_broadcast_response(
     queued_count: int,
     failed_queues: list,
     total_batches: int,
-):
+) -> None:
     """Send final response to user (reduces cognitive complexity)."""
     if failed_queues:
         await safe_edit_text(
@@ -203,8 +201,7 @@ async def send_broadcast_response(
 
 
 async def safe_edit_text(callback: CallbackQuery, text: str, **kwargs) -> bool:
-    """
-    Safely edit message text, ignoring 'message is not modified' errors.
+    """Safely edit message text, ignoring 'message is not modified' errors.
     Returns True if edited successfully, False if message was not modified.
     """
     try:
@@ -255,7 +252,7 @@ LANGUAGE_FLAGS = {
 
 
 def get_bot_keyboard() -> InlineKeyboardMarkup:
-    """Keyboard for selecting target bot"""
+    """Keyboard for selecting target bot."""
     buttons = [
         [InlineKeyboardButton(text=name, callback_data=f"bc:bot:{key}")]
         for key, name in TARGET_BOTS.items()
@@ -265,7 +262,7 @@ def get_bot_keyboard() -> InlineKeyboardMarkup:
 
 
 def get_audience_keyboard() -> InlineKeyboardMarkup:
-    """Keyboard for selecting audience"""
+    """Keyboard for selecting audience."""
     buttons = [
         [InlineKeyboardButton(text=name, callback_data=f"bc:aud:{key}")]
         for key, name in AUDIENCES.items()
@@ -275,7 +272,7 @@ def get_audience_keyboard() -> InlineKeyboardMarkup:
 
 
 def get_languages_keyboard(selected: list[str]) -> InlineKeyboardMarkup:
-    """Keyboard for selecting languages (toggle)"""
+    """Keyboard for selecting languages (toggle)."""
     buttons = []
     row = []
     for lang in LANGUAGES:
@@ -283,8 +280,8 @@ def get_languages_keyboard(selected: list[str]) -> InlineKeyboardMarkup:
         check = "✅" if lang in selected else ""
         row.append(
             InlineKeyboardButton(
-                text=f"{flag} {lang.upper()} {check}", callback_data=f"bc:lang:{lang}"
-            )
+                text=f"{flag} {lang.upper()} {check}", callback_data=f"bc:lang:{lang}",
+            ),
         )
         if len(row) == 3:
             buttons.append(row)
@@ -295,22 +292,22 @@ def get_languages_keyboard(selected: list[str]) -> InlineKeyboardMarkup:
     # All languages button
     all_check = "✅" if not selected else ""
     buttons.append(
-        [InlineKeyboardButton(text=f"🌐 Все языки {all_check}", callback_data="bc:lang:all")]
+        [InlineKeyboardButton(text=f"🌐 Все языки {all_check}", callback_data="bc:lang:all")],
     )
 
     buttons.append(
         [
             InlineKeyboardButton(text=BUTTON_BACK, callback_data="bc:back:audience"),
             InlineKeyboardButton(text="✅ Далее", callback_data="bc:lang:done"),
-        ]
+        ],
     )
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def get_content_keyboard(
-    languages: list[str], current_lang: str, filled: dict[str, bool]
+    languages: list[str], current_lang: str, filled: dict[str, bool],
 ) -> InlineKeyboardMarkup:
-    """Keyboard showing content status per language"""
+    """Keyboard showing content status per language."""
     buttons = []
     row = []
     for lang in languages:
@@ -319,8 +316,8 @@ def get_content_keyboard(
         is_current = "👉" if lang == current_lang else ""
         row.append(
             InlineKeyboardButton(
-                text=f"{is_current}{flag} {status}", callback_data=f"bc:content:{lang}"
-            )
+                text=f"{is_current}{flag} {status}", callback_data=f"bc:content:{lang}",
+            ),
         )
         if len(row) == 3:
             buttons.append(row)
@@ -339,22 +336,22 @@ def get_content_keyboard(
 
 
 def get_media_keyboard() -> InlineKeyboardMarkup:
-    """Keyboard for media upload step"""
+    """Keyboard for media upload step."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="⏭ Пропустить медиа", callback_data="bc:media:skip")],
             [InlineKeyboardButton(text=BUTTON_BACK, callback_data="bc:back:content")],
-        ]
+        ],
     )
 
 
 def get_buttons_keyboard(has_buttons: bool) -> InlineKeyboardMarkup:
-    """Keyboard for buttons step"""
+    """Keyboard for buttons step."""
     buttons = []
     if has_buttons:
         buttons.append([InlineKeyboardButton(text="➕ Добавить ещё", callback_data="bc:btn:add")])
         buttons.append(
-            [InlineKeyboardButton(text="✅ Готово с кнопками", callback_data="bc:btn:done")]
+            [InlineKeyboardButton(text="✅ Готово с кнопками", callback_data="bc:btn:done")],
         )
     else:
         buttons.append([InlineKeyboardButton(text="⏭ Без кнопок", callback_data="bc:btn:skip")])
@@ -363,7 +360,7 @@ def get_buttons_keyboard(has_buttons: bool) -> InlineKeyboardMarkup:
 
 
 def get_preview_keyboard() -> InlineKeyboardMarkup:
-    """Keyboard for preview step"""
+    """Keyboard for preview step."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -376,7 +373,7 @@ def get_preview_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="◀️ Изменить", callback_data="bc:back:buttons"),
                 InlineKeyboardButton(text="❌ Отмена", callback_data="bc:cancel"),
             ],
-        ]
+        ],
     )
 
 
@@ -384,8 +381,8 @@ def get_preview_keyboard() -> InlineKeyboardMarkup:
 
 
 @router.message(Command("broadcast"))
-async def cmd_broadcast(message: Message, state: FSMContext):
-    """Start broadcast creation flow"""
+async def cmd_broadcast(message: Message, state: FSMContext) -> None:
+    """Start broadcast creation flow."""
     await state.clear()
 
     await state.update_data(
@@ -410,8 +407,8 @@ async def cmd_broadcast(message: Message, state: FSMContext):
 
 
 @router.message(Command("broadcasts"))
-async def cmd_broadcasts_list(message: Message):
-    """List recent broadcasts"""
+async def cmd_broadcasts_list(message: Message) -> None:
+    """List recent broadcasts."""
     db = get_database()
 
     result = (
@@ -449,8 +446,8 @@ async def cmd_broadcasts_list(message: Message):
 
 
 @router.callback_query(BroadcastStates.select_bot, F.data.startswith("bc:bot:"))
-async def cb_select_bot(callback: CallbackQuery, state: FSMContext):
-    """Handle bot selection"""
+async def cb_select_bot(callback: CallbackQuery, state: FSMContext) -> None:
+    """Handle bot selection."""
     bot_key = callback.data.split(":")[-1]
 
     if bot_key not in TARGET_BOTS:
@@ -477,8 +474,8 @@ async def cb_select_bot(callback: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(BroadcastStates.select_audience, F.data.startswith("bc:aud:"))
-async def cb_select_audience(callback: CallbackQuery, state: FSMContext):
-    """Handle audience selection"""
+async def cb_select_audience(callback: CallbackQuery, state: FSMContext) -> None:
+    """Handle audience selection."""
     aud_key = callback.data.split(":")[-1]
 
     if aud_key not in AUDIENCES:
@@ -510,8 +507,8 @@ async def cb_select_audience(callback: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(BroadcastStates.select_languages, F.data.startswith("bc:lang:"))
-async def cb_select_language(callback: CallbackQuery, state: FSMContext):
-    """Handle language toggle"""
+async def cb_select_language(callback: CallbackQuery, state: FSMContext) -> None:
+    """Handle language toggle."""
     lang_action = callback.data.split(":")[-1]
     data = await state.get_data()
     selected = data.get("target_languages", [])
@@ -561,8 +558,8 @@ async def cb_select_language(callback: CallbackQuery, state: FSMContext):
 
 
 @router.message(BroadcastStates.enter_content, F.text)
-async def msg_content_input(message: Message, state: FSMContext):
-    """Handle content text input"""
+async def msg_content_input(message: Message, state: FSMContext) -> None:
+    """Handle content text input."""
     data = await state.get_data()
     current_lang = data.get("current_content_lang")
     target_languages = data.get("target_languages", [])
@@ -606,8 +603,8 @@ async def msg_content_input(message: Message, state: FSMContext):
 
 
 @router.callback_query(BroadcastStates.enter_content, F.data.startswith("bc:content:"))
-async def cb_content_action(callback: CallbackQuery, state: FSMContext):
-    """Handle content navigation"""
+async def cb_content_action(callback: CallbackQuery, state: FSMContext) -> None:
+    """Handle content navigation."""
     action = callback.data.split(":")[-1]
     data = await state.get_data()
     target_languages = data.get("target_languages", [])
@@ -648,8 +645,8 @@ async def cb_content_action(callback: CallbackQuery, state: FSMContext):
 
 
 @router.message(BroadcastStates.upload_media, F.photo)
-async def msg_media_photo(message: Message, state: FSMContext):
-    """Handle photo upload"""
+async def msg_media_photo(message: Message, state: FSMContext) -> None:
+    """Handle photo upload."""
     file_id = message.photo[-1].file_id
 
     await state.update_data(media_type="photo", media_file_id=file_id)
@@ -665,8 +662,8 @@ async def msg_media_photo(message: Message, state: FSMContext):
 
 
 @router.message(BroadcastStates.upload_media, F.video)
-async def msg_media_video(message: Message, state: FSMContext):
-    """Handle video upload"""
+async def msg_media_video(message: Message, state: FSMContext) -> None:
+    """Handle video upload."""
     file_id = message.video.file_id
 
     await state.update_data(media_type="video", media_file_id=file_id)
@@ -682,8 +679,8 @@ async def msg_media_video(message: Message, state: FSMContext):
 
 
 @router.callback_query(BroadcastStates.upload_media, F.data == "bc:media:skip")
-async def cb_skip_media(callback: CallbackQuery, state: FSMContext):
-    """Skip media upload"""
+async def cb_skip_media(callback: CallbackQuery, state: FSMContext) -> None:
+    """Skip media upload."""
     await safe_edit_text(
         callback,
         "🔘 <b>Шаг 6/6:</b> Добавить кнопки?\n\n"
@@ -699,8 +696,8 @@ async def cb_skip_media(callback: CallbackQuery, state: FSMContext):
 
 
 @router.message(BroadcastStates.add_buttons, F.text)
-async def msg_button_input(message: Message, state: FSMContext):
-    """Handle button input"""
+async def msg_button_input(message: Message, state: FSMContext) -> None:
+    """Handle button input."""
     # Parse: "Text RU | Text EN | URL"
     parts = [p.strip() for p in message.text.split("|")]
 
@@ -748,8 +745,8 @@ async def msg_button_input(message: Message, state: FSMContext):
 
 
 @router.callback_query(BroadcastStates.add_buttons, F.data.in_(["bc:btn:skip", "bc:btn:done"]))
-async def cb_buttons_done(callback: CallbackQuery, state: FSMContext):
-    """Finish buttons step"""
+async def cb_buttons_done(callback: CallbackQuery, state: FSMContext) -> None:
+    """Finish buttons step."""
     data = await state.get_data()
 
     # Debug: log state data
@@ -781,7 +778,7 @@ async def cb_buttons_done(callback: CallbackQuery, state: FSMContext):
     # Count recipients
     db = get_database()
     recipients = await _count_recipients(
-        db, target_bot, target_audience, data.get("target_languages")
+        db, target_bot, target_audience, data.get("target_languages"),
     )
 
     await state.update_data(total_recipients=recipients)
@@ -815,8 +812,8 @@ async def cb_buttons_done(callback: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(BroadcastStates.preview, F.data.startswith("bc:preview:"))
-async def cb_preview_language(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    """Show preview for specific language"""
+async def cb_preview_language(callback: CallbackQuery, state: FSMContext, bot: Bot) -> None:
+    """Show preview for specific language."""
     lang = callback.data.split(":")[-1]
     data = await state.get_data()
 
@@ -861,7 +858,7 @@ async def cb_preview_language(callback: CallbackQuery, state: FSMContext, bot: B
 
 
 @router.callback_query(BroadcastStates.preview, F.data == "bc:send:now")
-async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str):
+async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str) -> None:
     """Send broadcast immediately.
 
     CRITICAL: In Vercel serverless, function may be killed after response.
@@ -896,7 +893,7 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
         # Get recipients
         logger.info("Broadcast: Fetching recipients...")
         recipients = await _get_recipients_list(
-            db, target_bot, target_audience, data.get("target_languages")
+            db, target_bot, target_audience, data.get("target_languages"),
         )
 
         if not recipients:
@@ -908,7 +905,7 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
 
         # Create broadcast record
         broadcast_id = await create_broadcast_record(
-            db, data, recipients, target_bot, target_audience, admin_id
+            db, data, recipients, target_bot, target_audience, admin_id,
         )
 
         # Create recipient records
@@ -916,7 +913,7 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
 
         # Queue to QStash
         queued_count, failed_queues = await queue_broadcast_batches(
-            broadcast_id, recipients, target_bot
+            broadcast_id, recipients, target_bot,
         )
 
         # Clear state
@@ -925,13 +922,13 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
         # Send response
         total_batches = (len(recipients) + 79) // 80  # Calculate total batches
         await send_broadcast_response(
-            callback, broadcast_id, recipients, queued_count, failed_queues, total_batches
+            callback, broadcast_id, recipients, queued_count, failed_queues, total_batches,
         )
 
         from core.logging import sanitize_id_for_logging
 
         logger.info(
-            "Broadcast %s: Handler completed successfully", sanitize_id_for_logging(broadcast_id)
+            "Broadcast %s: Handler completed successfully", sanitize_id_for_logging(broadcast_id),
         )
 
     except Exception as e:
@@ -944,16 +941,16 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
 
 
 @router.callback_query(F.data == "bc:cancel")
-async def cb_cancel(callback: CallbackQuery, state: FSMContext):
-    """Cancel broadcast creation"""
+async def cb_cancel(callback: CallbackQuery, state: FSMContext) -> None:
+    """Cancel broadcast creation."""
     await state.clear()
     await safe_edit_text(callback, "❌ Рассылка отменена.")
     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("bc:back:"))
-async def cb_back(callback: CallbackQuery, state: FSMContext):
-    """Handle back navigation"""
+async def cb_back(callback: CallbackQuery, state: FSMContext) -> None:
+    """Handle back navigation."""
     target = callback.data.split(":")[-1]
     data = await state.get_data()
 
@@ -1037,9 +1034,9 @@ async def cb_back(callback: CallbackQuery, state: FSMContext):
 
 
 async def _get_recipients_list(
-    db, target_bot: str, audience: str, languages: list[str] | None
+    db, target_bot: str, audience: str, languages: list[str] | None,
 ) -> list[dict[str, Any]]:
-    """Get full list of recipients based on targeting criteria"""
+    """Get full list of recipients based on targeting criteria."""
     query = db.client.table("users").select("id, telegram_id, language_code")
 
     # Base filters - exclude banned, DND, and blocked users
@@ -1086,13 +1083,13 @@ async def _get_recipients_list(
 
 
 async def _count_recipients(db, target_bot: str, audience: str, languages: list[str] | None) -> int:
-    """Count recipients based on targeting criteria"""
+    """Count recipients based on targeting criteria."""
     recipients = await _get_recipients_list(db, target_bot, audience, languages)
     return len(recipients)
 
 
 def _build_keyboard(buttons: list[dict], lang: str) -> InlineKeyboardMarkup | None:
-    """Build localized keyboard from button config"""
+    """Build localized keyboard from button config."""
     if not buttons:
         return None
 
@@ -1111,7 +1108,7 @@ def _build_keyboard(buttons: list[dict], lang: str) -> InlineKeyboardMarkup | No
             rows.append([InlineKeyboardButton(text=text, url=btn["url"])])
         elif "web_app" in btn:
             rows.append(
-                [InlineKeyboardButton(text=text, web_app=WebAppInfo(url=btn["web_app"]["url"]))]
+                [InlineKeyboardButton(text=text, web_app=WebAppInfo(url=btn["web_app"]["url"]))],
             )
         elif "callback_data" in btn:
             rows.append([InlineKeyboardButton(text=text, callback_data=btn["callback_data"])])

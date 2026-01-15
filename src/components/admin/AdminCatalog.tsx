@@ -249,14 +249,10 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                   </td>
                   <td className="p-4">
                     {/* All prices are in RUB after migration */}
-                    <div className="text-white">
-                      {p.price} ₽
-                    </div>
+                    <div className="text-white">{p.price} ₽</div>
                     {/* MSRP (strikethrough) */}
                     {p.msrp && p.msrp > p.price && (
-                      <div className="text-[10px] text-gray-500 line-through">
-                        {p.msrp} ₽
-                      </div>
+                      <div className="text-[10px] text-gray-500 line-through">{p.msrp} ₽</div>
                     )}
                   </td>
                   <td className="p-4">

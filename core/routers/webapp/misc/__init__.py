@@ -1,5 +1,4 @@
-"""
-Misc Module
+"""Misc Module.
 
 FAQ, promo codes, reviews, leaderboard, and support ticket endpoints.
 Re-exports main router for backward compatibility.

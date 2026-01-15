@@ -1,5 +1,4 @@
-"""
-QStash Module - Message Queue for Guaranteed Delivery
+"""QStash Module - Message Queue for Guaranteed Delivery.
 
 Provides QStash client for publishing tasks to worker endpoints.
 Used for critical operations that must be guaranteed to execute:
@@ -34,8 +33,7 @@ _qstash_client = None
 
 
 def get_qstash():
-    """
-    Get QStash client (singleton).
+    """Get QStash client (singleton).
 
     Returns QStash client for publishing messages to worker endpoints.
     """
@@ -43,7 +41,8 @@ def get_qstash():
 
     if _qstash_client is None:
         if not QSTASH_TOKEN:
-            raise ValueError("QSTASH_TOKEN must be set")
+            msg = "QSTASH_TOKEN must be set"
+            raise ValueError(msg)
 
         from qstash import QStash
 
@@ -82,8 +81,7 @@ async def publish_to_worker(
     delay: int | None = None,
     deduplication_id: str | None = None,
 ) -> dict:
-    """
-    Publish a task to a QStash worker endpoint.
+    """Publish a task to a QStash worker endpoint.
 
     Args:
         endpoint: Worker endpoint path (e.g., "/api/workers/deliver-goods")
@@ -101,6 +99,7 @@ async def publish_to_worker(
             body={"order_id": "123", "user_id": "456"},
             retries=3
         )
+
     """
     qstash = get_qstash()
     base_url = get_base_url()
@@ -132,10 +131,9 @@ async def publish_to_worker(
 
 
 async def publish_to_queue(
-    queue_name: str, endpoint: str, body: dict, deduplication_id: str | None = None
+    queue_name: str, endpoint: str, body: dict, deduplication_id: str | None = None,
 ) -> dict:
-    """
-    Publish a task to a QStash queue for ordered processing.
+    """Publish a task to a QStash queue for ordered processing.
 
     Args:
         queue_name: Name of the queue (e.g., "broadcast")
@@ -145,6 +143,7 @@ async def publish_to_queue(
 
     Returns:
         QStash enqueue response
+
     """
     qstash = get_qstash()
     base_url = get_base_url()
@@ -163,8 +162,7 @@ async def publish_to_queue(
 
 
 def verify_qstash_signature(body: bytes, signature: str, url: str = "") -> bool:
-    """
-    Verify QStash webhook signature using QStash Receiver.
+    """Verify QStash webhook signature using QStash Receiver.
 
     Args:
         body: Raw request body bytes
@@ -173,6 +171,7 @@ def verify_qstash_signature(body: bytes, signature: str, url: str = "") -> bool:
 
     Returns:
         True if signature is valid
+
     """
     if not QSTASH_CURRENT_SIGNING_KEY:
         # Skip verification in development
@@ -198,14 +197,13 @@ def verify_qstash_signature(body: bytes, signature: str, url: str = "") -> bool:
         # Log error without exposing cryptographic secrets
         logger.exception(
             f"QStash signature verification failed "
-            f"[url={url}, has_key={bool(QSTASH_CURRENT_SIGNING_KEY)}, has_sig={bool(signature)}]"
+            f"[url={url}, has_key={bool(QSTASH_CURRENT_SIGNING_KEY)}, has_sig={bool(signature)}]",
         )
         return False
 
 
 async def verify_qstash_request(request: Request) -> dict:
-    """
-    Verify QStash request and return parsed body.
+    """Verify QStash request and return parsed body.
 
     Raises HTTPException 401 if signature is invalid.
 
@@ -214,6 +212,7 @@ async def verify_qstash_request(request: Request) -> dict:
 
     Returns:
         Parsed JSON body
+
     """
     signature = request.headers.get("Upstash-Signature", "")
     body = await request.body()
@@ -263,8 +262,7 @@ async def verify_qstash_request(request: Request) -> dict:
 
 
 def qstash_protected(func):
-    """
-    Decorator to protect worker endpoints with QStash signature verification.
+    """Decorator to protect worker endpoints with QStash signature verification.
 
     Usage:
         @app.post("/api/workers/deliver-goods")

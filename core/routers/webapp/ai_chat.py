@@ -1,9 +1,10 @@
-"""
-WebApp AI Chat Router
+"""WebApp AI Chat Router.
 
 AI-powered chat endpoint using LangGraph ShopAgent (Gemini 2.5).
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
+
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -73,8 +74,7 @@ class ChatHistoryResponse(BaseModel):
 
 @router.post("/chat", response_model=ChatMessageResponse)
 async def send_chat_message(request: ChatMessageRequest, user=Depends(verify_telegram_auth)):
-    """
-    Send message to AI consultant and get response.
+    """Send message to AI consultant and get response.
 
     The AI can:
     - Answer questions about products
@@ -140,7 +140,7 @@ async def send_chat_message(request: ChatMessageRequest, user=Depends(verify_tel
 
 @router.get("/history", response_model=ChatHistoryResponse)
 async def get_chat_history(
-    limit: int = Query(20, ge=1, le=100, description="Number of messages to return"),
+    limit: Annotated[int, Query(ge=1, le=100, description="Number of messages to return")] = 20,
     user=Depends(verify_telegram_auth),
 ):
     """Get user's chat history with AI."""

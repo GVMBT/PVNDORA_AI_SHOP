@@ -1,5 +1,4 @@
-"""
-Webhooks Router
+"""Webhooks Router.
 
 CrystalPay payment webhooks.
 All webhooks verify signatures and delegate to QStash workers.
@@ -39,9 +38,10 @@ async def _lookup_order_by_payment_id(db, invoice_id: str) -> tuple[dict[str, An
     raw_order = lookup_result.data[0]
     if not isinstance(raw_order, dict):
         logger.error("CrystalPay webhook: Invalid order data type: %s", type(raw_order))
-        raise TypeError("Invalid order data type")
+        msg = "Invalid order data type"
+        raise TypeError(msg)
 
-    order_data = cast(dict[str, Any], raw_order)
+    order_data = cast("dict[str, Any]", raw_order)
     real_order_id = str(order_data.get("id", ""))
     logger.debug("CrystalPay webhook: mapped invoice %s -> order %s", invoice_id, real_order_id)
     return order_data, real_order_id
@@ -58,9 +58,10 @@ async def _lookup_order_by_id(db, order_id: str) -> tuple[dict[str, Any] | None,
     raw_order = direct_result.data[0]
     if not isinstance(raw_order, dict):
         logger.error("CrystalPay webhook: Invalid order data type: %s", type(raw_order))
-        raise TypeError("Invalid order data type")
+        msg = "Invalid order data type"
+        raise TypeError(msg)
 
-    order_data = cast(dict[str, Any], raw_order)
+    order_data = cast("dict[str, Any]", raw_order)
     real_order_id = str(order_data.get("id", ""))
     return order_data, real_order_id
 
@@ -76,7 +77,7 @@ async def _find_order_data(db, invoice_id: str, order_id: str) -> tuple[dict[str
         return order_data, real_order_id
 
     logger.warning(
-        "CrystalPay webhook: Order not found for invoice %s, extra %s", invoice_id, order_id
+        "CrystalPay webhook: Order not found for invoice %s, extra %s", invoice_id, order_id,
     )
     return None, ""
 
@@ -101,7 +102,7 @@ async def _check_stock_availability(db, product_id: str) -> bool:
 
 
 async def _create_refund_ticket(
-    db, order_data: dict[str, Any], real_order_id: str, amount: float
+    db, order_data: dict[str, Any], real_order_id: str, amount: float,
 ) -> None:
     """Create refund ticket for late payment when stock unavailable."""
     user_id = str(order_data.get("user_id", "")) if order_data.get("user_id") else None
@@ -118,7 +119,7 @@ async def _create_refund_ticket(
                     "issue_type": "refund",
                     "description": f"Late payment after order expired. Amount: {amount}. Stock unavailable.",
                     "status": "open",
-                }
+                },
             )
             .execute()
         )
@@ -129,7 +130,7 @@ async def _create_refund_ticket(
                     "status": "refund_pending",
                     "refund_requested": True,
                     "notes": "Late payment - stock unavailable",
-                }
+                },
             )
             .eq("id", real_order_id)
             .execute()
@@ -139,7 +140,7 @@ async def _create_refund_ticket(
 
 
 async def _handle_cancelled_order_recovery(
-    db, order_data: dict[str, Any], real_order_id: str, result: dict[str, Any]
+    db, order_data: dict[str, Any], real_order_id: str, result: dict[str, Any],
 ) -> JSONResponse | None:
     """Handle recovery of cancelled order."""
     product_id = str(order_data.get("product_id", "")) if order_data.get("product_id") else None
@@ -182,9 +183,10 @@ async def _schedule_discount_delivery(db, order_data: dict[str, Any], real_order
     raw_order_item = order_items.data[0]
     if not isinstance(raw_order_item, dict):
         logger.error(f"CrystalPay webhook: Invalid order_item type: {type(raw_order_item)}")
-        raise TypeError("Invalid order_item data")
+        msg = "Invalid order_item data"
+        raise TypeError(msg)
 
-    order_item = cast(dict[str, Any], raw_order_item)
+    order_item = cast("dict[str, Any]", raw_order_item)
     product_id = str(order_item.get("product_id", ""))
 
     stock_result = (
@@ -204,9 +206,10 @@ async def _schedule_discount_delivery(db, order_data: dict[str, Any], real_order
     raw_stock = stock_result.data[0]
     if not isinstance(raw_stock, dict):
         logger.error(f"CrystalPay webhook: Invalid stock_item type: {type(raw_stock)}")
-        raise TypeError("Invalid stock_item data")
+        msg = "Invalid stock_item data"
+        raise TypeError(msg)
 
-    stock_item_dict = cast(dict[str, Any], raw_stock)
+    stock_item_dict = cast("dict[str, Any]", raw_stock)
     stock_item_id = str(stock_item_dict.get("id", ""))
 
     telegram_id_raw = order_data.get("user_telegram_id") if order_data else None
@@ -230,7 +233,8 @@ async def _schedule_discount_delivery(db, order_data: dict[str, Any], real_order
 
     if not order_item_id or not stock_item_id or telegram_id is None:
         logger.error("CrystalPay webhook: Missing required fields for delayed delivery")
-        raise ValueError("Missing required fields")
+        msg = "Missing required fields"
+        raise ValueError(msg)
 
     await discount_service.schedule_delayed_delivery(
         order_id=real_order_id,
@@ -257,15 +261,15 @@ async def _process_instant_delivery(real_order_id: str) -> None:
 
     # FALLBACK: Direct delivery if QStash failed
     logger.warning(
-        f"CrystalPay webhook: QStash failed, executing direct delivery for {real_order_id}"
+        f"CrystalPay webhook: QStash failed, executing direct delivery for {real_order_id}",
     )
     try:
-        from core.services.database import get_database
         from core.routers.workers import _deliver_items_for_order
+        from core.services.database import get_database
 
         notification_service = get_notification_service()
         fallback_result = await _deliver_items_for_order(
-            get_database(), notification_service, real_order_id, only_instant=True
+            get_database(), notification_service, real_order_id, only_instant=True,
         )
         logger.info(f"CrystalPay webhook: Direct delivery completed: {fallback_result}")
     except Exception as fallback_err:
@@ -320,7 +324,7 @@ async def _parse_webhook_body(
 
 
 async def _verify_and_get_order(
-    db, payment_service, data: dict[str, Any], invoice_id: str, order_id: str
+    db, payment_service, data: dict[str, Any], invoice_id: str, order_id: str,
 ) -> tuple[dict[str, Any] | None, str | None, JSONResponse | None]:
     """Verify webhook and get order data. Returns (order_data, real_order_id, error_response)."""
     result = await payment_service.verify_crystalpay_webhook(data)
@@ -344,13 +348,13 @@ async def _verify_and_get_order(
 
 
 async def _handle_order_recovery(
-    db, order_data: dict[str, Any], real_order_id: str, payment_service, data: dict[str, Any]
+    db, order_data: dict[str, Any], real_order_id: str, payment_service, data: dict[str, Any],
 ) -> JSONResponse | None:
     """Handle cancelled order recovery. Returns error response if recovery fails, None if successful."""
     order_status = str(order_data.get("status", "pending"))
     if order_status == "cancelled":
         logger.info(
-            "CrystalPay webhook: Order %s was cancelled, attempting recovery", real_order_id
+            "CrystalPay webhook: Order %s was cancelled, attempting recovery", real_order_id,
         )
         result = await payment_service.verify_crystalpay_webhook(data)
         return await _handle_cancelled_order_recovery(db, order_data, real_order_id, result)
@@ -364,10 +368,10 @@ async def _confirm_payment(db, real_order_id: str, invoice_id: str) -> JSONRespo
 
         status_service = OrderStatusService(db)
         final_status = await status_service.mark_payment_confirmed(
-            order_id=real_order_id, payment_id=invoice_id, check_stock=True
+            order_id=real_order_id, payment_id=invoice_id, check_stock=True,
         )
         logger.info(
-            f"CrystalPay webhook: Payment confirmed for order {real_order_id}, status='{final_status}'"
+            f"CrystalPay webhook: Payment confirmed for order {real_order_id}, status='{final_status}'",
         )
         return None
     except Exception as e:
@@ -383,7 +387,7 @@ async def _process_delivery(order_data: dict[str, Any], real_order_id: str) -> J
 
     if source_channel == "discount":
         logger.info(
-            f"CrystalPay webhook: Discount order {real_order_id} - scheduling delayed delivery"
+            f"CrystalPay webhook: Discount order {real_order_id} - scheduling delayed delivery",
         )
         try:
             from core.services.database import get_database
@@ -448,7 +452,7 @@ def _check_topup_payment_state(state: str) -> JSONResponse | None:
 
 
 async def _get_topup_transaction(
-    db, topup_id: str
+    db, topup_id: str,
 ) -> tuple[dict[str, Any] | None, JSONResponse | None]:
     """Get topup transaction from database. Returns (tx_data, error_response)."""
     tx_result = (
@@ -468,7 +472,7 @@ async def _get_topup_transaction(
         logger.error(f"CrystalPay TOPUP webhook: Invalid transaction data type: {type(raw_tx)}")
         return None, JSONResponse({"error": "Invalid transaction data"}, status_code=500)
 
-    tx = cast(dict[str, Any], raw_tx)
+    tx = cast("dict[str, Any]", raw_tx)
 
     # Idempotency check
     if tx.get("status") == "completed":
@@ -479,7 +483,7 @@ async def _get_topup_transaction(
 
 
 async def _get_topup_user_data(
-    db, user_id: str
+    db, user_id: str,
 ) -> tuple[dict[str, Any] | None, JSONResponse | None]:
     """Get user data for topup. Returns (user_data, error_response)."""
     user_result = (
@@ -499,16 +503,16 @@ async def _get_topup_user_data(
         logger.error(f"CrystalPay TOPUP webhook: Invalid user data type: {type(raw_user)}")
         return None, JSONResponse({"error": "Invalid user data"}, status_code=500)
 
-    return cast(dict[str, Any], raw_user), None
+    return cast("dict[str, Any]", raw_user), None
 
 
 async def _process_topup_balance_update(
-    db, tx: dict[str, Any], user_data: dict[str, Any], topup_id: str, user_id: str
+    db, tx: dict[str, Any], user_data: dict[str, Any], topup_id: str, user_id: str,
 ) -> tuple[float, str, int | None]:
     """Process topup balance update. Returns (amount_to_add, balance_currency, telegram_id)."""
     # Get payment details
     tx_metadata = (
-        cast(dict[str, Any], tx.get("metadata")) if isinstance(tx.get("metadata"), dict) else {}
+        cast("dict[str, Any]", tx.get("metadata")) if isinstance(tx.get("metadata"), dict) else {}
     )
     payment_amount_raw = tx_metadata.get("payment_amount") or tx.get("amount") or 0
     payment_amount = (
@@ -528,7 +532,7 @@ async def _process_topup_balance_update(
     # Convert payment to user's balance currency (after RUB-only migration: no conversion)
     amount_to_add = _convert_payment_to_balance_currency(payment_amount)
     logger.info(
-        f"Top-up conversion: {payment_amount} {payment_currency} → {amount_to_add:.2f} {balance_currency}"
+        f"Top-up conversion: {payment_amount} {payment_currency} → {amount_to_add:.2f} {balance_currency}",
     )
 
     # Round appropriately
@@ -544,14 +548,14 @@ async def _process_topup_balance_update(
     await (
         db.client.table("balance_transactions")
         .update(
-            {"status": "completed", "balance_before": current_balance, "balance_after": new_balance}
+            {"status": "completed", "balance_before": current_balance, "balance_after": new_balance},
         )
         .eq("id", topup_id)
         .execute()
     )
 
     logger.info(
-        f"CrystalPay TOPUP webhook: SUCCESS! User {user_id} balance: {current_balance:.2f} -> {new_balance:.2f} {balance_currency}"
+        f"CrystalPay TOPUP webhook: SUCCESS! User {user_id} balance: {current_balance:.2f} -> {new_balance:.2f} {balance_currency}",
     )
 
     return amount_to_add, balance_currency, user_telegram_id, new_balance
@@ -583,14 +587,14 @@ async def crystalpay_webhook(request: Request):
         db = get_database()
         payment_service = get_payment_service()
         order_data, real_order_id, error_response = await _verify_and_get_order(
-            db, payment_service, data, invoice_id, order_id
+            db, payment_service, data, invoice_id, order_id,
         )
         if error_response:
             return error_response
 
         # Handle cancelled order recovery
         recovery_response = await _handle_order_recovery(
-            db, order_data, real_order_id, payment_service, data
+            db, order_data, real_order_id, payment_service, data,
         )
         if recovery_response:
             return recovery_response
@@ -634,7 +638,7 @@ async def crystalpay_topup_webhook(request: Request):
         invoice_id = data.get("id") or "unknown"
         state = data.get("state") or "unknown"
         logger.info(
-            f"CrystalPay TOPUP webhook: invoice={invoice_id}, state={state}, extra={data.get('extra', '')}"
+            f"CrystalPay TOPUP webhook: invoice={invoice_id}, state={state}, extra={data.get('extra', '')}",
         )
 
         # Validate topup transaction

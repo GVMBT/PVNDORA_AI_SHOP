@@ -1,5 +1,4 @@
-"""
-FastAPI Routers Package
+"""FastAPI Routers Package.
 
 Логическое разделение endpoints без создания новых serverless функций.
 Все роутеры включаются в api/index.py.

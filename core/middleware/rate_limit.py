@@ -1,5 +1,4 @@
-"""
-Rate Limiting Middleware for FastAPI
+"""Rate Limiting Middleware for FastAPI.
 
 Provides rate limiting using Upstash Redis.
 """
@@ -16,8 +15,7 @@ logger = get_logger(__name__)
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """
-    Rate limiting middleware using Upstash Redis.
+    """Rate limiting middleware using Upstash Redis.
 
     Limits requests per IP address per endpoint.
     """
@@ -27,7 +25,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         app,
         requests_per_minute: int = 30,
         redis_client=None,
-    ):
+    ) -> None:
         super().__init__(app)
         self.requests_per_minute = requests_per_minute
         self.redis_client = redis_client
@@ -36,8 +34,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # Only rate limit auth endpoints
         if not request.url.path.startswith("/api/auth"):
-            response = await call_next(request)
-            return response  # type: ignore[no-any-return]
+            return await call_next(request)
 
         # Get client IP
         client_ip = request.client.host if request.client else "unknown"
@@ -60,8 +57,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # Record request
         await self._record_request(key)
 
-        response = await call_next(request)
-        return response  # type: ignore[no-any-return]
+        return await call_next(request)
 
     async def _is_rate_limited(self, key: str) -> bool:
         """Check if key is rate limited."""
