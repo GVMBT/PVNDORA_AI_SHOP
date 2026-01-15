@@ -21,14 +21,13 @@ SELECT
     p.prepayment_percent,
     p.categories,
     p.msrp,
+    p.msrp_prices,
     p.duration_days,
     p.instruction_files,
     p.image_url,
-    p.video_url,
     p.logo_svg_url,
     p.discount_price,
     p.created_at,
-    p.updated_at,
     -- Aggregated stock counts (no N+1!)
     COUNT(si.id) FILTER (
         WHERE si.status = 'available' 
