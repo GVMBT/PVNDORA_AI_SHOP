@@ -166,7 +166,10 @@ async def _compute_price_info(
     anchor_final_price = anchor_price * (1 - discount_percent / 100)
 
     # Get anchor MSRP
-    msrp_prices = product.get("msrp_prices") or {}
+    # msrp_prices may not exist in products_with_stock_summary VIEW
+    msrp_prices = product.get("msrp_prices")
+    if msrp_prices is None:
+        msrp_prices = {}
     anchor_msrp = _compute_anchor_msrp(msrp_usd, msrp_prices, formatter.currency, formatter)
 
     return {
