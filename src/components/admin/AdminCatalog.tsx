@@ -248,43 +248,16 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                     </span>
                   </td>
                   <td className="p-4">
-                    {/* Display price: use anchor price for RUB if available, otherwise show USD base price */}
-                    {(() => {
-                      // Check if anchor price for RUB exists
-                      const hasAnchorPrice =
-                        p.prices && typeof p.prices === "object" && "RUB" in p.prices;
-                      const displayPrice = hasAnchorPrice ? p.prices.RUB : p.price;
-                      const displayCurrency = hasAnchorPrice ? "₽" : "$";
-                      const isAnchor = hasAnchorPrice;
-
-                      return (
-                        <div className={isAnchor ? "text-blue-400" : "text-white"}>
-                          {displayPrice} {displayCurrency}
-                          {!isAnchor && (
-                            <span className="text-[9px] text-gray-600 ml-1">(USD)</span>
-                          )}
-                        </div>
-                      );
-                    })()}
-                    {/* Display MSRP: use anchor MSRP for RUB if available, otherwise show USD base MSRP */}
-                    {(() => {
-                      // MSRP is always in RUB after migration
-                      const displayMsrp = p.msrp;
-                      const currentPrice =
-                        p.prices && typeof p.prices === "object" && "RUB" in p.prices
-                          ? p.prices.RUB
-                          : p.price;
-
-                      // Only show MSRP if it's greater than current price
-                      if (!displayMsrp || displayMsrp <= currentPrice) return null;
-
-                      // Currency is always RUB after migration
-                      return (
-                        <div className="text-[10px] text-gray-500 line-through">
-                          {displayMsrp} ₽
-                        </div>
-                      );
-                    })()}
+                    {/* All prices are in RUB after migration */}
+                    <div className="text-white">
+                      {p.price} ₽
+                    </div>
+                    {/* MSRP (strikethrough) */}
+                    {p.msrp && p.msrp > p.price && (
+                      <div className="text-[10px] text-gray-500 line-through">
+                        {p.msrp} ₽
+                      </div>
+                    )}
                   </td>
                   <td className="p-4">
                     <StockIndicator stock={p.stock} />
@@ -341,11 +314,7 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                 <div>
                   <div className="font-bold text-white mb-1">{p.name}</div>
                   <div className="text-xs text-gray-500 mb-2">
-                    {PRODUCT_CATEGORY_LABELS[p.category] || p.category} • {(() => {
-                      // Price is always in RUB after migration
-                      const displayPrice = p.prices?.RUB || p.price;
-                      return `${displayPrice} ₽`;
-                    })()}
+                    {PRODUCT_CATEGORY_LABELS[p.category] || p.category} • {p.price} ₽
                   </div>
                   <StockIndicator stock={p.stock} />
                 </div>
