@@ -109,7 +109,8 @@ export function useBootTasks({ getProducts, getCart, getProfile }: UseBootTasksP
         label: "Caching static resources...",
         successLabel: "Resources cached",
         execute: async () => {
-          const prefetchUrls = ["https://grainy-gradients.vercel.app/noise.svg"];
+          // Noise texture is now inline SVG, no need to prefetch
+          const prefetchUrls: string[] = [];
           await Promise.allSettled(prefetchUrls.map(safeFetch));
           return true;
         },

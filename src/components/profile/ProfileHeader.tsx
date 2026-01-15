@@ -54,7 +54,12 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onBack, onAdminEnte
                 <User size={40} className="text-gray-400 relative z-10" />
               )}
               <div className="absolute inset-0 bg-gradient-to-tr from-pandora-cyan/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="absolute top-0 w-full h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
+              <div 
+                className="absolute top-0 w-full h-full opacity-20 mix-blend-overlay" 
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+                }}
+              />
             </div>
             {/* Online Status Dot */}
             <div className="absolute bottom-1 right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-black animate-pulse" />
