@@ -424,7 +424,7 @@ async def get_webapp_profile(db_user: User = Depends(get_db_user)):
     from core.services.currency_response import CurrencyFormatter
 
     redis = get_redis()
-    formatter = await CurrencyFormatter.create(db_user=db_user, redis=redis)
+    formatter = CurrencyFormatter.create(db_user=db_user, redis=redis)
 
     # Build referral data
     referral_stats = {

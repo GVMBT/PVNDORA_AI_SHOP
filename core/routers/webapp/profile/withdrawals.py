@@ -110,7 +110,7 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
     currency_service = get_currency_service(redis)
 
     # Get currency formatter for display
-    formatter = await CurrencyFormatter.create(user.id, db, redis)
+    formatter = CurrencyFormatter.create(user.id, db, redis)
 
     # Calculate USDT payout with snapshot (uses constants from currency service)
     withdrawal_calc = await currency_service.calculate_withdrawal_usdt(

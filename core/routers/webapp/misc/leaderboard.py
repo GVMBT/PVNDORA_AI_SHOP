@@ -398,7 +398,7 @@ async def get_webapp_leaderboard(
         leaderboard_size = min(limit, MAX_LEADERBOARD_SIZE)
         now = datetime.now(UTC)
 
-        formatter = await CurrencyFormatter.create(user.id, db, redis)
+        formatter = CurrencyFormatter.create(user.id, db, redis)
 
         date_filter = None
         if period in LEADERBOARD_PERIOD_DAYS:

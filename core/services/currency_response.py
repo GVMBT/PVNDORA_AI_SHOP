@@ -12,7 +12,7 @@ Architecture:
 Usage:
     from core.services.currency_response import CurrencyFormatter
 
-    formatter = await CurrencyFormatter.create(user_telegram_id, db, redis)
+    formatter = CurrencyFormatter.create(user_telegram_id, db, redis)
 
     # Format a single amount
     amount_response = formatter.format_amount(1000)
@@ -65,7 +65,6 @@ class CurrencyFormatter:
     currency: str = "RUB"
     exchange_rate: float = 1.0
 
-    @classmethod
     @classmethod
     def create(
         cls,
@@ -182,11 +181,11 @@ class CurrencyFormatter:
 
 
 # Convenience function
-async def get_currency_formatter(
+def get_currency_formatter(
     user_telegram_id: int | None = None, db=None, redis=None, **kwargs
 ) -> CurrencyFormatter:
     """Get a CurrencyFormatter (always RUB)."""
-    return await CurrencyFormatter.create(user_telegram_id, db, redis, **kwargs)
+    return CurrencyFormatter.create(user_telegram_id, db, redis, **kwargs)
 
 
 def format_price_simple(amount: float | Decimal, currency: str = "RUB") -> str:

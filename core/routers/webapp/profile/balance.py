@@ -72,7 +72,7 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
     redis = get_redis()
 
     # Get formatter to calculate minimum in user's currency
-    formatter = await CurrencyFormatter.create(user.id, db, redis, preferred_currency=currency)
+    formatter = CurrencyFormatter.create(user.id, db, redis, preferred_currency=currency)
 
     # Minimum top-up amounts by currency (fixed amounts, not converted)
     MIN_AMOUNTS = {

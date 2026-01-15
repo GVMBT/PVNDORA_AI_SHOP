@@ -271,7 +271,7 @@ async def get_webapp_product(
     social_proof_data = await _fetch_social_proof_single(db, product_id)
 
     # Currency services
-    formatter = await CurrencyFormatter.create(
+    formatter = CurrencyFormatter.create(
         user_telegram_id=None,
         db=db,
         redis=redis,
@@ -344,7 +344,7 @@ async def get_webapp_products(
         ]
 
         # Currency services
-        formatter = await CurrencyFormatter.create(
+        formatter = CurrencyFormatter.create(
             user_telegram_id=None,
             db=db,
             redis=redis,

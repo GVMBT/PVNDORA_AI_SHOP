@@ -88,7 +88,7 @@ async def _format_cart_response(cart, db, user_telegram_id: int):
     - exchange_rate: for frontend fallback conversion
     """
     redis = get_redis()
-    formatter = await CurrencyFormatter.create(user_telegram_id, db, redis)
+    formatter = CurrencyFormatter.create(user_telegram_id, db, redis)
 
     # Get currency service for anchor pricing
     from core.services.currency import get_currency_service
