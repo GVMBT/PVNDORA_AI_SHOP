@@ -281,6 +281,10 @@ def _process_single_order_for_overview(
         expense_totals["reserves"] += exp["reserve"]
         expense_totals["review_cashbacks"] += exp["review"]
         expense_totals["replacement_costs"] += exp["replacement"]
+        # Direct sum of promo discounts (more accurate than difference calculation)
+        promo_discount_raw = expenses.get("promo_discount_amount", 0)
+        if isinstance(promo_discount_raw, (int, float)):
+            expense_totals["promo_discounts_total"] += float(promo_discount_raw)
 
 
 # Helper: Process orders for financial overview (reduces cognitive complexity)
@@ -292,6 +296,7 @@ def _process_orders_for_overview(
     expense_totals = {
         "revenue_usd": 0.0,
         "revenue_gross_usd": 0.0,
+        "promo_discounts_total": 0.0,  # Direct sum of promo_discount_amount
         "cogs": 0.0,
         "acquiring_fees": 0.0,
         "referral_payouts": 0.0,
@@ -746,8 +751,8 @@ async def get_financial_overview(
             total_revenue_gross_usd, 2
         ),  # Валовая выручка (наша цена БЕЗ промокодов)
         "total_discounts_given": round(
-            total_revenue_gross_usd - total_revenue_usd, 2
-        ),  # Скидки через промокоды
+            expense_totals.get("promo_discounts_total", total_revenue_gross_usd - total_revenue_usd), 2
+        ),  # Скидки через промокоды (direct sum from order_expenses)
         # =====================================================================
         # EXPENSES (Always in USD - suppliers are paid in $)
         # =====================================================================
