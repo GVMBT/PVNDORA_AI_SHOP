@@ -647,12 +647,12 @@ async def crystalpay_topup_webhook(request: Request):
             return error_response
 
         # Verify signature
-        error_response = await _verify_topup_signature(data, invoice_id)
+        error_response = _verify_topup_signature(data, invoice_id)
         if error_response:
             return error_response
 
         # Check payment state
-        error_response = await _check_topup_payment_state(state)
+        error_response = _check_topup_payment_state(state)
         if error_response:
             return error_response
 
