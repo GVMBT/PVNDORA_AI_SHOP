@@ -76,6 +76,13 @@ export async function requestFullscreen(): Promise<void> {
   const tg = getTelegramWebApp();
   if (!tg) return;
 
+  // Check Telegram WebApp version - requestFullscreen not supported in 6.0+
+  const version = tg.version || "";
+  if (version && parseFloat(version) >= 6.0) {
+    // requestFullscreen is not supported in version 6.0+, skip
+    return;
+  }
+
   // Check if method exists
   if (!("requestFullscreen" in tg)) return;
 

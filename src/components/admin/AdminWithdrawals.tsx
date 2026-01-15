@@ -193,8 +193,8 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
   };
 
   const formatAmountWithCurrency = (amount: number) => {
-    // All amounts in admin panel are in USD (base currency)
-    return `$${amount.toFixed(2)} USD`;
+    // All amounts in admin panel are in RUB after migration
+    return `${Math.round(amount)} ₽`;
   };
 
   return (

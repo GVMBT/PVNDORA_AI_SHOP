@@ -278,10 +278,10 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                       // Only show MSRP if it's greater than current price
                       if (!displayMsrp || displayMsrp <= currentPrice) return null;
 
-                      const displayCurrency = hasAnchorMsrp ? "₽" : "$";
+                      // Currency is always RUB after migration
                       return (
                         <div className="text-[10px] text-gray-500 line-through">
-                          {displayMsrp} {displayCurrency}
+                          {displayMsrp} ₽
                         </div>
                       );
                     })()}

@@ -45,13 +45,13 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
     return result;
   }, [users, searchQuery, roleFilter]);
 
-  // Format currency with user's balance currency
-  const formatCurrency = (amount: number, currency: string = "USD") => {
+  // Format currency (all amounts are in RUB after migration)
+  const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("ru-RU", {
       style: "currency",
-      currency: currency,
+      currency: "RUB",
       minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
@@ -226,10 +226,10 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
                   </td>
                   <td className="p-4">{getRoleBadge(u.role)}</td>
                   <td className="p-4 text-pandora-cyan">
-                    {formatCurrency(u.balance, u.balanceCurrency)}
+                    {formatCurrency(u.balance)}
                   </td>
                   <td className="p-4">{u.purchases}</td>
-                  <td className="p-4">{formatCurrency(u.spent, u.balanceCurrency || "RUB")}</td>
+                  <td className="p-4">{formatCurrency(u.spent)}</td>
                   <td className="p-4">
                     {u.isBanned ? (
                       <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30">
@@ -322,7 +322,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
                 <div>
                   <div className="text-[10px] text-gray-500">Баланс</div>
                   <div className="text-sm font-bold text-pandora-cyan">
-                    {formatCurrency(u.balance, u.balanceCurrency)}
+                    {formatCurrency(u.balance)}
                   </div>
                 </div>
                 <div>
@@ -507,7 +507,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
               <div className="bg-white/5 p-3 border border-white/10 mb-4">
                 <div className="text-[10px] text-gray-500 uppercase mb-1">Текущий баланс</div>
                 <div className="text-xl font-bold text-pandora-cyan">
-                  {formatCurrency(balanceModal.balance, balanceModal.balanceCurrency)}
+                  {formatCurrency(balanceModal.balance)}
                 </div>
               </div>
 
