@@ -233,7 +233,7 @@ def _build_product_response(
         "categories": product.get("categories") or [],
         "status": product.get("status"),
         "image_url": product.get("image_url"),
-        "video_url": product.get("video_url"),
+        "video_url": None,  # Field removed from products table
         "logo_svg_url": product.get("logo_svg_url"),
     }
 
