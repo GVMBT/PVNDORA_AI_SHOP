@@ -47,24 +47,41 @@ class Logger {
     return `${prefix} ${message}`;
   }
 
+  private formatArgs(args: unknown[]): unknown[] {
+    return args.map((arg) => {
+      if (arg === null || arg === undefined) {
+        return arg;
+      }
+      if (typeof arg === "object" && !(arg instanceof Error)) {
+        try {
+          return JSON.stringify(arg, null, 2);
+        } catch {
+          return String(arg);
+        }
+      }
+      return arg;
+    });
+  }
+
   private log(level: LogLevel, message: string, ...args: unknown[]): void {
     if (!this.shouldLog(level)) return;
 
     const formattedMessage = this.formatMessage(level, message, ...args);
+    const formattedArgs = this.formatArgs(args);
 
     if (this.config.enableConsole) {
       switch (level) {
         case "debug":
-          console.debug(formattedMessage, ...args);
+          console.debug(formattedMessage, ...formattedArgs);
           break;
         case "info":
-          console.info(formattedMessage, ...args);
+          console.info(formattedMessage, ...formattedArgs);
           break;
         case "warn":
-          console.warn(formattedMessage, ...args);
+          console.warn(formattedMessage, ...formattedArgs);
           break;
         case "error":
-          console.error(formattedMessage, ...args);
+          console.error(formattedMessage, ...formattedArgs);
           break;
       }
     }

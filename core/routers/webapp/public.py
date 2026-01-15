@@ -334,59 +334,75 @@ async def get_webapp_products(
     Uses anchor pricing: if product has fixed price in user's currency, uses that.
     Otherwise falls back to dynamic conversion from USD.
     """
-    db = get_database()
-    redis = get_redis()
+    from core.logging import get_logger
 
-    # Fetch all active products
-    products_result = (
-        await db.client.table("products_with_stock_summary")
-        .select("*")
-        .eq("status", "active")
-        .execute()
-    )
+    logger = get_logger(__name__)
 
-    products_raw = products_result.data or []
-    products: list[dict[str, Any]] = [
-        cast(dict[str, Any], p) for p in products_raw if isinstance(p, dict)
-    ]
+    try:
+        db = get_database()
+        redis = get_redis()
 
-    # Currency services
-    formatter = await CurrencyFormatter.create(
-        user_telegram_id=None,
-        db=db,
-        redis=redis,
-        preferred_currency=currency,
-        language_code=language_code,
-    )
-    currency_service = get_currency_service(redis)
-
-    # Batch fetch data
-    product_ids = [p["id"] for p in products]
-    social_proof_map = await _batch_fetch_social_proof(db, product_ids)
-    ratings_map = await _batch_fetch_ratings(db, product_ids)
-
-    # Build result list
-    result = []
-    for p in products:
-        discount_percent = p.get("max_discount_percent", 0) or 0
-        rating_info = ratings_map.get(p["id"], {"average": 0, "count": 0})
-        sp_data = social_proof_map.get(p["id"], {})
-        sales_count = sp_data.get("sales_count", 0)
-
-        price_info = await _compute_price_info(p, currency_service, formatter, discount_percent)
-
-        product_data = _build_product_response(
-            product=p,
-            price_info=price_info,
-            rating_info=rating_info,
-            formatter=formatter,
-            discount_percent=discount_percent,
-            sales_count=sales_count,
+        # Fetch all active products
+        products_result = (
+            await db.client.table("products_with_stock_summary")
+            .select("*")
+            .eq("status", "active")
+            .execute()
         )
-        result.append(product_data)
 
-    return {
-        "products": result,
-        "currency": formatter.currency,
-        "exchange_rate": formatter.exchange_rate,
-    }
+        products_raw = products_result.data or []
+        products: list[dict[str, Any]] = [
+            cast(dict[str, Any], p) for p in products_raw if isinstance(p, dict)
+        ]
+
+        # Currency services
+        formatter = await CurrencyFormatter.create(
+            user_telegram_id=None,
+            db=db,
+            redis=redis,
+            preferred_currency=currency,
+            language_code=language_code,
+        )
+        currency_service = get_currency_service(redis)
+
+        # Batch fetch data
+        product_ids = [p["id"] for p in products]
+        social_proof_map = await _batch_fetch_social_proof(db, product_ids)
+        ratings_map = await _batch_fetch_ratings(db, product_ids)
+
+        # Build result list
+        result = []
+        for p in products:
+            try:
+                discount_percent = p.get("max_discount_percent", 0) or 0
+                rating_info = ratings_map.get(p["id"], {"average": 0, "count": 0})
+                sp_data = social_proof_map.get(p["id"], {})
+                sales_count = sp_data.get("sales_count", 0)
+
+                price_info = await _compute_price_info(p, currency_service, formatter, discount_percent)
+
+                product_data = _build_product_response(
+                    product=p,
+                    price_info=price_info,
+                    rating_info=rating_info,
+                    formatter=formatter,
+                    discount_percent=discount_percent,
+                    sales_count=sales_count,
+                )
+                result.append(product_data)
+            except Exception as e:
+                logger.warning(
+                    f"Failed to process product {p.get('id', 'unknown')}: {type(e).__name__}: {e}",
+                    exc_info=True,
+                )
+                # Skip this product and continue with others
+                continue
+
+        return {
+            "products": result,
+            "currency": formatter.currency,
+            "exchange_rate": formatter.exchange_rate,
+        }
+    except Exception as e:
+        logger.error(f"Failed to fetch products: {type(e).__name__}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch products")

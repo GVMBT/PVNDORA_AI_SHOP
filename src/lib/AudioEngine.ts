@@ -105,7 +105,8 @@ class AudioEngineClass {
   private async preloadSounds(): Promise<void> {
     if (!this.ctx) return;
 
-    const criticalSounds = ["click", "uiShort", "uiLong", "success", "error", "notification"];
+    // Only preload sounds that have file mappings
+    const criticalSounds = ["click", "uiShort", "uiLong"];
 
     // Load in parallel
     await Promise.allSettled(criticalSounds.map((key) => this.loadSound(key)));
