@@ -342,11 +342,9 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                   <div className="font-bold text-white mb-1">{p.name}</div>
                   <div className="text-xs text-gray-500 mb-2">
                     {PRODUCT_CATEGORY_LABELS[p.category] || p.category} • {(() => {
-                      const hasAnchorPrice =
-                        p.prices && typeof p.prices === "object" && "RUB" in p.prices;
-                      const displayPrice = hasAnchorPrice ? p.prices.RUB : p.price;
-                      const displayCurrency = hasAnchorPrice ? "₽" : "$";
-                      return `${displayPrice} ${displayCurrency}`;
+                      // Price is always in RUB after migration
+                      const displayPrice = p.prices?.RUB || p.price;
+                      return `${displayPrice} ₽`;
                     })()}
                   </div>
                   <StockIndicator stock={p.stock} />
