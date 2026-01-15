@@ -191,12 +191,11 @@ def _build_product_response(
         # USD values (for calculations)
         "price_usd": price_info["price_usd"],
         "final_price_usd": price_info["final_price_usd"],
-        "msrp": price_info["anchor_msrp"],  # MSRP in user's currency (RUB after migration)
         # Display values (for UI) - anchor prices
         "original_price": price_info["anchor_price"],
         "price": price_info["anchor_price"],
         "final_price": price_info["anchor_final_price"],
-        "msrp": price_info["anchor_msrp"],
+        "msrp": price_info["anchor_msrp"],  # MSRP in user's currency (RUB after migration)
         # Currency
         "currency": formatter.currency,
         "is_anchor_price": price_info["is_anchor_price"],
