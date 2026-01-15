@@ -15,8 +15,7 @@ export interface ProductData {
   // Pricing
   price: number; // Base price (USD)
   prices?: Record<string, number>; // Anchor prices: {RUB: 990, USD: 10.50}
-  msrp: number; // Strike-through price (shown if > price) - Base USD MSRP
-  msrp_prices?: Record<string, number>; // Anchor MSRP prices: {RUB: 1290, USD: 250}
+  msrp: number; // Strike-through price (shown if > price) - MSRP in RUB
   discountPrice?: number; // Price for discount channel
   costPrice?: number; // Cost for accounting
 

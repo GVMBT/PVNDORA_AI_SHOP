@@ -789,7 +789,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label
-                        htmlFor="product-msrp-rub"
+                        htmlFor="product-msrp"
                         className="text-[10px] text-blue-300 block mb-1 uppercase"
                       >
                         MSRP в рублях (RUB)
@@ -799,75 +799,24 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                           ₽
                         </span>
                         <input
-                          id="product-msrp-rub"
+                          id="product-msrp"
                           type="number"
-                          value={editingProduct?.msrp_prices?.RUB || ""}
+                          value={editingProduct?.msrp || ""}
                           onChange={(e) => {
                             const value = e.target.value ? Number(e.target.value) : undefined;
-                            const newMsrpPrices = editingProduct?.msrp_prices
-                              ? { ...editingProduct.msrp_prices }
-                              : {};
-                            if (value !== undefined && value > 0) {
-                              newMsrpPrices.RUB = value;
-                            } else {
-                              delete newMsrpPrices.RUB;
-                            }
                             setEditingProduct({
                               ...editingProduct,
-                              msrp_prices:
-                                Object.keys(newMsrpPrices).length > 0 ? newMsrpPrices : undefined,
+                              msrp: value || undefined,
                             });
                           }}
                           className="w-full bg-black border border-blue-400/30 p-2.5 pl-6 text-sm text-blue-300 font-mono focus:border-blue-400 outline-none rounded-sm line-through"
                           step="1"
                           min={0}
-                          placeholder="Авто из USD MSRP"
+                          placeholder="MSRP в рублях"
                         />
                       </div>
                       <p className="text-[9px] text-gray-600 mt-1">
-                        Фиксированный MSRP для RU/BY/KZ пользователей
-                      </p>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="product-msrp-usd"
-                        className="text-[10px] text-blue-300 block mb-1 uppercase"
-                      >
-                        MSRP в долларах (USD) — перезапись
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
-                          $
-                        </span>
-                        <input
-                          id="product-msrp-usd"
-                          type="number"
-                          value={editingProduct?.msrp_prices?.USD || ""}
-                          onChange={(e) => {
-                            const value = e.target.value ? Number(e.target.value) : undefined;
-                            const newMsrpPrices = editingProduct?.msrp_prices
-                              ? { ...editingProduct.msrp_prices }
-                              : {};
-                            if (value !== undefined && value > 0) {
-                              newMsrpPrices.USD = value;
-                            } else {
-                              delete newMsrpPrices.USD;
-                            }
-                            setEditingProduct({
-                              ...editingProduct,
-                              msrp_prices:
-                                Object.keys(newMsrpPrices).length > 0 ? newMsrpPrices : undefined,
-                            });
-                          }}
-                          className="w-full bg-black border border-blue-400/30 p-2.5 pl-6 text-sm text-blue-300 font-mono focus:border-blue-400 outline-none rounded-sm line-through"
-                          step="0.01"
-                          min={0}
-                          placeholder="Использовать базовый MSRP"
-                        />
-                      </div>
-                      <p className="text-[9px] text-gray-600 mt-1">
-                        Опционально: перезаписать базовый MSRP для USD пользователей
+                        Зачеркнутая цена (MSRP) в рублях
                       </p>
                     </div>
                   </div>

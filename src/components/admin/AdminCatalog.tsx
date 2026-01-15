@@ -268,11 +268,8 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                     })()}
                     {/* Display MSRP: use anchor MSRP for RUB if available, otherwise show USD base MSRP */}
                     {(() => {
-                      const hasAnchorMsrp =
-                        p.msrp_prices &&
-                        typeof p.msrp_prices === "object" &&
-                        "RUB" in p.msrp_prices;
-                      const displayMsrp = hasAnchorMsrp ? p.msrp_prices.RUB : p.msrp;
+                      // MSRP is always in RUB after migration
+                      const displayMsrp = p.msrp;
                       const currentPrice =
                         p.prices && typeof p.prices === "object" && "RUB" in p.prices
                           ? p.prices.RUB

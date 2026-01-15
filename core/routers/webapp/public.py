@@ -26,24 +26,11 @@ router = APIRouter(tags=["webapp-public"])
 # =============================================================================
 
 
-def _compute_anchor_msrp(
-    msrp_usd: float | None,
-    msrp_prices: dict[str, Any],
-    target_currency: str,
-    formatter: CurrencyFormatter,
-) -> float | None:
-    """Compute anchor MSRP: fixed price if available, otherwise convert from USD."""
-    if not msrp_usd:
+def _compute_msrp(msrp_rub: float | None) -> float | None:
+    """Get MSRP in RUB (simplified after RUB-only migration)."""
+    if msrp_rub is None:
         return None
-
-    # Check for anchor MSRP in target currency
-    if msrp_prices and target_currency in msrp_prices:
-        anchor_value = msrp_prices[target_currency]
-        if anchor_value is not None:
-            return float(anchor_value)
-
-    # Fallback: convert from USD MSRP
-    return formatter.convert(msrp_usd)
+    return float(msrp_rub)
 
 
 async def _fetch_single_product(db: Database, product_id: str) -> dict[str, Any]:
@@ -155,7 +142,7 @@ async def _compute_price_info(
     final_price_usd = price_usd * (1 - discount_percent / 100)
 
     msrp_raw = product.get("msrp")
-    msrp_usd = float(msrp_raw) if msrp_raw and isinstance(msrp_raw, (int, float, str)) else None
+    msrp_rub = float(msrp_raw) if msrp_raw and isinstance(msrp_raw, (int, float, str)) else None
 
     # Get anchor price (fixed or converted)
     # Handle None values for prices field
@@ -168,17 +155,13 @@ async def _compute_price_info(
     # Apply discount to anchor price
     anchor_final_price = anchor_price * (1 - discount_percent / 100)
 
-    # Get anchor MSRP
-    # msrp_prices may not exist in products_with_stock_summary VIEW
-    msrp_prices = product.get("msrp_prices")
-    if msrp_prices is None:
-        msrp_prices = {}
-    anchor_msrp = _compute_anchor_msrp(msrp_usd, msrp_prices, formatter.currency, formatter)
+    # Get MSRP in RUB (simplified after RUB-only migration)
+    anchor_msrp = _compute_msrp(msrp_rub)
 
     return {
         "price_usd": price_usd,
         "final_price_usd": final_price_usd,
-        "msrp_usd": msrp_usd,
+        "msrp_rub": msrp_rub,  # MSRP in RUB (renamed from msrp_usd for clarity)
         "anchor_price": anchor_price,
         "anchor_final_price": anchor_final_price,
         "anchor_msrp": anchor_msrp,
@@ -208,7 +191,7 @@ def _build_product_response(
         # USD values (for calculations)
         "price_usd": price_info["price_usd"],
         "final_price_usd": price_info["final_price_usd"],
-        "msrp_usd": price_info["msrp_usd"],
+        "msrp": price_info["anchor_msrp"],  # MSRP in user's currency (RUB after migration)
         # Display values (for UI) - anchor prices
         "original_price": price_info["anchor_price"],
         "price": price_info["anchor_price"],

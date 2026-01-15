@@ -38,8 +38,7 @@ class CreateProductRequest(BaseModel):
     # Pricing
     price: float = 0  # Base USD price
     prices: dict | None = None  # Anchor prices: {"RUB": 990, "USD": 10.50}
-    msrp: float | None = None
-    msrp_prices: dict | None = None  # Anchor MSRP: {"RUB": 1290}
+    msrp: float | None = None  # MSRP in RUB
     discountPrice: float | None = None  # discount_price
     costPrice: float | None = None  # cost_price
 

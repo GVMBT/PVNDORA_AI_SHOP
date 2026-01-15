@@ -67,7 +67,6 @@ class Product(BaseModel):
     description: str | None = None
     price: Decimal  # Price in RUB
     prices: dict | None = None  # DEPRECATED: No longer used
-    msrp_prices: dict | None = None  # DEPRECATED: No longer used
     type: str  # student, trial, shared, key
     status: str = "active"
     warranty_hours: int = 24

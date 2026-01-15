@@ -35,8 +35,7 @@ async def admin_create_product(request: CreateProductRequest, admin=Depends(veri
         # Pricing
         "price": request.price,  # Base USD price
         "prices": request.prices or {},  # Anchor prices (JSONB)
-        "msrp": request.msrp or request.price,
-        "msrp_prices": request.msrp_prices or {},  # Anchor MSRP prices (JSONB)
+        "msrp": request.msrp or request.price,  # MSRP in RUB
         "discount_price": request.discountPrice,
         "cost_price": request.costPrice,
         # Fulfillment
@@ -94,10 +93,9 @@ async def admin_get_products(admin=Depends(verify_admin)):
                 # Category (type in DB → category in frontend)
                 "category": p.get("type", "ai"),
                 # Pricing
-                "price": float(p.get("price", 0)),  # Base USD price
-                "prices": p.get("prices") or {},  # Anchor prices (JSONB)
-                "msrp": float(p.get("msrp") or p.get("price", 0)),
-                "msrp_prices": p.get("msrp_prices") or {},  # Anchor MSRP prices (JSONB)
+                "price": float(p.get("price", 0)),  # Price in RUB
+                "prices": p.get("prices") or {},  # Anchor prices (JSONB) - DEPRECATED
+                "msrp": float(p.get("msrp") or p.get("price", 0)),  # MSRP in RUB
                 "discountPrice": float(p.get("discount_price") or 0),
                 "costPrice": float(p.get("cost_price") or 0),
                 # Fulfillment
@@ -138,8 +136,7 @@ async def admin_update_product(
         # Pricing
         "price": request.price,  # Base USD price
         "prices": request.prices or {},  # Anchor prices (JSONB)
-        "msrp": request.msrp or request.price,
-        "msrp_prices": request.msrp_prices or {},  # Anchor MSRP prices (JSONB)
+        "msrp": request.msrp or request.price,  # MSRP in RUB
         "discount_price": request.discountPrice,
         "cost_price": request.costPrice,
         # Fulfillment

@@ -275,7 +275,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
         price: p.price,
         prices: p.prices || {}, // Anchor prices: {RUB: 990}
         msrp: p.msrp || p.price * 1.5,
-        msrp_prices: p.msrp_prices || {}, // Anchor MSRP prices
+        // msrp_prices removed - use msrp (always in RUB)
         discountPrice: p.discountPrice || 0,
         costPrice: p.costPrice || 0,
         fulfillmentType: p.fulfillmentType || "auto",

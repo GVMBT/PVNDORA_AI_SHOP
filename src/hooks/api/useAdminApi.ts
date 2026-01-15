@@ -34,7 +34,7 @@ export interface AdminProduct {
   price: number;
   prices?: Record<string, number>; // Anchor prices: {RUB: 990, USD: 10.50}
   msrp: number;
-  msrp_prices?: Record<string, number>; // Anchor MSRP prices: {RUB: 1290}
+  // msrp_prices removed - use msrp (always in RUB)
   discountPrice?: number; // Price for discount channel
   costPrice?: number; // Cost for accounting
 
