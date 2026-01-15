@@ -134,77 +134,77 @@ async def _get_referral_settings_cached(db):
 
 
 async def _fetch_profile_data(db, db_user):
-    """Fetch all profile-related data in parallel."""
-
+    """
+    Fetch all profile-related data using optimized VIEW.
+    
+    OPTIMIZATION: Uses user_profile_data VIEW to get all data in 1 query
+    instead of 4 separate queries. Reduces DB round-trips from 5 to 2.
+    """
     async def fetch_settings():
         return await _get_referral_settings_cached(db)
 
-    async def fetch_extended_stats():
+    async def fetch_profile_view():
+        """Fetch all profile data from optimized VIEW in one query."""
         try:
             result = (
-                await db.client.table("referral_stats_extended")
+                await db.client.table("user_profile_data")
                 .select("*")
                 .eq("user_id", db_user.id)
+                .single()
                 .execute()
             )
             return result
         except Exception as e:
-            logger.warning(f"Failed to query referral_stats_extended: {e}")
-            return type("obj", (object,), {"data": []})()
+            logger.warning(f"Failed to query user_profile_data VIEW: {e}")
+            # Fallback to empty structure
+            return type("obj", (object,), {
+                "data": {
+                    "level1_count": 0,
+                    "level2_count": 0,
+                    "level3_count": 0,
+                    "effective_level": 0,
+                    "recent_bonuses": None,
+                    "recent_withdrawals": None,
+                    "recent_transactions": None,
+                }
+            })()
 
-    async def fetch_bonuses():
-        try:
-            result = (
-                await db.client.table("referral_bonuses")
-                .select("*")
-                .eq("user_id", db_user.id)
-                .eq("eligible", True)
-                .order("created_at", desc=True)
-                .limit(10)
-                .execute()
-            )
-            return result
-        except Exception as e:
-            logger.warning(f"Failed to query referral_bonuses: {e}")
-            return type("obj", (object,), {"data": []})()
-
-    async def fetch_withdrawals():
-        try:
-            result = (
-                await db.client.table("withdrawal_requests")
-                .select("*")
-                .eq("user_id", db_user.id)
-                .order("created_at", desc=True)
-                .limit(10)
-                .execute()
-            )
-            return result
-        except Exception as e:
-            logger.warning(f"Failed to query withdrawal_requests: {e}")
-            return type("obj", (object,), {"data": []})()
-
-    async def fetch_balance_transactions():
-        try:
-            result = (
-                await db.client.table("balance_transactions")
-                .select("*")
-                .eq("user_id", db_user.id)
-                .eq("status", "completed")
-                .order("created_at", desc=True)
-                .limit(50)
-                .execute()
-            )
-            return result
-        except Exception as e:
-            logger.warning(f"Failed to query balance_transactions: {e}")
-            return type("obj", (object,), {"data": []})()
-
-    return await asyncio.gather(
+    settings, profile_view = await asyncio.gather(
         fetch_settings(),
-        fetch_extended_stats(),
-        fetch_bonuses(),
-        fetch_withdrawals(),
-        fetch_balance_transactions(),
+        fetch_profile_view(),
+    )
+
+    # Transform VIEW data to match old format for backward compatibility
+    profile_data = profile_view.data if profile_view.data else {}
+    
+    # Create mock result objects matching old structure
+    extended_stats_result = type("obj", (object,), {
+        "data": [{
+            "level1_count": profile_data.get("level1_count", 0),
+            "level2_count": profile_data.get("level2_count", 0),
+            "level3_count": profile_data.get("level3_count", 0),
+            "effective_level": profile_data.get("effective_level", 0),
+        }] if profile_data.get("level1_count", 0) > 0 else []
+    })()
+    
+    bonuses_result = type("obj", (object,), {
+        "data": profile_data.get("recent_bonuses") or []
+    })()
+    
+    withdrawals_result = type("obj", (object,), {
+        "data": profile_data.get("recent_withdrawals") or []
+    })()
+    
+    transactions_result = type("obj", (object,), {
+        "data": profile_data.get("recent_transactions") or []
+    })()
+
+    return (
+        settings,
+        extended_stats_result,
+        bonuses_result,
+        withdrawals_result,
+        transactions_result,
     )
 
 

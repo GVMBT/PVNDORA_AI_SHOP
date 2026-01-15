@@ -119,7 +119,16 @@ async def _format_cart_response(cart, db, user_telegram_id: int):
             "exchange_rate": formatter.exchange_rate,
         }
 
-    products = await asyncio.gather(*[db.get_product_by_id(item.product_id) for item in cart.items])
+    # OPTIMIZATION: Batch fetch all products in one query instead of N+1
+    product_ids = [item.product_id for item in cart.items]
+    products_result = (
+        await db.client.table("products")
+        .select("*")
+        .in_("id", product_ids)
+        .execute()
+    )
+    products_map = {p["id"]: p for p in (products_result.data or [])}
+    products = [products_map.get(item.product_id) for item in cart.items]
 
     items_with_details = []
     for item, product in zip(cart.items, products, strict=False):
@@ -136,8 +145,8 @@ async def _format_cart_response(cart, db, user_telegram_id: int):
         items_with_details.append(
             {
                 "product_id": item.product_id,
-                "product_name": product.name if product else "Unknown",
-                "image_url": product.image_url if product else None,
+                "product_name": product.get("name") if product else "Unknown",
+                "image_url": product.get("image_url") if product else None,
                 "quantity": item.quantity,
                 "instant_quantity": item.instant_quantity,
                 "prepaid_quantity": item.prepaid_quantity,
