@@ -157,15 +157,29 @@ export function useTelegram(): UseTelegramReturn {
 
   const hapticFeedback = useCallback(
     (type: HapticType = "impact", style: HapticStyle = "medium"): void => {
-      const haptic = globalThis.Telegram?.WebApp?.HapticFeedback;
+      const tg = globalThis.Telegram?.WebApp;
+      if (!tg) return;
+
+      // Check Telegram WebApp version - HapticFeedback not supported in 6.0+
+      const version = tg.version || "";
+      if (version && parseFloat(version) >= 6.0) {
+        // HapticFeedback is not supported in version 6.0+, skip
+        return;
+      }
+
+      const haptic = tg.HapticFeedback;
       if (!haptic) return;
 
-      if (type === "impact") {
-        haptic.impactOccurred(mapHapticStyleToTelegram(style));
-      } else if (type === "notification") {
-        haptic.notificationOccurred(mapHapticStyleToNotificationType(style));
-      } else if (type === "selection") {
-        haptic.selectionChanged();
+      try {
+        if (type === "impact") {
+          haptic.impactOccurred(mapHapticStyleToTelegram(style));
+        } else if (type === "notification") {
+          haptic.notificationOccurred(mapHapticStyleToNotificationType(style));
+        } else if (type === "selection") {
+          haptic.selectionChanged();
+        }
+      } catch {
+        // Silently ignore if method not available
       }
     },
     []

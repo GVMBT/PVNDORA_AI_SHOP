@@ -23,6 +23,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Clock,
+  Coins,
   DollarSign,
   Image as ImageIcon,
   Info,
