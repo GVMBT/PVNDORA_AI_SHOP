@@ -37,7 +37,6 @@
     { "source": "/webhook/discount", "destination": "/api/index.py" },
     { "source": "/webhook/(.*)", "destination": "/api/index.py" },
     { "source": "/f7f45338-a334-44be-84d7-d15c3770bc97.txt", "destination": "/f7f45338-a334-44be-84d7-d15c3770bc97.txt" },
-    { "source": "/(.*\\.(ico|svg|png|jpg|jpeg|webp|ogg|webmanifest|txt|json))", "destination": "/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "functions": {
