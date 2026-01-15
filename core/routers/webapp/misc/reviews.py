@@ -76,20 +76,23 @@ async def _calculate_review_cashback(
         raise HTTPException(status_code=400, detail="Invalid item price")
 
     # Determine cashback base amount (item price in user's balance currency)
+    # CRITICAL: Use item price, NOT order total (order may have multiple items)
     order_amount_usd = to_float(order.amount) if hasattr(order, "amount") and order.amount else 0
 
     # Priority 1: Use order's fiat_amount if available and currency matches
-    # This ensures we use the exact amount user paid, not current exchange rate
+    # Calculate proportional item price in fiat currency based on item's share of order
     if (
         hasattr(order, "fiat_amount")
         and order.fiat_amount
         and hasattr(order, "fiat_currency")
         and order.fiat_currency == balance_currency
         and order_amount_usd > 0
+        and item_price_usd > 0
     ):
-        # Calculate proportional item price in fiat currency
+        # Calculate item's share of order total, then apply to fiat_amount
         # This preserves the exact exchange rate from when order was created
-        item_price_fiat = item_price_usd / order_amount_usd * to_float(order.fiat_amount)
+        item_share = item_price_usd / order_amount_usd
+        item_price_fiat = to_float(order.fiat_amount) * item_share
         cashback_base = item_price_fiat
     # Priority 2: Use exchange_rate_snapshot from order if available (for orders without fiat_amount)
     elif (
@@ -259,6 +262,22 @@ async def _process_review_cashback(
     currency_service,
 ) -> float:
     """Process cashback for review and return new balance."""
+    # Check if cashback already processed (prevent duplicates)
+    existing_tx = (
+        await db.client.table("balance_transactions")
+        .select("id")
+        .eq("reference_id", request.order_id)
+        .in_("type", ["cashback", "credit"])
+        .limit(1)
+        .execute()
+    )
+    if existing_tx.data:
+        logger.warning(
+            f"Cashback transaction already exists for order {request.order_id}, skipping",
+        )
+        await db.client.table("reviews").update({"cashback_given": True}).eq("id", review_id).execute()
+        return to_float(db_user.balance) if db_user.balance else 0.0
+
     current_balance = to_float(db_user.balance) if db_user.balance else 0.0
     new_balance = current_balance + cashback_amount
 

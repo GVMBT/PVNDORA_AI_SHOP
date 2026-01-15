@@ -95,6 +95,7 @@ try:
     from core.routers.deps import shutdown_services
 
     # WebApp router - single unified router from __init__.py
+    from core.routers.user import router as user_router
     from core.routers.webapp import router as webapp_router
     from core.routers.webhooks import router as webhooks_router
     from core.routers.workers.router import router as workers_router
@@ -590,6 +591,8 @@ async def set_admin_webhook():
 app.include_router(webhooks_router, prefix="/api")
 # workers_router already has prefix="/api/workers" in core/routers/workers/router.py
 app.include_router(workers_router)
+# User router - already has prefix /api in core/routers/user.py
+app.include_router(user_router)
 # WebApp router - already has prefix /api/webapp in __init__.py
 app.include_router(webapp_router)
 

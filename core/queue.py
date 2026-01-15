@@ -186,11 +186,15 @@ def verify_qstash_signature(body: bytes, signature: str, url: str = "") -> bool:
             next_signing_key=QSTASH_NEXT_SIGNING_KEY or "",
         )
 
+        # QStash JWT signature includes URL without query parameters
+        # Remove query params before verification
+        url_for_verification = url.split("?")[0]
+
         # Verify signature (QStash uses JWT which includes URL)
         receiver.verify(
             body=body.decode("utf-8") if isinstance(body, bytes) else body,
             signature=signature,
-            url=url,
+            url=url_for_verification,
         )
         return True
     except Exception:

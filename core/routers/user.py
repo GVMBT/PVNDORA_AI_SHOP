@@ -86,7 +86,7 @@ def _get_localized_texts(language_code: str) -> tuple[str, str]:
     return "Saving on AI subscriptions with PVNDORA", "🎁 Try it"
 
 
-@router.post("/webapp/referral/share-link")
+@router.post("/referral/share-link")
 async def create_referral_share_link(user=Depends(verify_telegram_auth)):
     """Create a prepared inline message for sharing.
     Returns prepared_message_id to be used with Telegram.WebApp.shareMessage().

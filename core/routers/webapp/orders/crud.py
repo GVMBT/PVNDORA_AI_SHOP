@@ -127,10 +127,17 @@ def _process_order_row(
 
     # Build items using helper
     items = [_build_order_item(item, row["status"], reviewed_product_ids) for item in items_data]
-    # Fix: Add fallback fulfillment_deadline from order
-    for i, _item in enumerate(items_data):
-        if not items[i]["fulfillment_deadline"]:
-            items[i]["fulfillment_deadline"] = row.get("fulfillment_deadline")
+    # Fix: Add fallback fulfillment_deadline from order for preorder items
+    # order_items table doesn't have fulfillment_deadline field, so we use order-level deadline
+    order_fulfillment_deadline = row.get("fulfillment_deadline")
+    for i, item_data in enumerate(items_data):
+        # For preorder items without item-level deadline, use order-level deadline
+        if (
+            item_data.get("fulfillment_type") == "preorder"
+            and not items[i]["fulfillment_deadline"]
+            and order_fulfillment_deadline
+        ):
+            items[i]["fulfillment_deadline"] = order_fulfillment_deadline
 
     # Build order dict using helper
     return _build_order_dict(row, items, product_data)

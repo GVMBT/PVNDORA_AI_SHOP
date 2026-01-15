@@ -298,6 +298,9 @@ async def _process_balance_payment(
     )
     # #endregion
     try:
+        current_balance = to_float(db_user.balance or 0)
+        new_balance = current_balance - to_float(order_total_in_balance_currency)
+        
         await db.client.rpc(
             "add_to_user_balance",
             {
@@ -306,6 +309,34 @@ async def _process_balance_payment(
                 "p_reason": f"Payment for order {order.id}",
             },
         ).execute()
+        
+        # Create balance transaction record (debit/expense)
+        try:
+            await (
+                db.client.table("balance_transactions")
+                .insert(
+                    {
+                        "user_id": db_user.id,
+                        "type": "debit",  # Expense/payment, not credit
+                        "amount": to_float(order_total_in_balance_currency),  # Positive amount for debit
+                        "currency": balance_currency,
+                        "balance_before": current_balance,
+                        "balance_after": new_balance,
+                        "status": "completed",
+                        "description": f"Payment for order {order.id}",
+                        "reference_id": order.id,
+                        "metadata": {
+                            "order_id": order.id,
+                            "payment_method": "balance",
+                        },
+                    },
+                )
+                .execute()
+            )
+        except Exception as tx_error:
+            # Log but don't fail - balance is already deducted
+            logger.warning(f"Failed to create balance_transaction for order {order.id}: {tx_error}")
+        
         # #region agent log
         logger.info(f"[DEBUG-HYP-A] RPC add_to_user_balance success: order_id={order.id}")
         # #endregion

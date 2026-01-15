@@ -355,6 +355,27 @@ async def worker_process_review_cashback(request: Request):
     if review.get("cashback_given"):
         return {"skipped": True, "reason": "Cashback already processed"}
 
+    # Additional check: verify no existing cashback transaction for this order
+    existing_tx = (
+        await db.client.table("balance_transactions")
+        .select("id")
+        .eq("reference_id", order_id)
+        .eq("type", "cashback")
+        .limit(1)
+        .execute()
+    )
+    if existing_tx.data:
+        logger.warning(
+            f"Cashback transaction already exists for order {order_id}, marking review as processed",
+        )
+        await (
+            db.client.table("reviews")
+            .update({"cashback_given": True})
+            .eq("id", review["id"])
+            .execute()
+        )
+        return {"skipped": True, "reason": "Cashback transaction already exists"}
+
     # Get user and order data
     db_user, order_data = await _get_user_and_order_for_cashback(db, order_id, user_telegram_id)
     if not db_user:
