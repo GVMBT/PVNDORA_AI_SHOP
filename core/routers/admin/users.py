@@ -201,41 +201,45 @@ router = APIRouter(tags=["admin-users"])
 
 @router.get("/users")
 async def admin_get_users(limit: int = 50, offset: int = 0, admin=Depends(verify_admin)):
-    """Get users for admin panel - simplified view"""
+    """Get users for admin panel - uses users_extended_analytics VIEW to avoid N+1 queries"""
     db = get_database()
 
     try:
-        # Get users with order counts
+        # Use VIEW that pre-aggregates orders count and total spent
+        # This eliminates N+1 queries (was: 1 query per user for orders)
         result = (
-            await db.client.table("users")
+            await db.client.table("users_extended_analytics")
             .select(
-                "id, telegram_id, username, first_name, balance, balance_currency, is_banned, is_admin, is_partner, partner_mode, total_referral_earnings, created_at"
+                "id, telegram_id, username, first_name, balance, is_admin, "
+                "total_referral_earnings, created_at, orders_count, total_spent"
             )
             .order("created_at", desc=True)
             .range(offset, offset + limit - 1)
             .execute()
         )
 
+        # Get additional user fields not in VIEW (is_banned, is_partner, partner_mode, balance_currency)
+        user_ids = [u["id"] for u in (result.data or [])]
+        extra_fields = {}
+        if user_ids:
+            extra_result = (
+                await db.client.table("users")
+                .select("id, is_banned, is_partner, partner_mode, balance_currency")
+                .in_("id", user_ids)
+                .execute()
+            )
+            extra_fields = {u["id"]: u for u in (extra_result.data or [])}
+
         users = []
         for u in result.data or []:
             user_id = u.get("id")
-
-            # Get orders count and total spent
-            orders_result = (
-                await db.client.table("orders")
-                .select("id, amount", count="exact")
-                .eq("user_id", user_id)
-                .eq("status", "delivered")
-                .execute()
-            )
-            orders_count = orders_result.count or 0
-            total_spent = sum(float(o.get("amount", 0)) for o in (orders_result.data or []))
+            extra = extra_fields.get(user_id, {})
 
             # Determine role
             role = "user"
             if u.get("is_admin"):
                 role = "admin"
-            elif u.get("is_partner"):
+            elif extra.get("is_partner"):
                 role = "vip"
 
             users.append(
@@ -245,12 +249,12 @@ async def admin_get_users(limit: int = 50, offset: int = 0, admin=Depends(verify
                     "username": u.get("username") or u.get("first_name") or "Unknown",
                     "role": role,
                     "balance": to_float(u.get("balance", 0)),
-                    "balance_currency": u.get("balance_currency") or "RUB",
-                    "total_spent": total_spent,
-                    "orders_count": orders_count,
-                    "is_banned": u.get("is_banned", False),
-                    "is_partner": u.get("is_partner", False),
-                    "partner_mode": u.get("partner_mode") or "commission",  # Default to commission
+                    "balance_currency": extra.get("balance_currency") or "RUB",
+                    "total_spent": to_float(u.get("total_spent", 0)),
+                    "orders_count": u.get("orders_count", 0),
+                    "is_banned": extra.get("is_banned", False),
+                    "is_partner": extra.get("is_partner", False),
+                    "partner_mode": extra.get("partner_mode") or "commission",
                     "total_referral_earnings": to_float(u.get("total_referral_earnings", 0)),
                     "created_at": u.get("created_at"),
                 }

@@ -776,7 +776,7 @@ class OrderStatusService:
 
         Args:
             order_id: Order ID
-            delivered_count: Number of items delivered
+            delivered_count: TOTAL number of delivered items (including previously delivered)
             waiting_count: Number of items waiting for stock
             current_status: Optional current status (to avoid GET request)
 
@@ -790,8 +790,10 @@ class OrderStatusService:
         if not current_status:
             return None
 
+        current_status_lower = current_status.lower()
+
         # Only update if payment is confirmed
-        if current_status.lower() == "pending":
+        if current_status_lower == "pending":
             logger.warning("Order is still pending - cannot update delivery status")
             return None
 
@@ -800,9 +802,13 @@ class OrderStatusService:
             new_status = "delivered"
         elif delivered_count > 0 and waiting_count > 0:
             new_status = "partial"
-        # Don't set to 'prepaid' here - should already be set by payment confirmation
+        # FIX: Handle edge case where status is "partial" but all items are delivered
+        # This can happen if items were delivered through admin panel or other means
+        elif delivered_count == 0 and waiting_count == 0 and current_status_lower == "partial":
+            # Query actual item statuses to determine correct order status
+            new_status = await self._recalculate_order_status_from_items(order_id)
 
-        if new_status and new_status != current_status.lower():
+        if new_status and new_status != current_status_lower:
             await self.update_status(
                 order_id,
                 new_status,
@@ -812,3 +818,33 @@ class OrderStatusService:
             return new_status
 
         return None
+
+    async def _recalculate_order_status_from_items(self, order_id: str) -> str | None:
+        """
+        Recalculate order status based on actual item statuses.
+        Useful for fixing inconsistent states.
+        """
+        try:
+            items_result = (
+                await self.db.client.table("order_items")
+                .select("status")
+                .eq("order_id", order_id)
+                .execute()
+            )
+            items = items_result.data or []
+
+            if not items:
+                return None
+
+            delivered = sum(1 for i in items if i.get("status") == "delivered")
+            pending = sum(1 for i in items if i.get("status") in ("pending", "prepaid"))
+
+            if delivered > 0 and pending == 0:
+                return "delivered"
+            if delivered > 0 and pending > 0:
+                return "partial"
+
+            return None
+        except Exception:
+            logger.exception(f"Failed to recalculate status for order {order_id}")
+            return None
