@@ -113,8 +113,10 @@ async def fetch_usdt_rub_rate() -> float:
             response = await client.get("https://api.exchangerate-api.com/v4/latest/USD")
             response.raise_for_status()
             data = response.json()
-            rub_rate = data.get("rates", {}).get("RUB", 100.0)
+            rub_rate_raw = data.get("rates", {}).get("RUB", 100.0)
             # USDT ≈ USD, so USDT/RUB ≈ USD/RUB
+            # Explicitly convert to float to satisfy type checker
+            rub_rate = float(rub_rate_raw) if isinstance(rub_rate_raw, (int, float)) else 100.0
             logger.info(f"Got USDT/RUB from exchangerate-api: {rub_rate}")
             return rub_rate
     except Exception as e:

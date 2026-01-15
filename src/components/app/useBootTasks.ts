@@ -17,9 +17,6 @@ import { logger } from "../../utils/logger";
 import { getTelegramInitData } from "../../utils/telegram";
 import type { BootTask } from "../new";
 
-// Helper: Safe fetch with null fallback (reduces nesting in prefetch task)
-const safeFetch = (url: string): Promise<Response | null> => fetch(url).catch((): null => null);
-
 interface UseBootTasksProps {
   getProducts: () => Promise<unknown>;
   getCart: () => Promise<unknown>;
@@ -109,9 +106,7 @@ export function useBootTasks({ getProducts, getCart, getProfile }: UseBootTasksP
         label: "Caching static resources...",
         successLabel: "Resources cached",
         execute: async () => {
-          // Noise texture is now inline SVG, no need to prefetch
-          const prefetchUrls: string[] = [];
-          await Promise.allSettled(prefetchUrls.map(safeFetch));
+          // Noise texture is now inline SVG, no external resources to prefetch
           return true;
         },
       },
