@@ -8,7 +8,7 @@ from collections import Counter
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from core.auth import verify_telegram_auth
 from core.db import get_redis
@@ -388,63 +388,71 @@ async def get_webapp_leaderboard(
     user=Depends(verify_telegram_auth),
 ):
     """Get savings leaderboard. Supports period: all, month, week and pagination."""
-    db = get_database()
-    redis = get_redis()
-    leaderboard_size = min(limit, MAX_LEADERBOARD_SIZE)
-    now = datetime.now(UTC)
+    from core.logging import get_logger
 
-    formatter = await CurrencyFormatter.create(user.id, db, redis)
+    logger = get_logger(__name__)
 
-    date_filter = None
-    if period in LEADERBOARD_PERIOD_DAYS:
-        date_filter = (now - timedelta(days=LEADERBOARD_PERIOD_DAYS[period])).isoformat()
+    try:
+        db = get_database()
+        redis = get_redis()
+        leaderboard_size = min(limit, MAX_LEADERBOARD_SIZE)
+        now = datetime.now(UTC)
 
-    if date_filter:
-        result_data = await _get_period_leaderboard_data(db, date_filter, leaderboard_size)
-    else:
-        result_data = await _get_alltime_leaderboard_data(db, offset, leaderboard_size)
+        formatter = await CurrencyFormatter.create(user.id, db, redis)
 
-    total_users = await _get_total_users_count(db)
+        date_filter = None
+        if period in LEADERBOARD_PERIOD_DAYS:
+            date_filter = (now - timedelta(days=LEADERBOARD_PERIOD_DAYS[period])).isoformat()
 
-    if offset >= total_users:
+        if date_filter:
+            result_data = await _get_period_leaderboard_data(db, date_filter, leaderboard_size)
+        else:
+            result_data = await _get_alltime_leaderboard_data(db, offset, leaderboard_size)
+
+        total_users = await _get_total_users_count(db)
+
+        if offset >= total_users:
+            db_user = await db.get_user_by_telegram_id(user.id)
+            user_saved = (
+                float(db_user.total_saved)
+                if db_user and hasattr(db_user, "total_saved") and db_user.total_saved
+                else 0.0
+            )
+            return _build_empty_response(formatter, user_saved, total_users, offset, leaderboard_size)
+
+        improved_today = await _get_improved_today_count(db, now)
         db_user = await db.get_user_by_telegram_id(user.id)
-        user_saved = (
-            float(db_user.total_saved)
-            if db_user and hasattr(db_user, "total_saved") and db_user.total_saved
-            else 0.0
+
+        modules_count_map, telegram_id_to_user_id = await _get_modules_count_map(
+            db, result_data, date_filter
         )
-        return _build_empty_response(formatter, user_saved, total_users, offset, leaderboard_size)
 
-    improved_today = await _get_improved_today_count(db, now)
-    db_user = await db.get_user_by_telegram_id(user.id)
+        leaderboard, user_rank, user_saved, user_found_in_list = _build_leaderboard_entries(
+            result_data,
+            formatter,
+            user.id,
+            offset,
+            total_users,
+            modules_count_map,
+            telegram_id_to_user_id,
+        )
 
-    modules_count_map, telegram_id_to_user_id = await _get_modules_count_map(
-        db, result_data, date_filter
-    )
+        if not user_found_in_list:
+            user_rank, user_saved = await _calculate_user_rank(db, db_user, total_users)
 
-    leaderboard, user_rank, user_saved, user_found_in_list = _build_leaderboard_entries(
-        result_data,
-        formatter,
-        user.id,
-        offset,
-        total_users,
-        modules_count_map,
-        telegram_id_to_user_id,
-    )
+        has_more = (offset + len(leaderboard) < total_users) and (len(leaderboard) == leaderboard_size)
 
-    if not user_found_in_list:
-        user_rank, user_saved = await _calculate_user_rank(db, db_user, total_users)
-
-    has_more = (offset + len(leaderboard) < total_users) and (len(leaderboard) == leaderboard_size)
-
-    return _build_leaderboard_response(
-        formatter,
-        leaderboard,
-        user_rank,
-        user_saved,
-        total_users,
-        improved_today,
-        has_more,
-        offset,
-        leaderboard_size,
-    )
+        return _build_leaderboard_response(
+            formatter,
+            leaderboard,
+            user_rank,
+            user_saved,
+            total_users,
+            improved_today,
+            has_more,
+            offset,
+            leaderboard_size,
+        )
+    except Exception as e:
+        logger.error(f"Failed to fetch leaderboard: {type(e).__name__}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch leaderboard")

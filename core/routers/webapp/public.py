@@ -158,7 +158,10 @@ async def _compute_price_info(
     msrp_usd = float(msrp_raw) if msrp_raw and isinstance(msrp_raw, (int, float, str)) else None
 
     # Get anchor price (fixed or converted)
-    product_dict = {"price": product.get("price", 0), "prices": product.get("prices") or {}}
+    # Handle None values for prices field
+    prices_raw = product.get("prices")
+    prices = prices_raw if prices_raw is not None else {}
+    product_dict = {"price": product.get("price", 0), "prices": prices}
     anchor_price = float(await currency_service.get_anchor_price(product_dict, formatter.currency))
     is_anchor_price = currency_service.has_anchor_price(product_dict, formatter.currency)
 
