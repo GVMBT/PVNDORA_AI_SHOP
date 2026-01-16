@@ -403,8 +403,8 @@ async def get_webapp_leaderboard(
     period: str = "all",
     limit: int = DEFAULT_LEADERBOARD_LIMIT,
     offset: int = 0,
-    user=Depends(verify_telegram_auth),
-):
+    user: Any = Depends(verify_telegram_auth),
+) -> dict[str, Any]:
     """Get savings leaderboard. Supports period: all, month, week and pagination."""
     from core.logging import get_logger
 

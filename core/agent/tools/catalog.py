@@ -3,6 +3,8 @@
 Product browsing, search, and availability checking.
 """
 
+from typing import Any
+
 from langchain_core.tools import tool
 
 from core.logging import get_logger
@@ -13,7 +15,7 @@ logger = get_logger(__name__)
 
 
 @tool
-async def get_catalog() -> dict:
+async def get_catalog() -> dict[str, Any]:
     """Get full product catalog with prices and availability.
     Prices are automatically converted to user's currency (from context).
 
@@ -78,7 +80,7 @@ async def get_catalog() -> dict:
 
 
 @tool
-async def search_products(query: str) -> dict:
+async def search_products(query: str) -> dict[str, Any]:
     """Search products by name or description.
     Use when user asks about specific products.
     Prices are automatically converted to user's currency.
@@ -147,7 +149,7 @@ async def search_products(query: str) -> dict:
 
 
 @tool
-async def get_product_details(product_id: str) -> dict:
+async def get_product_details(product_id: str) -> dict[str, Any]:
     """Get detailed info about a specific product.
     Prices are automatically converted to user's currency.
 
@@ -222,7 +224,7 @@ async def get_product_details(product_id: str) -> dict:
 
 
 @tool
-async def check_product_availability(product_name: str) -> dict:
+async def check_product_availability(product_name: str) -> dict[str, Any]:
     """Check if a product is available for purchase.
     Use before adding to cart or purchasing.
 

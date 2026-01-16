@@ -4,6 +4,8 @@ Order and FAQ management endpoints.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -22,7 +24,7 @@ router = APIRouter(tags=["admin-orders"])
 
 
 # Helper: Format order for admin panel (reduces cognitive complexity)
-def _format_order_for_admin(order: dict) -> dict:
+def _format_order_for_admin(order: dict[str, Any]) -> dict[str, Any]:
     """Format a single order for admin panel display."""
     # Get user handle
     user_data = order.get("users") or {}
@@ -65,8 +67,8 @@ async def admin_get_orders(
     status: str | None = None,
     limit: int = 50,
     offset: int = 0,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """Get all orders with optional filtering - formatted for admin panel."""
     db = get_database()
 
@@ -94,7 +96,7 @@ async def admin_get_orders(
 
 
 @router.post("/orders/{order_id}/check-payment")
-async def admin_check_payment(order_id: str, admin=Depends(verify_admin)):
+async def admin_check_payment(order_id: str, admin: Any = Depends(verify_admin)) -> dict[str, Any]:
     """Check payment status for a pending order via payment gateway API."""
     db = get_database()
 
@@ -174,8 +176,8 @@ class ForceStatusRequest(BaseModel):
 async def admin_force_order_status(
     order_id: str,
     request: ForceStatusRequest,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """Force update order status (admin override). Use with caution."""
     db = get_database()
 
@@ -222,7 +224,9 @@ async def admin_force_order_status(
 
 
 @router.post("/faq")
-async def admin_create_faq(request: CreateFAQRequest, admin=Depends(verify_admin)):
+async def admin_create_faq(
+    request: CreateFAQRequest, admin: Any = Depends(verify_admin)
+) -> dict[str, Any]:
     """Create a FAQ entry."""
     db = get_database()
 
@@ -246,7 +250,7 @@ async def admin_create_faq(request: CreateFAQRequest, admin=Depends(verify_admin
 
 
 @router.get("/faq")
-async def admin_get_faq(admin=Depends(verify_admin)):
+async def admin_get_faq(admin: Any = Depends(verify_admin)) -> dict[str, Any]:
     """Get all FAQ entries for admin."""
     db = get_database()
 

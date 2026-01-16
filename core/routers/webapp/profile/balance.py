@@ -4,9 +4,14 @@ Balance top-up and related operations.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
+from typing import TYPE_CHECKING, Any
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from core.auth import verify_telegram_auth
+
+if TYPE_CHECKING:
+    from core.utils.validators import TelegramUser
 from core.logging import get_logger
 from core.routers.webapp.models import TopUpRequest
 from core.services.database import get_database
@@ -24,7 +29,7 @@ async def _calculate_amount_to_credit(
     currency: str,
     balance_currency: str,
     amount: float,
-    currency_service,
+    currency_service: Any,
 ) -> float:
     """Calculate amount to credit in balance currency (reduces cognitive complexity)."""
     if currency == balance_currency:
@@ -38,7 +43,7 @@ async def _calculate_amount_to_credit(
     if currency == "USD":
         amount_usd = amount
     else:
-        payment_rate = await currency_service.get_exchange_rate(currency)
+        payment_rate = currency_service.get_exchange_rate(currency)
         amount_usd = amount / payment_rate if payment_rate > 0 else amount
 
     if balance_currency == "USD":
@@ -49,12 +54,14 @@ async def _calculate_amount_to_credit(
         return float(amount_decimal)
 
     logger.warning("Unexpected balance_currency: %s (expected USD or RUB)", balance_currency)
-    balance_rate = await currency_service.get_exchange_rate(balance_currency)
+    balance_rate = currency_service.get_exchange_rate(balance_currency)
     return amount_usd * balance_rate
 
 
 @balance_router.post("/profile/topup")
-async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)):
+async def create_topup(
+    request: TopUpRequest, user: "TelegramUser" = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Create a balance top-up payment via CrystalPay.
 
     Minimum: 5 USD equivalent.
@@ -239,7 +246,7 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
 
 
 @balance_router.get("/profile/topup/{topup_id}/status")
-async def get_topup_status(topup_id: str):
+async def get_topup_status(topup_id: str) -> dict[str, Any]:
     """Get top-up transaction status for polling.
 
     Note: This endpoint is public because:

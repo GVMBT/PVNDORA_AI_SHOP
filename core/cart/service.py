@@ -4,7 +4,7 @@ import json
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from core.services.money import to_decimal
 
@@ -30,7 +30,7 @@ class CartManager:
         self._redis: Redis | None = None  # Lazy initialization
 
     @property
-    def redis(self):
+    def redis(self) -> Any:
         """Get Redis client (lazy initialization)."""
         if self._redis is None:
             try:
@@ -286,7 +286,7 @@ class CartManager:
             msg = f"Cart service unavailable: {e!s}"
             raise ValueError(msg)
 
-    async def get_cart_summary(self, user_telegram_id: int) -> dict:
+    async def get_cart_summary(self, user_telegram_id: int) -> dict[str, Any]:
         """Get cart summary for AI context."""
         try:
             cart = await self.get_cart(user_telegram_id)

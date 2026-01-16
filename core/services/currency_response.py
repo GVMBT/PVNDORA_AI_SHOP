@@ -69,11 +69,11 @@ class CurrencyFormatter:
         cls,
         user_telegram_id: int | None = None,  # Kept for backward compatibility
         db: Any = None,  # Kept for backward compatibility
-        redis=None,  # Kept for backward compatibility
+        redis: Any = None,  # Kept for backward compatibility
         preferred_currency: str | None = None,  # Kept for backward compatibility
         language_code: str | None = None,  # Kept for backward compatibility
-        db_user=None,  # Kept for backward compatibility
-        **kwargs,  # Accept any additional kwargs for backward compatibility
+        db_user: Any = None,  # Kept for backward compatibility
+        **kwargs: Any,  # Accept any additional kwargs for backward compatibility
     ) -> "CurrencyFormatter":
         """Factory method to create CurrencyFormatter.
 
@@ -185,8 +185,8 @@ class CurrencyFormatter:
 def get_currency_formatter(
     user_telegram_id: int | None = None,
     db: Any = None,
-    redis=None,
-    **kwargs,
+    redis: Any = None,
+    **kwargs: Any,
 ) -> CurrencyFormatter:
     """Get a CurrencyFormatter (always RUB)."""
     return CurrencyFormatter.create(user_telegram_id, db, redis, **kwargs)

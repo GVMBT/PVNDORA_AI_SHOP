@@ -45,7 +45,11 @@ function adaptLeaderboardEntry(entry: APILeaderboardEntry): LeaderboardUser {
   return {
     rank: entry.rank,
     name: entry.name,
-    handle: `@${entry.name.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
+    handle: `@${entry.name
+      .toLowerCase()
+      .split("")
+      .filter((c) => /[a-z0-9]/.test(c))
+      .join("")}`,
     marketSpend: Math.round(marketSpend),
     actualSpend: Math.round(actualSpend),
     saved: entry.total_saved,

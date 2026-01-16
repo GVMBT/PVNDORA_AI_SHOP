@@ -7,9 +7,12 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.logging import get_logger
+
+if TYPE_CHECKING:
+    from core.services.database import Database
 
 logger = get_logger(__name__)
 
@@ -22,7 +25,7 @@ def _sanitize_id_for_logging(id_value: str) -> str:
 class OrderStatusService:
     """Centralized service for order status management."""
 
-    def __init__(self, db) -> None:
+    def __init__(self, db: "Database") -> None:
         self.db = db
 
     async def get_order_status(self, order_id: str) -> str | None:
@@ -35,8 +38,9 @@ class OrderStatusService:
                 .single()
                 .execute()
             )
-            if result.data:
-                return result.data.get("status")
+            if result.data and isinstance(result.data, dict):
+                status = result.data.get("status")
+                return str(status) if status is not None else None
         except Exception:
             logger.exception("Failed to get order status")
         return None
@@ -186,16 +190,26 @@ class OrderStatusService:
                 msg = f"Order {order_id_safe} not found"
                 raise ValueError(msg)
 
-            current_status = order_result.data.get("status", "").lower()
-            order_type = order_result.data.get("order_type", "instant")
-            payment_method = order_result.data.get("payment_method", "")
-            user_id = order_result.data.get("user_id")
-            user_telegram_id = order_result.data.get(
+            if not isinstance(order_result.data, dict):
+                raise TypeError("Invalid order data format")
+            current_status_raw = order_result.data.get("status", "")
+            current_status = str(current_status_raw).lower() if current_status_raw is not None else ""
+            order_type_raw = order_result.data.get("order_type", "instant")
+            order_type = str(order_type_raw) if order_type_raw is not None else "instant"
+            payment_method_raw = order_result.data.get("payment_method", "")
+            payment_method = str(payment_method_raw) if payment_method_raw is not None else ""
+            user_id_raw = order_result.data.get("user_id")
+            user_id = str(user_id_raw) if user_id_raw is not None else None
+            user_telegram_id_raw = order_result.data.get(
                 "user_telegram_id",
             )  # OPTIMIZATION #6: Extract from first query
-            order_amount = order_result.data.get("amount", 0)
-            fiat_amount = order_result.data.get("fiat_amount")
-            fiat_currency = order_result.data.get("fiat_currency")
+            user_telegram_id = int(user_telegram_id_raw) if user_telegram_id_raw is not None else None
+            order_amount_raw = order_result.data.get("amount", 0)
+            order_amount = float(order_amount_raw) if order_amount_raw is not None else 0.0
+            fiat_amount_raw = order_result.data.get("fiat_amount")
+            fiat_amount = float(fiat_amount_raw) if fiat_amount_raw is not None else None
+            fiat_currency_raw = order_result.data.get("fiat_currency")
+            fiat_currency = str(fiat_currency_raw) if fiat_currency_raw is not None else None
 
             logger.debug(
                 "[mark_payment_confirmed] Order status: current_status=%s, order_type=%s, payment_method=%s",
@@ -269,7 +283,7 @@ class OrderStatusService:
             logger.exception("[mark_payment_confirmed] Traceback: %s", traceback.format_exc())
             raise
 
-    async def _fetch_order_items_for_notification(self, order_id: str) -> list:
+    async def _fetch_order_items_for_notification(self, order_id: str) -> list[dict[str, Any]]:
         """Fetch order_items for notification and fulfillment deadline (reduces cognitive complexity)."""
         try:
             result = (
@@ -278,7 +292,9 @@ class OrderStatusService:
                 .eq("order_id", order_id)
                 .execute()
             )
-            return result.data or []
+            data = result.data or []
+            # Ensure all items are dicts
+            return [item if isinstance(item, dict) else {} for item in data]
         except Exception:
             logger.warning("Failed to fetch order_items", exc_info=True)
             return []
@@ -313,7 +329,11 @@ class OrderStatusService:
                         .single()
                         .execute()
                     )
-                    balance = float(user_result.data.get("balance", 0)) if user_result.data else 0
+                    if user_result.data and isinstance(user_result.data, dict):
+                        balance_raw = user_result.data.get("balance", 0)
+                        balance = float(balance_raw) if balance_raw is not None else 0.0
+                    else:
+                        balance = 0.0
                     return balance, False  # (balance, tx_exists)
                 return None, True  # Transaction exists
             except Exception:
@@ -403,12 +423,18 @@ class OrderStatusService:
             .execute()
         )
 
-        product_names = []
+        product_names: list[str] = []
         total_qty = 0
         for item in items_result.data or []:
+            if not isinstance(item, dict):
+                continue
             prod = item.get("products", {}) or {}
-            name = prod.get("name", "Unknown")
-            qty = item.get("quantity", 1)
+            if not isinstance(prod, dict):
+                prod = {}
+            name_raw = prod.get("name", "Unknown")
+            name = str(name_raw) if name_raw is not None else "Unknown"
+            qty_raw = item.get("quantity", 1)
+            qty = int(qty_raw) if qty_raw is not None and isinstance(qty_raw, (int, float)) else 1
             product_names.append(name)
             total_qty += qty
 
@@ -434,14 +460,24 @@ class OrderStatusService:
                 .execute()
             )
 
-            user_data = order_details.data.get("users", {}) or {} if order_details.data else {}
-            telegram_id = user_data.get("telegram_id", 0)
-            username = user_data.get("username")
+            if not isinstance(order_details.data, dict):
+                user_data = {}
+                fiat_amount = None
+                currency = "RUB"
+                telegram_id = 0
+                username = None
+            else:
+                user_data_raw = order_details.data.get("users", {}) or {}
+                user_data = user_data_raw if isinstance(user_data_raw, dict) else {}
+                telegram_id_raw = user_data.get("telegram_id", 0)
+                telegram_id = int(telegram_id_raw) if telegram_id_raw is not None else 0
+                username_raw = user_data.get("username")
+                username = str(username_raw) if username_raw is not None else None
 
-            fiat_amount = order_details.data.get("fiat_amount") if order_details.data else None
-            currency = (
-                order_details.data.get("fiat_currency", "RUB") if order_details.data else "RUB"
-            )
+                fiat_amount_raw = order_details.data.get("fiat_amount")
+                fiat_amount = float(fiat_amount_raw) if fiat_amount_raw is not None else None
+                currency_raw = order_details.data.get("fiat_currency", "RUB")
+                currency = str(currency_raw) if currency_raw is not None else "RUB"
 
             display_amount = await self._calculate_display_amount(fiat_amount, amount, currency)
             product_display, total_qty = await self._get_product_display(order_id)
@@ -637,7 +673,7 @@ class OrderStatusService:
         payment_method: str,
         user_id: str | None,
         order_amount: float,
-    ) -> tuple[list, float | None, bool]:
+    ) -> tuple[list[dict[str, Any]], float | None, bool]:
         """Fetch order items and user balance data in parallel (reduces cognitive complexity)."""
         import asyncio
 
@@ -676,7 +712,7 @@ class OrderStatusService:
         fiat_amount: float | None,
         fiat_currency: str | None,
         final_status: str,
-        items_result: list,
+        items_result: list[dict[str, Any]],
     ) -> None:
         """Handle post-status-update actions like notifications and alerts (reduces cognitive complexity)."""
         if not update_result:
@@ -869,8 +905,8 @@ class OrderStatusService:
             if not items:
                 return None
 
-            delivered = sum(1 for i in items if i.get("status") == "delivered")
-            pending = sum(1 for i in items if i.get("status") in ("pending", "prepaid"))
+            delivered = sum(1 for i in items if isinstance(i, dict) and i.get("status") == "delivered")
+            pending = sum(1 for i in items if isinstance(i, dict) and i.get("status") in ("pending", "prepaid"))
 
             if delivered > 0 and pending == 0:
                 return "delivered"

@@ -4,9 +4,12 @@ import contextlib
 import os
 from collections.abc import Awaitable, Callable
 from datetime import UTC
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from aiogram import BaseMiddleware, Bot
+
+if TYPE_CHECKING:
+    from core.services.models import User
 from aiogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
@@ -30,7 +33,7 @@ class AuthMiddleware(BaseMiddleware):
     Creates user if not exists, blocks banned users.
     """
 
-    async def _should_refresh_photo(self, db_user) -> bool:
+    async def _should_refresh_photo(self, db_user: "User") -> bool:
         """Check if user photo should be refreshed (reduces cognitive complexity)."""
         # No photo - need to fetch
         if not getattr(db_user, "photo_url", None):
@@ -65,7 +68,7 @@ class AuthMiddleware(BaseMiddleware):
         except Exception:
             return False
 
-    async def _update_user_photo(self, db, telegram_id: int, data: dict[str, Any]) -> None:
+    async def _update_user_photo(self, db: Any, telegram_id: int, data: dict[str, Any]) -> None:
         """Fetch and save user's profile photo from Telegram."""
         try:
             bot = data.get("bot")

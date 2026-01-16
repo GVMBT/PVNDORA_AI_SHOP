@@ -6,10 +6,11 @@ Import heavy modules only when needed.
 
 import os
 from functools import lru_cache
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from aiogram import Bot
+    from fastapi import Request
 
     from core.cart import CartManager
     from core.services.admin_alerts import AdminAlertService
@@ -92,14 +93,14 @@ def get_webapp_url() -> str:
 
 
 @lru_cache(maxsize=1)
-def get_qstash_verifier():
+def get_qstash_verifier() -> Any:
     """Get QStash verification function (cached import)."""
     from core.queue import verify_qstash_request
 
     return verify_qstash_request
 
 
-async def verify_qstash(request):
+async def verify_qstash(request: "Request") -> dict[str, Any]:
     """Verify QStash request signature and return parsed body."""
     verify_fn = get_qstash_verifier()
     return await verify_fn(request)  # Returns dict with parsed JSON body
@@ -108,7 +109,7 @@ async def verify_qstash(request):
 # ==================== QUEUE PUBLISHING ====================
 
 
-def get_queue_publisher():
+def get_queue_publisher() -> tuple[Any, Any]:
     """Get queue publishing functions (lazy loaded)."""
     from core.queue import WorkerEndpoints, publish_to_worker
 

@@ -9,13 +9,16 @@ import hashlib
 import hmac
 import json
 import os
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from core.logging import get_logger
 from core.routers.deps import get_notification_service, get_payment_service, get_queue_publisher
+
+if TYPE_CHECKING:
+    from core.services.database import Database
 
 logger = get_logger(__name__)
 
@@ -30,7 +33,9 @@ DictStrAny = dict[str, Any]
 # =============================================================================
 
 
-async def _lookup_order_by_payment_id(db, invoice_id: str) -> tuple[DictStrAny | None, str]:
+async def _lookup_order_by_payment_id(
+    db: "Database", invoice_id: str
+) -> tuple[DictStrAny | None, str]:
     """Lookup order by payment_id."""
     lookup_result = (
         await db.client.table("orders").select("*").eq("payment_id", invoice_id).limit(1).execute()
@@ -50,7 +55,7 @@ async def _lookup_order_by_payment_id(db, invoice_id: str) -> tuple[DictStrAny |
     return order_data, real_order_id
 
 
-async def _lookup_order_by_id(db, order_id: str) -> tuple[DictStrAny | None, str]:
+async def _lookup_order_by_id(db: "Database", order_id: str) -> tuple[DictStrAny | None, str]:
     """Lookup order by order_id."""
     direct_result = (
         await db.client.table("orders").select("*").eq("id", order_id).limit(1).execute()
@@ -69,7 +74,9 @@ async def _lookup_order_by_id(db, order_id: str) -> tuple[DictStrAny | None, str
     return order_data, real_order_id
 
 
-async def _find_order_data(db, invoice_id: str, order_id: str) -> tuple[DictStrAny | None, str]:
+async def _find_order_data(
+    db: Any, invoice_id: str, order_id: str
+) -> tuple[DictStrAny | None, str]:
     """Find order data by payment_id or order_id."""
     order_data, real_order_id = await _lookup_order_by_payment_id(db, invoice_id)
     if order_data:
@@ -87,7 +94,7 @@ async def _find_order_data(db, invoice_id: str, order_id: str) -> tuple[DictStrA
     return None, ""
 
 
-async def _check_stock_availability(db, product_id: str) -> bool:
+async def _check_stock_availability(db: Any, product_id: str) -> bool:
     """Check if product has available stock."""
     if not product_id:
         return False
@@ -107,7 +114,7 @@ async def _check_stock_availability(db, product_id: str) -> bool:
 
 
 async def _create_refund_ticket(
-    db,
+    db: Any,
     order_data: DictStrAny,
     real_order_id: str,
     amount: float,
@@ -148,7 +155,7 @@ async def _create_refund_ticket(
 
 
 async def _handle_cancelled_order_recovery(
-    db,
+    db: Any,
     order_data: DictStrAny,
     real_order_id: str,
     result: DictStrAny,
@@ -178,7 +185,7 @@ async def _handle_cancelled_order_recovery(
     return JSONResponse({"ok": True, "note": "refund_pending"}, status_code=200)
 
 
-async def _schedule_discount_delivery(db, order_data: DictStrAny, real_order_id: str) -> None:
+async def _schedule_discount_delivery(db: Any, order_data: DictStrAny, real_order_id: str) -> None:
     """Schedule delayed delivery for discount channel orders."""
     order_items = (
         await db.client.table("order_items")
@@ -338,8 +345,8 @@ async def _parse_webhook_body(
 
 
 async def _verify_and_get_order(
-    db,
-    payment_service,
+    db: Any,
+    payment_service: Any,
     data: DictStrAny,
     invoice_id: str,
     order_id: str,
@@ -366,10 +373,10 @@ async def _verify_and_get_order(
 
 
 async def _handle_order_recovery(
-    db,
+    db: Any,
     order_data: DictStrAny,
     real_order_id: str,
-    payment_service,
+    payment_service: Any,
     data: DictStrAny,
 ) -> JSONResponse | None:
     """Handle cancelled order recovery. Returns error response if recovery fails, None if successful."""
@@ -477,7 +484,7 @@ def _check_topup_payment_state(state: str) -> JSONResponse | None:
 
 
 async def _get_topup_transaction(
-    db,
+    db: Any,
     topup_id: str,
 ) -> tuple[DictStrAny | None, JSONResponse | None]:
     """Get topup transaction from database. Returns (tx_data, error_response)."""
@@ -534,7 +541,7 @@ async def _get_topup_user_data(
 
 
 async def _process_topup_balance_update(
-    db,
+    db: Any,
     tx: DictStrAny,
     user_data: DictStrAny,
     topup_id: str,
@@ -670,7 +677,7 @@ async def crystalpay_webhook(request: Request):
 
 @router.post("/api/webhook/crystalpay/topup")
 @router.post("/webhook/crystalpay/topup")
-async def crystalpay_topup_webhook(request: Request):
+async def crystalpay_topup_webhook(request: Request) -> JSONResponse:
     """CrystalPay webhook handler for balance TOP-UP payments."""
     try:
         # Parse request

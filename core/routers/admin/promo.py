@@ -3,6 +3,8 @@
 CRUD operations for promotional codes.
 """
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -48,7 +50,7 @@ class PromoCodeResponse(BaseModel):
 
 
 @router.get("/promo")
-async def list_promo_codes(admin=Depends(verify_admin)) -> list[dict]:
+async def list_promo_codes(admin: Any = Depends(verify_admin)) -> list[dict[str, Any]]:
     """Get all promo codes."""
     db = get_database()
 
@@ -80,7 +82,9 @@ async def list_promo_codes(admin=Depends(verify_admin)) -> list[dict]:
 
 
 @router.post("/promo")
-async def create_promo_code(request: PromoCodeCreate, admin=Depends(verify_admin)) -> dict:
+async def create_promo_code(
+    request: PromoCodeCreate, admin: Any = Depends(verify_admin)
+) -> dict[str, Any]:
     """Create a new promo code."""
     db = get_database()
 
@@ -148,8 +152,8 @@ async def create_promo_code(request: PromoCodeCreate, admin=Depends(verify_admin
 async def update_promo_code(
     promo_id: str,
     request: PromoCodeUpdate,
-    admin=Depends(verify_admin),
-) -> dict:
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """Update an existing promo code."""
     db = get_database()
 
@@ -215,7 +219,7 @@ async def update_promo_code(
 
 
 @router.delete("/promo/{promo_id}")
-async def delete_promo_code(promo_id: str, admin=Depends(verify_admin)) -> dict:
+async def delete_promo_code(promo_id: str, admin: Any = Depends(verify_admin)) -> dict[str, Any]:
     """Delete a promo code."""
     db = get_database()
 

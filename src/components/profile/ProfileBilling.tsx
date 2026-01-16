@@ -110,7 +110,9 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
       }
 
       // Parse and convert amount
-      const amountNum = Number.parseFloat(log.amount.replace(/[+\-,]/g, "")) || 0;
+      const amountNum =
+        Number.parseFloat(log.amount.replaceAll("+", "").replaceAll("-", "").replaceAll(",", "")) ||
+        0;
       const isIncome = log.type === "INCOME";
       const needsConversion = log.currency && log.currency !== currency;
       const convertedAmount = needsConversion ? amountNum * exchangeRate : amountNum;

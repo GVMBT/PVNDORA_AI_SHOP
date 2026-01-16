@@ -33,6 +33,19 @@ from core.services.domains.support import SupportService
 # Re-export models for backward compatibility
 from core.services.models import Order, Product, StockItem, User
 
+__all__ = [
+    "Database",
+    "User",
+    "Product",
+    "Order",
+    "StockItem",
+    "get_database",
+    "get_database_async",
+    "init_database",
+    "close_database",
+    "is_database_initialized",
+]
+
 # Import repositories
 from core.services.repositories import (
     ChatRepository,
@@ -255,14 +268,14 @@ class Database:
         return await self.orders_domain.get_expiring(days_before)
 
     # ==================== ORDER ITEMS ====================
-    async def create_order_items(self, items: list[dict]) -> list[dict]:
+    async def create_order_items(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Batch insert order_items."""
         return await self.orders_domain.create_order_items(items)
 
     async def get_order_items_by_order(self, order_id: str) -> list[dict]:
         return await self.orders_domain.get_order_items_by_order(order_id)
 
-    async def get_order_items_by_orders(self, order_ids: list[str]) -> list[dict]:
+    async def get_order_items_by_orders(self, order_ids: list[str]) -> list[dict[str, Any]]:
         return await self.orders_domain.get_order_items_by_orders(order_ids)
 
     # ==================== CHAT HISTORY (delegated) ====================
@@ -471,7 +484,7 @@ class Database:
         self,
         user_id: str | None,
         event_type: str,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Log analytics event."""
         await (

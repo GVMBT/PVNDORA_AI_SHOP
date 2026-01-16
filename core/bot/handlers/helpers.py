@@ -2,6 +2,7 @@
 
 import os
 import traceback
+from typing import Any
 
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
@@ -42,7 +43,7 @@ def get_share_current_chat_keyboard(product_name: str) -> InlineKeyboardMarkup:
     )
 
 
-async def safe_answer(message: Message, text: str, **kwargs) -> bool:
+async def safe_answer(message: Message, text: str, **kwargs: Any) -> bool:
     """Safely send message, handling Telegram API errors gracefully.
     Returns True if sent successfully, False otherwise.
     """

@@ -8,7 +8,7 @@ import contextlib
 import os
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from langchain_core.tools import tool
 
@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 
 
 # Helper: Get partner discount from referrer (reduces cognitive complexity)
-async def _get_partner_discount(db: Any, db_user: dict) -> int:
+async def _get_partner_discount(db: Any, db_user: dict[str, Any]) -> int:
     """Get discount from referrer if they use partner_mode='discount'."""
     try:
         referrer_id = db_user.get("referrer_id")
@@ -346,7 +346,7 @@ async def _convert_order_total_to_balance_currency(
     if balance_currency == "USD":
         return order_total_usd
 
-    rate = await currency_service.get_exchange_rate(balance_currency)
+    rate = currency_service.get_exchange_rate(balance_currency)
     order_total = to_decimal(to_float(order_total_usd) * rate)
 
     # Round for integer currencies
@@ -529,7 +529,7 @@ async def _finalize_balance_payment(
 
 
 @tool
-async def checkout_cart(payment_method: str = "card") -> dict:
+async def checkout_cart(payment_method: str = "card") -> dict[str, Any]:
     """Create order from cart and get payment link.
     Use when user confirms they want to buy/purchase/order.
 
@@ -576,9 +576,9 @@ async def checkout_cart(payment_method: str = "card") -> dict:
         if not user_result.data:
             return {"success": False, "error": "User not found"}
 
-        db_user = user_result.data
-        user_id = db_user["id"]
-        balance_currency = (
+        db_user = cast(dict[str, Any], user_result.data)
+        user_id = str(db_user["id"])
+        balance_currency = str(
             db_user.get("balance_currency") or "RUB"
         )  # Default RUB after currency migration
         user_balance = to_decimal(db_user.get("balance", 0) or 0)
@@ -711,11 +711,11 @@ def _format_insufficient_balance_message(
 
 
 # Helper to calculate balance in display currency (reduces cognitive complexity)
-async def _calculate_balance_in_display_currency(
+def _calculate_balance_in_display_currency(
     balance_in_balance_currency: float,
     balance_currency: str,
     user_currency: str,
-    currency_service,
+    currency_service: Any,
 ) -> float:
     """Calculate balance in display currency."""
     if user_currency == balance_currency:
@@ -737,7 +737,7 @@ async def _calculate_balance_in_display_currency(
 
 
 @tool
-async def pay_cart_from_balance() -> dict:
+async def pay_cart_from_balance() -> dict[str, Any]:
     """Pay for cart items using internal balance.
     Use when user says "оплати с баланса", "спиши с баланса", "pay from balance".
     Uses telegram_id and user_id from context.
@@ -770,9 +770,10 @@ async def pay_cart_from_balance() -> dict:
         if not user_result.data:
             return {"success": False, "error": "Пользователь не найден"}
 
+        user_data = cast(dict[str, Any], user_result.data)
         # Balance is stored in balance_currency (RUB after migration)
-        balance_in_balance_currency = float(user_result.data.get("balance", 0) or 0)
-        balance_currency = user_result.data.get("balance_currency") or "RUB"
+        balance_in_balance_currency = float(user_data.get("balance", 0) or 0)
+        balance_currency = str(user_data.get("balance_currency") or "RUB")
         user_currency = ctx.currency  # Display currency for AI agent
 
         try:
@@ -782,7 +783,7 @@ async def pay_cart_from_balance() -> dict:
             redis = get_redis()
             currency_service = get_currency_service(redis)
 
-            balance = await _calculate_balance_in_display_currency(
+            balance = _calculate_balance_in_display_currency(
                 balance_in_balance_currency,
                 balance_currency,
                 user_currency,

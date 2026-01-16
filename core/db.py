@@ -77,13 +77,13 @@ except ImportError:
                 )
             return self._client
 
-        async def get(self, key: str):
+        async def get(self, key: str) -> Any:
             resp = await self.client.get(f"/get/{key}")
             resp.raise_for_status()
             data = resp.json()
             return data.get("result")
 
-        async def set(self, key: str, value: str, ex: int | None = None, nx: bool = False):
+        async def set(self, key: str, value: str, ex: int | None = None, nx: bool = False) -> bool:
             """SET key value with optional EX (expiration) and NX (only if not exists).
 
             Returns:
@@ -103,7 +103,7 @@ except ImportError:
                 return result == "OK"
             return True
 
-        async def setex(self, key: str, seconds: int, value: str):
+        async def setex(self, key: str, seconds: int, value: str) -> bool:
             """SET with expiration in seconds."""
             return await self.set(key, value, ex=seconds)
 

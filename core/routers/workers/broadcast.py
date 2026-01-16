@@ -7,6 +7,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 import asyncio
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from aiogram import Bot
@@ -60,14 +61,16 @@ async def _download_media_from_admin_bot(media_file_id: str, broadcast_id: str) 
     return None
 
 
-def _get_localized_message(content: dict, lang: str) -> dict:
+def _get_localized_message(content: dict[str, Any], lang: str) -> dict[str, Any]:
     """Get localized message content with fallbacks."""
     return (
         content.get(lang) or content.get("en") or (next(iter(content.values())) if content else {})
     )
 
 
-def _build_keyboard_rows(buttons: list, lang: str) -> list[list[InlineKeyboardButton]]:
+def _build_keyboard_rows(
+    buttons: list[dict[str, Any]], lang: str
+) -> list[list[InlineKeyboardButton]]:
     """Build keyboard rows from button definitions."""
     rows = []
     for btn in buttons:
@@ -222,12 +225,12 @@ async def _handle_send_failure(
 
 
 async def _send_to_user(
-    db,
+    db: Any,
     bot: Bot,
     user_id: str,
-    broadcast: dict,
-    content: dict,
-    buttons: list,
+    broadcast: dict[str, Any],
+    content: dict[str, Any],
+    buttons: list[dict[str, Any]],
     media_bytes: bytes | None,
     broadcast_id: str,
 ) -> bool:
@@ -304,9 +307,9 @@ async def _send_to_user(
 
 
 async def _check_broadcast_complete(
-    db,
+    db: Any,
     broadcast_id: str,
-    broadcast: dict,
+    broadcast: dict[str, Any],
     sent: int,
     failed: int,
 ) -> None:
@@ -372,7 +375,7 @@ async def _check_broadcast_complete(
 
 
 @broadcast_router.post("/send-broadcast")
-async def worker_send_broadcast(request: Request):
+async def worker_send_broadcast(request: Request) -> dict[str, Any]:
     """QStash Worker: Send broadcast message to batch of users.
 
     Accepts:

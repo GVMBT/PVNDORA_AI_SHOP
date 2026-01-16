@@ -4,9 +4,12 @@ Implements the /broadcast command and FSM flow for creating mailings.
 """
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from aiogram import Bot, F, Router
+
+if TYPE_CHECKING:
+    from core.services.database import Database
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
@@ -29,7 +32,7 @@ BUTTON_BACK = "◀️ Назад"
 
 
 async def validate_broadcast_data(
-    data: dict,
+    data: dict[str, Any],
     callback: CallbackQuery,
     state: FSMContext,
 ) -> tuple[str, str] | None:
@@ -65,9 +68,9 @@ async def validate_base_url(callback: CallbackQuery, state: FSMContext) -> str |
 
 
 async def create_broadcast_record(
-    db,
-    data: dict,
-    recipients: list,
+    db: "Database",
+    data: dict[str, Any],
+    recipients: list[dict[str, Any]],
     target_bot: str,
     target_audience: str,
     admin_id: str,
@@ -116,7 +119,7 @@ async def create_recipient_records(db, broadcast_id: str, recipients: list) -> N
 
 async def queue_broadcast_batches(
     broadcast_id: str,
-    recipients: list,
+    recipients: list[dict[str, Any]],
     target_bot: str,
 ) -> tuple[int, list[int]]:
     """Queue broadcast batches to QStash (reduces cognitive complexity)."""
@@ -449,10 +452,21 @@ async def cmd_broadcasts_list(message: Message) -> None:
     }
 
     for bc in result.data:
-        icon = status_icons.get(bc["status"], "❓")
-        bot_icon = "🤖" if bc["target_bot"] == "pvndora" else "💸"
-        progress = f"{bc['sent_count']}/{bc['total_recipients']}" if bc["total_recipients"] else "—"
-        lines.append(f"{icon} {bot_icon} <code>{bc['slug'] or bc['id'][:8]}</code> — {progress}")
+        if not isinstance(bc, dict):
+            continue
+        status_raw = bc.get("status")
+        status = str(status_raw) if status_raw is not None else "unknown"
+        icon = status_icons.get(status, "❓")
+        target_bot_raw = bc.get("target_bot")
+        target_bot = str(target_bot_raw) if target_bot_raw is not None else ""
+        bot_icon = "🤖" if target_bot == "pvndora" else "💸"
+        total_recipients = bc.get("total_recipients")
+        sent_count = bc.get("sent_count", 0)
+        progress = f"{sent_count}/{total_recipients}" if total_recipients else "—"
+        slug_raw = bc.get("slug")
+        id_raw = bc.get("id", "")
+        slug_or_id = str(slug_raw) if slug_raw else (str(id_raw)[:8] if id_raw else "")
+        lines.append(f"{icon} {bot_icon} <code>{slug_or_id}</code> — {progress}")
 
     await message.answer("\n".join(lines), parse_mode=ParseMode.HTML)
 
@@ -576,8 +590,10 @@ async def cb_select_language(callback: CallbackQuery, state: FSMContext) -> None
 async def msg_content_input(message: Message, state: FSMContext) -> None:
     """Handle content text input."""
     data = await state.get_data()
-    current_lang = data.get("current_content_lang")
-    target_languages = data.get("target_languages", [])
+    current_lang_raw = data.get("current_content_lang")
+    current_lang = str(current_lang_raw) if current_lang_raw is not None else ""
+    target_languages_raw = data.get("target_languages", [])
+    target_languages = target_languages_raw if isinstance(target_languages_raw, list) else []
     content = data.get("content", {})
 
     # Save content for current language
@@ -604,7 +620,7 @@ async def msg_content_input(message: Message, state: FSMContext) -> None:
             f"📝 Теперь введите текст для {LANGUAGE_FLAGS.get(next_lang, '🌐')} <b>{next_lang.upper()}</b>:\n\n"
             "<i>Или нажмите кнопку языка для редактирования</i>",
             parse_mode=ParseMode.HTML,
-            reply_markup=get_content_keyboard(target_languages, next_lang, filled),
+            reply_markup=get_content_keyboard(target_languages, next_lang or "", filled),
         )
     else:
         # All languages filled
@@ -1006,7 +1022,7 @@ async def cb_back(callback: CallbackQuery, state: FSMContext) -> None:
             "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             "     📢 <b>НОВАЯ РАССЫЛКА</b>\n"
             "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-            f"🤖 Бот: <b>{TARGET_BOTS.get(data.get('target_bot'), '?')}</b>\n\n"
+            f"🤖 Бот: <b>{TARGET_BOTS.get(str(data.get('target_bot') or ''), '?')}</b>\n\n"
             "🎯 <b>Шаг 2/6:</b> Выберите аудиторию:",
             parse_mode=ParseMode.HTML,
             reply_markup=get_audience_keyboard(),
@@ -1019,8 +1035,8 @@ async def cb_back(callback: CallbackQuery, state: FSMContext) -> None:
             "◈━━━━━━━━━━━━━━━━━━━━━◈\n"
             "     📢 <b>НОВАЯ РАССЫЛКА</b>\n"
             "◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
-            f"🤖 Бот: <b>{TARGET_BOTS.get(data.get('target_bot'), '?')}</b>\n"
-            f"🎯 Аудитория: <b>{AUDIENCES.get(data.get('target_audience'), '?')}</b>\n\n"
+            f"🤖 Бот: <b>{TARGET_BOTS.get(str(data.get('target_bot') or ''), '?')}</b>\n"
+            f"🎯 Аудитория: <b>{AUDIENCES.get(str(data.get('target_audience') or ''), '?')}</b>\n\n"
             "🌐 <b>Шаг 3/6:</b> Выберите языки:",
             parse_mode=ParseMode.HTML,
             reply_markup=get_languages_keyboard(data.get("target_languages", [])),
@@ -1068,7 +1084,7 @@ async def cb_back(callback: CallbackQuery, state: FSMContext) -> None:
 
 
 async def _get_recipients_list(
-    db,
+    db: "Database",
     target_bot: str,
     audience: str,
     languages: list[str] | None,
@@ -1116,7 +1132,9 @@ async def _get_recipients_list(
         query = query.in_("language_code", languages)
 
     result = await query.execute()
-    return result.data or []
+    data = result.data or []
+    # Ensure all items are dicts
+    return [item if isinstance(item, dict) else {} for item in data]
 
 
 async def _count_recipients(db, target_bot: str, audience: str, languages: list[str] | None) -> int:
@@ -1125,7 +1143,7 @@ async def _count_recipients(db, target_bot: str, audience: str, languages: list[
     return len(recipients)
 
 
-def _build_keyboard(buttons: list[dict], lang: str) -> InlineKeyboardMarkup | None:
+def _build_keyboard(buttons: list[dict[str, Any]], lang: str) -> InlineKeyboardMarkup | None:
     """Build localized keyboard from button config."""
     if not buttons:
         return None

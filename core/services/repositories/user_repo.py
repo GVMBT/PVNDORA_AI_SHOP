@@ -4,6 +4,7 @@ All methods use async/await with supabase-py v2.
 """
 
 from datetime import UTC, datetime
+from typing import Any
 
 from core.logging import get_logger
 from core.services.models import User
@@ -159,7 +160,7 @@ class UserRepository(BaseRepository):
                 )
                 raise
 
-    async def get_admins(self):
+    async def get_admins(self) -> list[dict[str, Any]]:
         """Get all admin users."""
         result = await self.client.table("users").select("*").eq("is_admin", True).execute()
         return [User(**u) for u in result.data]

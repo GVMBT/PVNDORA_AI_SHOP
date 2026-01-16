@@ -195,7 +195,11 @@ async def callback_review_skip_text(
 ) -> None:
     """Submit review without text."""
     data = await state.get_data()
-    await _submit_review(callback, data.get("order_id"), data.get("rating", 5), None, db_user)
+    order_id_raw = data.get("order_id")
+    order_id = str(order_id_raw) if order_id_raw is not None else ""
+    rating_raw = data.get("rating", 5)
+    rating = int(rating_raw) if rating_raw is not None else 5
+    await _submit_review(callback, order_id, rating, None, db_user)
     await state.clear()
 
 
@@ -203,10 +207,14 @@ async def callback_review_skip_text(
 async def handle_review_text(message: Message, db_user: User, state: FSMContext) -> None:
     """Handle text input for review."""
     data = await state.get_data()
+    order_id_raw = data.get("order_id")
+    order_id = str(order_id_raw) if order_id_raw is not None else ""
+    rating_raw = data.get("rating", 5)
+    rating = int(rating_raw) if rating_raw is not None else 5
     await _submit_review_from_message(
         message,
-        data.get("order_id"),
-        data.get("rating", 5),
+        order_id,
+        rating,
         message.text,
         db_user,
     )
@@ -229,7 +237,10 @@ async def _submit_review(
 
     # Get product_id from order_items (source of truth)
     order_items = await db.get_order_items_by_order(order_id)
-    product_id = order_items[0].get("product_id") if order_items else None
+    product_id: str | None = None
+    if order_items and isinstance(order_items[0], dict):
+        product_id_raw = order_items[0].get("product_id")
+        product_id = str(product_id_raw) if product_id_raw is not None else None
 
     await db.create_review(
         user_id=db_user.id,
@@ -274,7 +285,10 @@ async def _submit_review_from_message(
 
     # Get product_id from order_items (source of truth)
     order_items = await db.get_order_items_by_order(order_id)
-    product_id = order_items[0].get("product_id") if order_items else None
+    product_id: str | None = None
+    if order_items and isinstance(order_items[0], dict):
+        product_id_raw = order_items[0].get("product_id")
+        product_id = str(product_id_raw) if product_id_raw is not None else None
 
     await db.create_review(
         user_id=db_user.id,

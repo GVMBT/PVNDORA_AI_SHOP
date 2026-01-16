@@ -196,7 +196,7 @@ class PromoCodeService:
                 return PromoValidationResult(valid=False, error_message="Promo code has expired")
         return None
 
-    def _check_usage_limit(self, promo: dict) -> PromoValidationResult | None:
+    def _check_usage_limit(self, promo: dict[str, Any]) -> PromoValidationResult | None:
         """Check promo code usage limit (reduces cognitive complexity)."""
         max_uses = promo.get("max_uses")
         current_uses = promo.get("current_uses", 0)

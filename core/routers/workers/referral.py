@@ -5,6 +5,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Request
 
@@ -23,7 +24,7 @@ referral_router = APIRouter()
 # =============================================================================
 
 
-async def _queue_replacement_for_stock(db, ticket_id: str) -> None:
+async def _queue_replacement_for_stock(db: Any, ticket_id: str) -> None:
     """Queue ticket for replacement when stock becomes available."""
     await (
         db.client.table("insurance_replacements")
@@ -44,7 +45,7 @@ async def _queue_replacement_for_stock(db, ticket_id: str) -> None:
 
 
 async def _notify_replacement_queued(
-    notification_service,
+    notification_service: Any,
     user_telegram_id: int | None,
     _product_id: str,
 ) -> None:
@@ -92,7 +93,9 @@ async def _validate_replacement_ticket(db, ticket_id: str) -> dict | None:
     return None  # Valid ticket
 
 
-async def _get_order_item_for_replacement(db, item_id: str) -> tuple[dict | None, dict | None]:
+async def _get_order_item_for_replacement(
+    db: Any, item_id: str
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """Get order item data for replacement (reduces complexity)."""
     item_res = (
         await db.client.table("order_items")
@@ -120,10 +123,10 @@ async def _get_order_item_for_replacement(db, item_id: str) -> tuple[dict | None
 
 
 async def _reserve_stock_for_replacement(
-    db,
+    db: Any,
     product_id: str,
-    now,
-) -> tuple[dict | None, dict | None]:
+    now: datetime,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """Find and reserve stock for replacement (reduces complexity)."""
     stock_res = (
         await db.client.table("stock_items")
@@ -171,7 +174,7 @@ async def _reserve_stock_for_replacement(
     return stock_item, None
 
 
-async def _rollback_stock_reservation(db, stock_id: str) -> None:
+async def _rollback_stock_reservation(db: Any, stock_id: str) -> None:
     """Rollback stock reservation on failure (reduces complexity)."""
     try:
         await (
@@ -185,13 +188,13 @@ async def _rollback_stock_reservation(db, stock_id: str) -> None:
 
 
 async def _update_order_item_with_replacement(
-    db,
+    db: Any,
     item_id: str,
     stock_id: str,
     stock_content: str,
     expires_at_str: str | None,
-    now,
-) -> dict | None:
+    now: datetime,
+) -> dict[str, Any] | None:
     """Update order item with replacement content (reduces complexity)."""
     update_data = {
         "stock_item_id": stock_id,
@@ -219,7 +222,7 @@ async def _update_order_item_with_replacement(
         return {"error": "Failed to update order item"}
 
 
-async def _close_replacement_ticket(db, ticket_id: str) -> None:
+async def _close_replacement_ticket(db: Any, ticket_id: str) -> None:
     """Close ticket after successful replacement (reduces complexity)."""
     await (
         db.client.table("tickets")
@@ -235,7 +238,7 @@ async def _close_replacement_ticket(db, ticket_id: str) -> None:
 
 
 async def _notify_replacement_success(
-    notification_service,
+    notification_service: Any,
     user_telegram_id: int | None,
     product_name: str,
     item_id: str,
@@ -272,8 +275,8 @@ async def _get_buyer_name(db, buyer_id: str) -> str:
 
 
 async def _send_level_bonus_notification(
-    db,
-    notification_service,
+    db: Any,
+    notification_service: Any,
     buyer_id: str,
     buyer_name: str,
     level: int,
@@ -312,9 +315,9 @@ async def _send_level_bonus_notification(
 
 
 async def _send_referral_bonus_notifications(
-    db,
-    notification_service,
-    bonuses: dict,
+    db: Any,
+    notification_service: Any,
+    bonuses: dict[str, Any],
     buyer_id: str,
     purchase_amount: float,
 ) -> None:
@@ -345,12 +348,12 @@ async def _send_referral_bonus_notifications(
 
 # Helper to unlock referral program (reduces cognitive complexity)
 async def _unlock_referral_program(
-    db,
+    db: Any,
     user_id: str,
     was_unlocked: bool,
     is_partner: bool,
     telegram_id: int | None,
-    notification_service,
+    notification_service: Any,
 ) -> None:
     """Unlock referral program for first purchase (reduces cognitive complexity)."""
     if was_unlocked:
@@ -377,7 +380,7 @@ async def _send_level_up_notification(
     is_partner: bool,
     partner_level_override: int | None,
     user_id: str,
-    notification_service,
+    notification_service: Any,
 ) -> None:
     """Send level up notification if applicable (reduces cognitive complexity)."""
     if not (level_up and new_level > 0 and telegram_id):
@@ -394,7 +397,7 @@ async def _send_level_up_notification(
 
 
 @referral_router.post("/calculate-referral")
-async def worker_calculate_referral(request: Request):
+async def worker_calculate_referral(request: Request) -> dict[str, Any]:
     """QStash Worker: Calculate and apply referral bonuses.
 
     Logic:
@@ -525,7 +528,7 @@ async def worker_calculate_referral(request: Request):
 
 
 @referral_router.post("/process-replacement")
-async def worker_process_replacement(request: Request):
+async def worker_process_replacement(request: Request) -> dict[str, Any]:
     """QStash Worker: Process account replacement for approved replacement tickets.
 
     Finds new stock item for the same product and updates order_item with new credentials.

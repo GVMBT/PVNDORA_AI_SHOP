@@ -5,7 +5,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -59,7 +59,7 @@ class MigrationDashboard(BaseModel):
 
     stats: MigrationStats
     trend: list[MigrationTrend] = []
-    top_migrating_products: list[dict] = []
+    top_migrating_products: list[dict[str, Any]] = []
 
 
 # ============================================
@@ -70,8 +70,8 @@ class MigrationDashboard(BaseModel):
 @router.get("/stats", response_model=MigrationStats)
 async def get_migration_stats(
     days: Annotated[int, Query(ge=1, le=365, description="Period in days")] = 30,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> MigrationStats:
     """Get migration statistics for the specified period."""
     db = get_database()
     cutoff = datetime.now(UTC) - timedelta(days=days)
@@ -180,8 +180,8 @@ async def get_migration_stats(
 @router.get("/trend", response_model=list[MigrationTrend])
 async def get_migration_trend(
     days: Annotated[int, Query(ge=1, le=90, description="Period in days")] = 14,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> list[MigrationTrend]:
     """Get daily migration trend data."""
     db = get_database()
     trend = []
@@ -227,8 +227,8 @@ async def get_migration_trend(
 @router.get("/top-products")
 async def get_top_migrating_products(
     limit: Annotated[int, Query(ge=1, le=50)] = 10,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> list[dict[str, Any]]:
     """Get products that most attract discount users to PVNDORA."""
     db = get_database()
 

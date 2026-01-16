@@ -3,6 +3,8 @@
 FAQ entries and promo code validation.
 """
 
+from typing import Any
+
 from fastapi import APIRouter, Depends
 
 from core.auth import verify_telegram_auth
@@ -15,7 +17,9 @@ faq_router = APIRouter(tags=["webapp-misc-faq"])
 
 
 @faq_router.get("/faq")
-async def get_webapp_faq(language_code: str = "en", user=Depends(verify_telegram_auth)):
+async def get_webapp_faq(
+    language_code: str = "en", user: Any = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Get FAQ entries for the specified language."""
     db = get_database()
     faq_entries = await db.get_faq(language_code)
@@ -36,7 +40,9 @@ async def get_webapp_faq(language_code: str = "en", user=Depends(verify_telegram
 
 
 @faq_router.post("/promo/check")
-async def check_webapp_promo(request: PromoCheckRequest, user=Depends(verify_telegram_auth)):
+async def check_webapp_promo(
+    request: PromoCheckRequest, user: Any = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Check if promo code is valid.
 
     Returns product_id if promo is product-specific:

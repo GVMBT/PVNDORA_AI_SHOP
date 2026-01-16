@@ -26,11 +26,11 @@ async def cmd_stats(message: Message) -> None:
     week_ago = now - timedelta(days=7)
 
     # Users stats
-    users_total_res = await db.client.table("users").select("id", count="exact").execute()
+    users_total_res = await db.client.table("users").select("id", count="exact").execute()  # type: ignore[arg-type]
     users_total = users_total_res.count or 0
     users_today_res = (
         await db.client.table("users")
-        .select("id", count="exact")
+        .select("id", count="exact")  # type: ignore[arg-type]
         .gte("created_at", today.isoformat())
         .execute()
     )
@@ -44,7 +44,7 @@ async def cmd_stats(message: Message) -> None:
     users_week = users_week_res.count or 0
 
     # Orders stats
-    orders_total_res = await db.client.table("orders").select("id", count="exact").execute()
+    orders_total_res = await db.client.table("orders").select("id", count="exact").execute()  # type: ignore[arg-type]
     orders_total = orders_total_res.count or 0
     orders_delivered_res = (
         await db.client.table("orders")
@@ -65,7 +65,11 @@ async def cmd_stats(message: Message) -> None:
     revenue_result = (
         await db.client.table("orders").select("amount").eq("status", "delivered").execute()
     )
-    total_revenue = sum(float(o.get("amount", 0)) for o in (revenue_result.data or []))
+    total_revenue = sum(
+        float(o.get("amount", 0)) if isinstance(o, dict) and o.get("amount") is not None else 0.0
+        for o in (revenue_result.data or [])
+        if isinstance(o, dict)
+    )
 
     # Revenue today
     revenue_today_result = (
@@ -75,7 +79,11 @@ async def cmd_stats(message: Message) -> None:
         .gte("delivered_at", today.isoformat())
         .execute()
     )
-    revenue_today = sum(float(o.get("amount", 0)) for o in (revenue_today_result.data or []))
+    revenue_today = sum(
+        float(o.get("amount", 0)) if isinstance(o, dict) and o.get("amount") is not None else 0.0
+        for o in (revenue_today_result.data or [])
+        if isinstance(o, dict)
+    )
 
     # Stock stats
     stock_available_res = (
@@ -128,10 +136,12 @@ async def cmd_users(message: Message) -> None:
 
     # Build language stats from users table
     users_result = await db.client.table("users").select("language_code").execute()
-    lang_counts: dict = {}
+    lang_counts: dict[str, int] = {}
     for u in users_result.data or []:
-        lang = u.get("language_code") or "unknown"
-        lang_counts[lang] = lang_counts.get(lang, 0) + 1
+        if isinstance(u, dict):
+            lang_raw = u.get("language_code")
+            lang = str(lang_raw) if lang_raw is not None else "unknown"
+            lang_counts[lang] = lang_counts.get(lang, 0) + 1
 
     # Sort by count
     sorted_langs = sorted(lang_counts.items(), key=lambda x: x[1], reverse=True)[:8]

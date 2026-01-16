@@ -5,6 +5,7 @@ Provides rate limiting using Upstash Redis.
 
 import time
 from collections.abc import Callable
+from typing import Any
 
 from fastapi import HTTPException, Request, Response, status
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -22,16 +23,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     def __init__(
         self,
-        app,
+        app: Any,
         requests_per_minute: int = 30,
-        redis_client=None,
+        redis_client: Any = None,
     ) -> None:
         super().__init__(app)
         self.requests_per_minute = requests_per_minute
         self.redis_client = redis_client
         self._cache: dict[str, list[float]] = {}  # Fallback in-memory cache
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[..., Any]) -> Response:
         # Only rate limit auth endpoints
         if not request.url.path.startswith("/api/auth"):
             return await call_next(request)  # type: ignore[no-any-return]

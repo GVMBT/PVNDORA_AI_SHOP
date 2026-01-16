@@ -5,6 +5,8 @@ Integrates with telegram_messaging.py for unified message sending.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
+from typing import Any
+
 from core.logging import get_logger
 from core.services.database import get_database
 
@@ -43,7 +45,7 @@ def _msg(lang: str, ru: str, en: str) -> str:
     return ru if lang == "ru" else en
 
 
-async def get_referral_settings() -> dict:
+async def get_referral_settings() -> dict[str, Any]:
     """Get referral program settings from database."""
     try:
         db = get_database()

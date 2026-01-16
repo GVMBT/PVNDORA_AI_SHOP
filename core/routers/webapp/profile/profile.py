@@ -7,7 +7,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 import asyncio
 import contextlib
 from datetime import UTC
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -18,6 +18,10 @@ from core.routers.webapp.models import ConvertBalanceRequest, UpdatePreferencesR
 from core.services.database import get_database
 from core.services.models import User
 
+if TYPE_CHECKING:
+    from core.services.database import Database
+    from core.utils.validators import TelegramUser
+
 from .helpers import (
     _build_default_referral_program,
     _build_referral_data,
@@ -27,6 +31,9 @@ from .helpers import (
 logger = get_logger(__name__)
 
 profile_router = APIRouter()
+
+# Type alias for clarity
+DictStrAny = dict[str, Any]
 
 
 # =============================================================================
@@ -49,7 +56,7 @@ def _calculate_conversion_rate(
     _target_currency: str,
     _current_balance: float,
     _new_balance_decimal: float,
-    _currency_service,
+    _currency_service: Any,
 ) -> float:
     """Calculate exchange rate for conversion metadata.
 
@@ -70,12 +77,12 @@ def _convert_balance_to_usd(balance_in_local: float, _balance_currency: str, _re
 
 
 # Cache for referral_settings (TTL 10 minutes)
-_referral_settings_cache: dict[str, Any] | None = None
+_referral_settings_cache: DictStrAny | None = None
 _referral_settings_cache_ttl = 10 * 60
 _referral_settings_cache_time: float | None = None
 
 
-async def _get_referral_settings_cached(db):
+async def _get_referral_settings_cached(db: Any) -> DictStrAny:
     """Get referral_settings with Redis cache (TTL 10 minutes)."""
     global _referral_settings_cache, _referral_settings_cache_time
 
@@ -132,7 +139,9 @@ async def _get_referral_settings_cached(db):
     return settings
 
 
-async def _fetch_profile_data(db, db_user):
+async def _fetch_profile_data(
+    db: "Database", db_user: User
+) -> tuple[dict[str, Any], Any, Any, Any, Any]:
     """Fetch all profile-related data using optimized VIEW.
 
     OPTIMIZATION: Uses user_profile_data VIEW to get all data in 1 query
@@ -231,17 +240,17 @@ async def _fetch_profile_data(db, db_user):
 
 
 def _build_profile_response(
-    db_user,
-    formatter,
-    referral_program,
-    referral_stats,
-    bonus_result,
-    withdrawal_result,
-    balance_transactions_result,
-    balance_in_local,
-    balance_currency,
-    balance_usd,
-) -> dict:
+    db_user: Any,
+    formatter: Any,
+    referral_program: DictStrAny,
+    referral_stats: DictStrAny,
+    bonus_result: Any,
+    withdrawal_result: Any,
+    balance_transactions_result: Any,
+    balance_in_local: float,
+    balance_currency: str,
+    balance_usd: float,
+) -> DictStrAny:
     """Build the profile response dict."""
     total_referral_earnings_usd = (
         float(db_user.total_referral_earnings)
@@ -279,7 +288,9 @@ def _build_profile_response(
     }
 
 
-async def _fetch_level_referrals(db, user_id: str, level: int, offset: int, limit: int) -> tuple:
+async def _fetch_level_referrals(
+    db: Any, user_id: str, level: int, offset: int, limit: int
+) -> tuple[list[dict[str, Any]], None]:
     """Fetch referrals for a specific level. Returns (referrals_data, direct_ref_ids_for_level2)."""
     if level == 1:
         result = (
@@ -341,7 +352,9 @@ async def _fetch_level_referrals(db, user_id: str, level: int, offset: int, limi
     return result.data or [], None
 
 
-async def _batch_fetch_referral_data(db, referral_ids: list, referrer_id: str) -> tuple[dict, dict]:
+async def _batch_fetch_referral_data(
+    db: "Database", referral_ids: list[str], referrer_id: str
+) -> tuple[dict[str, int], dict[str, float]]:
     """Batch fetch orders count and earnings for referrals."""
     orders_count_map: dict[str, int] = {}
     earnings_map: dict[str, float] = {}
@@ -356,9 +369,10 @@ async def _batch_fetch_referral_data(db, referral_ids: list, referrer_id: str) -
             .execute()
         )
         for order in orders_result.data or []:
-            order_user_id = order.get("user_id")
-            if order_user_id:
-                orders_count_map[order_user_id] = orders_count_map.get(order_user_id, 0) + 1
+            if isinstance(order, dict):
+                order_user_id = order.get("user_id")
+                if order_user_id and isinstance(order_user_id, str):
+                    orders_count_map[order_user_id] = orders_count_map.get(order_user_id, 0) + 1
     except Exception as e:
         logger.warning(f"Failed to batch fetch orders count: {e}")
 
@@ -373,10 +387,12 @@ async def _batch_fetch_referral_data(db, referral_ids: list, referrer_id: str) -
             .execute()
         )
         for bonus in earnings_result.data or []:
-            from_user_id = bonus.get("from_user_id")
-            amount = float(bonus.get("amount", 0))
-            if from_user_id:
-                earnings_map[from_user_id] = earnings_map.get(from_user_id, 0) + amount
+            if isinstance(bonus, dict):
+                from_user_id = bonus.get("from_user_id")
+                amount_raw = bonus.get("amount", 0)
+                amount = float(amount_raw) if amount_raw is not None else 0.0
+                if from_user_id and isinstance(from_user_id, str):
+                    earnings_map[from_user_id] = earnings_map.get(from_user_id, 0) + amount
     except Exception as e:
         logger.warning(f"Failed to batch fetch earnings: {e}")
 
@@ -384,12 +400,12 @@ async def _batch_fetch_referral_data(db, referral_ids: list, referrer_id: str) -
 
 
 def _build_enriched_referrals(
-    referrals_data: list,
+    referrals_data: list[dict[str, Any]],
     user_id: str,
-    referral_ids: list,
-    orders_count_map: dict,
-    earnings_map: dict,
-) -> list:
+    referral_ids: list[str],
+    orders_count_map: dict[str, int],
+    earnings_map: dict[str, float],
+) -> list[dict[str, Any]]:
     """Build enriched referrals list with order counts and earnings."""
     enriched = []
     for ref in referrals_data:
@@ -419,7 +435,7 @@ def _build_enriched_referrals(
 
 
 @profile_router.get("/profile")
-async def get_webapp_profile(db_user: Annotated[User, Depends(get_db_user)]):
+async def get_webapp_profile(db_user: Annotated[User, Depends(get_db_user)]) -> dict[str, Any]:
     """Get user profile with referral stats, balance, and history."""
     db = get_database()
 
@@ -435,6 +451,9 @@ async def get_webapp_profile(db_user: Annotated[User, Depends(get_db_user)]):
     ) = await _fetch_profile_data(db, db_user)
 
     # Extract thresholds and commissions (defaults in RUB after migration)
+    # Ensure settings is a dict
+    if not isinstance(settings, dict):
+        settings = {}
     THRESHOLD_LEVEL2 = float(settings.get("level2_threshold_usd", 20000) or 20000)
     THRESHOLD_LEVEL3 = float(settings.get("level3_threshold_usd", 80000) or 80000)
     COMMISSION_LEVEL1 = float(settings.get("level1_commission_percent", 10) or 10)
@@ -473,16 +492,31 @@ async def get_webapp_profile(db_user: Annotated[User, Depends(get_db_user)]):
 
     if extended_stats_result.data:
         s = extended_stats_result.data[0]
-        referral_stats, referral_program = _build_referral_data(
-            s,
-            THRESHOLD_LEVEL2,
-            THRESHOLD_LEVEL3,
-            COMMISSION_LEVEL1,
-            COMMISSION_LEVEL2,
-            COMMISSION_LEVEL3,
-            formatter.currency,
-            settings,
-        )
+        # Ensure s is a dict
+        if isinstance(s, dict):
+            referral_stats, referral_program = _build_referral_data(
+                s,
+                THRESHOLD_LEVEL2,
+                THRESHOLD_LEVEL3,
+                COMMISSION_LEVEL1,
+                COMMISSION_LEVEL2,
+                COMMISSION_LEVEL3,
+                formatter.currency,
+                settings,
+            )
+        else:
+            # Fallback if data is not dict
+            referral_stats = {
+                "level1_count": 0,
+                "level2_count": 0,
+                "level3_count": 0,
+                "level1_earnings": 0,
+                "level2_earnings": 0,
+                "level3_earnings": 0,
+                "active_referrals": 0,
+                "click_count": 0,
+                "conversion_rate": 0,
+            }
 
     # Add partner mode settings
     referral_program["partner_mode"] = (
@@ -512,7 +546,9 @@ async def get_webapp_profile(db_user: Annotated[User, Depends(get_db_user)]):
 
 
 @profile_router.put("/profile/preferences")
-async def update_preferences(request: UpdatePreferencesRequest, user=Depends(verify_telegram_auth)):
+async def update_preferences(
+    request: UpdatePreferencesRequest, user=Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Update user preferences (interface language only).
 
     NOTE: Currency preference is ignored after RUB-only migration.
@@ -540,7 +576,9 @@ async def update_preferences(request: UpdatePreferencesRequest, user=Depends(ver
 
 
 @profile_router.post("/profile/convert-balance")
-async def convert_balance(request: ConvertBalanceRequest, user=Depends(verify_telegram_auth)):
+async def convert_balance(
+    request: ConvertBalanceRequest, user: "TelegramUser" = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Convert user balance to a different currency.
 
     DEPRECATED: After RUB-only migration, this endpoint returns current balance.
@@ -568,7 +606,7 @@ async def get_referral_network(
     level: int = 1,
     limit: int = 50,
     offset: int = 0,
-):
+) -> dict[str, Any]:
     """Get user's referral network (tree of referrals)."""
     db = get_database()
     user_id = db_user.id

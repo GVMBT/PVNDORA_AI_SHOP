@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import os
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
@@ -18,7 +19,7 @@ from .models import SessionTokenRequest, TelegramLoginData
 router = APIRouter(tags=["webapp-auth"])
 
 
-def verify_telegram_login_hash(data: dict, bot_token: str) -> bool:
+def verify_telegram_login_hash(data: dict[str, Any], bot_token: str) -> bool:
     """Verify Telegram Login Widget data using HMAC-SHA256."""
     check_hash = data.pop("hash", None)
     if not check_hash:
@@ -38,7 +39,7 @@ def verify_telegram_login_hash(data: dict, bot_token: str) -> bool:
 
 
 @router.post("/auth/telegram-login")
-async def telegram_login_widget_auth(data: TelegramLoginData):
+async def telegram_login_widget_auth(data: TelegramLoginData) -> dict[str, Any]:
     """Authenticate user via Telegram Login Widget (for desktop/web access).
 
     Verifies the hash using bot token and creates a session.
@@ -106,7 +107,7 @@ async def telegram_login_widget_auth(data: TelegramLoginData):
 
 
 @router.post("/auth/verify-session")
-async def verify_web_session_endpoint(data: SessionTokenRequest):
+async def verify_web_session_endpoint(data: SessionTokenRequest) -> dict[str, Any]:
     """Verify a web session token."""
     from core.auth import verify_web_session_token
 
@@ -126,7 +127,7 @@ async def verify_web_session_endpoint(data: SessionTokenRequest):
 
 
 @router.get("/auth/dev-token/{telegram_id}")
-async def get_dev_token(telegram_id: int):
+async def get_dev_token(telegram_id: int) -> dict[str, Any]:
     """DEV ONLY: Generate a session token for a user by telegram_id.
     This endpoint should be disabled in production or protected by secret.
     """

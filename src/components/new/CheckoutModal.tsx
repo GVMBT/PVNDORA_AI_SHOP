@@ -71,7 +71,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [sessionId] = useState(() => {
     // Use crypto for session ID generation (security-sensitive)
     if (typeof crypto !== "undefined" && crypto.randomUUID) {
-      return crypto.randomUUID().slice(0, 8).toUpperCase().replace(/-/g, "");
+      return crypto.randomUUID().slice(0, 8).toUpperCase().replaceAll("-", "");
     }
     // Fallback: timestamp-based ID (less secure but better than Math.random)
     return `S${Date.now().toString(36).slice(-7).toUpperCase()}`;

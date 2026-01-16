@@ -4,6 +4,8 @@ Balance withdrawal operations.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from core.auth import verify_telegram_auth
@@ -17,7 +19,9 @@ withdrawals_router = APIRouter()
 
 
 @withdrawals_router.post("/profile/withdraw/preview")
-async def preview_withdrawal(request: WithdrawalPreviewRequest, user=Depends(verify_telegram_auth)):
+async def preview_withdrawal(
+    request: WithdrawalPreviewRequest, user: Any = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Preview withdrawal calculation: shows fees and final USDT payout before creating request."""
     from core.db import get_redis
     from core.services.currency import MIN_USDT_AFTER_FEES, NETWORK_FEE_USDT, get_currency_service
@@ -45,7 +49,6 @@ async def preview_withdrawal(request: WithdrawalPreviewRequest, user=Depends(ver
     # Calculate maximum withdrawal amount (uses constants from currency service)
     max_withdrawal = await currency_service.calculate_max_withdrawal_amount(
         balance=balance,
-        balance_currency=balance_currency,
     )
 
     # Use requested amount, or full balance for preview
@@ -85,7 +88,9 @@ async def preview_withdrawal(request: WithdrawalPreviewRequest, user=Depends(ver
 
 
 @withdrawals_router.post("/profile/withdraw")
-async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_telegram_auth)):
+async def request_withdrawal(
+    request: WithdrawalRequest, user: Any = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Request balance withdrawal to TRC20 USDT.
 
     Uses snapshot pricing: exchange rate is fixed at request creation time.

@@ -285,7 +285,7 @@ async def _process_replacement_tickets(
 
 
 @app.get("/api/cron/auto_alloc")
-async def auto_alloc_entrypoint(request: Request):
+async def auto_alloc_entrypoint(request: Request) -> JSONResponse | dict[str, str | int]:
     """Vercel Cron entrypoint."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
@@ -316,4 +316,4 @@ async def auto_alloc_entrypoint(request: Request):
     except Exception:
         logger.exception("auto_alloc: Failed to process replacement tickets")
 
-    return JSONResponse(results)
+    return JSONResponse(results)  # type: ignore[return-value]

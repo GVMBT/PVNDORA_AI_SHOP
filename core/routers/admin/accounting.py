@@ -185,7 +185,7 @@ def _calculate_profit_metrics(
 
 
 # Helper: Calculate liability totals (reduces cognitive complexity)
-def _calculate_liability_totals(liabilities_by_currency: dict) -> dict[str, float]:
+def _calculate_liability_totals(liabilities_by_currency: dict[str, Any]) -> dict[str, float]:
     """Calculate total user balances and pending withdrawals."""
     return {
         "total_user_balances": sum(
@@ -298,7 +298,7 @@ def _process_single_order_for_overview(
 # Helper: Process orders for financial overview (reduces cognitive complexity)
 def _process_orders_for_overview(
     orders: list[DictStrAny],
-) -> tuple[dict[str, dict[str, float]], dict[str, float]]:
+) -> tuple[dict[str, dict[str, Any]], dict[str, float]]:
     """Process orders and calculate revenue by currency and expense totals."""
     revenue_by_currency: dict = {}
     expense_totals = {
@@ -316,8 +316,7 @@ def _process_orders_for_overview(
     for raw_order in orders:
         if not isinstance(raw_order, dict):
             continue
-        order = cast(DictStrAny, raw_order)
-        _process_single_order_for_overview(order, revenue_by_currency, expense_totals)
+        _process_single_order_for_overview(raw_order, revenue_by_currency, expense_totals)
 
     # Round currency values
     for currency_key in revenue_by_currency:
@@ -411,8 +410,8 @@ def _calculate_monthly_profits(
 # Helper: Process orders by month (reduces cognitive complexity)
 def _process_orders_by_month(
     orders: list[DictStrAny],
-    other_expenses_by_month: dict[str, float],
-    insurance_by_month: dict[str, float],
+    other_expenses_by_month: dict[str, Any],
+    insurance_by_month: dict[str, Any],
 ) -> dict[str, DictStrAny]:
     """Process orders grouped by month and calculate profits."""
     monthly_data: dict = {}
@@ -567,12 +566,11 @@ def _process_expense_entry(
     expenses_by_category: dict[str, float],
 ) -> float:
     """Process a single expense entry and return updated total."""
-    e = cast(DictStrAny, raw_e)
-    amount_raw = e.get("amount_usd", 0)
+    amount_raw = raw_e.get("amount_usd", 0)
     amount = float(amount_raw) if isinstance(amount_raw, (int, float)) else 0.0
     total_other_expenses += amount
 
-    cat_raw = e.get("category", "other")
+    cat_raw = raw_e.get("category", "other")
     cat = str(cat_raw) if cat_raw else "other"
     expenses_by_category[cat] = expenses_by_category.get(cat, 0.0) + amount
 
@@ -655,8 +653,8 @@ async def get_financial_overview(
     display_currency: Annotated[
         str, Query(description="DEPRECATED - kept for backward compatibility")
     ] = "USD",
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """Get financial overview with REAL currency amounts (no conversion).
 
     Returns separate totals for each currency (USD, RUB, etc.) showing
@@ -974,8 +972,8 @@ def _calculate_daily_profits(
 async def get_daily_pl(
     days: Annotated[int, Query(ge=1, le=365)] = 30,
     comprehensive: Annotated[bool, Query(description="Include all cost categories")] = False,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """Get daily P&L report with REAL currency breakdown (no conversion).
 
     Returns:

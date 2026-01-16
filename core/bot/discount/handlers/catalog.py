@@ -1,8 +1,11 @@
 """Discount bot catalog handlers."""
 
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from aiogram import F, Router
+
+if TYPE_CHECKING:
+    from core.services.database import Database
 from aiogram.enums import ParseMode
 from aiogram.types import CallbackQuery, Message
 
@@ -16,7 +19,7 @@ logger = get_logger(__name__)
 router = Router(name="discount_catalog")
 
 # Cache for pagination
-_products_cache: dict = {}
+_products_cache: dict[str, Any] = {}
 
 
 async def get_user_currency_info(db_user: User) -> tuple[str, float]:
@@ -42,14 +45,14 @@ async def get_user_currency_info(db_user: User) -> tuple[str, float]:
             currency = "USD"
 
         if currency != "USD":
-            exchange_rate = await currency_service.get_exchange_rate(currency)
+            exchange_rate = currency_service.get_exchange_rate(currency)
     except Exception as e:
         logger.warning("Failed to get user currency: %s", type(e).__name__)
 
     return currency, exchange_rate
 
 
-async def get_unique_categories(db) -> list:
+async def get_unique_categories(db: "Database") -> list[str]:
     """Extract unique categories from products with discount_price.
 
     Uses products_with_stock_summary VIEW for consistency with other queries.
@@ -72,13 +75,14 @@ async def get_unique_categories(db) -> list:
                     all_categories.add(cat)
 
         # Sort and return as list of dicts for compatibility
-        return [{"id": cat, "name": cat} for cat in sorted(all_categories)]
+        sorted_categories: list[str] = sorted([str(cat) for cat in all_categories if cat])
+        return [{"id": cat, "name": cat} for cat in sorted_categories]
     except Exception:
         logger.exception("Failed to get categories")
         return []
 
 
-async def get_all_discount_products(db) -> list:
+async def get_all_discount_products(db: "Database") -> list[dict[str, Any]]:
     """Get all products with discount_price.
 
     Uses products_with_stock_summary VIEW to eliminate N+1 queries.
@@ -97,10 +101,13 @@ async def get_all_discount_products(db) -> list:
         products = result.data or []
 
         # Map stock_count to available_count for compatibility
+        result_list: list[dict[str, Any]] = []
         for p in products:
-            p["available_count"] = p.get("stock_count", 0) or 0
+            if isinstance(p, dict):
+                p["available_count"] = p.get("stock_count", 0) or 0
+                result_list.append(p)
 
-        return products
+        return result_list
     except Exception:
         logger.exception("Failed to get products")
         return []
@@ -117,7 +124,7 @@ async def get_products_by_category(db, category_name: str | None = None) -> list
     return products
 
 
-async def get_product_by_id(db, product_id: str) -> dict | None:
+async def get_product_by_id(db: "Database", product_id: str) -> dict[str, Any] | None:
     """Get single product by short ID (first 8 chars of UUID)."""
     try:
         # Get all discount products and filter by prefix

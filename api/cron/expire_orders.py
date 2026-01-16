@@ -21,6 +21,7 @@ if str(_base_path) not in sys.path:
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.responses import Response
 
 from core.logging import get_logger
 
@@ -34,7 +35,7 @@ app = FastAPI()
 
 
 @app.get("/api/cron/expire_orders")
-async def expire_orders_entrypoint(request: Request) -> dict[str, str | int]:
+async def expire_orders_entrypoint(request: Request) -> Response:
     """Vercel Cron entrypoint."""
     # Verify the request is from Vercel Cron
     auth_header = request.headers.get("Authorization", "")

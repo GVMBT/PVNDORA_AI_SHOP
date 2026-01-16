@@ -11,7 +11,7 @@ Used for critical operations that must be guaranteed to execute:
 import asyncio
 import os
 from functools import wraps
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException, Request
 
@@ -36,7 +36,7 @@ BASE_URL = os.environ.get("BASE_URL", "")
 _qstash_client: "QStash | None" = None
 
 
-def get_qstash():
+def get_qstash() -> Any:
     """Get QStash client (singleton).
 
     Returns QStash client for publishing messages to worker endpoints.
@@ -80,11 +80,11 @@ def get_base_url() -> str:
 
 async def publish_to_worker(
     endpoint: str,
-    body: dict,
+    body: dict[str, Any],
     retries: int = 0,
     delay: int | None = None,
     deduplication_id: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Publish a task to a QStash worker endpoint.
 
     Args:
@@ -213,7 +213,7 @@ def verify_qstash_signature(body: bytes, signature: str, url: str = "") -> bool:
         return False
 
 
-async def verify_qstash_request(request: Request) -> dict:
+async def verify_qstash_request(request: Request) -> dict[str, Any]:
     """Verify QStash request and return parsed body.
 
     Raises HTTPException 401 if signature is invalid.
@@ -272,7 +272,7 @@ async def verify_qstash_request(request: Request) -> dict:
     raise HTTPException(status_code=401, detail="Invalid QStash signature")
 
 
-def qstash_protected(func):
+def qstash_protected(func: Any) -> Any:
     """Decorator to protect worker endpoints with QStash signature verification.
 
     Usage:
@@ -284,7 +284,7 @@ def qstash_protected(func):
     """
 
     @wraps(func)
-    async def wrapper(request: Request, *args, **kwargs):
+    async def wrapper(request: Request, *args: Any, **kwargs: Any) -> Any:
         # Verify signature
         await verify_qstash_request(request)
         return await func(request, *args, **kwargs)

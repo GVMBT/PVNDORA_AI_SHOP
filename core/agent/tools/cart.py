@@ -4,6 +4,7 @@ Shopping cart management: add, remove, update, promo codes.
 """
 
 import contextlib
+from typing import Any
 
 from langchain_core.tools import tool
 
@@ -15,7 +16,7 @@ logger = get_logger(__name__)
 
 
 @tool
-async def get_user_cart() -> dict:
+async def get_user_cart() -> dict[str, Any]:
     """Get user's shopping cart.
     ALWAYS call this before mentioning cart contents.
     Uses telegram_id from context.
@@ -70,7 +71,7 @@ async def get_user_cart() -> dict:
 
 
 @tool
-async def add_to_cart(product_id: str, quantity: int = 1) -> dict:
+async def add_to_cart(product_id: str, quantity: int = 1) -> dict[str, Any]:
     """Add product to user's cart.
     Uses telegram_id from context.
 
@@ -102,7 +103,7 @@ async def add_to_cart(product_id: str, quantity: int = 1) -> dict:
             product_name=product.name,
             quantity=quantity,
             available_stock=stock_count,
-            unit_price=product.price,
+            unit_price=float(product.price),
             discount_percent=0,
         )
 
@@ -129,7 +130,7 @@ async def add_to_cart(product_id: str, quantity: int = 1) -> dict:
 
 
 @tool
-async def remove_from_cart(product_id: str) -> dict:
+async def remove_from_cart(product_id: str) -> dict[str, Any]:
     """Remove product from cart.
     Uses telegram_id from context.
 
@@ -175,7 +176,7 @@ async def remove_from_cart(product_id: str) -> dict:
 
 
 @tool
-async def update_cart_quantity(product_id: str, quantity: int) -> dict:
+async def update_cart_quantity(product_id: str, quantity: int) -> dict[str, Any]:
     """Update quantity of product in cart.
     Uses telegram_id from context.
 
@@ -230,7 +231,7 @@ async def update_cart_quantity(product_id: str, quantity: int) -> dict:
 
 
 @tool
-async def clear_cart() -> dict:
+async def clear_cart() -> dict[str, Any]:
     """Clear user's shopping cart.
     Uses telegram_id from context.
 
@@ -251,7 +252,7 @@ async def clear_cart() -> dict:
 
 
 @tool
-async def apply_promo_code(code: str) -> dict:
+async def apply_promo_code(code: str) -> dict[str, Any]:
     """Apply promo code to cart.
     Uses telegram_id from context.
 

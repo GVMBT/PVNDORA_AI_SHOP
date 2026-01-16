@@ -6,11 +6,15 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 
 import logging
 from datetime import datetime, timedelta
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from core.auth import verify_telegram_auth
+
+if TYPE_CHECKING:
+    from core.services.database import Database
+    from core.utils.validators import TelegramUser
 from core.errors import ERROR_FAILED_TO_FETCH_ORDERS, ERROR_ORDER_NOT_FOUND, ERROR_USER_NOT_FOUND
 from core.routers.webapp.models import (
     OrdersListResponse,
@@ -51,9 +55,9 @@ def _get_user_currency() -> str:
     return "RUB"
 
 
-async def _load_reviews_for_orders(db, order_ids: list[str]) -> dict[str, set]:
+async def _load_reviews_for_orders(db: "Database", order_ids: list[str]) -> dict[str, set[str]]:
     """Load reviews for multiple orders in one query (reduces N+1)."""
-    reviews_by_order: dict[str, set] = {}
+    reviews_by_order: dict[str, set[str]] = {}
     if not order_ids:
         return reviews_by_order
 
@@ -69,8 +73,8 @@ async def _load_reviews_for_orders(db, order_ids: list[str]) -> dict[str, set]:
             order_id = review.get("order_id")
             product_id = review.get("product_id")
             if order_id not in reviews_by_order:
-                reviews_by_order[order_id] = set()
-            if product_id:
+                reviews_by_order[order_id] = set()  # type: set[str]
+            if product_id and isinstance(product_id, str):
                 reviews_by_order[order_id].add(product_id)
     except Exception as e:
         logger.warning("Failed to load reviews for orders: %s", type(e).__name__)
@@ -105,9 +109,9 @@ def _build_order_item(item: dict, order_status: str, reviewed_product_ids: set) 
 
 
 def _process_order_row(
-    row: dict,
-    reviews_by_order: dict[str, set],
-) -> dict | None:
+    row: dict[str, Any],
+    reviews_by_order: dict[str, set[str]],
+) -> dict[str, Any] | None:
     """Process a single order row and build order dict (reduces cognitive complexity)."""
     from core.logging import sanitize_id_for_logging
 
@@ -214,10 +218,10 @@ def _build_crypto_payment_method(user_currency: str) -> PaymentMethod:
 
 
 def _build_order_dict(
-    row: dict,
-    items: list[dict],
-    product_data: dict | None,
-) -> dict:
+    row: dict[str, Any],
+    items: list[dict[str, Any]],
+    product_data: dict[str, Any] | None,
+) -> dict[str, Any]:
     """Build APIOrder dict from order data.
 
     After RUB-only migration, all amounts are in RUB.
@@ -252,7 +256,7 @@ def _build_order_dict(
 @crud_router.get("/orders/{order_id}/status")
 async def get_webapp_order_status(
     order_id: str,
-    user=Depends(verify_telegram_auth),
+    user: "TelegramUser" = Depends(verify_telegram_auth),
 ) -> OrderStatusResponse:
     """Get order status with delivery progress."""
     db = get_database()
@@ -319,7 +323,7 @@ async def get_webapp_order_status(
 
 
 # Helper to process confirmed payment (reduces cognitive complexity)
-async def _process_confirmed_payment(order_id: str, payment_id: str, db) -> dict:
+async def _process_confirmed_payment(order_id: str, payment_id: str, db: Any) -> dict[str, Any]:
     """Process confirmed payment and queue delivery."""
     from core.orders.status_service import OrderStatusService
 
@@ -350,7 +354,12 @@ async def _process_confirmed_payment(order_id: str, payment_id: str, db) -> dict
 
 
 # Helper to verify crystalpay payment (reduces cognitive complexity)
-async def _verify_crystalpay_payment(payment_id: str, order_id: str, order_status: str, db) -> dict:
+async def _verify_crystalpay_payment(
+    payment_id: str,
+    order_id: str,
+    order_status: str,
+    db: "Database",
+) -> dict[str, Any]:
     """Verify payment via CrystalPay gateway (reduces cognitive complexity)."""
     from core.routers.deps import get_payment_service
 
@@ -381,8 +390,8 @@ async def _handle_gateway_status(
     order_id: str,
     order_status: str,
     payment_id: str,
-    db,
-) -> dict:
+    db: "Database",
+) -> dict[str, Any]:
     """Handle different gateway payment statuses."""
     if gateway_status == "payed":
         return await _process_confirmed_payment(order_id, payment_id, db)
@@ -409,7 +418,9 @@ async def _handle_gateway_status(
 
 
 @crud_router.post("/orders/{order_id}/verify-payment")
-async def verify_order_payment(order_id: str, user=Depends(verify_telegram_auth)):
+async def verify_order_payment(
+    order_id: str, user: Any = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Manually verify payment status via payment gateway.
     Useful for checking payment on popup/window close.
     """
@@ -553,7 +564,7 @@ async def get_webapp_orders(
 
 @crud_router.get("/payments/methods")
 async def get_payment_methods(
-    user=Depends(verify_telegram_auth),
+    user: Any = Depends(verify_telegram_auth),
     amount: Annotated[
         float | None, Query(description="Order amount in user's currency for availability check")
     ] = None,

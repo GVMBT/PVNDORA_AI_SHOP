@@ -7,11 +7,15 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 
 import urllib.parse
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from core.auth import verify_telegram_auth
+
+if TYPE_CHECKING:
+    from core.utils.validators import TelegramUser
 from core.logging import get_logger
 from core.routers.deps import get_bot, get_webapp_url
 from core.services.database import get_database
@@ -34,7 +38,7 @@ class SubmitReviewRequest(BaseModel):
 
 
 @router.get("/user/referral")
-async def get_referral_info(user=Depends(verify_telegram_auth)):
+async def get_referral_info(user: Any = Depends(verify_telegram_auth)) -> dict[str, Any]:
     """Get referral link and stats."""
     bot_instance = get_bot()
 
@@ -55,7 +59,7 @@ async def get_referral_info(user=Depends(verify_telegram_auth)):
 
 
 # Helper to calculate user rank (reduces cognitive complexity)
-async def _calculate_user_rank(db, total_saved: int) -> int | None:
+async def _calculate_user_rank(db: Any, total_saved: int) -> int | None:
     """Calculate user's leaderboard rank."""
     if total_saved <= 0:
         return None
@@ -69,7 +73,7 @@ async def _calculate_user_rank(db, total_saved: int) -> int | None:
 
 
 # Helper to get avatar URL (reduces cognitive complexity)
-def _get_avatar_url(user, display_name: str) -> str:
+def _get_avatar_url(user: Any, display_name: str) -> str:
     """Get user avatar URL or generate initials avatar."""
     avatar_url = getattr(user, "photo_url", None)
     if avatar_url:
@@ -87,7 +91,7 @@ def _get_localized_texts(language_code: str) -> tuple[str, str]:
 
 
 @router.post("/referral/share-link")
-async def create_referral_share_link(user=Depends(verify_telegram_auth)):
+async def create_referral_share_link(user: Any = Depends(verify_telegram_auth)) -> dict[str, str]:
     """Create a prepared inline message for sharing.
     Returns prepared_message_id to be used with Telegram.WebApp.shareMessage().
     """
@@ -193,7 +197,9 @@ async def get_wishlist(user=Depends(verify_telegram_auth)):
 
 
 @router.post("/wishlist/{product_id}")
-async def add_to_wishlist(product_id: str, user=Depends(verify_telegram_auth)):
+async def add_to_wishlist(
+    product_id: str, user: Any = Depends(verify_telegram_auth)
+) -> dict[str, bool]:
     """Add product to wishlist."""
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
@@ -206,7 +212,9 @@ async def add_to_wishlist(product_id: str, user=Depends(verify_telegram_auth)):
 
 
 @router.delete("/wishlist/{product_id}")
-async def remove_from_wishlist(product_id: str, user=Depends(verify_telegram_auth)):
+async def remove_from_wishlist(
+    product_id: str, user: "TelegramUser" = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Remove product from wishlist."""
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
@@ -222,7 +230,9 @@ async def remove_from_wishlist(product_id: str, user=Depends(verify_telegram_aut
 
 
 @router.post("/reviews")
-async def submit_review(request: SubmitReviewRequest, user=Depends(verify_telegram_auth)):
+async def submit_review(
+    request: SubmitReviewRequest, user: Any = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Submit product review with 5% cashback via QStash worker."""
     from core.services.money import to_float
 

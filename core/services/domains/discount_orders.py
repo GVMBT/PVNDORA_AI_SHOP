@@ -4,6 +4,8 @@ Implements artificial delay (1-4 hours) for discount bot orders.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
+from typing import Any
+
 import os
 import random
 from datetime import UTC, datetime, timedelta
@@ -48,7 +50,7 @@ class DiscountOrderService:
     MIN_DELAY_MINUTES = 60
     MAX_DELAY_MINUTES = 240
 
-    def __init__(self, db_client) -> None:
+    def __init__(self, db_client: Any) -> None:
         self.client = db_client
         self.qstash_token = os.environ.get("QSTASH_TOKEN", "")
         self.qstash_url = os.environ.get("QSTASH_URL", "https://qstash.upstash.io")

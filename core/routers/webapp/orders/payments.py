@@ -7,7 +7,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 import logging
 import os
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 
@@ -41,9 +41,9 @@ payments_router = APIRouter()
 @payments_router.post("/orders")
 async def create_webapp_order(
     request: CreateOrderRequest,
-    user=Depends(verify_telegram_auth),
+    user: Any = Depends(verify_telegram_auth),
     x_init_data: Annotated[str | None, Header(alias="X-Init-Data")] = None,
-):
+) -> OrderResponse:
     """Create new order from Mini App. Supports both single product and cart-based orders."""
     db = get_database()
 
@@ -242,17 +242,17 @@ async def _create_cart_order(
 
 
 async def _process_balance_payment(
-    db,
-    db_user,
-    user,
-    order,
-    total_amount,
-    total_original,
-    discount_pct,
-    payment_method,
-    cart,
-    cart_manager,
-    _order_items,
+    db: Any,
+    db_user: Any,
+    user: Any,
+    order: Any,
+    total_amount: Decimal,
+    total_original: Decimal,
+    discount_pct: int,
+    payment_method: str,
+    cart: Any,
+    cart_manager: Any,
+    _order_items: Any,
 ) -> OrderResponse:
     """Process balance payment for an order."""
     # #region agent log
@@ -278,7 +278,7 @@ async def _process_balance_payment(
     if balance_currency == "USD":
         order_total_in_balance_currency = order_total_usd
     else:
-        rate = await _currency_service.get_exchange_rate(balance_currency)
+        rate = _currency_service.get_exchange_rate(balance_currency)
         order_total_in_balance_currency = to_decimal(to_float(order_total_usd) * rate)
         if balance_currency in ["RUB", "UAH", "TRY", "INR"]:
             order_total_in_balance_currency = to_decimal(
@@ -509,8 +509,8 @@ async def _create_single_order(
 @payments_router.post("/orders/confirm-payment")
 async def confirm_manual_payment(
     request: ConfirmPaymentRequest,
-    user=Depends(verify_telegram_auth),
-):
+    user: Any = Depends(verify_telegram_auth),
+) -> dict[str, Any]:
     """Confirm that user has made manual payment (H2H mode).
 
     This updates order status to indicate user claims payment was made.

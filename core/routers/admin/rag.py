@@ -4,7 +4,7 @@ RAG (semantic search) indexing endpoint.
 """
 
 import os
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, HTTPException
 
@@ -12,7 +12,9 @@ router = APIRouter(tags=["admin-rag"])
 
 
 @router.post("/index-products")
-async def admin_index_products(authorization: Annotated[str | None, Header()] = None):
+async def admin_index_products(
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
     """Index all products for RAG (semantic search)."""
     cron_secret = os.environ.get("CRON_SECRET", "")
     if authorization != f"Bearer {cron_secret}":

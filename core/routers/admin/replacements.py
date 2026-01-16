@@ -3,7 +3,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -11,6 +11,9 @@ from pydantic import BaseModel
 from core.logging import get_logger
 from core.services.database import get_database
 from core.services.domains import InsuranceService
+
+if TYPE_CHECKING:
+    from supabase._async.client import AsyncClient
 
 logger = get_logger(__name__)
 
@@ -83,7 +86,7 @@ class AbuseStatsResponse(BaseModel):
 # ============================================
 
 
-def extract_telegram_id(row: dict) -> int | None:
+def extract_telegram_id(row: dict[str, Any]) -> int | None:
     """Extract telegram_id from row data (reduces cognitive complexity)."""
     if row.get("order_items") and row["order_items"].get("orders"):
         tid = row["order_items"]["orders"].get("user_telegram_id")
@@ -91,7 +94,7 @@ def extract_telegram_id(row: dict) -> int | None:
     return None
 
 
-def extract_product_name(row: dict) -> str | None:
+def extract_product_name(row: dict[str, Any]) -> str | None:
     """Extract product_name from row data (reduces cognitive complexity)."""
     if row.get("order_items") and row["order_items"].get("products"):
         name = row["order_items"]["products"].get("name")
@@ -99,7 +102,7 @@ def extract_product_name(row: dict) -> str | None:
     return None
 
 
-def extract_order_id(row: dict) -> str | None:
+def extract_order_id(row: dict[str, Any]) -> str | None:
     """Extract order_id from row data (reduces cognitive complexity)."""
     if row.get("order_items"):
         oid = row["order_items"].get("order_id")
@@ -107,7 +110,7 @@ def extract_order_id(row: dict) -> str | None:
     return None
 
 
-async def get_abuse_score(db_client, telegram_id: int | None) -> int:
+async def get_abuse_score(db_client: "AsyncClient", telegram_id: int | None) -> int:
     """Get abuse score for user (reduces cognitive complexity)."""
     if not telegram_id:
         return 0
@@ -124,7 +127,9 @@ async def get_abuse_score(db_client, telegram_id: int | None) -> int:
 
 
 @router.get("/pending", response_model=list[ReplacementResponse])
-async def get_pending_replacements(limit: Annotated[int, Query(ge=1, le=100)] = 50):
+async def get_pending_replacements(
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> list[ReplacementResponse]:
     """Get pending replacement requests for moderation."""
     db = get_database()
 
@@ -179,7 +184,7 @@ async def approve_replacement(
     replacement_id: str,
     request: ApproveRequest,
     admin_user_id: Annotated[str, Query(description=ADMIN_USER_UUID_DESC)],
-):
+) -> dict[str, Any]:
     """Approve a pending replacement."""
     db = get_database()
     insurance_service = InsuranceService(db.client)
@@ -224,7 +229,7 @@ async def reject_replacement(
 
 
 @router.get("/restrictions/{user_id}", response_model=list[RestrictionResponse])
-async def get_user_restrictions(user_id: str):
+async def get_user_restrictions(user_id: str) -> list[RestrictionResponse]:
     """Get all active restrictions for a user."""
     db = get_database()
     insurance_service = InsuranceService(db.client)
@@ -249,7 +254,7 @@ async def get_user_restrictions(user_id: str):
 async def add_user_restriction(
     request: RestrictionCreate,
     admin_user_id: Annotated[str, Query(description="Admin user UUID")],
-):
+) -> RestrictionResponse:
     """Add a restriction to a user."""
     db = get_database()
     insurance_service = InsuranceService(db.client)
@@ -287,7 +292,7 @@ async def add_user_restriction(
 
 
 @router.delete("/restrictions/{user_id}/{restriction_type}")
-async def remove_user_restriction(user_id: str, restriction_type: str):
+async def remove_user_restriction(user_id: str, restriction_type: str) -> dict[str, Any]:
     """Remove a restriction from a user."""
     db = get_database()
     insurance_service = InsuranceService(db.client)
@@ -306,7 +311,7 @@ async def remove_user_restriction(user_id: str, restriction_type: str):
 
 
 @router.get("/abuse-stats/{telegram_id}", response_model=AbuseStatsResponse)
-async def get_abuse_stats(telegram_id: int):
+async def get_abuse_stats(telegram_id: int) -> AbuseStatsResponse:
     """Get abuse statistics for a user."""
     db = get_database()
     insurance_service = InsuranceService(db.client)

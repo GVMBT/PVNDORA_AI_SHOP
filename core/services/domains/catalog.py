@@ -92,11 +92,11 @@ class CatalogService:
     - Waitlist management
     """
 
-    def __init__(self, db) -> None:
+    def __init__(self, db: Any) -> None:
         self.db = db
         self._rag_search: ProductSearch | bool | None = None
 
-    def _get_rag_search(self):
+    def _get_rag_search(self) -> Any:
         """Lazy load RAG search to avoid import errors."""
         if self._rag_search is None:
             try:
@@ -180,7 +180,7 @@ class CatalogService:
             reviews_count=rating.get("count", 0),
         )
 
-    def _build_category_filters(self, category: str) -> dict:
+    def _build_category_filters(self, category: str) -> dict[str, Any]:
         """Build category filters for RAG search (reduces cognitive complexity)."""
         filters = {"status": {"$eq": "active"}}
         if category == "all":

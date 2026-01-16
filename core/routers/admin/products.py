@@ -4,6 +4,8 @@ Product and stock management endpoints.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from core.auth import verify_admin
@@ -22,7 +24,9 @@ router = APIRouter(tags=["admin-products"])
 
 
 @router.post("/products")
-async def admin_create_product(request: CreateProductRequest, admin=Depends(verify_admin)):
+async def admin_create_product(
+    request: CreateProductRequest, admin: Any = Depends(verify_admin)
+) -> dict[str, Any]:
     """Create a new product."""
     db = get_database()
 
@@ -58,7 +62,7 @@ async def admin_create_product(request: CreateProductRequest, admin=Depends(veri
 
 
 @router.get("/products")
-async def admin_get_products(admin=Depends(verify_admin)):
+async def admin_get_products(admin: Any = Depends(verify_admin)) -> dict[str, Any]:
     """Get all products for admin (including inactive).
 
     Uses products_with_stock_summary VIEW to eliminate N+1 queries.
@@ -124,8 +128,8 @@ async def admin_get_products(admin=Depends(verify_admin)):
 async def admin_update_product(
     product_id: str,
     request: CreateProductRequest,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """Update a product."""
     db = get_database()
 
@@ -159,7 +163,9 @@ async def admin_update_product(
 
 
 @router.delete("/products/{product_id}")
-async def admin_delete_product(product_id: str, admin=Depends(verify_admin)):
+async def admin_delete_product(
+    product_id: str, admin: Any = Depends(verify_admin)
+) -> dict[str, Any]:
     """Permanently delete a product from database."""
     db = get_database()
 
@@ -195,7 +201,9 @@ async def admin_delete_product(product_id: str, admin=Depends(verify_admin)):
 
 
 @router.post("/stock")
-async def admin_add_stock(request: AddStockRequest, admin=Depends(verify_admin)):
+async def admin_add_stock(
+    request: AddStockRequest, admin: Any = Depends(verify_admin)
+) -> dict[str, Any]:
     """Add single stock item for a product."""
     db = get_database()
 
@@ -218,7 +226,9 @@ async def admin_add_stock(request: AddStockRequest, admin=Depends(verify_admin))
 
 
 @router.post("/stock/bulk")
-async def admin_add_stock_bulk(request: BulkStockRequest, admin=Depends(verify_admin)):
+async def admin_add_stock_bulk(
+    request: BulkStockRequest, admin: Any = Depends(verify_admin)
+) -> dict[str, Any]:
     """Bulk add stock items for a product."""
     db = get_database()
 
@@ -273,7 +283,9 @@ async def admin_get_stock(
 
 
 @router.delete("/stock/{stock_item_id}")
-async def admin_delete_stock(stock_item_id: str, admin=Depends(verify_admin)):
+async def admin_delete_stock(
+    stock_item_id: str, admin: Any = Depends(verify_admin)
+) -> dict[str, Any]:
     """Delete a stock item."""
     db = get_database()
 
@@ -306,7 +318,7 @@ async def admin_delete_stock(stock_item_id: str, admin=Depends(verify_admin)):
 
 
 async def _notify_waitlist_for_product(
-    db, product_name: str, product_id: str | None = None
+    db: Any, product_name: str, product_id: str | None = None
 ) -> None:
     """Notify users on waitlist when product becomes available."""
     waitlist = (

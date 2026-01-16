@@ -1,6 +1,7 @@
 """Inline query handlers for product sharing."""
 
 import hashlib
+from collections.abc import Sequence
 
 from aiogram import Bot, Router
 from aiogram.enums import ParseMode
@@ -34,7 +35,7 @@ async def handle_inline_query(query: InlineQuery, db_user: User, bot: Bot) -> No
     user_telegram_id = query.from_user.id
     referral_link = f"https://t.me/{bot_info.username}?start=ref_{user_telegram_id}"
 
-    results = []
+    results: list[InlineQueryResultArticle] = []
 
     if not query_text or query_text.lower() == "invite":
         # Default: show sharing options
@@ -141,7 +142,7 @@ async def handle_inline_query(query: InlineQuery, db_user: User, bot: Bot) -> No
                 ),
             )
 
-    await query.answer(results, cache_time=300, is_personal=True)
+    await query.answer(results, cache_time=300, is_personal=True)  # type: ignore[arg-type, abstract]
 
 
 @router.chosen_inline_result()

@@ -2,6 +2,8 @@
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
+from typing import TYPE_CHECKING
+
 from aiogram import Bot, Router
 from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandStart
@@ -13,13 +15,16 @@ from core.i18n import get_text
 from core.logging import get_logger
 from core.services.database import User, get_database
 
+if TYPE_CHECKING:
+    from core.services.database import Database
+
 logger = get_logger(__name__)
 
 router = Router()
 
 
 # Helper to process referral from start parameter (reduces cognitive complexity)
-async def _process_referral_from_start(message: Message, db_user: User, db) -> None:
+async def _process_referral_from_start(message: Message, db_user: User, db: "Database") -> None:
     """Process referral code from /start command."""
     if not (message.text and "start" in message.text.lower()):
         return

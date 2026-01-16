@@ -18,6 +18,7 @@ is sufficient.
 
 import time
 import uuid
+from typing import Any
 from collections import defaultdict
 
 from fastapi import Request
@@ -36,7 +37,7 @@ class QueryMonitorMiddleware(BaseHTTPMiddleware):
     - Chatty logic (слишком много запросов в одном HTTP запросе)
     """
 
-    def __init__(self, app, threshold_nplusone: int = 5, threshold_chatty: int = 20) -> None:
+    def __init__(self, app: Any, threshold_nplusone: int = 5, threshold_chatty: int = 20) -> None:
         """Args:
         app: FastAPI application
         threshold_nplusone: Минимальное количество повторений для N+1 (default: 5)
@@ -47,9 +48,9 @@ class QueryMonitorMiddleware(BaseHTTPMiddleware):
         self.threshold_nplusone = threshold_nplusone
         self.threshold_chatty = threshold_chatty
         # Храним запросы по request_id
-        self.request_queries: dict[str, list[dict]] = defaultdict(list)
+        self.request_queries: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next: Any) -> Any:
         """Обрабатывает HTTP запрос и отслеживает DB запросы."""
         # Генерируем уникальный ID для запроса
         request_id = str(uuid.uuid4())
@@ -130,7 +131,7 @@ class QueryMonitorMiddleware(BaseHTTPMiddleware):
 
         return issues
 
-    def _get_query_key(self, query: dict) -> str:
+    def _get_query_key(self, query: dict[str, Any]) -> str:
         """Создает ключ для группировки похожих запросов."""
         table = query.get("table", "unknown")
         operation = query.get("operation", "unknown")
@@ -155,7 +156,7 @@ class QueryMonitorMiddleware(BaseHTTPMiddleware):
         request_id: str,
         table: str,
         operation: str,
-        filters: dict | None = None,
+        filters: dict[str, Any] | None = None,
         query: str = "",
     ) -> None:
         """Логирует DB запрос (вызывается из Database класса).

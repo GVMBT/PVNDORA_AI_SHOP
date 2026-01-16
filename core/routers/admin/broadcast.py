@@ -6,6 +6,7 @@ All methods use async/await with supabase-py v2.
 
 import asyncio
 import os
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -68,7 +69,7 @@ async def send_telegram_message(
     )
 
 
-async def _get_target_users(db, request: BroadcastRequest) -> list[dict]:
+async def _get_target_users(db: Any, request: BroadcastRequest) -> list[dict[str, Any]]:
     """Get list of target users based on broadcast filters.
 
     Args:
@@ -129,7 +130,7 @@ def _get_bot_tokens(target_bot: str) -> list[tuple[str, str]]:
 
 # Helper: Send messages to users with rate limiting (reduces cognitive complexity)
 async def _send_broadcast_messages(
-    target_users: list[dict],
+    target_users: list[dict[str, Any]],
     bot_tokens: list[tuple[str, str]],
     message: str,
     parse_mode: str | None,
@@ -166,7 +167,9 @@ async def _send_broadcast_messages(
 
 
 @router.post("", response_model=BroadcastResult)
-async def send_broadcast(request: BroadcastRequest, admin_user=Depends(verify_admin)):
+async def send_broadcast(
+    request: BroadcastRequest, admin_user: Any = Depends(verify_admin)
+) -> BroadcastResult:
     """Send broadcast message to users.
 
     Parameters
@@ -224,7 +227,7 @@ async def send_broadcast(request: BroadcastRequest, admin_user=Depends(verify_ad
 
 
 @router.get("/stats")
-async def get_broadcast_stats(admin_user=Depends(verify_admin)):
+async def get_broadcast_stats(admin_user: Any = Depends(verify_admin)) -> dict[str, Any]:
     """Get statistics for broadcast targeting."""
     db = get_database()
 

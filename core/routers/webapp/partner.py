@@ -6,12 +6,16 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from core.auth import verify_telegram_auth
+
+if TYPE_CHECKING:
+    from core.services.database import Database
+    from core.utils.validators import TelegramUser
 from core.logging import get_logger
 from core.services.database import get_database
 from core.services.money import to_float
@@ -40,7 +44,7 @@ router = APIRouter(tags=["webapp-partner"])
 # =============================================================================
 
 
-async def _check_partner_status(db, user_id: str) -> bool:
+async def _check_partner_status(db: Any, user_id: str) -> bool:
     """Check if user is a partner from referral_stats_extended view."""
     extended_stats_result = (
         await db.client.table("referral_stats_extended")
@@ -56,7 +60,7 @@ async def _check_partner_status(db, user_id: str) -> bool:
     return bool(extended_stats_result.data[0].get("is_partner", False))
 
 
-async def _verify_partner_access(db, user_id: str) -> None:
+async def _verify_partner_access(db: Any, user_id: str) -> None:
     """Verify user has partner access, raise HTTPException if not."""
     try:
         is_partner = await _check_partner_status(db, user_id)
@@ -69,7 +73,7 @@ async def _verify_partner_access(db, user_id: str) -> None:
         raise HTTPException(status_code=500, detail="Failed to verify partner status")
 
 
-async def _get_referrals_with_purchases(db, referrer_id: str) -> list[dict]:
+async def _get_referrals_with_purchases(db: Any, referrer_id: str) -> list[dict[str, Any]]:
     """Get direct referrals with their purchase data."""
     try:
         referrals_result = (
@@ -110,7 +114,7 @@ async def _get_referrals_with_purchases(db, referrer_id: str) -> list[dict]:
         return []
 
 
-async def _get_partner_analytics(db, user_id: str) -> dict:
+async def _get_partner_analytics(db: Any, user_id: str) -> dict[str, Any]:
     """Get partner analytics from view."""
     try:
         analytics_result = (
@@ -122,7 +126,7 @@ async def _get_partner_analytics(db, user_id: str) -> dict:
         return {}
 
 
-async def _get_earnings_history(db, user_id: str) -> list[dict]:
+async def _get_earnings_history(db: Any, user_id: str) -> list[dict[str, Any]]:
     """Get earnings history for last 7 days grouped by day."""
     try:
         seven_days_ago = (datetime.now(UTC) - timedelta(days=7)).isoformat()
@@ -153,20 +157,24 @@ async def _get_earnings_history(db, user_id: str) -> list[dict]:
         return []
 
 
-async def _get_top_products(db, user_id: str) -> list:
+async def _get_top_products(db: "Database", user_id: str) -> list[dict[str, Any]]:
     """Get top purchased products by referrals."""
     try:
         top_products_result = await db.client.rpc(
             "get_partner_top_products",
             {"p_partner_id": str(user_id), "p_limit": 5},
         ).execute()
-        return top_products_result.data or []
+        data = top_products_result.data or []
+        # Ensure all items are dicts
+        return [item if isinstance(item, dict) else {} for item in data]
     except Exception as e:
         logger.warning("get_partner_top_products RPC not available: %s", type(e).__name__)
         return []
 
 
-def _build_dashboard_summary(db_user, referrals: list, analytics: dict) -> dict:
+def _build_dashboard_summary(
+    db_user: Any, referrals: list[dict[str, Any]], analytics: dict[str, Any]
+) -> dict[str, Any]:
     """Build summary section for partner dashboard."""
     total_referrals = len(referrals)
     paying_referrals = sum(1 for r in referrals if r.get("is_paying"))
@@ -225,7 +233,9 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
 
 
 @router.post("/partner/mode")
-async def set_partner_mode(request: PartnerModeRequest, user=Depends(verify_telegram_auth)):
+async def set_partner_mode(
+    request: PartnerModeRequest, user: Any = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Toggle partner mode between commission and discount."""
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
@@ -270,8 +280,8 @@ async def set_partner_mode(request: PartnerModeRequest, user=Depends(verify_tele
 @router.post("/partner/apply")
 async def submit_partner_application(
     request: PartnerApplicationRequest,
-    user=Depends(verify_telegram_auth),
-):
+    user: "TelegramUser" = Depends(verify_telegram_auth),
+) -> dict[str, Any]:
     """Submit application to become a VIP partner."""
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
@@ -349,7 +359,9 @@ async def submit_partner_application(
 
 
 @router.get("/partner/application-status")
-async def get_partner_application_status(user=Depends(verify_telegram_auth)):
+async def get_partner_application_status(
+    user: Any = Depends(verify_telegram_auth),
+) -> dict[str, Any]:
     """Get status of user's partner application."""
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)

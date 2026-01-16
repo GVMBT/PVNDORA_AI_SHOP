@@ -67,7 +67,7 @@ class Product(BaseModel):
     name: str
     description: str | None = None
     price: Decimal  # Price in RUB
-    prices: dict | None = None  # DEPRECATED: No longer used
+    prices: dict[str, Any] | None = None  # DEPRECATED: No longer used
     type: str  # student, trial, shared, key
     status: str = "active"
     warranty_hours: int = 24
@@ -159,7 +159,7 @@ class Order(BaseModel):
         mode="before",
     )
     @classmethod
-    def convert_amount_to_decimal(cls, v):
+    def convert_amount_to_decimal(cls, v: Any) -> Decimal | None:
         return _to_decimal(v) if v is not None else None
 
 

@@ -159,7 +159,7 @@ def get_system_prompt(
     )
 
 
-async def format_product_catalog(
+def format_product_catalog(
     products: list[dict[str, Any]],
     language: str = "en",
     _exchange_rate: float = 1.0,

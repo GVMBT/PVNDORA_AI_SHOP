@@ -116,7 +116,7 @@ class PaymentService:
         currency: str = "RUB",
         _user_id: int | None = None,  # Kept for API compatibility
         _is_telegram_miniapp: bool = True,  # Kept for API compatibility
-        **kwargs,
+        **kwargs: Any,
     ) -> dict[str, Any]:
         """Create payment and return payment URL.
 

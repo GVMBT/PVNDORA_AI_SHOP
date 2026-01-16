@@ -5,7 +5,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -29,7 +29,7 @@ ERROR_WITHDRAWAL_NOT_FOUND = "Withdrawal request not found"
 # =============================================================================
 
 
-def extract_withdrawal_amounts(withdrawal: dict) -> tuple[float, str, float]:
+def extract_withdrawal_amounts(withdrawal: dict[str, Any]) -> tuple[float, str, float]:
     """Extract withdrawal amounts and currency (reduces cognitive complexity)."""
     amount_debited = float(withdrawal.get("amount_debited") or withdrawal["amount"])
     balance_currency = withdrawal.get("balance_currency") or "RUB"
@@ -37,7 +37,7 @@ def extract_withdrawal_amounts(withdrawal: dict) -> tuple[float, str, float]:
     return amount_debited, balance_currency, amount_to_pay
 
 
-def validate_withdrawal_status(withdrawal: dict, allowed_statuses: list[str]) -> None:
+def validate_withdrawal_status(withdrawal: dict[str, Any], allowed_statuses: list[str]) -> None:
     """Validate withdrawal status (reduces cognitive complexity)."""
     if withdrawal["status"] not in allowed_statuses:
         raise HTTPException(
@@ -46,7 +46,7 @@ def validate_withdrawal_status(withdrawal: dict, allowed_statuses: list[str]) ->
         )
 
 
-def get_admin_id(admin) -> str:
+def get_admin_id(admin: Any) -> str:
     """Get admin ID from admin object (reduces cognitive complexity)."""
     admin_id = str(admin.id) if admin and admin.id else None
     if not admin_id:
@@ -75,8 +75,8 @@ async def get_withdrawals(
     ] = "pending",
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """Get withdrawal requests with optional status filter."""
     db = get_database()
 
@@ -117,7 +117,7 @@ async def get_withdrawals(
 
 
 @router.get("/{withdrawal_id}")
-async def get_withdrawal(withdrawal_id: str, admin=Depends(verify_admin)):
+async def get_withdrawal(withdrawal_id: str, admin: Any = Depends(verify_admin)) -> dict[str, Any]:
     """Get single withdrawal request by ID."""
     db = get_database()
 
@@ -155,8 +155,8 @@ async def get_withdrawal(withdrawal_id: str, admin=Depends(verify_admin)):
 async def approve_withdrawal(
     withdrawal_id: str,
     request: ProcessWithdrawalRequest,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """Approve a withdrawal request and deduct balance.
 
     Uses snapshot pricing: amount_debited is in user's balance currency,
@@ -338,8 +338,8 @@ async def approve_withdrawal(
 async def reject_withdrawal(
     withdrawal_id: str,
     request: ProcessWithdrawalRequest,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """Reject a withdrawal request.
 
     If status was 'processing' (balance already deducted), returns balance to user.
@@ -457,8 +457,8 @@ async def reject_withdrawal(
 async def complete_withdrawal(
     withdrawal_id: str,
     request: ProcessWithdrawalRequest,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """Mark withdrawal as completed (funds sent)."""
     db = get_database()
 

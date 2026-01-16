@@ -6,7 +6,7 @@ Embeddings via OpenRouter API (text-embedding-3-large).
 """
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -183,7 +183,7 @@ class ProductSearch:
         query: str,
         limit: int = 5,
         similarity_threshold: float = 0.3,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Search products by semantic similarity.
 
         Args:

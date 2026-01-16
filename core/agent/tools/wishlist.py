@@ -3,6 +3,8 @@
 Save products for later, join waitlists.
 """
 
+from typing import Any
+
 from langchain_core.tools import tool
 
 from core.logging import get_logger
@@ -13,7 +15,7 @@ logger = get_logger(__name__)
 
 
 @tool
-async def add_to_wishlist(product_id: str) -> dict:
+async def add_to_wishlist(product_id: str) -> dict[str, Any]:
     """Add product to user's wishlist (saved for later).
     Uses user_id from context.
 
@@ -39,7 +41,7 @@ async def add_to_wishlist(product_id: str) -> dict:
 
 
 @tool
-async def get_wishlist() -> dict:
+async def get_wishlist() -> dict[str, Any]:
     """Get user's wishlist.
     Uses user_id from context.
 
@@ -92,7 +94,7 @@ async def remove_from_wishlist(product_id: str) -> dict:
 
 
 @tool
-async def add_to_waitlist(product_name: str) -> dict:
+async def add_to_waitlist(product_name: str) -> dict[str, Any]:
     """Add user to waitlist for coming_soon product.
     User will be notified when product becomes available.
     Uses user_id from context.

@@ -2,7 +2,7 @@
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from aiogram import F, Router
 from aiogram.enums import ParseMode
@@ -12,6 +12,9 @@ from core.bot.discount.keyboards import get_issue_result_keyboard, get_issue_typ
 from core.logging import get_logger
 from core.services.database import User, get_database
 from core.services.domains import InsuranceService, PromoCodeService, PromoTriggers
+
+if TYPE_CHECKING:
+    from core.services.database import Database
 
 logger = get_logger(__name__)
 
@@ -56,7 +59,9 @@ def _get_replacement_pending_message(rep_id: str | None, is_ru: bool) -> str:
     )
 
 
-async def get_order_item_with_insurance(db, order_short_id: str) -> dict[str, Any] | None:
+async def get_order_item_with_insurance(
+    db: "Database", order_short_id: str
+) -> dict[str, Any] | None:
     """Get order item with insurance info."""
     try:
         # Get order
@@ -122,16 +127,17 @@ async def _generate_promo_for_issue(
     promo_service: PromoCodeService,
     user_id: str,
     telegram_id: int,
-    trigger: PromoTriggers,
+    trigger: str,
 ) -> str | None:
     """Generate or get existing promo code for issue trigger."""
-    existing_promo = await promo_service.get_promo_by_trigger(user_id, trigger)
+    trigger_str = trigger if isinstance(trigger, str) else str(trigger)
+    existing_promo = await promo_service.get_promo_by_trigger(user_id, trigger_str)
     if existing_promo:
         return existing_promo.code
     return await promo_service.generate_personal_promo(
         user_id=user_id,
         telegram_id=telegram_id,
-        trigger=trigger,
+        trigger=trigger_str,
         discount_percent=50,
     )
 
@@ -187,11 +193,11 @@ async def _handle_replacement_request(
 # Helper: Get promo code based on insurance status (reduces cognitive complexity)
 async def _get_promo_for_insurance_status(
     promo_service: PromoCodeService,
-    order_item: dict,
+    order_item: dict[str, Any],
     telegram_id: int,
     has_insurance: bool,
     can_replace: bool,
-    replacement_result: dict | None = None,
+    replacement_result: dict[str, Any] | None = None,
 ) -> str | None:
     """Get promo code based on insurance and replacement status."""
     if not has_insurance:
@@ -213,7 +219,7 @@ async def _get_promo_for_insurance_status(
                 promo_service,
                 order_item["user_id"],
                 telegram_id,
-                PromoTriggers.REPLACEMENT_LIMIT,
+                str(PromoTriggers.REPLACEMENT_LIMIT),
             )
 
         # Insurance expired
@@ -221,7 +227,7 @@ async def _get_promo_for_insurance_status(
             promo_service,
             order_item["user_id"],
             telegram_id,
-            PromoTriggers.INSURANCE_EXPIRED,
+            str(PromoTriggers.INSURANCE_EXPIRED),
         )
 
     return None

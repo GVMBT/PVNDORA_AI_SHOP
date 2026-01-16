@@ -4,6 +4,7 @@ QStash workers for payment-related operations (refund, cashback).
 """
 
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Request
 
@@ -11,6 +12,9 @@ from core.logging import get_logger
 from core.routers.deps import get_notification_service, verify_qstash
 from core.services.database import get_database
 from core.services.money import to_float
+
+if TYPE_CHECKING:
+    from core.services.currency import CurrencyService
 
 logger = get_logger(__name__)
 
@@ -24,7 +28,7 @@ ERROR_ORDER_NOT_FOUND = "Order not found"
 
 
 async def _calculate_cashback_base(
-    order_data: dict,
+    order_data: dict[str, Any],
     order_amount: float,
     balance_currency: str,
 ) -> float:
@@ -43,12 +47,12 @@ async def _calculate_cashback_base(
 
     redis = get_redis()
     currency_service = get_currency_service(redis)
-    rate = await currency_service.get_exchange_rate(balance_currency)
+    rate = currency_service.get_exchange_rate(balance_currency)
 
     return float(order_amount) * rate
 
 
-def _get_currency_service():
+def _get_currency_service() -> "CurrencyService":
     """Get currency service instance."""
     from core.db import get_redis
     from core.services.currency import get_currency_service
@@ -65,7 +69,9 @@ def _round_for_currency(amount: float, currency: str) -> float:
     return round(amount, 2)
 
 
-async def _get_refund_amount(order_data: dict, amount_usd: float, balance_currency: str) -> float:
+async def _get_refund_amount(
+    order_data: dict[str, Any], amount_usd: float, balance_currency: str
+) -> float:
     """Calculate refund amount in user's balance currency."""
     # Use fiat_amount if available and matches balance currency
     if order_data.get("fiat_amount") and order_data.get("fiat_currency") == balance_currency:
@@ -76,11 +82,11 @@ async def _get_refund_amount(order_data: dict, amount_usd: float, balance_curren
 
     # Convert USD to balance currency
     currency_service = _get_currency_service()
-    rate = await currency_service.get_exchange_rate(balance_currency)
+    rate = currency_service.get_exchange_rate(balance_currency)
     return round(amount_usd * rate)
 
 
-async def _update_order_expenses(db, order_id: str, cashback_usd: float) -> None:
+async def _update_order_expenses(db: Any, order_id: str, cashback_usd: float) -> None:
     """Update order_expenses with review cashback amount."""
     current_expenses = (
         await db.client.table("order_expenses")
@@ -127,11 +133,11 @@ async def _convert_to_usd(amount: float, currency: str) -> float:
     if currency == "USD":
         return float(amount)
     currency_service = _get_currency_service()
-    rate = await currency_service.get_exchange_rate(currency)
+    rate = currency_service.get_exchange_rate(currency)
     return float(amount / rate) if rate > 0 else float(amount)
 
 
-async def _get_user_from_order(db, order_id: str):
+async def _get_user_from_order(db: Any, order_id: str) -> tuple[Any | None, dict[str, Any] | None]:
     """Get user from order for cashback processing."""
     order_result = (
         await db.client.table("orders")
@@ -156,7 +162,9 @@ async def _get_user_from_order(db, order_id: str):
     return type("User", (), user_result.data)(), order_result.data
 
 
-async def _get_user_and_order_for_cashback(db, order_id: str, user_telegram_id: int | None):
+async def _get_user_and_order_for_cashback(
+    db: Any, order_id: str, user_telegram_id: int | None
+) -> tuple[Any | None, dict[str, Any] | None]:
     """Get user and order data for cashback processing."""
     if user_telegram_id:
         db_user = await db.get_user_by_telegram_id(user_telegram_id)
@@ -175,8 +183,8 @@ async def _get_user_and_order_for_cashback(db, order_id: str, user_telegram_id: 
 
 
 async def _process_cashback_update(
-    db,
-    db_user,
+    db: Any,
+    db_user: Any,
     order_id: str,
     cashback_amount: float,
     balance_currency: str,
@@ -205,7 +213,7 @@ async def _process_cashback_update(
 
 
 async def _send_cashback_notification_safe(
-    db_user,
+    db_user: Any,
     cashback_amount: float,
     new_balance: float,
     balance_currency: str,
@@ -233,7 +241,7 @@ payments_router = APIRouter()
 
 
 @payments_router.post("/process-refund")
-async def worker_process_refund(request: Request):
+async def worker_process_refund(request: Request) -> dict[str, Any]:
     """QStash Worker: Process refund for prepaid orders."""
     data = await verify_qstash(request)
     order_id = data.get("order_id")
@@ -361,7 +369,7 @@ async def worker_process_refund(request: Request):
 
 
 @payments_router.post("/process-review-cashback")
-async def worker_process_review_cashback(request: Request):
+async def worker_process_review_cashback(request: Request) -> dict[str, Any]:
     """QStash Worker: Process 5% cashback for review."""
     data = await verify_qstash(request)
 
@@ -421,7 +429,8 @@ async def worker_process_review_cashback(request: Request):
 
     # Calculate cashback in user's balance_currency
     balance_currency = getattr(db_user, "balance_currency", "RUB") or "RUB"
-    cashback_base = await _calculate_cashback_base(order_data, order_amount, balance_currency)
+    order_amount_float = float(order_amount) if order_amount is not None else 0.0
+    cashback_base = await _calculate_cashback_base(order_data, order_amount_float, balance_currency)
     cashback_amount = _round_for_currency(cashback_base * 0.05, balance_currency)
 
     # Update user balance and create transaction

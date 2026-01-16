@@ -5,6 +5,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -26,7 +27,7 @@ router = APIRouter(tags=["admin-referral"])
 # =============================================================================
 
 
-def _update_thresholds(update_data: dict, request: ReferralSettingsRequest) -> None:
+def _update_thresholds(update_data: dict[str, Any], request: ReferralSettingsRequest) -> None:
     """Update threshold values if provided in request."""
     if request.level2_threshold_usd is not None:
         update_data["level2_threshold_usd"] = request.level2_threshold_usd
@@ -34,7 +35,7 @@ def _update_thresholds(update_data: dict, request: ReferralSettingsRequest) -> N
         update_data["level3_threshold_usd"] = request.level3_threshold_usd
 
 
-def _update_commissions(update_data: dict, request: ReferralSettingsRequest) -> None:
+def _update_commissions(update_data: dict[str, Any], request: ReferralSettingsRequest) -> None:
     """Update commission values if provided in request."""
     if request.level1_commission_percent is not None:
         update_data["level1_commission_percent"] = request.level1_commission_percent
@@ -44,7 +45,9 @@ def _update_commissions(update_data: dict, request: ReferralSettingsRequest) -> 
         update_data["level3_commission_percent"] = request.level3_commission_percent
 
 
-def _update_anchor_thresholds(update_data: dict, request: ReferralSettingsRequest) -> None:
+def _update_anchor_thresholds(
+    update_data: dict[str, Any], request: ReferralSettingsRequest
+) -> None:
     """Update anchor thresholds (currency-specific) if provided in request."""
     if request.thresholds_by_currency is not None:
         update_data["thresholds_by_currency"] = request.thresholds_by_currency
@@ -54,7 +57,7 @@ def _update_anchor_thresholds(update_data: dict, request: ReferralSettingsReques
 
 
 @router.get("/referral/settings")
-async def admin_get_referral_settings(admin=Depends(verify_admin)):
+async def admin_get_referral_settings(admin: Any = Depends(verify_admin)) -> dict[str, Any]:
     """Get current referral program settings."""
     db = get_database()
 
@@ -92,8 +95,8 @@ async def admin_get_referral_settings(admin=Depends(verify_admin)):
 @router.put("/referral/settings")
 async def admin_update_referral_settings(
     request: ReferralSettingsRequest,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """Update referral program settings (thresholds and commissions)."""
     db = get_database()
 
@@ -117,7 +120,7 @@ async def admin_update_referral_settings(
 
 
 @router.get("/metrics/referral")
-async def admin_get_referral_metrics(admin=Depends(verify_admin)):
+async def admin_get_referral_metrics(admin: Any = Depends(verify_admin)) -> dict[str, Any]:
     """Get detailed referral program metrics."""
     db = get_database()
 
@@ -146,7 +149,7 @@ async def admin_get_referral_metrics(admin=Depends(verify_admin)):
 
 
 @router.get("/referral/dashboard")
-async def admin_get_referral_dashboard(admin=Depends(verify_admin)):
+async def admin_get_referral_dashboard(admin: Any = Depends(verify_admin)) -> dict[str, Any]:
     """ROI Dashboard - key metrics for referral channel effectiveness."""
     db = get_database()
 
@@ -195,8 +198,8 @@ async def admin_get_partners_crm(
     limit: int = 50,
     offset: int = 0,
     partner_type: str = "all",
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """CRM table with full partner analytics."""
     db = get_database()
 
@@ -276,7 +279,7 @@ async def admin_get_partners_crm(
 
 
 @router.get("/referral-metrics")
-async def admin_get_referral_metrics_detailed(admin=Depends(verify_admin)):
+async def admin_get_referral_metrics_detailed(admin: Any = Depends(verify_admin)) -> dict[str, Any]:
     """Get comprehensive referral program metrics (detailed version)."""
     db = get_database()
 
@@ -331,7 +334,7 @@ async def admin_get_referral_metrics_detailed(admin=Depends(verify_admin)):
 
 
 @router.get("/partners")
-async def admin_get_partners(admin=Depends(verify_admin)):
+async def admin_get_partners(admin: Any = Depends(verify_admin)) -> dict[str, Any]:
     """Get all partners (VIP referrers)."""
     db = get_database()
 
@@ -378,7 +381,9 @@ async def admin_get_partners(admin=Depends(verify_admin)):
 
 
 @router.post("/partners/set")
-async def admin_set_partner(request: SetPartnerRequest, admin=Depends(verify_admin)):
+async def admin_set_partner(
+    request: SetPartnerRequest, admin: Any = Depends(verify_admin)
+) -> dict[str, Any]:
     """Set user as partner and optionally force-unlock referral levels."""
     db = get_database()
 
@@ -432,7 +437,9 @@ async def admin_set_partner(request: SetPartnerRequest, admin=Depends(verify_adm
 
 
 @router.get("/partner-applications")
-async def admin_get_partner_applications(status: str = "pending", admin=Depends(verify_admin)):
+async def admin_get_partner_applications(
+    status: str = "pending", admin: Any = Depends(verify_admin)
+) -> dict[str, Any]:
     """Get partner applications with filtering."""
     db = get_database()
 
@@ -447,7 +454,9 @@ async def admin_get_partner_applications(status: str = "pending", admin=Depends(
 
 
 @router.post("/partner-applications/review")
-async def admin_review_application(request: ReviewApplicationRequest, admin=Depends(verify_admin)):
+async def admin_review_application(
+    request: ReviewApplicationRequest, admin: Any = Depends(verify_admin)
+) -> dict[str, Any]:
     """Review (approve/reject) a partner application."""
     db = get_database()
 

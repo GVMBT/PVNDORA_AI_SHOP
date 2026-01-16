@@ -1,6 +1,7 @@
 """Text and voice message handlers - AI conversation entry points."""
 
 import contextlib
+from typing import Any
 
 from aiogram import Bot, F, Router
 from aiogram.enums import ParseMode
@@ -18,9 +19,9 @@ router = Router()
 
 
 async def _get_product_keyboard_for_response(
-    response,
+    response: Any,
     db_user: User,
-    db,
+    db: Any,
 ) -> InlineKeyboardMarkup | None:
     """Get product keyboard for response (reduces cognitive complexity)."""
     if not response.product_id:
@@ -40,9 +41,9 @@ async def _get_product_keyboard_for_response(
 
 
 async def _get_keyboard_for_payment_action(
-    response,
+    response: Any,
     db_user: User,
-    db,
+    db: Any,
 ) -> InlineKeyboardMarkup | None:
     """Get keyboard for payment action (reduces cognitive complexity)."""
     product_keyboard = await _get_product_keyboard_for_response(response, db_user, db)
@@ -114,7 +115,7 @@ def _create_mock_response(reply_text: str, action_str: str, product_id: str | No
             self.reply_text = text
             self.product_id = product_id
             self.quantity = 1
-            self.cart_items = []
+            self.cart_items: list[Any] = []
             action_map = {
                 "add_to_cart": ActionType.ADD_TO_CART,
                 "offer_payment": ActionType.OFFER_PAYMENT,
@@ -127,7 +128,9 @@ def _create_mock_response(reply_text: str, action_str: str, product_id: str | No
 
 
 # Helper to send final response (reduces cognitive complexity)
-async def _send_final_response(progress_msg, message, reply_text, keyboard) -> None:
+async def _send_final_response(
+    progress_msg: Any, message: Message, reply_text: str, keyboard: InlineKeyboardMarkup | None
+) -> None:
     """Send final response, handling edit/delete fallback."""
     try:
         await progress_msg.edit_text(reply_text, reply_markup=keyboard, parse_mode=ParseMode.HTML)

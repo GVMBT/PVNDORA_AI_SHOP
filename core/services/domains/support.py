@@ -51,7 +51,7 @@ class SupportTicket:
 # =============================================================================
 
 
-async def _check_existing_replacement(db, item_id: str) -> dict | None:
+async def _check_existing_replacement(db: Any, item_id: str) -> dict[str, Any] | None:
     """Check if item already has an open/approved replacement ticket."""
     existing = (
         await db.client.table("tickets")
@@ -66,7 +66,7 @@ async def _check_existing_replacement(db, item_id: str) -> dict | None:
     return existing.data[0] if existing.data else None
 
 
-async def _check_daily_replacement_limit(db, user_id: str) -> int:
+async def _check_daily_replacement_limit(db: Any, user_id: str) -> int:
     """Check number of replacement tickets created today."""
     today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -81,7 +81,7 @@ async def _check_daily_replacement_limit(db, user_id: str) -> int:
     return today_count.count or 0
 
 
-async def _check_replacement_cooldown(db, user_id: str) -> float | None:
+async def _check_replacement_cooldown(db: Any, user_id: str) -> float | None:
     """Check hours since last replacement request. Returns None if no previous requests."""
     last_replacement = (
         await db.client.table("tickets")
@@ -136,11 +136,11 @@ async def _check_monthly_replacement_limit(db, user_id: str, order_id: str | Non
 
 
 async def _validate_replacement_request(
-    db,
+    db: Any,
     user_id: str,
     item_id: str,
     order_id: str | None,
-) -> dict | None:
+) -> dict[str, Any] | None:
     """Validate replacement request against anti-abuse rules. Returns error dict or None if valid."""
     # Check 1: Existing replacement for this item
     if await _check_existing_replacement(db, item_id):
@@ -175,7 +175,7 @@ async def _validate_replacement_request(
 
 
 async def _send_ticket_admin_alert(
-    db,
+    db: Any,
     ticket_id: str,
     user_id: str,
     issue_type: str | None,
@@ -211,7 +211,7 @@ async def _send_ticket_admin_alert(
         )
 
 
-def _validate_refund_status(order) -> dict | None:
+def _validate_refund_status(order: Any) -> dict[str, Any] | None:
     """Validate order status for refund. Returns error dict or None if valid."""
     if order.refund_requested:
         return {"success": False, "reason": "Refund already requested"}
@@ -233,7 +233,7 @@ def _validate_refund_status(order) -> dict | None:
 class SupportService:
     """Support domain service."""
 
-    def __init__(self, db) -> None:
+    def __init__(self, db: Any) -> None:
         self.db = db
 
     async def create_ticket(

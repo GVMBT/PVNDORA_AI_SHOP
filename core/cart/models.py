@@ -39,7 +39,7 @@ class CartItem:
         """Total price for all units."""
         return round_money(multiply(self.final_price, self.quantity))
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "product_id": self.product_id,

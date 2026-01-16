@@ -7,6 +7,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 import asyncio
 import os
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -78,7 +79,7 @@ async def _check_existing_promo(
     return existing is not None
 
 
-async def _get_user_orders(client, user_id: str) -> list:
+async def _get_user_orders(client: Any, user_id: str) -> list[dict[str, Any]]:
     """Get user's delivered discount orders sorted by date."""
     orders_result = (
         await client.table("orders")
@@ -378,7 +379,7 @@ class OffersService:
             promo_code=promo_code,
         )
 
-    async def process_all_offers(self) -> dict:
+    async def process_all_offers(self) -> dict[str, Any]:
         """Process all offer types and return results."""
         results = {"loyal": {"sent": 0, "failed": 0}, "inactive": {"sent": 0, "failed": 0}}
 

@@ -3,6 +3,8 @@
 Notifications for payment-related events (cashback, refund, topup).
 """
 
+from typing import Any
+
 from core.i18n import get_text
 from core.logging import get_logger
 from core.services.database import get_database
@@ -15,7 +17,9 @@ logger = get_logger(__name__)
 class PaymentNotificationsMixin(NotificationServiceBase):
     """Mixin for payment-related notifications."""
 
-    async def _refund_to_balance(self, order, user: dict, language: str, reason: str) -> None:
+    async def _refund_to_balance(
+        self, order: Any, user: dict[str, Any], language: str, reason: str
+    ) -> None:
         """Refund order amount to user balance."""
         db = get_database()
 

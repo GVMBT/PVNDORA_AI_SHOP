@@ -31,7 +31,7 @@ class StockRepository(BaseRepository):
         """Get count of available stock items."""
         result = (
             await self.client.table("stock_items")
-            .select("id", count="exact")  # type: ignore[arg-type]
+            .select("id", count="exact")
             .eq("product_id", product_id)
             .eq("status", "available")
             .execute()

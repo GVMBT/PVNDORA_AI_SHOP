@@ -255,7 +255,7 @@ async def get_webapp_product(
     currency: Annotated[
         str | None, Query(description="User preferred currency (USD, RUB, EUR, etc.)")
     ] = None,
-):
+) -> dict[str, Any]:
     """Get product with discount and social proof for Mini App.
 
     Uses products_with_stock_summary VIEW for aggregated data.
@@ -322,7 +322,7 @@ async def get_webapp_products(
     currency: Annotated[
         str | None, Query(description="User preferred currency (USD, RUB, EUR, etc.)")
     ] = None,
-):
+) -> dict[str, Any]:
     """Get all active products for Mini App catalog.
 
     Uses products_with_stock_summary VIEW to eliminate N+1 queries.

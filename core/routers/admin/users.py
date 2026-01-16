@@ -4,7 +4,7 @@ Extended user analytics and management.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel as PydanticBaseModel
@@ -38,7 +38,7 @@ def _sanitize_search_input(search: str) -> str | None:
     return sanitized if sanitized else None
 
 
-def _apply_search_filter(query, search: str | None):
+def _apply_search_filter(query: Any, search: str | None) -> Any:
     """Apply search filter to query (reduces cognitive complexity)."""
     if not search:
         return query
@@ -62,7 +62,7 @@ def _apply_search_filter(query, search: str | None):
         )
 
 
-def _apply_filters(query, filter_banned: bool | None, filter_partner: bool | None):
+def _apply_filters(query: Any, filter_banned: bool | None, filter_partner: bool | None) -> Any:
     """Apply boolean filters to query (reduces cognitive complexity)."""
     if filter_banned is not None:
         query = query.eq("is_banned", filter_banned)
@@ -93,7 +93,7 @@ def _validate_sort_by(sort_by: str) -> str:
     return sort_by if sort_by in valid_sorts else "total_orders"
 
 
-def _format_user_crm_data(u: dict) -> dict:
+def _format_user_crm_data(u: dict[str, Any]) -> dict[str, Any]:
     """Format user data for CRM response (reduces cognitive complexity)."""
     return {
         "user_id": u.get("user_id"),
@@ -146,9 +146,9 @@ def _format_user_crm_data(u: dict) -> dict:
 
 
 def _prepare_partner_grant_data(
-    update_data: dict,
+    update_data: dict[str, Any],
     partner_level_override: int | None,
-    now,
+    now: Any,
 ) -> int | None:
     """Prepare update data for granting VIP partner status."""
     update_data["partner_granted_at"] = now.isoformat()
@@ -168,7 +168,7 @@ def _prepare_partner_grant_data(
     return final_level_override
 
 
-def _prepare_partner_revoke_data(update_data: dict) -> None:
+def _prepare_partner_revoke_data(update_data: dict[str, Any]) -> None:
     """Prepare update data for revoking VIP partner status."""
     update_data["partner_granted_at"] = None
     update_data["partner_level_override"] = None
@@ -203,7 +203,9 @@ router = APIRouter(tags=["admin-users"])
 
 
 @router.get("/users")
-async def admin_get_users(limit: int = 50, offset: int = 0, admin=Depends(verify_admin)):
+async def admin_get_users(
+    limit: int = 50, offset: int = 0, admin: Any = Depends(verify_admin)
+) -> dict[str, Any]:
     """Get users for admin panel - uses users_extended_analytics VIEW to avoid N+1 queries."""
     db = get_database()
 
@@ -280,8 +282,8 @@ async def admin_get_users_crm(
     ] = None,
     filter_banned: Annotated[bool | None, Query(description="Filter by banned status")] = None,
     filter_partner: Annotated[bool | None, Query(description="Filter by partner status")] = None,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """Get all users with extended analytics (orders, refunds, tickets, etc.)."""
     db = get_database()
 
@@ -321,7 +323,9 @@ async def admin_get_users_crm(
 
 
 @router.post("/users/{user_id}/ban")
-async def admin_ban_user(user_id: str, ban: bool = True, admin=Depends(verify_admin)):
+async def admin_ban_user(
+    user_id: str, ban: bool = True, admin: Any = Depends(verify_admin)
+) -> dict[str, Any]:
     """Ban or unban a user."""
     db = get_database()
 
@@ -345,8 +349,8 @@ async def admin_ban_user(user_id: str, ban: bool = True, admin=Depends(verify_ad
 async def admin_update_user_balance(
     user_id: str,
     request: UpdateBalanceRequest,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """Update user balance (add or subtract).
 
     IMPORTANT: Amount is in user's balance_currency (not USD).
@@ -430,8 +434,8 @@ async def admin_update_user_balance(
 async def admin_update_warnings(
     user_id: str,
     request: UpdateWarningsRequest,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """Update user warnings count."""
     db = get_database()
 
@@ -455,7 +459,9 @@ async def admin_update_warnings(
 
 
 @router.post("/users/{user_id}/vip")
-async def admin_toggle_vip(user_id: str, request: ToggleVIPRequest, admin=Depends(verify_admin)):
+async def admin_toggle_vip(
+    user_id: str, request: ToggleVIPRequest, admin: Any = Depends(verify_admin)
+) -> dict[str, Any]:
     """Grant or revoke VIP partner status.
 
     Args:

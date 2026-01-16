@@ -3,10 +3,15 @@
 User support ticket management.
 """
 
+from typing import TYPE_CHECKING, Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from core.auth import verify_telegram_auth
+
+if TYPE_CHECKING:
+    from core.utils.validators import TelegramUser
 from core.services.database import get_database
 
 from .constants import MAX_TICKETS_PER_USER, MIN_TICKET_MESSAGE_LENGTH
@@ -31,7 +36,7 @@ class TicketMessageRequest(BaseModel):
 
 
 @support_router.get("/support/tickets")
-async def get_user_tickets(user=Depends(verify_telegram_auth)):
+async def get_user_tickets(user: Any = Depends(verify_telegram_auth)) -> dict[str, Any]:
     """Get current user's support tickets."""
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
@@ -66,7 +71,9 @@ async def get_user_tickets(user=Depends(verify_telegram_auth)):
 
 
 @support_router.post("/support/tickets")
-async def create_user_ticket(request: CreateTicketRequest, user=Depends(verify_telegram_auth)):
+async def create_user_ticket(
+    request: CreateTicketRequest, user: "TelegramUser" = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Create a new support ticket."""
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
@@ -126,7 +133,9 @@ async def create_user_ticket(request: CreateTicketRequest, user=Depends(verify_t
 
 
 @support_router.get("/support/tickets/{ticket_id}")
-async def get_user_ticket(ticket_id: str, user=Depends(verify_telegram_auth)):
+async def get_user_ticket(
+    ticket_id: str, user: Any = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Get specific ticket details."""
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)

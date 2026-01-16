@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 
 @tool
-async def get_user_orders(limit: int = 5) -> dict:
+async def get_user_orders(limit: int = 5) -> dict[str, Any]:
     """Get user's order history.
     Use when user asks about their orders.
     Uses user_id from context.
@@ -74,7 +74,7 @@ async def get_user_orders(limit: int = 5) -> dict:
 
 
 @tool
-async def get_order_credentials(order_id_prefix: str) -> dict:
+async def get_order_credentials(order_id_prefix: str) -> dict[str, Any]:
     """Get credentials/login data for a delivered order.
     Use when user asks for login/password from their order.
     Uses user_id from context.
@@ -140,7 +140,7 @@ async def get_order_credentials(order_id_prefix: str) -> dict:
 
 
 @tool
-async def resend_order_credentials(order_id_prefix: str) -> dict:
+async def resend_order_credentials(order_id_prefix: str) -> dict[str, Any]:
     """Resend order credentials to user via Telegram.
     Use when user asks to resend/forward their login/password.
     Uses user_id and telegram_id from context.

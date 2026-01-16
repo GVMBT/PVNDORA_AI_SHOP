@@ -6,6 +6,7 @@ Replaces 8+ duplicate implementations with unified retry logic, error handling, 
 
 import asyncio
 import os
+from typing import Any
 
 import httpx
 
@@ -41,7 +42,7 @@ def _calculate_backoff_delay(attempt: int) -> float:
 async def _make_telegram_request(
     client: httpx.AsyncClient,
     url: str,
-    payload: dict,
+    payload: dict[str, Any],
 ) -> tuple[bool, int, str]:
     """Make HTTP request to Telegram API. Returns (success, status_code, error_text)."""
     response = await client.post(url, json=payload)
@@ -53,7 +54,7 @@ async def _make_telegram_request(
     return False, response.status_code, error_text
 
 
-def _try_model_dump(keyboard) -> dict | None:
+def _try_model_dump(keyboard: Any) -> dict[str, Any] | None:
     """Try to convert keyboard using model_dump (aiogram 3.x)."""
     try:
         result = keyboard.model_dump(exclude_none=True)
@@ -63,7 +64,7 @@ def _try_model_dump(keyboard) -> dict | None:
         return None
 
 
-def _try_dict_method(keyboard) -> dict | None:
+def _try_dict_method(keyboard: Any) -> dict[str, Any] | None:
     """Try to convert keyboard using dict method (aiogram 2.x)."""
     try:
         result = keyboard.dict(exclude_none=True)
@@ -105,7 +106,7 @@ def _truncate_message(text: str, max_length: int = 4096) -> str:
 
 async def _send_with_retry(
     url: str,
-    payload: dict,
+    payload: dict[str, Any],
     retries: int,
     request_timeout: float,
     chat_id: int,
@@ -218,7 +219,7 @@ async def send_telegram_message(
 async def send_telegram_message_with_keyboard(
     chat_id: int,
     text: str,
-    keyboard,
+    keyboard: Any,
     parse_mode: str | None = "HTML",
     bot_token: str | None = None,
     retries: int = 2,

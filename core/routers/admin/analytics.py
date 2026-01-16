@@ -5,6 +5,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Depends
 
@@ -27,16 +28,16 @@ def _calculate_date_ranges(days: int) -> tuple[datetime, datetime, datetime, dat
 
 # Helper to calculate totals from results (reduces cognitive complexity)
 def _calculate_totals(
-    revenue_result,
-    orders_today_result,
-    orders_week_result,
-    orders_month_result,
-    total_users_result,
-    pending_orders_result,
-    open_tickets_result,
-    user_balances_result,
-    pending_withdrawals_result,
-) -> dict:
+    revenue_result: Any,
+    orders_today_result: Any,
+    orders_week_result: Any,
+    orders_month_result: Any,
+    total_users_result: Any,
+    pending_orders_result: Any,
+    open_tickets_result: Any,
+    user_balances_result: Any,
+    pending_withdrawals_result: Any,
+) -> dict[str, Any]:
     """Calculate totals from query results."""
     return {
         "total_revenue": sum(float(o.get("amount", 0)) for o in (revenue_result.data or [])),
@@ -56,7 +57,7 @@ def _calculate_totals(
 
 
 @router.get("/analytics")
-async def admin_get_analytics(days: int = 7, admin=Depends(verify_admin)):
+async def admin_get_analytics(days: int = 7, admin: Any = Depends(verify_admin)) -> dict[str, Any]:
     """Get comprehensive sales analytics with real data from database."""
     db = get_database()
 
@@ -199,7 +200,9 @@ async def admin_get_analytics(days: int = 7, admin=Depends(verify_admin)):
 
 
 @router.get("/metrics/business")
-async def admin_get_business_metrics(days: int = 30, admin=Depends(verify_admin)):
+async def admin_get_business_metrics(
+    days: int = 30, admin: Any = Depends(verify_admin)
+) -> dict[str, Any]:
     """Get comprehensive business metrics from views."""
     db = get_database()
 
@@ -248,7 +251,7 @@ async def admin_get_business_metrics(days: int = 30, admin=Depends(verify_admin)
 
 
 # Helper to aggregate promo stats (reduces cognitive complexity)
-def _aggregate_promo_stats(promo_stats_data: list) -> dict:
+def _aggregate_promo_stats(promo_stats_data: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
     """Aggregate promo code stats by trigger."""
     promo_by_trigger = {}
     for p in promo_stats_data:
@@ -261,7 +264,7 @@ def _aggregate_promo_stats(promo_stats_data: list) -> dict:
 
 
 # Helper to get top abusers (reduces cognitive complexity)
-async def _get_top_abusers(db, limit: int = 20, threshold: int = 30) -> list[dict]:
+async def _get_top_abusers(db: Any, limit: int = 20, threshold: int = 30) -> list[dict[str, Any]]:
     """Get top abusers with abuse scores above threshold."""
     discount_users = (
         await db.client.table("users")
@@ -284,7 +287,7 @@ async def _get_top_abusers(db, limit: int = 20, threshold: int = 30) -> list[dic
 
 
 # Helper to calculate discount totals (reduces cognitive complexity)
-def _calculate_discount_totals(discount_orders_data: list) -> tuple[float, int]:
+def _calculate_discount_totals(discount_orders_data: list[dict[str, Any]]) -> tuple[float, int]:
     """Calculate total discount revenue and order count."""
     total_discount_revenue = sum(
         o.get("amount", 0) for o in discount_orders_data if o.get("status") == "delivered"
@@ -294,7 +297,9 @@ def _calculate_discount_totals(discount_orders_data: list) -> tuple[float, int]:
 
 
 @router.get("/analytics/discount")
-async def admin_get_discount_analytics(days: int = 30, admin=Depends(verify_admin)):
+async def admin_get_discount_analytics(
+    days: int = 30, admin: Any = Depends(verify_admin)
+) -> dict[str, Any]:
     """Get discount channel analytics and migration funnel metrics."""
     db = get_database()
 

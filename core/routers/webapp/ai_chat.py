@@ -4,7 +4,7 @@ AI-powered chat endpoint using LangGraph ShopAgent (Gemini 2.5).
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -28,7 +28,7 @@ router = APIRouter(prefix="/ai", tags=["webapp-ai"])
 _shop_agent: "ShopAgent | None" = None
 
 
-def get_agent():
+def get_agent() -> "ShopAgent":
     """Get or create ShopAgent singleton."""
     global _shop_agent
     if _shop_agent is None:
@@ -76,7 +76,9 @@ class ChatHistoryResponse(BaseModel):
 
 
 @router.post("/chat", response_model=ChatMessageResponse)
-async def send_chat_message(request: ChatMessageRequest, user=Depends(verify_telegram_auth)):
+async def send_chat_message(
+    request: ChatMessageRequest, user: Any = Depends(verify_telegram_auth)
+) -> ChatMessageResponse:
     """Send message to AI consultant and get response.
 
     The AI can:
@@ -144,8 +146,8 @@ async def send_chat_message(request: ChatMessageRequest, user=Depends(verify_tel
 @router.get("/history", response_model=ChatHistoryResponse)
 async def get_chat_history(
     limit: Annotated[int, Query(ge=1, le=100, description="Number of messages to return")] = 20,
-    user=Depends(verify_telegram_auth),
-):
+    user: Any = Depends(verify_telegram_auth),
+) -> ChatHistoryResponse:
     """Get user's chat history with AI."""
     db = get_database()
 
@@ -168,7 +170,7 @@ async def get_chat_history(
 
 
 @router.delete("/history")
-async def clear_chat_history(user=Depends(verify_telegram_auth)):
+async def clear_chat_history(user: Any = Depends(verify_telegram_auth)) -> dict[str, Any]:
     """Clear user's chat history (start fresh conversation)."""
     db = get_database()
 

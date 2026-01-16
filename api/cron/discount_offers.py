@@ -20,6 +20,7 @@ if str(_base_path) not in sys.path:
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.responses import Response
 
 # Verify cron secret
 CRON_SECRET = os.environ.get("CRON_SECRET", "")
@@ -29,7 +30,7 @@ app = FastAPI()
 
 
 @app.get("/api/cron/discount_offers")
-async def discount_offers_entrypoint(request: Request) -> dict[str, str | int]:
+async def discount_offers_entrypoint(request: Request) -> Response:
     """Vercel Cron entrypoint for discount offers."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":

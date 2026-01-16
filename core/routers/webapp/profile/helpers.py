@@ -5,6 +5,7 @@ Shared utility functions for profile endpoints.
 
 import contextlib
 import os
+from typing import Any
 
 import httpx
 
@@ -59,7 +60,7 @@ async def _fetch_telegram_photo_url(telegram_id: int) -> str | None:
         return None
 
 
-async def _maybe_refresh_photo(db, db_user, telegram_id: int) -> None:
+async def _maybe_refresh_photo(db: Any, db_user: Any, telegram_id: int) -> None:
     """Refresh user photo if:
       - No photo_url stored, or
       - TTL expired (redis gate)
@@ -105,10 +106,10 @@ async def _maybe_refresh_photo(db, db_user, telegram_id: int) -> None:
 
 def _get_anchor_thresholds_for_display(
     _display_currency: str,
-    _settings: dict,
+    _settings: dict[str, Any],
     threshold2: float,
     threshold3: float,
-) -> dict:
+) -> dict[str, float]:
     """Get thresholds for display (all in RUB now).
 
     NOTE: After RUB-only migration, thresholds are stored in RUB.
@@ -125,8 +126,8 @@ def _build_default_referral_program(
     comm2: float,
     comm3: float,
     _display_currency: str = "RUB",
-    _settings: dict | None = None,
-) -> dict:
+    _settings: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Build default referral program data.
 
     NOTE: After RUB-only migration, all monetary values are in RUB.
@@ -208,7 +209,7 @@ def _calculate_amounts_to_levels(
     return amount_to_level2, amount_to_level3, next_threshold, amount_to_next
 
 
-def _build_referral_stats(s: dict) -> dict:
+def _build_referral_stats(s: dict[str, Any]) -> dict[str, Any]:
     """Build referral stats from extended stats."""
     click_count = s.get("click_count", 0) or 0
     total_referrals = s.get("level1_count", 0) or 0
@@ -231,7 +232,7 @@ def _calculate_next_threshold_display(
     next_threshold: float | None,
     threshold2: float,
     threshold3: float,
-    thresholds_display: dict,
+    thresholds_display: dict[str, float],
 ) -> float | None:
     """Calculate next threshold in display currency."""
     if not next_threshold:
@@ -244,15 +245,15 @@ def _calculate_next_threshold_display(
 
 
 def _build_referral_data(
-    s: dict,
+    s: dict[str, Any],
     threshold2: float,
     threshold3: float,
     comm1: float,
     comm2: float,
     comm3: float,
     _display_currency: str = "RUB",
-    _settings: dict | None = None,
-) -> tuple:
+    _settings: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
     """Build referral stats and program data from extended stats.
 
     NOTE: After RUB-only migration, all monetary values are in RUB.

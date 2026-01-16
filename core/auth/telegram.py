@@ -2,10 +2,14 @@
 
 import logging
 import os
+from typing import TYPE_CHECKING, Any
 
 from fastapi import Depends, Header, HTTPException
 
 from core.services.database import get_database
+
+if TYPE_CHECKING:
+    from upstash_redis.asyncio import Redis as AsyncRedis
 from core.utils.validators import (
     TelegramUser,
     extract_user_from_init_data,
@@ -13,6 +17,8 @@ from core.utils.validators import (
 )
 
 from .session import verify_web_session_token
+
+__all__ = ["TelegramUser", "verify_telegram_auth", "verify_admin"]
 
 logger = logging.getLogger(__name__)
 
@@ -163,7 +169,7 @@ async def verify_telegram_auth(
 
 
 # Helper to get Redis client (reduces cognitive complexity)
-def _get_redis_client():
+def _get_redis_client() -> "AsyncRedis | None":
     """Get Redis client, return None if unavailable."""
     try:
         from core.db import get_redis
@@ -174,7 +180,7 @@ def _get_redis_client():
 
 
 # Helper to check cache (reduces cognitive complexity)
-async def _check_admin_cache(redis, cache_key: str, user_id: int):
+async def _check_admin_cache(redis: "AsyncRedis", cache_key: str, user_id: int) -> Any | None:
     """Check Redis cache for admin status, return cached result or None."""
     try:
         cached = await redis.get(cache_key)
@@ -197,7 +203,7 @@ async def _check_admin_cache(redis, cache_key: str, user_id: int):
 
 # Helper to cache admin result (reduces cognitive complexity)
 async def _cache_admin_result(
-    redis, cache_key: str, is_admin: bool, admin_id: str | None = None
+    redis: "AsyncRedis | None", cache_key: str, is_admin: bool, admin_id: str | None = None
 ) -> None:
     """Cache admin verification result."""
     if not redis:
@@ -209,7 +215,7 @@ async def _cache_admin_result(
         pass
 
 
-async def verify_admin(user: TelegramUser = Depends(verify_telegram_auth)):
+async def verify_admin(user: TelegramUser = Depends(verify_telegram_auth)) -> Any:
     """Verify that user is an admin (via Telegram initData).
     Returns db_user object if admin.
 

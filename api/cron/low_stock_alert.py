@@ -27,6 +27,7 @@ if str(_base_path) not in sys.path:
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.responses import Response
 
 # Verify cron secret to prevent unauthorized access
 CRON_SECRET = os.environ.get("CRON_SECRET", "")
@@ -232,7 +233,7 @@ async def _send_alerts_to_admins(new_alerts: list[dict[str, Any]], results: dict
 
 
 @app.get("/api/cron/low_stock_alert")
-async def low_stock_alert_entrypoint(request: Request) -> dict[str, str | int]:
+async def low_stock_alert_entrypoint(request: Request) -> Response:
     """Vercel Cron entrypoint for low stock alerts."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":

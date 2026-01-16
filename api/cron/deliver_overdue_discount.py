@@ -24,6 +24,7 @@ if str(_base_path) not in sys.path:
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.responses import Response
 
 from core.logging import get_logger
 from core.services.database import get_database_async
@@ -463,7 +464,7 @@ async def deliver_discount_order(db: Any, order_id: str, order_data: dict[str, A
 
 
 @app.get("/api/cron/deliver_overdue_discount")
-async def deliver_overdue_discount(request: Request) -> dict[str, str | int]:
+async def deliver_overdue_discount(request: Request) -> Response:
     """Find and deliver overdue discount orders."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":

@@ -3,6 +3,8 @@
 Product reviews with cashback rewards.
 """
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from core.auth import verify_telegram_auth
@@ -22,7 +24,9 @@ reviews_router = APIRouter(tags=["webapp-misc-reviews"])
 # ==================== REVIEW HELPER FUNCTIONS ====================
 
 
-def _determine_review_product_id(request: WebAppReviewRequest, order_items: list) -> str | None:
+def _determine_review_product_id(
+    request: WebAppReviewRequest, order_items: list[dict[str, Any]]
+) -> str | None:
     """Determine which product is being reviewed from request and order items."""
     if request.product_id:
         return request.product_id
@@ -63,10 +67,10 @@ def _is_duplicate_key_error(exception: Exception) -> bool:
 
 
 async def _calculate_review_cashback(
-    target_item: dict,
-    order,
+    target_item: dict[str, Any],
+    order: Any,
     balance_currency: str,
-    currency_service,
+    currency_service: Any,
 ) -> float:
     """Calculate 5% cashback amount in user's balance currency.
 
@@ -111,7 +115,7 @@ async def _calculate_review_cashback(
         cashback_base = item_price_usd
     else:
         # Last resort: use current exchange rate (not ideal, but better than error)
-        rate = await currency_service.get_exchange_rate(balance_currency)
+        rate = currency_service.get_exchange_rate(balance_currency)
         cashback_base = item_price_usd * rate
 
     # Calculate cashback percentage
@@ -127,11 +131,11 @@ async def _calculate_review_cashback(
 
 
 async def _update_order_expenses_cashback(
-    db,
+    db: Any,
     order_id: str,
     cashback_amount: float,
     balance_currency: str,
-    currency_service,
+    currency_service: Any,
 ) -> None:
     """Update order_expenses with review cashback amount (in USD for accounting)."""
     try:
@@ -139,7 +143,7 @@ async def _update_order_expenses_cashback(
         if balance_currency == "USD":
             cashback_usd = cashback_amount
         else:
-            rate = await currency_service.get_exchange_rate(balance_currency)
+            rate = currency_service.get_exchange_rate(balance_currency)
             cashback_usd = cashback_amount / rate if rate > 0 else cashback_amount
 
         # Check if order_expenses exists
@@ -199,7 +203,7 @@ async def _update_order_expenses_cashback(
 
 
 # Helper to validate order for review (reduces cognitive complexity)
-def _validate_order_for_review(db_user, order) -> None:
+def _validate_order_for_review(db_user: Any, order: Any) -> None:
     """Validate order can be reviewed."""
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -210,7 +214,9 @@ def _validate_order_for_review(db_user, order) -> None:
 
 
 # Helper to create review record (reduces cognitive complexity)
-async def _create_review_record(db, db_user, request, product_id: str) -> str:
+async def _create_review_record(
+    db: Any, db_user: Any, request: WebAppReviewRequest, product_id: str
+) -> str:
     """Create review record and return review_id."""
     existing = (
         await db.client.table("reviews")
@@ -260,13 +266,13 @@ async def _create_review_record(db, db_user, request, product_id: str) -> str:
 
 # Helper to process cashback (reduces cognitive complexity)
 async def _process_review_cashback(
-    db,
-    db_user,
+    db: Any,
+    db_user: Any,
     review_id: str,
-    request,
+    request: WebAppReviewRequest,
     cashback_amount: float,
     balance_currency: str,
-    currency_service,
+    currency_service: Any,
 ) -> float:
     """Process cashback for review and return new balance."""
     # Check if cashback already processed (prevent duplicates)
@@ -325,7 +331,7 @@ async def _process_review_cashback(
 
 # Helper to send cashback notification (reduces cognitive complexity)
 async def _send_cashback_notification(
-    db_user,
+    db_user: Any,  # User type from core.services.models
     cashback_amount: float,
     new_balance: float,
     balance_currency: str,
@@ -358,7 +364,9 @@ async def _send_cashback_notification(
 
 
 @reviews_router.post("/reviews")
-async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify_telegram_auth)):
+async def submit_webapp_review(
+    request: WebAppReviewRequest, user: Any = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Submit a product review. Awards 5% cashback per review."""
     db = get_database()
 

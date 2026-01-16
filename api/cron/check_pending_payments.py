@@ -19,6 +19,7 @@ if str(_base_path) not in sys.path:
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.responses import Response
 
 from core.logging import get_logger
 from core.services.database import get_database_async
@@ -243,7 +244,7 @@ async def _check_single_order(db: Any, order: Any) -> bool:
 
 
 @app.get("/api/cron/check_pending_payments")
-async def check_pending_payments(request: Request) -> dict[str, str | int]:
+async def check_pending_payments(request: Request) -> Response:
     """Check pending CrystalPay orders and update their status."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":

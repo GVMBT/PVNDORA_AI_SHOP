@@ -13,7 +13,7 @@ from core.services.repositories import OrderRepository
 class OrdersDomain:
     """Order domain operations."""
 
-    def __init__(self, repo: OrderRepository, client) -> None:
+    def __init__(self, repo: OrderRepository, client: Any) -> None:
         self.repo = repo
         self.client = client
 
@@ -119,7 +119,7 @@ class OrdersDomain:
         return dict(order_data) if hasattr(order_data, "__dict__") else {}
 
     # Order items operations (using raw client)
-    async def create_order_items(self, items: list[dict]) -> list[dict]:
+    async def create_order_items(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not items:
             return []
         result = await self.client.table("order_items").insert(items).execute()
@@ -131,7 +131,7 @@ class OrdersDomain:
         )
         return result.data or []
 
-    async def get_order_items_by_orders(self, order_ids: list[str]) -> list[dict]:
+    async def get_order_items_by_orders(self, order_ids: list[str]) -> list[dict[str, Any]]:
         if not order_ids:
             return []
         result = (

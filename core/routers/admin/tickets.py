@@ -4,7 +4,7 @@ Support ticket management endpoints.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/tickets", tags=["admin-tickets"])
 # =============================================================================
 
 
-def _format_ticket_data(ticket_row: dict) -> dict:
+def _format_ticket_data(ticket_row: dict[str, Any]) -> dict[str, Any]:
     """Format ticket data with user and order item info (reduces cognitive complexity)."""
     user_data = ticket_row.get("users", {}) or {}
     order_item_data = ticket_row.get("order_items", {}) or {}
@@ -47,8 +47,8 @@ async def get_tickets(
     ] = "open",
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """Get support tickets with optional status filter. Includes item credentials for admin verification."""
     db = get_database()
 
@@ -79,7 +79,7 @@ async def get_tickets(
 
 
 @router.get("/{ticket_id}")
-async def get_ticket(ticket_id: str, admin=Depends(verify_admin)):
+async def get_ticket(ticket_id: str, admin: Any = Depends(verify_admin)) -> dict[str, Any]:
     """Get single ticket by ID with credentials for admin verification."""
     db = get_database()
 
@@ -112,7 +112,7 @@ async def get_ticket(ticket_id: str, admin=Depends(verify_admin)):
 
 
 # Helper functions for resolve_ticket
-async def _fetch_and_validate_ticket(db, ticket_id: str) -> dict:
+async def _fetch_and_validate_ticket(db: Any, ticket_id: str) -> dict[str, Any]:
     """Fetch ticket data and validate it can be resolved."""
     ticket_res = (
         await db.client.table("tickets")
@@ -136,7 +136,9 @@ async def _fetch_and_validate_ticket(db, ticket_id: str) -> dict:
     return ticket_res.data
 
 
-async def _update_ticket_status(db, ticket_id: str, new_status: str, comment: str | None) -> None:
+async def _update_ticket_status(
+    db: Any, ticket_id: str, new_status: str, comment: str | None
+) -> None:
     """Update ticket status in database."""
     update_data = {"status": new_status}
     if comment:
@@ -146,7 +148,7 @@ async def _update_ticket_status(db, ticket_id: str, new_status: str, comment: st
 
 
 async def _handle_rejected_ticket(
-    notification_service,
+    notification_service: Any,
     ticket_id: str,
     user_telegram_id: int | None,
     user_language: str,
@@ -169,9 +171,9 @@ async def _handle_rejected_ticket(
 
 
 async def _handle_approved_replacement(
-    publish_to_worker,
-    endpoints,
-    notification_service,
+    publish_to_worker: Any,
+    endpoints: Any,
+    notification_service: Any,
     ticket_id: str,
     item_id: str,
     order_id: str | None,
@@ -200,10 +202,10 @@ async def _handle_approved_replacement(
 
 
 async def _handle_approved_refund(
-    db,
-    publish_to_worker,
-    endpoints,
-    notification_service,
+    db: Any,
+    publish_to_worker: Any,
+    endpoints: Any,
+    notification_service: Any,
     ticket_id: str,
     order_id: str,
     issue_type: str,
@@ -250,10 +252,10 @@ async def _handle_approved_refund(
 
 
 async def _process_approved_ticket(
-    db,
-    notification_service,
+    db: Any,
+    notification_service: Any,
     ticket_id: str,
-    issue_type: str,
+    issue_type: str | None,
     item_id: str | None,
     order_id: str | None,
     user_telegram_id: int | None,
@@ -304,8 +306,8 @@ async def resolve_ticket(
     ticket_id: str,
     approve: Annotated[bool, Query(description="Approve (true) or reject (false)")] = True,
     comment: Annotated[str | None, Query(description="Admin comment")] = None,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """Resolve a support ticket (approve or reject). Notifies user of decision."""
     db = get_database()
     from core.routers.deps import get_notification_service
@@ -359,8 +361,8 @@ async def resolve_ticket(
 async def close_ticket(
     ticket_id: str,
     comment: Annotated[str | None, Query()] = None,
-    admin=Depends(verify_admin),
-):
+    admin: Any = Depends(verify_admin),
+) -> dict[str, Any]:
     """Close a ticket."""
     db = get_database()
 

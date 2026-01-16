@@ -8,11 +8,19 @@ import contextlib
 import logging
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException
 
 from core.payments import GATEWAY_CURRENCY
+
+if TYPE_CHECKING:
+    from core.cart.models import CartItem
+    from core.services.currency import CurrencyService
+    from core.services.database import Database
+    from core.services.models import User
+    from core.services.payments import PaymentService
+    from core.utils.validators import TelegramUser
 from core.services.models import Order
 from core.services.money import divide, multiply, round_money, subtract, to_decimal, to_float
 
@@ -20,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 async def create_payment_wrapper(
-    payment_service,
+    payment_service: Any,
     order_id: str,
     amount: Decimal,
     product_name: str,
@@ -36,7 +44,7 @@ async def create_payment_wrapper(
 
     if gateway == "crystalpay":
 
-        async def _make_crystalpay_invoice():
+        async def _make_crystalpay_invoice() -> dict[str, Any]:
             invoice_data = await payment_service.create_payment(
                 order_id=order_id,
                 amount=formatted_amount,
@@ -67,7 +75,7 @@ async def create_payment_wrapper(
 
 
 async def persist_order(
-    db,
+    db: Any,
     user_id: str,
     amount: Decimal,
     original_price: Decimal,
@@ -76,7 +84,7 @@ async def persist_order(
     payment_gateway: str | None,
     user_telegram_id: int,
     expires_at: datetime,
-):
+) -> Order:
     """Create order record in database using thread for sync operation."""
     order_payload = {
         "user_id": user_id,
@@ -108,7 +116,7 @@ async def persist_order(
     )
 
 
-async def persist_order_items(db, order_id: str, items: list[dict[str, Any]]) -> None:
+async def persist_order_items(db: "Database", order_id: str, items: list[dict[str, Any]]) -> None:
     """Insert multiple order_items in bulk.
 
     CRITICAL: Each order_item now has quantity=1 (split bulk orders into separate items).
@@ -165,7 +173,7 @@ async def persist_order_items(db, order_id: str, items: list[dict[str, Any]]) ->
 # =============================================================================
 
 
-async def get_partner_discount(db, db_user) -> int:
+async def get_partner_discount(db: Any, db_user: Any) -> int:
     """Get discount from referrer if they use partner_mode='discount'.
     Returns discount percent (0 if no discount).
     """
@@ -200,11 +208,11 @@ async def get_partner_discount(db, db_user) -> int:
 
 
 def determine_target_currency(
-    db_user,
-    user,
+    db_user: "User",
+    user: "TelegramUser",
     payment_method: str,
     payment_gateway: str,
-    currency_service,
+    currency_service: "CurrencyService",
 ) -> str:
     """Determine target currency for Anchor Pricing based on payment method and gateway."""
     if payment_method == "balance":
@@ -228,7 +236,7 @@ def determine_target_currency(
     return GATEWAY_CURRENCY.get(payment_gateway or "", "RUB")
 
 
-async def _check_and_adjust_stock(db, item, product) -> None:
+async def _check_and_adjust_stock(db: Any, item: Any, product: Any) -> None:
     """Check instant availability and adjust quantities if needed."""
     instant_q = item.instant_quantity
     if instant_q > 0:
@@ -297,12 +305,12 @@ def _calculate_final_prices(
 
 
 async def validate_and_prepare_cart_items(
-    db,
-    cart_items,
-    cart,
+    db: "Database",
+    cart_items: list["CartItem"],
+    cart: Any,  # Cart type from core.cart.models, but avoiding circular import
     partner_discount: int,
     target_currency: str,
-    currency_service,
+    currency_service: "CurrencyService",
 ) -> tuple[Decimal, Decimal, Decimal, list[dict[str, Any]]]:
     """Validate cart items, calculate totals using Decimal, handle stock deficits.
     Calculates both USD total and Fiat total (using Anchor Prices).
@@ -330,7 +338,7 @@ async def validate_and_prepare_cart_items(
             else 0
         )
         discount_percent = _calculate_discount_percent(
-            item.discount_percent,
+            int(item.discount_percent) if item.discount_percent else 0,
             cart_promo_discount,
             partner_discount,
         )
@@ -387,7 +395,7 @@ async def _check_redis_cooldown(user_id: int) -> tuple[Any, bool]:
         return None, False
 
 
-async def _check_db_cooldown(db, db_user, cooldown_seconds: int) -> None:
+async def _check_db_cooldown(db: "Database", db_user: "User", cooldown_seconds: int) -> None:
     """Check cooldown in database."""
     try:
         result = (
@@ -402,7 +410,7 @@ async def _check_db_cooldown(db, db_user, cooldown_seconds: int) -> None:
         if result.data:
             row = result.data[0]
             created_at = row.get("created_at")
-            if created_at:
+            if created_at and isinstance(created_at, str):
                 try:
                     created_dt = datetime.fromisoformat(created_at)
                     if datetime.now(UTC) - created_dt < timedelta(seconds=cooldown_seconds):
@@ -420,7 +428,7 @@ async def _check_db_cooldown(db, db_user, cooldown_seconds: int) -> None:
         logger.warning("Pending order check failed: %s", e)
 
 
-async def enforce_order_cooldown(db, db_user, user_id: int) -> tuple[Any, int]:
+async def enforce_order_cooldown(db: Any, db_user: Any, user_id: int) -> tuple[Any, int]:
     """Enforce cooldown between order creations.
     Returns (cooldown_redis, cooldown_seconds) tuple.
     """
@@ -485,8 +493,8 @@ def calculate_discount_percent(total_amount: Decimal, total_original: Decimal) -
 
 
 async def create_order_with_items(
-    db,
-    db_user,
+    db: Any,
+    db_user: Any,
     user_id: int,
     total_amount: Decimal,
     total_original: Decimal,
@@ -525,7 +533,7 @@ async def create_order_with_items(
 
 
 async def process_external_payment(
-    payment_service,
+    payment_service: "PaymentService",
     order_id: str,
     payable_amount: Decimal,
     product_names: str,
@@ -591,7 +599,7 @@ async def process_external_payment(
 
 
 async def save_payment_info(
-    db,
+    db: Any,
     order_id: str,
     payment_url: str | None,
     invoice_id: str | None,
@@ -615,7 +623,7 @@ async def set_order_cooldown(cooldown_redis: Any, user_id: int, cooldown_seconds
             logger.warning(f"Failed to set cooldown key: {e}")
 
 
-async def cleanup_promo_and_cart(db, cart_manager, user_id: int, cart) -> None:
+async def cleanup_promo_and_cart(db: Any, cart_manager: Any, user_id: int, cart: Any) -> None:
     """Apply promo code usage and clear cart."""
     try:
         if cart.promo_code:

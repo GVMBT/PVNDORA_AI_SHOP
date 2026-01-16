@@ -21,6 +21,7 @@ if str(_base_path) not in sys.path:
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.responses import Response
 
 from core.logging import get_logger
 
@@ -109,7 +110,7 @@ async def _auto_allocate_task(db: Any, results: dict[str, Any]) -> None:
 
 
 @app.get("/api/cron/unified")
-async def unified_cron_entrypoint(request: Request) -> dict[str, str | bool]:
+async def unified_cron_entrypoint(request: Request) -> Response:
     """Unified cron entrypoint - runs all critical tasks."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":

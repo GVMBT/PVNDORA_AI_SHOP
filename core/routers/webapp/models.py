@@ -79,7 +79,7 @@ class OrderHistoryResponse(BaseModel):
     progress: int
     payment_method: str | None = None
     payment_url: str | None = None
-    items: list = []
+    items: list[dict[str, Any]] = []
     image_url: str | None = None
 
 

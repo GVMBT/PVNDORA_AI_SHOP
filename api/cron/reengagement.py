@@ -21,6 +21,7 @@ if str(_base_path) not in sys.path:
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.responses import Response
 
 from core.logging import get_logger
 
@@ -210,7 +211,7 @@ def _calculate_days_left(expires_at_str: str | None, now: datetime) -> int:
 
 
 @app.get("/api/cron/reengagement")
-async def reengagement_entrypoint(request: Request) -> dict[str, str | int]:
+async def reengagement_entrypoint(request: Request) -> Response:
     """Vercel Cron entrypoint for re-engagement notifications."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":

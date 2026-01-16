@@ -4,12 +4,16 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 
 import os
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 # Type alias for dict type hints
 DictStrAny = dict[str, Any]
 
 from aiogram import F, Router
+
+if TYPE_CHECKING:
+    from core.services.database import Database
+    from core.services.models import User
 from aiogram.enums import ParseMode
 from aiogram.types import CallbackQuery, Message
 
@@ -68,7 +72,7 @@ async def create_crystalpay_payment(
 
                 redis = get_redis()
                 currency_service = get_currency_service(redis)
-                exchange_rate = await currency_service.get_exchange_rate(currency)
+                exchange_rate = currency_service.get_exchange_rate(currency)
                 payment_amount = amount_usd * exchange_rate
                 logger.info(
                     f"CrystalPay: converted ${amount_usd} USD to {payment_amount:.2f} {currency} (rate: {exchange_rate})",
@@ -135,7 +139,7 @@ async def create_crystalpay_payment(
         return None
 
 
-async def get_product_by_short_id(db, short_id: str) -> dict | None:
+async def get_product_by_short_id(db: "Database", short_id: str) -> dict[str, Any] | None:
     """Get product by short ID (first 8 chars of UUID)."""
     try:
         # Get all active products with discount_price (ilike doesn't work with UUID)
@@ -201,7 +205,7 @@ async def _get_display_prices(
 
         redis = get_redis()
         currency_service = get_currency_service(redis)
-        rate = await currency_service.get_exchange_rate(user_currency)
+        rate = currency_service.get_exchange_rate(user_currency)
 
         return (
             total_price * rate,
@@ -216,7 +220,7 @@ async def _get_display_prices(
 
 # Helper: Calculate insurance price and ID (reduces cognitive complexity)
 def _calculate_insurance_info(
-    insurance: dict | None,
+    insurance: dict[str, Any] | None,
     discount_price: float,
 ) -> tuple[float, str | None]:
     """Calculate insurance price and return (price, id)."""
@@ -286,7 +290,7 @@ def _build_payment_message(
     display_discount_price: float,
     display_insurance_price: float,
     display_amount: float,
-    insurance: dict | None,
+    insurance: dict[str, Any] | None,
 ) -> str:
     """Build payment message text from components."""
     text = get_text("discount.order.header", lang, order_id=order_id[:8])
@@ -318,7 +322,7 @@ def _build_payment_message(
     return text
 
 
-async def get_insurance_option(db, short_id: str) -> dict | None:
+async def get_insurance_option(db: "Database", short_id: str) -> dict[str, Any] | None:
     """Get insurance option by short ID."""
     if not short_id or short_id == "0":
         return None
@@ -382,7 +386,11 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User) -> None:
             .single()
             .execute()
         )
-        user_uuid = user_result.data["id"]
+        if not isinstance(user_result.data, dict):
+            await callback.answer("User not found", show_alert=True)
+            return
+        user_uuid_raw = user_result.data.get("id")
+        user_uuid = str(user_uuid_raw) if user_uuid_raw is not None else ""
 
         # Create order and order item
         order_id = await _create_discount_order(
@@ -491,7 +499,8 @@ async def msg_orders(message: Message, db_user: User) -> None:
             .execute()
         )
 
-        orders = orders_result.data or []
+        orders_raw = orders_result.data or []
+        orders = [item if isinstance(item, dict) else {} for item in orders_raw]
 
         if not orders:
             text = (
@@ -548,7 +557,8 @@ async def cb_orders(callback: CallbackQuery, db_user: User) -> None:
             .execute()
         )
 
-        orders = orders_result.data or []
+        orders_raw = orders_result.data or []
+        orders = [item if isinstance(item, dict) else {} for item in orders_raw]
 
         text = ("📦 <b>Мои заказы</b>\n\n") if lang == "ru" else ("📦 <b>My Orders</b>\n\n")
 
@@ -682,14 +692,15 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User) -> None:
             .execute()
         )
 
-        if not user_result.data:
+        if not isinstance(user_result.data, dict):
             await callback.answer("User not found", show_alert=True)
             return
 
-        user_uuid = user_result.data["id"]
+        user_uuid_raw = user_result.data.get("id")
+        user_uuid = str(user_uuid_raw) if user_uuid_raw is not None else ""
 
         # Find order by short ID
-        order = await _find_order_by_short_id(db, user_uuid, order_short_id)
+        order = await _find_order_by_short_id(db, user_uuid, str(order_short_id))
         if not order:
             await callback.answer(
                 "Заказ не найден" if lang == "ru" else "Order not found",
@@ -705,9 +716,13 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User) -> None:
             .execute()
         )
 
-        items = items_result.data or []
-        has_insurance = any(item.get("insurance_id") for item in items)
-        order["has_insurance"] = has_insurance
+        items_raw = items_result.data or []
+        items = [item if isinstance(item, dict) else {} for item in items_raw]
+        has_insurance = any(
+            isinstance(item, dict) and item.get("insurance_id") for item in items
+        )
+        if isinstance(order, dict):
+            order["has_insurance"] = has_insurance
 
         # Get currency info
         currency, exchange_rate = await get_user_currency_info(db_user)

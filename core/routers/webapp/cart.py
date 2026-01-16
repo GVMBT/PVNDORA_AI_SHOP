@@ -7,9 +7,16 @@ Response format:
 - Frontend uses USD for calculations, display for UI
 """
 
+from typing import TYPE_CHECKING, Any
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from core.auth import verify_telegram_auth
+
+if TYPE_CHECKING:
+    from core.cart.models import Cart
+    from core.services.database import Database
+    from core.utils.validators import TelegramUser
 from core.db import get_redis
 from core.logging import get_logger
 from core.services.currency_response import CurrencyFormatter
@@ -30,10 +37,10 @@ ERR_CART_EMPTY = "Cart is empty"
 
 
 def _calculate_display_prices(
-    item,
-    product,
-    currency_service,
-    formatter,
+    item: Any,
+    product: Any,
+    currency_service: Any,
+    formatter: Any,
 ) -> tuple[float, float, float]:
     """Calculate display prices using anchor pricing.
 
@@ -77,7 +84,9 @@ def _calculate_display_prices(
 router = APIRouter(tags=["webapp-cart"])
 
 
-async def _format_cart_response(cart, db, user_telegram_id: int):
+async def _format_cart_response(
+    cart: "Cart", db: "Database", user_telegram_id: int
+) -> dict[str, Any]:
     """Build cart response with unified currency handling.
 
     Response includes:
@@ -218,7 +227,7 @@ async def _format_cart_response(cart, db, user_telegram_id: int):
     }
 
 
-def _ensure_product_orderable(product):
+def _ensure_product_orderable(product: Any) -> str:
     """Validate product status for cart operations."""
     status = getattr(product, "status", "active")
     if status == "discontinued":
@@ -231,17 +240,25 @@ def _ensure_product_orderable(product):
             status_code=400,
             detail="Product is coming soon. Use waitlist to be notified.",
         )
-    return status
+    return str(status)
 
 
 @router.get("/cart")
-async def get_webapp_cart(user=Depends(verify_telegram_auth)):
+async def get_webapp_cart(user: Any = Depends(verify_telegram_auth)) -> dict[str, Any]:
     """Get user's shopping cart with currency conversion."""
     from core.cart import get_cart_manager
 
     try:
         cart_manager = get_cart_manager()
         cart = await cart_manager.get_cart(user.id)
+        if not cart:
+            return {
+                "items": [],
+                "total": 0,
+                "total_usd": 0,
+                "currency": "USD",
+                "exchange_rate": 1.0,
+            }
         db = get_database()
 
         return await _format_cart_response(cart, db, user.id)
@@ -253,7 +270,9 @@ async def get_webapp_cart(user=Depends(verify_telegram_auth)):
 
 
 @router.post("/cart/add")
-async def add_to_cart(request: AddToCartRequest, user=Depends(verify_telegram_auth)):
+async def add_to_cart(
+    request: AddToCartRequest, user: Any = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Add item to cart (with instant/prepaid split)."""
     from core.cart import get_cart_manager
 
@@ -283,11 +302,15 @@ async def add_to_cart(request: AddToCartRequest, user=Depends(verify_telegram_au
         raise HTTPException(status_code=500, detail="Failed to add item to cart")
 
     cart = await cart_manager.get_cart(user.id)
+    if not cart:
+        return {"items": [], "total": 0, "total_usd": 0, "currency": "USD", "exchange_rate": 1.0}
     return await _format_cart_response(cart, db, user.id)
 
 
 @router.patch("/cart/item")
-async def update_cart_item(request: UpdateCartItemRequest, user=Depends(verify_telegram_auth)):
+async def update_cart_item(
+    request: UpdateCartItemRequest, user: "TelegramUser" = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Update cart item quantity (0 = remove)."""
     from core.cart import get_cart_manager
 
@@ -314,11 +337,15 @@ async def update_cart_item(request: UpdateCartItemRequest, user=Depends(verify_t
         raise HTTPException(status_code=500, detail="Failed to update cart item")
 
     cart = await cart_manager.get_cart(user.id)
+    if not cart:
+        return {"items": [], "total": 0, "total_usd": 0, "currency": "USD", "exchange_rate": 1.0}
     return await _format_cart_response(cart, db, user.id)
 
 
 @router.delete("/cart/item")
-async def remove_cart_item(product_id: str, user=Depends(verify_telegram_auth)):
+async def remove_cart_item(
+    product_id: str, user: Any = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Remove item from cart."""
     from core.cart import get_cart_manager
 
@@ -333,11 +360,15 @@ async def remove_cart_item(product_id: str, user=Depends(verify_telegram_auth)):
 
     db = get_database()
     cart = await cart_manager.get_cart(user.id)
+    if not cart:
+        return {"items": [], "total": 0, "total_usd": 0, "currency": "USD", "exchange_rate": 1.0}
     return await _format_cart_response(cart, db, user.id)
 
 
 @router.post("/cart/promo/apply")
-async def apply_cart_promo(request: ApplyPromoRequest, user=Depends(verify_telegram_auth)):
+async def apply_cart_promo(
+    request: ApplyPromoRequest, user: "TelegramUser" = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
     """Apply promo code to cart.
 
     Supports both cart-wide and product-specific promo codes:
@@ -387,7 +418,7 @@ async def apply_cart_promo(request: ApplyPromoRequest, user=Depends(verify_teleg
 
 
 @router.post("/cart/promo/remove")
-async def remove_cart_promo(user=Depends(verify_telegram_auth)):
+async def remove_cart_promo(user: Any = Depends(verify_telegram_auth)) -> dict[str, Any]:
     """Remove promo code from cart."""
     from core.cart import get_cart_manager
 

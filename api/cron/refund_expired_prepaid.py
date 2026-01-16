@@ -21,6 +21,7 @@ if str(_base_path) not in sys.path:
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.responses import Response
 
 from core.logging import get_logger
 
@@ -51,7 +52,7 @@ async def _get_user_balance_currency(db: Any, user_id: str | None) -> str:
     return "RUB"
 
 
-async def _calculate_refund_amount(
+def _calculate_refund_amount(
     item_price: float,
     order_amount: float,
     order_fiat_amount: float | None,
@@ -179,7 +180,7 @@ async def _process_single_refund(
     order_fiat_currency = order_data.get("fiat_currency")
 
     balance_currency = await _get_user_balance_currency(db, user_id)
-    refund_amount = await _calculate_refund_amount(
+    refund_amount = _calculate_refund_amount(
         item_price,
         order_amount,
         order_fiat_amount,
@@ -223,7 +224,7 @@ async def _process_single_refund(
 
 
 @app.get("/api/cron/refund_expired_prepaid")
-async def refund_expired_prepaid_entrypoint(request: Request) -> dict[str, str | int]:
+async def refund_expired_prepaid_entrypoint(request: Request) -> Response:
     """Vercel Cron entrypoint for refunding expired prepaid order items."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":

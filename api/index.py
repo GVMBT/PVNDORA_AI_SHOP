@@ -9,13 +9,14 @@ Optimized for Vercel Hobby plan (max 12 serverless functions).
 # Documentation: https://docs.aikido.dev/zen
 import logging
 import os
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 AIKIDO_ZEN_AVAILABLE = False
 _aikido_zen_module = None
 
 try:
-    import aikido_zen  # type: ignore[import-untyped, no-untyped-call]
+    import aikido_zen  # type: ignore[import-untyped]
 
     _aikido_zen_module = aikido_zen
     # Try to call protect() immediately if token is available
@@ -173,7 +174,7 @@ def get_dispatcher() -> Dispatcher:
 
 
 @asynccontextmanager
-async def lifespan(_fastapi_app: FastAPI):
+async def lifespan(_fastapi_app: FastAPI) -> Any:
     """Application lifespan handler."""
     # Startup - Initialize async database singleton
     try:
@@ -279,7 +280,7 @@ except (ImportError, ValueError, Exception) as e:
 # NOTE: Admin endpoints are protected by verify_admin() - Zen should not block them
 try:
     if AIKIDO_ZEN_AVAILABLE:
-        from aikido_zen.middleware import AikidoStarletteMiddleware  # type: ignore
+        from aikido_zen.middleware import AikidoStarletteMiddleware  # type: ignore[import-untyped]
 
         app.add_middleware(AikidoStarletteMiddleware)
         logger.info("Aikido Zen middleware added successfully")

@@ -4,6 +4,8 @@ User profile, referral info, balance history.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
+from typing import Any, cast
+
 from langchain_core.tools import tool
 
 from core.logging import get_logger
@@ -19,7 +21,7 @@ logger = get_logger(__name__)
 
 
 def _determine_career_level(
-    user: dict,
+    user: dict[str, Any],
     threshold_l2: float,
     threshold_l3: float,
     turnover: float,
@@ -37,7 +39,7 @@ def _determine_career_level(
     return 1, 2, threshold_l2 - turnover
 
 
-def _get_line_unlocked_status(user: dict) -> tuple[bool, bool, bool]:
+def _get_line_unlocked_status(user: dict[str, Any]) -> tuple[bool, bool, bool]:
     """Get line unlock status from user data.
 
     Returns:
@@ -53,7 +55,7 @@ def _get_line_unlocked_status(user: dict) -> tuple[bool, bool, bool]:
     return line1_unlocked, line2_unlocked, line3_unlocked
 
 
-async def _convert_to_currency(currency_service, amount: float, target_currency: str) -> float:
+async def _convert_to_currency(currency_service: Any, amount: float, target_currency: str) -> float:
     """Convert amount to target currency (reduces cognitive complexity)."""
     if target_currency == "USD" or amount <= 0:
         return amount
@@ -64,7 +66,7 @@ async def _convert_to_currency(currency_service, amount: float, target_currency:
         return amount
 
 
-async def _get_referral_settings(db) -> tuple[float, float]:
+async def _get_referral_settings(db: Any) -> tuple[float, float]:
     """Get referral settings thresholds (reduces cognitive complexity)."""
     settings_result = await db.client.table("referral_settings").select("*").limit(1).execute()
     if settings_result.data:
@@ -75,7 +77,7 @@ async def _get_referral_settings(db) -> tuple[float, float]:
     return 250.0, 1000.0
 
 
-async def _get_referral_settings_full(db) -> dict:
+async def _get_referral_settings_full(db: Any) -> dict[str, float]:
     """Get full referral settings including commissions (reduces cognitive complexity)."""
     settings_result = await db.client.table("referral_settings").select("*").limit(1).execute()
     if settings_result.data:
@@ -96,7 +98,9 @@ async def _get_referral_settings_full(db) -> dict:
     }
 
 
-async def _get_network_stats(db, user_id: str, line2_unlocked: bool, line3_unlocked: bool) -> dict:
+async def _get_network_stats(
+    db: Any, user_id: str, line2_unlocked: bool, line3_unlocked: bool
+) -> dict[str, int]:
     """Get referral network statistics (reduces cognitive complexity)."""
     network = {"line1": 0, "line2": 0, "line3": 0}
 
@@ -136,7 +140,7 @@ async def _get_network_stats(db, user_id: str, line2_unlocked: bool, line3_unloc
 
 
 @tool
-async def get_user_profile() -> dict:
+async def get_user_profile() -> dict[str, Any]:
     """Get user's full profile information.
     Loads thresholds from referral_settings, converts balance to user currency.
     Uses user_id and currency from context.
@@ -159,7 +163,7 @@ async def get_user_profile() -> dict:
         if not result.data:
             return {"success": False, "error": "User not found"}
 
-        user = result.data
+        user = cast(dict[str, Any], result.data)
         balance = float(user.get("balance", 0) or 0)
         turnover = float(user.get("turnover_usd", 0) or 0)
         total_saved = float(user.get("total_saved", 0) or 0)
@@ -174,7 +178,7 @@ async def get_user_profile() -> dict:
 
         orders_result = (
             await db.client.table("orders")
-            .select("id", count="exact")
+            .select("id", count="exact", head=True)  # type: ignore[arg-type]
             .eq("user_id", ctx.user_id)
             .execute()
         )
@@ -218,7 +222,7 @@ async def get_user_profile() -> dict:
                 target_currency,
             ),
             "orders_count": orders_count,
-            "partner_mode": user.get("partner_mode", "commission"),
+            "partner_mode": str(user.get("partner_mode", "commission")),
         }
     except Exception as e:
         logger.error("get_user_profile error: %s", type(e).__name__, exc_info=True)
@@ -226,7 +230,7 @@ async def get_user_profile() -> dict:
 
 
 @tool
-async def get_referral_info() -> dict:
+async def get_referral_info() -> dict[str, Any]:
     """Get user's referral program info.
     Loads settings from database (referral_settings table).
     Uses user_id and telegram_id from context.
@@ -261,7 +265,7 @@ async def get_referral_info() -> dict:
         if not result.data:
             return {"success": False, "error": "User not found"}
 
-        user = result.data
+        user = cast(dict[str, Any], result.data)
         turnover = float(user.get("turnover_usd", 0) or 0)
         earnings = float(user.get("total_referral_earnings", 0) or 0)
 
@@ -285,7 +289,7 @@ async def get_referral_info() -> dict:
         if line3_unlocked:
             active_commissions["line3"] = commission_l3
 
-        partner_mode = user.get("partner_mode", "commission")
+        partner_mode = str(user.get("partner_mode", "commission"))
 
         return {
             "success": True,
@@ -309,7 +313,9 @@ async def get_referral_info() -> dict:
             },
             "partner_mode": partner_mode,
             "discount_percent": (
-                user.get("partner_discount_percent", 0) if partner_mode == "discount" else 0
+                int(user.get("partner_discount_percent", 0) or 0)
+                if partner_mode == "discount"
+                else 0
             ),
             "balance": float(user.get("balance", 0) or 0),
         }
@@ -319,7 +325,7 @@ async def get_referral_info() -> dict:
 
 
 @tool
-async def get_balance_history(limit: int = 10) -> dict:
+async def get_balance_history(limit: int = 10) -> dict[str, Any]:
     """Get user's balance transaction history.
     Shows deposits, purchases, referral earnings, cashback, etc.
     Uses user_id from context.
@@ -354,7 +360,8 @@ async def get_balance_history(limit: int = 10) -> dict:
         currency_service = get_currency_service(redis)
 
         transactions = []
-        for tx in result.data:
+        for tx_raw in result.data:
+            tx = cast(dict[str, Any], tx_raw)
             amount_usd = float(tx.get("amount", 0))
 
             if ctx.currency != "USD":
@@ -379,10 +386,11 @@ async def get_balance_history(limit: int = 10) -> dict:
                 "withdrawal": "Вывод средств",
             }
 
+            tx_type = str(tx.get("type", ""))
             transactions.append(
                 {
-                    "type": tx.get("type"),
-                    "type_label": type_labels.get(tx.get("type"), tx.get("type")),
+                    "type": tx_type,
+                    "type_label": type_labels.get(tx_type, tx_type),
                     "amount": amount_display,
                     "amount_formatted": f"{sign}{currency_service.format_price(amount_display, ctx.currency)}",
                     "description": tx.get("description", ""),

@@ -6,10 +6,14 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 
 import re
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from langchain_core.tools import tool
 
 from core.logging import get_logger
+
+if TYPE_CHECKING:
+    from core.services.models import Order
 
 from .base import get_db, get_user_context
 
@@ -57,7 +61,7 @@ def _calculate_order_warranty_status(order_date: datetime | None, product_name: 
     return "in_warranty" if days_since <= warranty_days else "out_of_warranty"
 
 
-async def _get_warranty_status(db, order, extracted_item_id: str | None) -> str:
+async def _get_warranty_status(db: Any, order: "Order", extracted_item_id: str | None) -> str:
     """Get warranty status for order/item (reduces cognitive complexity)."""
     if extracted_item_id:
         item_result = (
@@ -92,7 +96,7 @@ async def _get_warranty_status(db, order, extracted_item_id: str | None) -> str:
 
 
 @tool
-async def search_faq(question: str) -> dict:
+async def search_faq(question: str) -> dict[str, Any]:
     """Search FAQ for answer to common question.
     Use first before creating support ticket.
     Uses language from context.
@@ -135,7 +139,7 @@ async def create_support_ticket(
     message: str,
     order_id_prefix: str | None = None,
     item_id: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Create support ticket for user's issue.
     All tickets require manual review by admin/support.
     Uses user_id from context.
@@ -203,7 +207,7 @@ async def create_support_ticket(
 
 
 @tool
-async def request_refund(order_id: str, reason: str) -> dict:
+async def request_refund(order_id: str, reason: str) -> dict[str, Any]:
     """Request refund for an order.
     Uses user_id from context.
 

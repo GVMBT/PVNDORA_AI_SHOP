@@ -36,7 +36,9 @@ router.include_router(broadcast_router)
 # =============================================================================
 
 
-async def _validate_order_for_delivery(db, order_id: str) -> tuple[dict | None, str | None]:
+async def _validate_order_for_delivery(
+    db: Any, order_id: str
+) -> tuple[dict[str, Any] | None, str | None]:
     """Validate order status for delivery.
 
     Returns:
@@ -264,9 +266,9 @@ def _check_prepaid_deadline_expired(item: dict[str, Any], now: datetime) -> bool
 
 
 async def _try_deliver_with_stock(
-    db,
-    item: dict,
-    products_map: dict,
+    db: Any,
+    item: dict[str, Any],
+    products_map: dict[str, Any],
     now: datetime,
 ) -> tuple[str | None, bool]:
     """Try to deliver item if stock is available.
@@ -330,9 +332,9 @@ async def _update_item_timestamp(db: Any, item_id: str, now: datetime) -> None:
 
 
 async def _process_single_item_delivery(
-    db,
-    item: dict,
-    products_map: dict,
+    db: Any,
+    item: dict[str, Any],
+    products_map: dict[str, Any],
     now: datetime,
     only_instant: bool,
 ) -> tuple[str | None, bool]:
@@ -409,7 +411,7 @@ async def _update_user_total_saved(db: Any, order_data: dict[str, Any], order_id
         logger.exception(f"deliver-goods: Failed to update total_saved for order {order_id}")
 
 
-async def _fetch_delivered_items_content(db, order_id: str) -> list[str]:
+async def _fetch_delivered_items_content(db: Any, order_id: str) -> list[str]:
     """Fetch content from already delivered items for notification."""
     try:
         delivered_items_result = (

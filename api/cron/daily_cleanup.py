@@ -22,6 +22,7 @@ if str(_base_path) not in sys.path:
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.responses import Response
 
 # Verify cron secret to prevent unauthorized access
 CRON_SECRET = os.environ.get("CRON_SECRET", "")
@@ -30,7 +31,7 @@ CRON_SECRET = os.environ.get("CRON_SECRET", "")
 app = FastAPI()
 
 
-async def _fix_inconsistent_order_statuses(db, now: datetime) -> int:
+async def _fix_inconsistent_order_statuses(db: Any, now: datetime) -> int:
     """Fix orders with inconsistent statuses.
     E.g., orders with status 'partial' where all items are actually 'delivered'.
 
@@ -99,7 +100,7 @@ async def _fix_inconsistent_order_statuses(db, now: datetime) -> int:
 
 
 @app.get("/api/cron/daily_cleanup")
-async def daily_cleanup_entrypoint(request: Request) -> dict[str, str | int]:
+async def daily_cleanup_entrypoint(request: Request) -> Response:
     """Vercel Cron entrypoint for daily cleanup tasks."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":

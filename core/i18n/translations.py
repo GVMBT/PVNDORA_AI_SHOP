@@ -101,7 +101,9 @@ def _get_text_with_fallback(key: str, lang: str, default: str | None) -> str:
     return text
 
 
-def get_text(key: str, lang: str = DEFAULT_LANGUAGE, default: str | None = None, **kwargs) -> str:
+def get_text(
+    key: str, lang: str = DEFAULT_LANGUAGE, default: str | None = None, **kwargs: Any
+) -> str:
     """Get translated text by key.
 
     Args:

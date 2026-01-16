@@ -13,6 +13,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
@@ -94,7 +95,7 @@ class AdminAlertService:
         title: str,
         message: str,
         severity: str = AlertSeverity.INFO,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         """Send alert to all admin users.
 

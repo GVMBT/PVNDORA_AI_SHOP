@@ -12,6 +12,8 @@ User context (user_id, telegram_id, language, currency) is auto-injected
 via set_user_context() before each agent call.
 """
 
+from typing import Any
+
 # Base functions - context management
 from .base import (
     get_db,
@@ -74,7 +76,7 @@ from .wishlist import (
 )
 
 
-def get_all_tools():
+def get_all_tools() -> list[Any]:
     """Get all available tools for the agent."""
     return [
         # Catalog

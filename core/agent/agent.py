@@ -65,7 +65,7 @@ class ShopAgent:
 
     def __init__(
         self,
-        db,
+        db: Any,
         model: str = DEFAULT_MODEL,
         temperature: float = 0.7,
     ) -> None:
@@ -233,7 +233,7 @@ class ShopAgent:
         product_catalog = ""
         try:
             products = await self.db.get_products(status="active")
-            product_catalog = await format_product_catalog(products, language)
+            product_catalog = format_product_catalog(products, language)
         except Exception as e:
             logger.warning(f"Failed to load catalog: {e}")
 
@@ -294,7 +294,7 @@ class ShopAgent:
             action="error",
         )
 
-    def _extract_content_from_ai_message(self, last_ai) -> str:
+    def _extract_content_from_ai_message(self, last_ai: Any) -> str:
         """Extract content from AI message (reduces cognitive complexity)."""
         raw_content = last_ai.content or ""
         if isinstance(raw_content, list):
@@ -370,7 +370,7 @@ class ShopAgent:
 _agent: ShopAgent | None = None
 
 
-def get_shop_agent(db=None) -> ShopAgent:
+def get_shop_agent(db: Any = None) -> ShopAgent:
     """Get or create agent singleton.
 
     Args:

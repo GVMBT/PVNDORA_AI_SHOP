@@ -1,5 +1,7 @@
 """Discount bot keyboards - button-based navigation."""
 
+from typing import Any
+
 from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -54,7 +56,7 @@ def get_terms_keyboard(lang: str) -> InlineKeyboardMarkup:
 # ============================================
 
 
-def get_categories_keyboard(categories: list[dict], lang: str) -> InlineKeyboardMarkup:
+def get_categories_keyboard(categories: list[dict[str, Any]], lang: str) -> InlineKeyboardMarkup:
     """Category selection keyboard."""
     buttons = []
 
@@ -217,7 +219,7 @@ def _format_insurance_text(
 def get_product_card_keyboard(
     product_id: str,
     discount_price: float,
-    insurance_options: list[dict],
+    insurance_options: list[dict[str, Any]],
     lang: str,
     in_stock: bool = True,
     exchange_rate: float = 1.0,
@@ -347,7 +349,7 @@ def get_orders_keyboard(
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def get_order_detail_keyboard(order: dict, lang: str) -> InlineKeyboardMarkup:
+def get_order_detail_keyboard(order: dict[str, Any], lang: str) -> InlineKeyboardMarkup:
     """Order detail actions."""
     order_id = order.get("id", "")[:8]
     status = order.get("status", "")

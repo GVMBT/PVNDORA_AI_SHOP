@@ -97,7 +97,7 @@ async def _get_order_amounts(db: Any, order_id: str) -> dict[str, Any] | None:
     return cast(dict[str, Any], result.data)
 
 
-async def _calculate_cashback(
+def _calculate_cashback(
     order_data: dict[str, Any],
     balance_currency: str,
     fallback_amount: float | None,
@@ -227,7 +227,7 @@ async def process_review_cashback(request: Request) -> JSONResponse:
 
     # 4. Calculate cashback
     balance_currency = getattr(db_user, "balance_currency", "USD") or "USD"
-    cashback_amount = await _calculate_cashback(order_data, balance_currency, order_amount)
+    cashback_amount = _calculate_cashback(order_data, balance_currency, order_amount)
 
     # 5. Credit balance
     new_balance = await _credit_user_balance(

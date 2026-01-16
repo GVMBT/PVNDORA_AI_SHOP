@@ -3,6 +3,8 @@
 Notifications for order lifecycle events.
 """
 
+from typing import Any
+
 from core.i18n import get_text
 from core.logging import get_logger
 from core.services.database import get_database
@@ -26,7 +28,7 @@ def _format_amount(amount: float, currency: str) -> str:
     return f"{amount:.2f} {symbol}"
 
 
-def _categorize_order_items(items_data: list) -> tuple[list[str], list[str]]:
+def _categorize_order_items(items_data: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
     """Categorize order items into instant and prepaid (reduces cognitive complexity)."""
     instant_items = []
     prepaid_items = []
@@ -67,7 +69,7 @@ def _build_items_list_text(lang: str, instant_items: list[str], prepaid_items: l
     return ""
 
 
-def _build_delivery_info(lang: str, instant_items: list, prepaid_items: list) -> str:
+def _build_delivery_info(lang: str, instant_items: list[str], prepaid_items: list[str]) -> str:
     """Build delivery info text based on item types (reduces cognitive complexity)."""
     from .base import _msg
 
