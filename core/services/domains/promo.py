@@ -7,6 +7,7 @@ All methods use async/await with supabase-py v2.
 import secrets
 import string
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -80,7 +81,7 @@ class PromoCodeService:
     # Default expiration for personal promo codes
     DEFAULT_EXPIRATION_DAYS = 14
 
-    def __init__(self, db_client) -> None:
+    def __init__(self, db_client: Any) -> None:
         self.client = db_client
 
     # ==================== Generation ====================
@@ -177,7 +178,9 @@ class PromoCodeService:
 
     # ==================== Validation ====================
 
-    def _check_validity_dates(self, promo: dict, now: datetime) -> PromoValidationResult | None:
+    def _check_validity_dates(
+        self, promo: dict[str, Any], now: datetime
+    ) -> PromoValidationResult | None:
         """Check promo code validity dates (reduces cognitive complexity)."""
         if promo.get("valid_from"):
             valid_from = datetime.fromisoformat(promo["valid_from"])
@@ -206,7 +209,7 @@ class PromoCodeService:
 
     async def _check_personal_restriction(
         self,
-        promo: dict,
+        promo: dict[str, Any],
         user_id: str | None,
         telegram_id: int | None,
     ) -> PromoValidationResult | None:
@@ -380,7 +383,7 @@ class PromoCodeService:
 
     # ==================== Analytics ====================
 
-    async def get_promo_stats_by_trigger(self) -> dict:
+    async def get_promo_stats_by_trigger(self) -> dict[str, Any]:
         """Get usage statistics grouped by trigger type."""
         try:
             result = (

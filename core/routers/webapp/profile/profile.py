@@ -7,7 +7,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 import asyncio
 import contextlib
 from datetime import UTC
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -70,9 +70,9 @@ def _convert_balance_to_usd(balance_in_local: float, _balance_currency: str, _re
 
 
 # Cache for referral_settings (TTL 10 minutes)
-_referral_settings_cache = None
+_referral_settings_cache: dict[str, Any] | None = None
 _referral_settings_cache_ttl = 10 * 60
-_referral_settings_cache_time = None
+_referral_settings_cache_time: float | None = None
 
 
 async def _get_referral_settings_cached(db):

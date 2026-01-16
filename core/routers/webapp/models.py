@@ -3,6 +3,8 @@
 Shared models for all webapp endpoints.
 """
 
+from typing import Any
+
 from pydantic import BaseModel
 
 # ==================== AUTH MODELS ====================
@@ -84,7 +86,7 @@ class OrderHistoryResponse(BaseModel):
 class OrdersListResponse(BaseModel):
     """Orders list response with metadata."""
 
-    orders: list[dict]  # Use dict to match APIOrder structure from frontend
+    orders: list[dict[str, Any]]  # Use dict to match APIOrder structure from frontend
     count: int
     currency: str
 
@@ -180,4 +182,4 @@ class PartnerApplicationRequest(BaseModel):
     audience_size: str  # 1k-10k, 10k-50k, 50k-100k, 100k+
     description: str  # Why they want partnership
     expected_volume: str | None = None  # Expected monthly volume
-    social_links: dict | None = None  # {instagram: url, youtube: url, ...}
+    social_links: dict[str, Any] | None = None  # {instagram: url, youtube: url, ...}

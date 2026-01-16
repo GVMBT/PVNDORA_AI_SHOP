@@ -430,14 +430,22 @@ async def worker_calculate_referral(request: Request):
     amount_val = order.data.get("amount", 0)
     amount = to_float(str(amount_val) if not isinstance(amount_val, (int, float)) else amount_val)
     telegram_id_val = order.data.get("user_telegram_id")
-    telegram_id = int(telegram_id_val) if telegram_id_val and isinstance(telegram_id_val, (int, str)) else None
+    telegram_id = (
+        int(telegram_id_val)
+        if telegram_id_val and isinstance(telegram_id_val, (int, str))
+        else None
+    )
     users_data = order.data.get("users", {})
     if not isinstance(users_data, dict):
         users_data = {}
     was_unlocked = bool(users_data.get("referral_program_unlocked", False))
     is_partner = bool(users_data.get("is_partner", False))
     partner_level_override_val = users_data.get("partner_level_override")
-    partner_level_override = int(partner_level_override_val) if partner_level_override_val and isinstance(partner_level_override_val, (int, str)) else None
+    partner_level_override = (
+        int(partner_level_override_val)
+        if partner_level_override_val and isinstance(partner_level_override_val, (int, str))
+        else None
+    )
 
     # Update buyer's turnover
     turnover_result = await db.client.rpc(
@@ -553,7 +561,13 @@ async def worker_process_replacement(request: Request):
         .single()
         .execute()
     )
-    user_telegram_id = int(order_res.data.get("user_telegram_id", 0)) if order_res.data and isinstance(order_res.data, dict) and order_res.data.get("user_telegram_id") else None
+    user_telegram_id = (
+        int(order_res.data.get("user_telegram_id", 0))
+        if order_res.data
+        and isinstance(order_res.data, dict)
+        and order_res.data.get("user_telegram_id")
+        else None
+    )
 
     # Reserve stock
     now = datetime.now(UTC)

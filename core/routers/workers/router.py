@@ -6,6 +6,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter
 
@@ -99,7 +100,9 @@ async def _validate_order_for_delivery(db, order_id: str) -> tuple[dict | None, 
         return {}, None
 
 
-async def _allocate_stock_item(db, product_id: str, now: datetime) -> tuple[str | None, str | None]:
+async def _allocate_stock_item(
+    db: Any, product_id: str, now: datetime
+) -> tuple[str | None, str | None]:
     """Find and atomically reserve a stock item for a product.
 
     Returns:
@@ -154,7 +157,7 @@ async def _allocate_stock_item(db, product_id: str, now: datetime) -> tuple[str 
 
 
 async def _update_order_item_as_delivered(
-    db,
+    db: Any,
     item_id: str,
     stock_id: str,
     stock_content: str,
@@ -200,7 +203,7 @@ async def _update_order_item_as_delivered(
 
 
 def _check_item_eligible_for_delivery(
-    item: dict,
+    item: dict[str, Any],
     only_instant: bool,
 ) -> tuple[bool, bool]:
     """Check if item is eligible for delivery processing.
@@ -221,7 +224,7 @@ def _check_item_eligible_for_delivery(
     return True, False
 
 
-def _check_prepaid_deadline_expired(item: dict, now: datetime) -> bool:
+def _check_prepaid_deadline_expired(item: dict[str, Any], now: datetime) -> bool:
     """Check if prepaid item has expired fulfillment_deadline.
 
     Returns:
@@ -272,10 +275,17 @@ async def _try_deliver_with_stock(
         (delivery_line, is_waiting) - delivery_line is None if not delivered
 
     """
-    product_id = item.get("product_id")
+    product_id_val = item.get("product_id")
+    product_id = str(product_id_val) if product_id_val else ""
+    if not product_id:
+        return None, True  # Invalid product_id
+
     prod = products_map.get(product_id, {})
     prod_name = prod.get("name", "Product")
-    item_id = item.get("id")
+    item_id_val = item.get("id")
+    item_id = str(item_id_val) if item_id_val else ""
+    if not item_id:
+        return None, True  # Invalid item_id
 
     stock_id, stock_content = await _allocate_stock_item(db, product_id, now)
 
@@ -305,7 +315,7 @@ async def _try_deliver_with_stock(
     return None, True  # Failed, waiting
 
 
-async def _update_item_timestamp(db, item_id: str, now: datetime) -> None:
+async def _update_item_timestamp(db: Any, item_id: str, now: datetime) -> None:
     """Update order_item timestamp when stock is not available."""
     logger.debug(f"deliver-goods: NO stock available, updating timestamp for item {item_id}")
     try:
@@ -346,12 +356,15 @@ async def _process_single_item_delivery(
 
     # Update timestamp if no stock available
     if delivery_line is None and is_waiting:
-        await _update_item_timestamp(db, item.get("id"), now)
+        item_id_val = item.get("id")
+        item_id_str = str(item_id_val) if item_id_val else ""
+        if item_id_str:
+            await _update_item_timestamp(db, item_id_str, now)
 
     return delivery_line, is_waiting
 
 
-async def _update_user_total_saved(db, order_data: dict, order_id: str) -> None:
+async def _update_user_total_saved(db: Any, order_data: dict[str, Any], order_id: str) -> None:
     """Update user's total_saved (discount savings) if not already calculated."""
     if not order_data:
         return
@@ -424,13 +437,13 @@ async def _fetch_delivered_items_content(db, order_id: str) -> list[str]:
 
 
 async def _send_delivery_notification(
-    notification_service,
-    order_data: dict,
+    notification_service: Any,
+    order_data: dict[str, Any],
     order_id: str,
     delivered_lines: list[str],
     waiting_count: int,
     new_status: str | None,
-    db,
+    db: Any,
 ) -> None:
     """Send delivery notification to user."""
     telegram_id = order_data.get("user_telegram_id")
@@ -484,7 +497,7 @@ async def _send_delivery_notification(
 # =============================================================================
 
 
-def _get_validation_error_response(error_note: str | None) -> dict | None:
+def _get_validation_error_response(error_note: str | None) -> dict[str, Any] | None:
     """Convert validation error to response dict."""
     if error_note == "not_found":
         return {"delivered": 0, "waiting": 0, "note": "not_found", "error": "Order not found"}
@@ -508,7 +521,9 @@ def _get_validation_error_response(error_note: str | None) -> dict | None:
     return None
 
 
-async def _load_products_map(db, product_ids: list[str], order_id: str) -> dict:
+async def _load_products_map(
+    db: Any, product_ids: list[str], order_id: str
+) -> dict[str, dict[str, Any]]:
     """Load products info for delivery."""
     if not product_ids:
         return {}
@@ -527,9 +542,9 @@ async def _load_products_map(db, product_ids: list[str], order_id: str) -> dict:
 
 
 async def _process_items_for_delivery(
-    db,
-    items: list,
-    products_map: dict,
+    db: Any,
+    items: list[dict[str, Any]],
+    products_map: dict[str, dict[str, Any]],
     now: datetime,
     only_instant: bool,
 ) -> tuple[list[str], int, int, int]:
@@ -563,7 +578,7 @@ async def _process_items_for_delivery(
 
 
 async def _update_order_delivery_status(
-    db,
+    db: Any,
     order_id: str,
     total_delivered: int,
     waiting_count: int,
@@ -599,11 +614,11 @@ async def _update_order_delivery_status(
 
 
 async def _deliver_items_for_order(
-    db,
-    notification_service,
+    db: Any,
+    notification_service: Any,
     order_id: str,
     only_instant: bool = False,
-):
+) -> dict[str, Any]:
     """Deliver order_items for given order_id.
     - only_instant=True: выдаём только instant позиции (для первичной выдачи после оплаты)
     - otherwise: пытаемся выдать все открытые позиции, если есть сток.

@@ -68,7 +68,7 @@ class CurrencyFormatter:
     def create(
         cls,
         user_telegram_id: int | None = None,  # Kept for backward compatibility
-        db=None,  # Kept for backward compatibility
+        db: Any = None,  # Kept for backward compatibility
         redis=None,  # Kept for backward compatibility
         preferred_currency: str | None = None,  # Kept for backward compatibility
         language_code: str | None = None,  # Kept for backward compatibility
@@ -184,7 +184,7 @@ class CurrencyFormatter:
 # Convenience function
 def get_currency_formatter(
     user_telegram_id: int | None = None,
-    db=None,
+    db: Any = None,
     redis=None,
     **kwargs,
 ) -> CurrencyFormatter:

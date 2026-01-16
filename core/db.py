@@ -40,8 +40,8 @@ __all__ = [
 
 # For type-checkers only
 if TYPE_CHECKING:  # pragma: no cover
-    from upstash_redis import Redis as RedisType  # noqa: F401
-    from upstash_redis.asyncio import Redis as AsyncRedisType  # noqa: F401
+    from upstash_redis import Redis as RedisType
+    from upstash_redis.asyncio import Redis as AsyncRedisType
 else:
     RedisType = object
     AsyncRedisType = object

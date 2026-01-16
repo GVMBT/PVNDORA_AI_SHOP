@@ -34,7 +34,7 @@ app = FastAPI()
 
 
 @app.get("/api/cron/expire_orders")
-async def expire_orders_entrypoint(request: Request):
+async def expire_orders_entrypoint(request: Request) -> dict[str, str | int]:
     """Vercel Cron entrypoint."""
     # Verify the request is from Vercel Cron
     auth_header = request.headers.get("Authorization", "")

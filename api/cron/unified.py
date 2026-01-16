@@ -109,7 +109,7 @@ async def _auto_allocate_task(db: Any, results: dict[str, Any]) -> None:
 
 
 @app.get("/api/cron/unified")
-async def unified_cron_entrypoint(request: Request):
+async def unified_cron_entrypoint(request: Request) -> dict[str, str | bool]:
     """Unified cron entrypoint - runs all critical tasks."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":

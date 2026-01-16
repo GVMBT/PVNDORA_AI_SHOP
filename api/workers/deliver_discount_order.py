@@ -209,7 +209,7 @@ async def _get_purchase_count(db: Any, telegram_id: int) -> int:
     """Get user's delivered discount order count."""
     result = (
         await db.client.table("orders")
-        .select("id", count="exact")  # type: ignore[arg-type]
+        .select("id", count="exact")
         .eq("user_telegram_id", telegram_id)
         .eq("source_channel", "discount")
         .eq("status", "delivered")
@@ -277,7 +277,7 @@ async def _send_loyal_promo_if_eligible(
 
 
 @app.post("/api/workers/deliver-discount-order")
-async def deliver_discount_order(request: Request):
+async def deliver_discount_order(request: Request) -> JSONResponse:
     """Deliver a discount order after delay."""
     body = await request.body()
     if not verify_qstash_signature(request, body):

@@ -118,7 +118,9 @@ async def send_telegram_message(chat_id: str, text: str) -> bool:
     )
 
 
-def _group_products_by_status(products: list) -> tuple[list, list, list]:
+def _group_products_by_status(
+    products: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """Group products by stock status."""
     out_of_stock = []
     critical = []
@@ -136,7 +138,9 @@ def _group_products_by_status(products: list) -> tuple[list, list, list]:
     return out_of_stock, critical, low
 
 
-def _format_stock_section(products: list, title: str, show_price: bool = False) -> list[str]:
+def _format_stock_section(
+    products: list[dict[str, Any]], title: str, show_price: bool = False
+) -> list[str]:
     """Format a section of products for the alert message."""
     if not products:
         return []
@@ -155,7 +159,7 @@ def _format_stock_section(products: list, title: str, show_price: bool = False) 
     return lines
 
 
-def format_stock_alert(products: list) -> str:
+def format_stock_alert(products: list[dict[str, Any]]) -> str:
     """Format stock alert message in Russian with actionable instructions."""
     out_of_stock, critical, low = _group_products_by_status(products)
 
@@ -228,7 +232,7 @@ async def _send_alerts_to_admins(new_alerts: list[dict[str, Any]], results: dict
 
 
 @app.get("/api/cron/low_stock_alert")
-async def low_stock_alert_entrypoint(request: Request):
+async def low_stock_alert_entrypoint(request: Request) -> dict[str, str | int]:
     """Vercel Cron entrypoint for low stock alerts."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":

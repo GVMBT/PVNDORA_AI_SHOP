@@ -11,10 +11,14 @@ Used for critical operations that must be guaranteed to execute:
 import asyncio
 import os
 from functools import wraps
+from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, Request
 
 from core.logging import get_logger
+
+if TYPE_CHECKING:
+    from qstash import QStash
 
 logger = get_logger(__name__)
 
@@ -29,7 +33,7 @@ BASE_URL = os.environ.get("BASE_URL", "")
 
 
 # Singleton QStash client
-_qstash_client = None
+_qstash_client: "QStash | None" = None
 
 
 def get_qstash():

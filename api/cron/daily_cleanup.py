@@ -56,7 +56,7 @@ async def _fix_inconsistent_order_statuses(db, now: datetime) -> int:
         )
 
         # Group items by order_id
-        items_by_order: dict[str, list[dict]] = {}
+        items_by_order: dict[str, list[dict[str, Any]]] = {}
         for item in all_items_result.data or []:
             oid = item["order_id"]
             if oid not in items_by_order:
@@ -99,7 +99,7 @@ async def _fix_inconsistent_order_statuses(db, now: datetime) -> int:
 
 
 @app.get("/api/cron/daily_cleanup")
-async def daily_cleanup_entrypoint(request: Request):
+async def daily_cleanup_entrypoint(request: Request) -> dict[str, str | int]:
     """Vercel Cron entrypoint for daily cleanup tasks."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":

@@ -120,7 +120,7 @@ def build_item_payload(
 
 
 # Helper: Format datetime fields (reduces cognitive complexity)
-def _format_order_dates(order) -> dict[str, Any]:
+def _format_order_dates(order: Any) -> dict[str, Any]:
     """Format all datetime fields from order."""
     return {
         "created_at": order.created_at.isoformat() if order.created_at else None,
@@ -144,7 +144,7 @@ def _format_order_dates(order) -> dict[str, Any]:
 
 
 # Helper: Add payment info for pending orders (reduces cognitive complexity)
-def _add_payment_info(payload: dict[str, Any], order) -> None:
+def _add_payment_info(payload: dict[str, Any], order: Any) -> None:
     """Add payment URL and payment details for pending orders."""
     if order.status != "pending":
         return
@@ -160,7 +160,7 @@ def _add_payment_info(payload: dict[str, Any], order) -> None:
 
 
 def build_order_payload(
-    order,
+    order: Any,
     product: dict[str, Any],
     amount_converted: float,
     original_price_converted: float | None,

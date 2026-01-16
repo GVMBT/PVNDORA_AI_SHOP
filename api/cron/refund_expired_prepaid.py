@@ -175,9 +175,7 @@ async def _process_single_refund(
     product_name = product_data.get("name", "Unknown")
     order_amount = to_float(order_data.get("amount", 0))
     fiat_amount_raw = order_data.get("fiat_amount")
-    order_fiat_amount = (
-        to_float(fiat_amount_raw) if fiat_amount_raw is not None else None
-    )
+    order_fiat_amount = to_float(fiat_amount_raw) if fiat_amount_raw is not None else None
     order_fiat_currency = order_data.get("fiat_currency")
 
     balance_currency = await _get_user_balance_currency(db, user_id)
@@ -225,7 +223,7 @@ async def _process_single_refund(
 
 
 @app.get("/api/cron/refund_expired_prepaid")
-async def refund_expired_prepaid_entrypoint(request: Request):
+async def refund_expired_prepaid_entrypoint(request: Request) -> dict[str, str | int]:
     """Vercel Cron entrypoint for refunding expired prepaid order items."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":

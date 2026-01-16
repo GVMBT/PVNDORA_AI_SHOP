@@ -413,15 +413,17 @@ async def worker_send_broadcast(request: Request):
         .execute()
     )
 
-    if not broadcast_result.data:
+    if not broadcast_result.data or not isinstance(broadcast_result.data, dict):
         logger.error(f"Broadcast {broadcast_id} not found in database")
         return {"error": "Broadcast not found"}
 
-    logger.info(f"Broadcast {broadcast_id} found: status={broadcast_result.data.get('status')}")
-
     broadcast = broadcast_result.data
-    content = broadcast.get("content", {})
-    buttons = broadcast.get("buttons", [])
+    logger.info(f"Broadcast {broadcast_id} found: status={broadcast.get('status')}")
+
+    content_val = broadcast.get("content", {})
+    content = content_val if isinstance(content_val, dict) else {}
+    buttons_val = broadcast.get("buttons", [])
+    buttons = buttons_val if isinstance(buttons_val, list) else []
     media_file_id = broadcast.get("media_file_id")
     media_type = broadcast.get("media_type")
 
@@ -439,20 +441,25 @@ async def worker_send_broadcast(request: Request):
     # Download media if needed
     media_bytes = None
     if media_file_id and media_type:
-        media_bytes = await _download_media_from_admin_bot(media_file_id, broadcast_id)
+        media_file_id_str = str(media_file_id) if isinstance(media_file_id, (str, int)) else ""
+        if media_file_id_str:
+            media_bytes = await _download_media_from_admin_bot(media_file_id_str, broadcast_id)
 
     sent = 0
     failed = 0
 
     try:
         for user_id in user_ids:
+            broadcast_dict = broadcast if isinstance(broadcast, dict) else {}
+            content_dict = content if isinstance(content, dict) else {}
+            buttons_list = buttons if isinstance(buttons, list) else []
             success = await _send_to_user(
                 db,
                 bot,
                 user_id,
-                broadcast,
-                content,
-                buttons,
+                broadcast_dict,
+                content_dict,
+                buttons_list,
                 media_bytes,
                 broadcast_id,
             )
@@ -464,7 +471,8 @@ async def worker_send_broadcast(request: Request):
             # Rate limiting - 30 messages per second max
             await asyncio.sleep(0.035)
 
-        await _check_broadcast_complete(db, broadcast_id, broadcast, sent, failed)
+        broadcast_dict = broadcast if isinstance(broadcast, dict) else {}
+        await _check_broadcast_complete(db, broadcast_id, broadcast_dict, sent, failed)
 
     finally:
         await bot.session.close()

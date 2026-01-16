@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any
 
 from core.services.money import divide, multiply, round_money, subtract, to_decimal
 
@@ -20,7 +21,7 @@ class CartItem:
     discount_percent: Decimal = Decimal(0)
     added_at: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.added_at:
             self.added_at = datetime.now(UTC).isoformat()
         # Normalize numeric fields
@@ -52,7 +53,7 @@ class CartItem:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "CartItem":
+    def from_dict(cls, data: dict[str, Any]) -> "CartItem":
         """Create from dictionary."""
         return cls(
             product_id=data["product_id"],
@@ -77,7 +78,7 @@ class Cart:
     created_at: str = ""
     updated_at: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         now = datetime.now(UTC).isoformat()
         if not self.created_at:
             self.created_at = now
@@ -130,7 +131,7 @@ class Cart:
 
         return subtotal_after_items
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for Redis storage."""
         return {
             "user_telegram_id": self.user_telegram_id,
@@ -142,7 +143,7 @@ class Cart:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Cart":
+    def from_dict(cls, data: dict[str, Any]) -> "Cart":
         """Create from dictionary."""
         items = [CartItem.from_dict(item) for item in data.get("items", [])]
         return cls(

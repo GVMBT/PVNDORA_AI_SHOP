@@ -68,7 +68,7 @@ def _load_translations(lang: str) -> dict[str, Any]:
         return {}
 
 
-def _get_nested_value(translations: dict, key: str) -> Any:
+def _get_nested_value(translations: dict[str, Any], key: str) -> Any:
     """Get nested value from translations using dot notation (reduces cognitive complexity)."""
     if "." not in key:
         return translations.get(key)

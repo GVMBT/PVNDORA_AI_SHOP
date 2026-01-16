@@ -4,6 +4,8 @@ Dynamic agent — all business data comes from database via tools.
 NO hardcoded values for prices, percentages, thresholds, warranties.
 """
 
+from typing import Any
+
 LANGUAGE_INSTRUCTIONS = {
     "ru": "Отвечай на русском. Используй 'ты'.",
     "en": "Reply in English.",
@@ -158,7 +160,7 @@ def get_system_prompt(
 
 
 async def format_product_catalog(
-    products: list,
+    products: list[dict[str, Any]],
     language: str = "en",
     _exchange_rate: float = 1.0,
 ) -> str:

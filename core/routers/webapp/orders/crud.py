@@ -297,7 +297,9 @@ async def get_webapp_order_status(
         paid_at = order.get("paid_at") or order.get("created_at")
         if paid_at:
             try:
-                paid_at_str = str(paid_at) if paid_at and isinstance(paid_at, (str, int, float)) else ""
+                paid_at_str = (
+                    str(paid_at) if paid_at and isinstance(paid_at, (str, int, float)) else ""
+                )
                 if paid_at_str and isinstance(paid_at_str, str):
                     paid_dt = datetime.fromisoformat(paid_at_str)
                     est_dt = paid_dt + timedelta(hours=max_hours)
@@ -434,12 +436,22 @@ async def verify_order_payment(order_id: str, user=Depends(verify_telegram_auth)
     payment_gateway = order.get("payment_gateway")
 
     if not payment_id:
-        return {"status": str(order.get("status", "")), "verified": False, "message": "No payment_id"}
+        return {
+            "status": str(order.get("status", "")),
+            "verified": False,
+            "message": "No payment_id",
+        }
 
     if payment_gateway == "crystalpay":
-        payment_id_str = str(payment_id) if payment_id and isinstance(payment_id, (str, int, float)) else ""
+        payment_id_str = (
+            str(payment_id) if payment_id and isinstance(payment_id, (str, int, float)) else ""
+        )
         order_status_raw = order.get("status")
-        order_status_str = str(order_status_raw) if order_status_raw and isinstance(order_status_raw, (str, int, float)) else ""
+        order_status_str = (
+            str(order_status_raw)
+            if order_status_raw and isinstance(order_status_raw, (str, int, float))
+            else ""
+        )
         if payment_id_str and order_status_str:
             return await _verify_crystalpay_payment(payment_id_str, order_id, order_status_str, db)
 

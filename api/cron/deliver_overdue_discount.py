@@ -463,7 +463,7 @@ async def deliver_discount_order(db: Any, order_id: str, order_data: dict[str, A
 
 
 @app.get("/api/cron/deliver_overdue_discount")
-async def deliver_overdue_discount(request: Request):
+async def deliver_overdue_discount(request: Request) -> dict[str, str | int]:
     """Find and deliver overdue discount orders."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":

@@ -29,7 +29,7 @@ app = FastAPI()
 
 
 @app.get("/api/cron/discount_offers")
-async def discount_offers_entrypoint(request: Request):
+async def discount_offers_entrypoint(request: Request) -> dict[str, str | int]:
     """Vercel Cron entrypoint for discount offers."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":

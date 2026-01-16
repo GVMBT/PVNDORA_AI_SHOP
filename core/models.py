@@ -8,7 +8,7 @@ Contains all Pydantic models used throughout the application:
 
 from datetime import datetime
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -189,7 +189,7 @@ class ProductSocialProof(BaseModel):
     rating: float = 0.0
     review_count: int = 0
     sales_count: int = 0
-    recent_reviews: list[dict] = []
+    recent_reviews: list[dict[str, Any]] = []
 
 
 class ProductDetail(ProductWithStock):

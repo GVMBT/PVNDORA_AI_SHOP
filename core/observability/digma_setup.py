@@ -15,6 +15,7 @@
 """
 
 import os
+from typing import Any
 
 from core.logging import get_logger
 
@@ -43,7 +44,7 @@ except ImportError:
     )
 
 
-def setup_digma(app) -> None:
+def setup_digma(app: Any) -> None:
     """Настраивает Digma для автоматического отслеживания.
 
     Отслеживает:
@@ -117,7 +118,7 @@ def setup_digma(app) -> None:
         logger.warning("[Digma] Continuing without observability")
 
 
-def get_tracer(name: str):
+def get_tracer(name: str) -> Any:
     """Получить tracer для ручного создания spans (опционально).
 
     Args:
@@ -130,13 +131,13 @@ def get_tracer(name: str):
     if not DIGMA_ENABLED or not OPENTELEMETRY_AVAILABLE:
         # Return dummy tracer that does nothing
         class NoOpTracer:
-            def start_as_current_span(self, *args, **kwargs):
+            def start_as_current_span(self, *args: Any, **kwargs: Any) -> "NoOpTracer":
                 return self
 
-            def __enter__(self):
+            def __enter__(self) -> "NoOpTracer":
                 return self
 
-            def __exit__(self, *args):
+            def __exit__(self, *args: object) -> None:
                 # No-op: No cleanup needed for no-op tracer
                 pass
 

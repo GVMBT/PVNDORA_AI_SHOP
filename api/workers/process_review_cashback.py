@@ -184,7 +184,7 @@ async def _send_cashback_notification(
 
 
 @app.post("/api/workers/process-review-cashback")
-async def process_review_cashback(request: Request):
+async def process_review_cashback(request: Request) -> JSONResponse:
     """Process 5% cashback for review."""
     body = await request.body()
     if not verify_qstash_signature(request, body):

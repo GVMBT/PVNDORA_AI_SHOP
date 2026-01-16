@@ -5,6 +5,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -82,7 +83,7 @@ class InsuranceService:
     HOLD_FOR_REVIEW_THRESHOLD = 60  # Above this, hold for manual review
     MAX_REPLACEMENTS_PER_MONTH = 2  # Per user, across all orders
 
-    def __init__(self, db_client) -> None:
+    def __init__(self, db_client: Any) -> None:
         self.client = db_client
 
     # ==================== Insurance Options ====================

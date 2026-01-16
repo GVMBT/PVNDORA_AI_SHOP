@@ -4,6 +4,8 @@ QStash workers for order delivery operations.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
+from typing import Any
+
 from fastapi import APIRouter, Request
 
 from core.logging import get_logger
@@ -16,7 +18,7 @@ delivery_router = APIRouter()
 
 
 @delivery_router.post("/deliver-goods")
-async def worker_deliver_goods(request: Request):
+async def worker_deliver_goods(request: Request) -> dict[str, Any]:
     """QStash Worker: Deliver digital goods after payment.
     Called by QStash with guaranteed delivery.
     """
@@ -37,7 +39,7 @@ async def worker_deliver_goods(request: Request):
 
 
 @delivery_router.post("/deliver-batch")
-async def worker_deliver_batch(request: Request):
+async def worker_deliver_batch(request: Request) -> dict[str, Any]:
     """QStash Worker: Try to deliver all waiting items (pending/prepaid), any fulfillment_type.
     Useful for auto-allocation when stock is replenished.
     """
@@ -59,13 +61,21 @@ async def worker_deliver_batch(request: Request):
             .limit(200)
             .execute()
         )
-        order_ids = list({row["order_id"] for row in (open_items.data or [])})
+        order_ids_raw = [
+            str(row["order_id"]) if isinstance(row, dict) and row.get("order_id") else ""
+            for row in (open_items.data or [])
+            if isinstance(row, dict) and row.get("order_id")
+        ]
+        order_ids = list(set(order_ids_raw))
     except Exception as e:
         return {"error": f"failed to query open items: {e}"}
 
     results = []
-    for oid in order_ids:
-        res = await _deliver_items_for_order(db, notification_service, oid, only_instant=False)
-        results.append({"order_id": oid, **res})
+    for oid_str in order_ids:
+        if oid_str:
+            res = await _deliver_items_for_order(
+                db, notification_service, oid_str, only_instant=False
+            )
+            results.append({"order_id": oid_str, **res})
 
     return {"processed": len(order_ids), "results": results}

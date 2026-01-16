@@ -257,14 +257,21 @@ async def worker_process_refund(request: Request):
         .execute()
     )
 
-    if not order.data:
+    if not order.data or not isinstance(order.data, dict):
         return {"error": ERROR_ORDER_NOT_FOUND}
 
-    if order.data["status"] not in ["prepaid", "paid", "partial", "delivered"]:
-        return {"skipped": True, "reason": f"Order status is {order.data['status']}, cannot refund"}
+    order_data = order.data
+    if order_data.get("status") not in ["prepaid", "paid", "partial", "delivered"]:
+        status = order_data.get("status", "unknown")
+        return {"skipped": True, "reason": f"Order status is {status}, cannot refund"}
 
-    user_id = order.data["user_id"]
-    amount_usd = to_float(order.data["amount"])
+    user_id = order_data.get("user_id")
+    if not user_id:
+        return {"error": "Order missing user_id"}
+    amount_val = order_data.get("amount", 0)
+    amount_usd = to_float(
+        str(amount_val) if not isinstance(amount_val, (int, float)) else amount_val
+    )
 
     # Get user's balance_currency
     user_result = (
@@ -274,12 +281,15 @@ async def worker_process_refund(request: Request):
         .single()
         .execute()
     )
-    balance_currency = (
-        user_result.data.get("balance_currency", "RUB") if user_result.data else "RUB"
+    balance_currency_val = (
+        user_result.data.get("balance_currency", "RUB")
+        if isinstance(user_result.data, dict) and user_result.data
+        else "RUB"
     )
+    balance_currency = str(balance_currency_val) if balance_currency_val else "RUB"
 
     # Calculate refund amount
-    refund_amount = await _get_refund_amount(order.data, amount_usd, balance_currency)
+    refund_amount = await _get_refund_amount(order_data, amount_usd, balance_currency)
 
     # 1. Rollback turnover and revoke referral bonuses
     rollback_result = await db.client.rpc(
@@ -324,9 +334,19 @@ async def worker_process_refund(request: Request):
     )
 
     # 4. Notify user
+    telegram_id_val = order_data.get("user_telegram_id")
+    telegram_id = (
+        int(telegram_id_val) if telegram_id_val and isinstance(telegram_id_val, (int, str)) else 0
+    )
+    products_data = order_data.get("products")
+    if isinstance(products_data, dict):
+        product_name = str(products_data.get("name", "Product"))
+    else:
+        product_name = "Product"
+
     await notification_service.send_refund_notification(
-        telegram_id=order.data["user_telegram_id"],
-        product_name=order.data.get("products", {}).get("name", "Product"),
+        telegram_id=telegram_id,
+        product_name=product_name,
         amount=refund_amount,
         currency=balance_currency,
         reason=reason,

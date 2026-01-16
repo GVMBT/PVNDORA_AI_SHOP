@@ -51,7 +51,7 @@ class CurrencyService:
     This provides backwards compatibility while simplifying the codebase.
     """
 
-    def __init__(self, redis_client=None) -> None:
+    def __init__(self, redis_client: Any = None) -> None:
         """Initialize currency service (redis no longer needed for rates)."""
         self.redis = redis_client
         self.language_to_currency = LANGUAGE_TO_CURRENCY
@@ -356,7 +356,7 @@ MIN_WITHDRAWAL_USD = MIN_USDT_AFTER_FEES + NETWORK_FEE_USDT  # ~10 USDT total
 _currency_service: CurrencyService | None = None
 
 
-def get_currency_service(redis_client=None) -> CurrencyService:
+def get_currency_service(redis_client: Any = None) -> CurrencyService:
     """Get or create global currency service instance."""
     global _currency_service
     if _currency_service is None:

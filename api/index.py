@@ -15,7 +15,7 @@ AIKIDO_ZEN_AVAILABLE = False
 _aikido_zen_module = None
 
 try:
-    import aikido_zen  # type: ignore[import-untyped]
+    import aikido_zen  # type: ignore[import-untyped, no-untyped-call]
 
     _aikido_zen_module = aikido_zen
     # Try to call protect() immediately if token is available
@@ -322,14 +322,14 @@ app.add_middleware(
 
 
 @app.get("/api/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "ok", "version": "1.0.0"}
 
 
 @app.post("/webhook")
 @app.post("/webhook/telegram")
-async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
+async def telegram_webhook(request: Request, background_tasks: BackgroundTasks) -> JSONResponse:
     """Handle Main Bot Telegram webhook updates."""
     try:
         bot_instance = get_bot()
@@ -421,7 +421,7 @@ def get_discount_dispatcher() -> Dispatcher | None:
 
 
 @app.post("/webhook/discount")
-async def discount_webhook(request: Request, background_tasks: BackgroundTasks):
+async def discount_webhook(request: Request, background_tasks: BackgroundTasks) -> JSONResponse:
     """Handle Discount Bot Telegram webhook updates."""
     try:
         bot_instance = get_discount_bot()
@@ -464,7 +464,7 @@ async def discount_webhook(request: Request, background_tasks: BackgroundTasks):
 
 
 @app.post("/api/webhook/discount/set")
-async def set_discount_webhook():
+async def set_discount_webhook() -> dict[str, str | bool]:
     """Set Discount Bot Telegram webhook."""
     if not DISCOUNT_BOT_TOKEN:
         return {"error": "DISCOUNT_BOT_TOKEN not configured"}
@@ -526,7 +526,7 @@ def get_admin_dispatcher() -> Dispatcher | None:
 
 
 @app.post("/webhook/admin")
-async def admin_webhook(request: Request, background_tasks: BackgroundTasks):
+async def admin_webhook(request: Request, background_tasks: BackgroundTasks) -> JSONResponse:
     """Handle Admin Bot Telegram webhook updates."""
     try:
         bot_instance = get_admin_bot()
@@ -569,7 +569,7 @@ async def admin_webhook(request: Request, background_tasks: BackgroundTasks):
 
 
 @app.post("/api/webhook/admin/set")
-async def set_admin_webhook():
+async def set_admin_webhook() -> dict[str, str | bool]:
     """Set Admin Bot Telegram webhook."""
     if not ADMIN_BOT_TOKEN:
         return {"error": "ADMIN_BOT_TOKEN not configured"}

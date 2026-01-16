@@ -35,7 +35,7 @@ DISCOUNT_BOT_TOKEN = os.environ.get("DISCOUNT_BOT_TOKEN", "")
 app = FastAPI()
 
 
-async def send_discount_payment_confirmation(telegram_id: int, order_id: str):
+async def send_discount_payment_confirmation(telegram_id: int, order_id: str) -> bool:
     """Send payment confirmation via discount bot."""
     if not DISCOUNT_BOT_TOKEN:
         logger.warning("DISCOUNT_BOT_TOKEN not configured")
@@ -60,7 +60,7 @@ async def send_discount_payment_confirmation(telegram_id: int, order_id: str):
         return False
 
 
-async def check_invoice_status(invoice_id: str) -> dict:
+async def check_invoice_status(invoice_id: str) -> dict[str, Any]:
     """Check invoice status via CrystalPay API."""
     try:
         payload = {
@@ -243,7 +243,7 @@ async def _check_single_order(db: Any, order: Any) -> bool:
 
 
 @app.get("/api/cron/check_pending_payments")
-async def check_pending_payments(request: Request):
+async def check_pending_payments(request: Request) -> dict[str, str | int]:
     """Check pending CrystalPay orders and update their status."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":

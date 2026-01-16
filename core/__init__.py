@@ -18,6 +18,8 @@ For Redis:
     from core.db import get_redis
 """
 
+from typing import Any
+
 # Lazy imports to avoid issues at module load time
 # pylint: disable=undefined-all-variable
 __all__ = [
@@ -31,7 +33,7 @@ __all__ = [
 # pylint: enable=undefined-all-variable
 
 
-def __getattr__(name):
+def __getattr__(name: str) -> Any:
     """Lazy attribute access for clean serverless loading."""
     if name == "get_database":
         from core.services.database import get_database

@@ -157,7 +157,14 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
             )
             .execute()
         )
-        topup_id = str(tx_result.data[0]["id"]) if tx_result.data and isinstance(tx_result.data, list) and len(tx_result.data) > 0 and isinstance(tx_result.data[0], dict) else None
+        topup_id = (
+            str(tx_result.data[0]["id"])
+            if tx_result.data
+            and isinstance(tx_result.data, list)
+            and len(tx_result.data) > 0
+            and isinstance(tx_result.data[0], dict)
+            else None
+        )
     except Exception:
         logger.exception("Failed to create topup transaction")
         raise HTTPException(status_code=500, detail="Failed to create top-up request")
@@ -269,7 +276,9 @@ async def get_topup_status(topup_id: str):
         status_str = str(status) if status else "pending"
         tx_amount = tx.get("amount") if isinstance(tx.get("amount"), (int, float)) else None
         tx_currency = tx.get("currency") if isinstance(tx.get("currency"), str) else None
-        tx_balance_after = tx.get("balance_after") if isinstance(tx.get("balance_after"), (int, float)) else None
+        tx_balance_after = (
+            tx.get("balance_after") if isinstance(tx.get("balance_after"), (int, float)) else None
+        )
         return {
             "topup_id": topup_id,
             "status": status_map.get(status_str, "pending"),

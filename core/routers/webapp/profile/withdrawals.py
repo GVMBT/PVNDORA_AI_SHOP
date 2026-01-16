@@ -185,7 +185,14 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
         .execute()
     )
 
-    request_id_raw = withdrawal_result.data[0].get("id", "") if withdrawal_result.data and isinstance(withdrawal_result.data, list) and len(withdrawal_result.data) > 0 and isinstance(withdrawal_result.data[0], dict) else "unknown"
+    request_id_raw = (
+        withdrawal_result.data[0].get("id", "")
+        if withdrawal_result.data
+        and isinstance(withdrawal_result.data, list)
+        and len(withdrawal_result.data) > 0
+        and isinstance(withdrawal_result.data[0], dict)
+        else "unknown"
+    )
     request_id = str(request_id_raw) if request_id_raw else "unknown"
 
     # Send alert to admins (best-effort)

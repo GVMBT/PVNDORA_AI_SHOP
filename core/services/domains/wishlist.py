@@ -36,7 +36,7 @@ class WishlistService:
     Provides clean interface for wishlist operations.
     """
 
-    def __init__(self, db) -> None:
+    def __init__(self, db: Any) -> None:
         self.db = db
 
     async def get_items(self, user_id: str) -> list[WishlistItem]:

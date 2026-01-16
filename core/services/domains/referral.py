@@ -44,7 +44,7 @@ class ReferralService:
     LEVEL_PERCENTS = {1: 10, 2: 7, 3: 3}
     BOT_USERNAME = "pvndora_ai_bot"
 
-    def __init__(self, db) -> None:
+    def __init__(self, db: Any) -> None:
         self.db = db
 
     async def get_info(self, user_id: str) -> ReferralInfo:

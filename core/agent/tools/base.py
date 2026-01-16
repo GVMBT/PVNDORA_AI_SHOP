@@ -4,13 +4,17 @@ Contains database and user context management shared across all tool modules.
 """
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from core.logging import get_logger
+
+if TYPE_CHECKING:
+    from core.services.database import Database
 
 logger = get_logger(__name__)
 
 # Global DB instance - set during agent initialization
-_db = None
+_db: "Database | None" = None
 
 
 # Global user context - set before each agent call
@@ -25,13 +29,13 @@ class _UserContext:
 _user_ctx = _UserContext()
 
 
-def set_db(db) -> None:
+def set_db(db: "Database") -> None:
     """Set the database instance for tools."""
     global _db
     _db = db
 
 
-def get_db():
+def get_db() -> "Database":
     """Get the database instance."""
     if _db is None:
         msg = "Database not initialized. Call set_db() first."

@@ -4,7 +4,7 @@ AI-powered chat endpoint using LangGraph ShopAgent (Gemini 2.5).
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -14,6 +14,9 @@ from core.auth import verify_telegram_auth
 from core.logging import get_logger
 from core.services.database import get_database
 
+if TYPE_CHECKING:
+    from core.agent.agent import ShopAgent
+
 logger = get_logger(__name__)
 
 # Error message constants
@@ -22,7 +25,7 @@ ERR_USER_NOT_FOUND = "User not found"
 router = APIRouter(prefix="/ai", tags=["webapp-ai"])
 
 # Lazy singleton
-_shop_agent = None
+_shop_agent: "ShopAgent | None" = None
 
 
 def get_agent():

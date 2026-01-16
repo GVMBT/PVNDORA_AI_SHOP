@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from pydantic import BaseModel, field_validator
 
@@ -55,7 +56,7 @@ class User(BaseModel):
         mode="before",
     )
     @classmethod
-    def convert_to_decimal(cls, v):
+    def convert_to_decimal(cls, v: Any) -> Decimal:
         return _to_decimal(v)
 
 
@@ -80,14 +81,14 @@ class Product(BaseModel):
     categories: list[str] = []  # text, video, image, code, audio
     msrp: Decimal | None = None  # MSRP in RUB
     duration_days: int | None = None
-    instruction_files: list | None = None
+    instruction_files: list[str] | None = None
     image_url: str | None = None
     video_url: str | None = None
     logo_svg_url: str | None = None
 
     @field_validator("price", mode="before")
     @classmethod
-    def convert_price_to_decimal(cls, v):
+    def convert_price_to_decimal(cls, v: Any) -> Decimal:
         return _to_decimal(v)
 
 
@@ -107,7 +108,7 @@ class StockItem(BaseModel):
 
     @field_validator("discount_percent", mode="before")
     @classmethod
-    def convert_discount_to_decimal(cls, v):
+    def convert_discount_to_decimal(cls, v: Any) -> Decimal:
         return _to_decimal(v) if v is not None else Decimal(0)
 
 
@@ -182,5 +183,5 @@ class OrderItem(BaseModel):
 
     @field_validator("price", mode="before")
     @classmethod
-    def convert_item_price_to_decimal(cls, v):
+    def convert_item_price_to_decimal(cls, v: Any) -> Decimal | None:
         return _to_decimal(v) if v is not None else None

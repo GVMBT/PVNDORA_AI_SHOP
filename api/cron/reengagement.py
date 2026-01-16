@@ -13,9 +13,6 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
-# Type alias for dict type hints
-DictStrAny = dict[str, Any]
-
 # Add project root to path for imports BEFORE any core.* imports
 _base_path = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(_base_path))
@@ -76,7 +73,7 @@ async def _process_inactive_users(db: Any, now: datetime) -> int:
     for user_raw in inactive_users.data or []:
         if not isinstance(user_raw, dict):
             continue
-        user = cast(DictStrAny, user_raw)
+        user = cast(dict[str, Any], user_raw)
 
         # Skip if recently contacted
         if _was_recently_contacted(user.get("last_reengagement_at"), reengagement_cutoff):
@@ -213,7 +210,7 @@ def _calculate_days_left(expires_at_str: str | None, now: datetime) -> int:
 
 
 @app.get("/api/cron/reengagement")
-async def reengagement_entrypoint(request: Request):
+async def reengagement_entrypoint(request: Request) -> dict[str, str | int]:
     """Vercel Cron entrypoint for re-engagement notifications."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":

@@ -3,6 +3,8 @@
 Shared models for all admin endpoints.
 """
 
+from typing import Any
+
 from pydantic import BaseModel
 
 # ==================== PRODUCT MODELS ====================
@@ -35,7 +37,7 @@ class CreateProductRequest(BaseModel):
 
     # Pricing
     price: float = 0  # Base USD price
-    prices: dict | None = None  # Anchor prices: {"RUB": 990, "USD": 10.50}
+    prices: dict[str, Any] | None = None  # Anchor prices: {"RUB": 990, "USD": 10.50}
     msrp: float | None = None  # MSRP in RUB
     discountPrice: float | None = None  # discount_price
     costPrice: float | None = None  # cost_price
@@ -117,7 +119,7 @@ class ReferralSettingsRequest(BaseModel):
     level1_commission_percent: float | None = None
     level2_commission_percent: float | None = None
     level3_commission_percent: float | None = None
-    thresholds_by_currency: dict | None = (
+    thresholds_by_currency: dict[str, dict[str, Any]] | None = (
         None  # Anchor thresholds: {"USD": {"level2": 250, "level3": 1000}, "RUB": {"level2": 20000, "level3": 80000}}
     )
 
