@@ -384,7 +384,15 @@ async def _process_balance_payment(
             {
                 "p_user_id": user_id,
                 "p_amount": -to_float(order_total_in_balance_currency),
-                "p_reason": f"Payment for order {order_id}",
+                "p_reason": "Оплата заказа с баланса",
+                "p_reference_type": "order",
+                "p_reference_id": str(order_id),
+                "p_metadata": {
+                    "order_id": str(order_id),
+                    "payment_method": "balance",
+                    "amount_local": to_float(order_total_in_balance_currency),
+                    "currency": balance_currency,
+                },
             },
         ).execute()
         from core.logging import sanitize_id_for_logging

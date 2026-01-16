@@ -18,6 +18,56 @@ const getLogBadgeClasses = (isIncome: boolean, type: string): string => {
   return "text-gray-500 border-white/10 bg-white/5";
 };
 
+// Helper to process metadata and build localized source (reduces cognitive complexity)
+type TranslateFunc = (key: string) => string | undefined;
+interface MetadataResult {
+  source: string;
+  details: string;
+}
+
+function processMetadata(
+  meta: BillingLogData["metadata"],
+  sourceKey: string,
+  defaultSource: string,
+  t: TranslateFunc,
+): MetadataResult {
+  let source = defaultSource;
+  let details = "";
+
+  if (!meta) return { source, details };
+
+  // For purchases, show payment method
+  if (sourceKey === "purchase" && meta.payment_method) {
+    source =
+      meta.payment_method === "balance"
+        ? t("profile.billing.transaction.purchase_balance") || "Оплата с баланса"
+        : t("profile.billing.transaction.purchase_external") || "Оплата заказа";
+  }
+
+  // For referral bonuses, show level and from whom
+  if (sourceKey === "bonus" && meta.level) {
+    source = t(`profile.billing.transaction.bonus_l${meta.level}`) || `Реф. бонус L${meta.level}`;
+    if (meta.from_username) {
+      details = `${t("profile.billing.transaction.details.from") || "от"} ${meta.from_username}`;
+    }
+  }
+
+  // For refunds, show reason
+  if (sourceKey === "refund" && meta.refund_type === "auto_expired") {
+    source = t("profile.billing.transaction.refund_auto") || "Авто-возврат";
+    if (meta.product_name) {
+      details = String(meta.product_name);
+    }
+  }
+
+  // For cashback, show percent
+  if (sourceKey === "cashback" && meta.cashback_percent) {
+    source = `${meta.cashback_percent}% кэшбек`;
+  }
+
+  return { source, details };
+}
+
 interface ProfileBillingProps {
   logs: BillingLogData[];
   currency?: string;
@@ -31,30 +81,29 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
 }) => {
   const { t } = useLocale();
 
-  // Format and localize logs
+  // Format and localize logs with extended info
   const localizedLogs = useMemo(() => {
     return logs.map((log) => {
-      // Parse transaction type from source for localization
       const sourceKey = log.transactionType?.toLowerCase() || "system";
-      const localizedSource = t(`profile.billing.transaction.${sourceKey}`) || log.source;
+      const defaultSource = t(`profile.billing.transaction.${sourceKey}`) || log.source;
 
-      // Parse amount (remove sign, convert)
+      // Process metadata for informative display
+      const { source: metaSource, details } = processMetadata(log.metadata, sourceKey, defaultSource, t);
+
+      // Fallback: use description if source is generic
+      let localizedSource = metaSource;
+      if ((sourceKey === "credit" || sourceKey === "debit") && log.source && log.source !== sourceKey.toUpperCase()) {
+        localizedSource = log.source;
+      }
+
+      // Parse and convert amount
       const amountNum = Number.parseFloat(log.amount.replaceAll(/[+\-,]/g, "")) || 0;
       const isIncome = log.type === "INCOME";
-
-      // Only convert if transaction currency differs from display currency
-      // balance_transactions already come in user's balance_currency
-      const txCurrency = log.currency;
-      const needsConversion = txCurrency && txCurrency !== currency;
+      const needsConversion = log.currency && log.currency !== currency;
       const convertedAmount = needsConversion ? amountNum * exchangeRate : amountNum;
       const formattedAmount = `${isIncome ? "+" : "-"}${formatPrice(convertedAmount, currency)}`;
 
-      return {
-        ...log,
-        localizedSource,
-        formattedAmount,
-        isIncome,
-      };
+      return { ...log, localizedSource, details, formattedAmount, isIncome };
     });
   }, [logs, t, currency, exchangeRate]);
 
@@ -144,8 +193,8 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
                     <span className="text-white font-bold text-sm tracking-tight group-hover:text-pandora-cyan transition-colors truncate">
                       {log.localizedSource}
                     </span>
-                    <span className="text-[10px] text-gray-500 uppercase tracking-widest opacity-50">
-                      Network Transmission
+                    <span className="text-[10px] text-gray-500 uppercase tracking-widest opacity-50 truncate">
+                      {log.details || (log.referenceId ? `#${log.referenceId.substring(0, 8)}` : "")}
                     </span>
                   </div>
 
@@ -205,8 +254,8 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center justify-between border-t border-white/5 pt-2 mt-1">
-                    <div className="flex items-center gap-1.5 text-gray-500 text-[9px] uppercase tracking-widest font-bold opacity-50">
-                      Status: Verified
+                    <div className="flex items-center gap-1.5 text-gray-500 text-[9px] uppercase tracking-widest font-bold opacity-50 truncate max-w-[60%]">
+                      {log.details || (log.referenceId ? `#${log.referenceId.substring(0, 8)}` : "Completed")}
                     </div>
                     <div className="flex items-center gap-1.5 text-gray-500 text-[10px]">
                       <Clock size={10} />

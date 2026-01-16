@@ -367,13 +367,22 @@ async def admin_update_user_balance(
 
         # Use RPC function to update balance and log transaction atomically
         # RPC function handles currency correctly and prevents negative balance
+        admin_id = admin.get("id", "unknown")
         try:
             await db.client.rpc(
                 "add_to_user_balance",
                 {
                     "p_user_id": user_id,
                     "p_amount": request.amount,  # Amount in user's balance_currency
-                    "p_reason": f"Admin manual adjustment (admin_id: {admin.get('id', 'unknown')})",
+                    "p_reason": "Корректировка баланса администратором",
+                    "p_reference_type": "admin_adjustment",
+                    "p_reference_id": str(admin_id),
+                    "p_metadata": {
+                        "admin_id": str(admin_id),
+                        "adjustment_type": "manual",
+                        "amount": request.amount,
+                        "currency": balance_currency,
+                    },
                 },
             ).execute()
 

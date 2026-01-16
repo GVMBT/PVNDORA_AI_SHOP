@@ -286,7 +286,15 @@ async def _process_review_cashback(
         {
             "p_user_id": str(db_user.id),
             "p_amount": cashback_amount,
-            "p_reason": f"5% кэшбек за отзыв (заказ {request.order_id})",
+            "p_reason": "5% кэшбек за отзыв",
+            "p_reference_type": "order",
+            "p_reference_id": str(request.order_id),
+            "p_metadata": {
+                "order_id": str(request.order_id),
+                "review_id": str(review_id),
+                "cashback_percent": 5,
+                "cashback_type": "review",
+            },
         },
     ).execute()
 

@@ -41,6 +41,19 @@ export interface BillingLogData {
   date: string;
   transactionType?: string; // For localization: topup, purchase, refund, etc.
   currency?: string; // Currency of the transaction (e.g., 'RUB', 'USD') - if same as user's currency, no conversion needed
+  // Extended info
+  referenceType?: string; // 'order', 'withdrawal', 'referral', 'admin_adjustment', etc.
+  referenceId?: string; // ID of the related entity
+  metadata?: {
+    order_id?: string;
+    product_name?: string;
+    payment_method?: string;
+    from_username?: string; // For referral bonuses
+    level?: number; // For referral bonuses (1, 2, 3)
+    percent?: number; // Bonus/cashback percent
+    refund_reason?: string;
+    [key: string]: unknown;
+  };
 }
 
 export interface ProfileStatsData {

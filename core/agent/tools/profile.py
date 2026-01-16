@@ -65,8 +65,8 @@ async def _get_referral_settings(db) -> tuple[float, float]:
     settings_result = await db.client.table("referral_settings").select("*").limit(1).execute()
     if settings_result.data:
         s = settings_result.data[0]
-        threshold_l2 = float(s.get("level2_threshold_usd", 250) or 250)
-        threshold_l3 = float(s.get("level3_threshold_usd", 1000) or 1000)
+        threshold_l2 = float(s.get("level2_threshold_usd", 20000) or 20000)
+        threshold_l3 = float(s.get("level3_threshold_usd", 80000) or 80000)
         return threshold_l2, threshold_l3
     return 250.0, 1000.0
 
@@ -77,8 +77,8 @@ async def _get_referral_settings_full(db) -> dict:
     if settings_result.data:
         s = settings_result.data[0]
         return {
-            "threshold_l2": float(s.get("level2_threshold_usd", 250) or 250),
-            "threshold_l3": float(s.get("level3_threshold_usd", 1000) or 1000),
+            "threshold_l2": float(s.get("level2_threshold_usd", 20000) or 20000),
+            "threshold_l3": float(s.get("level3_threshold_usd", 80000) or 80000),
             "commission_l1": float(s.get("level1_commission_percent", 10) or 10),
             "commission_l2": float(s.get("level2_commission_percent", 7) or 7),
             "commission_l3": float(s.get("level3_commission_percent", 3) or 3),

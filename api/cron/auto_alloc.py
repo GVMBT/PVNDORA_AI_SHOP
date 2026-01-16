@@ -13,6 +13,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
+# Type alias for reducing duplication
+JsonDict = dict[str, Any]
+
 # Add project root to path for imports BEFORE any core.* imports
 _base_path = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(_base_path))
@@ -44,7 +47,7 @@ def _extract_order_ids_from_response(response_data: list[Any] | None) -> list[st
     return result
 
 
-async def _process_order_items(db: Any, notification_service: Any, results: dict[str, Any]) -> None:
+async def _process_order_items(db: Any, notification_service: Any, results: JsonDict) -> None:
     """Process pending order items for delivery."""
     from core.routers.workers import _deliver_items_for_order
 
@@ -97,7 +100,7 @@ async def _get_replacement_context(db: Any, item_id: str) -> tuple[str | None, s
     )
     if not item_res.data or not isinstance(item_res.data, dict):
         return None, None
-    item_data = cast("dict[str, Any]", item_res.data)
+    item_data = cast("JsonDict", item_res.data)
     product_id = str(item_data.get("product_id")) if item_data.get("product_id") else None
     order_id = str(item_data.get("order_id")) if item_data.get("order_id") else None
     return product_id, order_id
@@ -118,7 +121,7 @@ async def _find_available_stock(db: Any, product_id: str) -> tuple[str | None, s
     raw_stock = stock_res.data[0]
     if not isinstance(raw_stock, dict):
         return None, ""
-    stock_item = cast("dict[str, Any]", raw_stock)
+    stock_item = cast("JsonDict", raw_stock)
     stock_id = str(stock_item.get("id")) if stock_item.get("id") else None
     stock_content = str(stock_item.get("content", ""))
     return stock_id, stock_content
@@ -133,7 +136,7 @@ async def _get_product_expiry_info(db: Any, product_id: str) -> tuple[int, str]:
         .single()
         .execute()
     )
-    product = cast("dict[str, Any]", product_res.data) if isinstance(product_res.data, dict) else {}
+    product = cast("JsonDict", product_res.data) if isinstance(product_res.data, dict) else {}
     duration_raw = product.get("duration_days")
     duration = (
         int(duration_raw) if isinstance(duration_raw, (int, float)) and duration_raw > 0 else 0
@@ -144,7 +147,7 @@ async def _get_product_expiry_info(db: Any, product_id: str) -> tuple[int, str]:
 async def _process_single_replacement(
     db: Any,
     notification_service: Any,
-    ticket: dict[str, Any],
+    ticket: JsonDict,
     now: datetime,
 ) -> bool:
     """Process a single replacement ticket. Returns True if delivered."""
@@ -175,7 +178,7 @@ async def _process_single_replacement(
     )
 
     # Update order item
-    update_data: dict[str, Any] = {
+    update_data: JsonDict = {
         "stock_item_id": stock_id,
         "delivery_content": stock_content,
         "delivered_at": now.isoformat(),
@@ -199,7 +202,9 @@ async def _process_single_replacement(
         .execute()
     )
 
-    await _notify_replacement_user(db, notification_service, order_id, product_name, item_id)
+    await _notify_replacement_user(
+        db, notification_service, order_id, product_name, item_id, credentials=stock_content,
+    )
     logger.info("auto_alloc: Delivered replacement for ticket %s", ticket_id)
     return True
 
@@ -210,8 +215,9 @@ async def _notify_replacement_user(
     order_id: str,
     product_name: str,
     item_id: str,
+    credentials: str | None = None,
 ) -> None:
-    """Notify user about replacement delivery."""
+    """Notify user about replacement delivery with credentials."""
     order_res = (
         await db.client.table("orders")
         .select("user_telegram_id")
@@ -223,7 +229,7 @@ async def _notify_replacement_user(
     if not order_res.data or not isinstance(order_res.data, dict):
         return
 
-    order_data = cast("dict[str, Any]", order_res.data)
+    order_data = cast("JsonDict", order_res.data)
     user_telegram_id_raw = order_data.get("user_telegram_id")
     user_telegram_id = (
         int(user_telegram_id_raw)
@@ -237,13 +243,14 @@ async def _notify_replacement_user(
                 telegram_id=user_telegram_id,
                 product_name=product_name,
                 item_id=item_id[:8] if item_id else "",
+                credentials=credentials,
             )
         except Exception:
             logger.exception("auto_alloc: Failed to notify user")
 
 
 async def _process_replacement_tickets(
-    db: Any, notification_service: Any, results: dict[str, Any], now: datetime,
+    db: Any, notification_service: Any, results: JsonDict, now: datetime,
 ) -> None:
     """Process approved replacement tickets waiting for stock."""
     approved_tickets = (
@@ -261,7 +268,7 @@ async def _process_replacement_tickets(
     for raw_ticket in approved_tickets.data or []:
         if not isinstance(raw_ticket, dict):
             continue
-        ticket = cast("dict[str, Any]", raw_ticket)
+        ticket = cast("JsonDict", raw_ticket)
         try:
             if await _process_single_replacement(db, notification_service, ticket, now):
                 results["replacements"]["delivered"] += 1
@@ -283,7 +290,7 @@ async def auto_alloc_entrypoint(request: Request):
     notification_service = get_notification_service()
     now = datetime.now(UTC)
 
-    results: dict[str, Any] = {
+    results: JsonDict = {
         "timestamp": now.isoformat(),
         "order_items": {"processed": 0, "delivered": 0},
         "replacements": {"processed": 0, "delivered": 0},

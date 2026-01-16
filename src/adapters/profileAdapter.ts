@@ -124,6 +124,9 @@ function formatBalanceTransactionLog(tx: {
   description?: string;
   created_at: string;
   currency?: string;
+  reference_type?: string;
+  reference_id?: string;
+  metadata?: Record<string, unknown>;
 }): BillingLog {
   const date = new Date(tx.created_at);
 
@@ -176,6 +179,10 @@ function formatBalanceTransactionLog(tx: {
       })
       .replace(",", ""),
     transactionType: tx.type.toLowerCase(), // For localization
+    // Extended info for detailed display
+    referenceType: tx.reference_type,
+    referenceId: tx.reference_id,
+    metadata: tx.metadata as BillingLog["metadata"],
   };
 }
 
@@ -248,9 +255,10 @@ export function adaptProfile(
   return {
     name: firstName,
     handle: username ? `@${username}` : `UID-${telegramId || Date.now()}`,
+    // NOSONAR: Math.random() is safe for fallback display ID (not security-sensitive)
     id: telegramId
       ? `UID-${telegramId.toString().slice(-6)}`
-      : `UID-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+      : `UID-${Math.random().toString(36).substring(2, 8).toUpperCase()}`, // NOSONAR
     // After RUB-only migration, all amounts are in RUB
     balance: profile.balance,
     balanceUsd: profile.balance_usd, // NOTE: Now contains RUB, name kept for compatibility
@@ -383,7 +391,8 @@ export function adaptReferralNetwork(
       volume: node.order_count * 50, // Approximate volume
       profit: node.earnings_generated,
       subs: 0, // Would need nested query
-      signal: node.is_active ? 80 + Math.floor(Math.random() * 20) : Math.floor(Math.random() * 30),
+      // NOSONAR: Math.random() is safe for UI signal visualization
+      signal: node.is_active ? 80 + Math.floor(Math.random() * 20) : Math.floor(Math.random() * 30), // NOSONAR
       lastActive: formatTimeAgo(node.created_at),
       invitedBy: null, // Set by parent context if needed
       activityData: generateMockActivity(node.order_count),

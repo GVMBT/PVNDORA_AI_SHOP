@@ -620,12 +620,31 @@
         "system": "СИСТЕМА",
         "topup": "Пополнение баланса",
         "purchase": "Оплата заказа",
+        "purchase_balance": "Оплата с баланса",
+        "purchase_external": "Оплата картой/крипто",
         "refund": "Возврат средств",
+        "refund_auto": "Авто-возврат",
         "bonus": "Реферальный бонус",
+        "bonus_l1": "Реф. бонус L1",
+        "bonus_l2": "Реф. бонус L2",
+        "bonus_l3": "Реф. бонус L3",
         "withdrawal": "Вывод средств",
+        "withdrawal_rejected": "Возврат за отклонённый вывод",
         "cashback": "Кэшбек за отзыв",
         "credit": "Зачисление",
-        "debit": "Списание"
+        "debit": "Списание",
+        "admin_adjustment": "Корректировка баланса",
+        "paymentMethod": {
+          "balance": "с баланса",
+          "crystalpay": "CrystalPay",
+          "rukassa": "Rukassa",
+          "crypto": "криптовалюта"
+        },
+        "details": {
+          "order": "Заказ",
+          "from": "от",
+          "level": "уровень"
+        }
       },
       "noTransactions": "НЕТ_ТРАНЗАКЦИЙ"
     },

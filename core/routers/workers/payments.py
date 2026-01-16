@@ -289,7 +289,14 @@ async def worker_process_refund(request: Request):
         {
             "p_user_id": user_id,
             "p_amount": refund_amount,
-            "p_reason": f"Refund for order {order_id}: {reason}",
+            "p_reason": f"Возврат средств: {reason}",
+            "p_reference_type": "order",
+            "p_reference_id": str(order_id),
+            "p_metadata": {
+                "order_id": str(order_id),
+                "refund_reason": reason,
+                "refund_type": "manual",
+            },
         },
     ).execute()
 

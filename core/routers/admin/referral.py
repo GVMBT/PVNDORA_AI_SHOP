@@ -80,9 +80,9 @@ async def admin_get_referral_settings(admin=Depends(verify_admin)):
     # Ensure thresholds_by_currency exists
     if not settings_data.get("thresholds_by_currency"):
         settings_data["thresholds_by_currency"] = {
-            "USD": {
-                "level2": float(settings_data.get("level2_threshold_usd", 250)),
-                "level3": float(settings_data.get("level3_threshold_usd", 1000)),
+            "RUB": {
+                "level2": float(settings_data.get("level2_threshold_usd", 20000)),
+                "level3": float(settings_data.get("level3_threshold_usd", 80000)),
             },
             "RUB": {"level2": 20000, "level3": 80000},
         }
@@ -179,8 +179,8 @@ async def admin_get_referral_dashboard(admin=Depends(verify_admin)):
         },
         "settings": {
             "level1_threshold": float(settings.get("level1_threshold_usd", 0)),
-            "level2_threshold": float(settings.get("level2_threshold_usd", 250)),
-            "level3_threshold": float(settings.get("level3_threshold_usd", 1000)),
+            "level2_threshold": float(settings.get("level2_threshold_usd", 20000)),
+            "level3_threshold": float(settings.get("level3_threshold_usd", 80000)),
             "level1_commission": float(settings.get("level1_commission_percent", 20)),
             "level2_commission": float(settings.get("level2_commission_percent", 10)),
             "level3_commission": float(settings.get("level3_commission_percent", 5)),

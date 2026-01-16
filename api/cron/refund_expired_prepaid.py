@@ -180,6 +180,14 @@ async def _process_single_refund(
                 "p_user_id": str(user_id),
                 "p_amount": refund_amount,
                 "p_reason": f"Авто-возврат: товар «{product_name}» не поступил в срок",
+                "p_reference_type": "order_item",
+                "p_reference_id": str(item_id),
+                "p_metadata": {
+                    "order_id": str(order_id),
+                    "item_id": str(item_id),
+                    "product_name": product_name,
+                    "refund_type": "auto_expired",
+                },
             },
         ).execute()
 

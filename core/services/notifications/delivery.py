@@ -62,11 +62,22 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
             logger.exception(f"Failed to send credentials to {telegram_id}")
 
     async def send_replacement_notification(
-        self, telegram_id: int, product_name: str, item_id: str,
+        self,
+        telegram_id: int,
+        product_name: str,
+        item_id: str,
+        credentials: str | None = None,
     ) -> None:
-        """Send notification about account replacement."""
+        """Send notification about account replacement with credentials."""
         lang = await get_user_language(telegram_id)
         short_id = item_id[:8] if len(item_id) > 8 else item_id
+
+        # Format credentials section
+        creds_section_ru = ""
+        creds_section_en = ""
+        if credentials:
+            creds_section_ru = f"◈ <b>Новые данные:</b>\n<code>{credentials}</code>\n\n"
+            creds_section_en = f"◈ <b>New credentials:</b>\n<code>{credentials}</code>\n\n"
 
         message = _msg(
             lang,
@@ -75,7 +86,7 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
             f"◈ <b>Товар:</b> {product_name}\n"
             f"◈ <b>ID:</b> <code>{short_id}</code>\n\n"
-            f"Новые данные доступа готовы.\n\n"
+            f"{creds_section_ru}"
             f"━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"📋 <i>Посмотреть → «Мои заказы»</i>",
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n"
@@ -83,7 +94,7 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
             f"◈━━━━━━━━━━━━━━━━━━━━━◈\n\n"
             f"◈ <b>Product:</b> {product_name}\n"
             f"◈ <b>ID:</b> <code>{short_id}</code>\n\n"
-            f"New access credentials are ready.\n\n"
+            f"{creds_section_en}"
             f"━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"📋 <i>View → «My Orders»</i>",
         )

@@ -54,8 +54,8 @@ async def get_referral_settings() -> dict:
                 "level1_percent": int(s.get("level1_commission_percent", 10) or 10),
                 "level2_percent": int(s.get("level2_commission_percent", 7) or 7),
                 "level3_percent": int(s.get("level3_commission_percent", 3) or 3),
-                "level2_threshold": int(s.get("level2_threshold_usd", 250) or 250),
-                "level3_threshold": int(s.get("level3_threshold_usd", 1000) or 1000),
+                "level2_threshold": int(s.get("level2_threshold_usd", 20000) or 20000),
+                "level3_threshold": int(s.get("level3_threshold_usd", 80000) or 80000),
             }
     except Exception as e:
         logger.warning(f"Failed to get referral settings: {e}")

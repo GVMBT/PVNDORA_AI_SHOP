@@ -409,9 +409,9 @@ async def get_webapp_profile(db_user: Annotated[User, Depends(get_db_user)]):
         balance_transactions_result,
     ) = await _fetch_profile_data(db, db_user)
 
-    # Extract thresholds and commissions
-    THRESHOLD_LEVEL2 = float(settings.get("level2_threshold_usd", 250) or 250)
-    THRESHOLD_LEVEL3 = float(settings.get("level3_threshold_usd", 1000) or 1000)
+    # Extract thresholds and commissions (defaults in RUB after migration)
+    THRESHOLD_LEVEL2 = float(settings.get("level2_threshold_usd", 20000) or 20000)
+    THRESHOLD_LEVEL3 = float(settings.get("level3_threshold_usd", 80000) or 80000)
     COMMISSION_LEVEL1 = float(settings.get("level1_commission_percent", 10) or 10)
     COMMISSION_LEVEL2 = float(settings.get("level2_commission_percent", 7) or 7)
     COMMISSION_LEVEL3 = float(settings.get("level3_commission_percent", 3) or 3)

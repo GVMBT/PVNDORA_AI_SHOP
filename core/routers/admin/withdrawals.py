@@ -371,7 +371,14 @@ async def reject_withdrawal(
                 {
                     "p_user_id": user_id,
                     "p_amount": amount_debited,  # Return in user's currency
-                    "p_reason": f"Withdrawal request {withdrawal_id[:8]} rejected",
+                    "p_reason": "Возврат средств: вывод отклонён",
+                    "p_reference_type": "withdrawal",
+                    "p_reference_id": str(withdrawal_id),
+                    "p_metadata": {
+                        "withdrawal_id": str(withdrawal_id),
+                        "rejection_reason": request.admin_comment,
+                        "refund_type": "withdrawal_rejected",
+                    },
                 },
             ).execute()
             logger.info(

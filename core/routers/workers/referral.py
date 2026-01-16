@@ -224,7 +224,11 @@ async def _close_replacement_ticket(db, ticket_id: str) -> None:
 
 
 async def _notify_replacement_success(
-    notification_service, user_telegram_id: int | None, product_name: str, item_id: str,
+    notification_service,
+    user_telegram_id: int | None,
+    product_name: str,
+    item_id: str,
+    credentials: str | None = None,
 ) -> None:
     """Send notification about successful replacement (reduces complexity)."""
     if not user_telegram_id:
@@ -235,6 +239,7 @@ async def _notify_replacement_success(
             telegram_id=user_telegram_id,
             product_name=product_name,
             item_id=item_id[:8],
+            credentials=credentials,
         )
     except Exception as e:
         error_type = type(e).__name__
@@ -575,9 +580,11 @@ async def worker_process_replacement(request: Request):
         await _rollback_stock_reservation(db, stock_id)
         return update_error
 
-    # Close ticket and notify
+    # Close ticket and notify (include credentials in notification)
     await _close_replacement_ticket(db, ticket_id)
-    await _notify_replacement_success(notification_service, user_telegram_id, product_name, item_id)
+    await _notify_replacement_success(
+        notification_service, user_telegram_id, product_name, item_id, credentials=stock_content,
+    )
 
     logger.info(
         "process-replacement: Successfully replaced key for item %s",

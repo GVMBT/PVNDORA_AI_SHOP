@@ -619,12 +619,31 @@
         "system": "SYSTEM",
         "topup": "Balance top-up",
         "purchase": "Order payment",
+        "purchase_balance": "Balance payment",
+        "purchase_external": "Card/crypto payment",
         "refund": "Refund",
+        "refund_auto": "Auto-refund",
         "bonus": "Referral bonus",
+        "bonus_l1": "Ref. bonus L1",
+        "bonus_l2": "Ref. bonus L2",
+        "bonus_l3": "Ref. bonus L3",
         "withdrawal": "Withdrawal",
+        "withdrawal_rejected": "Rejected withdrawal refund",
         "cashback": "Review cashback",
         "credit": "Credit",
-        "debit": "Debit"
+        "debit": "Debit",
+        "admin_adjustment": "Balance adjustment",
+        "paymentMethod": {
+          "balance": "from balance",
+          "crystalpay": "CrystalPay",
+          "rukassa": "Rukassa",
+          "crypto": "cryptocurrency"
+        },
+        "details": {
+          "order": "Order",
+          "from": "from",
+          "level": "level"
+        }
       },
       "noTransactions": "NO_TRANSACTIONS"
     },

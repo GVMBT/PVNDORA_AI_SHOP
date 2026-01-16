@@ -298,44 +298,24 @@ async def _process_balance_payment(
     )
     # #endregion
     try:
-        current_balance = to_float(db_user.balance or 0)
-        new_balance = current_balance - to_float(order_total_in_balance_currency)
-        
+        # RPC add_to_user_balance automatically creates balance_transaction record
+        # No need to create it manually to avoid duplicates
         await db.client.rpc(
             "add_to_user_balance",
             {
                 "p_user_id": db_user.id,
                 "p_amount": -to_float(order_total_in_balance_currency),
-                "p_reason": f"Payment for order {order.id}",
+                "p_reason": "Оплата заказа с баланса",
+                "p_reference_type": "order",
+                "p_reference_id": str(order.id),
+                "p_metadata": {
+                    "order_id": str(order.id),
+                    "payment_method": "balance",
+                    "amount_local": to_float(order_total_in_balance_currency),
+                    "currency": balance_currency,
+                },
             },
         ).execute()
-        
-        # Create balance transaction record (debit/expense)
-        try:
-            await (
-                db.client.table("balance_transactions")
-                .insert(
-                    {
-                        "user_id": db_user.id,
-                        "type": "debit",  # Expense/payment, not credit
-                        "amount": to_float(order_total_in_balance_currency),  # Positive amount for debit
-                        "currency": balance_currency,
-                        "balance_before": current_balance,
-                        "balance_after": new_balance,
-                        "status": "completed",
-                        "description": f"Payment for order {order.id}",
-                        "reference_id": order.id,
-                        "metadata": {
-                            "order_id": order.id,
-                            "payment_method": "balance",
-                        },
-                    },
-                )
-                .execute()
-            )
-        except Exception as tx_error:
-            # Log but don't fail - balance is already deducted
-            logger.warning(f"Failed to create balance_transaction for order {order.id}: {tx_error}")
         
         # #region agent log
         logger.info(f"[DEBUG-HYP-A] RPC add_to_user_balance success: order_id={order.id}")
