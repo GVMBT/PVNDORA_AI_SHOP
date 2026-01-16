@@ -122,8 +122,9 @@ def _process_order_row(
     product_data = first_item.get("product") if first_item else None
 
     # Get reviewed product IDs for this order (from pre-loaded data)
-    order_id = row.get("id")
-    reviewed_product_ids = reviews_by_order.get(order_id, set())
+    row_id = row.get("id")
+    order_id = str(row_id) if row_id else ""
+    reviewed_product_ids = reviews_by_order.get(order_id, set()) if order_id else set()
 
     # Build items using helper
     items = [_build_order_item(item, row["status"], reviewed_product_ids) for item in items_data]
@@ -250,7 +251,8 @@ def _build_order_dict(
 
 @crud_router.get("/orders/{order_id}/status")
 async def get_webapp_order_status(
-    order_id: str, user=Depends(verify_telegram_auth),
+    order_id: str,
+    user=Depends(verify_telegram_auth),
 ) -> OrderStatusResponse:
     """Get order status with delivery progress."""
     db = get_database()
@@ -295,20 +297,22 @@ async def get_webapp_order_status(
         paid_at = order.get("paid_at") or order.get("created_at")
         if paid_at:
             try:
-                paid_dt = datetime.fromisoformat(paid_at)
-                est_dt = paid_dt + timedelta(hours=max_hours)
-                estimated_delivery_at = est_dt.isoformat()
+                paid_at_str = str(paid_at) if paid_at and isinstance(paid_at, (str, int, float)) else ""
+                if paid_at_str and isinstance(paid_at_str, str):
+                    paid_dt = datetime.fromisoformat(paid_at_str)
+                    est_dt = paid_dt + timedelta(hours=max_hours)
+                    estimated_delivery_at = est_dt.isoformat()
             except Exception:
                 pass
 
     return OrderStatusResponse(
         order_id=order_id,
-        status=order["status"],
+        status=str(order.get("status", "")),
         progress=progress,
         delivered_quantity=delivered_quantity,
         total_quantity=total_quantity,
         estimated_delivery_at=estimated_delivery_at,
-        payment_url=order.get("payment_url"),
+        payment_url=str(order.get("payment_url")) if order.get("payment_url") else None,
     )
 
 
@@ -319,7 +323,9 @@ async def _process_confirmed_payment(order_id: str, payment_id: str, db) -> dict
 
     status_service = OrderStatusService(db)
     final_status = await status_service.mark_payment_confirmed(
-        order_id=order_id, payment_id=payment_id, check_stock=True,
+        order_id=order_id,
+        payment_id=payment_id,
+        check_stock=True,
     )
 
     try:
@@ -352,7 +358,11 @@ async def _verify_crystalpay_payment(payment_id: str, order_id: str, order_statu
         if invoice_info:
             gateway_status = invoice_info.get("state", "")
             return await _handle_gateway_status(
-                gateway_status, order_id, order_status, payment_id, db,
+                gateway_status,
+                order_id,
+                order_status,
+                payment_id,
+                db,
             )
     except Exception as e:
         error_type = type(e).__name__
@@ -365,7 +375,11 @@ async def _verify_crystalpay_payment(payment_id: str, order_id: str, order_statu
 
 # Helper to handle gateway status (reduces cognitive complexity)
 async def _handle_gateway_status(
-    gateway_status: str, order_id: str, order_status: str, payment_id: str, db,
+    gateway_status: str,
+    order_id: str,
+    order_status: str,
+    payment_id: str,
+    db,
 ) -> dict:
     """Handle different gateway payment statuses."""
     if gateway_status == "payed":
@@ -420,10 +434,14 @@ async def verify_order_payment(order_id: str, user=Depends(verify_telegram_auth)
     payment_gateway = order.get("payment_gateway")
 
     if not payment_id:
-        return {"status": order["status"], "verified": False, "message": "No payment_id"}
+        return {"status": str(order.get("status", "")), "verified": False, "message": "No payment_id"}
 
     if payment_gateway == "crystalpay":
-        return await _verify_crystalpay_payment(payment_id, order_id, order["status"], db)
+        payment_id_str = str(payment_id) if payment_id and isinstance(payment_id, (str, int, float)) else ""
+        order_status_raw = order.get("status")
+        order_status_str = str(order_status_raw) if order_status_raw and isinstance(order_status_raw, (str, int, float)) else ""
+        if payment_id_str and order_status_str:
+            return await _verify_crystalpay_payment(payment_id_str, order_id, order_status_str, db)
 
     return {"status": order["status"], "verified": False, "message": "Unknown gateway"}
 
@@ -484,11 +502,18 @@ async def get_webapp_orders(
     orders = []
 
     # OPTIMIZATION: Fix N+1 query problem - load all reviews for all orders in one query
-    order_ids = [row.get("id") for row in result.data if row.get("id")]
+    order_ids: list[str] = []
+    for row in result.data:
+        if isinstance(row, dict):
+            row_id = row.get("id")
+            if row_id:
+                order_ids.append(str(row_id))
     reviews_by_order = await _load_reviews_for_orders(db, order_ids)
 
     for row in result.data:
         try:
+            if not isinstance(row, dict):
+                continue
             order_dict = _process_order_row(row, reviews_by_order)
             if order_dict:
                 orders.append(order_dict)
@@ -506,7 +531,9 @@ async def get_webapp_orders(
     from core.logging import sanitize_id_for_logging
 
     logger.info(
-        "Returning %d orders for user %s", len(orders), sanitize_id_for_logging(str(db_user.id)),
+        "Returning %d orders for user %s",
+        len(orders),
+        sanitize_id_for_logging(str(db_user.id)),
     )
 
     return OrdersListResponse(orders=orders, count=len(orders), currency=user_currency)
@@ -515,7 +542,9 @@ async def get_webapp_orders(
 @crud_router.get("/payments/methods")
 async def get_payment_methods(
     user=Depends(verify_telegram_auth),
-    amount: Annotated[float | None, Query(description="Order amount in user's currency for availability check")] = None,
+    amount: Annotated[
+        float | None, Query(description="Order amount in user's currency for availability check")
+    ] = None,
     currency: Annotated[str | None, Query(description="Currency code (RUB, USD, etc)")] = None,
 ) -> PaymentMethodsResponse:
     """Get available payment methods for user based on their region and balance.
@@ -546,7 +575,10 @@ async def get_payment_methods(
         balance_sufficient = _check_balance_sufficiency(amount, user_balance)
         methods.append(
             _build_balance_payment_method(
-                user_balance, balance_currency, balance_display, balance_sufficient,
+                user_balance,
+                balance_currency,
+                balance_display,
+                balance_sufficient,
             ),
         )
 
@@ -567,5 +599,7 @@ async def get_payment_methods(
         recommended = "sbp"
 
     return PaymentMethodsResponse(
-        methods=methods, default_currency=user_currency, recommended_method=recommended,
+        methods=methods,
+        default_currency=user_currency,
+        recommended_method=recommended,
     )

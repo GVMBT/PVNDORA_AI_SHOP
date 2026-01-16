@@ -47,7 +47,10 @@ export const API = {
  */
 export const BOT = {
   /** Telegram bot username (without @) */
-  USERNAME: env.VITE_BOT_USERNAME || globalThis.__BOT_USERNAME || "pvndora_ai_bot",
+  USERNAME:
+    env.VITE_BOT_USERNAME ||
+    (globalThis as typeof globalThis & { __BOT_USERNAME?: string }).__BOT_USERNAME ||
+    "pvndora_ai_bot",
   /** Deep link base URL */
   DEEP_LINK: "https://t.me/pvndora_ai_bot",
 } as const;
@@ -142,7 +145,11 @@ export const LOCALE = {
  * Get user's language code from Telegram or browser
  */
 export function getLanguageCode(): string {
-  const tgLang = globalThis.Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
+  const tgLang = (
+    globalThis as typeof globalThis & {
+      Telegram?: { WebApp?: { initDataUnsafe?: { user?: { language_code?: string } } } };
+    }
+  ).Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
   const browserLang = globalThis.navigator?.language?.split("-")[0];
   return tgLang || browserLang || LOCALE.DEFAULT_LANGUAGE;
 }
@@ -159,7 +166,8 @@ export function getCurrencyForLanguage(lang?: string): "RUB" | "USD" {
  * Check if running inside Telegram WebApp
  */
 export function isTelegramWebApp(): boolean {
-  return !!globalThis.Telegram?.WebApp?.initData;
+  return !!(globalThis as typeof globalThis & { Telegram?: { WebApp?: { initData?: string } } })
+    .Telegram?.WebApp?.initData;
 }
 
 export default {

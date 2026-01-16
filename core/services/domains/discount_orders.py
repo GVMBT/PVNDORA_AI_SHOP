@@ -77,7 +77,11 @@ class DiscountOrderService:
         return random.randint(self.MIN_DELAY_MINUTES, self.MAX_DELAY_MINUTES)
 
     async def schedule_delayed_delivery(
-        self, order_id: str, order_item_id: str, telegram_id: int, stock_item_id: str,
+        self,
+        order_id: str,
+        order_item_id: str,
+        telegram_id: int,
+        stock_item_id: str,
     ) -> DelayedDeliveryTask | None:
         """Schedule delayed delivery via QStash.
 

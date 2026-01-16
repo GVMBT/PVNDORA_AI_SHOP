@@ -11,7 +11,8 @@ def get_shop_keyboard(lang: str, webapp_url: str) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=get_text("btn_shop", lang), web_app=WebAppInfo(url=webapp_url),
+                    text=get_text("btn_shop", lang),
+                    web_app=WebAppInfo(url=webapp_url),
                 ),
             ],
         ],
@@ -19,7 +20,11 @@ def get_shop_keyboard(lang: str, webapp_url: str) -> InlineKeyboardMarkup:
 
 
 def get_product_keyboard(
-    lang: str, product_id: str, webapp_url: str, in_stock: bool = True, quantity: int = 1,
+    lang: str,
+    product_id: str,
+    webapp_url: str,
+    in_stock: bool = True,
+    quantity: int = 1,
 ) -> InlineKeyboardMarkup:
     """Product action buttons - always opens Mini App for payment (no extra clicks!)."""
     buttons = []
@@ -45,12 +50,14 @@ def get_order_keyboard(lang: str, order_id: str) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=get_text("btn_support", lang), callback_data=f"support:{order_id}",
+                    text=get_text("btn_support", lang),
+                    callback_data=f"support:{order_id}",
                 ),
             ],
             [
                 InlineKeyboardButton(
-                    text=get_text("btn_leave_review", lang), callback_data=f"review:{order_id}",
+                    text=get_text("btn_leave_review", lang),
+                    callback_data=f"review:{order_id}",
                 ),
             ],
         ],

@@ -40,10 +40,10 @@ async def get_user_cart() -> dict:
         currency_service = get_currency_service(redis)
         target_currency = ctx.currency
 
-        total_converted = cart.total
+        total_converted: float = float(cart.total)
         if target_currency != "USD":
             with contextlib.suppress(Exception):
-                total_converted = await currency_service.convert_price(cart.total, target_currency)
+                total_converted = currency_service.convert_price(cart.total, target_currency)
 
         return {
             "success": True,
@@ -108,10 +108,10 @@ async def add_to_cart(product_id: str, quantity: int = 1) -> dict:
 
         redis = get_redis()
         currency_service = get_currency_service(redis)
-        total_converted = cart.total
+        total_converted: float = float(cart.total)
         if ctx.currency != "USD":
             with contextlib.suppress(Exception):
-                total_converted = await currency_service.convert_price(cart.total, ctx.currency)
+                total_converted = currency_service.convert_price(cart.total, ctx.currency)
 
         total_formatted = currency_service.format_price(total_converted, ctx.currency)
 
@@ -157,7 +157,7 @@ async def remove_from_cart(product_id: str) -> dict:
         currency_service = get_currency_service(redis)
 
         if ctx.currency != "USD":
-            total_display = await currency_service.convert_price(float(cart.total), ctx.currency)
+            total_display = currency_service.convert_price(float(cart.total), ctx.currency)
         else:
             total_display = float(cart.total)
 
@@ -199,7 +199,10 @@ async def update_cart_quantity(product_id: str, quantity: int) -> dict:
         available_stock = await db.get_available_stock_count(product_id)
 
         cart = await cart_manager.update_item_quantity(
-            ctx.telegram_id, product_id, quantity, available_stock,
+            ctx.telegram_id,
+            product_id,
+            quantity,
+            available_stock,
         )
 
         if cart is None or not cart.items:
@@ -209,7 +212,7 @@ async def update_cart_quantity(product_id: str, quantity: int) -> dict:
         currency_service = get_currency_service(redis)
 
         if ctx.currency != "USD":
-            total_display = await currency_service.convert_price(float(cart.total), ctx.currency)
+            total_display = currency_service.convert_price(float(cart.total), ctx.currency)
         else:
             total_display = float(cart.total)
 

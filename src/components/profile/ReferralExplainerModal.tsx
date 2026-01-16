@@ -293,7 +293,7 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                               <div
                                 className={`font-bold ${isUnlocked ? "text-green-500" : "text-gray-400"}`}
                               >
-                                {formatPrice(threshold, currency)}
+                                {formatPrice(threshold, currency as CurrencyCode)}
                               </div>
                             </div>
                           )}
@@ -327,8 +327,8 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                           <div className="flex items-center justify-between text-[10px] font-mono text-gray-500 mb-2">
                             <span>{isRu ? "ВАШ ОБОРОТ" : "YOUR TURNOVER"}</span>
                             <span>
-                              {formatPrice(currentTurnover, currency)} /{" "}
-                              {formatPrice(nextThreshold, currency)}
+                              {formatPrice(currentTurnover, currency as CurrencyCode)} /{" "}
+                              {formatPrice(nextThreshold, currency as CurrencyCode)}
                             </span>
                           </div>
                           <div className="h-2 bg-black/50 rounded-full overflow-hidden">

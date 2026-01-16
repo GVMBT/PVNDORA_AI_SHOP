@@ -39,10 +39,7 @@ async def _fix_inconsistent_order_statuses(db, now: datetime) -> int:
     try:
         # Find orders with status 'partial' that might be fully delivered
         partial_orders = (
-            await db.client.table("orders")
-            .select("id")
-            .eq("status", "partial")
-            .execute()
+            await db.client.table("orders").select("id").eq("status", "partial").execute()
         )
 
         if not partial_orders.data:
@@ -60,7 +57,7 @@ async def _fix_inconsistent_order_statuses(db, now: datetime) -> int:
 
         # Group items by order_id
         items_by_order: dict[str, list[dict]] = {}
-        for item in (all_items_result.data or []):
+        for item in all_items_result.data or []:
             oid = item["order_id"]
             if oid not in items_by_order:
                 items_by_order[oid] = []
@@ -81,15 +78,22 @@ async def _fix_inconsistent_order_statuses(db, now: datetime) -> int:
 
         # BATCH UPDATE: Update all qualifying orders at once
         if orders_to_fix:
-            await db.client.table("orders").update(
-                {"status": "delivered", "delivered_at": now.isoformat()},
-            ).in_("id", orders_to_fix).eq("status", "partial").execute()
+            await (
+                db.client.table("orders")
+                .update(
+                    {"status": "delivered", "delivered_at": now.isoformat()},
+                )
+                .in_("id", orders_to_fix)
+                .eq("status", "partial")
+                .execute()
+            )
 
         return len(orders_to_fix)
 
     except Exception as e:
         # Log but don't fail the entire cron job
         import logging
+
         logging.warning(f"Error fixing order statuses: {e}")
         return 0
 

@@ -18,7 +18,9 @@ router = Router()
 
 
 async def _get_product_keyboard_for_response(
-    response, db_user: User, db,
+    response,
+    db_user: User,
+    db,
 ) -> InlineKeyboardMarkup | None:
     """Get product keyboard for response (reduces cognitive complexity)."""
     if not response.product_id:
@@ -38,7 +40,9 @@ async def _get_product_keyboard_for_response(
 
 
 async def _get_keyboard_for_payment_action(
-    response, db_user: User, db,
+    response,
+    db_user: User,
+    db,
 ) -> InlineKeyboardMarkup | None:
     """Get keyboard for payment action (reduces cognitive complexity)."""
     product_keyboard = await _get_product_keyboard_for_response(response, db_user, db)

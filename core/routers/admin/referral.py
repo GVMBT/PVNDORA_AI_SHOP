@@ -84,7 +84,6 @@ async def admin_get_referral_settings(admin=Depends(verify_admin)):
                 "level2": float(settings_data.get("level2_threshold_usd", 20000)),
                 "level3": float(settings_data.get("level3_threshold_usd", 80000)),
             },
-            "RUB": {"level2": 20000, "level3": 80000},
         }
 
     return {"settings": settings_data}
@@ -92,7 +91,8 @@ async def admin_get_referral_settings(admin=Depends(verify_admin)):
 
 @router.put("/referral/settings")
 async def admin_update_referral_settings(
-    request: ReferralSettingsRequest, admin=Depends(verify_admin),
+    request: ReferralSettingsRequest,
+    admin=Depends(verify_admin),
 ):
     """Update referral program settings (thresholds and commissions)."""
     db = get_database()
@@ -225,7 +225,8 @@ async def admin_get_partners_crm(
             error_msg = str(view_error)
             if "relation" in error_msg.lower() or "does not exist" in error_msg.lower():
                 raise HTTPException(
-                    status_code=500, detail=f"View '{view_name}' not found. Please apply migration.",
+                    status_code=500,
+                    detail=f"View '{view_name}' not found. Please apply migration.",
                 )
             raise
 
@@ -391,7 +392,8 @@ async def admin_set_partner(request: SetPartnerRequest, admin=Depends(verify_adm
 
     if not user_result.data:
         raise HTTPException(
-            status_code=404, detail=f"User with telegram_id {request.telegram_id} not found",
+            status_code=404,
+            detail=f"User with telegram_id {request.telegram_id} not found",
         )
 
     user_id = user_result.data["id"]
@@ -502,7 +504,8 @@ async def admin_review_application(request: ReviewApplicationRequest, admin=Depe
                 )
             else:
                 await notification_service.send_partner_application_rejected_notification(
-                    telegram_id=user_telegram_id, reason=request.admin_comment,
+                    telegram_id=user_telegram_id,
+                    reason=request.admin_comment,
                 )
         except Exception as e:
             logger.warning(f"Failed to send partner application notification: {e}")

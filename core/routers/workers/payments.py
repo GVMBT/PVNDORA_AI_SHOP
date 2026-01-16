@@ -24,7 +24,9 @@ ERROR_ORDER_NOT_FOUND = "Order not found"
 
 
 async def _calculate_cashback_base(
-    order_data: dict, order_amount: float, balance_currency: str,
+    order_data: dict,
+    order_amount: float,
+    balance_currency: str,
 ) -> float:
     """Calculate cashback base amount in user's balance currency."""
     fiat_amount = order_data.get("fiat_amount")
@@ -173,7 +175,11 @@ async def _get_user_and_order_for_cashback(db, order_id: str, user_telegram_id: 
 
 
 async def _process_cashback_update(
-    db, db_user, order_id: str, cashback_amount: float, balance_currency: str,
+    db,
+    db_user,
+    order_id: str,
+    cashback_amount: float,
+    balance_currency: str,
 ) -> float:
     """Update user balance and create transaction for cashback."""
     new_balance = to_float(db_user.balance or 0) + cashback_amount
@@ -199,7 +205,10 @@ async def _process_cashback_update(
 
 
 async def _send_cashback_notification_safe(
-    db_user, cashback_amount: float, new_balance: float, balance_currency: str,
+    db_user,
+    cashback_amount: float,
+    new_balance: float,
+    balance_currency: str,
 ) -> None:
     """Send cashback notification (safe, logs errors)."""
     try:
@@ -397,7 +406,11 @@ async def worker_process_review_cashback(request: Request):
 
     # Update user balance and create transaction
     new_balance = await _process_cashback_update(
-        db, db_user, order_id, cashback_amount, balance_currency,
+        db,
+        db_user,
+        order_id,
+        cashback_amount,
+        balance_currency,
     )
 
     # Mark review as processed

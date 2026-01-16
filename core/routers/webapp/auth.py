@@ -86,10 +86,11 @@ async def telegram_login_widget_auth(data: TelegramLoginData):
     # Admins get full access, regular users get read-only access
 
     # Create session token using unified auth module
+    username_str = data.username if data.username else ""
     session_token = create_web_session(
         user_id=str(db_user.id),
         telegram_id=data.id,
-        username=data.username,
+        username=username_str,
         is_admin=db_user.is_admin,
     )
 

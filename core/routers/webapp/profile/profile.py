@@ -34,7 +34,7 @@ profile_router = APIRouter()
 # =============================================================================
 
 
-def calculate_exchange_rate(rate: float, from_currency: str, to_currency: str) -> float:
+def calculate_exchange_rate(_rate: float, _from_currency: str, _to_currency: str) -> float:
     """Format exchange rate for display.
 
     DEPRECATED: After RUB-only migration, always returns 1.0.
@@ -44,12 +44,12 @@ def calculate_exchange_rate(rate: float, from_currency: str, to_currency: str) -
     return 1.0
 
 
-async def _calculate_conversion_rate(
-    current_currency: str,
-    target_currency: str,
-    current_balance: float,
-    new_balance_decimal: float,
-    currency_service,
+def _calculate_conversion_rate(
+    _current_currency: str,
+    _target_currency: str,
+    _current_balance: float,
+    _new_balance_decimal: float,
+    _currency_service,
 ) -> float:
     """Calculate exchange rate for conversion metadata.
 
@@ -59,7 +59,7 @@ async def _calculate_conversion_rate(
     return 1.0
 
 
-async def _convert_balance_to_usd(balance_in_local: float, balance_currency: str, redis) -> float:
+def _convert_balance_to_usd(balance_in_local: float, _balance_currency: str, _redis) -> float:
     """Get balance value.
 
     DEPRECATED: After RUB-only migration, returns balance as-is (in RUB).
@@ -138,6 +138,7 @@ async def _fetch_profile_data(db, db_user):
     OPTIMIZATION: Uses user_profile_data VIEW to get all data in 1 query
     instead of 4 separate queries. Reduces DB round-trips from 5 to 2.
     """
+
     async def fetch_settings():
         return await _get_referral_settings_cached(db)
 
@@ -154,17 +155,21 @@ async def _fetch_profile_data(db, db_user):
         except Exception as e:
             logger.warning(f"Failed to query user_profile_data VIEW: {e}")
             # Fallback to empty structure
-            return type("obj", (object,), {
-                "data": {
-                    "level1_count": 0,
-                    "level2_count": 0,
-                    "level3_count": 0,
-                    "effective_level": 0,
-                    "recent_bonuses": None,
-                    "recent_withdrawals": None,
-                    "recent_transactions": None,
+            return type(
+                "obj",
+                (object,),
+                {
+                    "data": {
+                        "level1_count": 0,
+                        "level2_count": 0,
+                        "level3_count": 0,
+                        "effective_level": 0,
+                        "recent_bonuses": None,
+                        "recent_withdrawals": None,
+                        "recent_transactions": None,
+                    },
                 },
-            })()
+            )()
 
     settings, profile_view = await asyncio.gather(
         fetch_settings(),
@@ -175,26 +180,46 @@ async def _fetch_profile_data(db, db_user):
     profile_data = profile_view.data if profile_view.data else {}
 
     # Create mock result objects matching old structure
-    extended_stats_result = type("obj", (object,), {
-        "data": [{
-            "level1_count": profile_data.get("level1_count", 0),
-            "level2_count": profile_data.get("level2_count", 0),
-            "level3_count": profile_data.get("level3_count", 0),
-            "effective_level": profile_data.get("effective_level", 0),
-        }] if profile_data.get("level1_count", 0) > 0 else [],
-    })()
+    extended_stats_result = type(
+        "obj",
+        (object,),
+        {
+            "data": [
+                {
+                    "level1_count": profile_data.get("level1_count", 0),
+                    "level2_count": profile_data.get("level2_count", 0),
+                    "level3_count": profile_data.get("level3_count", 0),
+                    "effective_level": profile_data.get("effective_level", 0),
+                }
+            ]
+            if profile_data.get("level1_count", 0) > 0
+            else [],
+        },
+    )()
 
-    bonuses_result = type("obj", (object,), {
-        "data": profile_data.get("recent_bonuses") or [],
-    })()
+    bonuses_result = type(
+        "obj",
+        (object,),
+        {
+            "data": profile_data.get("recent_bonuses") or [],
+        },
+    )()
 
-    withdrawals_result = type("obj", (object,), {
-        "data": profile_data.get("recent_withdrawals") or [],
-    })()
+    withdrawals_result = type(
+        "obj",
+        (object,),
+        {
+            "data": profile_data.get("recent_withdrawals") or [],
+        },
+    )()
 
-    transactions_result = type("obj", (object,), {
-        "data": profile_data.get("recent_transactions") or [],
-    })()
+    transactions_result = type(
+        "obj",
+        (object,),
+        {
+            "data": profile_data.get("recent_transactions") or [],
+        },
+    )()
 
     return (
         settings,
@@ -436,7 +461,7 @@ async def get_webapp_profile(db_user: Annotated[User, Depends(get_db_user)]):
         "conversion_rate": 0,
     }
 
-    referral_program = await _build_default_referral_program(
+    referral_program = _build_default_referral_program(
         THRESHOLD_LEVEL2,
         THRESHOLD_LEVEL3,
         COMMISSION_LEVEL1,
@@ -448,7 +473,7 @@ async def get_webapp_profile(db_user: Annotated[User, Depends(get_db_user)]):
 
     if extended_stats_result.data:
         s = extended_stats_result.data[0]
-        referral_stats, referral_program = await _build_referral_data(
+        referral_stats, referral_program = _build_referral_data(
             s,
             THRESHOLD_LEVEL2,
             THRESHOLD_LEVEL3,
@@ -500,7 +525,8 @@ async def update_preferences(request: UpdatePreferencesRequest, user=Depends(ver
     valid_languages = ["ru", "en", "de", "es", "fr", "tr", "ar", "hi", "uk", "be", "kk"]
     if request.interface_language and request.interface_language.lower() not in valid_languages:
         raise HTTPException(
-            status_code=400, detail=f"Invalid language. Valid options: {', '.join(valid_languages)}",
+            status_code=400,
+            detail=f"Invalid language. Valid options: {', '.join(valid_languages)}",
         )
 
     # NOTE: preferred_currency is ignored (all RUB now)
@@ -538,7 +564,10 @@ async def convert_balance(request: ConvertBalanceRequest, user=Depends(verify_te
 
 @profile_router.get("/referral/network")
 async def get_referral_network(
-    db_user: Annotated[User, Depends(get_db_user)], level: int = 1, limit: int = 50, offset: int = 0,
+    db_user: Annotated[User, Depends(get_db_user)],
+    level: int = 1,
+    limit: int = 50,
+    offset: int = 0,
 ):
     """Get user's referral network (tree of referrals)."""
     db = get_database()
@@ -566,11 +595,17 @@ async def get_referral_network(
             return {"referrals": [], "total": 0, "level": level, "offset": offset, "limit": limit}
 
         orders_count_map, earnings_map = await _batch_fetch_referral_data(
-            db, referral_ids, db_user.id,
+            db,
+            referral_ids,
+            db_user.id,
         )
 
         enriched_referrals = _build_enriched_referrals(
-            referrals_data, user_id, referral_ids, orders_count_map, earnings_map,
+            referrals_data,
+            user_id,
+            referral_ids,
+            orders_count_map,
+            earnings_map,
         )
 
         return {

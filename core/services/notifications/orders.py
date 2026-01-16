@@ -144,7 +144,9 @@ class OrderNotificationsMixin(NotificationServiceBase):
             from core.services.telegram_messaging import send_telegram_message_with_keyboard
 
             await send_telegram_message_with_keyboard(
-                chat_id=user["telegram_id"], text=message, keyboard=keyboard,
+                chat_id=user["telegram_id"],
+                text=message,
+                keyboard=keyboard,
             )
         except Exception:
             logger.exception("Failed to send review request")
@@ -174,7 +176,11 @@ class OrderNotificationsMixin(NotificationServiceBase):
         return instant_items, prepaid_items
 
     async def send_expiration_reminder(
-        self, telegram_id: int, product_name: str, days_left: int, language: str,
+        self,
+        telegram_id: int,
+        product_name: str,
+        days_left: int,
+        language: str,
     ) -> None:
         """Send subscription expiration reminder."""
         message = get_text("subscription_expiring", language, product=product_name, days=days_left)

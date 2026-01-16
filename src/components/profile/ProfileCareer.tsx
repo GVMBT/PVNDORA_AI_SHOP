@@ -73,7 +73,7 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
         progressPercent={progressPercent}
         thresholds={thresholds}
         commissions={commissions}
-        currency={currency}
+        currency={currency as CurrencyCode}
         exchangeRate={exchangeRate}
       />
 

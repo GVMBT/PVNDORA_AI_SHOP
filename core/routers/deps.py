@@ -77,7 +77,8 @@ def get_bot() -> Optional["Bot"]:
             from aiogram.enums import ParseMode
 
             _bot = Bot(
-                token=telegram_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+                token=telegram_token,
+                default=DefaultBotProperties(parse_mode=ParseMode.HTML),
             )
     return _bot
 

@@ -16,6 +16,7 @@ _aikido_zen_module = None
 
 try:
     import aikido_zen  # type: ignore[import-untyped]
+
     _aikido_zen_module = aikido_zen
     # Try to call protect() immediately if token is available
     # This ensures Zen is active before middleware is added
@@ -138,7 +139,8 @@ def get_bot() -> Bot | None:
     """Get or create bot instance."""
     if BotState.bot is None and TELEGRAM_TOKEN:
         BotState.bot = Bot(
-            token=TELEGRAM_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+            token=TELEGRAM_TOKEN,
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML),
         )
     return BotState.bot
 
@@ -171,7 +173,7 @@ def get_dispatcher() -> Dispatcher:
 
 
 @asynccontextmanager
-async def lifespan(fastapi_app: FastAPI):
+async def lifespan(_fastapi_app: FastAPI):
     """Application lifespan handler."""
     # Startup - Initialize async database singleton
     try:
@@ -192,6 +194,7 @@ async def lifespan(fastapi_app: FastAPI):
             logger.warning("Aikido Zen installed but AIKIDO_TOKEN not set - protection disabled")
     else:
         import importlib.util
+
         if importlib.util.find_spec("aikido_zen") is not None:
             logger.warning("Aikido Zen module found but import failed (check logs above)")
         else:
@@ -335,7 +338,8 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
         if not bot_instance:
             logger.error("Bot not configured - TELEGRAM_TOKEN may be missing")
             return JSONResponse(
-                status_code=200, content={"ok": False, "error": "Bot not configured"},
+                status_code=200,
+                content={"ok": False, "error": "Bot not configured"},
             )
 
         # Parse update
@@ -391,7 +395,8 @@ def get_discount_bot() -> Bot | None:
     """Get or create discount bot instance."""
     if BotState.discount_bot is None and DISCOUNT_BOT_TOKEN:
         BotState.discount_bot = Bot(
-            token=DISCOUNT_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+            token=DISCOUNT_BOT_TOKEN,
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML),
         )
     return BotState.discount_bot
 
@@ -425,7 +430,8 @@ async def discount_webhook(request: Request, background_tasks: BackgroundTasks):
         if not bot_instance or not dispatcher:
             logger.error("Discount bot not configured - DISCOUNT_BOT_TOKEN may be missing")
             return JSONResponse(
-                status_code=200, content={"ok": False, "error": "Discount bot not configured"},
+                status_code=200,
+                content={"ok": False, "error": "Discount bot not configured"},
             )
 
         try:
@@ -433,7 +439,8 @@ async def discount_webhook(request: Request, background_tasks: BackgroundTasks):
         except Exception as err:  # pylint: disable=broad-exception-caught
             logger.warning(ERROR_PARSE_JSON, err)
             return JSONResponse(
-                status_code=200, content={"ok": False, "error": f"Invalid JSON: {err!s}"},
+                status_code=200,
+                content={"ok": False, "error": f"Invalid JSON: {err!s}"},
             )
 
         try:
@@ -441,7 +448,8 @@ async def discount_webhook(request: Request, background_tasks: BackgroundTasks):
         except Exception as err:  # pylint: disable=broad-exception-caught
             logger.warning(ERROR_VALIDATE_UPDATE, err)
             return JSONResponse(
-                status_code=200, content={"ok": False, "error": f"Invalid update: {err!s}"},
+                status_code=200,
+                content={"ok": False, "error": f"Invalid update: {err!s}"},
             )
 
         # Process update in background
@@ -496,7 +504,8 @@ def get_admin_bot() -> Bot | None:
     """Get or create admin bot instance."""
     if BotState.admin_bot is None and ADMIN_BOT_TOKEN:
         BotState.admin_bot = Bot(
-            token=ADMIN_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+            token=ADMIN_BOT_TOKEN,
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML),
         )
     return BotState.admin_bot
 
@@ -526,7 +535,8 @@ async def admin_webhook(request: Request, background_tasks: BackgroundTasks):
         if not bot_instance or not dispatcher:
             logger.error("Admin bot not configured - ADMIN_BOT_TOKEN may be missing")
             return JSONResponse(
-                status_code=200, content={"ok": False, "error": "Admin bot not configured"},
+                status_code=200,
+                content={"ok": False, "error": "Admin bot not configured"},
             )
 
         try:
@@ -534,7 +544,8 @@ async def admin_webhook(request: Request, background_tasks: BackgroundTasks):
         except Exception as err:  # pylint: disable=broad-exception-caught
             logger.warning(ERROR_PARSE_JSON, err)
             return JSONResponse(
-                status_code=200, content={"ok": False, "error": f"Invalid JSON: {err!s}"},
+                status_code=200,
+                content={"ok": False, "error": f"Invalid JSON: {err!s}"},
             )
 
         try:
@@ -542,7 +553,8 @@ async def admin_webhook(request: Request, background_tasks: BackgroundTasks):
         except Exception as err:  # pylint: disable=broad-exception-caught
             logger.warning(ERROR_VALIDATE_UPDATE, err)
             return JSONResponse(
-                status_code=200, content={"ok": False, "error": f"Invalid update: {err!s}"},
+                status_code=200,
+                content={"ok": False, "error": f"Invalid update: {err!s}"},
             )
 
         # Process update in background

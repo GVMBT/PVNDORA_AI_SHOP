@@ -10,7 +10,7 @@ import type { WebApp } from "../types/telegram";
 
 export function getTelegramWebApp(): WebApp | undefined {
   if (globalThis.window === undefined) return undefined;
-  return globalThis.Telegram?.WebApp;
+  return (globalThis as typeof globalThis & { Telegram?: { WebApp?: WebApp } }).Telegram?.WebApp;
 }
 
 /**
@@ -78,7 +78,7 @@ export async function requestFullscreen(): Promise<void> {
 
   // Check Telegram WebApp version - requestFullscreen not supported in 6.0+
   const version = tg.version || "";
-  if (version && parseFloat(version) >= 6.0) {
+  if (version && Number.parseFloat(version) >= 6) {
     // requestFullscreen is not supported in version 6.0+, skip
     return;
   }

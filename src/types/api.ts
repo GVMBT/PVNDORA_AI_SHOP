@@ -7,6 +7,9 @@
 
 // ==================== COMMON ====================
 
+/** UUID string type */
+export type UUID = string;
+
 /** All IDs are UUID strings */
 export type OrderStatus =
   | "pending"

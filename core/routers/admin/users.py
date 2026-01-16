@@ -146,7 +146,9 @@ def _format_user_crm_data(u: dict) -> dict:
 
 
 def _prepare_partner_grant_data(
-    update_data: dict, partner_level_override: int | None, now,
+    update_data: dict,
+    partner_level_override: int | None,
+    now,
 ) -> int | None:
     """Prepare update data for granting VIP partner status."""
     update_data["partner_granted_at"] = now.isoformat()
@@ -273,7 +275,9 @@ async def admin_get_users_crm(
     sort_order: str = "desc",
     limit: int = 50,
     offset: int = 0,
-    search: Annotated[str | None, Query(description="Search by username, first_name, or telegram_id")] = None,
+    search: Annotated[
+        str | None, Query(description="Search by username, first_name, or telegram_id")
+    ] = None,
     filter_banned: Annotated[bool | None, Query(description="Filter by banned status")] = None,
     filter_partner: Annotated[bool | None, Query(description="Filter by partner status")] = None,
     admin=Depends(verify_admin),
@@ -339,7 +343,9 @@ async def admin_ban_user(user_id: str, ban: bool = True, admin=Depends(verify_ad
 
 @router.post("/users/{user_id}/balance")
 async def admin_update_user_balance(
-    user_id: str, request: UpdateBalanceRequest, admin=Depends(verify_admin),
+    user_id: str,
+    request: UpdateBalanceRequest,
+    admin=Depends(verify_admin),
 ):
     """Update user balance (add or subtract).
 
@@ -422,7 +428,9 @@ async def admin_update_user_balance(
 
 @router.post("/users/{user_id}/warnings")
 async def admin_update_warnings(
-    user_id: str, request: UpdateWarningsRequest, admin=Depends(verify_admin),
+    user_id: str,
+    request: UpdateWarningsRequest,
+    admin=Depends(verify_admin),
 ):
     """Update user warnings count."""
     db = get_database()
@@ -473,7 +481,9 @@ async def admin_toggle_vip(user_id: str, request: ToggleVIPRequest, admin=Depend
 
         if is_partner:
             final_level_override = _prepare_partner_grant_data(
-                update_data, partner_level_override, now,
+                update_data,
+                partner_level_override,
+                now,
             )
         else:
             _prepare_partner_revoke_data(update_data)

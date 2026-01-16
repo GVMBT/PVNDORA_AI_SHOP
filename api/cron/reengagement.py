@@ -13,6 +13,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
+# Type alias for dict type hints
+DictStrAny = dict[str, Any]
+
 # Add project root to path for imports BEFORE any core.* imports
 _base_path = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(_base_path))
@@ -73,7 +76,7 @@ async def _process_inactive_users(db: Any, now: datetime) -> int:
     for user_raw in inactive_users.data or []:
         if not isinstance(user_raw, dict):
             continue
-        user = cast("dict[str, Any]", user_raw)
+        user = cast(DictStrAny, user_raw)
 
         # Skip if recently contacted
         if _was_recently_contacted(user.get("last_reengagement_at"), reengagement_cutoff):
@@ -124,7 +127,7 @@ async def _process_wishlist_reminders(db: Any, now: datetime) -> int:
     for item_raw in wishlist_items.data or []:
         if not isinstance(item_raw, dict):
             continue
-        item = cast("dict[str, Any]", item_raw)
+        item = cast(dict[str, Any], item_raw)
         user_data = item.get("users")
         if not isinstance(user_data, dict):
             continue
@@ -169,7 +172,7 @@ async def _process_expiring_subscriptions(db: Any, now: datetime) -> int:
     for item_raw in expiring_items.data or []:
         if not isinstance(item_raw, dict):
             continue
-        item = cast("dict[str, Any]", item_raw)
+        item = cast(dict[str, Any], item_raw)
 
         order_data = item.get("orders")
         product_data = item.get("products")
@@ -185,7 +188,10 @@ async def _process_expiring_subscriptions(db: Any, now: datetime) -> int:
         lang = user_data.get("language_code", "en") if isinstance(user_data, dict) else "en"
 
         message = get_text(
-            "subscription_expiring", lang, product=product_data.get("name", ""), days=days_left,
+            "subscription_expiring",
+            lang,
+            product=product_data.get("name", ""),
+            days=days_left,
         )
 
         if await _send_telegram_message(telegram_id, message):
@@ -228,7 +234,8 @@ async def reengagement_entrypoint(request: Request):
 
         # 3. Expiring subscriptions
         results["tasks"]["expiry_notifications_sent"] = await _process_expiring_subscriptions(
-            db, now,
+            db,
+            now,
         )
 
     except Exception as e:

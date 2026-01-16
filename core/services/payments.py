@@ -28,7 +28,8 @@ class PaymentService:
         self.crystalpay_secret = os.environ.get("CRYSTALPAY_SECRET", "")
         self.crystalpay_salt = os.environ.get("CRYSTALPAY_SALT", "")
         self.crystalpay_api_url = os.environ.get(
-            "CRYSTALPAY_API_URL", "https://api.crystalpay.io/v3",
+            "CRYSTALPAY_API_URL",
+            "https://api.crystalpay.io/v3",
         )
 
         # Webhook URLs
@@ -240,10 +241,14 @@ class PaymentService:
         client = self._get_http_client()
         try:
             response = await client.post(
-                f"{api_url}/invoice/create/", headers=headers, json=payload,
+                f"{api_url}/invoice/create/",
+                headers=headers,
+                json=payload,
             )
             logger.info(
-                "CrystalPay API response status: %s for order %s", response.status_code, order_id,
+                "CrystalPay API response status: %s for order %s",
+                response.status_code,
+                order_id,
             )
 
             data = response.json()
@@ -355,7 +360,9 @@ class PaymentService:
         client = self._get_http_client()
         try:
             response = await client.post(
-                f"{api_url}/invoice/create/", headers=headers, json=payload,
+                f"{api_url}/invoice/create/",
+                headers=headers,
+                json=payload,
             )
 
             data = response.json()
@@ -378,7 +385,9 @@ class PaymentService:
                 raise ValueError(msg)
 
             logger.info(
-                "CrystalPay TOPUP created: topup_id=%s, invoice_id=%s", topup_id, invoice_id,
+                "CrystalPay TOPUP created: topup_id=%s, invoice_id=%s",
+                topup_id,
+                invoice_id,
             )
             return {
                 "payment_url": payment_url,
@@ -388,7 +397,9 @@ class PaymentService:
         except httpx.HTTPStatusError as e:
             error_detail = e.response.text[:200]
             logger.exception(
-                "CrystalPay TOPUP API error %s: %s", e.response.status_code, error_detail,
+                "CrystalPay TOPUP API error %s: %s",
+                e.response.status_code,
+                error_detail,
             )
             msg = f"CrystalPay API error: {error_detail}"
             raise ValueError(msg)
@@ -420,7 +431,10 @@ class PaymentService:
         return None, "order_id not found"
 
     def _verify_signature(
-        self, invoice_id: str, received_signature: str, salt: str,
+        self,
+        invoice_id: str,
+        received_signature: str,
+        salt: str,
     ) -> tuple[bool, str]:
         """Verify webhook signature (reduces cognitive complexity)."""
         if not received_signature:
@@ -499,14 +513,19 @@ class PaymentService:
 
             if state != "payed":
                 logger.warning(
-                    "CrystalPay webhook: Payment state '%s' for order %s", state, order_id,
+                    "CrystalPay webhook: Payment state '%s' for order %s",
+                    state,
+                    order_id,
                 )
                 return {"success": False, "error": f"Payment not successful. State: {state}"}
 
             amount, rub_amount = self._parse_amounts(amount_str, rub_amount_str)
 
             logger.info(
-                "CrystalPay webhook verified: order=%s, amount=%s %s", order_id, amount, currency,
+                "CrystalPay webhook verified: order=%s, amount=%s %s",
+                order_id,
+                amount,
+                currency,
             )
             return {
                 "success": True,
@@ -520,6 +539,10 @@ class PaymentService:
         except Exception as e:
             logger.exception("CrystalPay webhook verification error")
             return {"success": False, "error": str(e)}
+
+    async def get_invoice_info(self, invoice_id: str) -> dict[str, Any]:
+        """Get CrystalPay invoice info by ID (alias for get_crystalpay_invoice_info)."""
+        return await self.get_crystalpay_invoice_info(invoice_id)
 
     async def get_crystalpay_invoice_info(self, invoice_id: str) -> dict[str, Any]:
         """Get CrystalPay invoice info by ID."""
@@ -558,7 +581,10 @@ class PaymentService:
     # ==================== REFUNDS ====================
 
     async def process_refund(
-        self, order_id: str, amount: float, method: str = "crystalpay",
+        self,
+        order_id: str,
+        amount: float,
+        method: str = "crystalpay",
     ) -> dict[str, Any]:
         """Process refund for an order.
         Refunds are credited to user balance (manual processing).

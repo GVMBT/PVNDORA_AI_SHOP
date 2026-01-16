@@ -63,7 +63,10 @@ def _is_duplicate_key_error(exception: Exception) -> bool:
 
 
 async def _calculate_review_cashback(
-    target_item: dict, order, balance_currency: str, currency_service,
+    target_item: dict,
+    order,
+    balance_currency: str,
+    currency_service,
 ) -> float:
     """Calculate 5% cashback amount in user's balance currency.
 
@@ -124,7 +127,11 @@ async def _calculate_review_cashback(
 
 
 async def _update_order_expenses_cashback(
-    db, order_id: str, cashback_amount: float, balance_currency: str, currency_service,
+    db,
+    order_id: str,
+    cashback_amount: float,
+    balance_currency: str,
+    currency_service,
 ) -> None:
     """Update order_expenses with review cashback amount (in USD for accounting)."""
     try:
@@ -275,7 +282,12 @@ async def _process_review_cashback(
         logger.warning(
             f"Cashback transaction already exists for order {request.order_id}, skipping",
         )
-        await db.client.table("reviews").update({"cashback_given": True}).eq("id", review_id).execute()
+        await (
+            db.client.table("reviews")
+            .update({"cashback_given": True})
+            .eq("id", review_id)
+            .execute()
+        )
         return to_float(db_user.balance) if db_user.balance else 0.0
 
     current_balance = to_float(db_user.balance) if db_user.balance else 0.0
@@ -301,7 +313,11 @@ async def _process_review_cashback(
     await db.client.table("reviews").update({"cashback_given": True}).eq("id", review_id).execute()
 
     await _update_order_expenses_cashback(
-        db, request.order_id, cashback_amount, balance_currency, currency_service,
+        db,
+        request.order_id,
+        cashback_amount,
+        balance_currency,
+        currency_service,
     )
 
     return new_balance
@@ -309,7 +325,10 @@ async def _process_review_cashback(
 
 # Helper to send cashback notification (reduces cognitive complexity)
 async def _send_cashback_notification(
-    db_user, cashback_amount: float, new_balance: float, balance_currency: str,
+    db_user,
+    cashback_amount: float,
+    new_balance: float,
+    balance_currency: str,
 ) -> None:
     """Send cashback notification (best-effort)."""
     try:
@@ -377,11 +396,20 @@ async def submit_webapp_review(request: WebAppReviewRequest, user=Depends(verify
     currency_service = get_currency_service(redis)
 
     cashback_amount = await _calculate_review_cashback(
-        target_item, order, balance_currency, currency_service,
+        target_item,
+        order,
+        balance_currency,
+        currency_service,
     )
 
     new_balance = await _process_review_cashback(
-        db, db_user, review_id, request, cashback_amount, balance_currency, currency_service,
+        db,
+        db_user,
+        review_id,
+        request,
+        cashback_amount,
+        balance_currency,
+        currency_service,
     )
 
     await _send_cashback_notification(db_user, cashback_amount, new_balance, balance_currency)

@@ -36,7 +36,8 @@ async def _process_referral_from_start(message: Message, db_user: User, db) -> N
                 continue
 
             await db.client.rpc(
-                "increment_referral_click", {"referrer_user_id": referrer.id},
+                "increment_referral_click",
+                {"referrer_user_id": referrer.id},
             ).execute()
 
             if not db_user.referrer_id:
@@ -81,10 +82,12 @@ async def cmd_help(message: Message, db_user: User) -> None:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=f"❓ {faq_text}", web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=faq"),
+                    text=f"❓ {faq_text}",
+                    web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=faq"),
                 ),
                 InlineKeyboardButton(
-                    text=f"📄 {terms_text}", web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=terms"),
+                    text=f"📄 {terms_text}",
+                    web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=terms"),
                 ),
             ],
             [
@@ -110,7 +113,8 @@ async def cmd_faq(message: Message, db_user: User) -> None:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=btn_text, web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=faq"),
+                    text=btn_text,
+                    web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=faq"),
                 ),
             ],
         ],
@@ -123,7 +127,9 @@ async def cmd_terms(message: Message, db_user: User) -> None:
     """Handle /terms command - open Terms of Service page."""
     title = get_text("terms.title", db_user.language_code, default="Пользовательское соглашение")
     subtitle = get_text(
-        "terms.subtitle", db_user.language_code, default="Условия использования сервиса",
+        "terms.subtitle",
+        db_user.language_code,
+        default="Условия использования сервиса",
     )
     text = f"<b>{title}</b>\n\n{subtitle}"
     btn_text = get_text("btn_open_terms", db_user.language_code, default="📄 Открыть условия")
@@ -131,7 +137,8 @@ async def cmd_terms(message: Message, db_user: User) -> None:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=btn_text, web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=terms"),
+                    text=btn_text,
+                    web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=terms"),
                 ),
             ],
         ],
@@ -154,7 +161,8 @@ async def cmd_support(message: Message, db_user: User) -> None:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=btn_text, web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=contacts"),
+                    text=btn_text,
+                    web_app=WebAppInfo(url=f"{WEBAPP_URL}?startapp=contacts"),
                 ),
             ],
         ],
@@ -196,7 +204,10 @@ async def cmd_my_orders(message: Message, db_user: User) -> None:
         order_lines.append(f"{status_icon} {product_name} - {order.amount}₽")
 
     text = get_text(
-        "order_history", db_user.language_code, orders="\n".join(order_lines), count=len(orders),
+        "order_history",
+        db_user.language_code,
+        orders="\n".join(order_lines),
+        count=len(orders),
     )
     await message.answer(text, parse_mode=ParseMode.HTML)
 
@@ -232,7 +243,10 @@ async def cmd_wishlist(message: Message, db_user: User) -> None:
         await message.answer(
             text,
             reply_markup=get_product_keyboard(
-                db_user.language_code, product.id, WEBAPP_URL, in_stock=product.stock_count > 0,
+                db_user.language_code,
+                product.id,
+                WEBAPP_URL,
+                in_stock=product.stock_count > 0,
             ),
             parse_mode=ParseMode.HTML,
         )

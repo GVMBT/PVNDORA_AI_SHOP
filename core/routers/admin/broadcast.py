@@ -29,11 +29,13 @@ class BroadcastRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=4096)
     target_bot: str = Field(default="main", description="Target bot: 'main', 'discount', or 'all'")
     filter_language: str | None = Field(
-        None, description="Filter users by language_code (ru, en, etc)",
+        None,
+        description="Filter users by language_code (ru, en, etc)",
     )
     filter_has_orders: bool | None = Field(None, description="Filter users who have made orders")
     preview_only: bool = Field(
-        default=False, description="If true, only return count of target users",
+        default=False,
+        description="If true, only return count of target users",
     )
     parse_mode: str = Field(default="HTML", description="Telegram parse mode: HTML or Markdown")
 
@@ -49,14 +51,20 @@ class BroadcastResult(BaseModel):
 
 
 async def send_telegram_message(
-    bot_token: str, chat_id: int, text: str, parse_mode: str = "HTML",
+    bot_token: str,
+    chat_id: int,
+    text: str,
+    parse_mode: str = "HTML",
 ) -> bool:
     """Send a single message via Telegram Bot API.
 
     Wrapper around consolidated telegram_messaging service for backward compatibility.
     """
     return await _send_telegram_message(
-        chat_id=chat_id, text=text, parse_mode=parse_mode, bot_token=bot_token,
+        chat_id=chat_id,
+        text=text,
+        parse_mode=parse_mode,
+        bot_token=bot_token,
     )
 
 
@@ -189,12 +197,16 @@ async def send_broadcast(request: BroadcastRequest, admin_user=Depends(verify_ad
     bot_tokens = _get_bot_tokens(request.target_bot)
     if not bot_tokens:
         raise HTTPException(
-            status_code=400, detail=f"No bot token configured for target: {request.target_bot}",
+            status_code=400,
+            detail=f"No bot token configured for target: {request.target_bot}",
         )
 
     # Send messages with rate limiting
     sent_count, failed_count, failed_user_ids = await _send_broadcast_messages(
-        target_users, bot_tokens, request.message, request.parse_mode,
+        target_users,
+        bot_tokens,
+        request.message,
+        request.parse_mode,
     )
 
     logger.info(

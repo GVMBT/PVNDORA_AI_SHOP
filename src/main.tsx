@@ -12,7 +12,9 @@ import type { WebApp } from "./types/telegram";
 setupChunkErrorHandler();
 
 // Initialize Telegram WebApp
-const tgWebApp: WebApp | undefined = globalThis.Telegram?.WebApp;
+const tgWebApp: WebApp | undefined = (
+  globalThis as typeof globalThis & { Telegram?: { WebApp?: WebApp } }
+).Telegram?.WebApp;
 if (tgWebApp) {
   tgWebApp.ready();
   tgWebApp.expand();

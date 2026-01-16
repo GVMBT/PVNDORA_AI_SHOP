@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 DELIVERED_STATES = ["delivered", "partial", "completed"]
 
 
-def _derive_product_name(items: list[dict[str, Any]], product: Any) -> str:
+def _derive_product_name(items: list[dict[str, Any]] | None, product: Any) -> str:
     """Derive product name from order items, falling back to product object.
 
     Args:
@@ -32,22 +32,28 @@ def _derive_product_name(items: list[dict[str, Any]], product: Any) -> str:
         if isinstance(first_item, dict):
             # Try nested product dict first
             if "product" in first_item and isinstance(first_item["product"], dict):
-                return first_item["product"].get("name", "Unknown")
+                name = first_item["product"].get("name", "Unknown")
+                return str(name) if name is not None else "Unknown"
             # Try direct product_name
             if "product_name" in first_item:
-                return first_item["product_name"]
+                name = first_item["product_name"]
+                return str(name) if name is not None else "Unknown"
 
     # Fallback to product object
     if product:
         if isinstance(product, dict):
-            return product.get("name", "Unknown")
-        return getattr(product, "name", "Unknown")
+            name = product.get("name", "Unknown")
+            return str(name) if name is not None else "Unknown"
+        name = getattr(product, "name", "Unknown")
+        return str(name) if name is not None else "Unknown"
 
     return "Unknown"
 
 
 def convert_order_prices_with_formatter(
-    amount: Decimal, original_price: Decimal | None, formatter: "CurrencyFormatter",
+    amount: Decimal,
+    original_price: Decimal | None,
+    formatter: "CurrencyFormatter",
 ) -> dict[str, Any]:
     """Convert order prices using unified CurrencyFormatter.
 
@@ -69,7 +75,9 @@ def convert_order_prices_with_formatter(
 
 
 def build_item_payload(
-    item_data: dict[str, Any], product: dict[str, Any], has_review: bool = False,
+    item_data: dict[str, Any],
+    product: dict[str, Any],
+    has_review: bool = False,
 ) -> dict[str, Any]:
     """Build order item payload for API response.
 

@@ -14,6 +14,9 @@ import logging
 import os
 from typing import Any, cast
 
+# Type alias for dict type hints
+DictStrAny = dict[str, Any]
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
@@ -61,7 +64,7 @@ async def _get_review(db: Any, order_id: str) -> dict[str, Any] | None:
     review_raw = result.data[0]
     if not isinstance(review_raw, dict):
         return None
-    return cast("dict[str, Any]", review_raw)
+    return cast(DictStrAny, review_raw)
 
 
 async def _get_user_from_order(db: Any, order_id: str) -> User | None:
@@ -71,13 +74,13 @@ async def _get_user_from_order(db: Any, order_id: str) -> User | None:
     )
     if not order_result.data or not isinstance(order_result.data, dict):
         return None
-    user_id = cast("dict[str, Any]", order_result.data).get("user_id")
+    user_id = cast(DictStrAny, order_result.data).get("user_id")
     if not user_id:
         return None
     user_result = await db.client.table("users").select("*").eq("id", user_id).single().execute()
     if not user_result.data or not isinstance(user_result.data, dict):
         return None
-    return User(**cast("dict[str, Any]", user_result.data))
+    return User(**cast(DictStrAny, user_result.data))
 
 
 async def _get_order_amounts(db: Any, order_id: str) -> dict[str, Any] | None:
@@ -91,7 +94,7 @@ async def _get_order_amounts(db: Any, order_id: str) -> dict[str, Any] | None:
     )
     if not result.data or not isinstance(result.data, dict):
         return None
-    return cast("dict[str, Any]", result.data)
+    return cast(dict[str, Any], result.data)
 
 
 async def _calculate_cashback(
@@ -114,7 +117,7 @@ async def _calculate_cashback(
         if balance_currency == "USD":
             cashback_base = cashback_base_usd
         else:
-            rate = await currency_service.get_exchange_rate(balance_currency)
+            rate = currency_service.get_exchange_rate(balance_currency)
             cashback_base = cashback_base_usd * rate
 
     cashback = cashback_base * 0.05
@@ -124,7 +127,11 @@ async def _calculate_cashback(
 
 
 async def _credit_user_balance(
-    db: Any, user: User, cashback_amount: float, balance_currency: str, order_id: str,
+    db: Any,
+    user: User,
+    cashback_amount: float,
+    balance_currency: str,
+    order_id: str,
 ) -> float:
     """Credit user balance and create transaction. Returns new balance."""
     from core.services.money import to_float
@@ -155,7 +162,10 @@ async def _credit_user_balance(
 
 
 async def _send_cashback_notification(
-    telegram_id: int, cashback_amount: float, new_balance: float, balance_currency: str,
+    telegram_id: int,
+    cashback_amount: float,
+    new_balance: float,
+    balance_currency: str,
 ) -> None:
     """Send cashback notification to user."""
     try:
@@ -221,7 +231,11 @@ async def process_review_cashback(request: Request):
 
     # 5. Credit balance
     new_balance = await _credit_user_balance(
-        db, db_user, cashback_amount, balance_currency, order_id,
+        db,
+        db_user,
+        cashback_amount,
+        balance_currency,
+        order_id,
     )
 
     # 6. Mark review as processed
@@ -232,7 +246,10 @@ async def process_review_cashback(request: Request):
     # 7. Send notification
     if db_user.telegram_id:
         await _send_cashback_notification(
-            db_user.telegram_id, cashback_amount, new_balance, balance_currency,
+            db_user.telegram_id,
+            cashback_amount,
+            new_balance,
+            balance_currency,
         )
 
     logger.info(

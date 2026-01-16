@@ -52,7 +52,9 @@ def validate_telegram_init_data(init_data: str, bot_token: str) -> bool:
 
         # Calculate hash
         calculated_hash = hmac.new(
-            secret_key, data_check_string.encode(), hashlib.sha256,
+            secret_key,
+            data_check_string.encode(),
+            hashlib.sha256,
         ).hexdigest()
 
         return hmac.compare_digest(calculated_hash, received_hash)

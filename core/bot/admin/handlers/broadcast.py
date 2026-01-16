@@ -29,7 +29,9 @@ BUTTON_BACK = "◀️ Назад"
 
 
 async def validate_broadcast_data(
-    data: dict, callback: CallbackQuery, state: FSMContext,
+    data: dict,
+    callback: CallbackQuery,
+    state: FSMContext,
 ) -> tuple[str, str] | None:
     """Validate broadcast data and return target_bot, target_audience or None (reduces cognitive complexity)."""
     target_bot = data.get("target_bot")
@@ -37,7 +39,8 @@ async def validate_broadcast_data(
 
     if not target_bot or not target_audience:
         await safe_edit_text(
-            callback, "❌ Ошибка: данные рассылки не найдены. Начните заново с /broadcast",
+            callback,
+            "❌ Ошибка: данные рассылки не найдены. Начните заново с /broadcast",
         )
         await state.clear()
         return None
@@ -53,7 +56,8 @@ async def validate_base_url(callback: CallbackQuery, state: FSMContext) -> str |
     if not base_url or base_url == "http://localhost:8000":
         logger.error("Broadcast: BASE_URL/WEBAPP_URL not set! base_url=%s", base_url)
         await safe_edit_text(
-            callback, "❌ Ошибка конфигурации: BASE_URL не настроен. Рассылка невозможна.",
+            callback,
+            "❌ Ошибка конфигурации: BASE_URL не настроен. Рассылка невозможна.",
         )
         await state.clear()
         return None
@@ -61,7 +65,12 @@ async def validate_base_url(callback: CallbackQuery, state: FSMContext) -> str |
 
 
 async def create_broadcast_record(
-    db, data: dict, recipients: list, target_bot: str, target_audience: str, admin_id: str,
+    db,
+    data: dict,
+    recipients: list,
+    target_bot: str,
+    target_audience: str,
+    admin_id: str,
 ) -> str:
     """Create broadcast record in DB (reduces cognitive complexity)."""
     broadcast_data = {
@@ -106,7 +115,9 @@ async def create_recipient_records(db, broadcast_id: str, recipients: list) -> N
 
 
 async def queue_broadcast_batches(
-    broadcast_id: str, recipients: list, target_bot: str,
+    broadcast_id: str,
+    recipients: list,
+    target_bot: str,
 ) -> tuple[int, list[int]]:
     """Queue broadcast batches to QStash (reduces cognitive complexity)."""
     from core.queue import WorkerEndpoints, publish_to_worker
@@ -280,7 +291,8 @@ def get_languages_keyboard(selected: list[str]) -> InlineKeyboardMarkup:
         check = "✅" if lang in selected else ""
         row.append(
             InlineKeyboardButton(
-                text=f"{flag} {lang.upper()} {check}", callback_data=f"bc:lang:{lang}",
+                text=f"{flag} {lang.upper()} {check}",
+                callback_data=f"bc:lang:{lang}",
             ),
         )
         if len(row) == 3:
@@ -305,7 +317,9 @@ def get_languages_keyboard(selected: list[str]) -> InlineKeyboardMarkup:
 
 
 def get_content_keyboard(
-    languages: list[str], current_lang: str, filled: dict[str, bool],
+    languages: list[str],
+    current_lang: str,
+    filled: dict[str, bool],
 ) -> InlineKeyboardMarkup:
     """Keyboard showing content status per language."""
     buttons = []
@@ -316,7 +330,8 @@ def get_content_keyboard(
         is_current = "👉" if lang == current_lang else ""
         row.append(
             InlineKeyboardButton(
-                text=f"{is_current}{flag} {status}", callback_data=f"bc:content:{lang}",
+                text=f"{is_current}{flag} {status}",
+                callback_data=f"bc:content:{lang}",
             ),
         )
         if len(row) == 3:
@@ -778,7 +793,10 @@ async def cb_buttons_done(callback: CallbackQuery, state: FSMContext) -> None:
     # Count recipients
     db = get_database()
     recipients = await _count_recipients(
-        db, target_bot, target_audience, data.get("target_languages"),
+        db,
+        target_bot,
+        target_audience,
+        data.get("target_languages"),
     )
 
     await state.update_data(total_recipients=recipients)
@@ -893,7 +911,10 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
         # Get recipients
         logger.info("Broadcast: Fetching recipients...")
         recipients = await _get_recipients_list(
-            db, target_bot, target_audience, data.get("target_languages"),
+            db,
+            target_bot,
+            target_audience,
+            data.get("target_languages"),
         )
 
         if not recipients:
@@ -905,7 +926,12 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
 
         # Create broadcast record
         broadcast_id = await create_broadcast_record(
-            db, data, recipients, target_bot, target_audience, admin_id,
+            db,
+            data,
+            recipients,
+            target_bot,
+            target_audience,
+            admin_id,
         )
 
         # Create recipient records
@@ -913,7 +939,9 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
 
         # Queue to QStash
         queued_count, failed_queues = await queue_broadcast_batches(
-            broadcast_id, recipients, target_bot,
+            broadcast_id,
+            recipients,
+            target_bot,
         )
 
         # Clear state
@@ -922,13 +950,19 @@ async def cb_send_now(callback: CallbackQuery, state: FSMContext, admin_id: str)
         # Send response
         total_batches = (len(recipients) + 79) // 80  # Calculate total batches
         await send_broadcast_response(
-            callback, broadcast_id, recipients, queued_count, failed_queues, total_batches,
+            callback,
+            broadcast_id,
+            recipients,
+            queued_count,
+            failed_queues,
+            total_batches,
         )
 
         from core.logging import sanitize_id_for_logging
 
         logger.info(
-            "Broadcast %s: Handler completed successfully", sanitize_id_for_logging(broadcast_id),
+            "Broadcast %s: Handler completed successfully",
+            sanitize_id_for_logging(broadcast_id),
         )
 
     except Exception as e:
@@ -1034,7 +1068,10 @@ async def cb_back(callback: CallbackQuery, state: FSMContext) -> None:
 
 
 async def _get_recipients_list(
-    db, target_bot: str, audience: str, languages: list[str] | None,
+    db,
+    target_bot: str,
+    audience: str,
+    languages: list[str] | None,
 ) -> list[dict[str, Any]]:
     """Get full list of recipients based on targeting criteria."""
     query = db.client.table("users").select("id, telegram_id, language_code")

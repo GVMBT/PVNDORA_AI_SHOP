@@ -19,7 +19,10 @@ logger = get_logger(__name__)
 
 
 def _determine_career_level(
-    user: dict, threshold_l2: float, threshold_l3: float, turnover: float,
+    user: dict,
+    threshold_l2: float,
+    threshold_l3: float,
+    turnover: float,
 ) -> tuple[int, int | None, float]:
     """Determine user's career level based on turnover.
 
@@ -42,7 +45,8 @@ def _get_line_unlocked_status(user: dict) -> tuple[bool, bool, bool]:
 
     """
     line1_unlocked = user.get("level1_unlocked_at") is not None or user.get(
-        "referral_program_unlocked", False,
+        "referral_program_unlocked",
+        False,
     )
     line2_unlocked = user.get("level2_unlocked_at") is not None
     line3_unlocked = user.get("level3_unlocked_at") is not None
@@ -54,7 +58,7 @@ async def _convert_to_currency(currency_service, amount: float, target_currency:
     if target_currency == "USD" or amount <= 0:
         return amount
     try:
-        result = await currency_service.convert_price(amount, target_currency)
+        result = currency_service.convert_price(amount, target_currency)
         return float(result) if result is not None else amount
     except Exception:
         return amount
@@ -162,7 +166,10 @@ async def get_user_profile() -> dict:
         referral_earnings = float(user.get("total_referral_earnings", 0) or 0)
 
         career_level, next_level, turnover_to_next = _determine_career_level(
-            user, threshold_l2, threshold_l3, turnover,
+            user,
+            threshold_l2,
+            threshold_l3,
+            turnover,
         )
 
         orders_result = (
@@ -180,10 +187,14 @@ async def get_user_profile() -> dict:
         # Convert amounts to target currency
         balance_converted = await _convert_to_currency(currency_service, balance, target_currency)
         total_saved_converted = await _convert_to_currency(
-            currency_service, total_saved, target_currency,
+            currency_service,
+            total_saved,
+            target_currency,
         )
         referral_earnings_converted = await _convert_to_currency(
-            currency_service, referral_earnings, target_currency,
+            currency_service,
+            referral_earnings,
+            target_currency,
         )
 
         return {
@@ -198,11 +209,13 @@ async def get_user_profile() -> dict:
             "turnover_to_next_usd": turnover_to_next,
             "total_saved": total_saved,
             "total_saved_formatted": currency_service.format_price(
-                total_saved_converted, target_currency,
+                total_saved_converted,
+                target_currency,
             ),
             "referral_earnings": referral_earnings,
             "referral_earnings_formatted": currency_service.format_price(
-                referral_earnings_converted, target_currency,
+                referral_earnings_converted,
+                target_currency,
             ),
             "orders_count": orders_count,
             "partner_mode": user.get("partner_mode", "commission"),
@@ -253,7 +266,10 @@ async def get_referral_info() -> dict:
         earnings = float(user.get("total_referral_earnings", 0) or 0)
 
         career_level, next_level, turnover_to_next = _determine_career_level(
-            user, threshold_l2, threshold_l3, turnover,
+            user,
+            threshold_l2,
+            threshold_l3,
+            turnover,
         )
 
         # Get line unlock status and network stats
@@ -343,8 +359,9 @@ async def get_balance_history(limit: int = 10) -> dict:
 
             if ctx.currency != "USD":
                 try:
-                    amount_display = await currency_service.convert_price(
-                        abs(amount_usd), ctx.currency,
+                    amount_display = currency_service.convert_price(
+                        abs(amount_usd),
+                        ctx.currency,
                     )
                 except Exception:
                     amount_display = abs(amount_usd)

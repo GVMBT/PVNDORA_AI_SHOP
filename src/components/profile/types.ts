@@ -18,7 +18,7 @@ export interface NetworkNodeData {
   id: string | number;
   name?: string;
   handle: string;
-  status: "active" | "inactive";
+  status: "active" | "inactive" | "VIP" | "SLEEP" | "ACTIVE";
   earned: number;
   ordersCount: number;
   photoUrl?: string;

@@ -78,7 +78,7 @@ class OrderRepository(BaseRepository):
                 logger.warning("Removed deprecated field '%s' from order data before insert", field)
                 data.pop(field, None)
 
-        result = await self.client.table("orders").insert(data).execute()
+        result = await self.client.table("orders").insert(data).execute()  # type: ignore[arg-type]
         return Order(**result.data[0])
 
     async def get_by_id(self, order_id: str) -> Order | None:
@@ -87,7 +87,10 @@ class OrderRepository(BaseRepository):
         return Order(**result.data[0]) if result.data else None
 
     async def update_status(
-        self, order_id: str, status: str, expires_at: datetime | None = None,
+        self,
+        order_id: str,
+        status: str,
+        expires_at: datetime | None = None,
     ) -> None:
         """Update order status.
 
@@ -185,7 +188,7 @@ class OrderRepository(BaseRepository):
         """Count orders by status."""
         result = (
             await self.client.table("orders")
-            .select("id", count="exact")
+            .select("id", count="exact")  # type: ignore[arg-type]
             .eq("status", status)
             .execute()
         )

@@ -49,7 +49,9 @@ async def cmd_start(message: Message, db_user: User, bot: Bot) -> None:
         )
 
         await message.answer(
-            text, reply_markup=get_main_menu_keyboard(lang), parse_mode=ParseMode.HTML,
+            text,
+            reply_markup=get_main_menu_keyboard(lang),
+            parse_mode=ParseMode.HTML,
         )
     else:
         # Show terms
@@ -128,7 +130,9 @@ async def cb_terms_read(callback: CallbackQuery, db_user: User) -> None:
     )
 
     await callback.message.edit_text(
-        text, reply_markup=get_terms_keyboard(lang), parse_mode=ParseMode.HTML,
+        text,
+        reply_markup=get_terms_keyboard(lang),
+        parse_mode=ParseMode.HTML,
     )
     await callback.answer()
 
@@ -258,7 +262,9 @@ async def cb_help_faq(callback: CallbackQuery, db_user: User) -> None:
     )
 
     await callback.message.edit_text(
-        text, reply_markup=get_help_keyboard(lang), parse_mode=ParseMode.HTML,
+        text,
+        reply_markup=get_help_keyboard(lang),
+        parse_mode=ParseMode.HTML,
     )
     await callback.answer()
 
@@ -293,6 +299,8 @@ async def cb_help_crypto(callback: CallbackQuery, db_user: User) -> None:
     )
 
     await callback.message.edit_text(
-        text, reply_markup=get_help_keyboard(lang), parse_mode=ParseMode.HTML,
+        text,
+        reply_markup=get_help_keyboard(lang),
+        parse_mode=ParseMode.HTML,
     )
     await callback.answer()

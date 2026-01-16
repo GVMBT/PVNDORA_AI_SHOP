@@ -64,11 +64,11 @@ class QueryMonitorMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
         finally:
             # Анализируем запросы после обработки
-            await self._analyze_queries(request_id, request)
+            self._analyze_queries(request_id, request)
 
         return response
 
-    async def _analyze_queries(self, request_id: str, request: Request) -> None:
+    def _analyze_queries(self, request_id: str, request: Request) -> None:
         """Анализирует запросы на наличие проблем."""
         queries = self.request_queries.get(request_id, [])
 
@@ -142,7 +142,7 @@ class QueryMonitorMiddleware(BaseHTTPMiddleware):
 
     def _summarize_queries(self, queries: list[dict]) -> str:
         """Создает краткое описание запросов."""
-        table_counts = defaultdict(int)
+        table_counts: dict[str, int] = defaultdict(int)
         for q in queries:
             table = q.get("table", "unknown")
             table_counts[table] += 1
@@ -151,7 +151,12 @@ class QueryMonitorMiddleware(BaseHTTPMiddleware):
         return f"Tables: {summary}"
 
     def log_query(
-        self, request_id: str, table: str, operation: str, filters: dict | None = None, query: str = "",
+        self,
+        request_id: str,
+        table: str,
+        operation: str,
+        filters: dict | None = None,
+        query: str = "",
     ) -> None:
         """Логирует DB запрос (вызывается из Database класса).
 

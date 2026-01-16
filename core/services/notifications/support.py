@@ -18,7 +18,11 @@ class SupportNotificationsMixin(NotificationServiceBase):
     """Mixin for support-related notifications."""
 
     async def send_ticket_approved_notification(
-        self, telegram_id: int, ticket_id: str, issue_type: str, _language: str = "en",
+        self,
+        telegram_id: int,
+        ticket_id: str,
+        issue_type: str,
+        _language: str = "en",
     ) -> None:
         """Send notification when ticket is approved."""
         lang = await get_user_language(telegram_id)
@@ -82,7 +86,11 @@ class SupportNotificationsMixin(NotificationServiceBase):
             logger.exception(f"Failed to send approval notification to {telegram_id}")
 
     async def send_ticket_rejected_notification(
-        self, telegram_id: int, ticket_id: str, reason: str, _language: str = "en",
+        self,
+        telegram_id: int,
+        ticket_id: str,
+        reason: str,
+        _language: str = "en",
     ) -> None:
         """Send notification when ticket is rejected."""
         lang = await get_user_language(telegram_id)
@@ -118,7 +126,8 @@ class SupportNotificationsMixin(NotificationServiceBase):
             inline_keyboard=[
                 [
                     InlineKeyboardButton(
-                        text=button_text, web_app=WebAppInfo(url=f"{webapp_url}/support"),
+                        text=button_text,
+                        web_app=WebAppInfo(url=f"{webapp_url}/support"),
                     ),
                 ],
             ],
@@ -128,7 +137,10 @@ class SupportNotificationsMixin(NotificationServiceBase):
             from core.services.telegram_messaging import send_telegram_message_with_keyboard
 
             await send_telegram_message_with_keyboard(
-                chat_id=telegram_id, text=message, keyboard=keyboard, parse_mode="HTML",
+                chat_id=telegram_id,
+                text=message,
+                keyboard=keyboard,
+                parse_mode="HTML",
             )
             logger.info(f"Sent rejection notification to {telegram_id} for ticket {ticket_id}")
         except Exception:

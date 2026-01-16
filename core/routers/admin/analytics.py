@@ -374,7 +374,8 @@ async def admin_get_discount_analytics(days: int = 30, admin=Depends(verify_admi
         "insurance": {
             "items_with_insurance": insurance_items.count if insurance_items.count else 0,
             "insurance_rate": round(
-                (insurance_items.count or 0) / max(discount_orders.count or 1, 1) * 100, 1,
+                (insurance_items.count or 0) / max(discount_orders.count or 1, 1) * 100,
+                1,
             ),
         },
         "replacements": {

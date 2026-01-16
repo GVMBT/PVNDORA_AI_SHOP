@@ -17,6 +17,7 @@ Usage:
 import os
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Optional
+from collections.abc import Mapping
 
 from supabase._async.client import AsyncClient
 from supabase._async.client import create_client as acreate_client
@@ -120,7 +121,9 @@ class Database:
     ) -> None:
         """Update user preferences for currency and interface language."""
         await self.users_domain.update_preferences(
-            telegram_id, preferred_currency, interface_language,
+            telegram_id,
+            preferred_currency,
+            interface_language,
         )
 
     async def update_user_activity(self, telegram_id: int) -> None:
@@ -197,7 +200,9 @@ class Database:
         )
 
     async def create_order_with_availability_check(
-        self, product_id: str, user_telegram_id: int,
+        self,
+        product_id: str,
+        user_telegram_id: int,
     ) -> dict[str, Any]:
         """Create order with automatic availability check.
 
@@ -219,7 +224,10 @@ class Database:
         return await self.orders_domain.get_by_id(order_id)
 
     async def update_order_status(
-        self, order_id: str, status: str, expires_at: datetime | None = None,
+        self,
+        order_id: str,
+        status: str,
+        expires_at: datetime | None = None,
     ) -> None:
         """Update order status.
 
@@ -266,7 +274,11 @@ class Database:
         return await self.chat_domain.get_history(user_id, limit)
 
     async def create_ticket(
-        self, user_id: str, subject: str, message: str, order_id: str | None = None,
+        self,
+        user_id: str,
+        subject: str,
+        message: str,
+        order_id: str | None = None,
     ) -> dict[str, Any]:
         return await self.chat_domain.create_ticket(user_id, subject, message, order_id)
 
@@ -306,7 +318,8 @@ class Database:
         await (
             self.client.table("wishlist")
             .upsert(
-                {"user_id": user_id, "product_id": product_id}, on_conflict="user_id,product_id",
+                {"user_id": user_id, "product_id": product_id},
+                on_conflict="user_id,product_id",
             )
             .execute()
         )
@@ -321,10 +334,12 @@ class Database:
         )
         products = []
         for item in result.data:
-            if item.get("products"):
-                p = item["products"]
-                p["stock_count"] = 0
-                products.append(Product(**p))
+            if isinstance(item, Mapping) and item.get("products"):
+                products_data = item["products"]
+                if isinstance(products_data, Mapping):
+                    p = dict(products_data)
+                    p["stock_count"] = 0
+                    products.append(Product(**p))
         return products
 
     async def remove_from_wishlist(self, user_id: str, product_id: str) -> None:
@@ -340,7 +355,12 @@ class Database:
     # ==================== REVIEWS ====================
 
     async def create_review(
-        self, user_id: str, order_id: str, product_id: str, rating: int, text: str | None = None,
+        self,
+        user_id: str,
+        order_id: str,
+        product_id: str,
+        rating: int,
+        text: str | None = None,
     ) -> None:
         """Create product review."""
         await (
@@ -357,7 +377,7 @@ class Database:
             .execute()
         )
 
-    async def get_product_reviews(self, product_id: str, limit: int = 5) -> list[dict]:
+    async def get_product_reviews(self, product_id: str, limit: int = 5) -> list[dict[str, Any]]:
         """Get recent reviews for product."""
         result = (
             await self.client.table("reviews")
@@ -367,11 +387,12 @@ class Database:
             .limit(limit)
             .execute()
         )
-        return result.data
+        # Ensure all items are dicts
+        return [dict(item) if isinstance(item, Mapping) else item for item in result.data]
 
     # ==================== PROMO CODES ====================
 
-    async def validate_promo_code(self, code: str) -> dict | None:
+    async def validate_promo_code(self, code: str) -> dict[str, Any] | None:
         """Validate and get promo code details.
 
         Returns promo code with product_id:
@@ -389,12 +410,27 @@ class Database:
         if not result.data:
             return None
 
-        promo = result.data[0]
-        if promo.get("expires_at") and datetime.fromisoformat(
-            promo["expires_at"],
-        ) < datetime.now(UTC):
+        promo_raw = result.data[0]
+        if not isinstance(promo_raw, Mapping):
             return None
-        if promo.get("usage_limit") and promo["usage_count"] >= promo["usage_limit"]:
+
+        promo = dict(promo_raw)
+        expires_at = promo.get("expires_at")
+        if (
+            expires_at
+            and isinstance(expires_at, str)
+            and datetime.fromisoformat(expires_at) < datetime.now(UTC)
+        ):
+            return None
+        usage_limit = promo.get("usage_limit")
+        usage_count = promo.get("usage_count")
+        if (
+            usage_limit is not None
+            and usage_count is not None
+            and isinstance(usage_count, (int, float))
+            and isinstance(usage_limit, (int, float))
+            and usage_count >= usage_limit
+        ):
             return None
 
         # product_id is included in the result (can be NULL for cart-wide promos)
@@ -406,7 +442,7 @@ class Database:
 
     # ==================== FAQ ====================
 
-    async def get_faq(self, language_code: str = "en") -> list[dict]:
+    async def get_faq(self, language_code: str = "en") -> list[dict[str, Any]]:
         """Get FAQ entries for language."""
         result = (
             await self.client.table("faq")
@@ -432,7 +468,10 @@ class Database:
     # ==================== ANALYTICS ====================
 
     async def log_event(
-        self, user_id: str | None, event_type: str, metadata: dict | None = None,
+        self,
+        user_id: str | None,
+        event_type: str,
+        metadata: dict | None = None,
     ) -> None:
         """Log analytics event."""
         await (
@@ -467,10 +506,18 @@ class Database:
                 .eq("id", current_user_id)
                 .execute()
             )
-            if not user_result.data or not user_result.data[0].get("referrer_id"):
+            if not user_result.data:
+                break
+            user_data = user_result.data[0]
+            if not isinstance(user_data, Mapping):
+                break
+            referrer_id_raw = user_data.get("referrer_id")
+            if not referrer_id_raw:
                 break
 
-            referrer_id = user_result.data[0]["referrer_id"]
+            referrer_id = str(referrer_id_raw) if referrer_id_raw else None
+            if not referrer_id:
+                break
             if referrer_id == order.user_id:
                 logger.warning(f"Self-referral loop detected at L{level}")
                 break
@@ -492,7 +539,8 @@ class Database:
 
             # RPC вызовы остаются отдельными (нельзя батчить)
             await self.client.rpc(
-                "increment_referral_earnings", {"p_user_id": referrer_id, "p_amount": bonus},
+                "increment_referral_earnings",
+                {"p_user_id": referrer_id, "p_amount": bonus},
             ).execute()
 
             bonuses_awarded.append({"level": level, "referrer_id": referrer_id, "bonus": bonus})

@@ -44,16 +44,24 @@ export function useLocale(): UseLocaleReturn {
       let value: LocaleValue | undefined = locales[locale];
 
       for (const k of keys) {
-        value = value?.[k];
-        if (value === undefined) break;
+        if (value && typeof value === "object" && k in value) {
+          value = value[k];
+        } else {
+          value = undefined;
+          break;
+        }
       }
 
       // Fallback to English
       if (value === undefined) {
         value = locales.en;
         for (const k of keys) {
-          value = value?.[k];
-          if (value === undefined) break;
+          if (value && typeof value === "object" && k in value) {
+            value = value[k];
+          } else {
+            value = undefined;
+            break;
+          }
         }
       }
 
@@ -64,12 +72,18 @@ export function useLocale(): UseLocaleReturn {
 
       // Replace params
       if (typeof value === "string" && Object.keys(params).length > 0) {
-        return value.replaceAll(/\{(\w+)\}/g, (_, paramKey) =>
+        return value.replace(/\{(\w+)\}/g, (_: string, paramKey: string) =>
           String(params[paramKey] ?? `{${paramKey}}`)
         );
       }
 
-      return value;
+      // Ensure we return a string
+      if (typeof value === "string") {
+        return value;
+      }
+
+      // If value is an object, return the key as fallback
+      return key;
     },
     [locale]
   );

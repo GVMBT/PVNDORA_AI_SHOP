@@ -114,7 +114,8 @@ async def handle_inline_query(query: InlineQuery, db_user: User, bot: Bot) -> No
                             inline_keyboard=[
                                 [
                                     InlineKeyboardButton(
-                                        text=f"Купить {product.name}", url=product_link,
+                                        text=f"Купить {product.name}",
+                                        url=product_link,
                                     ),
                                 ],
                             ],

@@ -111,7 +111,10 @@ async def send_telegram_message(chat_id: str, text: str) -> bool:
         return False
 
     return await _send_msg(
-        chat_id=chat_id_int, text=text, parse_mode="HTML", bot_token=TELEGRAM_TOKEN,
+        chat_id=chat_id_int,
+        text=text,
+        parse_mode="HTML",
+        bot_token=TELEGRAM_TOKEN,
     )
 
 
@@ -160,12 +163,15 @@ def format_stock_alert(products: list) -> str:
 
     lines.extend(
         _format_stock_section(
-            out_of_stock, "🔴 <b>НЕТ В НАЛИЧИИ</b> — требуется срочное пополнение:", show_price=True,
+            out_of_stock,
+            "🔴 <b>НЕТ В НАЛИЧИИ</b> — требуется срочное пополнение:",
+            show_price=True,
         ),
     )
     lines.extend(
         _format_stock_section(
-            critical, "🟠 <b>КРИТИЧЕСКИ МАЛО</b> (1-2 шт) — пополнить в ближайшее время:",
+            critical,
+            "🟠 <b>КРИТИЧЕСКИ МАЛО</b> (1-2 шт) — пополнить в ближайшее время:",
         ),
     )
     lines.extend(
@@ -186,14 +192,16 @@ def format_stock_alert(products: list) -> str:
 
 
 async def _filter_new_alerts(
-    products: list[Any], now: datetime, results: dict[str, Any],
+    products: list[Any],
+    now: datetime,
+    results: dict[str, Any],
 ) -> list[dict[str, Any]]:
     """Filter products that haven't been alerted recently."""
     new_alerts = []
     for product_raw in products:
         if not isinstance(product_raw, dict):
             continue
-        product = cast("dict[str, Any]", product_raw)
+        product = cast(dict[str, Any], product_raw)
         product_id = product.get("product_id", product.get("id", ""))
         stock_status = product.get("stock_status", "low")
 

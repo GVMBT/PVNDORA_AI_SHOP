@@ -69,7 +69,8 @@ export function useBootTasks({ getProducts, getCart, getProfile }: UseBootTasksP
         successLabel: "Product catalog loaded",
         execute: async () => {
           const products = await getProducts();
-          return { productCount: products?.length || 0 };
+          const productCount = Array.isArray(products) ? products.length : 0;
+          return { productCount };
         },
       },
       {
@@ -78,7 +79,11 @@ export function useBootTasks({ getProducts, getCart, getProfile }: UseBootTasksP
         successLabel: "Cart data synchronized",
         execute: async () => {
           const cart = await getCart();
-          return { itemCount: cart?.items?.length || 0 };
+          const itemCount =
+            cart && typeof cart === "object" && "items" in cart && Array.isArray(cart.items)
+              ? cart.items.length
+              : 0;
+          return { itemCount };
         },
       },
       {
@@ -90,10 +95,17 @@ export function useBootTasks({ getProducts, getCart, getProfile }: UseBootTasksP
         execute: async () => {
           try {
             const profileData = await getProfile();
+            const isProfileData = profileData && typeof profileData === "object";
             return {
               loaded: !!profileData,
-              username: profileData?.handle || null,
-              balance: profileData?.balance || 0,
+              username:
+                isProfileData && "handle" in profileData && typeof profileData.handle === "string"
+                  ? profileData.handle
+                  : null,
+              balance:
+                isProfileData && "balance" in profileData && typeof profileData.balance === "number"
+                  ? profileData.balance
+                  : 0,
             };
           } catch (e) {
             logger.warn("[Boot] Profile fetch failed", e);

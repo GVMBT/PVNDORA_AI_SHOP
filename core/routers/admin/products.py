@@ -122,7 +122,9 @@ async def admin_get_products(admin=Depends(verify_admin)):
 
 @router.put("/products/{product_id}")
 async def admin_update_product(
-    product_id: str, request: CreateProductRequest, admin=Depends(verify_admin),
+    product_id: str,
+    request: CreateProductRequest,
+    admin=Depends(verify_admin),
 ):
     """Update a product."""
     db = get_database()
@@ -250,7 +252,9 @@ async def admin_add_stock_bulk(request: BulkStockRequest, admin=Depends(verify_a
 
 @router.get("/stock")
 async def admin_get_stock(
-    product_id: str | None = None, available_only: bool = True, admin=Depends(verify_admin),
+    product_id: str | None = None,
+    available_only: bool = True,
+    admin=Depends(verify_admin),
 ):
     """Get stock items."""
     db = get_database()
@@ -301,7 +305,9 @@ async def admin_delete_stock(stock_item_id: str, admin=Depends(verify_admin)):
 # ==================== HELPERS ====================
 
 
-async def _notify_waitlist_for_product(db, product_name: str, product_id: str | None = None) -> None:
+async def _notify_waitlist_for_product(
+    db, product_name: str, product_id: str | None = None
+) -> None:
     """Notify users on waitlist when product becomes available."""
     waitlist = (
         await db.client.table("waitlist")

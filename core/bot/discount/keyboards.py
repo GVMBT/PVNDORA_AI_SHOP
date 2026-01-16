@@ -61,7 +61,11 @@ def get_categories_keyboard(categories: list[dict], lang: str) -> InlineKeyboard
     for cat in categories:
         name = cat.get("name_ru" if lang == "ru" else "name", cat.get("name", "Unknown"))
         buttons.append(
-            [InlineKeyboardButton(text=f"📁 {name}", callback_data=f"discount:cat:{cat['id'][:8]}")],
+            [
+                InlineKeyboardButton(
+                    text=f"📁 {name}", callback_data=f"discount:cat:{cat['id'][:8]}"
+                )
+            ],
         )
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -69,7 +73,10 @@ def get_categories_keyboard(categories: list[dict], lang: str) -> InlineKeyboard
 
 # Helper to format product price string (reduces cognitive complexity)
 def _format_product_price(
-    discount_price_usd: float, display_price: float, currency: str, currency_symbol: str,
+    discount_price_usd: float,
+    display_price: float,
+    currency: str,
+    currency_symbol: str,
 ) -> str:
     """Format product price string."""
     from core.services.currency import INTEGER_CURRENCIES
@@ -83,7 +90,10 @@ def _format_product_price(
 
 # Helper to build pagination buttons (reduces cognitive complexity)
 def _build_pagination_buttons(
-    page: int, total_products: int, page_size: int, category_id: str | None,
+    page: int,
+    total_products: int,
+    page_size: int,
+    category_id: str | None,
 ) -> list[InlineKeyboardButton]:
     """Build pagination navigation buttons."""
     nav_buttons = []
@@ -139,7 +149,10 @@ def get_products_keyboard(
 
         display_price = discount_price_usd * exchange_rate
         price_str = _format_product_price(
-            discount_price_usd, display_price, currency, currency_symbol,
+            discount_price_usd,
+            display_price,
+            currency,
+            currency_symbol,
         )
 
         stock_emoji = "🟢" if stock > 0 else "🟡"
@@ -190,7 +203,10 @@ def _get_buy_button_text(price_formatted: str, lang: str, in_stock: bool) -> str
 
 # Helper to format insurance option text (reduces cognitive complexity)
 def _format_insurance_text(
-    days: int, currency_symbol: str, ins_price_display: float, lang: str,
+    days: int,
+    currency_symbol: str,
+    ins_price_display: float,
+    lang: str,
 ) -> str:
     """Format insurance option text."""
     if lang == "ru":
@@ -237,7 +253,8 @@ def get_product_card_keyboard(
             buttons.append(
                 [
                     InlineKeyboardButton(
-                        text=ins_text, callback_data=f"discount:buy:{product_id[:8]}:{ins_id}",
+                        text=ins_text,
+                        callback_data=f"discount:buy:{product_id[:8]}:{ins_id}",
                     ),
                 ],
             )
@@ -270,7 +287,8 @@ def get_order_queued_keyboard(lang: str, order_id: str) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=status_text, callback_data=f"discount:status:{order_id[:8]}",
+                    text=status_text,
+                    callback_data=f"discount:status:{order_id[:8]}",
                 ),
             ],
         ],
@@ -283,7 +301,10 @@ def get_order_queued_keyboard(lang: str, order_id: str) -> InlineKeyboardMarkup:
 
 
 def get_orders_keyboard(
-    orders: list[dict], _lang: str, exchange_rate: float = 1.0, currency: str = "USD",
+    orders: list[dict],
+    _lang: str,
+    exchange_rate: float = 1.0,
+    currency: str = "USD",
 ) -> InlineKeyboardMarkup:
     """User orders list."""
     buttons = []
@@ -371,7 +392,8 @@ def get_issue_types_keyboard(order_id: str, lang: str) -> InlineKeyboardMarkup:
         buttons.append(
             [
                 InlineKeyboardButton(
-                    text=text, callback_data=f"discount:issue_type:{order_id[:8]}:{issue_type}",
+                    text=text,
+                    callback_data=f"discount:issue_type:{order_id[:8]}:{issue_type}",
                 ),
             ],
         )
@@ -386,7 +408,10 @@ def get_issue_types_keyboard(order_id: str, lang: str) -> InlineKeyboardMarkup:
 
 
 def get_issue_result_keyboard(
-    has_insurance: bool, can_replace: bool, promo_code: str | None, lang: str,
+    has_insurance: bool,
+    can_replace: bool,
+    promo_code: str | None,
+    lang: str,
 ) -> InlineKeyboardMarkup:
     """Issue resolution options."""
     buttons = []

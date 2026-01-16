@@ -158,7 +158,9 @@ def get_system_prompt(
 
 
 async def format_product_catalog(
-    products: list, language: str = "en", _exchange_rate: float = 1.0,
+    products: list,
+    language: str = "en",
+    _exchange_rate: float = 1.0,
 ) -> str:
     """Format product list for system prompt with proper currency conversion.
 
@@ -190,8 +192,8 @@ async def format_product_catalog(
         name = getattr(p, "name", "Unknown")
         pid = getattr(p, "id", "")
 
-        # Use Anchor Price
-        price_val = await currency_service.get_anchor_price(p, currency)
+        # Use Anchor Price (sync method, no await needed)
+        price_val = currency_service.get_anchor_price(p, currency)
         price_str = currency_service.format_price(price_val, currency)
 
         entry = f"• {name} | {price_str} | ID: {pid}"

@@ -4,11 +4,15 @@ import json
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from core.services.money import to_decimal
 
 from .models import Cart, CartItem
 from .storage import TTL, RedisKeys, get_redis
+
+if TYPE_CHECKING:
+    from upstash_redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +27,7 @@ class CartManager:
     """
 
     def __init__(self) -> None:
-        self._redis = None  # Lazy initialization
+        self._redis: Redis | None = None  # Lazy initialization
 
     @property
     def redis(self):
@@ -142,7 +146,11 @@ class CartManager:
         return cart
 
     def _update_cart_item_quantity(
-        self, cart: Cart, product_id: str, new_quantity: int, available_stock: int,
+        self,
+        cart: Cart,
+        product_id: str,
+        new_quantity: int,
+        available_stock: int,
     ) -> None:
         """Update item quantity in cart (reduces cognitive complexity)."""
         if new_quantity <= 0:
@@ -156,7 +164,11 @@ class CartManager:
                     break
 
     async def update_item_quantity(
-        self, user_telegram_id: int, product_id: str, new_quantity: int, available_stock: int,
+        self,
+        user_telegram_id: int,
+        product_id: str,
+        new_quantity: int,
+        available_stock: int,
     ) -> Cart | None:
         """Update item quantity in cart."""
         if not isinstance(new_quantity, int) or new_quantity < 0:

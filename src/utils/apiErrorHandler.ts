@@ -59,7 +59,9 @@ export function parseApiError(error: unknown, endpoint?: string): ApiError {
 
   // Fallback for unknown error types
   const message = "Произошла неизвестная ошибка. Попробуйте позже.";
-  logger.error("Unknown API error format", error);
+  // Convert unknown error to Error instance for logging
+  const errorInstance = error instanceof Error ? error : new Error(String(error));
+  logger.error("Unknown API error format", errorInstance);
 
   return {
     message,

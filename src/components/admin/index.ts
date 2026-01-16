@@ -2,7 +2,7 @@
  * Admin Components Barrel Export
  */
 
-export type { AccountingData } from "./AdminAccounting";
+export type { AccountingData, LiabilitiesData, RevenueData } from "./AdminAccounting";
 export { default as AdminAccounting } from "./AdminAccounting";
 export { default as AdminCatalog } from "./AdminCatalog";
 export { default as AdminDashboard } from "./AdminDashboard";

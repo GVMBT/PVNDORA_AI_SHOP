@@ -162,7 +162,8 @@ async def create_referral_share_link(user=Depends(verify_telegram_auth)):
 
         if "object has no attribute 'save_prepared_inline_message'" in error_msg:
             raise HTTPException(
-                status_code=501, detail="Feature not supported by bot backend version",
+                status_code=501,
+                detail="Feature not supported by bot backend version",
             )
 
         # Check if it's a Telegram API error
@@ -250,6 +251,9 @@ async def submit_review(request: SubmitReviewRequest, user=Depends(verify_telegr
     # Get product_id from order_items (source of truth)
     order_items = await db.get_order_items_by_order(request.order_id)
     product_id = order_items[0].get("product_id") if order_items else None
+
+    if not product_id:
+        raise HTTPException(status_code=400, detail="Product ID not found in order")
 
     await db.create_review(
         user_id=db_user.id,

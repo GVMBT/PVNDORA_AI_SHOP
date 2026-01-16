@@ -28,7 +28,9 @@ async def preview_withdrawal(request: WithdrawalPreviewRequest, user=Depends(ver
         raise HTTPException(status_code=404, detail="User not found")
 
     balance = float(db_user.balance) if db_user.balance else 0
-    balance_currency = getattr(db_user, "balance_currency", None) or "RUB"  # Default RUB after currency migration
+    balance_currency = (
+        getattr(db_user, "balance_currency", None) or "RUB"
+    )  # Default RUB after currency migration
 
     redis = get_redis()
     currency_service = get_currency_service(redis)
@@ -42,7 +44,8 @@ async def preview_withdrawal(request: WithdrawalPreviewRequest, user=Depends(ver
 
     # Calculate maximum withdrawal amount (uses constants from currency service)
     max_withdrawal = await currency_service.calculate_max_withdrawal_amount(
-        balance=balance, balance_currency=balance_currency,
+        balance=balance,
+        balance_currency=balance_currency,
     )
 
     # Use requested amount, or full balance for preview
@@ -50,7 +53,8 @@ async def preview_withdrawal(request: WithdrawalPreviewRequest, user=Depends(ver
 
     # Calculate USDT payout for amount_to_calc
     withdrawal_calc = await currency_service.calculate_withdrawal_usdt(
-        amount_in_balance_currency=amount_to_calc, balance_currency=balance_currency,
+        amount_in_balance_currency=amount_to_calc,
+        balance_currency=balance_currency,
     )
 
     # Check if user can withdraw
@@ -98,7 +102,9 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
 
     # Get user's balance and balance_currency
     balance = float(db_user.balance) if db_user.balance else 0
-    balance_currency = getattr(db_user, "balance_currency", None) or "RUB"  # Default RUB after currency migration
+    balance_currency = (
+        getattr(db_user, "balance_currency", None) or "RUB"
+    )  # Default RUB after currency migration
 
     # Get currency service for USDT calculation
     redis = get_redis()
@@ -109,7 +115,8 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
 
     # Calculate USDT payout with snapshot (uses constants from currency service)
     withdrawal_calc = await currency_service.calculate_withdrawal_usdt(
-        amount_in_balance_currency=request.amount, balance_currency=balance_currency,
+        amount_in_balance_currency=request.amount,
+        balance_currency=balance_currency,
     )
 
     amount_usd = withdrawal_calc["amount_usd"]
@@ -136,7 +143,8 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
 
     if request.method not in ["crypto"]:
         raise HTTPException(
-            status_code=400, detail="Invalid payment method. Only TRC20 USDT is supported.",
+            status_code=400,
+            detail="Invalid payment method. Only TRC20 USDT is supported.",
         )
 
     # Extract wallet address from details
@@ -177,7 +185,8 @@ async def request_withdrawal(request: WithdrawalRequest, user=Depends(verify_tel
         .execute()
     )
 
-    request_id = withdrawal_result.data[0].get("id") if withdrawal_result.data else "unknown"
+    request_id_raw = withdrawal_result.data[0].get("id", "") if withdrawal_result.data and isinstance(withdrawal_result.data, list) and len(withdrawal_result.data) > 0 and isinstance(withdrawal_result.data[0], dict) else "unknown"
+    request_id = str(request_id_raw) if request_id_raw else "unknown"
 
     # Send alert to admins (best-effort)
     try:

@@ -70,7 +70,15 @@ class ProductRepository(BaseRepository):
         """Create new product."""
         result = await self.client.table("products").insert(data).execute()
         # Fetch from VIEW to get stock_count = 0
-        return await self.get_by_id(result.data[0]["id"])
+        if not result.data:
+            raise ValueError("Failed to create product: no data returned")
+        product_id = (
+            result.data[0].get("id") if isinstance(result.data[0], dict) else result.data[0]["id"]
+        )
+        product = await self.get_by_id(product_id)
+        if product is None:
+            raise ValueError(f"Failed to fetch created product: {product_id}")
+        return product
 
     async def update(self, product_id: str, data: dict[str, Any]) -> Product | None:
         """Update product."""

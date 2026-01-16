@@ -24,6 +24,7 @@ logger = get_logger(__name__)
 ERROR_FAILED_CHECK_PARTNER_STATUS = "Failed to check partner status: %s"
 ERR_USER_NOT_FOUND = "User not found"
 ERR_PARTNER_ACCESS_REQUIRED = "Partner access required"
+DictStrAny = dict[str, Any]
 
 
 class PartnerModeRequest(BaseModel):
@@ -137,7 +138,7 @@ async def _get_earnings_history(db, user_id: str) -> list[dict]:
 
         daily_earnings: defaultdict[str, float] = defaultdict(float)
         for bonus in earnings_result.data or []:
-            bonus_dict = cast("dict[str, Any]", bonus)
+            bonus_dict = cast(DictStrAny, bonus)
             created_at = bonus_dict.get("created_at", "")
             day = str(created_at)[:10] if created_at else ""
             amount = bonus_dict.get("amount", 0)
@@ -156,7 +157,8 @@ async def _get_top_products(db, user_id: str) -> list:
     """Get top purchased products by referrals."""
     try:
         top_products_result = await db.client.rpc(
-            "get_partner_top_products", {"p_partner_id": str(user_id), "p_limit": 5},
+            "get_partner_top_products",
+            {"p_partner_id": str(user_id), "p_limit": 5},
         ).execute()
         return top_products_result.data or []
     except Exception as e:
@@ -267,7 +269,8 @@ async def set_partner_mode(request: PartnerModeRequest, user=Depends(verify_tele
 
 @router.post("/partner/apply")
 async def submit_partner_application(
-    request: PartnerApplicationRequest, user=Depends(verify_telegram_auth),
+    request: PartnerApplicationRequest,
+    user=Depends(verify_telegram_auth),
 ):
     """Submit application to become a VIP partner."""
     db = get_database()
@@ -321,7 +324,7 @@ async def submit_partner_application(
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create application")
 
-    application_data = cast("dict[str, Any]", result.data[0])
+    application_data = cast(DictStrAny, result.data[0])
     application_id = str(application_data["id"])
 
     # Send admin alert

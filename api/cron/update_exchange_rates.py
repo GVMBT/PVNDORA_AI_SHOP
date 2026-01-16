@@ -51,6 +51,7 @@ async def update_exchange_rates_entrypoint(request: Request):
 
         if redis_url and redis_token:
             from upstash_redis.asyncio import Redis as AsyncRedis
+
             redis = AsyncRedis(url=redis_url, token=redis_token)
             await redis.setex("currency:rate:USDT_RUB", 3600, str(usdt_rub_rate))
             logger.info(f"Updated USDT/RUB rate in Redis: {usdt_rub_rate}")

@@ -183,7 +183,8 @@ class PromoCodeService:
             valid_from = datetime.fromisoformat(promo["valid_from"])
             if now < valid_from:
                 return PromoValidationResult(
-                    valid=False, error_message="Promo code is not yet active",
+                    valid=False,
+                    error_message="Promo code is not yet active",
                 )
 
         if promo.get("valid_until"):
@@ -198,12 +199,16 @@ class PromoCodeService:
         current_uses = promo.get("current_uses", 0)
         if max_uses and current_uses >= max_uses:
             return PromoValidationResult(
-                valid=False, error_message="Promo code usage limit reached",
+                valid=False,
+                error_message="Promo code usage limit reached",
             )
         return None
 
     async def _check_personal_restriction(
-        self, promo: dict, user_id: str | None, telegram_id: int | None,
+        self,
+        promo: dict,
+        user_id: str | None,
+        telegram_id: int | None,
     ) -> PromoValidationResult | None:
         """Check personal promo code restriction (reduces cognitive complexity)."""
         if not (promo.get("is_personal") and promo.get("target_user_id")):
@@ -224,12 +229,16 @@ class PromoCodeService:
 
         if not user_id or user_id != target_user_id:
             return PromoValidationResult(
-                valid=False, error_message="This promo code is for another user",
+                valid=False,
+                error_message="This promo code is for another user",
             )
         return None
 
     async def validate_promo_code(
-        self, code: str, user_id: str | None = None, telegram_id: int | None = None,
+        self,
+        code: str,
+        user_id: str | None = None,
+        telegram_id: int | None = None,
     ) -> PromoValidationResult:
         """Validate a promo code for a user.
 
@@ -247,7 +256,8 @@ class PromoCodeService:
 
             if not result.data:
                 return PromoValidationResult(
-                    valid=False, error_message="Promo code not found or inactive",
+                    valid=False,
+                    error_message="Promo code not found or inactive",
                 )
 
             promo = result.data

@@ -103,7 +103,9 @@ const LoginPage = ({
     checkExistingSession();
 
     // Setup global callback for Telegram Widget
-    globalThis.onTelegramAuth = handleTelegramAuth;
+    (
+      globalThis as typeof globalThis & { onTelegramAuth?: typeof handleTelegramAuth }
+    ).onTelegramAuth = handleTelegramAuth;
 
     // Load Telegram widget script
     const script = document.createElement("script");
@@ -122,7 +124,8 @@ const LoginPage = ({
     }
 
     return () => {
-      delete globalThis.onTelegramAuth;
+      delete (globalThis as typeof globalThis & { onTelegramAuth?: typeof handleTelegramAuth })
+        .onTelegramAuth;
       if (container && script.parentNode === container) {
         script.remove();
       }

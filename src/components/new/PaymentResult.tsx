@@ -212,7 +212,9 @@ export function PaymentResult({
       result: Awaited<ReturnType<typeof checkStatus>>,
       attempt: number
     ): boolean => {
-      const is404 = result.httpStatus === 404 || result.error?.message === "ORDER_NOT_FOUND";
+      const is404 =
+        ("httpStatus" in result && result.httpStatus === 404) ||
+        result.error?.message === "ORDER_NOT_FOUND";
       if (!is404) return false;
 
       consecutive404sRef.current += 1;

@@ -21,7 +21,10 @@ balance_router = APIRouter()
 
 
 async def _calculate_amount_to_credit(
-    currency: str, balance_currency: str, amount: float, currency_service,
+    currency: str,
+    balance_currency: str,
+    amount: float,
+    currency_service,
 ) -> float:
     """Calculate amount to credit in balance currency (reduces cognitive complexity)."""
     if currency == balance_currency:
@@ -113,7 +116,10 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
 
     # Calculate amount to credit in balance currency
     amount_to_credit = await _calculate_amount_to_credit(
-        currency, balance_currency, request.amount, currency_service,
+        currency,
+        balance_currency,
+        request.amount,
+        currency_service,
     )
 
     # Round for non-RUB/USD currencies
@@ -151,7 +157,7 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
             )
             .execute()
         )
-        topup_id = tx_result.data[0]["id"] if tx_result.data else None
+        topup_id = str(tx_result.data[0]["id"]) if tx_result.data and isinstance(tx_result.data, list) and len(tx_result.data) > 0 and isinstance(tx_result.data[0], dict) else None
     except Exception:
         logger.exception("Failed to create topup transaction")
         raise HTTPException(status_code=500, detail="Failed to create top-up request")
@@ -166,6 +172,8 @@ async def create_topup(request: TopUpRequest, user=Depends(verify_telegram_auth)
         payment_service = PaymentService()
 
         # Pass user's currency directly to CrystalPay
+        if not topup_id or not isinstance(topup_id, str):
+            raise HTTPException(status_code=500, detail="Invalid topup_id")
         result = await payment_service.create_crystalpay_payment_topup(
             topup_id=topup_id,
             user_id=str(db_user.id),
@@ -258,12 +266,16 @@ async def get_topup_status(topup_id: str):
             "failed": "failed",
         }
 
+        status_str = str(status) if status else "pending"
+        tx_amount = tx.get("amount") if isinstance(tx.get("amount"), (int, float)) else None
+        tx_currency = tx.get("currency") if isinstance(tx.get("currency"), str) else None
+        tx_balance_after = tx.get("balance_after") if isinstance(tx.get("balance_after"), (int, float)) else None
         return {
             "topup_id": topup_id,
-            "status": status_map.get(status, "pending"),
-            "amount": tx.get("amount"),
-            "currency": tx.get("currency"),
-            "balance_after": tx.get("balance_after"),
+            "status": status_map.get(status_str, "pending"),
+            "amount": tx_amount,
+            "currency": tx_currency,
+            "balance_after": tx_balance_after,
         }
     except HTTPException:
         raise

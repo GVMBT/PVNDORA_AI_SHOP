@@ -29,7 +29,7 @@ function processMetadata(
   meta: BillingLogData["metadata"],
   sourceKey: string,
   defaultSource: string,
-  t: TranslateFunc,
+  t: TranslateFunc
 ): MetadataResult {
   let source = defaultSource;
   let details = "";
@@ -62,7 +62,11 @@ function processMetadata(
 
   // For cashback, show percent
   if (sourceKey === "cashback" && meta.cashback_percent) {
-    source = `${meta.cashback_percent}% кэшбек`;
+    const percent =
+      typeof meta.cashback_percent === "number"
+        ? meta.cashback_percent
+        : Number.parseFloat(String(meta.cashback_percent)) || 0;
+    source = `${percent}% кэшбек`;
   }
 
   return { source, details };
@@ -88,16 +92,25 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
       const defaultSource = t(`profile.billing.transaction.${sourceKey}`) || log.source;
 
       // Process metadata for informative display
-      const { source: metaSource, details } = processMetadata(log.metadata, sourceKey, defaultSource, t);
+      const { source: metaSource, details } = processMetadata(
+        log.metadata,
+        sourceKey,
+        defaultSource,
+        t
+      );
 
       // Fallback: use description if source is generic
       let localizedSource = metaSource;
-      if ((sourceKey === "credit" || sourceKey === "debit") && log.source && log.source !== sourceKey.toUpperCase()) {
+      if (
+        (sourceKey === "credit" || sourceKey === "debit") &&
+        log.source &&
+        log.source !== sourceKey.toUpperCase()
+      ) {
         localizedSource = log.source;
       }
 
       // Parse and convert amount
-      const amountNum = Number.parseFloat(log.amount.replaceAll(/[+\-,]/g, "")) || 0;
+      const amountNum = Number.parseFloat(log.amount.replace(/[+\-,]/g, "")) || 0;
       const isIncome = log.type === "INCOME";
       const needsConversion = log.currency && log.currency !== currency;
       const convertedAmount = needsConversion ? amountNum * exchangeRate : amountNum;
@@ -194,7 +207,8 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
                       {log.localizedSource}
                     </span>
                     <span className="text-[10px] text-gray-500 uppercase tracking-widest opacity-50 truncate">
-                      {log.details || (log.referenceId ? `#${log.referenceId.substring(0, 8)}` : "")}
+                      {log.details ||
+                        (log.referenceId ? `#${log.referenceId.substring(0, 8)}` : "")}
                     </span>
                   </div>
 
@@ -255,7 +269,8 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
                   </div>
                   <div className="flex items-center justify-between border-t border-white/5 pt-2 mt-1">
                     <div className="flex items-center gap-1.5 text-gray-500 text-[9px] uppercase tracking-widest font-bold opacity-50 truncate max-w-[60%]">
-                      {log.details || (log.referenceId ? `#${log.referenceId.substring(0, 8)}` : "Completed")}
+                      {log.details ||
+                        (log.referenceId ? `#${log.referenceId.substring(0, 8)}` : "Completed")}
                     </div>
                     <div className="flex items-center gap-1.5 text-gray-500 text-[10px]">
                       <Clock size={10} />

@@ -38,7 +38,7 @@ export function useSearchParams(): URLSearchParams {
       } else {
         // Try Base64url decode only if it doesn't look like our format
         try {
-          const decoded = atob(startapp.replaceAll("-", "+").replaceAll("_", "/"));
+          const decoded = atob(startapp.replace(/-/g, "+").replace(/_/g, "/"));
           // Check if decoded result looks like our format
           if (
             decoded.startsWith("pay_") ||

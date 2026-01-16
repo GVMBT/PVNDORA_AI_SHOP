@@ -24,7 +24,9 @@ SELECT_USER_FIELDS = "telegram_id,username,first_name,total_saved,photo_url"
 
 
 async def _get_period_leaderboard_data(
-    db: Any, date_filter: str, leaderboard_size: int,
+    db: Any,
+    date_filter: str,
+    leaderboard_size: int,
 ) -> list[dict[str, Any]]:
     """Get leaderboard data for period-based queries (week/month)."""
     orders_result = (
@@ -71,7 +73,9 @@ async def _get_users_with_savings_count(db: Any) -> int:
 
 
 async def _get_users_with_savings(
-    db: Any, offset: int, leaderboard_size: int,
+    db: Any,
+    offset: int,
+    leaderboard_size: int,
 ) -> list[dict[str, Any]]:
     """Get users with savings for leaderboard."""
     result = (
@@ -99,7 +103,9 @@ async def _get_users_with_zero_savings(db: Any, offset: int, limit: int) -> list
 
 
 async def _get_alltime_leaderboard_data(
-    db: Any, offset: int, leaderboard_size: int,
+    db: Any,
+    offset: int,
+    leaderboard_size: int,
 ) -> list[dict[str, Any]]:
     """Get leaderboard data for all-time queries with pagination."""
     savings_count = await _get_users_with_savings_count(db)
@@ -137,7 +143,8 @@ def _get_user_ids_for_period_query(
 
 
 async def _get_user_ids_for_alltime_query(
-    db: Any, result_data: list[dict[str, Any]],
+    db: Any,
+    result_data: list[dict[str, Any]],
 ) -> tuple[list[int], dict[int, int]]:
     """Extract user IDs and telegram mapping for all-time queries."""
     telegram_ids = [entry.get("telegram_id") for entry in result_data if entry.get("telegram_id")]
@@ -183,14 +190,17 @@ async def _fetch_modules_count_map(db: Any, user_ids: list[int]) -> dict[int, in
 
 
 async def _get_modules_count_map(
-    db: Any, result_data: list[dict[str, Any]], date_filter: str | None,
+    db: Any,
+    result_data: list[dict[str, Any]],
+    date_filter: str | None,
 ) -> tuple[dict[int, int], dict[int, int]]:
     """Get modules count (delivered orders) for users and telegram_id to user_id mapping."""
     if date_filter:
         user_ids_for_count, telegram_id_to_user_id = _get_user_ids_for_period_query(result_data)
     else:
         user_ids_for_count, telegram_id_to_user_id = await _get_user_ids_for_alltime_query(
-            db, result_data,
+            db,
+            result_data,
         )
 
     modules_count_map = await _fetch_modules_count_map(db, user_ids_for_count)
@@ -273,7 +283,11 @@ async def _get_total_users_count(db: Any) -> int:
 
 
 def _build_empty_response(
-    formatter: CurrencyFormatter, user_saved: float, total_users: int, offset: int, limit: int,
+    formatter: CurrencyFormatter,
+    user_saved: float,
+    total_users: int,
+    offset: int,
+    limit: int,
 ) -> dict[str, Any]:
     """Build empty leaderboard response when offset exceeds total users."""
     return {
@@ -366,7 +380,12 @@ def _build_leaderboard_entries(
     for i, entry in enumerate(result_data):
         actual_rank = min(i + 1 + offset, total_users)
         entry_data = _build_leaderboard_entry(
-            entry, formatter, user_id, actual_rank, modules_count_map, telegram_id_to_user_id,
+            entry,
+            formatter,
+            user_id,
+            actual_rank,
+            modules_count_map,
+            telegram_id_to_user_id,
         )
 
         if entry_data["is_current_user"]:
@@ -417,13 +436,17 @@ async def get_webapp_leaderboard(
                 if db_user and hasattr(db_user, "total_saved") and db_user.total_saved
                 else 0.0
             )
-            return _build_empty_response(formatter, user_saved, total_users, offset, leaderboard_size)
+            return _build_empty_response(
+                formatter, user_saved, total_users, offset, leaderboard_size
+            )
 
         improved_today = await _get_improved_today_count(db, now)
         db_user = await db.get_user_by_telegram_id(user.id)
 
         modules_count_map, telegram_id_to_user_id = await _get_modules_count_map(
-            db, result_data, date_filter,
+            db,
+            result_data,
+            date_filter,
         )
 
         leaderboard, user_rank, user_saved, user_found_in_list = _build_leaderboard_entries(
@@ -439,7 +462,9 @@ async def get_webapp_leaderboard(
         if not user_found_in_list:
             user_rank, user_saved = await _calculate_user_rank(db, db_user, total_users)
 
-        has_more = (offset + len(leaderboard) < total_users) and (len(leaderboard) == leaderboard_size)
+        has_more = (offset + len(leaderboard) < total_users) and (
+            len(leaderboard) == leaderboard_size
+        )
 
         return _build_leaderboard_response(
             formatter,

@@ -92,7 +92,7 @@ async def _auto_allocate_task(db: Any, results: dict[str, Any]) -> None:
     for order_data_raw in paid_orders.data or []:
         if not isinstance(order_data_raw, dict):
             continue
-        order_data = cast("dict[str, Any]", order_data_raw)
+        order_data = cast(dict[str, Any], order_data_raw)
         order_id = order_data.get("id")
 
         if order_data.get("status") != "paid":

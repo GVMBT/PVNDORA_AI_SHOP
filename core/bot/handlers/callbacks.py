@@ -97,7 +97,8 @@ async def callback_waitlist(callback: CallbackQuery, db_user: User) -> None:
     if product:
         await db.add_to_waitlist(db_user.id, product.name)
         await callback.answer(
-            get_text("waitlist_added", db_user.language_code, product=product.name), show_alert=True,
+            get_text("waitlist_added", db_user.language_code, product=product.name),
+            show_alert=True,
         )
     else:
         await callback.answer(ERR_PRODUCT_NOT_FOUND, show_alert=True)
@@ -113,7 +114,8 @@ async def callback_wishlist(callback: CallbackQuery, db_user: User) -> None:
     if product:
         await db.add_to_wishlist(db_user.id, product_id)
         await callback.answer(
-            get_text("wishlist_added", db_user.language_code, product=product.name), show_alert=True,
+            get_text("wishlist_added", db_user.language_code, product=product.name),
+            show_alert=True,
         )
     else:
         await callback.answer(ERR_PRODUCT_NOT_FOUND, show_alert=True)
@@ -188,7 +190,9 @@ async def callback_rating(callback: CallbackQuery, db_user: User, state: FSMCont
 
 
 @router.callback_query(F.data == "review_skip_text")
-async def callback_review_skip_text(callback: CallbackQuery, db_user: User, state: FSMContext) -> None:
+async def callback_review_skip_text(
+    callback: CallbackQuery, db_user: User, state: FSMContext
+) -> None:
     """Submit review without text."""
     data = await state.get_data()
     await _submit_review(callback, data.get("order_id"), data.get("rating", 5), None, db_user)
@@ -200,13 +204,21 @@ async def handle_review_text(message: Message, db_user: User, state: FSMContext)
     """Handle text input for review."""
     data = await state.get_data()
     await _submit_review_from_message(
-        message, data.get("order_id"), data.get("rating", 5), message.text, db_user,
+        message,
+        data.get("order_id"),
+        data.get("rating", 5),
+        message.text,
+        db_user,
     )
     await state.clear()
 
 
 async def _submit_review(
-    callback: CallbackQuery, order_id: str, rating: int, text: str | None, db_user: User,
+    callback: CallbackQuery,
+    order_id: str,
+    rating: int,
+    text: str | None,
+    db_user: User,
 ) -> None:
     """Submit the review and trigger cashback."""
     db = get_database()
@@ -220,7 +232,11 @@ async def _submit_review(
     product_id = order_items[0].get("product_id") if order_items else None
 
     await db.create_review(
-        user_id=db_user.id, order_id=order_id, product_id=product_id, rating=rating, text=text,
+        user_id=db_user.id,
+        order_id=order_id,
+        product_id=product_id,
+        rating=rating,
+        text=text,
     )
 
     try:
@@ -243,7 +259,11 @@ async def _submit_review(
 
 
 async def _submit_review_from_message(
-    message: Message, order_id: str, rating: int, text: str | None, db_user: User,
+    message: Message,
+    order_id: str,
+    rating: int,
+    text: str | None,
+    db_user: User,
 ) -> None:
     """Submit the review from message context."""
     db = get_database()
@@ -257,7 +277,11 @@ async def _submit_review_from_message(
     product_id = order_items[0].get("product_id") if order_items else None
 
     await db.create_review(
-        user_id=db_user.id, order_id=order_id, product_id=product_id, rating=rating, text=text,
+        user_id=db_user.id,
+        order_id=order_id,
+        product_id=product_id,
+        rating=rating,
+        text=text,
     )
 
     try:
@@ -283,18 +307,23 @@ async def _submit_review_from_message(
 
 
 @router.callback_query(F.data == "create_ticket")
-async def callback_create_ticket_start(callback: CallbackQuery, db_user: User, state: FSMContext) -> None:
+async def callback_create_ticket_start(
+    callback: CallbackQuery, db_user: User, state: FSMContext
+) -> None:
     """Start support ticket creation flow."""
     await state.set_state(TicketStates.waiting_for_order_id)
     await callback.message.answer(
-        "🎫 <b>Создать обращение</b>\n\nУкажите номер заказа или 'skip'.", parse_mode=ParseMode.HTML,
+        "🎫 <b>Создать обращение</b>\n\nУкажите номер заказа или 'skip'.",
+        parse_mode=ParseMode.HTML,
     )
     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("ticket_order:"))
 async def callback_create_ticket_with_order(
-    callback: CallbackQuery, db_user: User, state: FSMContext,
+    callback: CallbackQuery,
+    db_user: User,
+    state: FSMContext,
 ) -> None:
     """Start ticket with pre-filled order ID."""
     order_id = callback.data.split(":")[1]
@@ -370,7 +399,10 @@ async def callback_buy_again(callback: CallbackQuery, db_user: User, bot: Bot) -
     await callback.message.answer(
         f"🔄 <b>Повторный заказ</b>\n\n📦 {product.name}\n💰 {product.price}₽\n",
         reply_markup=get_product_keyboard(
-            db_user.language_code, product.id, WEBAPP_URL, in_stock=product.stock_count > 0,
+            db_user.language_code,
+            product.id,
+            WEBAPP_URL,
+            in_stock=product.stock_count > 0,
         ),
         parse_mode=ParseMode.HTML,
     )

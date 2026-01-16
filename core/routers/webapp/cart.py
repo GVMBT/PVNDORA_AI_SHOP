@@ -7,7 +7,6 @@ Response format:
 - Frontend uses USD for calculations, display for UI
 """
 
-
 from fastapi import APIRouter, Depends, HTTPException
 
 from core.auth import verify_telegram_auth
@@ -30,8 +29,11 @@ ERR_CART_EMPTY = "Cart is empty"
 # =============================================================================
 
 
-async def _calculate_display_prices(
-    item, product, currency_service, formatter,
+def _calculate_display_prices(
+    item,
+    product,
+    currency_service,
+    formatter,
 ) -> tuple[float, float, float]:
     """Calculate display prices using anchor pricing.
 
@@ -50,7 +52,7 @@ async def _calculate_display_prices(
     # Try anchor price first (product-level pricing)
     if product and target_currency != "USD":
         try:
-            anchor_price = await currency_service.get_anchor_price(product, target_currency)
+            anchor_price = currency_service.get_anchor_price(product, target_currency)
             if anchor_price and anchor_price > 0:
                 unit_price_display = anchor_price
                 # Apply discount if any
@@ -118,12 +120,7 @@ async def _format_cart_response(cart, db, user_telegram_id: int):
 
     # OPTIMIZATION: Batch fetch all products in one query instead of N+1
     product_ids = [item.product_id for item in cart.items]
-    products_result = (
-        await db.client.table("products")
-        .select("*")
-        .in_("id", product_ids)
-        .execute()
-    )
+    products_result = await db.client.table("products").select("*").in_("id", product_ids).execute()
     products_map = {p["id"]: p for p in (products_result.data or [])}
     products = [products_map.get(item.product_id) for item in cart.items]
 
@@ -137,7 +134,7 @@ async def _format_cart_response(cart, db, user_telegram_id: int):
             unit_price_display,
             final_price_display,
             total_price_display,
-        ) = await _calculate_display_prices(item, product, currency_service, formatter)
+        ) = _calculate_display_prices(item, product, currency_service, formatter)
 
         items_with_details.append(
             {
@@ -226,11 +223,13 @@ def _ensure_product_orderable(product):
     status = getattr(product, "status", "active")
     if status == "discontinued":
         raise HTTPException(
-            status_code=400, detail="Product is discontinued and unavailable for order.",
+            status_code=400,
+            detail="Product is discontinued and unavailable for order.",
         )
     if status == "coming_soon":
         raise HTTPException(
-            status_code=400, detail="Product is coming soon. Use waitlist to be notified.",
+            status_code=400,
+            detail="Product is coming soon. Use waitlist to be notified.",
         )
     return status
 
@@ -274,7 +273,7 @@ async def add_to_cart(request: AddToCartRequest, user=Depends(verify_telegram_au
             product_name=product.name,
             quantity=request.quantity,
             available_stock=available_stock,
-            unit_price=product.price,
+            unit_price=float(product.price),
             discount_percent=0.0,
         )
     except ValueError as ve:

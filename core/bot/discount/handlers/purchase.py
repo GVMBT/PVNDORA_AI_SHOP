@@ -6,6 +6,9 @@ import os
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
+# Type alias for dict type hints
+DictStrAny = dict[str, Any]
+
 from aiogram import F, Router
 from aiogram.enums import ParseMode
 from aiogram.types import CallbackQuery, Message
@@ -34,7 +37,10 @@ CRYSTALPAY_API_URL = os.environ.get("CRYSTALPAY_API_URL", "https://api.crystalpa
 
 
 async def create_crystalpay_payment(
-    amount_usd: float, currency: str, order_id: str, description: str,
+    amount_usd: float,
+    currency: str,
+    order_id: str,
+    description: str,
 ) -> dict[str, Any] | None:
     """Create CrystalPay payment and return payment URL.
 
@@ -103,11 +109,13 @@ async def create_crystalpay_payment(
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{CRYSTALPAY_API_URL}/invoice/create/", json=payload, timeout=10,
+                f"{CRYSTALPAY_API_URL}/invoice/create/",
+                json=payload,
+                timeout=10,
             )
 
             if response.status_code == 200:
-                data = cast("dict[str, Any]", response.json())
+                data = cast(DictStrAny, response.json())
                 if data.get("error", False) is False:
                     invoice_id = data.get("id")
                     payment_url = data.get("url")
@@ -146,7 +154,7 @@ async def get_product_by_short_id(db, short_id: str) -> dict | None:
         for p in products:
             product_uuid_str = str(p["id"]).lower().replace("-", "")
             if product_uuid_str.startswith(short_id_lower):
-                return cast("dict[str, Any]", p)
+                return cast(DictStrAny, p)
 
         return None
     except Exception:
@@ -178,7 +186,10 @@ def _determine_user_currency(db_user) -> str:
 
 
 async def _get_display_prices(
-    total_price: float, discount_price: float, insurance_price: float, user_currency: str,
+    total_price: float,
+    discount_price: float,
+    insurance_price: float,
+    user_currency: str,
 ) -> tuple[float, float, float, str]:
     """Convert prices to display currency (reduces cognitive complexity)."""
     if user_currency == "USD":
@@ -205,7 +216,8 @@ async def _get_display_prices(
 
 # Helper: Calculate insurance price and ID (reduces cognitive complexity)
 def _calculate_insurance_info(
-    insurance: dict | None, discount_price: float,
+    insurance: dict | None,
+    discount_price: float,
 ) -> tuple[float, str | None]:
     """Calculate insurance price and return (price, id)."""
     if not insurance:
@@ -326,7 +338,7 @@ async def get_insurance_option(db, short_id: str) -> dict | None:
         for option in result.data:
             option_uuid = str(option["id"]).lower().replace("-", "")
             if option_uuid.startswith(short_id_lower):
-                return cast("dict[str, Any]", option)
+                return cast(DictStrAny, option)
 
         return None
     except Exception as e:
@@ -437,7 +449,9 @@ async def cb_buy_product(callback: CallbackQuery, db_user: User) -> None:
         )
 
         await callback.message.edit_text(
-            text, reply_markup=get_payment_keyboard(payment_url, lang), parse_mode=ParseMode.HTML,
+            text,
+            reply_markup=get_payment_keyboard(payment_url, lang),
+            parse_mode=ParseMode.HTML,
         )
         await callback.answer()
 
@@ -559,7 +573,9 @@ async def cb_orders(callback: CallbackQuery, db_user: User) -> None:
 
 # Helper: Find order by short ID (reduces cognitive complexity)
 async def _find_order_by_short_id(
-    db: Any, user_uuid: str, order_short_id: str,
+    db: Any,
+    user_uuid: str,
+    order_short_id: str,
 ) -> dict[str, Any] | None:
     """Find order by short ID prefix."""
     orders_result = (
@@ -574,7 +590,7 @@ async def _find_order_by_short_id(
     for o in orders_result.data or []:
         order_uuid = str(o["id"]).lower().replace("-", "")
         if order_uuid.startswith(short_id_lower):
-            return cast("dict[str, Any]", o)
+            return cast(DictStrAny, o)
     return None
 
 
@@ -594,7 +610,7 @@ def _get_status_text(status: str, lang: str) -> str:
 
 
 # Helper: Format order items text (reduces cognitive complexity)
-def _format_order_items_text(items: list[dict[str, Any]], lang: str) -> str:
+def _format_order_items_text(items: list[DictStrAny], lang: str) -> str:
     """Format order items list as text."""
     text = ""
     for item in items:
@@ -624,8 +640,8 @@ def _format_delivery_info(order: dict[str, Any], lang: str) -> str:
 
 # Helper: Build order detail message (reduces cognitive complexity)
 def _build_order_detail_message(
-    order: dict[str, Any],
-    items: list[dict[str, Any]],
+    order: DictStrAny,
+    items: list[DictStrAny],
     currency_symbol: str,
     display_amount: float,
     lang: str,
@@ -676,7 +692,8 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User) -> None:
         order = await _find_order_by_short_id(db, user_uuid, order_short_id)
         if not order:
             await callback.answer(
-                "Заказ не найден" if lang == "ru" else "Order not found", show_alert=True,
+                "Заказ не найден" if lang == "ru" else "Order not found",
+                show_alert=True,
             )
             return
 
@@ -704,7 +721,9 @@ async def cb_order_detail(callback: CallbackQuery, db_user: User) -> None:
         text = _build_order_detail_message(order, items, currency_symbol, display_amount, lang)
 
         await callback.message.edit_text(
-            text, reply_markup=get_order_detail_keyboard(order, lang), parse_mode=ParseMode.HTML,
+            text,
+            reply_markup=get_order_detail_keyboard(order, lang),
+            parse_mode=ParseMode.HTML,
         )
         await callback.answer()
 

@@ -196,7 +196,9 @@ async def _check_admin_cache(redis, cache_key: str, user_id: int):
 
 
 # Helper to cache admin result (reduces cognitive complexity)
-async def _cache_admin_result(redis, cache_key: str, is_admin: bool, admin_id: str | None = None) -> None:
+async def _cache_admin_result(
+    redis, cache_key: str, is_admin: bool, admin_id: str | None = None
+) -> None:
     """Cache admin verification result."""
     if not redis:
         return

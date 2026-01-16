@@ -6,11 +6,15 @@ Embeddings via OpenRouter API (text-embedding-3-large).
 """
 
 import os
+from typing import TYPE_CHECKING
 
 import httpx
 
 from core.logging import get_logger
 from core.services.database import get_database
+
+if TYPE_CHECKING:
+    from core.services.database import Database
 
 logger = get_logger(__name__)
 
@@ -23,6 +27,9 @@ OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_EMBEDDINGS_URL = "https://openrouter.ai/api/v1/embeddings"
 EMBEDDING_MODEL = "text-embedding-3-large"  # OpenAI model via OpenRouter
 EMBEDDING_DIMENSION = 3072  # text-embedding-3-large dimension
+
+# Feature flag for vector search availability
+VECS_AVAILABLE = bool(OPENROUTER_API_KEY)
 
 # HTTP client singleton
 _http_client: httpx.AsyncClient | None = None
@@ -73,7 +80,9 @@ async def get_embedding(text: str) -> list[float]:
 
         # Response structure: { data: [{ embedding: [...], index: 0 }], ... }
         if data.get("data") and len(data["data"]) > 0:
-            return data["data"][0].get("embedding", [])
+            embedding_data = data["data"][0].get("embedding", [])
+            if isinstance(embedding_data, list):
+                return [float(x) for x in embedding_data]
 
         return []
 
@@ -94,7 +103,7 @@ class ProductSearch:
     """
 
     def __init__(self) -> None:
-        self._db = None
+        self._db: Database | None = None
         self._initialized = False
 
     @property
@@ -170,7 +179,10 @@ class ProductSearch:
             return False
 
     async def search(
-        self, query: str, limit: int = 5, similarity_threshold: float = 0.3,
+        self,
+        query: str,
+        limit: int = 5,
+        similarity_threshold: float = 0.3,
     ) -> list[dict]:
         """Search products by semantic similarity.
 

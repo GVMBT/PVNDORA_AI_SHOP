@@ -57,7 +57,8 @@ async def create_webapp_order(
     # For balance payments, gateway is not used
     if payment_method != "balance":
         payment_gateway = request.payment_gateway or os.environ.get(
-            "DEFAULT_PAYMENT_GATEWAY", "crystalpay",
+            "DEFAULT_PAYMENT_GATEWAY",
+            "crystalpay",
         )
         # Normalize + validate gateway configuration
         payment_gateway = validate_gateway_config(payment_gateway)
@@ -125,7 +126,11 @@ async def _create_cart_order(
 
     # Determine target currency
     target_currency = determine_target_currency(
-        db_user, user, payment_method, payment_gateway, currency_service,
+        db_user,
+        user,
+        payment_method,
+        payment_gateway,
+        currency_service,
     )
 
     # Validate cart items and calculate totals
@@ -135,7 +140,12 @@ async def _create_cart_order(
         total_fiat_amount,
         order_items,
     ) = await validate_and_prepare_cart_items(
-        db, cart.items, cart, partner_discount, target_currency, currency_service,
+        db,
+        cart.items,
+        cart,
+        partner_discount,
+        target_currency,
+        currency_service,
     )
 
     # Enforce cooldown
@@ -258,7 +268,9 @@ async def _process_balance_payment(
 
     # Get user's balance in their local currency
     user_balance = to_decimal(db_user.balance) if db_user.balance else Decimal(0)
-    balance_currency = getattr(db_user, "balance_currency", "RUB") or "RUB"  # Default RUB after currency migration
+    balance_currency = (
+        getattr(db_user, "balance_currency", "RUB") or "RUB"
+    )  # Default RUB after currency migration
 
     # Get order total in user's balance currency
     order_total_usd = to_decimal(total_amount)
@@ -285,7 +297,8 @@ async def _process_balance_payment(
 
         balance_formatted = _currency_service.format_price(to_float(user_balance), balance_currency)
         amount_formatted = _currency_service.format_price(
-            to_float(order_total_in_balance_currency), balance_currency,
+            to_float(order_total_in_balance_currency),
+            balance_currency,
         )
         error_msg = f"Недостаточно средств на балансе. Доступно: {balance_formatted}, требуется: {amount_formatted}"
 
@@ -316,7 +329,7 @@ async def _process_balance_payment(
                 },
             },
         ).execute()
-        
+
         # #region agent log
         logger.info(f"[DEBUG-HYP-A] RPC add_to_user_balance success: order_id={order.id}")
         # #endregion
@@ -339,14 +352,17 @@ async def _process_balance_payment(
 
         status_service = OrderStatusService(db)
         final_status = await status_service.mark_payment_confirmed(
-            order_id=order.id, payment_id=f"balance-{order.id}", check_stock=True,
+            order_id=order.id,
+            payment_id=f"balance-{order.id}",
+            check_stock=True,
         )
         # #region agent log
         logger.info(f"Balance payment confirmed for order {order.id}, final_status={final_status}")
     except Exception as e:
         # #region agent log
         logger.error(
-            f"Failed to mark payment confirmed for balance order {order.id}: {e}", exc_info=True,
+            f"Failed to mark payment confirmed for balance order {order.id}: {e}",
+            exc_info=True,
         )
 
     # Queue delivery via QStash
@@ -443,7 +459,8 @@ async def _create_single_order(
 
     if product_status == "discontinued":
         raise HTTPException(
-            status_code=400, detail="Product is discontinued and no longer available for order.",
+            status_code=400,
+            detail="Product is discontinued and no longer available for order.",
         )
 
     if product_status == "coming_soon":
@@ -479,13 +496,20 @@ async def _create_single_order(
 
     # Checkout via cart
     return await _create_cart_order(
-        db, db_user, user, payment_service, payment_method, payment_gateway, is_telegram_miniapp,
+        db,
+        db_user,
+        user,
+        payment_service,
+        payment_method,
+        payment_gateway,
+        is_telegram_miniapp,
     )
 
 
 @payments_router.post("/orders/confirm-payment")
 async def confirm_manual_payment(
-    request: ConfirmPaymentRequest, user=Depends(verify_telegram_auth),
+    request: ConfirmPaymentRequest,
+    user=Depends(verify_telegram_auth),
 ):
     """Confirm that user has made manual payment (H2H mode).
 
@@ -509,7 +533,8 @@ async def confirm_manual_payment(
     # Only pending orders can be confirmed
     if order.status not in ["pending", "awaiting_payment"]:
         raise HTTPException(
-            status_code=400, detail=f"Order status is {order.status}, cannot confirm",
+            status_code=400,
+            detail=f"Order status is {order.status}, cannot confirm",
         )
 
     # Update order status

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type {
+  BackButton,
   HapticNotificationType,
+  MainButton,
   HapticStyle as TelegramHapticStyle,
   WebApp,
   WebAppUser,
@@ -111,7 +113,9 @@ export function useTelegram(): UseTelegramReturn {
   const [colorScheme, setColorScheme] = useState<ColorScheme>("dark");
 
   useEffect(() => {
-    const tg: WebApp | undefined = globalThis.Telegram?.WebApp;
+    const tg: WebApp | undefined = (
+      globalThis as typeof globalThis & { Telegram?: { WebApp?: WebApp } }
+    ).Telegram?.WebApp;
 
     if (tg) {
       tg.ready();
@@ -135,7 +139,9 @@ export function useTelegram(): UseTelegramReturn {
   }, []);
 
   const showConfirm = useCallback((message: string): Promise<boolean> => {
-    const tg: WebApp | undefined = globalThis.Telegram?.WebApp;
+    const tg: WebApp | undefined = (
+      globalThis as typeof globalThis & { Telegram?: { WebApp?: WebApp } }
+    ).Telegram?.WebApp;
     if (tg?.showConfirm) {
       return new Promise((resolve) => {
         tg.showConfirm(message, resolve);
@@ -145,7 +151,9 @@ export function useTelegram(): UseTelegramReturn {
   }, []);
 
   const showAlert = useCallback((message: string): Promise<void> => {
-    const tg: WebApp | undefined = globalThis.Telegram?.WebApp;
+    const tg: WebApp | undefined = (
+      globalThis as typeof globalThis & { Telegram?: { WebApp?: WebApp } }
+    ).Telegram?.WebApp;
     if (tg?.showAlert) {
       return new Promise((resolve) => {
         tg.showAlert(message, resolve);
@@ -157,12 +165,13 @@ export function useTelegram(): UseTelegramReturn {
 
   const hapticFeedback = useCallback(
     (type: HapticType = "impact", style: HapticStyle = "medium"): void => {
-      const tg = globalThis.Telegram?.WebApp;
+      const tg = (globalThis as typeof globalThis & { Telegram?: { WebApp?: WebApp } }).Telegram
+        ?.WebApp;
       if (!tg) return;
 
       // Check Telegram WebApp version - HapticFeedback not supported in 6.0+
       const version = tg.version || "";
-      if (version && parseFloat(version) >= 6.0) {
+      if (version && Number.parseFloat(version) >= 6) {
         // HapticFeedback is not supported in version 6.0+, skip
         return;
       }
@@ -186,7 +195,9 @@ export function useTelegram(): UseTelegramReturn {
   );
 
   const close = useCallback((): void => {
-    globalThis.Telegram?.WebApp?.close();
+    (
+      globalThis as typeof globalThis & { Telegram?: { WebApp?: WebApp } }
+    ).Telegram?.WebApp?.close();
   }, []);
 
   const openLink = useCallback((url: string): void => {
@@ -194,22 +205,30 @@ export function useTelegram(): UseTelegramReturn {
   }, []);
 
   const openTelegramLink = useCallback((url: string): void => {
-    globalThis.Telegram?.WebApp?.openTelegramLink(url);
+    (
+      globalThis as typeof globalThis & { Telegram?: { WebApp?: WebApp } }
+    ).Telegram?.WebApp?.openTelegramLink(url);
   }, []);
 
   const sendData = useCallback((data: unknown): void => {
-    globalThis.Telegram?.WebApp?.sendData(JSON.stringify(data));
+    (
+      globalThis as typeof globalThis & { Telegram?: { WebApp?: WebApp } }
+    ).Telegram?.WebApp?.sendData(JSON.stringify(data));
   }, []);
 
   const setMainButton = useCallback((config: MainButtonConfig): void => {
-    const btn = globalThis.Telegram?.WebApp?.MainButton;
+    const btn = (
+      globalThis as typeof globalThis & { Telegram?: { WebApp?: { MainButton?: MainButton } } }
+    ).Telegram?.WebApp?.MainButton;
     if (btn) {
       applyMainButtonConfig(btn, config);
     }
   }, []);
 
   const setBackButton = useCallback((config: BackButtonConfig): void => {
-    const btn = globalThis.Telegram?.WebApp?.BackButton;
+    const btn = (
+      globalThis as typeof globalThis & { Telegram?: { WebApp?: { BackButton?: BackButton } } }
+    ).Telegram?.WebApp?.BackButton;
     if (btn) {
       applyBackButtonConfig(btn, config);
     }

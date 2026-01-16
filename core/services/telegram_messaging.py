@@ -39,7 +39,9 @@ def _calculate_backoff_delay(attempt: int) -> float:
 
 
 async def _make_telegram_request(
-    client: httpx.AsyncClient, url: str, payload: dict,
+    client: httpx.AsyncClient,
+    url: str,
+    payload: dict,
 ) -> tuple[bool, int, str]:
     """Make HTTP request to Telegram API. Returns (success, status_code, error_text)."""
     response = await client.post(url, json=payload)
@@ -102,7 +104,11 @@ def _truncate_message(text: str, max_length: int = 4096) -> str:
 
 
 async def _send_with_retry(
-    url: str, payload: dict, retries: int, request_timeout: float, chat_id: int,
+    url: str,
+    payload: dict,
+    retries: int,
+    request_timeout: float,
+    chat_id: int,
 ) -> bool:
     """Send request with retry logic."""
     last_error = None
@@ -112,7 +118,9 @@ async def _send_with_retry(
             async with asyncio.timeout(request_timeout):
                 async with httpx.AsyncClient() as client:
                     success, status_code, error_text = await _make_telegram_request(
-                        client, url, payload,
+                        client,
+                        url,
+                        payload,
                     )
 
                     if success:
@@ -199,7 +207,11 @@ async def send_telegram_message(
         payload["parse_mode"] = parse_mode
 
     return await _send_with_retry(
-        url, payload, retries, request_timeout=timeout_seconds, chat_id=chat_id,
+        url,
+        payload,
+        retries,
+        request_timeout=timeout_seconds,
+        chat_id=chat_id,
     )
 
 
@@ -288,7 +300,10 @@ async def send_telegram_message_with_keyboard(
 async def send_via_main_bot(chat_id: int, text: str, parse_mode: str = "HTML") -> bool:
     """Send message via main PVNDORA bot."""
     return await send_telegram_message(
-        chat_id=chat_id, text=text, parse_mode=parse_mode, bot_token=TELEGRAM_TOKEN,
+        chat_id=chat_id,
+        text=text,
+        parse_mode=parse_mode,
+        bot_token=TELEGRAM_TOKEN,
     )
 
 

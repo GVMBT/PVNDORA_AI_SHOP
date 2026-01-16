@@ -167,7 +167,9 @@ async def expire_orders_entrypoint(request: Request):
                         )
                         stale_cancelled += 1
                     except Exception as e2:
-                        logger.error(f"Failed to cancel stale order {order.id}: {e2}", exc_info=True)
+                        logger.error(
+                            f"Failed to cancel stale order {order.id}: {e2}", exc_info=True
+                        )
 
         results["tasks"]["stale_orders"] = stale_cancelled
         results["success"] = True

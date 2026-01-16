@@ -154,7 +154,9 @@ class ShopAgent:
         # After RUB-only migration: all currencies are RUB
         currency = "RUB"
         exchange_rate = 1.0
-        preferred_currency = None  # Deprecated after RUB-only migration, kept for backward compatibility
+        preferred_currency = (
+            None  # Deprecated after RUB-only migration, kept for backward compatibility
+        )
 
         try:
             # Get user's language from DB for context
@@ -176,7 +178,7 @@ class ShopAgent:
             currency = currency_service.get_user_currency(db_language, None)
 
             # After RUB-only migration: exchange_rate is always 1.0
-            exchange_rate = await currency_service.get_exchange_rate(currency)
+            exchange_rate = currency_service.get_exchange_rate(currency)
 
             logger.info(
                 f"User context: user_id={user_id}, currency={currency} (RUB-only), rate={exchange_rate}",
@@ -221,7 +223,10 @@ class ShopAgent:
 
         # Set global user context for tools (auto-injection)
         set_user_context(
-            user_ctx.user_id, user_ctx.telegram_id, user_ctx.language, user_ctx.currency,
+            user_ctx.user_id,
+            user_ctx.telegram_id,
+            user_ctx.language,
+            user_ctx.currency,
         )
 
         # Load product catalog with proper currency conversion

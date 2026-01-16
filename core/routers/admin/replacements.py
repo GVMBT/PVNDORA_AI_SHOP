@@ -112,7 +112,8 @@ async def get_abuse_score(db_client, telegram_id: int | None) -> int:
     if not telegram_id:
         return 0
     score_result = await db_client.rpc(
-        "get_user_abuse_score", {"p_telegram_id": telegram_id},
+        "get_user_abuse_score",
+        {"p_telegram_id": telegram_id},
     ).execute()
     return score_result.data if score_result.data else 0
 
@@ -206,7 +207,9 @@ async def reject_replacement(
     insurance_service = InsuranceService(db.client)
 
     success = await insurance_service.reject_replacement(
-        replacement_id=replacement_id, admin_user_id=admin_user_id, rejection_reason=request.reason,
+        replacement_id=replacement_id,
+        admin_user_id=admin_user_id,
+        rejection_reason=request.reason,
     )
 
     if not success:
@@ -244,7 +247,8 @@ async def get_user_restrictions(user_id: str):
 
 @router.post("/restrictions", response_model=RestrictionResponse)
 async def add_user_restriction(
-    request: RestrictionCreate, admin_user_id: Annotated[str, Query(description="Admin user UUID")],
+    request: RestrictionCreate,
+    admin_user_id: Annotated[str, Query(description="Admin user UUID")],
 ):
     """Add a restriction to a user."""
     db = get_database()
@@ -310,7 +314,8 @@ async def get_abuse_stats(telegram_id: int):
     try:
         # Get abuse score
         score_result = await db.client.rpc(
-            "get_user_abuse_score", {"p_telegram_id": telegram_id},
+            "get_user_abuse_score",
+            {"p_telegram_id": telegram_id},
         ).execute()
         abuse_score = score_result.data if score_result.data else 0
 

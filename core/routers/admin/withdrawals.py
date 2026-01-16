@@ -70,7 +70,9 @@ def validate_user_balance(
 
 @router.get("")
 async def get_withdrawals(
-    status: Annotated[str, Query(description="Filter by status: pending, processing, completed, rejected, all")] = "pending",
+    status: Annotated[
+        str, Query(description="Filter by status: pending, processing, completed, rejected, all")
+    ] = "pending",
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
     admin=Depends(verify_admin),
@@ -151,7 +153,9 @@ async def get_withdrawal(withdrawal_id: str, admin=Depends(verify_admin)):
 
 @router.post("/{withdrawal_id}/approve")
 async def approve_withdrawal(
-    withdrawal_id: str, request: ProcessWithdrawalRequest, admin=Depends(verify_admin),
+    withdrawal_id: str,
+    request: ProcessWithdrawalRequest,
+    admin=Depends(verify_admin),
 ):
     """Approve a withdrawal request and deduct balance.
 
@@ -202,7 +206,10 @@ async def approve_withdrawal(
         user_telegram_id = user_result.data.get("telegram_id")
 
         validate_user_balance(
-            current_balance, amount_debited, user_balance_currency, balance_currency,
+            current_balance,
+            amount_debited,
+            user_balance_currency,
+            balance_currency,
         )
         admin_id = get_admin_id(admin)
 
@@ -260,7 +267,8 @@ async def approve_withdrawal(
             )
         except Exception:
             logger.exception(
-                "Failed to deduct balance for withdrawal %s", sanitize_id_for_logging(withdrawal_id),
+                "Failed to deduct balance for withdrawal %s",
+                sanitize_id_for_logging(withdrawal_id),
             )
             # Rollback withdrawal status
             await (
@@ -303,7 +311,8 @@ async def approve_withdrawal(
                 )
             except Exception as e:
                 logger.warning(
-                    "Failed to send withdrawal approved notification: %s", type(e).__name__,
+                    "Failed to send withdrawal approved notification: %s",
+                    type(e).__name__,
                 )
 
         return {
@@ -327,7 +336,9 @@ async def approve_withdrawal(
 
 @router.post("/{withdrawal_id}/reject")
 async def reject_withdrawal(
-    withdrawal_id: str, request: ProcessWithdrawalRequest, admin=Depends(verify_admin),
+    withdrawal_id: str,
+    request: ProcessWithdrawalRequest,
+    admin=Depends(verify_admin),
 ):
     """Reject a withdrawal request.
 
@@ -421,7 +432,8 @@ async def reject_withdrawal(
                 )
             except Exception as e:
                 logger.warning(
-                    "Failed to send withdrawal rejected notification: %s", type(e).__name__,
+                    "Failed to send withdrawal rejected notification: %s",
+                    type(e).__name__,
                 )
 
         return {
@@ -443,7 +455,9 @@ async def reject_withdrawal(
 
 @router.post("/{withdrawal_id}/complete")
 async def complete_withdrawal(
-    withdrawal_id: str, request: ProcessWithdrawalRequest, admin=Depends(verify_admin),
+    withdrawal_id: str,
+    request: ProcessWithdrawalRequest,
+    admin=Depends(verify_admin),
 ):
     """Mark withdrawal as completed (funds sent)."""
     db = get_database()
@@ -512,7 +526,8 @@ async def complete_withdrawal(
                 )
             except Exception as e:
                 logger.warning(
-                    "Failed to send withdrawal completed notification: %s", type(e).__name__,
+                    "Failed to send withdrawal completed notification: %s",
+                    type(e).__name__,
                 )
 
         return {

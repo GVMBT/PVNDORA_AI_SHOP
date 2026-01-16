@@ -41,8 +41,9 @@ async def get_catalog() -> dict:
 
             if target_currency != "USD":
                 try:
-                    price_converted = await currency_service.convert_price(
-                        price_usd, target_currency,
+                    price_converted = currency_service.convert_price(
+                        price_usd,
+                        target_currency,
                     )
                 except Exception:
                     price_converted = price_usd
@@ -109,8 +110,9 @@ async def search_products(query: str) -> dict:
 
             if target_currency != "USD":
                 try:
-                    price_converted = await currency_service.convert_price(
-                        price_usd, target_currency,
+                    price_converted = currency_service.convert_price(
+                        price_usd,
+                        target_currency,
                     )
                 except Exception:
                     logger.exception("Currency conversion failed")
@@ -174,7 +176,7 @@ async def get_product_details(product_id: str) -> dict:
 
         if target_currency != "USD":
             try:
-                price_converted = await currency_service.convert_price(price_usd, target_currency)
+                price_converted = currency_service.convert_price(price_usd, target_currency)
             except Exception:
                 price_converted = price_usd
         else:
@@ -255,7 +257,7 @@ async def check_product_availability(product_name: str) -> dict:
 
         if target_currency != "USD":
             try:
-                price_converted = await currency_service.convert_price(price_usd, target_currency)
+                price_converted = currency_service.convert_price(price_usd, target_currency)
             except Exception:
                 price_converted = price_usd
         else:

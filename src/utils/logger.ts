@@ -56,7 +56,8 @@ class Logger {
         try {
           return JSON.stringify(arg, null, 2);
         } catch {
-          return String(arg);
+          // Fallback to safe string representation
+          return `[object ${arg.constructor?.name || "Object"}]`;
         }
       }
       return arg;
@@ -131,12 +132,12 @@ class Logger {
    * Log API errors with context
    */
   apiError(endpoint: string, status: number, message: string, error?: unknown): void {
-    this.error(`API Error [${endpoint}]`, {
+    this.error(`API Error [${endpoint}]`, error instanceof Error ? error : undefined, {
       endpoint,
       status,
       message,
       error,
-    });
+    } as Record<string, unknown>);
   }
 
   /**

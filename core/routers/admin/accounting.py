@@ -20,6 +20,7 @@ router = APIRouter(tags=["admin-accounting"])
 # Constants (avoid string duplication)
 SELECT_BALANCE_FIELDS = "balance, balance_currency"
 SELECT_WITHDRAWAL_FIELDS = "amount_debited, balance_currency"
+DictStrAny = dict[str, Any]
 
 # =============================================================================
 # Helper Functions (reduce cognitive complexity)
@@ -27,7 +28,9 @@ SELECT_WITHDRAWAL_FIELDS = "amount_debited, balance_currency"
 
 
 def parse_date_range(
-    from_date: str | None, to_date: str | None, period: str | None,
+    from_date: str | None,
+    to_date: str | None,
+    period: str | None,
 ) -> tuple[datetime | None, datetime]:
     """Parse date range from query parameters (reduces cognitive complexity)."""
     now = datetime.now(UTC)
@@ -50,7 +53,10 @@ def parse_date_range(
             end_date = end_date.replace(hour=23, minute=59, second=59)
         except ValueError:
             end_date = datetime.strptime(to_date, "%Y-%m-%d").replace(
-                hour=23, minute=59, second=59, tzinfo=UTC,
+                hour=23,
+                minute=59,
+                second=59,
+                tzinfo=UTC,
             )
 
     if not start_date and period:
@@ -63,8 +69,8 @@ def parse_date_range(
 
 
 def extract_order_data(
-    order: dict[str, Any],
-) -> tuple[str, float | None, float, dict[str, Any] | None]:
+    order: DictStrAny,
+) -> tuple[str, float | None, float, DictStrAny | None]:
     """Extract currency, amounts, and expenses from order (reduces cognitive complexity)."""
     currency_raw = order.get("fiat_currency")
     currency = str(currency_raw) if currency_raw else "RUB"
@@ -74,16 +80,16 @@ def extract_order_data(
     amount_usd = float(amount_raw) if isinstance(amount_raw, (int, float)) else 0.0
 
     expenses_raw = order.get("order_expenses")
-    expenses: dict[str, Any] | None = None
+    expenses: DictStrAny | None = None
     if expenses_raw:
         if isinstance(expenses_raw, list):
             expenses = (
-                cast("dict[str, Any]", expenses_raw[0])
+                cast(DictStrAny, expenses_raw[0])
                 if expenses_raw and isinstance(expenses_raw[0], dict)
                 else None
             )
         elif isinstance(expenses_raw, dict):
-            expenses = cast("dict[str, Any]", expenses_raw)
+            expenses = cast(DictStrAny, expenses_raw)
 
     return currency, fiat_amount, amount_usd, expenses
 
@@ -91,7 +97,7 @@ def extract_order_data(
 def calculate_revenue_amounts(
     amount_usd: float,
     real_amount: float,
-    expenses: dict[str, Any] | None,
+    expenses: DictStrAny | None,
     currency: str,
 ) -> tuple[float, float, float]:
     """Calculate gross revenue, promo discount in fiat currency (reduces cognitive complexity)."""
@@ -116,7 +122,7 @@ def calculate_revenue_amounts(
     return fiat_gross, fiat_promo_discount, revenue_gross_usd
 
 
-def extract_expenses(expenses: dict[str, Any]) -> dict[str, float]:
+def extract_expenses(expenses: DictStrAny) -> dict[str, float]:
     """Extract expense amounts from order_expenses (reduces cognitive complexity)."""
     return {
         "cogs": float(expenses.get("cogs_amount", 0))
@@ -242,7 +248,7 @@ class ExpenseCreate(BaseModel):
 
 # Helper: Process single order for overview (reduces cognitive complexity)
 def _process_single_order_for_overview(
-    order: dict[str, Any],
+    order: DictStrAny,
     revenue_by_currency: dict[str, dict[str, float]],
     expense_totals: dict[str, float],
 ) -> None:
@@ -250,7 +256,10 @@ def _process_single_order_for_overview(
     currency, fiat_amount, amount_usd, expenses = extract_order_data(order)
     real_amount = float(fiat_amount) if fiat_amount is not None else amount_usd
     fiat_gross, fiat_promo_discount, revenue_gross_usd = calculate_revenue_amounts(
-        amount_usd, real_amount, expenses, currency,
+        amount_usd,
+        real_amount,
+        expenses,
+        currency,
     )
 
     # Initialize currency bucket
@@ -288,7 +297,7 @@ def _process_single_order_for_overview(
 
 # Helper: Process orders for financial overview (reduces cognitive complexity)
 def _process_orders_for_overview(
-    orders: list[dict[str, Any]],
+    orders: list[DictStrAny],
 ) -> tuple[dict[str, dict[str, float]], dict[str, float]]:
     """Process orders and calculate revenue by currency and expense totals."""
     revenue_by_currency: dict = {}
@@ -307,7 +316,7 @@ def _process_orders_for_overview(
     for raw_order in orders:
         if not isinstance(raw_order, dict):
             continue
-        order = cast("dict[str, Any]", raw_order)
+        order = cast(DictStrAny, raw_order)
         _process_single_order_for_overview(order, revenue_by_currency, expense_totals)
 
     # Round currency values
@@ -315,7 +324,8 @@ def _process_orders_for_overview(
         for key in revenue_by_currency[currency_key]:
             if key != "orders_count":
                 revenue_by_currency[currency_key][key] = round_currency_value(
-                    revenue_by_currency[currency_key][key], currency_key,
+                    revenue_by_currency[currency_key][key],
+                    currency_key,
                 )
 
     return revenue_by_currency, expense_totals
@@ -323,8 +333,8 @@ def _process_orders_for_overview(
 
 # Helper: Process single order for monthly report (reduces cognitive complexity)
 def _process_single_order_for_month(
-    order: dict[str, Any],
-    monthly_data: dict[str, dict[str, Any]],
+    order: DictStrAny,
+    monthly_data: dict[str, DictStrAny],
 ) -> None:
     """Process a single order and add it to monthly data."""
     order_month = order.get("created_at", "")[:7]  # YYYY-MM
@@ -357,7 +367,7 @@ def _process_single_order_for_month(
 
 # Helper: Calculate profits for monthly data (reduces cognitive complexity)
 def _calculate_monthly_profits(
-    monthly_data: dict[str, dict[str, Any]],
+    monthly_data: dict[str, DictStrAny],
     other_expenses_by_month: dict[str, float],
     insurance_by_month: dict[str, float],
 ) -> None:
@@ -380,7 +390,8 @@ def _calculate_monthly_profits(
         )
         month["operating_profit_usd"] = round(month["gross_profit_usd"] - operating_expenses, 2)
         month["net_profit_usd"] = round(
-            month["operating_profit_usd"] - month["other_expenses"] + month["insurance_revenue"], 2,
+            month["operating_profit_usd"] - month["other_expenses"] + month["insurance_revenue"],
+            2,
         )
 
         # Round all fields
@@ -399,10 +410,10 @@ def _calculate_monthly_profits(
 
 # Helper: Process orders by month (reduces cognitive complexity)
 def _process_orders_by_month(
-    orders: list[dict[str, Any]],
+    orders: list[DictStrAny],
     other_expenses_by_month: dict[str, float],
     insurance_by_month: dict[str, float],
-) -> dict[str, dict[str, Any]]:
+) -> dict[str, DictStrAny]:
     """Process orders grouped by month and calculate profits."""
     monthly_data: dict = {}
 
@@ -415,7 +426,7 @@ def _process_orders_by_month(
 
 
 # Helper: Initialize monthly entry (reduces cognitive complexity)
-def _init_monthly_entry(order_month: str) -> dict[str, Any]:
+def _init_monthly_entry(order_month: str) -> DictStrAny:
     """Initialize monthly data entry structure."""
     return {
         "month": order_month,
@@ -432,7 +443,7 @@ def _init_monthly_entry(order_month: str) -> dict[str, Any]:
 
 
 # Helper: Add order expenses to monthly entry (reduces cognitive complexity)
-def _add_order_expenses_to_month(month: dict[str, Any], expenses: dict[str, Any]) -> None:
+def _add_order_expenses_to_month(month: DictStrAny, expenses: DictStrAny) -> None:
     """Add order expenses to monthly entry."""
     month["cogs"] += float(expenses.get("cogs_amount", 0) or 0)
     month["acquiring_fees"] += float(expenses.get("acquiring_fee_amount", 0) or 0)
@@ -443,7 +454,7 @@ def _add_order_expenses_to_month(month: dict[str, Any], expenses: dict[str, Any]
 
 
 # Helper: Normalize expenses dict (reduces cognitive complexity)
-def _normalize_expenses_dict(expenses: Any) -> dict[str, Any]:
+def _normalize_expenses_dict(expenses: Any) -> DictStrAny:
     """Normalize expenses to dict format (reduces cognitive complexity)."""
     if not expenses:
         return {}
@@ -453,7 +464,7 @@ def _normalize_expenses_dict(expenses: Any) -> dict[str, Any]:
 
 
 # Helper: Initialize currency entry (reduces cognitive complexity)
-def _init_currency_entry_for_report() -> dict[str, Any]:
+def _init_currency_entry_for_report() -> DictStrAny:
     """Initialize currency entry for report (reduces cognitive complexity)."""
     return {
         "orders": [],
@@ -466,10 +477,10 @@ def _init_currency_entry_for_report() -> dict[str, Any]:
 
 # Helper: Process order revenue (reduces cognitive complexity)
 def _process_order_revenue(
-    order: dict[str, Any],
+    order: DictStrAny,
     currency_data: dict[str, Any],
     expense_totals: dict[str, float],
-    expenses: dict[str, Any],
+    expenses: DictStrAny,
 ) -> None:
     """Process order revenue calculations (reduces cognitive complexity)."""
     amount_usd = float(order.get("amount", 0))
@@ -487,7 +498,8 @@ def _process_order_revenue(
 
 # Helper: Process order expenses (reduces cognitive complexity)
 def _process_order_expenses_for_report(
-    expenses: dict[str, Any], expense_totals: dict[str, float],
+    expenses: DictStrAny,
+    expense_totals: dict[str, float],
 ) -> None:
     """Process order expenses and update totals (reduces cognitive complexity)."""
     if not expenses:
@@ -503,8 +515,8 @@ def _process_order_expenses_for_report(
 
 # Helper: Process single order for report (reduces cognitive complexity)
 def _process_single_order_for_report(
-    order: dict[str, Any],
-    orders_by_currency: dict[str, dict[str, Any]],
+    order: DictStrAny,
+    orders_by_currency: dict[str, DictStrAny],
     expense_totals: dict[str, float],
 ) -> None:
     """Process a single order and update orders_by_currency and expense_totals."""
@@ -527,8 +539,8 @@ def _process_single_order_for_report(
 
 # Helper: Process orders for accounting report (reduces cognitive complexity)
 def _process_orders_for_report(
-    orders: list[dict[str, Any]],
-) -> tuple[dict[str, dict[str, Any]], dict[str, float]]:
+    orders: list[DictStrAny],
+) -> tuple[dict[str, DictStrAny], dict[str, float]]:
     """Process orders grouped by currency and calculate expense totals."""
     orders_by_currency = {}
     expense_totals = {
@@ -550,12 +562,12 @@ def _process_orders_for_report(
 
 # Helper: Process expense entry (reduces cognitive complexity)
 def _process_expense_entry(
-    raw_e: dict[str, Any],
+    raw_e: DictStrAny,
     total_other_expenses: float,
     expenses_by_category: dict[str, float],
 ) -> float:
     """Process a single expense entry and return updated total."""
-    e = cast("dict[str, Any]", raw_e)
+    e = cast(DictStrAny, raw_e)
     amount_raw = e.get("amount_usd", 0)
     amount = float(amount_raw) if isinstance(amount_raw, (int, float)) else 0.0
     total_other_expenses += amount
@@ -569,7 +581,9 @@ def _process_expense_entry(
 
 # Helper: Get other expenses (reduces cognitive complexity)
 async def _get_other_expenses(
-    db: Any, start_date: datetime | None, end_date: datetime,
+    db: Any,
+    start_date: datetime | None,
+    end_date: datetime,
 ) -> tuple[float, dict[str, float]]:
     """Get other expenses and expenses by category."""
     expenses_query = db.client.table("expenses").select("amount_usd, category")
@@ -584,7 +598,9 @@ async def _get_other_expenses(
     for raw_e in other_expenses_result.data or []:
         if isinstance(raw_e, dict):
             total_other_expenses = _process_expense_entry(
-                raw_e, total_other_expenses, expenses_by_category,
+                raw_e,
+                total_other_expenses,
+                expenses_by_category,
             )
 
     return total_other_expenses, expenses_by_category
@@ -603,7 +619,7 @@ async def _get_insurance_revenue(db: Any, start_date: datetime | None, end_date:
     total_insurance_revenue = 0.0
     for raw_i in insurance_result.data or []:
         if isinstance(raw_i, dict):
-            i = cast("dict[str, Any]", raw_i)
+            i = cast(DictStrAny, raw_i)
             price_raw = i.get("price", 0)
             total_insurance_revenue += (
                 float(price_raw) if isinstance(price_raw, (int, float)) else 0.0
@@ -614,7 +630,9 @@ async def _get_insurance_revenue(db: Any, start_date: datetime | None, end_date:
 
 # Helper: Get other expenses and insurance revenue (reduces cognitive complexity)
 async def _get_other_expenses_and_insurance(
-    db: Any, start_date: datetime | None, end_date: datetime,
+    db: Any,
+    start_date: datetime | None,
+    end_date: datetime,
 ) -> tuple[float, dict[str, float], float]:
     """Get other expenses, expenses by category, and insurance revenue."""
     total_other_expenses, expenses_by_category = await _get_other_expenses(db, start_date, end_date)
@@ -630,9 +648,13 @@ async def _get_other_expenses_and_insurance(
 @router.get("/accounting/overview")
 async def get_financial_overview(
     period: Annotated[str | None, Query(description="Period: today, month, all")] = None,
-    from_date: Annotated[str | None, Query(alias="from", description="Start date (ISO format)")] = None,
+    from_date: Annotated[
+        str | None, Query(alias="from", description="Start date (ISO format)")
+    ] = None,
     to_date: Annotated[str | None, Query(alias="to", description="End date (ISO format)")] = None,
-    display_currency: Annotated[str, Query(description="DEPRECATED - kept for backward compatibility")] = "USD",
+    display_currency: Annotated[
+        str, Query(description="DEPRECATED - kept for backward compatibility")
+    ] = "USD",
     admin=Depends(verify_admin),
 ):
     """Get financial overview with REAL currency amounts (no conversion).
@@ -706,9 +728,9 @@ async def get_financial_overview(
     try:
         reserves_result = await db.client.table("reserve_balance").select("*").single().execute()
         reserves_raw = reserves_result.data
-        reserves = cast("dict[str, Any]", reserves_raw) if isinstance(reserves_raw, dict) else {}
+        reserves = cast(DictStrAny, reserves_raw) if isinstance(reserves_raw, dict) else {}
     except Exception:
-        reserves: dict[str, Any] = {}
+        reserves: DictStrAny = {}
 
     # ==========================================================================
     # Calculate Profit (in USD for now, since COGS is in USD)
@@ -745,10 +767,14 @@ async def get_financial_overview(
         # Legacy totals in USD (for backward compatibility)
         "total_revenue": round(total_revenue_usd, 2),  # Чистая выручка (после промокодов)
         "total_revenue_gross": round(
-            total_revenue_gross_usd, 2,
+            total_revenue_gross_usd,
+            2,
         ),  # Валовая выручка (наша цена БЕЗ промокодов)
         "total_discounts_given": round(
-            expense_totals.get("promo_discounts_total", total_revenue_gross_usd - total_revenue_usd), 2,
+            expense_totals.get(
+                "promo_discounts_total", total_revenue_gross_usd - total_revenue_usd
+            ),
+            2,
         ),  # Скидки через промокоды (direct sum from order_expenses)
         # =====================================================================
         # EXPENSES (Always in USD - suppliers are paid in $)
@@ -787,10 +813,12 @@ async def get_financial_overview(
             "operating_profit": round(operating_profit_usd, 2),
             "net_profit": round(net_profit_usd, 2),
             "gross_margin_pct": round(
-                (gross_profit_usd / total_revenue_usd * 100) if total_revenue_usd > 0 else 0, 2,
+                (gross_profit_usd / total_revenue_usd * 100) if total_revenue_usd > 0 else 0,
+                2,
             ),
             "net_margin_pct": round(
-                (net_profit_usd / total_revenue_usd * 100) if total_revenue_usd > 0 else 0, 2,
+                (net_profit_usd / total_revenue_usd * 100) if total_revenue_usd > 0 else 0,
+                2,
             ),
         },
         # Legacy profit field
@@ -818,7 +846,7 @@ async def get_financial_overview(
 
 
 # Helper: Initialize daily data entry (reduces cognitive complexity)
-def _init_daily_entry(order_date: str) -> dict[str, Any]:
+def _init_daily_entry(order_date: str) -> DictStrAny:
     """Initialize daily data entry structure."""
     return {
         "date": order_date,
@@ -835,7 +863,7 @@ def _init_daily_entry(order_date: str) -> dict[str, Any]:
 
 
 # Helper: Process order expenses into daily entry (reduces cognitive complexity)
-def _add_order_expenses_to_day(day: dict[str, Any], expenses: dict[str, Any]) -> None:
+def _add_order_expenses_to_day(day: DictStrAny, expenses: DictStrAny) -> None:
     """Add order expenses to daily entry."""
     day["cogs"] += float(expenses.get("cogs_amount", 0) or 0)
     day["acquiring_fees"] += float(expenses.get("acquiring_fee_amount", 0) or 0)
@@ -846,7 +874,7 @@ def _add_order_expenses_to_day(day: dict[str, Any], expenses: dict[str, Any]) ->
 
 
 # Helper: Process order into daily data (reduces cognitive complexity)
-def _process_order_for_daily(order: dict[str, Any], daily_data: dict[str, dict[str, Any]]) -> None:
+def _process_order_for_daily(order: DictStrAny, daily_data: dict[str, DictStrAny]) -> None:
     """Process a single order and add it to daily data."""
     created_at_raw = order.get("created_at", "")
     created_at_str = str(created_at_raw) if created_at_raw else ""
@@ -888,7 +916,7 @@ async def _get_insurance_by_date(db: Any, start_date: datetime) -> dict[str, flo
     for raw_ins in insurance_result.data or []:
         if not isinstance(raw_ins, dict):
             continue
-        ins = cast("dict[str, Any]", raw_ins)
+        ins = cast(DictStrAny, raw_ins)
         created_at_raw = ins.get("created_at", "")
         created_at_str = str(created_at_raw) if created_at_raw else ""
         ins_date = created_at_str[:10] if len(created_at_str) >= 10 else ""
@@ -901,7 +929,9 @@ async def _get_insurance_by_date(db: Any, start_date: datetime) -> dict[str, flo
 
 # Helper: Calculate profits for daily entries (reduces cognitive complexity)
 def _calculate_daily_profits(
-    daily_data: dict[str, dict[str, Any]], insurance_by_date: dict[str, float], comprehensive: bool,
+    daily_data: dict[str, DictStrAny],
+    insurance_by_date: dict[str, float],
+    comprehensive: bool,
 ) -> None:
     """Calculate profit metrics for each day."""
     for date, day in daily_data.items():
@@ -979,7 +1009,7 @@ async def get_daily_pl(
     for raw_order in orders:
         if not isinstance(raw_order, dict):
             continue
-        order = cast("dict[str, Any]", raw_order)
+        order = cast(DictStrAny, raw_order)
         _process_order_for_daily(order, daily_data)
 
     # Get insurance revenue if comprehensive
@@ -1021,16 +1051,19 @@ async def get_daily_pl(
 
     if comprehensive:
         totals["insurance_revenue"] = round(
-            sum(d.get("insurance_revenue", 0) for d in daily_list), 2,
+            sum(d.get("insurance_revenue", 0) for d in daily_list),
+            2,
         )
 
     # Calculate margins
     if totals["revenue_usd"] > 0:
         totals["gross_margin_pct"] = round(
-            (totals["gross_profit_usd"] / totals["revenue_usd"]) * 100, 2,
+            (totals["gross_profit_usd"] / totals["revenue_usd"]) * 100,
+            2,
         )
         totals["net_margin_pct"] = round(
-            (totals["net_profit_usd"] / totals["revenue_usd"]) * 100, 2,
+            (totals["net_profit_usd"] / totals["revenue_usd"]) * 100,
+            2,
         )
     else:
         totals["gross_margin_pct"] = 0
@@ -1049,7 +1082,9 @@ async def get_daily_pl(
 
 
 @router.get("/accounting/pl/monthly")
-async def get_monthly_pl(months: Annotated[int, Query(ge=1, le=36)] = 12, admin=Depends(verify_admin)):
+async def get_monthly_pl(
+    months: Annotated[int, Query(ge=1, le=36)] = 12, admin=Depends(verify_admin)
+):
     """Get monthly P&L report with REAL currency breakdown (no conversion).
 
     Returns revenue by currency for each month, expenses in USD.
@@ -1143,10 +1178,12 @@ async def get_monthly_pl(months: Annotated[int, Query(ge=1, le=36)] = 12, admin=
     # Calculate margins
     if totals["revenue_usd"] > 0:
         totals["gross_margin_pct"] = round(
-            (totals["gross_profit_usd"] / totals["revenue_usd"]) * 100, 2,
+            (totals["gross_profit_usd"] / totals["revenue_usd"]) * 100,
+            2,
         )
         totals["net_margin_pct"] = round(
-            (totals["net_profit_usd"] / totals["revenue_usd"]) * 100, 2,
+            (totals["net_profit_usd"] / totals["revenue_usd"]) * 100,
+            2,
         )
     else:
         totals["gross_margin_pct"] = 0
@@ -1465,7 +1502,9 @@ async def recalculate_all_expenses(admin=Depends(verify_admin)):
 
 @router.get("/accounting/expenses")
 async def get_expenses(
-    days: Annotated[int, Query(ge=1, le=365)] = 30, category: str | None = None, admin=Depends(verify_admin),
+    days: Annotated[int, Query(ge=1, le=365)] = 30,
+    category: str | None = None,
+    admin=Depends(verify_admin),
 ):
     """Get direct expenses (non-COGS)."""
     db = get_database()
@@ -1585,7 +1624,8 @@ def _build_currency_breakdown(orders_by_currency: dict) -> dict[str, dict[str, f
 
 # Helper: Get insurance revenue and other expenses (reduces cognitive complexity)
 async def _get_insurance_and_expenses(
-    db: Any, start_date: datetime,
+    db: Any,
+    start_date: datetime,
 ) -> tuple[float, float, dict[str, float]]:
     """Get insurance revenue, other expenses, and expenses by category (reduces cognitive complexity)."""
     insurance_result = (
@@ -1623,7 +1663,7 @@ def _build_income_statement(
     other_expenses: float,
     insurance_revenue: float,
     expenses_by_category: dict[str, float],
-) -> dict[str, Any]:
+) -> DictStrAny:
     """Build income statement section (reduces cognitive complexity)."""
     gross_profit, operating_profit, net_profit = _calculate_profit_values(
         revenue,
@@ -1666,7 +1706,7 @@ def _build_income_statement(
 
 
 # Helper: Build liabilities section (reduces cognitive complexity)
-async def _build_liabilities_section(db: Any) -> dict[str, Any]:
+async def _build_liabilities_section(db: Any) -> DictStrAny:
     """Build liabilities section with currency breakdown (reduces cognitive complexity)."""
     liabilities_by_currency: dict = {}
     await _process_user_balances(db, liabilities_by_currency)
@@ -1705,7 +1745,8 @@ def _build_metrics_section(
         "referral_pct": round((referrals / revenue * 100) if revenue > 0 else 0, 2),
         "cashback_pct": round((review_cashbacks / revenue * 100) if revenue > 0 else 0, 2),
         "discount_rate_pct": round(
-            (total_discounts / revenue_gross * 100) if revenue_gross > 0 else 0, 2,
+            (total_discounts / revenue_gross * 100) if revenue_gross > 0 else 0,
+            2,
         ),
     }
 
@@ -1754,7 +1795,8 @@ async def get_accounting_report(
 
     # Get insurance revenue and other expenses
     insurance_revenue, other_expenses, expenses_by_category = await _get_insurance_and_expenses(
-        db, start_date,
+        db,
+        start_date,
     )
 
     # Build income statement

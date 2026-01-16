@@ -36,7 +36,9 @@ logger = get_logger(__name__)
 
 
 def round_referral_threshold(
-    threshold: float, target_currency: str = "RUB", exchange_rate: float = 1.0,
+    threshold: float,
+    _target_currency: str = "RUB",
+    _exchange_rate: float = 1.0,
 ) -> float:
     """Return referral threshold in RUB.
     All thresholds are now stored in RUB directly.
@@ -78,10 +80,18 @@ class CurrencyFormatter:
         After RUB-only migration: Always returns RUB formatter (no conversion needed).
         All parameters are kept for backward compatibility but ignored.
         """
-        _ = user_telegram_id, db, redis, preferred_currency, language_code, db_user, kwargs  # Unused after RUB-only migration
+        _ = (
+            user_telegram_id,
+            db,
+            redis,
+            preferred_currency,
+            language_code,
+            db_user,
+            kwargs,
+        )  # Unused after RUB-only migration
         return cls(currency="RUB", exchange_rate=1.0)
 
-    def convert(self, amount: float | Decimal | str) -> float:
+    def convert(self, amount: float | Decimal | str | None) -> float:
         """No conversion needed - returns amount as-is (rounded)."""
         if amount is None:
             return 0.0
@@ -89,14 +99,14 @@ class CurrencyFormatter:
         rounded = round_money(decimal_amount, to_int=True)
         return to_float(rounded)
 
-    def format(self, amount: float | Decimal) -> str:
+    def format(self, amount: float | Decimal | None) -> str:
         """Format amount with RUB symbol."""
         if amount is None:
             amount = 0
         currency_service = get_currency_service()
         return currency_service.format_price(amount, "RUB")
 
-    def format_balance(self, amount: float | Decimal, currency: str = "RUB") -> str:
+    def format_balance(self, amount: float | Decimal | None, currency: str = "RUB") -> str:
         """Format a balance amount with RUB symbol.
 
         Args:
@@ -173,13 +183,16 @@ class CurrencyFormatter:
 
 # Convenience function
 def get_currency_formatter(
-    user_telegram_id: int | None = None, db=None, redis=None, **kwargs,
+    user_telegram_id: int | None = None,
+    db=None,
+    redis=None,
+    **kwargs,
 ) -> CurrencyFormatter:
     """Get a CurrencyFormatter (always RUB)."""
     return CurrencyFormatter.create(user_telegram_id, db, redis, **kwargs)
 
 
-def format_price_simple(amount: float | Decimal, currency: str = "RUB") -> str:
+def format_price_simple(amount: float | Decimal, _currency: str = "RUB") -> str:
     """Simple price formatting in RUB."""
     currency_service = get_currency_service()
     return currency_service.format_price(amount, "RUB")

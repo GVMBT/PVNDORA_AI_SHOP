@@ -131,7 +131,10 @@ async def publish_to_worker(
 
 
 async def publish_to_queue(
-    queue_name: str, endpoint: str, body: dict, deduplication_id: str | None = None,
+    queue_name: str,
+    endpoint: str,
+    body: dict,
+    deduplication_id: str | None = None,
 ) -> dict:
     """Publish a task to a QStash queue for ordered processing.
 

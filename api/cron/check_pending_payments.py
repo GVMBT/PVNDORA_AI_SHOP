@@ -71,7 +71,9 @@ async def check_invoice_status(invoice_id: str) -> dict:
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{CRYSTALPAY_API_URL}/invoice/info/", json=payload, timeout=10,
+                f"{CRYSTALPAY_API_URL}/invoice/info/",
+                json=payload,
+                timeout=10,
             )
 
             if response.status_code == 200:
@@ -133,6 +135,10 @@ async def _process_discount_order(db: Any, order_id: str, order_data: dict[str, 
         .execute()
     )
 
+    if telegram_id is None:
+        logger.warning(f"No telegram_id for order {order_id}, cannot schedule delivery")
+        return
+
     discount_service = DiscountOrderService(db.client)
     delivery_task = await discount_service.schedule_delayed_delivery(
         order_id=order_id,
@@ -178,7 +184,11 @@ async def process_paid_order(db: Any, order_id: str, order_data: dict[str, Any])
 
 
 async def _process_invoice_state(
-    db: Any, order_id_str: str, invoice_id_str: str, order_dict: dict[str, Any], state: str,
+    db: Any,
+    order_id_str: str,
+    invoice_id_str: str,
+    order_dict: dict[str, Any],
+    state: str,
 ) -> bool:
     """Process invoice state. Returns True if payment was processed."""
     if state == "payed":
@@ -217,7 +227,7 @@ async def _check_single_order(db: Any, order: Any) -> bool:
     """Check and process a single order. Returns True if paid."""
     if not isinstance(order, dict):
         return False
-    order_dict = cast("dict[str, Any]", order)
+    order_dict = cast(dict[str, Any], order)
     order_id = order_dict.get("id")
     invoice_id = order_dict.get("payment_id")
 

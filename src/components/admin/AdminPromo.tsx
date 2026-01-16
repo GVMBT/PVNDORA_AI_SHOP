@@ -38,6 +38,7 @@ interface AdminPromoProps {
   promoCodes: PromoCodeData[];
   products?: Array<{ id: string; name: string }>;
   onCreatePromo?: (data: Omit<PromoCodeData, "id" | "usage_count" | "created_at">) => Promise<void>;
+  onUpdatePromo?: (id: string, data: Partial<PromoCodeData>) => Promise<void>;
   onDeletePromo?: (id: string) => Promise<void>;
   onToggleActive?: (id: string, isActive: boolean) => Promise<void>;
 }

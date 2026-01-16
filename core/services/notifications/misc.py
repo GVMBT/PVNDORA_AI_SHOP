@@ -74,7 +74,9 @@ class MiscNotificationsMixin(NotificationServiceBase):
         for user in result.data:
             try:
                 success = await send_telegram_message(
-                    chat_id=user["telegram_id"], text=message, parse_mode=None,
+                    chat_id=user["telegram_id"],
+                    text=message,
+                    parse_mode=None,
                 )
                 if success:
                     sent_count += 1
@@ -120,7 +122,9 @@ class MiscNotificationsMixin(NotificationServiceBase):
             logger.exception(f"Failed to send partner approved notification to {telegram_id}")
 
     async def send_partner_application_rejected_notification(
-        self, telegram_id: int, reason: str | None = None,
+        self,
+        telegram_id: int,
+        reason: str | None = None,
     ) -> None:
         """Notify user that their partner application was rejected."""
         lang = await get_user_language(telegram_id)
@@ -157,7 +161,9 @@ class MiscNotificationsMixin(NotificationServiceBase):
             logger.exception(f"Failed to send partner rejected notification to {telegram_id}")
 
     async def send_partner_status_revoked_notification(
-        self, telegram_id: int, reason: str | None = None,
+        self,
+        telegram_id: int,
+        reason: str | None = None,
     ) -> None:
         """Notify user that their VIP partner status has been revoked."""
         lang = await get_user_language(telegram_id)

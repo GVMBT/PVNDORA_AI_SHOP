@@ -188,7 +188,9 @@ async def get_partner_discount(db, db_user) -> int:
                 if discount > 0:
                     referrer_id = db_user.referrer_id
                     logger.info(
-                        "Partner discount applied: %s%% from referrer %s", discount, referrer_id,
+                        "Partner discount applied: %s%% from referrer %s",
+                        discount,
+                        referrer_id,
                     )
                     return discount
         return 0
@@ -198,7 +200,11 @@ async def get_partner_discount(db, db_user) -> int:
 
 
 def determine_target_currency(
-    db_user, user, payment_method: str, payment_gateway: str, currency_service,
+    db_user,
+    user,
+    payment_method: str,
+    payment_gateway: str,
+    currency_service,
 ) -> str:
     """Determine target currency for Anchor Pricing based on payment method and gateway."""
     if payment_method == "balance":
@@ -252,7 +258,9 @@ def _calculate_product_prices(product, item_quantity: int) -> tuple[Decimal, Dec
 
 
 def _calculate_discount_percent(
-    item_discount: int, cart_promo_discount: int, partner_discount: int,
+    item_discount: int,
+    cart_promo_discount: int,
+    partner_discount: int,
 ) -> int:
     """Calculate effective discount percent from all sources."""
     discount_percent = item_discount
@@ -272,7 +280,8 @@ def _calculate_final_prices(
 ) -> tuple[Decimal, Decimal]:
     """Calculate final prices per unit and totals after discount."""
     discount_multiplier = subtract(
-        Decimal(1), divide(to_decimal(discount_percent), Decimal(100)),
+        Decimal(1),
+        divide(to_decimal(discount_percent), Decimal(100)),
     )
 
     final_price_per_unit_usd = round_money(multiply(product_price_usd, discount_multiplier))
@@ -312,7 +321,7 @@ async def validate_and_prepare_cart_items(
 
         original_price_usd, product_price_usd = _calculate_product_prices(product, item.quantity)
 
-        anchor_price = await currency_service.get_anchor_price(product, target_currency)
+        anchor_price = currency_service.get_anchor_price(product, target_currency)
         product_price_fiat = to_decimal(anchor_price)
 
         cart_promo_discount = (
@@ -321,11 +330,17 @@ async def validate_and_prepare_cart_items(
             else 0
         )
         discount_percent = _calculate_discount_percent(
-            item.discount_percent, cart_promo_discount, partner_discount,
+            item.discount_percent,
+            cart_promo_discount,
+            partner_discount,
         )
 
         final_price_total_usd, final_price_total_fiat = _calculate_final_prices(
-            product_price_usd, product_price_fiat, discount_percent, item.quantity, target_currency,
+            product_price_usd,
+            product_price_fiat,
+            discount_percent,
+            item.quantity,
+            target_currency,
         )
 
         total_amount_usd += final_price_total_usd
@@ -358,7 +373,8 @@ async def _check_redis_cooldown(user_id: int) -> tuple[Any, bool]:
         existing = await cooldown_redis.get(cooldown_key)
         if existing:
             raise HTTPException(
-                status_code=429, detail="Подождите ~1 минуту перед повторным созданием платежа",
+                status_code=429,
+                detail="Подождите ~1 минуту перед повторным созданием платежа",
             )
         return cooldown_redis, False
     except HTTPException:
@@ -434,7 +450,9 @@ def format_product_names(order_items: list[dict[str, Any]]) -> str:
 
 
 async def calculate_currency_snapshot(
-    currency_service, target_currency: str, fiat_amount: Decimal,
+    currency_service,
+    target_currency: str,
+    fiat_amount: Decimal,
 ) -> tuple[Decimal, float]:
     """Calculate currency snapshot and convert fiat amount back to USD.
     Returns (total_amount_usd, exchange_rate_snapshot).
@@ -499,7 +517,8 @@ async def create_order_with_items(
         logger.exception(f"Failed to create order_items for order {order.id}")
         await db.client.table("orders").delete().eq("id", order.id).execute()
         raise HTTPException(
-            status_code=500, detail="Failed to create order items. Please try again.",
+            status_code=500,
+            detail="Failed to create order items. Please try again.",
         )
 
     return order
@@ -566,12 +585,16 @@ async def process_external_payment(
         await db.client.table("orders").delete().eq("id", order_id).execute()
         logger.exception("Payment creation failed")
         raise HTTPException(
-            status_code=502, detail="Платёжная система недоступна. Попробуйте позже.",
+            status_code=502,
+            detail="Платёжная система недоступна. Попробуйте позже.",
         )
 
 
 async def save_payment_info(
-    db, order_id: str, payment_url: str | None, invoice_id: str | None,
+    db,
+    order_id: str,
+    payment_url: str | None,
+    invoice_id: str | None,
 ) -> None:
     """Save payment URL and invoice ID to order."""
     try:

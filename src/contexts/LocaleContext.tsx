@@ -56,7 +56,11 @@ interface LocaleProviderProps {
 function getDefaultLocale(): LocaleCode {
   if (globalThis.window === undefined) return "ru";
 
-  const tgLang = globalThis.Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
+  const tgLang = (
+    globalThis as typeof globalThis & {
+      Telegram?: { WebApp?: { initDataUnsafe?: { user?: { language_code?: string } } } };
+    }
+  ).Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
   const browserLang = navigator.language?.split("-")[0];
   const detectedLang = tgLang || browserLang || "ru";
 

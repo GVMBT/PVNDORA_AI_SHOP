@@ -103,8 +103,11 @@ async def _maybe_refresh_photo(db, db_user, telegram_id: int) -> None:
         logger.warning(f"Photo refresh failed: {e}")
 
 
-async def _get_anchor_thresholds_for_display(
-    display_currency: str, settings: dict, threshold2: float, threshold3: float,
+def _get_anchor_thresholds_for_display(
+    _display_currency: str,
+    _settings: dict,
+    threshold2: float,
+    threshold3: float,
 ) -> dict:
     """Get thresholds for display (all in RUB now).
 
@@ -115,14 +118,14 @@ async def _get_anchor_thresholds_for_display(
     return {"level2": threshold2, "level3": threshold3}
 
 
-async def _build_default_referral_program(
+def _build_default_referral_program(
     threshold2: float,
     threshold3: float,
     comm1: float,
     comm2: float,
     comm3: float,
-    display_currency: str = "RUB",
-    settings: dict | None = None,
+    _display_currency: str = "RUB",
+    _settings: dict | None = None,
 ) -> dict:
     """Build default referral program data.
 
@@ -180,7 +183,10 @@ def _calculate_effective_level(
 
 
 def _calculate_amounts_to_levels(
-    effective_level: int, turnover_usd: float, threshold2: float, threshold3: float,
+    effective_level: int,
+    turnover_usd: float,
+    threshold2: float,
+    threshold3: float,
 ) -> tuple[float, float, float | None, float]:
     """Calculate amounts needed to reach next levels."""
     level2_unlocked = effective_level >= 2
@@ -222,7 +228,10 @@ def _build_referral_stats(s: dict) -> dict:
 
 
 def _calculate_next_threshold_display(
-    next_threshold: float | None, threshold2: float, threshold3: float, thresholds_display: dict,
+    next_threshold: float | None,
+    threshold2: float,
+    threshold3: float,
+    thresholds_display: dict,
 ) -> float | None:
     """Calculate next threshold in display currency."""
     if not next_threshold:
@@ -234,15 +243,15 @@ def _calculate_next_threshold_display(
     return None
 
 
-async def _build_referral_data(
+def _build_referral_data(
     s: dict,
     threshold2: float,
     threshold3: float,
     comm1: float,
     comm2: float,
     comm3: float,
-    display_currency: str = "RUB",
-    settings: dict | None = None,
+    _display_currency: str = "RUB",
+    _settings: dict | None = None,
 ) -> tuple:
     """Build referral stats and program data from extended stats.
 
@@ -260,7 +269,12 @@ async def _build_referral_data(
 
     # Calculate effective level (thresholds are in RUB)
     effective_level = _calculate_effective_level(
-        is_partner, partner_override, unlocked, turnover, threshold2, threshold3,
+        is_partner,
+        partner_override,
+        unlocked,
+        turnover,
+        threshold2,
+        threshold3,
     )
 
     status = "locked" if not unlocked else "active"

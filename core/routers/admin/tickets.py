@@ -42,7 +42,9 @@ def _format_ticket_data(ticket_row: dict) -> dict:
 
 @router.get("")
 async def get_tickets(
-    status: Annotated[str, Query(description="Filter by status: open, approved, rejected, closed, all")] = "open",
+    status: Annotated[
+        str, Query(description="Filter by status: open, approved, rejected, closed, all")
+    ] = "open",
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
     admin=Depends(verify_admin),
@@ -127,7 +129,8 @@ async def _fetch_and_validate_ticket(db, ticket_id: str) -> dict:
 
     if ticket_res.data["status"] != "open":
         raise HTTPException(
-            status_code=400, detail=f"Ticket is already {ticket_res.data['status']}",
+            status_code=400,
+            detail=f"Ticket is already {ticket_res.data['status']}",
         )
 
     return ticket_res.data
@@ -324,7 +327,11 @@ async def resolve_ticket(
 
         if not approve:
             await _handle_rejected_ticket(
-                notification_service, ticket_id, user_telegram_id, user_language, comment,
+                notification_service,
+                ticket_id,
+                user_telegram_id,
+                user_language,
+                comment,
             )
         else:
             await _process_approved_ticket(
@@ -350,7 +357,9 @@ async def resolve_ticket(
 
 @router.post("/{ticket_id}/close")
 async def close_ticket(
-    ticket_id: str, comment: Annotated[str | None, Query()] = None, admin=Depends(verify_admin),
+    ticket_id: str,
+    comment: Annotated[str | None, Query()] = None,
+    admin=Depends(verify_admin),
 ):
     """Close a ticket."""
     db = get_database()

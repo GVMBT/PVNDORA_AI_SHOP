@@ -158,7 +158,11 @@ class PaymentNotificationsMixin(NotificationServiceBase):
             logger.exception("Failed to send refund notification")
 
     async def send_topup_success_notification(
-        self, telegram_id: int, amount: float, currency: str, new_balance: float,
+        self,
+        telegram_id: int,
+        amount: float,
+        currency: str,
+        new_balance: float,
     ) -> None:
         """Notify user that their balance was topped up."""
         lang = await get_user_language(telegram_id)

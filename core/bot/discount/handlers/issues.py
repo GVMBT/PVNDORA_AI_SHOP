@@ -85,7 +85,7 @@ async def get_order_item_with_insurance(db, order_short_id: str) -> dict[str, An
         if not items_result.data:
             return None
 
-        item = cast("dict[str, Any]", items_result.data[0])
+        item = cast(dict[str, Any], items_result.data[0])
         item["order_id"] = order["id"]
         item["user_id"] = order["user_id"]
 
@@ -110,7 +110,9 @@ async def cb_issue_start(callback: CallbackQuery, db_user: User) -> None:
     )
 
     await callback.message.edit_text(
-        text, reply_markup=get_issue_types_keyboard(order_short_id, lang), parse_mode=ParseMode.HTML,
+        text,
+        reply_markup=get_issue_types_keyboard(order_short_id, lang),
+        parse_mode=ParseMode.HTML,
     )
     await callback.answer()
 
@@ -157,7 +159,9 @@ async def _handle_replacement_request(
 ) -> tuple[bool, dict | None]:
     """Handle replacement request, return (success, result_dict)."""
     result = await insurance_service.request_replacement(
-        order_item_id=order_item["id"], telegram_id=telegram_id, reason=reason,
+        order_item_id=order_item["id"],
+        telegram_id=telegram_id,
+        reason=reason,
     )
 
     if not result.success:
@@ -274,7 +278,8 @@ async def cb_issue_type_selected(callback: CallbackQuery, db_user: User) -> None
 
     if not order_item:
         await callback.answer(
-            "Заказ не найден" if lang == "ru" else "Order not found", show_alert=True,
+            "Заказ не найден" if lang == "ru" else "Order not found",
+            show_alert=True,
         )
         return
 
@@ -295,7 +300,12 @@ async def cb_issue_type_selected(callback: CallbackQuery, db_user: User) -> None
         if can_replace:
             # Try to request replacement
             success, result = await _handle_replacement_request(
-                insurance_service, order_item, db_user.telegram_id, reason, lang, callback,
+                insurance_service,
+                order_item,
+                db_user.telegram_id,
+                reason,
+                lang,
+                callback,
             )
             if success:
                 return

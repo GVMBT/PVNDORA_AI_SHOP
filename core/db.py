@@ -13,7 +13,7 @@ For Redis access:
 
 import os
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 # Re-export Supabase access from unified database module
 from core.services.database import (
@@ -40,21 +40,23 @@ __all__ = [
 
 # For type-checkers only
 if TYPE_CHECKING:  # pragma: no cover
-    from upstash_redis import Redis as RedisType  # type: ignore
-    from upstash_redis.asyncio import Redis as AsyncRedisType  # type: ignore
+    from upstash_redis import Redis as RedisType  # noqa: F401
+    from upstash_redis.asyncio import Redis as AsyncRedisType  # noqa: F401
 else:
     RedisType = object
     AsyncRedisType = object
 
 try:
-    from upstash_redis import Redis  # type: ignore
-    from upstash_redis.asyncio import Redis as AsyncRedis  # type: ignore
+    from upstash_redis import Redis
+    from upstash_redis.asyncio import Redis as AsyncRedis
 except ImportError:
     # Runtime fallback: lightweight REST client (get/set/delete) for Upstash
     Redis = None  # type: ignore
     AsyncRedis = None  # type: ignore
     warnings.warn(
-        "upstash_redis not installed. Falling back to lightweight REST client.", ImportWarning, stacklevel=2,
+        "upstash_redis not installed. Falling back to lightweight REST client.",
+        ImportWarning,
+        stacklevel=2,
     )
     import httpx
 
@@ -70,7 +72,8 @@ except ImportError:
         def client(self) -> httpx.AsyncClient:
             if self._client is None:
                 self._client = httpx.AsyncClient(
-                    base_url=self.url, headers={"Authorization": f"Bearer {self.token}"},
+                    base_url=self.url,
+                    headers={"Authorization": f"Bearer {self.token}"},
                 )
             return self._client
 
@@ -87,7 +90,7 @@ except ImportError:
                 True if key was set, False if NX was True and key already exists
 
             """
-            params = {}
+            params: dict[str, Any] = {}
             if ex is not None:
                 params["EX"] = ex
             if nx:

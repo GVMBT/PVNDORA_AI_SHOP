@@ -43,7 +43,10 @@ def set_user_context(user_id: str, telegram_id: int, language: str, currency: st
     """Set user context for all tools. Called by agent before each chat."""
     global _user_ctx
     _user_ctx = _UserContext(
-        user_id=user_id, telegram_id=telegram_id, language=language, currency=currency,
+        user_id=user_id,
+        telegram_id=telegram_id,
+        language=language,
+        currency=currency,
     )
     logger.debug(f"User context set: {_user_ctx}")
 

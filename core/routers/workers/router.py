@@ -199,8 +199,9 @@ async def _update_order_item_as_delivered(
         return False
 
 
-async def _check_item_eligible_for_delivery(
-    item: dict, only_instant: bool,
+def _check_item_eligible_for_delivery(
+    item: dict,
+    only_instant: bool,
 ) -> tuple[bool, bool]:
     """Check if item is eligible for delivery processing.
 
@@ -220,7 +221,7 @@ async def _check_item_eligible_for_delivery(
     return True, False
 
 
-async def _check_prepaid_deadline_expired(item: dict, now: datetime) -> bool:
+def _check_prepaid_deadline_expired(item: dict, now: datetime) -> bool:
     """Check if prepaid item has expired fulfillment_deadline.
 
     Returns:
@@ -260,7 +261,10 @@ async def _check_prepaid_deadline_expired(item: dict, now: datetime) -> bool:
 
 
 async def _try_deliver_with_stock(
-    db, item: dict, products_map: dict, now: datetime,
+    db,
+    item: dict,
+    products_map: dict,
+    now: datetime,
 ) -> tuple[str | None, bool]:
     """Try to deliver item if stock is available.
 
@@ -283,7 +287,13 @@ async def _try_deliver_with_stock(
     duration_days = prod.get("duration_days")
 
     success = await _update_order_item_as_delivered(
-        db, item_id, stock_id, stock_content, instructions, duration_days, now,
+        db,
+        item_id,
+        stock_id,
+        stock_content,
+        instructions,
+        duration_days,
+        now,
     )
 
     if success:
@@ -310,7 +320,11 @@ async def _update_item_timestamp(db, item_id: str, now: datetime) -> None:
 
 
 async def _process_single_item_delivery(
-    db, item: dict, products_map: dict, now: datetime, only_instant: bool,
+    db,
+    item: dict,
+    products_map: dict,
+    now: datetime,
+    only_instant: bool,
 ) -> tuple[str | None, bool]:
     """Process delivery for a single order item.
 
@@ -319,12 +333,12 @@ async def _process_single_item_delivery(
 
     """
     # Check if item is eligible for delivery
-    can_process, is_waiting = await _check_item_eligible_for_delivery(item, only_instant)
+    can_process, is_waiting = _check_item_eligible_for_delivery(item, only_instant)
     if not can_process:
         return None, is_waiting
 
     # Check prepaid deadline
-    if await _check_prepaid_deadline_expired(item, now):
+    if _check_prepaid_deadline_expired(item, now):
         return None, False  # Expired, skip
 
     # Try to deliver with stock
@@ -513,7 +527,11 @@ async def _load_products_map(db, product_ids: list[str], order_id: str) -> dict:
 
 
 async def _process_items_for_delivery(
-    db, items: list, products_map: dict, now: datetime, only_instant: bool,
+    db,
+    items: list,
+    products_map: dict,
+    now: datetime,
+    only_instant: bool,
 ) -> tuple[list[str], int, int, int]:
     """Process all items for delivery. Returns (delivered_lines, delivered_count, waiting_count, total_already_delivered)."""
     delivered_lines = []
@@ -528,7 +546,11 @@ async def _process_items_for_delivery(
             continue
 
         delivery_line, is_waiting = await _process_single_item_delivery(
-            db, it, products_map, now, only_instant,
+            db,
+            it,
+            products_map,
+            now,
+            only_instant,
         )
 
         if delivery_line:
@@ -541,7 +563,12 @@ async def _process_items_for_delivery(
 
 
 async def _update_order_delivery_status(
-    db, order_id: str, total_delivered: int, waiting_count: int, order_status: str, now: datetime,
+    db,
+    order_id: str,
+    total_delivered: int,
+    waiting_count: int,
+    order_status: str,
+    now: datetime,
 ) -> str | None:
     """Update order delivery status. Returns new status or None."""
     try:
@@ -572,7 +599,10 @@ async def _update_order_delivery_status(
 
 
 async def _deliver_items_for_order(
-    db, notification_service, order_id: str, only_instant: bool = False,
+    db,
+    notification_service,
+    order_id: str,
+    only_instant: bool = False,
 ):
     """Deliver order_items for given order_id.
     - only_instant=True: выдаём только instant позиции (для первичной выдачи после оплаты)
@@ -627,7 +657,12 @@ async def _deliver_items_for_order(
     )
 
     new_status = await _update_order_delivery_status(
-        db, order_id, total_delivered_final, waiting_count, order_status, now,
+        db,
+        order_id,
+        total_delivered_final,
+        waiting_count,
+        order_status,
+        now,
     )
 
     # Update user's total_saved

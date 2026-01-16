@@ -203,7 +203,12 @@ async def _process_single_replacement(
     )
 
     await _notify_replacement_user(
-        db, notification_service, order_id, product_name, item_id, credentials=stock_content,
+        db,
+        notification_service,
+        order_id,
+        product_name,
+        item_id,
+        credentials=stock_content,
     )
     logger.info("auto_alloc: Delivered replacement for ticket %s", ticket_id)
     return True
@@ -250,7 +255,10 @@ async def _notify_replacement_user(
 
 
 async def _process_replacement_tickets(
-    db: Any, notification_service: Any, results: JsonDict, now: datetime,
+    db: Any,
+    notification_service: Any,
+    results: JsonDict,
+    now: datetime,
 ) -> None:
     """Process approved replacement tickets waiting for stock."""
     approved_tickets = (

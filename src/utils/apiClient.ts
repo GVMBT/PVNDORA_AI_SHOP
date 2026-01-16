@@ -99,17 +99,22 @@ export async function apiRequest<T = unknown>(
     if (!response.ok) {
       const errorMessage = await extractErrorMessage(response);
       const finalErrorMessage = handleSpecificStatusCodes(response.status, errorMessage);
-      logger.error("API request failed", {
+      const errorObj = new Error(finalErrorMessage);
+      logger.error("API request failed", errorObj, {
         endpoint,
         status: response.status,
         errorMessage: finalErrorMessage,
-      });
-      throw new Error(finalErrorMessage);
+      } as Record<string, unknown>);
+      throw errorObj;
     }
 
     return await parseResponseData<T>(response, endpoint);
   } catch (err) {
-    logger.error("API request error", { endpoint, error: err });
+    const errorInstance = err instanceof Error ? err : new Error(String(err));
+    logger.error("API request error", errorInstance, { endpoint, error: err } as Record<
+      string,
+      unknown
+    >);
     throw err;
   }
 }

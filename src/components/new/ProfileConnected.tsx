@@ -12,6 +12,7 @@ import { useProfileTyped } from "../../hooks/useApiTyped";
 import { useClipboard } from "../../hooks/useClipboard";
 import { useLocale } from "../../hooks/useLocale";
 import { useTelegram } from "../../hooks/useTelegram";
+import type { WebApp } from "../../types/telegram";
 import type { CurrencyCode } from "../../utils/currency";
 import { logger } from "../../utils/logger";
 import { type PartnerApplicationData, PartnerApplicationModal } from "../profile";
@@ -118,7 +119,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
 
     return {
       ...profile,
-      currency: displayCurrency,
+      currency: displayCurrency as CurrencyCode,
       // For display: use converted balance
       balance: convert(balanceUsd),
       // CRITICAL: Keep original balance in balance_currency for withdrawals
@@ -171,7 +172,8 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
       const { prepared_message_id } = await createShareLink();
 
       // Try Telegram's shareMessage first
-      const tgWebApp = globalThis.Telegram?.WebApp;
+      const tgWebApp = (globalThis as typeof globalThis & { Telegram?: { WebApp?: WebApp } })
+        .Telegram?.WebApp;
       if (tgWebApp?.shareMessage) {
         tgWebApp.shareMessage(prepared_message_id, () => {
           // Share completed

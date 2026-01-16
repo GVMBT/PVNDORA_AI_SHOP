@@ -136,7 +136,10 @@ async def _check_monthly_replacement_limit(db, user_id: str, order_id: str | Non
 
 
 async def _validate_replacement_request(
-    db, user_id: str, item_id: str, order_id: str | None,
+    db,
+    user_id: str,
+    item_id: str,
+    order_id: str | None,
 ) -> dict | None:
     """Validate replacement request against anti-abuse rules. Returns error dict or None if valid."""
     # Check 1: Existing replacement for this item
@@ -172,7 +175,11 @@ async def _validate_replacement_request(
 
 
 async def _send_ticket_admin_alert(
-    db, ticket_id: str, user_id: str, issue_type: str | None, order_id: str | None,
+    db,
+    ticket_id: str,
+    user_id: str,
+    issue_type: str | None,
+    order_id: str | None,
 ) -> None:
     """Send admin alert for new ticket."""
     try:
@@ -242,7 +249,10 @@ class SupportService:
             # Anti-abuse checks for replacement requests
             if issue_type == "replacement" and item_id:
                 validation_error = await _validate_replacement_request(
-                    self.db, user_id, item_id, order_id,
+                    self.db,
+                    user_id,
+                    item_id,
+                    order_id,
                 )
                 if validation_error:
                     return validation_error
@@ -372,7 +382,10 @@ class SupportService:
             return {"success": False, "reason": "Failed to process refund request"}
 
     async def get_user_tickets(
-        self, user_id: str, status: str | None = None, limit: int = 20,
+        self,
+        user_id: str,
+        status: str | None = None,
+        limit: int = 20,
     ) -> list[SupportTicket]:
         """Get user's support tickets."""
         try:

@@ -170,7 +170,10 @@ class ReferralNotificationsMixin(NotificationServiceBase):
             logger.exception(f"Failed to send referral bonus notification to {telegram_id}")
 
     async def send_new_referral_notification(
-        self, telegram_id: int, referral_name: str, line: int = 1,
+        self,
+        telegram_id: int,
+        referral_name: str,
+        line: int = 1,
     ) -> None:
         """Notify referrer about new referral joining."""
         lang = await get_user_language(telegram_id)

@@ -82,7 +82,11 @@ def _build_keyboard_rows(buttons: list, lang: str) -> list[list[InlineKeyboardBu
             rows.append([InlineKeyboardButton(text=btn_text, url=btn["url"])])
         elif "web_app" in btn:
             rows.append(
-                [InlineKeyboardButton(text=btn_text, web_app=WebAppInfo(url=btn["web_app"]["url"]))],
+                [
+                    InlineKeyboardButton(
+                        text=btn_text, web_app=WebAppInfo(url=btn["web_app"]["url"])
+                    )
+                ],
             )
         elif "callback_data" in btn:
             rows.append([InlineKeyboardButton(text=btn_text, callback_data=btn["callback_data"])])
@@ -184,7 +188,11 @@ async def _send_media_message(
 
 
 async def _handle_send_failure(
-    db, user_id: str, telegram_id: int, broadcast_id: str, error_msg: str,
+    db,
+    user_id: str,
+    telegram_id: int,
+    broadcast_id: str,
+    error_msg: str,
 ) -> None:
     """Handle message send failure - update user and recipient status."""
     blocked_phrases = [
@@ -261,7 +269,14 @@ async def _send_to_user(
 
     try:
         await _send_media_message(
-            bot, telegram_id, media_bytes, media_file_id, media_type, text, parse_mode_str, keyboard,
+            bot,
+            telegram_id,
+            media_bytes,
+            media_file_id,
+            media_type,
+            text,
+            parse_mode_str,
+            keyboard,
         )
 
         # Update recipient status
@@ -289,7 +304,11 @@ async def _send_to_user(
 
 
 async def _check_broadcast_complete(
-    db, broadcast_id: str, broadcast: dict, sent: int, failed: int,
+    db,
+    broadcast_id: str,
+    broadcast: dict,
+    sent: int,
+    failed: int,
 ) -> None:
     """Check if broadcast is complete and update status."""
     # Update broadcast stats
@@ -428,7 +447,14 @@ async def worker_send_broadcast(request: Request):
     try:
         for user_id in user_ids:
             success = await _send_to_user(
-                db, bot, user_id, broadcast, content, buttons, media_bytes, broadcast_id,
+                db,
+                bot,
+                user_id,
+                broadcast,
+                content,
+                buttons,
+                media_bytes,
+                broadcast_id,
             )
             if success:
                 sent += 1

@@ -61,7 +61,8 @@ def validate_gateway_config(gateway: str) -> str:
         env_vars = GATEWAY_ENV_REQUIREMENTS.get(gateway, ())
         logger.error(f"Payment gateway {name} not configured. Missing: {missing}")
         raise HTTPException(
-            status_code=500, detail=f"{name} не настроен. Настройте: {', '.join(env_vars)}",
+            status_code=500,
+            detail=f"{name} не настроен. Настройте: {', '.join(env_vars)}",
         )
 
     return gateway

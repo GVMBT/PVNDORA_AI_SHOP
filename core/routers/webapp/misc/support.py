@@ -97,7 +97,8 @@ async def create_user_ticket(request: CreateTicketRequest, user=Depends(verify_t
         )
         if not item_result.data:
             raise HTTPException(
-                status_code=400, detail="Invalid item ID or item does not belong to the order",
+                status_code=400,
+                detail="Invalid item ID or item does not belong to the order",
             )
 
     ticket_data = {

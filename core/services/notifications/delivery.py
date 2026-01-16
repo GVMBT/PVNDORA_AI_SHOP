@@ -56,7 +56,10 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
             from core.services.telegram_messaging import send_telegram_message_with_keyboard
 
             await send_telegram_message_with_keyboard(
-                chat_id=telegram_id, text=message, keyboard=keyboard, parse_mode="HTML",
+                chat_id=telegram_id,
+                text=message,
+                keyboard=keyboard,
+                parse_mode="HTML",
             )
         except Exception:
             logger.exception(f"Failed to send credentials to {telegram_id}")
@@ -116,7 +119,10 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
             from core.services.telegram_messaging import send_telegram_message_with_keyboard
 
             await send_telegram_message_with_keyboard(
-                chat_id=telegram_id, text=message, keyboard=keyboard, parse_mode="HTML",
+                chat_id=telegram_id,
+                text=message,
+                keyboard=keyboard,
+                parse_mode="HTML",
             )
             logger.info(f"Sent replacement notification to {telegram_id}")
         except Exception:
@@ -225,7 +231,10 @@ class DeliveryNotificationsMixin(NotificationServiceBase):
 
             if keyboard:
                 await send_telegram_message_with_keyboard(
-                    chat_id=telegram_id, text=message, keyboard=keyboard, parse_mode="HTML",
+                    chat_id=telegram_id,
+                    text=message,
+                    keyboard=keyboard,
+                    parse_mode="HTML",
                 )
             else:
                 from core.services.telegram_messaging import send_telegram_message

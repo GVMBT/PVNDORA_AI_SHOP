@@ -16,6 +16,7 @@ import type { UserData } from "./types";
 interface AdminUsersProps {
   users: UserData[];
   onBanUser?: (userId: number, ban: boolean) => void;
+  onUpdateBalance?: (userId: number, amount: number) => void;
   onRefresh?: () => void;
 }
 
@@ -329,9 +330,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
                 </div>
                 <div>
                   <div className="text-[10px] text-gray-500">Потрачено</div>
-                  <div className="text-sm font-bold text-white">
-                    {formatCurrency(u.spent, "USD")}
-                  </div>
+                  <div className="text-sm font-bold text-white">{formatCurrency(u.spent)}</div>
                 </div>
               </div>
 

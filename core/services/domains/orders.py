@@ -112,7 +112,11 @@ class OrdersDomain:
         if not result.data:
             msg = "Failed to create order"
             raise ValueError(msg)
-        return result.data[0]
+        order_data = result.data[0]
+        # Ensure we return a dict
+        if isinstance(order_data, dict):
+            return dict(order_data)
+        return dict(order_data) if hasattr(order_data, "__dict__") else {}
 
     # Order items operations (using raw client)
     async def create_order_items(self, items: list[dict]) -> list[dict]:

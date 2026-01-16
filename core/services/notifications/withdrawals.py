@@ -14,7 +14,11 @@ class WithdrawalNotificationsMixin(NotificationServiceBase):
     """Mixin for withdrawal-related notifications."""
 
     async def send_withdrawal_approved_notification(
-        self, telegram_id: int, amount: float, currency: str, method: str,
+        self,
+        telegram_id: int,
+        amount: float,
+        currency: str,
+        method: str,
     ) -> None:
         """Notify user that their withdrawal request was approved."""
         lang = await get_user_language(telegram_id)
@@ -46,7 +50,11 @@ class WithdrawalNotificationsMixin(NotificationServiceBase):
             logger.exception(f"Failed to send withdrawal approved notification to {telegram_id}")
 
     async def send_withdrawal_rejected_notification(
-        self, telegram_id: int, amount: float, currency: str, reason: str,
+        self,
+        telegram_id: int,
+        amount: float,
+        currency: str,
+        reason: str,
     ) -> None:
         """Notify user that their withdrawal request was rejected."""
         lang = await get_user_language(telegram_id)
@@ -80,7 +88,11 @@ class WithdrawalNotificationsMixin(NotificationServiceBase):
             logger.exception(f"Failed to send withdrawal rejected notification to {telegram_id}")
 
     async def send_withdrawal_completed_notification(
-        self, telegram_id: int, amount: float, currency: str, method: str,
+        self,
+        telegram_id: int,
+        amount: float,
+        currency: str,
+        method: str,
     ) -> None:
         """Notify user that their withdrawal has been completed."""
         lang = await get_user_language(telegram_id)

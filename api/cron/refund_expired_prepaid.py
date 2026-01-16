@@ -72,12 +72,15 @@ async def _calculate_refund_amount(
 
     redis = get_redis()
     currency_service = get_currency_service(redis)
-    rate = await currency_service.get_exchange_rate(balance_currency)
+    rate = currency_service.get_exchange_rate(balance_currency)
     return round(item_price * rate)
 
 
 async def _update_order_status_if_all_refunded(
-    db: Any, order_id: str, processed_orders: set[str], results: dict[str, Any],
+    db: Any,
+    order_id: str,
+    processed_orders: set[str],
+    results: dict[str, Any],
 ) -> None:
     """Update order status to refunded if all items are refunded."""
     if order_id in processed_orders:
@@ -109,7 +112,10 @@ async def _update_order_status_if_all_refunded(
 
 
 async def _notify_user_refund(
-    telegram_id: int | str, product_name: str, refund_amount: int, balance_currency: str,
+    telegram_id: int | str,
+    product_name: str,
+    refund_amount: int,
+    balance_currency: str,
 ) -> None:
     """Notify user about refund via Telegram."""
     if not TELEGRAM_TOKEN:
@@ -144,7 +150,10 @@ async def _notify_user_refund(
 
 
 async def _process_single_refund(
-    db: Any, item: dict[str, Any], processed_orders: set[str], results: dict[str, Any],
+    db: Any,
+    item: dict[str, Any],
+    processed_orders: set[str],
+    results: dict[str, Any],
 ) -> bool:
     """Process refund for a single expired item. Returns True on success."""
     from core.services.money import to_float
@@ -154,19 +163,30 @@ async def _process_single_refund(
     order_data = item.get("orders") if isinstance(item.get("orders"), dict) else {}
     product_data = item.get("products") if isinstance(item.get("products"), dict) else {}
 
+    item_id = item.get("id")
+    order_id = item.get("order_id")
+    if not item_id or not order_id:
+        logger.warning(f"Missing item_id or order_id in item: {item}")
+        return False
+
     user_id = order_data.get("user_id")
     telegram_id = order_data.get("user_telegram_id")
     item_price = to_float(item.get("price", 0))
     product_name = product_data.get("name", "Unknown")
     order_amount = to_float(order_data.get("amount", 0))
+    fiat_amount_raw = order_data.get("fiat_amount")
     order_fiat_amount = (
-        to_float(order_data.get("fiat_amount")) if order_data.get("fiat_amount") else None
+        to_float(fiat_amount_raw) if fiat_amount_raw is not None else None
     )
     order_fiat_currency = order_data.get("fiat_currency")
 
     balance_currency = await _get_user_balance_currency(db, user_id)
     refund_amount = await _calculate_refund_amount(
-        item_price, order_amount, order_fiat_amount, order_fiat_currency, balance_currency,
+        item_price,
+        order_amount,
+        order_fiat_amount,
+        order_fiat_currency,
+        balance_currency,
     )
 
     # 1. Update order_item status to refunded
@@ -192,7 +212,7 @@ async def _process_single_refund(
         ).execute()
 
     # 3. Check if order should be marked as refunded
-    await _update_order_status_if_all_refunded(db, order_id, processed_orders, results)
+    await _update_order_status_if_all_refunded(db, str(order_id), processed_orders, results)
 
     # 4. Notify user
     if telegram_id:
@@ -247,7 +267,7 @@ async def refund_expired_prepaid_entrypoint(request: Request):
         for item_raw in expired_items.data or []:
             if not isinstance(item_raw, dict):
                 continue
-            item = cast("dict[str, Any]", item_raw)
+            item = cast(dict[str, Any], item_raw)
 
             try:
                 if await _process_single_refund(db, item, processed_orders, results):

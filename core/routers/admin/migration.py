@@ -69,7 +69,8 @@ class MigrationDashboard(BaseModel):
 
 @router.get("/stats", response_model=MigrationStats)
 async def get_migration_stats(
-    days: Annotated[int, Query(ge=1, le=365, description="Period in days")] = 30, admin=Depends(verify_admin),
+    days: Annotated[int, Query(ge=1, le=365, description="Period in days")] = 30,
+    admin=Depends(verify_admin),
 ):
     """Get migration statistics for the specified period."""
     db = get_database()
@@ -178,7 +179,8 @@ async def get_migration_stats(
 
 @router.get("/trend", response_model=list[MigrationTrend])
 async def get_migration_trend(
-    days: Annotated[int, Query(ge=1, le=90, description="Period in days")] = 14, admin=Depends(verify_admin),
+    days: Annotated[int, Query(ge=1, le=90, description="Period in days")] = 14,
+    admin=Depends(verify_admin),
 ):
     """Get daily migration trend data."""
     db = get_database()
@@ -224,7 +226,8 @@ async def get_migration_trend(
 
 @router.get("/top-products")
 async def get_top_migrating_products(
-    limit: Annotated[int, Query(ge=1, le=50)] = 10, admin=Depends(verify_admin),
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+    admin=Depends(verify_admin),
 ):
     """Get products that most attract discount users to PVNDORA."""
     db = get_database()

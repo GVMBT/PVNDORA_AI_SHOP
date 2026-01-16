@@ -5,10 +5,13 @@ Combines RAG (semantic search) with traditional database queries.
 """
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from core.logging import get_logger
 from core.services.models import Product
+
+if TYPE_CHECKING:
+    from core.rag import ProductSearch
 
 logger = get_logger(__name__)
 
@@ -91,7 +94,7 @@ class CatalogService:
 
     def __init__(self, db) -> None:
         self.db = db
-        self._rag_search = None
+        self._rag_search: ProductSearch | bool | None = None
 
     def _get_rag_search(self):
         """Lazy load RAG search to avoid import errors."""
@@ -196,7 +199,10 @@ class CatalogService:
         return filters
 
     async def _perform_rag_search(
-        self, query: str, category: str, limit: int,
+        self,
+        query: str,
+        category: str,
+        limit: int,
     ) -> list[SearchResult]:
         """Perform RAG search and return results (reduces cognitive complexity)."""
         results: list[SearchResult] = []
@@ -227,7 +233,10 @@ class CatalogService:
         return results
 
     async def _supplement_with_text_search(
-        self, query: str, results: list[SearchResult], limit: int,
+        self,
+        query: str,
+        results: list[SearchResult],
+        limit: int,
     ) -> list[SearchResult]:
         """Supplement results with text search (reduces cognitive complexity)."""
         if len(results) >= 3:
@@ -326,13 +335,15 @@ class CatalogService:
         # Discontinued - not available
         if status == "discontinued":
             return PurchaseIntent(
-                success=False, reason="Product is discontinued and no longer available.",
+                success=False,
+                reason="Product is discontinued and no longer available.",
             )
 
         # Coming soon - only waitlist
         if status == "coming_soon":
             return PurchaseIntent(
-                success=False, reason="Product is coming soon. Please use waitlist to be notified.",
+                success=False,
+                reason="Product is coming soon. Please use waitlist to be notified.",
             )
 
         # Active or out_of_stock - can order

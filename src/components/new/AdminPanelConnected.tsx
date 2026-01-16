@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type PromoCodeData, useAdminPromoTyped } from "../../hooks/api/useAdminPromoApi";
 import { useAdmin } from "../../hooks/useAdmin";
 import {
+  type AdminProduct,
   useAdminAnalyticsTyped,
   useAdminOrdersTyped,
   useAdminProductsTyped,
@@ -17,7 +18,7 @@ import {
 } from "../../hooks/useApiTyped";
 import { formatDate, formatRelativeTime } from "../../utils/date";
 import { logger } from "../../utils/logger";
-import type { AccountingData, ProductData } from "../admin";
+import type { AccountingData, LiabilitiesData, ProductData, RevenueData } from "../admin";
 import type { TicketData } from "../admin/types";
 import AdminPanel from "./AdminPanel";
 
@@ -155,59 +156,123 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
           url += `?${params.toString()}`;
         }
 
-        const data = await apiRequest<AccountingData>(url);
+        // API returns snake_case, but we need to transform to camelCase for AccountingData
+        const rawData = await apiRequest<Record<string, unknown>>(url);
 
         // Log for debugging
-        logger.info("Accounting data loaded", data);
+        logger.info("Accounting data loaded", rawData);
+
+        // Helper to safely get number from API response (supports both snake_case and camelCase)
+        const getNumber = (snakeKey: string, camelKey?: string, fallback = 0): number => {
+          const value = rawData[snakeKey] ?? (camelKey ? rawData[camelKey] : undefined);
+          if (typeof value === "number") return value;
+          if (typeof value === "string") {
+            const parsed = Number.parseFloat(value);
+            return Number.isNaN(parsed) ? fallback : parsed;
+          }
+          return fallback;
+        };
+
+        // Helper to safely get string from API response
+        const getString = (snakeKey: string, camelKey?: string): string | undefined => {
+          const value = rawData[snakeKey] ?? (camelKey ? rawData[camelKey] : undefined);
+          return typeof value === "string" ? value : undefined;
+        };
+
+        // Helper to safely get object from API response
+        const getObject = (
+          snakeKey: string,
+          camelKey?: string
+        ): Record<string, unknown> | undefined => {
+          const value = rawData[snakeKey] ?? (camelKey ? rawData[camelKey] : undefined);
+          return value && typeof value === "object" && !Array.isArray(value)
+            ? (value as Record<string, unknown>)
+            : undefined;
+        };
+
+        // Extract profit_usd object
+        const profitUsd =
+          rawData.profit_usd &&
+          typeof rawData.profit_usd === "object" &&
+          rawData.profit_usd !== null
+            ? (rawData.profit_usd as Record<string, unknown>)
+            : null;
 
         setAccountingData({
           // Filter info
-          period: data.period,
-          startDate: data.start_date,
-          endDate: data.end_date,
+          period: getString("period"),
+          startDate: getString("start_date", "startDate"),
+          endDate: getString("end_date", "endDate"),
 
           // Orders
-          totalOrders: Number.parseInt(data.total_orders, 10) || 0,
+          totalOrders:
+            typeof rawData.total_orders === "string"
+              ? Number.parseInt(rawData.total_orders, 10)
+              : typeof rawData.total_orders === "number"
+                ? rawData.total_orders
+                : typeof rawData.totalOrders === "number"
+                  ? rawData.totalOrders
+                  : 0,
 
           // Revenue by currency (NEW - real amounts!)
-          revenueByCurrency: data.revenue_by_currency || {},
+          revenueByCurrency: (getObject("revenue_by_currency", "revenueByCurrency") ?? {}) as
+            | Record<string, RevenueData>
+            | undefined,
 
           // Legacy totals in USD
-          totalRevenue: Number.parseFloat(data.total_revenue) || 0,
-          revenueGross: Number.parseFloat(data.total_revenue_gross) || 0,
-          totalDiscountsGiven: Number.parseFloat(data.total_discounts_given) || 0,
+          totalRevenue: getNumber("total_revenue", "totalRevenue"),
+          revenueGross: getNumber("total_revenue_gross", "revenueGross"),
+          totalDiscountsGiven: getNumber("total_discounts_given", "totalDiscountsGiven"),
 
           // Expenses (always in USD)
-          totalCogs: Number.parseFloat(data.total_cogs) || 0,
-          totalAcquiringFees: Number.parseFloat(data.total_acquiring_fees) || 0,
-          totalReferralPayouts: Number.parseFloat(data.total_referral_payouts) || 0,
-          totalReserves: Number.parseFloat(data.total_reserves) || 0,
-          totalReviewCashbacks: Number.parseFloat(data.total_review_cashbacks) || 0,
-          totalReplacementCosts: Number.parseFloat(data.total_replacement_costs) || 0,
-          totalOtherExpenses: Number.parseFloat(data.total_other_expenses) || 0,
-          totalInsuranceRevenue: Number.parseFloat(data.total_insurance_revenue) || 0,
+          totalCogs: getNumber("total_cogs", "totalCogs"),
+          totalAcquiringFees: getNumber("total_acquiring_fees", "totalAcquiringFees"),
+          totalReferralPayouts: getNumber("total_referral_payouts", "totalReferralPayouts"),
+          totalReserves: getNumber("total_reserves", "totalReserves"),
+          totalReviewCashbacks: getNumber("total_review_cashbacks", "totalReviewCashbacks"),
+          totalReplacementCosts: getNumber("total_replacement_costs", "totalReplacementCosts"),
+          totalOtherExpenses: getNumber("total_other_expenses", "totalOtherExpenses"),
+          totalInsuranceRevenue: getNumber("total_insurance_revenue", "totalInsuranceRevenue"),
 
           // Liabilities by currency (NEW - real amounts!)
-          liabilitiesByCurrency: data.liabilities_by_currency || {},
+          liabilitiesByCurrency: (getObject("liabilities_by_currency", "liabilitiesByCurrency") ??
+            {}) as Record<string, LiabilitiesData> | undefined,
 
           // Legacy liabilities
-          totalUserBalances: Number.parseFloat(data.total_user_balances) || 0,
-          pendingWithdrawals: Number.parseFloat(data.pending_withdrawals) || 0,
+          totalUserBalances: getNumber("total_user_balances", "totalUserBalances"),
+          pendingWithdrawals: getNumber("pending_withdrawals", "pendingWithdrawals"),
 
           // Profit (USD)
-          netProfit: Number.parseFloat(data.net_profit) || 0,
-          grossProfit: Number.parseFloat(data.profit_usd?.gross_profit) || undefined,
-          operatingProfit: Number.parseFloat(data.profit_usd?.operating_profit) || undefined,
-          grossMarginPct: Number.parseFloat(data.profit_usd?.gross_margin_pct) || undefined,
-          netMarginPct: Number.parseFloat(data.profit_usd?.net_margin_pct) || undefined,
+          netProfit: getNumber("net_profit", "netProfit"),
+          grossProfit:
+            profitUsd && "gross_profit" in profitUsd
+              ? typeof profitUsd.gross_profit === "number"
+                ? profitUsd.gross_profit
+                : Number.parseFloat(String(profitUsd.gross_profit)) || undefined
+              : undefined,
+          operatingProfit:
+            profitUsd && "operating_profit" in profitUsd
+              ? typeof profitUsd.operating_profit === "number"
+                ? profitUsd.operating_profit
+                : Number.parseFloat(String(profitUsd.operating_profit)) || undefined
+              : undefined,
+          grossMarginPct:
+            profitUsd && "gross_margin_pct" in profitUsd
+              ? typeof profitUsd.gross_margin_pct === "number"
+                ? profitUsd.gross_margin_pct
+                : Number.parseFloat(String(profitUsd.gross_margin_pct)) || undefined
+              : undefined,
+          netMarginPct:
+            profitUsd && "net_margin_pct" in profitUsd
+              ? typeof profitUsd.net_margin_pct === "number"
+                ? profitUsd.net_margin_pct
+                : Number.parseFloat(String(profitUsd.net_margin_pct)) || undefined
+              : undefined,
 
           // Reserves
-          reservesAccumulated: Number.parseFloat(data.reserves_accumulated) || 0,
-          reservesUsed: Number.parseFloat(data.reserves_used) || 0,
-          reservesAvailable: Number.parseFloat(data.reserves_available) || 0,
-
-          // Deprecated (kept for backward compatibility)
-          currencyBreakdown: data.currency_breakdown || data.revenue_by_currency || {},
+          reservesAccumulated: getNumber("reserves_accumulated", "reservesAccumulated"),
+          reservesUsed: getNumber("reserves_used", "reservesUsed"),
+          reservesAvailable: getNumber("reserves_available", "reservesAvailable"),
         });
       } catch (err) {
         logger.error("Failed to fetch accounting data", err);
@@ -329,7 +394,9 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
         earned: u.total_referral_earnings || 0, // Referral earnings
         savings: 0,
         // Partner-specific fields
-        rewardType: u.partner_mode === "discount" ? "discount" : "commission",
+        rewardType: (u.partner_mode === "discount" ? "discount" : "commission") as
+          | "commission"
+          | "discount",
       };
     });
     userIdMapRef.current = newMap;
@@ -372,7 +439,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
         amount: w.amount || 0,
         payment_method: w.payment_method,
         payment_details: w.payment_details,
-        status: w.status || "pending",
+        status: (w.status || "pending") as "pending" | "processing" | "completed" | "rejected",
         admin_comment: w.admin_comment,
         created_at: w.created_at,
         processed_at: w.processed_at,
@@ -457,11 +524,57 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
   const handleSaveProduct = useCallback(
     async (product: Partial<ProductData>) => {
       if (product.id) {
-        // Update existing product
-        await updateProduct(product.id, product);
+        // Update existing product - convert ProductData to AdminProduct format
+        const adminProduct: Partial<AdminProduct> = {
+          name: product.name,
+          description: product.description,
+          category: product.category,
+          price: product.price,
+          prices: product.prices,
+          msrp: product.msrp,
+          discountPrice: product.discountPrice,
+          costPrice: product.costPrice,
+          fulfillmentType: product.fulfillmentType,
+          fulfillment: product.fulfillment,
+          warranty: product.warranty,
+          duration: product.duration,
+          stock: product.stock,
+          sold: product.sold,
+          image: product.image,
+          video: product.video,
+          instructions: product.instructions,
+          status:
+            product.status && ["active", "inactive", "discontinued"].includes(product.status)
+              ? (product.status as "active" | "inactive" | "discontinued")
+              : undefined,
+        };
+        await updateProduct(String(product.id), adminProduct);
       } else {
-        // Create new product
-        await createProduct(product);
+        // Create new product - convert ProductData to AdminProduct format
+        const adminProduct: Partial<AdminProduct> = {
+          name: product.name,
+          description: product.description,
+          category: product.category,
+          price: product.price,
+          prices: product.prices,
+          msrp: product.msrp,
+          discountPrice: product.discountPrice,
+          costPrice: product.costPrice,
+          fulfillmentType: product.fulfillmentType,
+          fulfillment: product.fulfillment,
+          warranty: product.warranty,
+          duration: product.duration,
+          stock: product.stock,
+          sold: product.sold,
+          image: product.image,
+          video: product.video,
+          instructions: product.instructions,
+          status:
+            product.status && ["active", "inactive", "discontinued"].includes(product.status)
+              ? (product.status as "active" | "inactive" | "discontinued")
+              : undefined,
+        };
+        await createProduct(adminProduct);
       }
     },
     [createProduct, updateProduct]

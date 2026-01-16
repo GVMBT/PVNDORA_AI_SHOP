@@ -90,7 +90,10 @@ class CartItemResponse(BaseModel):
     prepaid_quantity: int = Field(description="Quantity to order", ge=0)
     unit_price: float = Field(description="Price per unit after discount")
     discount_percent: float = Field(
-        description="Applied discount percentage", ge=0, le=100, default=0,
+        description="Applied discount percentage",
+        ge=0,
+        le=100,
+        default=0,
     )
 
 
@@ -103,24 +106,30 @@ class AIResponse(BaseModel):
     thought: str = Field(description="Internal reasoning (for logging, not shown to user)")
     reply_text: str = Field(description="Message to send to the user")
     action: ActionType = Field(
-        default=ActionType.NONE, description="Action to perform after response",
+        default=ActionType.NONE,
+        description="Action to perform after response",
     )
     product_id: str | None = Field(
-        default=None, description="Product UUID if action involves specific product",
+        default=None,
+        description="Product UUID if action involves specific product",
     )
     quantity: int = Field(default=1, description="Quantity of product to purchase (1-99)")
     product_ids: list[str] | None = Field(
-        default=None, description="Multiple product UUIDs for comparison/catalog",
+        default=None,
+        description="Multiple product UUIDs for comparison/catalog",
     )
     cart_items: list[CartItemResponse] | None = Field(
-        default=None, description="Cart items for cart operations",
+        default=None,
+        description="Cart items for cart operations",
     )
     total_amount: float | None = Field(default=None, description="Total amount for payment")
     requires_validation: bool = Field(
-        default=False, description="Whether real-time stock validation is needed",
+        default=False,
+        description="Whether real-time stock validation is needed",
     )
     ticket_type: str | None = Field(
-        default=None, description="Type of support ticket if creating one",
+        default=None,
+        description="Type of support ticket if creating one",
     )
 
 
@@ -421,10 +430,12 @@ class UpdateCartParams(BaseModel):
         description="Cart operation type",
     )
     product_id: str | None = Field(
-        default=None, description="Product UUID (required for update_quantity and remove_item)",
+        default=None,
+        description="Product UUID (required for update_quantity and remove_item)",
     )
     quantity: int | None = Field(
-        default=None, description="New quantity (required for update_quantity)",
+        default=None,
+        description="New quantity (required for update_quantity)",
     )
 
 

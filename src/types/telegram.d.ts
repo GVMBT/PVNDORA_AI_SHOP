@@ -11,6 +11,26 @@ declare global {
   }
 }
 
+// Extend globalThis for non-Window contexts
+declare global {
+  // eslint-disable-next-line no-var
+  var Telegram: TelegramWebApp | undefined;
+  // eslint-disable-next-line no-var
+  var onTelegramAuth:
+    | ((user: {
+        id: number;
+        first_name: string;
+        last_name?: string;
+        username?: string;
+        photo_url?: string;
+        auth_date: number;
+        hash: string;
+      }) => void)
+    | undefined;
+  // eslint-disable-next-line no-var
+  var __BOT_USERNAME: string | undefined;
+}
+
 export interface TelegramWebApp {
   WebApp: WebApp;
 }

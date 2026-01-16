@@ -130,7 +130,7 @@ async def get_product_by_id(db, product_id: str) -> dict | None:
             if str(p["id"]).startswith(product_id.lower()) or str(p["id"]).startswith(
                 product_id.upper(),
             ):
-                product = cast("dict[str, Any]", p)
+                product = cast(dict[str, Any], p)
                 break
 
         return product
@@ -169,7 +169,12 @@ async def msg_catalog(message: Message, db_user: User) -> None:
     await message.answer(
         text,
         reply_markup=get_products_keyboard(
-            products, lang, "all", page=0, exchange_rate=exchange_rate, currency=currency,
+            products,
+            lang,
+            "all",
+            page=0,
+            exchange_rate=exchange_rate,
+            currency=currency,
         ),
         parse_mode=ParseMode.HTML,
     )
@@ -199,7 +204,12 @@ async def cb_catalog(callback: CallbackQuery, db_user: User) -> None:
     await callback.message.edit_text(
         text,
         reply_markup=get_products_keyboard(
-            products, lang, "all", page=0, exchange_rate=exchange_rate, currency=currency,
+            products,
+            lang,
+            "all",
+            page=0,
+            exchange_rate=exchange_rate,
+            currency=currency,
         ),
         parse_mode=ParseMode.HTML,
     )
@@ -237,7 +247,12 @@ async def cb_products_page(callback: CallbackQuery, db_user: User) -> None:
     await callback.message.edit_text(
         text,
         reply_markup=get_products_keyboard(
-            products, lang, category_id, page=page, exchange_rate=exchange_rate, currency=currency,
+            products,
+            lang,
+            category_id,
+            page=page,
+            exchange_rate=exchange_rate,
+            currency=currency,
         ),
         parse_mode=ParseMode.HTML,
     )
@@ -292,7 +307,8 @@ async def cb_product_selected(callback: CallbackQuery, db_user: User) -> None:
 
     if not product:
         await callback.answer(
-            "Товар не найден" if lang == "ru" else "Product not found", show_alert=True,
+            "Товар не найден" if lang == "ru" else "Product not found",
+            show_alert=True,
         )
         return
 

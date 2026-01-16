@@ -34,7 +34,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # Only rate limit auth endpoints
         if not request.url.path.startswith("/api/auth"):
-            return await call_next(request)
+            return await call_next(request)  # type: ignore[no-any-return]
 
         # Get client IP
         client_ip = request.client.host if request.client else "unknown"
@@ -57,7 +57,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # Record request
         await self._record_request(key)
 
-        return await call_next(request)
+        return await call_next(request)  # type: ignore[no-any-return]
 
     async def _is_rate_limited(self, key: str) -> bool:
         """Check if key is rate limited."""

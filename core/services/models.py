@@ -151,7 +151,11 @@ class Order(BaseModel):
         extra = "ignore"  # Ignore unknown fields from DB
 
     @field_validator(
-        "amount", "original_price", "fiat_amount", "exchange_rate_snapshot", mode="before",
+        "amount",
+        "original_price",
+        "fiat_amount",
+        "exchange_rate_snapshot",
+        mode="before",
     )
     @classmethod
     def convert_amount_to_decimal(cls, v):

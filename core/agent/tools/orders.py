@@ -3,6 +3,8 @@
 Order history, credentials retrieval, resending.
 """
 
+from typing import Any
+
 from langchain_core.tools import tool
 
 from core.logging import get_logger
@@ -36,7 +38,7 @@ async def get_user_orders(limit: int = 5) -> dict:
         order_ids = [o.id for o in orders]
         all_items = await db.get_order_items_by_orders(order_ids)
 
-        items_by_order = {}
+        items_by_order: dict[str, list[dict[str, Any]]] = {}
         for item in all_items:
             oid = item["order_id"]
             if oid not in items_by_order:

@@ -19,6 +19,9 @@ logger = get_logger(__name__)
 
 router = APIRouter(tags=["webapp-public"])
 
+# Type alias for dict type hints
+DictStrAny = dict[str, Any]
+
 
 # =============================================================================
 # Helper functions to reduce cognitive complexity
@@ -32,7 +35,7 @@ def _compute_msrp(msrp_rub: float | None) -> float | None:
     return float(msrp_rub)
 
 
-async def _fetch_single_product(db: Database, product_id: str) -> dict[str, Any]:
+async def _fetch_single_product(db: Database, product_id: str) -> DictStrAny:
     """Fetch and validate a single product from database."""
     product_result = (
         await db.client.table("products_with_stock_summary")
@@ -48,10 +51,10 @@ async def _fetch_single_product(db: Database, product_id: str) -> dict[str, Any]
     if not isinstance(product_raw, dict):
         raise HTTPException(status_code=500, detail="Invalid product data format")
 
-    return cast("dict[str, Any]", product_raw)
+    return cast(DictStrAny, product_raw)
 
 
-async def _fetch_social_proof_single(db: Database, product_id: str) -> dict[str, Any]:
+async def _fetch_social_proof_single(db: Database, product_id: str) -> DictStrAny:
     """Fetch social proof for a single product."""
     try:
         result = (
@@ -61,20 +64,21 @@ async def _fetch_social_proof_single(db: Database, product_id: str) -> dict[str,
             .single()
             .execute()
         )
-        return cast("dict[str, Any]", result.data) if result.data else {}
+        return cast(DictStrAny, result.data) if result.data else {}
     except Exception as e:
         logger.warning("Failed to get social proof: %s", type(e).__name__)
         return {}
 
 
 async def _batch_fetch_social_proof(
-    db: Database, product_ids: list[str],
+    db: Database,
+    product_ids: list[str],
 ) -> dict[str, dict[str, Any]]:
     """Batch fetch social proof data for multiple products."""
     if not product_ids:
         return {}
 
-    social_proof_map: dict[str, dict[str, Any]] = {}
+    social_proof_map: dict[str, DictStrAny] = {}
     try:
         result = (
             await db.client.table("product_social_proof")
@@ -84,7 +88,7 @@ async def _batch_fetch_social_proof(
         )
         for sp_raw in result.data or []:
             if isinstance(sp_raw, dict):
-                sp = cast("dict[str, Any]", sp_raw)
+                sp = cast(DictStrAny, sp_raw)
                 pid = sp.get("product_id")
                 if pid:
                     social_proof_map[pid] = sp
@@ -94,7 +98,7 @@ async def _batch_fetch_social_proof(
     return social_proof_map
 
 
-async def _batch_fetch_ratings(db: Database, product_ids: list[str]) -> dict[str, dict[str, Any]]:
+async def _batch_fetch_ratings(db: Database, product_ids: list[str]) -> dict[str, DictStrAny]:
     """Batch fetch and aggregate ratings for multiple products."""
     if not product_ids:
         return {}
@@ -107,7 +111,7 @@ async def _batch_fetch_ratings(db: Database, product_ids: list[str]) -> dict[str
             .in_("product_id", product_ids)
             .execute()
         )
-        for r in cast("list[dict[str, Any]]", result.data or []):
+        for r in cast("list[DictStrAny]", result.data or []):
             pid = str(r["product_id"])
             if pid not in ratings_map:
                 ratings_map[pid] = []
@@ -128,8 +132,8 @@ async def _batch_fetch_ratings(db: Database, product_ids: list[str]) -> dict[str
     return result_map
 
 
-async def _compute_price_info(
-    product: dict[str, Any],
+def _compute_price_info(
+    product: DictStrAny,
     currency_service: CurrencyService,
     formatter: CurrencyFormatter,
     discount_percent: float,
@@ -148,7 +152,7 @@ async def _compute_price_info(
     prices_raw = product.get("prices")
     prices = prices_raw if prices_raw is not None else {}
     product_dict = {"price": product.get("price", 0), "prices": prices}
-    anchor_price = float(await currency_service.get_anchor_price(product_dict, formatter.currency))
+    anchor_price = float(currency_service.get_anchor_price(product_dict, formatter.currency))
     is_anchor_price = currency_service.has_anchor_price(product_dict, formatter.currency)
 
     # Apply discount to anchor price
@@ -169,9 +173,9 @@ async def _compute_price_info(
 
 
 def _build_product_response(
-    product: dict[str, Any],
-    price_info: dict[str, Any],
-    rating_info: dict[str, Any],
+    product: DictStrAny,
+    price_info: DictStrAny,
+    rating_info: DictStrAny,
     formatter: CurrencyFormatter,
     discount_percent: float,
     sales_count: int = 0,
@@ -245,8 +249,12 @@ def _build_product_response(
 @router.get("/products/{product_id}")
 async def get_webapp_product(
     product_id: str,
-    language_code: Annotated[str | None, Query(description="User language code for currency conversion")] = None,
-    currency: Annotated[str | None, Query(description="User preferred currency (USD, RUB, EUR, etc.)")] = None,
+    language_code: Annotated[
+        str | None, Query(description="User language code for currency conversion")
+    ] = None,
+    currency: Annotated[
+        str | None, Query(description="User preferred currency (USD, RUB, EUR, etc.)")
+    ] = None,
 ):
     """Get product with discount and social proof for Mini App.
 
@@ -278,7 +286,7 @@ async def get_webapp_product(
     currency_service = get_currency_service(redis)
 
     # Compute prices
-    price_info = await _compute_price_info(product, currency_service, formatter, discount_percent)
+    price_info = _compute_price_info(product, currency_service, formatter, discount_percent)
 
     # Build product response
     product_response = _build_product_response(
@@ -308,8 +316,12 @@ async def get_webapp_product(
 
 @router.get("/products")
 async def get_webapp_products(
-    language_code: Annotated[str | None, Query(description="User language code for currency conversion")] = None,
-    currency: Annotated[str | None, Query(description="User preferred currency (USD, RUB, EUR, etc.)")] = None,
+    language_code: Annotated[
+        str | None, Query(description="User language code for currency conversion")
+    ] = None,
+    currency: Annotated[
+        str | None, Query(description="User preferred currency (USD, RUB, EUR, etc.)")
+    ] = None,
 ):
     """Get all active products for Mini App catalog.
 
@@ -334,8 +346,8 @@ async def get_webapp_products(
         )
 
         products_raw = products_result.data or []
-        products: list[dict[str, Any]] = [
-            cast("dict[str, Any]", p) for p in products_raw if isinstance(p, dict)
+        products: list[DictStrAny] = [
+            cast(DictStrAny, p) for p in products_raw if isinstance(p, dict)
         ]
 
         # Currency services
@@ -362,7 +374,7 @@ async def get_webapp_products(
                 sp_data = social_proof_map.get(p["id"], {})
                 sales_count = sp_data.get("sales_count", 0)
 
-                price_info = await _compute_price_info(p, currency_service, formatter, discount_percent)
+                price_info = _compute_price_info(p, currency_service, formatter, discount_percent)
 
                 product_data = _build_product_response(
                     product=p,

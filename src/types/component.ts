@@ -150,6 +150,9 @@ export interface BillingLog {
   date: string;
   transactionType?: string; // For localization: topup, purchase, refund, etc.
   currency?: string; // Currency of the transaction - if same as display currency, no conversion needed
+  referenceType?: string; // 'order', 'withdrawal', 'referral', 'admin_adjustment', etc.
+  referenceId?: string; // ID of the related entity
+  metadata?: Record<string, unknown>; // Additional metadata
 }
 
 export interface ProfileStats {

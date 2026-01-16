@@ -140,7 +140,10 @@ class OrderStatusService:
             return False
 
     async def mark_payment_confirmed(
-        self, order_id: str, payment_id: str | None = None, check_stock: bool = True,
+        self,
+        order_id: str,
+        payment_id: str | None = None,
+        check_stock: bool = True,
     ) -> str:
         """Mark order as payment confirmed.
 
@@ -204,7 +207,8 @@ class OrderStatusService:
             # IDEMPOTENCY: If already paid/prepaid/delivered, return current status
             if current_status in ("paid", "prepaid", "delivered", "partial"):
                 logger.debug(
-                    "Order already in status '%s' (idempotency check), skipping", current_status,
+                    "Order already in status '%s' (idempotency check), skipping",
+                    current_status,
                 )
                 return current_status
 
@@ -219,7 +223,10 @@ class OrderStatusService:
 
             # Fetch data needed for post-update actions (parallel queries)
             items_result, user_balance, tx_exists = await self._fetch_data_for_post_update(
-                order_id, payment_method, user_id, order_amount,
+                order_id,
+                payment_method,
+                user_id,
+                order_amount,
             )
 
             # Handle post-status-update actions (notifications, alerts)
@@ -277,7 +284,11 @@ class OrderStatusService:
             return []
 
     async def _fetch_user_balance_and_check_tx(
-        self, payment_method: str, user_id: str, order_id: str, order_amount: float,
+        self,
+        payment_method: str,
+        user_id: str,
+        order_id: str,
+        order_amount: float,
     ) -> tuple[float | None, bool]:
         """Fetch user balance and check if transaction exists (reduces cognitive complexity)."""
         if payment_method and payment_method.lower() != "balance" and user_id and order_amount:
@@ -358,7 +369,10 @@ class OrderStatusService:
         )
 
     async def _calculate_display_amount(
-        self, fiat_amount: float | None, amount: float, currency: str,
+        self,
+        fiat_amount: float | None,
+        amount: float,
+        currency: str,
     ) -> float:
         """Calculate display amount for alert (reduces cognitive complexity)."""
         if fiat_amount is not None:
@@ -455,7 +469,9 @@ class OrderStatusService:
         has_stock = await self._check_stock_availability(order_id)
         final_status = "paid" if has_stock else "prepaid"
         logger.debug(
-            "[mark_payment_confirmed] has_stock=%s, final_status=%s", has_stock, final_status,
+            "[mark_payment_confirmed] has_stock=%s, final_status=%s",
+            has_stock,
+            final_status,
         )
         return final_status
 
@@ -476,7 +492,7 @@ class OrderStatusService:
 
         try:
             display_amount = float(fiat_amount) if fiat_amount else float(order_amount)
-            display_currency = fiat_currency if fiat_amount else "USD"
+            display_currency = fiat_currency if fiat_currency else "RUB"
 
             preorder_count = sum(
                 1 for item in items_result if item.get("fulfillment_type") == "preorder"
@@ -556,7 +572,10 @@ class OrderStatusService:
 
     # Helper: Set fulfillment deadline for preorder items (reduces cognitive complexity)
     async def _set_fulfillment_deadline(
-        self, order_id: str, items_result: list[dict[str, Any]], final_status: str,
+        self,
+        order_id: str,
+        items_result: list[dict[str, Any]],
+        final_status: str,
     ) -> None:
         """Set fulfillment deadline for orders with preorder items."""
         has_preorder_items = any(
@@ -604,30 +623,47 @@ class OrderStatusService:
             final_status,
         )
         update_result = await self.update_status(
-            order_id, final_status, "Payment confirmed via webhook", check_transition=False,
+            order_id,
+            final_status,
+            "Payment confirmed via webhook",
+            check_transition=False,
         )
         logger.debug("[mark_payment_confirmed] update_status returned: %s", update_result)
         return update_result
 
     async def _fetch_data_for_post_update(
-        self, order_id: str, payment_method: str, user_id: str | None, order_amount: float,
+        self,
+        order_id: str,
+        payment_method: str,
+        user_id: str | None,
+        order_amount: float,
     ) -> tuple[list, float | None, bool]:
         """Fetch order items and user balance data in parallel (reduces cognitive complexity)."""
         import asyncio
 
         # Execute queries in parallel
-        items_result, (user_balance, tx_exists) = await asyncio.gather(
+        async def _get_balance_result() -> tuple[float | None, bool]:
+            """Helper to safely call balance check."""
+            if user_id:
+                return await self._fetch_user_balance_and_check_tx(
+                    payment_method, user_id, order_id, order_amount
+                )
+            return None, False
+
+        items_result, balance_result = await asyncio.gather(
             self._fetch_order_items_for_notification(order_id),
-            self._fetch_user_balance_and_check_tx(payment_method, user_id, order_id, order_amount),
+            _get_balance_result(),
             return_exceptions=True,
         )
 
         # Handle exceptions
         if isinstance(items_result, Exception):
             items_result = []
-        if isinstance(user_balance, Exception) or isinstance(tx_exists, Exception):
+        if isinstance(balance_result, Exception):
             user_balance = None
             tx_exists = False
+        else:
+            user_balance, tx_exists = balance_result
 
         return items_result, user_balance, tx_exists
 

@@ -38,12 +38,15 @@ async def _queue_replacement_for_stock(db, ticket_id: str) -> None:
     )
 
     logger.info(
-        "Ticket %s queued for replacement when stock available", sanitize_id_for_logging(ticket_id),
+        "Ticket %s queued for replacement when stock available",
+        sanitize_id_for_logging(ticket_id),
     )
 
 
 async def _notify_replacement_queued(
-    notification_service, user_telegram_id: int | None, _product_id: str,
+    notification_service,
+    user_telegram_id: int | None,
+    _product_id: str,
 ) -> None:
     """Send notification about queued replacement. product_id kept for API consistency."""
     if not user_telegram_id:
@@ -101,7 +104,8 @@ async def _get_order_item_for_replacement(db, item_id: str) -> tuple[dict | None
 
     if not item_res.data:
         logger.error(
-            "process-replacement: Order item %s not found", sanitize_id_for_logging(item_id),
+            "process-replacement: Order item %s not found",
+            sanitize_id_for_logging(item_id),
         )
         return None, {"error": "Order item not found"}
 
@@ -116,7 +120,9 @@ async def _get_order_item_for_replacement(db, item_id: str) -> tuple[dict | None
 
 
 async def _reserve_stock_for_replacement(
-    db, product_id: str, now,
+    db,
+    product_id: str,
+    now,
 ) -> tuple[dict | None, dict | None]:
     """Find and reserve stock for replacement (reduces complexity)."""
     stock_res = (
@@ -179,7 +185,12 @@ async def _rollback_stock_reservation(db, stock_id: str) -> None:
 
 
 async def _update_order_item_with_replacement(
-    db, item_id: str, stock_id: str, stock_content: str, expires_at_str: str | None, now,
+    db,
+    item_id: str,
+    stock_id: str,
+    stock_content: str,
+    expires_at_str: str | None,
+    now,
 ) -> dict | None:
     """Update order item with replacement content (reduces complexity)."""
     update_data = {
@@ -301,7 +312,11 @@ async def _send_level_bonus_notification(
 
 
 async def _send_referral_bonus_notifications(
-    db, notification_service, bonuses: dict, buyer_id: str, purchase_amount: float,
+    db,
+    notification_service,
+    bonuses: dict,
+    buyer_id: str,
+    purchase_amount: float,
 ) -> None:
     """Send notifications to referrers about their earned bonuses."""
     if not bonuses or not bonuses.get("success"):
@@ -370,7 +385,8 @@ async def _send_level_up_notification(
 
     if is_partner and partner_level_override == 3:
         logger.debug(
-            "Skipping level_up notification for VIP partner %s (already has level 3)", user_id,
+            "Skipping level_up notification for VIP partner %s (already has level 3)",
+            user_id,
         )
         return
 
@@ -409,26 +425,38 @@ async def worker_calculate_referral(request: Request):
     if not order.data:
         return {"error": "Order not found"}
 
-    user_id = order.data.get("user_id")
-    amount = to_float(order.data["amount"])
-    telegram_id = order.data.get("user_telegram_id")
-    was_unlocked = order.data.get("users", {}).get("referral_program_unlocked", False)
-    is_partner = order.data.get("users", {}).get("is_partner", False)
-    partner_level_override = order.data.get("users", {}).get("partner_level_override")
+    user_id_val = order.data.get("user_id")
+    user_id = str(user_id_val) if user_id_val else ""
+    amount_val = order.data.get("amount", 0)
+    amount = to_float(str(amount_val) if not isinstance(amount_val, (int, float)) else amount_val)
+    telegram_id_val = order.data.get("user_telegram_id")
+    telegram_id = int(telegram_id_val) if telegram_id_val and isinstance(telegram_id_val, (int, str)) else None
+    users_data = order.data.get("users", {})
+    if not isinstance(users_data, dict):
+        users_data = {}
+    was_unlocked = bool(users_data.get("referral_program_unlocked", False))
+    is_partner = bool(users_data.get("is_partner", False))
+    partner_level_override_val = users_data.get("partner_level_override")
+    partner_level_override = int(partner_level_override_val) if partner_level_override_val and isinstance(partner_level_override_val, (int, str)) else None
 
     # Update buyer's turnover
     turnover_result = await db.client.rpc(
         "update_user_turnover",
-        {"p_user_id": user_id, "p_amount_rub": amount, "p_usd_rate": usd_rate},
+        {"p_user_id": user_id, "p_amount_rub": float(amount), "p_usd_rate": float(usd_rate)},
     ).execute()
 
-    turnover_data = turnover_result.data if turnover_result.data else {}
-    level_up = turnover_data.get("level_up", False)
-    new_level = turnover_data.get("new_level", 0)
+    turnover_data = turnover_result.data if isinstance(turnover_result.data, dict) else {}
+    level_up = bool(turnover_data.get("level_up", False))
+    new_level = int(turnover_data.get("new_level", 0))
 
     # Unlock referral program
     await _unlock_referral_program(
-        db, user_id, was_unlocked, is_partner, telegram_id, notification_service,
+        db,
+        user_id,
+        was_unlocked,
+        is_partner,
+        telegram_id,
+        notification_service,
     )
 
     # Send level up notification
@@ -443,7 +471,7 @@ async def worker_calculate_referral(request: Request):
     )
 
     # Process referral bonuses
-    referrer_id = order.data.get("users", {}).get("referrer_id")
+    referrer_id = str(users_data.get("referrer_id", "")) if users_data.get("referrer_id") else None
     if not referrer_id:
         return {
             "success": True,
@@ -457,7 +485,7 @@ async def worker_calculate_referral(request: Request):
             "process_referral_bonus",
             {"p_buyer_id": user_id, "p_order_id": order_id, "p_order_amount": amount},
         ).execute()
-        bonuses = bonus_result.data if bonus_result.data else {}
+        bonuses = bonus_result.data if isinstance(bonus_result.data, dict) else {}
 
         # Send notifications to referrers about earned bonuses
         await _send_referral_bonus_notifications(db, notification_service, bonuses, user_id, amount)
@@ -525,16 +553,17 @@ async def worker_process_replacement(request: Request):
         .single()
         .execute()
     )
-    user_telegram_id = order_res.data.get("user_telegram_id") if order_res.data else None
+    user_telegram_id = int(order_res.data.get("user_telegram_id", 0)) if order_res.data and isinstance(order_res.data, dict) and order_res.data.get("user_telegram_id") else None
 
     # Reserve stock
     now = datetime.now(UTC)
-    stock_item, reserve_error = await _reserve_stock_for_replacement(db, product_id, now)
+    product_id_str = str(product_id) if product_id else ""
+    stock_item, reserve_error = await _reserve_stock_for_replacement(db, product_id_str, now)
 
     if not stock_item and not reserve_error:
         # No stock available - queue for later
         await _queue_replacement_for_stock(db, ticket_id)
-        await _notify_replacement_queued(notification_service, user_telegram_id, product_id)
+        await _notify_replacement_queued(notification_service, user_telegram_id, product_id_str)
         return {
             "queued": True,
             "reason": "No stock available - queued for auto-delivery",
@@ -558,23 +587,29 @@ async def worker_process_replacement(request: Request):
 
     if not product_res.data:
         logger.error(
-            "process-replacement: Product %s not found", sanitize_id_for_logging(product_id),
+            "process-replacement: Product %s not found",
+            sanitize_id_for_logging(product_id),
         )
         await _rollback_stock_reservation(db, stock_id)
         return {"error": "Product not found"}
 
-    product = product_res.data
-    duration_days = product.get("duration_days")
-    product_name = product.get("name", "Product")
+    product = product_res.data if isinstance(product_res.data, dict) else {}
+    duration_days = float(product.get("duration_days", 0)) if product.get("duration_days") else 0
+    product_name = str(product.get("name", "Product"))
 
     # Calculate expires_at
     expires_at_str = None
     if duration_days and duration_days > 0:
-        expires_at_str = (now + timedelta(days=duration_days)).isoformat()
+        expires_at_str = (now + timedelta(days=float(duration_days))).isoformat()
 
     # Update order item with replacement
     update_error = await _update_order_item_with_replacement(
-        db, item_id, stock_id, stock_content, expires_at_str, now,
+        db,
+        item_id,
+        stock_id,
+        stock_content,
+        expires_at_str,
+        now,
     )
     if update_error:
         await _rollback_stock_reservation(db, stock_id)
@@ -583,7 +618,11 @@ async def worker_process_replacement(request: Request):
     # Close ticket and notify (include credentials in notification)
     await _close_replacement_ticket(db, ticket_id)
     await _notify_replacement_success(
-        notification_service, user_telegram_id, product_name, item_id, credentials=stock_content,
+        notification_service,
+        user_telegram_id,
+        product_name,
+        str(item_id) if item_id else "",
+        credentials=stock_content,
     )
 
     logger.info(

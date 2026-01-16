@@ -75,7 +75,9 @@ def verify_web_session_token(token: str) -> dict[str, Any] | None:
     try:
         payload_b64, sig_b64 = token.split(".", 1)
         expected_sig = hmac.new(
-            secret.encode("utf-8"), payload_b64.encode("utf-8"), hashlib.sha256,
+            secret.encode("utf-8"),
+            payload_b64.encode("utf-8"),
+            hashlib.sha256,
         ).digest()
         if not hmac.compare_digest(expected_sig, _b64url_decode(sig_b64)):
             return None
