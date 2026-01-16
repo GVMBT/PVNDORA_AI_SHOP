@@ -122,6 +122,14 @@ export interface WithdrawalData {
   created_at: string;
   processed_at?: string | null;
   processed_by?: string | null;
+  // Snapshot fields for correct currency display
+  amount_debited?: number; // Original amount in user's currency
+  amount_to_pay?: number; // USDT amount to pay
+  balance_currency?: string; // User's balance currency (RUB, USD)
+  exchange_rate?: number;
+  usdt_rate?: number;
+  network_fee?: number;
+  wallet_address?: string;
   // Extended fields from join
   username?: string;
   first_name?: string;

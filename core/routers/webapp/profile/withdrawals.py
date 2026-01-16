@@ -161,6 +161,26 @@ async def request_withdrawal(
     if not wallet_address.startswith("T") or len(wallet_address) != 34:
         raise HTTPException(status_code=400, detail="Invalid TRC20 wallet address format")
 
+    # RESERVE BALANCE: Deduct amount immediately to prevent spending during processing
+    try:
+        await db.client.rpc(
+            "add_to_user_balance",
+            {
+                "p_user_id": str(db_user.id),
+                "p_amount": -request.amount,  # Negative = deduct
+                "p_reason": "Резервирование для вывода средств",
+                "p_metadata": {
+                    "withdrawal_pending": True,
+                    "amount_usdt": amount_to_pay_usdt,
+                    "wallet_address": wallet_address[:8] + "...",
+                },
+            },
+        ).execute()
+        logger.info(f"Reserved {request.amount} {balance_currency} for withdrawal request")
+    except Exception:
+        logger.exception("Failed to reserve balance for withdrawal")
+        raise HTTPException(status_code=500, detail="Failed to reserve balance for withdrawal")
+
     # Create withdrawal request with SNAPSHOT pricing
     withdrawal_result = (
         await db.client.table("withdrawal_requests")
@@ -169,6 +189,8 @@ async def request_withdrawal(
                 "user_id": db_user.id,
                 "amount": round(amount_usd, 2),  # USD equivalent (for legacy/reporting)
                 "payment_method": request.method,
+                "status": "pending",  # Explicit status
+                "balance_reserved": True,  # NEW: Flag that balance was already deducted
                 # NEW: Snapshot fields
                 "amount_debited": round(request.amount, 2),  # What user sees (in their currency)
                 "amount_to_pay": round(amount_to_pay_usdt, 2),  # FIXED USDT to pay

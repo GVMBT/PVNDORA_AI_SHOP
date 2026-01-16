@@ -202,7 +202,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
                 <div className="flex items-center gap-2">
                   <Tag size={14} className="text-pandora-cyan" />
                   <span className="font-mono text-sm text-pandora-cyan">{promoCode}</span>
-                  {promoDiscountPercent && (
+                  {promoDiscountPercent && promoDiscountPercent > 0 && (
                     <span className="text-xs text-green-400">-{promoDiscountPercent}%</span>
                   )}
                 </div>

@@ -169,7 +169,7 @@ async def approve_withdrawal(
         withdrawal_result = (
             await db.client.table("withdrawal_requests")
             .select(
-                "id, user_id, amount, amount_debited, amount_to_pay, balance_currency, exchange_rate, status, payment_method, wallet_address, network_fee",
+                "id, user_id, amount, amount_debited, amount_to_pay, balance_currency, exchange_rate, status, payment_method, wallet_address, network_fee, balance_reserved",
             )
             .eq("id", withdrawal_id)
             .single()
@@ -188,32 +188,22 @@ async def approve_withdrawal(
         )
         payment_method = withdrawal.get("payment_method", "crypto")
         wallet_address = withdrawal.get("wallet_address", "")
+        balance_reserved = withdrawal.get("balance_reserved", False)
 
-        # Get user balance and telegram_id for notification
+        # Get user telegram_id for notification
         user_result = (
             await db.client.table("users")
-            .select("balance, balance_currency, telegram_id")
+            .select("telegram_id")
             .eq("id", user_id)
             .single()
             .execute()
         )
 
-        if not user_result.data:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        current_balance = float(user_result.data.get("balance", 0))
-        user_balance_currency = user_result.data.get("balance_currency") or "RUB"
-        user_telegram_id = user_result.data.get("telegram_id")
-
-        validate_user_balance(
-            current_balance,
-            amount_debited,
-            user_balance_currency,
-            balance_currency,
-        )
+        user_telegram_id = user_result.data.get("telegram_id") if user_result.data else None
         admin_id = get_admin_id(admin)
 
-        # Update withdrawal status to processing (balance will be deducted)
+        # Update withdrawal status to processing
+        # Balance is already reserved at request creation (balance_reserved=True)
         await (
             db.client.table("withdrawal_requests")
             .update(
@@ -228,33 +218,18 @@ async def approve_withdrawal(
             .execute()
         )
 
-        # Deduct balance (amount_debited in user's currency)
-        new_balance = current_balance - amount_debited
-        try:
-            # Update balance directly
-            await (
-                db.client.table("users")
-                .update({"balance": new_balance})
-                .eq("id", user_id)
-                .execute()
-            )
-
-            # Create withdrawal transaction with correct currency
-            await (
-                db.client.table("balance_transactions")
-                .insert(
+        # For legacy requests without balance_reserved, deduct balance now
+        if not balance_reserved:
+            try:
+                await db.client.rpc(
+                    "add_to_user_balance",
                     {
-                        "user_id": user_id,
-                        "type": "withdrawal",
-                        "amount": amount_debited,  # Amount in user's currency
-                        "currency": balance_currency,  # User's balance currency
-                        "balance_before": current_balance,
-                        "balance_after": new_balance,
-                        "status": "completed",
-                        "description": f"Вывод {amount_to_pay_usdt:.2f} USDT на {wallet_address[:8]}...",
-                        "reference_type": "withdrawal_request",
-                        "reference_id": withdrawal_id,
-                        "metadata": {
+                        "p_user_id": user_id,
+                        "p_amount": -amount_debited,  # Negative = deduct
+                        "p_reason": f"Вывод {amount_to_pay_usdt:.2f} USDT на {wallet_address[:8]}...",
+                        "p_reference_type": "withdrawal_request",
+                        "p_reference_id": str(withdrawal_id),
+                        "p_metadata": {
                             "payment_method": payment_method,
                             "wallet_address": wallet_address,
                             "usdt_amount": amount_to_pay_usdt,
@@ -262,32 +237,30 @@ async def approve_withdrawal(
                             "network_fee": withdrawal.get("network_fee"),
                         },
                     },
+                ).execute()
+            except Exception:
+                logger.exception(
+                    "Failed to deduct balance for withdrawal %s",
+                    sanitize_id_for_logging(withdrawal_id),
                 )
-                .execute()
-            )
-        except Exception:
-            logger.exception(
-                "Failed to deduct balance for withdrawal %s",
-                sanitize_id_for_logging(withdrawal_id),
-            )
-            # Rollback withdrawal status
-            await (
-                db.client.table("withdrawal_requests")
-                .update(
-                    {
-                        "status": "pending",
-                        "admin_comment": None,
-                        "processed_by": None,
-                        "processed_at": None,
-                    },
+                # Rollback withdrawal status
+                await (
+                    db.client.table("withdrawal_requests")
+                    .update(
+                        {
+                            "status": "pending",
+                            "admin_comment": None,
+                            "processed_by": None,
+                            "processed_at": None,
+                        },
+                    )
+                    .eq("id", withdrawal_id)
+                    .execute()
                 )
-                .eq("id", withdrawal_id)
-                .execute()
-            )
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to deduct balance. Withdrawal request remains pending.",
-            )
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to deduct balance. Withdrawal request remains pending.",
+                )
 
         logger.info(
             "Admin %s approved withdrawal %s: %.2f %s → %.2f USDT to %s",
@@ -374,30 +347,29 @@ async def reject_withdrawal(
 
         admin_id = get_admin_id(admin)
 
-        # If status was processing, we need to return balance
-        if withdrawal["status"] == "processing":
-            # Return balance (in user's currency)
-            await db.client.rpc(
-                "add_to_user_balance",
-                {
-                    "p_user_id": user_id,
-                    "p_amount": amount_debited,  # Return in user's currency
-                    "p_reason": "Возврат средств: вывод отклонён",
-                    "p_reference_type": "withdrawal",
-                    "p_reference_id": str(withdrawal_id),
-                    "p_metadata": {
-                        "withdrawal_id": str(withdrawal_id),
-                        "rejection_reason": request.admin_comment,
-                        "refund_type": "withdrawal_rejected",
-                    },
+        # ALWAYS return balance when rejecting - balance is reserved at request creation
+        # Return balance (in user's currency)
+        await db.client.rpc(
+            "add_to_user_balance",
+            {
+                "p_user_id": user_id,
+                "p_amount": amount_debited,  # Return in user's currency
+                "p_reason": "Возврат средств: вывод отклонён",
+                "p_reference_type": "withdrawal",
+                "p_reference_id": str(withdrawal_id),
+                "p_metadata": {
+                    "withdrawal_id": str(withdrawal_id),
+                    "rejection_reason": request.admin_comment,
+                    "refund_type": "withdrawal_rejected",
                 },
-            ).execute()
-            logger.info(
-                "Returned %.2f %s to user %s after withdrawal rejection",
-                amount_debited,
-                sanitize_string_for_logging(balance_currency, max_length=10),
-                sanitize_id_for_logging(user_id),
-            )
+            },
+        ).execute()
+        logger.info(
+            "Returned %.2f %s to user %s after withdrawal rejection",
+            amount_debited,
+            sanitize_string_for_logging(balance_currency, max_length=10),
+            sanitize_id_for_logging(user_id),
+        )
 
         # Update withdrawal status to rejected
         await (

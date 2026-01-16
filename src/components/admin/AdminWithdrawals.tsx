@@ -192,9 +192,13 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
     }
   };
 
-  const formatAmountWithCurrency = (amount: number) => {
-    // All amounts in admin panel are in RUB after migration
-    return `${Math.round(amount)} ₽`;
+  const formatAmountWithCurrency = (
+    amount: number,
+    currency?: string | null,
+  ) => {
+    // Use the actual currency from the withdrawal request
+    const currencySymbol = currency === "USD" ? "$" : "₽";
+    return `${Math.round(amount)} ${currencySymbol}`;
   };
 
   return (
@@ -234,7 +238,10 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                 </span>
               </div>
               <div className="font-bold text-white text-sm mb-1">
-                {formatAmountWithCurrency(w.amount)}
+                {formatAmountWithCurrency(
+                  w.amount_debited ?? w.amount,
+                  w.balance_currency,
+                )}
               </div>
               <div className="text-xs text-gray-400 mb-1">
                 {w.first_name || w.username || `Пользователь ${w.telegram_id || "Неизвестно"}`}
@@ -286,8 +293,16 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                 <div>
                   <div className="text-gray-500 mb-1">Сумма</div>
                   <div className="text-white font-mono text-lg font-bold">
-                    {formatAmountWithCurrency(selectedWithdrawal.amount)}
+                    {formatAmountWithCurrency(
+                      selectedWithdrawal.amount_debited ?? selectedWithdrawal.amount,
+                      selectedWithdrawal.balance_currency,
+                    )}
                   </div>
+                  {selectedWithdrawal.amount_to_pay && (
+                    <div className="text-xs text-gray-400 mt-1">
+                      К выплате: {selectedWithdrawal.amount_to_pay} USDT
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div className="text-gray-500 mb-1">Метод</div>
@@ -317,7 +332,10 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                   <div className="text-white font-mono">
                     {selectedWithdrawal.user_balance === undefined
                       ? "Н/Д"
-                      : formatAmountWithCurrency(selectedWithdrawal.user_balance)}
+                      : formatAmountWithCurrency(
+                          selectedWithdrawal.user_balance,
+                          selectedWithdrawal.balance_currency,
+                        )}
                   </div>
                 </div>
               </div>

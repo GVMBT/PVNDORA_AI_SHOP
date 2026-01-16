@@ -624,13 +624,22 @@ async def set_order_cooldown(cooldown_redis: Any, user_id: int, cooldown_seconds
 
 
 async def cleanup_promo_and_cart(db: Any, cart_manager: Any, user_id: int, cart: Any) -> None:
-    """Apply promo code usage and clear cart."""
-    try:
-        if cart.promo_code:
+    """Apply promo code usage and clear cart.
+
+    IMPORTANT: Clear cart even if promo code fails to prevent cart duplication issues.
+    """
+    # First, try to increment promo usage (non-critical)
+    if cart.promo_code:
+        try:
             await db.use_promo_code(cart.promo_code)
+            logger.info(f"[DEBUG-HYP-E] Promo code {cart.promo_code} usage incremented")
+        except Exception as e:
+            # Non-critical - log and continue with cart clearing
+            logger.warning(f"Failed to increment promo usage for {cart.promo_code}: {e}")
+
+    # Always clear cart - critical to prevent duplication
+    try:
         await cart_manager.clear_cart(user_id)
-        logger.info("[DEBUG-HYP-E] Promo/cart cleanup success")
-    except Exception as e:
-        error_type = type(e).__name__
-        logger.exception(f"[DEBUG-HYP-E] Promo/cart cleanup FAILED: error_type={error_type}")
-        logger.warning(f"Failed to cleanup promo/cart for order: {e}")
+        logger.info("[DEBUG-HYP-E] Cart cleared successfully")
+    except Exception:
+        logger.exception("[DEBUG-HYP-E] CRITICAL: Failed to clear cart")

@@ -33,6 +33,7 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({ onClose
     updateCartItem,
     applyPromo,
     removePromo,
+    clearCartState,
     loading: cartLoading,
     error: cartError,
   } = useCart();
@@ -155,17 +156,21 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({ onClose
       }
 
       if (response.payment_url && method !== "internal") {
+        // Clear cart state before redirect to prevent stale data on return
+        clearCartState();
         globalThis.location.href = response.payment_url;
         return null;
       }
 
       if (method === "internal") {
+        // Clear cart state after successful balance payment
+        clearCartState();
         return response;
       }
 
       throw new Error("Payment URL not received");
     },
-    [createOrder]
+    [createOrder, clearCartState]
   );
 
   // Close if cart becomes empty (only check items length, not full cart object)
