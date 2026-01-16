@@ -242,6 +242,13 @@ async def _submit_review(
         product_id_raw = order_items[0].get("product_id")
         product_id = str(product_id_raw) if product_id_raw is not None else None
 
+    if not product_id:
+        logger.error(f"Cannot create review: no product_id found for order {order_id}")
+        await callback.message.edit_text(
+            "❌ Не удалось создать отзыв: товар не найден в заказе.",
+        )
+        return
+
     await db.create_review(
         user_id=db_user.id,
         order_id=order_id,
@@ -289,6 +296,11 @@ async def _submit_review_from_message(
     if order_items and isinstance(order_items[0], dict):
         product_id_raw = order_items[0].get("product_id")
         product_id = str(product_id_raw) if product_id_raw is not None else None
+
+    if not product_id:
+        logger.error(f"Cannot create review: no product_id found for order {order_id}")
+        await message.answer("❌ Не удалось создать отзыв: товар не найден в заказе.")
+        return
 
     await db.create_review(
         user_id=db_user.id,

@@ -37,7 +37,7 @@ async def cmd_stats(message: Message) -> None:
     users_today = users_today_res.count or 0
     users_week_res = (
         await db.client.table("users")
-        .select("id", count="exact")
+        .select("id", count="exact")  # type: ignore[arg-type]
         .gte("created_at", week_ago.isoformat())
         .execute()
     )
@@ -48,14 +48,14 @@ async def cmd_stats(message: Message) -> None:
     orders_total = orders_total_res.count or 0
     orders_delivered_res = (
         await db.client.table("orders")
-        .select("id", count="exact")
+        .select("id", count="exact")  # type: ignore[arg-type]
         .eq("status", "delivered")
         .execute()
     )
     orders_delivered = orders_delivered_res.count or 0
     orders_today_res = (
         await db.client.table("orders")
-        .select("id", count="exact")
+        .select("id", count="exact")  # type: ignore[arg-type]
         .gte("created_at", today.isoformat())
         .execute()
     )
@@ -88,7 +88,7 @@ async def cmd_stats(message: Message) -> None:
     # Stock stats
     stock_available_res = (
         await db.client.table("stock_items")
-        .select("id", count="exact")
+        .select("id", count="exact")  # type: ignore[arg-type]
         .eq("status", "available")
         .execute()
     )
@@ -149,7 +149,7 @@ async def cmd_users(message: Message) -> None:
     # Active users
     active_count_res = (
         await db.client.table("users")
-        .select("id", count="exact")
+        .select("id", count="exact")  # type: ignore[arg-type]
         .gte("last_activity_at", week_ago.isoformat())
         .execute()
     )
@@ -165,7 +165,7 @@ async def cmd_users(message: Message) -> None:
     # Referral stats
     with_referrers_res = (
         await db.client.table("users")
-        .select("id", count="exact")
+        .select("id", count="exact")  # type: ignore[arg-type]
         .not_.is_("referrer_id", "null")
         .execute()
     )
@@ -235,7 +235,7 @@ async def cmd_stock(message: Message) -> None:
         # Count available stock for this product
         stock_count_res = (
             await db.client.table("stock_items")
-            .select("id", count="exact")
+            .select("id", count="exact")  # type: ignore[arg-type]
             .eq("product_id", product["id"])
             .eq("status", "available")
             .execute()

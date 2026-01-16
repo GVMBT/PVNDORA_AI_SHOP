@@ -52,7 +52,7 @@ async def get_user_currency_info(db_user: User) -> tuple[str, float]:
     return currency, exchange_rate
 
 
-async def get_unique_categories(db: "Database") -> list[str]:
+async def get_unique_categories(db: "Database") -> list[dict[str, str]]:
     """Extract unique categories from products with discount_price.
 
     Uses products_with_stock_summary VIEW for consistency with other queries.

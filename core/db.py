@@ -100,7 +100,7 @@ except ImportError:
             result = resp.json().get("result")
             # NX returns None if key exists, "OK" if set
             if nx:
-                return result == "OK"
+                return bool(result == "OK")
             return True
 
         async def setex(self, key: str, seconds: int, value: str) -> bool:

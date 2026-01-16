@@ -284,12 +284,12 @@ async def _process_replacement_tickets(
             logger.exception("auto_alloc: Failed to process ticket %s", ticket.get("id"))
 
 
-@app.get("/api/cron/auto_alloc")
-async def auto_alloc_entrypoint(request: Request) -> JSONResponse | dict[str, str | int]:
+@app.get("/api/cron/auto_alloc", response_model=None)
+async def auto_alloc_entrypoint(request: Request) -> JSONResponse:
     """Vercel Cron entrypoint."""
     auth_header = request.headers.get("Authorization", "")
     if CRON_SECRET and auth_header != f"Bearer {CRON_SECRET}":
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        return JSONResponse(content={"error": "Unauthorized"}, status_code=401)
 
     from core.routers.deps import get_notification_service
     from core.services.database import get_database_async
@@ -316,4 +316,4 @@ async def auto_alloc_entrypoint(request: Request) -> JSONResponse | dict[str, st
     except Exception:
         logger.exception("auto_alloc: Failed to process replacement tickets")
 
-    return JSONResponse(results)  # type: ignore[return-value]
+    return JSONResponse(content=results)

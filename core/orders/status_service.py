@@ -211,8 +211,9 @@ class OrderStatusService:
             fiat_currency_raw = order_result.data.get("fiat_currency")
             fiat_currency = str(fiat_currency_raw) if fiat_currency_raw is not None else None
 
-            logger.debug(
-                "[mark_payment_confirmed] Order status: current_status=%s, order_type=%s, payment_method=%s",
+            logger.info(
+                "[mark_payment_confirmed] Order %s: current_status=%s, order_type=%s, payment_method=%r",
+                order_id[:8] if order_id else "?",
                 current_status,
                 order_type,
                 payment_method,
@@ -750,12 +751,22 @@ class OrderStatusService:
     ) -> None:
         """Handle balance_transaction creation for external payments (reduces cognitive complexity)."""
         # Only for external payments (not balance) - balance payments already create records via add_to_user_balance
+        logger.debug(
+            "[_handle_external_payment_transaction] payment_method=%r, user_id=%s, order_amount=%s, tx_exists=%s",
+            payment_method,
+            user_id[:8] if user_id else None,
+            order_amount,
+            tx_exists,
+        )
         if (
             not payment_method
             or payment_method.lower() == "balance"
             or not user_id
             or not order_amount
         ):
+            logger.debug(
+                "[_handle_external_payment_transaction] Skipping - balance payment or missing data"
+            )
             return
 
         try:

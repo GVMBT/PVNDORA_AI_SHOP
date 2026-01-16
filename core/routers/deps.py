@@ -6,7 +6,7 @@ Import heavy modules only when needed.
 
 import os
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 if TYPE_CHECKING:
     from aiogram import Bot
@@ -103,7 +103,8 @@ def get_qstash_verifier() -> Any:
 async def verify_qstash(request: "Request") -> dict[str, Any]:
     """Verify QStash request signature and return parsed body."""
     verify_fn = get_qstash_verifier()
-    return await verify_fn(request)  # Returns dict with parsed JSON body
+    result = await verify_fn(request)
+    return cast(dict[str, Any], result)  # verify_qstash_request returns dict[str, Any]
 
 
 # ==================== QUEUE PUBLISHING ====================
