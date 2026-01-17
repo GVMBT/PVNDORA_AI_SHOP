@@ -240,12 +240,19 @@ async def admin_get_users(
             user_id = u.get("id")
             extra = extra_fields.get(user_id, {})
 
-            # Determine role
-            role = "user"
-            if u.get("is_admin"):
-                role = "admin"
-            elif extra.get("is_partner"):
+            # Determine role - VIP takes precedence for display, but keep is_admin flag
+            # A user can be BOTH admin and VIP (partner)
+            is_admin = u.get("is_admin", False)
+            is_partner = extra.get("is_partner", False)
+
+            # Role priority: VIP > ADMIN > USER
+            # This ensures VIP partners appear in the partners list even if they're also admins
+            if is_partner:
                 role = "vip"
+            elif is_admin:
+                role = "admin"
+            else:
+                role = "user"
 
             users.append(
                 {
