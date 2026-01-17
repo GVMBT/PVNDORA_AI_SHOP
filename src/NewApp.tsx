@@ -64,7 +64,7 @@ function usePaymentRedirect() {
     if (globalThis.window === undefined) return null;
 
     // Check sessionStorage first (preserved after URL cleanup)
-    const storedId = sessionStorage.getItem("payment_redirect_id");
+    const storedId = sessionStorage.get("payment_redirect_id");
     if (storedId) {
       return storedId;
     }
@@ -353,7 +353,7 @@ function NewAppInner() {
       const orderId = urlParams.get("order_id");
       const topupId = urlParams.get("topup_id");
       if (orderId || topupId) {
-        sessionStorage.setItem("payment_redirect_id", topupId ? `topup_${topupId}` : orderId || "");
+        sessionStorage.set("payment_redirect_id", topupId ? `topup_${topupId}` : orderId || "");
       }
       // Clear URL to prevent infinite redirects
       globalThis.history.replaceState({}, "", "/");
@@ -439,13 +439,13 @@ function NewAppInner() {
           onComplete={() => {
             // Clear payment redirect state to prevent reload loop
             setIsPaymentRedirect(null);
-            sessionStorage.removeItem("payment_redirect_id");
+            sessionStorage.remove("payment_redirect_id");
             setCurrentView(isTopUp ? "profile" : "home");
           }}
           onViewOrders={() => {
             // Clear payment redirect state to prevent reload loop
             setIsPaymentRedirect(null);
-            sessionStorage.removeItem("payment_redirect_id");
+            sessionStorage.remove("payment_redirect_id");
             setCurrentView(isTopUp ? "profile" : "orders");
           }}
         />
