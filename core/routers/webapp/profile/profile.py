@@ -189,6 +189,8 @@ async def _fetch_profile_data(
     profile_data = profile_view.data if profile_view.data else {}
 
     # Create mock result objects matching old structure
+    # CRITICAL: Must include ALL fields needed for _build_referral_data
+    # Including turnover_usd, is_partner, partner_level_override, referral_program_unlocked
     extended_stats_result = type(
         "obj",
         (object,),
@@ -199,10 +201,17 @@ async def _fetch_profile_data(
                     "level2_count": profile_data.get("level2_count", 0),
                     "level3_count": profile_data.get("level3_count", 0),
                     "effective_level": profile_data.get("effective_level", 0),
+                    # CRITICAL: These fields were missing!
+                    "turnover_usd": profile_data.get("turnover_usd", 0),
+                    "is_partner": profile_data.get("is_partner", False),
+                    "partner_level_override": profile_data.get("partner_level_override"),
+                    "referral_program_unlocked": profile_data.get("referral_program_unlocked", False),
+                    "click_count": profile_data.get("click_count", 0),
+                    "level1_unlocked_at": profile_data.get("level1_unlocked_at"),
+                    "level2_unlocked_at": profile_data.get("level2_unlocked_at"),
+                    "level3_unlocked_at": profile_data.get("level3_unlocked_at"),
                 }
-            ]
-            if profile_data.get("level1_count", 0) > 0
-            else [],
+            ],  # Always provide data, even if counts are 0!
         },
     )()
 

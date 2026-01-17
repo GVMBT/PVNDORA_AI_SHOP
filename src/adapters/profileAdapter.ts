@@ -222,13 +222,13 @@ export function adaptProfile(
   const pendingWithdrawals = withdrawals.filter((w) => w.status === "pending");
 
   // Combine and sort billing logs from multiple sources
+  // NOTE: Do NOT add withdrawals here - they are already included in balance_transactions
+  // Adding them would create duplicate entries
   const billingLogs: BillingLog[] = [
-    // Balance transactions (most comprehensive - includes topups, purchases, refunds, etc.)
+    // Balance transactions (most comprehensive - includes topups, purchases, refunds, withdrawals, etc.)
     ...balance_transactions.map((tx) => formatBalanceTransactionLog(tx)),
-    // Legacy referral bonuses (for backward compatibility)
+    // Legacy referral bonuses (for backward compatibility - these are NOT in balance_transactions)
     ...bonus_history.map((b) => formatBillingLog(b, "INCOME")),
-    // Legacy withdrawals (for backward compatibility)
-    ...withdrawals.map((w) => formatBillingLog({ ...w, level: undefined }, "OUTCOME")),
   ].sort((a, b) => {
     // Parse dates and sort descending (newest first)
     return (
